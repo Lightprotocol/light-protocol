@@ -1,0 +1,244 @@
+use solana_program::{
+    msg,
+    pubkey::Pubkey,
+    log::sol_log_compute_units,
+    program_pack::{IsInitialized, Pack, Sealed},
+    program_error::ProgramError,
+};
+use std::convert::TryInto;
+use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use byteorder::LittleEndian;
+use byteorder::ByteOrder;
+
+
+// Account struct for verify Part 2:
+#[derive(Debug)]
+pub struct FinalExpBytes {
+    is_initialized: bool,
+    pub found_nullifier: u8,
+    pub signing_address: Vec<u8>,
+    pub relayer_refund: Vec<u8>,
+    pub to_address: Vec<u8>,
+    pub amount: Vec<u8>,
+    pub nullifer: Vec<u8>,
+    pub f1_r_range_s: Vec<u8>,
+    pub f_f2_range_s: Vec<u8>,
+    pub i_range_s: Vec<u8>,
+
+    pub y0_range_s: Vec<u8>,
+    pub y1_range_s: Vec<u8>,
+    pub y2_range_s: Vec<u8>,
+
+    pub cubic_range_0_s: Vec<u8>,
+    pub cubic_range_1_s: Vec<u8>,
+    pub cubic_range_2_s: Vec<u8>,
+
+    pub quad_range_0_s: Vec<u8>,
+    pub quad_range_1_s: Vec<u8>,
+    pub quad_range_2_s: Vec<u8>,
+    pub quad_range_3_s: Vec<u8>,
+
+    pub fp384_range_s: Vec<u8>,
+
+    pub current_instruction_index: usize,
+
+    pub changed_variables: [bool;15],
+}
+impl Sealed for FinalExpBytes {}
+impl IsInitialized for FinalExpBytes {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl Pack for FinalExpBytes {
+    const LEN: usize = 4972;
+    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
+        let input = array_ref![input, 0, FinalExpBytes::LEN];
+
+        let (
+            is_initialized,
+            found_root,
+            found_nullifier,
+            unused_constants0,
+            signing_address,
+            relayer_refund,
+            to_address,
+            amount,
+            nullifer,
+            unused_constants2,
+            current_instruction_index,
+
+            f_f2_range_s,
+            f1_r_range_s,
+            i_range_s,
+
+            y0_range_s,
+            y1_range_s,
+            y2_range_s,
+
+            cubic_range_0_s,
+            cubic_range_1_s,
+            cubic_range_2_s,
+
+            quad_range_0_s,
+            quad_range_1_s,
+            quad_range_2_s,
+            quad_range_3_s,
+
+            fp384_range_s,
+
+        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 576, 576, 576, 576, 576, 576, 288, 288, 288, 96, 96, 96, 96, 48];
+
+        Ok(
+            FinalExpBytes {
+                is_initialized: true,
+                found_nullifier: found_nullifier[0],
+                signing_address: signing_address.to_vec(),
+                relayer_refund: relayer_refund.to_vec(),
+                to_address: to_address.to_vec(),
+
+                amount: amount.to_vec(),
+                nullifer: nullifer.to_vec(),
+                f_f2_range_s: f_f2_range_s.to_vec(),
+                f1_r_range_s: f1_r_range_s.to_vec(),
+                i_range_s: i_range_s.to_vec(),
+                y0_range_s: y0_range_s.to_vec(),
+                y1_range_s: y1_range_s.to_vec(),
+                y2_range_s: y2_range_s.to_vec(),
+
+                cubic_range_0_s: cubic_range_0_s.to_vec(),
+                cubic_range_1_s: cubic_range_1_s.to_vec(),
+                cubic_range_2_s: cubic_range_2_s.to_vec(),
+
+                quad_range_0_s: quad_range_0_s.to_vec(),
+                quad_range_1_s: quad_range_1_s.to_vec(),
+                quad_range_2_s: quad_range_2_s.to_vec(),
+                quad_range_3_s: quad_range_3_s.to_vec(),
+
+                fp384_range_s: fp384_range_s.to_vec(),
+
+                current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+                changed_variables: [false;15],
+            }
+        )
+    }
+
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+
+        let dst = array_mut_ref![dst, 0,  FinalExpBytes::LEN];
+
+        let (
+            is_initialized_dst,
+            found_root_dst,
+            found_nullifier_dst,
+            unused_constants_dst,
+            current_instruction_index_dst,
+
+            f_f2_range_dst,
+            f1_r_range_dst,
+            i_range_dst,
+
+            y0_range_dst,
+            y1_range_dst,
+            y2_range_dst,
+
+            cubic_range_0_dst,
+            cubic_range_1_dst,
+            cubic_range_2_dst,
+
+            quad_range_0_dst,
+            quad_range_1_dst,
+            quad_range_2_dst,
+            quad_range_3_dst,
+
+            fp384_range_dst,
+
+
+        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 576, 576, 576, 576, 576, 576, 288, 288, 288, 96, 96, 96, 96, 48];
+
+
+        for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {
+            if *variable_has_changed {
+                if i == 0  {
+                    *f_f2_range_dst = self.f_f2_range_s.clone().try_into().unwrap();
+                    msg!("modifying: f_f2_range_dst" );
+                } else if i == 1 {
+                    *f1_r_range_dst = self.f1_r_range_s.clone().try_into().unwrap();
+                    msg!("modifying: f1_r_range_dst" );
+                }  else if i == 2 {
+                    *i_range_dst = self.i_range_s.clone().try_into().unwrap();
+                }  else if i == 3 {
+                    *y0_range_dst = self.y0_range_s.clone().try_into().unwrap();
+                }  else if i == 4 {
+                    *y1_range_dst = self.y1_range_s.clone().try_into().unwrap();
+                }  else if i == 5 {
+                    *y2_range_dst = self.y2_range_s.clone().try_into().unwrap();
+                }  else if i == 6 {
+                    *cubic_range_0_dst = self.cubic_range_0_s.clone().try_into().unwrap();
+                }  else if i == 7 {
+                    *cubic_range_1_dst = self.cubic_range_1_s.clone().try_into().unwrap();
+                }  else if i == 8 {
+                    *cubic_range_2_dst = self.cubic_range_2_s.clone().try_into().unwrap();
+                }  else if i == 9 {
+                    *quad_range_0_dst = self.quad_range_0_s.clone().try_into().unwrap();
+                }   else if i == 10 {
+                    *quad_range_1_dst = self.quad_range_1_s.clone().try_into().unwrap();
+                }   else if i == 11 {
+                    *quad_range_2_dst = self.quad_range_2_s.clone().try_into().unwrap();
+                }   else if i == 12 {
+                    *quad_range_3_dst = self.quad_range_3_s.clone().try_into().unwrap();
+                }   else if i == 13 {
+                    *fp384_range_dst = self.fp384_range_s.clone().try_into().unwrap();
+                }   else if i == 14 {
+                    *found_nullifier_dst = [self.found_nullifier; 1];
+                    msg!("modifying: found_nullifier_dst" );
+                }
+            }
+            else {
+                if i == 0  {
+                    *f_f2_range_dst = *f_f2_range_dst;
+                } else if i == 1 {
+                    *f1_r_range_dst = *f1_r_range_dst;
+                }  else if i == 2 {
+                    *i_range_dst = *i_range_dst;
+                }  else if i == 3 {
+                    *y0_range_dst = *y0_range_dst;
+                }  else if i == 4 {
+                    *y1_range_dst = *y1_range_dst;
+                }  else if i == 5 {
+                    *y2_range_dst = *y2_range_dst;
+                }  else if i == 6 {
+                    *cubic_range_0_dst = *cubic_range_0_dst;
+                }  else if i == 7 {
+                    *cubic_range_1_dst = *cubic_range_1_dst;
+                }  else if i == 8 {
+                    *cubic_range_2_dst = *cubic_range_2_dst;
+                }  else if i == 9 {
+                    *quad_range_0_dst = *quad_range_0_dst;
+                }   else if i == 10 {
+                    *quad_range_1_dst = *quad_range_1_dst;
+                }   else if i == 11 {
+                    *quad_range_2_dst = *quad_range_2_dst;
+                }   else if i == 12 {
+                    *quad_range_3_dst = *quad_range_3_dst;
+                }   else if i == 13 {
+                    *fp384_range_dst = *fp384_range_dst;
+                }   else if i == 14 {
+                    *found_nullifier_dst = *found_nullifier_dst;
+                }
+            }
+
+        }
+        *found_root_dst = *found_root_dst;
+        *unused_constants_dst = *unused_constants_dst;
+        *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
+        *is_initialized_dst = [1u8; 1];
+
+    }
+}
+
+
+//current_highest 120
+pub const INSTRUCTION_ORDER_VERIFIER_PART_2 : [u8; 1533] = [
+  0, 1, 2, 3, 4, 5, 120, 6, 7, 101, 102, 8, 9, 10, 11, 104, 12, 13, 14, 15, 8, 9, 10, 11, 104, 12, 16, 17, 18, 19, 20, 105, 21, 22, 20, 105, 21, 22, 28, 29, 30, 31, 107, 32, 20, 105, 21, 22, 20, 105, 21, 22, 23, 24, 25, 26, 106, 27, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 23, 24, 25, 26, 106, 27, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 23, 24, 25, 26, 106, 27, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 23, 24, 25, 26, 106, 27, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 20, 105, 21, 22, 33, 34, 35, 36, 37, 38, 39, 108, 40, 41, 18, 42, 43, 109, 44, 45, 43, 109, 44, 45, 51, 52, 53, 54, 111, 55, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 56, 57, 36, 37, 38, 39, 108, 40, 41, 18, 42, 43, 109, 44, 45, 43, 109, 44, 45, 51, 52, 53, 54, 111, 55, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 46, 47, 48, 49, 110, 50, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 56, 58, 59, 36, 37, 38, 39, 108, 40, 61, 62, 63, 64, 112, 65, 41, 18, 66, 67, 113, 68, 69, 67, 113, 68, 69, 75, 76, 77, 78, 115, 79, 67, 113, 68, 69, 67, 113, 68, 69, 70, 71, 72, 73, 114, 74, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 70, 71, 72, 73, 114, 74, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 70, 71, 72, 73, 114, 74, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 70, 71, 72, 73, 114, 74, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 67, 113, 68, 69, 80, 81, 18, 82, 43, 109, 44, 45, 43, 109, 44, 45, 51, 52, 53, 54, 111, 55, 43, 109, 44, 45, 43, 109, 44, 45, 83, 84, 85, 86, 116, 87, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 83, 84, 85, 86, 116, 87, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 83, 84, 85, 86, 116, 87, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 83, 84, 85, 86, 116, 87, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 43, 109, 44, 45, 56, 88, 89, 90, 57, 36, 37, 38, 39, 108, 40, 91, 92, 93, 94, 117, 95, 96, 97, 98, 99, 118, 100, 121, 122, 123, 124, 103];

@@ -1,0 +1,54 @@
+[package]
+name = "Testing_Hardcoded_Params_devnet_new"
+version = "0.1.0"
+authors = ["ananas-block <flow23@protonmail.com>"]
+edition = "2018"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[features]
+no-entrypoint = []
+
+[dependencies]
+byteorder = "1.3"
+solana-program = "1.7.10"
+
+
+ark-crypto-primitives = { version = "^0.3.0", default-features = true, features = [ "r1cs" ] }
+ark-bls12-381 = { version = "^0.3.0" }
+ark-ff = { version = "^0.3.0", default-features = false }
+
+ark-ec = { version = "0.3.0" }
+ark-ed-on-bls12-381 = { version = "^0.3.0", features = ["r1cs"] }
+
+getrandom = { version = "0.1.14", features = ["dummy"] }
+
+bytemuck = {version="1.5.1", features=["extern_crate_alloc"]}
+num-traits = "0.2.8"
+arrayref = "0.3.6"
+lazy_static = "1.4.0"
+mut_static = "5.0.0"
+
+
+ark-sponge = { version = "^0.3.0" }
+ark-ed-on-bls12-377 = { version = "^0.3.0", default-features = false  }
+
+
+ark-std = { version = "^0.3.0", default-features = false }
+ark-relations = { version = "^0.3.0", default-features = false  }
+
+# for tests
+zeroize = "1.4.2"
+derivative = "2.2.0"
+ark-serialize = { version = "^0.3.0", default-features = false }
+
+
+#ark-r1cs-std = { version = "^0.3.0", default-features = false }
+#ark-snark = { version = "^0.3.0", default-features = false }
+#tracing = { version = "0.1", default-features = false, features = [ "attributes" ] }
+#tracing-subscriber = { version = "0.2" }
+#ark-groth16 = {version = "0.3.0"}
+#ark-ec = { version = "^0.3.0", default-features = false }
+
+[lib]
+crate-type = ["cdylib", "lib"]
