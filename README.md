@@ -15,7 +15,6 @@
 
 ```cd program_prep_inputs && sh deploy_program.sh```
 
-- adapt program_id in main.js
 
 
 ## CLI
@@ -26,7 +25,8 @@
 - inside /webassembly build wasm binary and bindings for main.js to consume
 
 ```cd Client-Js/webassembly && sh compile_wasm.sh```
-
+```cd Client-Js```
+```npm install```
 
 - execute CLI, commands:
 
