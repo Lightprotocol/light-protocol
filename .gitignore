@@ -1,5 +1,5 @@
 /program/target
-/program/dist
+/program/dist/Testing_Hardcoded_Params_devnet_new.so
 /program/node_modules
 /program/test-ledger
 /program/run.sh
@@ -15,7 +15,7 @@ Client-Js/node_modules/*
 /target
 /test-ledger
 /program_prep_inputs/target
-/program_prep_inputs/dist
+/program_prep_inputs/dist/Prepare_Inputs.so
 /test_scripts/*.txt
 /Client-Js/.env
 /Client-Js/package-lock.json
