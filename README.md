@@ -18,7 +18,7 @@
 
 
 ## CLI
-- set up the .env file with a private key
+- set up the .env file with a private key (64-byte, i.e. PRIVATE_KEY="1,1,1,1,....")
 -airdrop yourself tokens
 ```solana airdrop 100 <publicKey>```
 
