@@ -239,7 +239,7 @@ const storage_account_pkey = "7ynT1UdHy2tjDJvYaz4DP5TXiengm9q7HjBobKJ2iU9b";
 //const merkle_tree_storage_acc_pkey = '9XUqBBMR2JTTADpCs33U4FhsZLKSyev8oiqZAmnxAz3X'
 //const merkle_tree_storage_acc_pkey = '54zcGRPBRmRq38d5cmFg9rD9ixDzzwPW8J5NmJfECugQ'
 const merkle_tree_storage_acc_pkey =
-  "Hk4jivMBjLQBEdap6rntYcWUZub5tZ25uLPW2VogTkQK";
+  "FxbvBBSSPv14hFtpck6umSNBEEVPDj2RaX9TLZNeeiFn";
 
 var connection;
 

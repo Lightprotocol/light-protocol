@@ -19,3 +19,4 @@ Client-Js/node_modules/*
 /test_scripts/*.txt
 /Client-Js/.env
 /Client-Js/package-lock.json
+/program/dist/*.so
