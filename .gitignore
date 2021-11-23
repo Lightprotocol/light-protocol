@@ -17,6 +17,6 @@ Client-Js/node_modules/*
 /program_prep_inputs/target
 /program_prep_inputs/dist/Prepare_Inputs.so
 /test_scripts/*.txt
-/Client-Js/.env
-/Client-Js/package-lock.json
+/Client\-Js/.env
+/Client\-Js/package-lock.json
 /program/dist/*.so

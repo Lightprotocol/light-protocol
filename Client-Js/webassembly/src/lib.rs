@@ -575,7 +575,7 @@ pub fn create_f_p_coeffs(commitment_slice: &[u8], leaves_slice: &[u8], recipient
           hard_coded_verifying_key_pvk_new_ciruit::get_gamma_abc_g1_4()
     ];
 
-    // TEST
+    // TEST @DEVNET ONLY
     let prepared_inputs_cus = prepare_inputs_custom(r, &inputs).unwrap().into_affine(); // CUSTOM
     // let prepared_inputs_lib = prepare_inputs(&pvk, &inputs).unwrap(); // library function
 
