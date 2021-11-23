@@ -17,6 +17,7 @@ const solanaRPC = "http://localhost:8899"; //
 const toHex = (number, length = 32) =>
   "0x" + (number instanceof Buffer ? number.toString("hex") : ""); // buffer has own implementation of that...
 
+// TODO: Determine instruction order solely on-chain. Then we can pass all non-payload tx in one block.
 const instruction_order_verify_part_1 = [
   // - 0 : [u8;1477]
   3, 17, 4, 5, 20, 7, 8, 9, 18, 10, 21, 7, 8, 9, 18, 10, 22, 7, 8, 9, 18, 10,
@@ -233,11 +234,6 @@ const m_expo_program_id = process.env.PROGRAM_ID;
 
 // merkle tree program accounts
 const storage_account_pkey = "7ynT1UdHy2tjDJvYaz4DP5TXiengm9q7HjBobKJ2iU9b";
-
-// second broken tree devnet
-//const merkle_tree_storage_acc_pkey = 'CaxjyUvDcRMozmaMa1Bg9TeakyW9jskXx3b7DhNCFvTX'
-//const merkle_tree_storage_acc_pkey = '9XUqBBMR2JTTADpCs33U4FhsZLKSyev8oiqZAmnxAz3X'
-//const merkle_tree_storage_acc_pkey = '54zcGRPBRmRq38d5cmFg9rD9ixDzzwPW8J5NmJfECugQ'
 const merkle_tree_storage_acc_pkey =
   "FxbvBBSSPv14hFtpck6umSNBEEVPDj2RaX9TLZNeeiFn";
 
@@ -286,26 +282,14 @@ async function tryTransaction(transaction, account, connection) {
 
 async function create_program_acc(from_acc, seed, storage_space, program_id) {
   //var lamports = 1 * 10 ** 10;
-
   const program_acc = new solana.PublicKey(program_id);
-  //let seed = "vaultx1" ;
   var inst_arr = new Uint8Array(Buffer.from(seed));
-  //console.dir(Buffer.from(seed));
-  //console.dir(inst_arr);
-  //inst_arr = Buffer.from(seed);
-  //console.log(Buffer.from(seed));
-  //console.log(from_acc.publicKey);
 
   const storage_account = await solana.PublicKey.createWithSeed(
     from_acc.publicKey,
     seed,
     program_acc
   );
-  //const storage_account = solana.PublicKey.createProgramAddress("vaultx1" ,program_acc);
-  // console.log("----------------------------------");
-  // console.log(storage_account.toBase58());
-  // console.log("----------------------------------");
-  //console.log(program_acc.toBase58());storage_space * 19, //
 
   var acc_params = {
     fromPubkey: from_acc.publicKey,
@@ -390,7 +374,7 @@ async function insert_into_merkle_tree(hash_tmp_account_pkey, note, amount) {
     await solana.SystemProgram.transfer({
       fromPubkey: account.publicKey,
       toPubkey: tmp_tranfer_account,
-      lamports: 1000000000, //replace with amount
+      lamports: 1e9, //TODO: replace with amount
     })
   );
   //trigger deposit instruction
