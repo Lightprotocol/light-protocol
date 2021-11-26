@@ -95,7 +95,7 @@ pub fn check_root_hash_exists(account_main: &AccountInfo, root_bytes: Vec<u8>, f
    msg!("key to check: {:?}",solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) );
    assert_eq!(*account_main.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]));
    msg!("did not crash {}", account_main_data.ROOT_HISTORY_SIZE);
-   assert!(account_main_data.ROOT_HISTORY_SIZE < 593, "root history size to large");
+   assert!(account_main_data.ROOT_HISTORY_SIZE < 593, "root history size too large");
    msg!("looking for root {:?}", root_bytes);
    let mut i = 0;
    let mut counter = 0;
