@@ -8,7 +8,7 @@ use core::ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign};
 
 // @ark_groth16::prepare_inputs
 // impl<P: Parameters> GroupAffine<P> {
-pub fn prepare_inputs_custom(
+pub fn prepare_inputs_254(
     pvk_vk_gamma_abc_g1: Vec<
         ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bls12_381::g1::Parameters>,
     >,

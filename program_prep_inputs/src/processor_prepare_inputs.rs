@@ -27,7 +27,6 @@ pub fn _process_instruction_prepare_inputs(
             &mut account.g_ic_y_range,
             &mut account.g_ic_z_range,
         );
-
         account.changed_variables[I_1_RANGE_INDEX] = true;
         account.changed_variables[X_1_RANGE_INDEX] = true;
         account.changed_variables[I_2_RANGE_INDEX] = true;
