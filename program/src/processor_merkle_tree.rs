@@ -11,6 +11,7 @@ use solana_program::{
     clock::Clock,
     sysvar::Sysvar,
 };
+use crate::instructions_poseidon::{permute_instruction_first,permute_instruction_6,permute_instruction_3, permute_instruction_last};
 
 
 pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
@@ -149,89 +150,27 @@ pub fn _process_instruction_merkle_tree(
         pure_merkle_tree_account: &AccountInfo
     ){
 
-    if id == 1 {
-        absorb_instruction_squeeze_field_elem_22(&mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3, &hash_tmp_account.left, 0);
+    //pub fn processor_poseidon(id: u8, hash_tmp_account: &mut PoseidonHashMemory, data: &[u8]) {
+    if id == 0 {
+        permute_instruction_first(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index, &hash_tmp_account.left, &hash_tmp_account.right);
+
+    } else if id == 1{
+        permute_instruction_6(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+
     } else if id == 2 {
-        absorb_instruction_squeeze_field_elem_22(&mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3, &hash_tmp_account.right, 1);
+        permute_instruction_3(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+
     } else if id == 3 {
-        permute_instruction_1_and_3(0, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-    } else if id == 4 {
-        permute_instruction_1_and_3(2, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-    } else if id == 5 {
-        permute_instruction_2_x_4(4, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 6 {
-        permute_instruction_2_x_4(8, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 7 {
-        permute_instruction_2_x_4(12, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 8 {
-        permute_instruction_2_x_4(16, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 9 {
-        permute_instruction_2_x_4(20, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 10 {
-        permute_instruction_2_x_4(24, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 11 {
-        permute_instruction_2_x_4(28, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 12 {
-        permute_instruction_2_x_4(32, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 13 {
-        permute_instruction_2_x_4(36, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 14 {
-        permute_instruction_2_x_4(40, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 15 {
-        permute_instruction_2_x_4(44, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 16 {
-        permute_instruction_2_x_4(48, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 17 {
-        permute_instruction_2_x_4(52, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 18 {
-        permute_instruction_2_x_4(56, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 30 {
-        permute_instruction_2_x_4(60, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 31 {
-        permute_instruction_2_x_4(64, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 32 {
-        permute_instruction_2_x_4(68, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 33 {
-        permute_instruction_2_x_2(72, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-        // hash_tmp_account.changed_variables[cubic_range_1_iter] = true;
-    } else if id == 19 { // *3
-        permute_instruction_2_x_3(74, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-    } else if id == 20 {
-        permute_instruction_1_and_3(77, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-    } else if id == 21 {
-        permute_instruction_1_and_3(79, &mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3);
-    } else if id == 23 {
-        squeeze_internal_custom(&mut hash_tmp_account.state_range_1 , &mut hash_tmp_account.state_range_2, &mut hash_tmp_account.state_range_3, &mut hash_tmp_account.currentLevelHash, 0);
+        permute_instruction_last(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+
     } else if id == 24 {
         insert_0(&leaf,merkle_tree_account, hash_tmp_account);
+
     } else if id == 25 {
         insert_1_inner_loop(merkle_tree_account, hash_tmp_account);
+
     } else if id == 26 {
         insert_last( merkle_tree_account, hash_tmp_account);
-    } else if id == 27 {
-        init_sponge(hash_tmp_account);
-    } else if id == 34 {
-        //deposit(merkle_tree_account, pure_merkle_tree_account);
-        assert_eq!(false, true, "should not enter here");
     }
-
-
 
 }
