@@ -19,8 +19,10 @@ pub mod parsers_prepare_inputs;
 pub mod state_final_exp;
 pub mod state_check_nullifier;
 
-
 pub mod poseidon_params;
+pub mod poseidon_round_constants_split;
+pub mod instructions_poseidon;
+
 pub mod state_miller_loop_transfer;
 
 pub mod instructions_merkle_tree;
@@ -104,7 +106,7 @@ pub fn process_instruction(
     else if _instruction_data[1] == 2 {
          _pre_process_instruction_final_exp(&_instruction_data, accounts);
     }
-    
+
     // prepare inputs moved to separate program for size
     else if _instruction_data[1] == 3 {
         //_pre_process_instruction_prep_inputs(_instruction_data, accounts);
