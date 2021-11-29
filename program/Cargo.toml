@@ -21,6 +21,7 @@ ark-ff = { version = "^0.3.0", default-features = false }
 ark-ec = { version = "0.3.0" }
 ark-ed-on-bls12-381 = { version = "^0.3.0", features = ["r1cs"] }
 ark-ed-on-bn254 = { version = "^0.3.0", features = ["r1cs"] }
+ark-bn254 = "0.3.0"
 
 #getrandom = { version = "0.1.14", features = ["dummy"] }
 getrandom = { version = "0.2.2", features = ["custom"] }
@@ -57,6 +58,8 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 [dev-dependencies]
 solana-program-test = "1.7.12"
 solana-sdk = "1.7.12"
+serde_json = "1.0.59"
+ark-groth16 = "0.3.0"
 
 [lib]
 crate-type = ["cdylib", "lib"]
