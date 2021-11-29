@@ -22,7 +22,8 @@ ark-ec = { version = "0.3.0" }
 ark-ed-on-bls12-381 = { version = "^0.3.0", features = ["r1cs"] }
 ark-ed-on-bn254 = { version = "^0.3.0", features = ["r1cs"] }
 
-getrandom = { version = "0.1.14", features = ["dummy"] }
+#getrandom = { version = "0.1.14", features = ["dummy"] }
+getrandom = { version = "0.2.2", features = ["custom"] }
 
 bytemuck = {version="1.5.1", features=["extern_crate_alloc"]}
 num-traits = "0.2.8"

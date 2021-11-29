@@ -234,7 +234,12 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
 pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     //msg!("insert_1_inner_loop_0 level {:?}",hash_bytes_account.currentLevel);
     //msg!("currentLevelHash {:?}",hash_bytes_account.currentLevelHash);
+    if hash_bytes_account.currentLevel != 0 {
+        hash_bytes_account.currentLevelHash = hash_bytes_account.state[0].clone();
+    }
+
     if(hash_bytes_account.currentIndex % 2 == 0) {
+        //msg!("updating subtree: {:?}", hash_bytes_account.currentLevelHash);
         hash_bytes_account.left = hash_bytes_account.currentLevelHash.clone();
         hash_bytes_account.right =  merkle_tree_account.zeros[ hash_bytes_account.currentLevel].clone();
         merkle_tree_account.filledSubtrees[ hash_bytes_account.currentLevel] = hash_bytes_account.currentLevelHash.clone();
@@ -254,7 +259,7 @@ pub fn insert_last(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut
     merkle_tree_account.nextIndex+= 1;
 
     //roots unpack only current root and write only this one
-    merkle_tree_account.roots = hash_bytes_account.currentLevelHash.clone();
+    merkle_tree_account.roots = hash_bytes_account.state[0].clone();
     merkle_tree_account.inserted_root = true;
 
 }

@@ -32,7 +32,7 @@ pub fn permute_instruction_first(state: &mut Vec<Vec<u8>>, current_round: &mut u
     let rounds =  poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(0);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let params = PoseidonParameters::<Fq>::new(rounds, mds);
-
+    msg!("left: {:?}, right: {:?}", left_input, right_input);
     //parsing poseidon inputs to Fq elements
     let mut state_new =prepare_inputs(&params, &left_input, &right_input).unwrap();
 
@@ -107,9 +107,9 @@ pub fn permute_instruction_last(state: &mut Vec<Vec<u8>>, current_round: &mut us
     state_new = permute_custom_split(&params, state_new, *current_round, 4).unwrap();
     //msg!("Hash: {:?}", state_new[0]);
 
-    //could be ommitted since the hash is computed
-    *current_round += 4;
-    *current_round_index += 1;
+    //reset round and index for next hash
+    *current_round = 0;
+    *current_round_index = 0;
 
     //parsing state back into the account, the resulting hash is in state[0]
     for (i, input_state) in state.iter_mut().enumerate() {
@@ -156,9 +156,10 @@ pub fn permute_custom_split(params: &PoseidonParameters<Fq>, mut state: Vec<Fq>,
 
     //let nr = P::FULL_ROUNDS + P::PARTIAL_ROUNDS;
     let nr_end = nr_start + nr_iterations;
-
+    //println!("state: {:?}", state);
     for r in nr_start..nr_end {
         state.iter_mut().enumerate().for_each(|(i, a)| {
+            //println!("index: {} len {}", ((r - nr_start) * PoseidonCircomRounds3::WIDTH + i), params.round_keys.len());
             let c = params.round_keys[((r - nr_start) * PoseidonCircomRounds3::WIDTH + i)];
             a.add_assign(c);
         });
@@ -205,7 +206,7 @@ mod tests {
     const INSTRUCTION_ORDER_POSEIDON_2_INPUTS : [u8; 12] = [0,1,1,1,1,1,1,1,1,1,2,3];
 
     //defining processor function for testing
-    pub fn processor_poseidon(id: u8, account_struct: &mut HashBytes/*, data: &[u8]*/) {
+    pub fn processor_poseidon(id: u8, account_struct: &mut HashBytes) {
         if id == 0 {
             permute_instruction_first(&mut account_struct.state,&mut account_struct.current_round, &mut account_struct.current_round_index, &account_struct.left, &account_struct.right);
 
@@ -259,7 +260,7 @@ mod tests {
 
             //executing poseidon instructions
             for i in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
-                processor_poseidon(i, &mut account_struct,/* &vec![0u8;8], left_input.clone(), right_input.clone()].concat()*/);
+                processor_poseidon(i, &mut account_struct);
             }
 
             assert_eq!(out_bytes.to_vec(), account_struct.state[0]);
@@ -307,10 +308,82 @@ mod tests {
 
             //executing poseidon instructions
             for i in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
-                processor_poseidon(i, &mut account_struct, /*&[vec![0u8;8], left_input.clone(), right_input.clone()].concat()*/);
+                processor_poseidon(i, &mut account_struct);
             }
 
             assert!(out_bytes.to_vec() != account_struct.state[0]);
         }
     }
+
+
+    // #[tokio::test]
+    // async fn test_poseidon_hash_onchain() {
+    //     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+    //
+    //     let storage_pubkey = Pubkey::new_unique();
+    //     let mut program_test = ProgramTest::new(
+    //         "Testing_Hardcoded_Params",
+    //         program_id,
+    //         processor!(process_instruction),
+    //     );
+    //
+    //     program_test.add_account(
+    //         storage_pubkey,
+    //         Account::new(5000000000, 121, &program_id),
+    //     );
+    //     let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+    //
+    //     let mut rng = test_rng();
+    //     let left_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
+    //     let right_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
+    //
+    //     for i in 0..12 {
+    //
+    //         let mut transaction = Transaction::new_with_payer(
+    //             &[Instruction::new_with_bincode(
+    //                 program_id,
+    //                 &[left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat(),
+    //                 vec![
+    //                     AccountMeta::new(payer.pubkey(),true),
+    //                     AccountMeta::new(storage_pubkey, false),
+    //                 ],
+    //             )],
+    //             Some(&payer.pubkey()),
+    //         );
+    //         transaction.sign(&[&payer], recent_blockhash);
+    //
+    //         banks_client.process_transaction(transaction).await.unwrap();
+    //
+    //     }
+    //     let storage_account = banks_client
+    //         .get_account(storage_pubkey)
+    //         .await
+    //         .expect("get_account").unwrap();
+    //     let mut unpacked_data = vec![0u8;121];
+    //
+    //     unpacked_data = storage_account.data.clone();
+    //
+    //     for i in 1..33 {
+    //         print!("{}, ",unpacked_data[i]);
+    //     }
+    //     println!("Len data: {}", storage_account.data.len());
+    //
+    //     let poseidon_hash_ref = get_poseidon_ref_hash(&left_input[..], &right_input[..]);
+    //
+    //     assert_eq!(unpacked_data[1..33], poseidon_hash_ref);
+    //
+    //     //let data = <PoseidonHashMemory as Pack>::unpack_from_slice(&unpacked_data).unwrap();
+    //
+    //     // let storage_account = banks_client
+    //     //     .get_packed_account_data::<PoseidonHashMemory>(storage_pubkey)
+    //     //     .await
+    //     //     .expect("get_packed_account_data");
+    //     //println!("{:?}",unpacked_data[1..33]);
+    //     // let storage_account = banks_client
+    //     //     .get_packed_account_data::<Testing_Hardcoded_Params::PoseidonHashMemory>(storage_pubkey)
+    //     //     .await
+    //     //     .expect("get_packed_account_data");
+    //     // //let data = Testing_Hardcoded_Params::PoseidonHashMemory::unpack(&storage_account.data).unwrap();
+    // }
+
 }
