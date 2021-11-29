@@ -8,7 +8,7 @@ run:
 
 ## Notes:
 
-- The majority of the code was hacked together for the hackathon thus naming is not consistent etc.
+- The majority of the code was hacked together for the hackathon thus naming is not yet consistent etc.
 - this repo will not execute with the client since we are currently switching the curve from bl12-381 to bn254
 - unit tests work
 - Client side is not updated to snarkjs yet
