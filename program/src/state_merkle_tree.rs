@@ -341,9 +341,9 @@ impl Pack for NullifierBytes {
 #[derive(Debug)]
 pub struct HashBytes {
     pub is_initialized: bool,
-    pub state_range_1: Vec<u8>,
-    pub state_range_2: Vec<u8>,
-    pub state_range_3: Vec<u8>,
+    pub state: Vec<Vec<u8>>,
+    pub current_round: usize,
+    pub current_round_index: usize,
     //pub result: Vec<u8>,
     pub left: Vec<u8>,
     pub right: Vec<u8>,
@@ -363,14 +363,14 @@ impl IsInitialized for HashBytes {
     }
 }
 impl Pack for HashBytes {
-    const LEN: usize = 217;
+    const LEN: usize = 233;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, HashBytes::LEN];
 
         let (
-            state_range_1,
-            state_range_2,
-            state_range_3,
+            state,
+            current_round,
+            current_round_index,
             left,
             right,
             currentLevelHash,
@@ -378,14 +378,19 @@ impl Pack for HashBytes {
             currentLevel,
             current_instruction_index,
             is_initialized,
-        ) = array_refs![input,32,32,32,32,32,32,8,8,8,1];
+        ) = array_refs![input,96, 8 , 8, 32, 32, 32, 8, 8, 8, 1];
+
+        let mut parsed_state = Vec::new();
+        for i in state.chunks(32) {
+            parsed_state.push(i.to_vec());
+        }
 
         Ok(
             HashBytes {
                 is_initialized: true,
-                state_range_1: state_range_1.to_vec(),
-                state_range_2: state_range_2.to_vec(),
-                state_range_3: state_range_3.to_vec(),
+                state: parsed_state.to_vec(),
+                current_round: usize::from_le_bytes(*current_round),
+                current_round_index: usize::from_le_bytes(*current_round_index),
                 left: left.to_vec(),
                 right: right.to_vec(),
                 currentLevelHash: currentLevelHash.to_vec(),
@@ -401,9 +406,9 @@ impl Pack for HashBytes {
         let dst = array_mut_ref![dst, 0,  HashBytes::LEN];
 
         let (
-            state_range_1_dst,
-            state_range_2_dst,
-            state_range_3_dst,
+            state_dst,
+            current_round_dst,
+            current_round_index_dst,
             left_dst,
             right_dst,
             currentLevelHash_dst,
@@ -411,13 +416,20 @@ impl Pack for HashBytes {
             currentLevel_dst,
             current_instruction_index_dst,
             is_initialized_dst,
-        ) = mut_array_refs![dst,32,32,32,32,32,32,8,8,8,1];
+        ) = mut_array_refs![dst,96, 8 , 8, 32, 32, 32, 8, 8, 8, 1];
 
-        *state_range_1_dst =    self.state_range_1.clone().try_into().unwrap();
-        //assert_eq!(*state_range_1_dst.to_vec(), self.state_range_1);
-        *state_range_2_dst =    self.state_range_2.clone().try_into().unwrap();
-        //assert_eq!(*state_range_2_dst.to_vec(), self.state_range_2);
-        *state_range_3_dst =    self.state_range_3.clone().try_into().unwrap();
+        let mut state_tmp = [0u8;96];
+        let mut z = 0;
+        for i in self.state.iter() {
+            for j in i {
+                state_tmp[z] = *j;
+                z +=1;
+            }
+        }
+
+        *state_dst = state_tmp;
+        *current_round_dst = usize::to_le_bytes(self.current_round);
+        *current_round_index_dst= usize::to_le_bytes(self.current_round_index);
         //assert_eq!(*state_range_3_dst.to_vec(), self.state_range_3);
         //*left_dst = *left_dst;
         *left_dst =             self.left.clone().try_into().unwrap();
