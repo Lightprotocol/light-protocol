@@ -1719,7 +1719,7 @@ async function main() {
 
         console.log(
           Uint8Array.from(
-            new solana.PublicKey(merkle_tree_storage_acc_pkey).toBuffer()
+            new solana.PublicKey('55a3HihdEDCoC9LNuBCPaBuEMSn5wFX58LrYYRVbBxot').toBuffer()
           )
         );
         console.log(
