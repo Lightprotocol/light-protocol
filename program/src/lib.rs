@@ -25,6 +25,8 @@ pub mod instructions_poseidon;
 
 pub mod state_miller_loop_transfer;
 
+pub mod hard_coded_verifying_key_pvk_254;
+
 pub mod instructions_merkle_tree;
 pub mod processor_merkle_tree;
 pub mod parsers_merkle_tree;
