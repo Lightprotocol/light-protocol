@@ -2,7 +2,7 @@ use ark_bn254;
 use ark_ec;
 use ark_ed_on_bn254;
 use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::{Fp256, Fp384};
+use ark_ff::Fp256;
 
 pub fn parse_fp256_to_bytes_254(
     fp256: ark_ff::Fp256<ark_ed_on_bn254::FqParameters>,
@@ -27,24 +27,6 @@ pub fn parse_fp256_from_bytes_254(
     fp256
 }
 
-// ok ^
-
-// fn parse_fp384_to_bytes(
-//     fp384: ark_ff::Fp384<ark_bn254::FqParameters>,
-//     account: &mut Vec<u8>,
-//     range: [usize; 2],
-// ) {
-//     let start = range[0];
-//     let end = range[1];
-//     <Fp384<ark_bn254::FqParameters> as ToBytes>::write(&fp384, &mut account[start..end]);
-// }
-
-// fn parse_fp384_from_bytes(account: &Vec<u8>) -> ark_ff::Fp384<ark_bn254::FqParameters> {
-//     let fp384: ark_ff::Fp384<ark_bn254::FqParameters>;
-//     fp384 = <Fp384<ark_bn254::FqParameters> as FromBytes>::read(&account[0..48]).unwrap();
-//     fp384
-// }
-
 // x
 pub fn parse_x_group_affine_from_bytes_254(
     account: &Vec<u8>,
@@ -68,7 +50,6 @@ pub fn parse_x_group_affine_to_bytes_254(
 }
 
 // res,g_ic
-
 pub fn parse_group_projective_from_bytes_254(
     acc1: &Vec<u8>,
     acc2: &Vec<u8>,
@@ -88,13 +69,6 @@ pub fn parse_group_projective_to_bytes_254(
     acc2: &mut Vec<u8>,
     acc3: &mut Vec<u8>,
 ) {
-    //println!("Parsing {:?}", c.c0);
-    // parse_fp384_to_bytes(res.x, acc1, range1);
-    // parse_fp384_to_bytes(res.y, acc2, range2);
-    // parse_fp384_to_bytes(res.z, acc3, range3);
-    // <Fp384<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..48]);
-    // <Fp384<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..48]);
-    // <Fp384<ark_bn254::FqParameters> as ToBytes>::write(&res.z, &mut acc3[0..48]);
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..32]); // i 0..48
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..32]);
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.z, &mut acc3[0..32]);

@@ -58,7 +58,7 @@ pub fn init_pairs_instruction(
 
     // inits g_ic into range.
     let g_ic = pvk_vk_gamma_abc_g1[0].into_projective(); // 80
-    println!("initial g_ic me: {:?}", &g_ic);
+                                                         // println!("initial g_ic me: {:?}", &g_ic);
     parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range); // 10k
 
     // Creates and parses i,x pairs into ranges.
@@ -70,20 +70,20 @@ pub fn init_pairs_instruction(
         i_vec.push(*i);
         x_vec.push(*x);
     }
-    println!("i me: {:?}", i_vec[0]);
-    println!("x me: {:?}", x_vec[0]);
-    println!("i me: {:?}", i_vec[1]);
-    println!("x me: {:?}", x_vec[1]);
-    println!("i me: {:?}", i_vec[2]);
-    println!("x me: {:?}", x_vec[2]);
-    println!("i me: {:?}", i_vec[3]);
-    println!("x me: {:?}", x_vec[3]);
-    println!("i me: {:?}", i_vec[4]);
-    println!("x me: {:?}", x_vec[4]);
-    println!("i me: {:?}", i_vec[5]);
-    println!("x me: {:?}", x_vec[5]);
-    println!("i me: {:?}", i_vec[6]);
-    println!("x me: {:?}", x_vec[6]);
+    // println!("i me: {:?}", i_vec[0]);
+    // println!("x me: {:?}", x_vec[0]);
+    // println!("i me: {:?}", i_vec[1]);
+    // println!("x me: {:?}", x_vec[1]);
+    // println!("i me: {:?}", i_vec[2]);
+    // println!("x me: {:?}", x_vec[2]);
+    // println!("i me: {:?}", i_vec[3]);
+    // println!("x me: {:?}", x_vec[3]);
+    // println!("i me: {:?}", i_vec[4]);
+    // println!("x me: {:?}", x_vec[4]);
+    // println!("i me: {:?}", i_vec[5]);
+    // println!("x me: {:?}", x_vec[5]);
+    // println!("i me: {:?}", i_vec[6]);
+    // println!("x me: {:?}", x_vec[6]);
 
     parse_fp256_to_bytes_254(i_vec[0], i_1_range, [0, 32]); // 3k
     parse_fp256_to_bytes_254(i_vec[1], i_2_range, [0, 32]); // 3k
@@ -103,11 +103,11 @@ pub fn init_pairs_instruction(
     parse_x_group_affine_to_bytes_254(x_vec[6], x_7_range); // 6k
 
     // check proper parsing
-    let a = parse_fp256_from_bytes_254(i_1_range, [0, 32]);
-    assert_eq!(a, i_vec[0]);
-    let b = parse_x_group_affine_from_bytes_254(x_1_range);
-    assert_eq!(b, x_vec[0]);
-    assert_eq!(b, pvk_vk_gamma_abc_g1[1]); // groupAffine vs G1Affine
+    // let a = parse_fp256_from_bytes_254(i_1_range, [0, 32]);
+    // assert_eq!(a, i_vec[0]);
+    // let b = parse_x_group_affine_from_bytes_254(x_1_range);
+    // assert_eq!(b, x_vec[0]);
+    // assert_eq!(b, pvk_vk_gamma_abc_g1[1]); // groupAffine vs G1Affine
 }
 
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
