@@ -29,7 +29,6 @@ pub mod instructions_merkle_tree;
 pub mod processor_merkle_tree;
 pub mod parsers_merkle_tree;
 pub mod state_merkle_tree;
-mod arkworks_merkle_tree_poseidon_test;
 pub mod init_bytes11;
 
 use crate::processor_merkle_tree::{
