@@ -2,8 +2,8 @@
 
 ## Notes:
 
-- All code which we modified is in this repository
-- the implementation is based on the arkworks libraries mainly [ark_bn254](https://docs.rs/ark-bn254/0.3.0/ark_bn254/), [ark_ec](https://docs.rs/ark-ec/0.3.0/ark_ec/) and [ark_ff](https://docs.rs/ark-ff/0.3.0/ark_ff/).
+- All code we modified is in this repository.
+- The implementation is based on the arkworks libraries mainly [ark_bn254](https://docs.rs/ark-bn254/0.3.0/ark_bn254/), [ark_ec](https://docs.rs/ark-ec/0.3.0/ark_ec/) and [ark_ff](https://docs.rs/ark-ff/0.3.0/ark_ff/).
 - The majority of the code was hacked together for the hackathon thus naming is not yet consistent etc.
 - This repo will not execute with the client since we are currently switching the curve from bl12-381 to bn254 (which affects most files).
 - Parts of the codebase are redundant and yet to be refactored (i.e. parser & processor files).
