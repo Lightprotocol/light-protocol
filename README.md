@@ -38,11 +38,11 @@ The front end client which includes the user interface and proof generation with
 
 ## Repo Description
 
-The light-protocol-onchain repository includes two Solana programs a main program (program folder), a helper program (program_prep_inputs folder) and a Client (will change completely to use snarkjs). The helper program prepares the inputs for the zero-knowledge proof verification while the main program accommodates the merkle tree leaf insert logic and zero-knowledge proof verification algorithm (miller loop and final exponentiation).
+The light-protocol-onchain repository includes two Solana programs; a main program (program folder) and a helper program (program_prep_inputs folder) and a Client (will change completely to use snarkjs). The helper program prepares the inputs for the zero-knowledge proof verification while the main program accommodates the merkle tree leaf insert logic and zero-knowledge proof verification algorithm (miller loop and final exponentiation).
 
-The general structure of both program repositories starts from the program entrypoint in lib.rs. From lib.rs a preprocessor function is called which you can find in either a preprocesser file for the miller loop or on top of the processor file for the merkletree insert and final exponentiation. These preprocessor functions call instructions in the respective processor files. The processor function calls the actual instructions which are in merkle_tree_instructions.rs and instructions.rs for the miller loop as well as in different files for the final exponentiation (inverse.rs, utils.rs, mul_assign.rs). At the moment several parser files exist for historic reasons to parse datatypes from bytes only when necessary to save compute units.
+The general structure of both program repositories starts from the program entrypoint in lib.rs. From lib.rs a preprocessor function is called which you can find in either a preprocesser file for the miller loop or inside the processor file for the merkletree insert and final exponentiation. These preprocessor functions call instructions in their respective processor files. The processor function calls the actual instructions which are in merkle_tree_instructions.rs and instructions.rs for the miller loop as well as in different files for the final exponentiation (inverse.rs, utils.rs, mul_assign.rs). At the moment, several parser files exist for legacy reasons to parse data types from bytes only when necessary to save compute units.
 
-State is stored in temporary accounts during the computation and one persistent account which stores the merkle tree state. The structs for the accounts are implemented in state_\*.rs files. To save computation we have created several structs for the same account which are specialized for different use cases, such as the general computation storage (state_miller_loop.rs, state_final_exp.rs, state_merkle_tree.rs), initialization with bytes from prior compuation (state_prep_inputs.rs, state_merkle_tree.rs, state_miller_loop_transfer.rs), root and nullifier checks (state_check_nullifiers, state_merkle_tree_roots).
+State is stored in temp accounts during the computation and one persistent account which stores the merkle tree state. The structs for the accounts are implemented in state_\*.rs files. To save computation we have created several structs for the same account which are specialized for different use cases, such as the general computation storage (state_miller_loop.rs, state_final_exp.rs, state_merkle_tree.rs), initialization with bytes from prior compuation (state_prep_inputs.rs, state_merkle_tree.rs, state_miller_loop_transfer.rs), root and nullifier checks (state_check_nullifiers, state_merkle_tree_roots).
 
 The verifying key is hardcoded in the program in file hard_coded_verifying_key_\*.rs for the miller loop. The part of the verifying key used to verify the correctness of the final exponentiation is hardcoded in utils.rs.
 
@@ -64,22 +64,22 @@ Accounts:
 
 At deposit the user transfers the funds and submits a hash to a merkle tree on chain. The inputs of the hash will later be used to proof a prior submission to the merkle tree. To compute the hashes to update the merkle tree we use 311 instructions within four transactions.
 
-During the deposit an account temporarily stores the state for the hash function and another account serves as intermediary to easily check the deposited amount. The deposit amount is transferred by the user to the intermediary account which is owned by the program. The program in turn transfers the denominated amount to the merkle tree state account. To avoid write conflicts during the merkle tree update the tree account is locked for a number of blocks once a deposit starts. To avoid invalid state in the case the merkle tree is not completely updated before the lock expires the counter of leaves is incremented when the root is updated in the last instruction.
+During the deposit an account temporarily stores the state for the hash function and another account serves as intermediary to easily check the deposited amount. The deposit amount is transferred by the user to the intermediary account which is owned by the program. The program in turn transfers the denominated amount to the merkle tree state account. To avoid write conflicts during the merkle tree update the tree account is locked for a number of blocks once a deposit starts. To avoid invalid state in case the merkle tree isn't completely updated before the lock expires the counter of leaves is incremented when the root is updated in the last instruction.
 
 lib.rs -> merkle_tree_processor.rs -> instructions_merkle_tree.rs
 
 Accounts:
-- persisten merkle tree (MerkleTree struct in state_merkle_tree.rs
+- persistent merkle tree (MerkleTree struct in state_merkle_tree.rs
 - tmp hash storage account (HashBytes struct in  state_merkle_tree.rs)
 - escrow account for deposit amount
 
 
 ### Withdrawal (ZKP verification)
 
-For withdrawal the user calculates a zero-knowledge proof off chain. This proof and its public inputs which include the recipient address are sent to the onchain program which prepares the inputs and verifies the zero-knowledge proof. At successful verification funds are withdrawn to the specified recipient address.
-In a shielded pool internal shielded transactions will also be possible this is not implemented yet.
+For withdrawal the user calculates a zero-knowledge proof off-chain. The proof and its public inputs which include the recipient address are sent to the onchain program which prepares the inputs and verifies the zero-knowledge proof. At successful verification funds are withdrawn to the specified recipient address.
+In a shielded pool internal shielded transactions will also be possible but this is not implemented yet.
 
-Public inputs for the ZKP verification are prepare in the prepared inputs program. This program needs an account for temporary storage of the computation and the persistent merkle_tree account to check that the merkle root exists. The actual verification is performed by the main program which also
+Public inputs for the ZKP verification are prepared in the Prepare_Inputs program. This program needs an account for temporary storage of the computation and the persistent merkle_tree account to check that the merkle root exists. The actual verification is performed by the main program which also executes the actual withdrawal.
 
 program_prep_inputs
 
@@ -122,7 +122,7 @@ program
   
   - Miller loop and final exponentiation use the same account for temporary storage
 
-### Security Checks
+## Security Checks
 
 ### **Deposit:**
 
