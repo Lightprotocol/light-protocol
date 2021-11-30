@@ -3,13 +3,14 @@
 ## Notes:
 
 - The majority of the code was hacked together for the hackathon thus naming is not yet consistent etc.
-- this repo will not execute with the client since we are currently switching the curve from bl12-381 to bn254
-- unit tests work
-- Client side is not updated to snarkjs yet
-- Relayer and fees are yet to be implemented
-- Security claims represent a current state and not sufficient for mainnet launch
-- accounts init is probably still insecure
-- the circuit is currently not in the repo see https://github.com/tornadocash/tornado-pool/tree/onchain-tree/circuits
+- This repo will not execute with the client since we are currently switching the curve from bl12-381 to bn254 (which affects most files).
+- Parts of the codebase are redundant and yet to be refactored (i.e. parser & processor files).
+- Unit tests work.
+- Client side is not updated to snarkjs yet.
+- Relayer and fees are yet to be implemented.
+- Security claims represent a current state and not sufficient for mainnet launch.
+- Accounts init is probably still insecure.
+- The circuit is currently not in the repo. Instead refer to: https://github.com/tornadocash/tornado-pool/tree/onchain-tree/circuits
 
 ## Security Claims (preliminary):
 
