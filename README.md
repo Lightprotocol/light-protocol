@@ -1,6 +1,4 @@
-# onchain-experiments
-
-##
+# Light Protocol
 
 ## Notes:
 
