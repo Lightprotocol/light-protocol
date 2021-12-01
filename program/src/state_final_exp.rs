@@ -51,8 +51,44 @@ impl IsInitialized for FinalExpBytes {
     }
 }
 
+impl FinalExpBytes {
+    pub fn new () -> FinalExpBytes {
+        FinalExpBytes {
+            is_initialized: true,
+            found_nullifier: 0,
+            signing_address: vec![0],
+            relayer_refund: vec![0],
+            to_address: vec![0],
+
+            amount: vec![0],
+            nullifer: vec![0],
+            f1_r_range_s: vec![0;384],
+            f_f2_range_s: vec![0;384],
+            i_range_s: vec![0;384],
+
+            y0_range_s: vec![0;384],
+            y1_range_s: vec![0;384],
+            y2_range_s: vec![0;384],
+
+            cubic_range_0_s: vec![0;192],
+            cubic_range_1_s: vec![0;192],
+            cubic_range_2_s: vec![0;192],
+
+
+            quad_range_0_s: vec![0;64],
+            quad_range_1_s: vec![0;64],
+            quad_range_2_s: vec![0;64],
+            quad_range_3_s: vec![0;64],
+
+            fp384_range_s: vec![0;32],
+            current_instruction_index: 0,
+            changed_variables: [false;15],
+        }
+    }
+}
+
 impl Pack for FinalExpBytes {
-    const LEN: usize = 4972;
+    const LEN: usize = 3196;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, FinalExpBytes::LEN];
 
@@ -88,7 +124,7 @@ impl Pack for FinalExpBytes {
 
             fp384_range_s,
 
-        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 576, 576, 576, 576, 576, 576, 288, 288, 288, 96, 96, 96, 96, 48];
+        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32];
 
         Ok(
             FinalExpBytes {
@@ -155,8 +191,7 @@ impl Pack for FinalExpBytes {
             fp384_range_dst,
 
 
-        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 576, 576, 576, 576, 576, 576, 288, 288, 288, 96, 96, 96, 96, 48];
-
+        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32];
 
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {
             if *variable_has_changed {
