@@ -28,6 +28,7 @@ pub struct FinalExpBytes {
     pub y0_range_s: Vec<u8>,
     pub y1_range_s: Vec<u8>,
     pub y2_range_s: Vec<u8>,
+    pub y6_range: Vec<u8>,
 
     pub cubic_range_0_s: Vec<u8>,
     pub cubic_range_1_s: Vec<u8>,
@@ -42,7 +43,7 @@ pub struct FinalExpBytes {
 
     pub current_instruction_index: usize,
 
-    pub changed_variables: [bool;15],
+    pub changed_variables: [bool;16],
 }
 impl Sealed for FinalExpBytes {}
 impl IsInitialized for FinalExpBytes {
@@ -69,6 +70,7 @@ impl FinalExpBytes {
             y0_range_s: vec![0;384],
             y1_range_s: vec![0;384],
             y2_range_s: vec![0;384],
+            y6_range: vec![0;384],
 
             cubic_range_0_s: vec![0;192],
             cubic_range_1_s: vec![0;192],
@@ -82,13 +84,13 @@ impl FinalExpBytes {
 
             fp384_range_s: vec![0;32],
             current_instruction_index: 0,
-            changed_variables: [false;15],
+            changed_variables: [false;16],
         }
     }
 }
 
 impl Pack for FinalExpBytes {
-    const LEN: usize = 3196;
+    const LEN: usize = 3580;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, FinalExpBytes::LEN];
 
@@ -123,8 +125,9 @@ impl Pack for FinalExpBytes {
             quad_range_3_s,
 
             fp384_range_s,
+            y6_range,
 
-        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32];
+        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32, 384];
 
         Ok(
             FinalExpBytes {
@@ -153,9 +156,10 @@ impl Pack for FinalExpBytes {
                 quad_range_3_s: quad_range_3_s.to_vec(),
 
                 fp384_range_s: fp384_range_s.to_vec(),
+                y6_range: y6_range.to_vec(),
 
                 current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-                changed_variables: [false;15],
+                changed_variables: [false;16],
             }
         )
     }
@@ -189,9 +193,10 @@ impl Pack for FinalExpBytes {
             quad_range_3_dst,
 
             fp384_range_dst,
+            y6_range_dst
 
 
-        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32];
+        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 128, 128, 128, 64, 64, 64, 64, 32, 384];
 
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {
             if *variable_has_changed {
@@ -227,6 +232,9 @@ impl Pack for FinalExpBytes {
                     *fp384_range_dst = self.fp384_range_s.clone().try_into().unwrap();
                 }   else if i == 14 {
                     *found_nullifier_dst = [self.found_nullifier; 1];
+                    msg!("modifying: found_nullifier_dst" );
+                }   else if i == 15 {
+                    *y6_range_dst = self.y6_range.clone().try_into().unwrap();
                     msg!("modifying: found_nullifier_dst" );
                 }
             }

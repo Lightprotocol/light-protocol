@@ -218,7 +218,6 @@ pub fn custom_cyclotomic_square_in_place( _store_f_range: &mut Vec<u8>) {
     let mut f = parse_f_from_bytes_new(& _store_f_range);
     // cost 46000
     f.cyclotomic_square_in_place();
-    //assert!(f != y0);
 
     parse_f_to_bytes_new(f,_store_f_range);
 }
@@ -475,11 +474,9 @@ mod tests {
         naf_vec
     };
 
-    use ark_ff::Fp12;
+    use ark_ff::{Fp12, Field};
     use ark_ec::bn::BnParameters;
-    use num_traits::{One, Zero};
-    use ark_ff::Field;
-    use ark_std::{UniformRand, test_rng};
+    use ark_std::{UniformRand, test_rng, One, Zero};
 
     #[test]
     fn frobenius_map_test_correct() {
@@ -506,7 +503,7 @@ mod tests {
 
             }
 
-            //genrating reference value for comparison
+            //generating reference value for comparison
             reference_f.frobenius_map(i);
             assert_eq!(reference_f, parse_f_from_bytes_new(&account));
         }
@@ -538,7 +535,7 @@ mod tests {
 
             }
 
-            //genrating reference value for comparison
+            //generating reference value for comparison
             reference_f.frobenius_map(i);
             assert!(reference_f != parse_f_from_bytes_new(&account));
         }
@@ -561,7 +558,7 @@ mod tests {
         let account_tmp = account.clone();
         custom_cyclotomic_square(&account_tmp, &mut account);
 
-        //genrating reference value for comparison
+        //generating reference value for comparison
         reference_f = reference_f.cyclotomic_square();
         reference_f = reference_f.cyclotomic_square();
         assert_eq!(reference_f, parse_f_from_bytes_new(&account));
@@ -583,7 +580,7 @@ mod tests {
         let account_tmp = account.clone();
         custom_cyclotomic_square(&account_tmp, &mut account);
 
-        //genrating reference value for comparison
+        //generating reference value for comparison
         reference_f = reference_f.cyclotomic_square();
         //reference_f = reference_f.cyclotomic_square();
         assert!(reference_f != parse_f_from_bytes_new(&account));
@@ -604,14 +601,14 @@ mod tests {
             parse_f_to_bytes_new(actual_f, &mut account);
             conjugate_wrapper(&mut account);
 
-            //genrating reference value for comparison
+            //generating reference value for comparison
             reference_f.conjugate();
             assert_eq!(reference_f, parse_f_from_bytes_new(&account));
         }
     }
 
     #[test]
-    fn conjugate_test_false() {
+    fn conjugate_test_fails() {
         //generating input
 
         let mut rng = test_rng();
@@ -625,7 +622,7 @@ mod tests {
             parse_f_to_bytes_new(actual_f, &mut account);
             conjugate_wrapper(&mut account);
 
-            //genrating reference value for comparison
+            //generating reference value for comparison
             reference_f.conjugate();
             assert!(reference_f != parse_f_from_bytes_new(&account));
         }
@@ -710,7 +707,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_inverse_test_false() {
+    fn custom_inverse_test_fails() {
 
         let mut rng = test_rng();
         let mut reference_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
@@ -838,7 +835,7 @@ mod tests {
     }
 
     #[test]
-    fn mul_assign_test_false() {
+    fn mul_assign_test_fails() {
 
         let mut rng = test_rng();
         let mut reference_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
@@ -1029,7 +1026,7 @@ mod tests {
     }
 
     #[test]
-    fn exp_by_neg_x_test_false() {
+    fn exp_by_neg_x_test_fails() {
 
         let mut rng = test_rng();
         let mut reference_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);

@@ -12,17 +12,11 @@ mod tests {
 	};
 	use arkworks_gadgets::poseidon::{PoseidonParameters, PoseidonError, Rounds,circom::CircomCRH, sbox::PoseidonSbox};
 	use ark_crypto_primitives::{crh::{TwoToOneCRH, CRH}, Error};
-	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
 	use std::convert::TryInto;
     use ark_std::{UniformRand, test_rng};
 
-	use Testing_Hardcoded_Params_devnet_new::state_merkle_tree::{HashBytes, MerkleTree as MerkleTreeOnchain};
 
 	use ark_std::{One};
-
-	use Testing_Hardcoded_Params_devnet_new::init_bytes11;
-	use Testing_Hardcoded_Params_devnet_new::processor_merkle_tree;
-
 
     use std::fs;
     use serde_json::{Result, Value};
@@ -37,8 +31,14 @@ mod tests {
 
 
     use ark_ec::AffineCurve;
+	use ark_ff::Field;
 
     use Testing_Hardcoded_Params_devnet_new::hard_coded_verifying_key_pvk_254::*;
+	use Testing_Hardcoded_Params_devnet_new::init_bytes11;
+	use Testing_Hardcoded_Params_devnet_new::processor_merkle_tree;
+	use Testing_Hardcoded_Params_devnet_new::state_merkle_tree::{HashBytes, MerkleTree as MerkleTreeOnchain};
+	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
+	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
 
 
     fn get_pvk_from_bytes_254() -> Result<ark_groth16::data_structures::VerifyingKey::<ark_ec::models::bn::Bn<ark_bn254::Parameters>>>{
@@ -461,8 +461,11 @@ mod tests {
     }
 
     use ark_ec::ProjectiveCurve;
+	use Testing_Hardcoded_Params_devnet_new::parsers_part_2_254::*;
+	use Testing_Hardcoded_Params_devnet_new::state_final_exp::FinalExpBytes;
+	use Testing_Hardcoded_Params_devnet_new::ranges_part_2::*;
 
-    #[test]
+	#[test]
     fn final_exp_offchain() -> Result<()> {
 
         let pvk_unprepped = get_pvk_from_bytes_254()?;
@@ -501,80 +504,1262 @@ mod tests {
         Ok(())
     }
 
-	use ark_ff::Field;
     #[allow(clippy::let_and_return)]
     fn final_exponentiation_custom(f: &<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk) -> Option<<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
-        // Easy part: result = elt^((q^6-1)*(q^2+1)).
-        // Follows, e.g., Beuchat et al page 9, by computing result as follows:
-        //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
+		//adapted from ark_ec bn254
+		//executes instructions_final_exponentiation alongside reference implementation and
+		//asserts after every step
+
+		//from original repo:
+	        // Easy part: result = elt^((q^6-1)*(q^2+1)).
+	        // Follows, e.g., Beuchat et al page 9, by computing result as follows:
+	        //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
+
+		/*
+		* ------------------------- init -------------------------
+		*/
+		let mut account_struct = FinalExpBytes::new();
 
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
+		parse_f_to_bytes_new(*f, &mut account_struct.f1_r_range_s);
+		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s), "0 failed");
+
+		let reference_f = f.clone();
+		account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+		/*
+		* ------------------------- conjugate -------------------------
+		*/
+
         f1.conjugate();
+		conjugate_wrapper(&mut account_struct.f1_r_range_s);
+		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s), "1 failed");
+
+		/*
+		*
+		* ------------------------- Inverse -------------------------
+		*
+		*/
+
+		custom_f_inverse_1(&account_struct.f_f2_range_s, &mut account_struct.cubic_range_1_s);
+
+		//2 ---------------------------------------------
+		custom_f_inverse_2(&account_struct.f_f2_range_s,&mut account_struct.cubic_range_0_s, &account_struct.cubic_range_1_s);
+		let cubic = parse_cubic_from_bytes_new(&account_struct.cubic_range_0_s,solo_cubic_0_range);
+
+		//3 ---------------------------------------------
+		custom_cubic_inverse_1(
+			&account_struct.cubic_range_0_s,
+			&mut account_struct.quad_range_0_s,
+			&mut account_struct.quad_range_1_s,
+			&mut account_struct.quad_range_2_s,
+			&mut account_struct.quad_range_3_s
+		);
+
+		//quad works
+		let quad = parse_quad_from_bytes_new(&account_struct.quad_range_3_s);
+
+		//4 ---------------------------------------------
+		//quad inverse is part of cubic Inverse
+		custom_quadratic_fp256_inverse_1(
+			&account_struct.quad_range_3_s,
+			&mut account_struct.fp384_range_s
+		);
+
+		//5 ---------------------------------------------
+		custom_quadratic_fp256_inverse_2(
+			&mut account_struct.quad_range_3_s,
+			& account_struct.fp384_range_s,
+		);
+
+		assert_eq!(quad.inverse().unwrap() , parse_quad_from_bytes_new(&account_struct.quad_range_3_s), "quad inverse failed");
+
+		//6 ---------------------------------------------
+		custom_cubic_inverse_2(
+		&mut account_struct.cubic_range_0_s,
+		& account_struct.quad_range_0_s,
+		& account_struct.quad_range_1_s,
+		& account_struct.quad_range_2_s,
+		& account_struct.quad_range_3_s
+		);
+		assert_eq!(cubic.inverse().unwrap() , parse_cubic_from_bytes_new(&account_struct.cubic_range_0_s, solo_cubic_0_range), "cubic inverse failed");
+
+		//7 ---------------------------------------------
+		custom_f_inverse_3(
+			&mut account_struct.cubic_range_1_s,
+			&account_struct.cubic_range_0_s,
+			&account_struct.f_f2_range_s,
+		);
+
+		//8 ---------------------------------------------
+		custom_f_inverse_4(
+			&mut account_struct.cubic_range_0_s,
+			&account_struct.f_f2_range_s
+		);
+
+		//9 ---------------------------------------------
+		custom_f_inverse_5(
+			&account_struct.cubic_range_0_s,
+			&account_struct.cubic_range_1_s,
+			&mut account_struct.f_f2_range_s,
+		);
+
+		assert_eq!(reference_f.inverse().unwrap() , parse_f_from_bytes_new(&account_struct.f_f2_range_s), "f inverse failed");
+		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s));
 
         f.inverse().map(|mut f2| {
-            // f2 = f^(-1);
-            // r = f^(p^6 - 1)
+
+			/*
+			*
+			*
+			* ------------------------- mul -------------------------
+			*
+			*
+			*/
+			//from original repo
+            	// f2 = f^(-1);
+            	// r = f^(p^6 - 1)
+
             let mut r = f1 * &f2;
 
-            // f2 = f^(p^6 - 1)
+			assert_eq!(f2, parse_f_from_bytes_new(&account_struct.f_f2_range_s));
+			assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s));
+
+			mul_assign_1(
+				&account_struct.f1_r_range_s,  f_cubic_0_range,
+				&account_struct.f_f2_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			//9
+			mul_assign_2(
+				&account_struct.f1_r_range_s,  f_cubic_1_range,
+				&account_struct.f_f2_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			//10
+			mul_assign_3(
+				&mut account_struct.f1_r_range_s
+			);
+
+			//11
+			mul_assign_4_1(
+				&account_struct.f_f2_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.f1_r_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			//12
+			mul_assign_5(
+				&mut account_struct.f1_r_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
+
+			/*
+			*
+			*
+			* ------------------------- assign -------------------------
+			*
+			*
+			*/
+			//from original repo
+            	// f2 = f^(p^6 - 1)
             f2 = r;
-            // r = f^((p^6 - 1)(p^2))
+
+			account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+			assert_eq!(f2,  parse_f_from_bytes_new(&account_struct.f_f2_range_s));
+
+			/*
+			*
+			*
+			* ------------------------- frobenius_map(2) -------------------------
+			*
+			*
+			*/
+			//from original repo
+            	// r = f^((p^6 - 1)(p^2))
             r.frobenius_map(2);
 
-            // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
-            // r = f^((p^6 - 1)(p^2 + 1))
-            r *= &f2;
+			custom_frobenius_map_2_1(&mut account_struct.f1_r_range_s);
+			custom_frobenius_map_2_2(&mut account_struct.f1_r_range_s);
 
-            // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
-            // by computing:
-            //
-            // result = elt^(q^3 * (12*z^3 + 6z^2 + 4z - 1) +
-            //               q^2 * (12*z^3 + 6z^2 + 6z) +
-            //               q   * (12*z^3 + 6z^2 + 4z) +
-            //               1   * (12*z^3 + 12z^2 + 6z + 1))
-            // which equals
-            //
-            // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
+			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s));
+
+			/*
+			*
+			*
+			* ------------------------- mulassign -------------------------
+			*
+			*
+			*/
+			//from original repo
+	            // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
+	            // r = f^((p^6 - 1)(p^2 + 1))
+            r *= &f2;
+			//f2 last used here
+			mul_assign_1(
+				&account_struct.f1_r_range_s,  f_cubic_0_range,
+				&account_struct.f_f2_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			//9
+			mul_assign_2(
+				&account_struct.f1_r_range_s,  f_cubic_1_range,
+				&account_struct.f_f2_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			//10
+			mul_assign_3(
+				&mut account_struct.f1_r_range_s
+			);
+
+			//11
+			mul_assign_4_1(
+				&account_struct.f_f2_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.f1_r_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			//12
+			mul_assign_5(
+				&mut account_struct.f1_r_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
+
+			/*
+			*
+			*
+			* ------------------------- exp_by_neg_x(r) -------------------------
+			*
+			*
+			*/
+			//from original repo
+	            // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
+	            // by computing:
+	            //
+	            // result = elt^(q^3 * (12*z^3 + 6z^2 + 4z - 1) +
+	            //               q^2 * (12*z^3 + 6z^2 + 6z) +
+	            //               q   * (12*z^3 + 6z^2 + 4z) +
+	            //               1   * (12*z^3 + 12z^2 + 6z + 1))
+	            // which equals
+	            //
+	            // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
 
             let y0 = exp_by_neg_x(r);
+
+			//init
+			account_struct.i_range_s = account_struct.f1_r_range_s.clone();
+
+			conjugate_wrapper(&mut account_struct.i_range_s);
+
+			account_struct.y0_range_s = account_struct.f1_r_range_s.clone();
+
+			for i in 1..63 {
+				//20
+				if i == 1 {
+					assert_eq!(account_struct.y0_range_s, account_struct.f1_r_range_s);
+				}
+
+				//cyclotomic_exp
+				if i != 0 {
+					//println!("i {}", i);
+					custom_cyclotomic_square_in_place(&mut account_struct.y0_range_s);
+				}
+
+				if naf_vec[i] != 0 {
+					if naf_vec[i] > 0 {
+						//println!("if i {}", i);
+						//23
+						mul_assign_1(
+							&account_struct.y0_range_s, f_cubic_0_range,
+							&account_struct.f1_r_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+
+						//24
+						mul_assign_2(
+							&account_struct.y0_range_s, f_cubic_1_range,
+							&account_struct.f1_r_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+
+						//25
+						mul_assign_3(
+							&mut account_struct.y0_range_s
+						);
+
+
+						//26
+						mul_assign_4_1(
+							&account_struct.f1_r_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y0_range_s,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+
+						//27
+						mul_assign_5(
+							&mut account_struct.y0_range_s,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+
+					} else {
+						//println!("else i {}", i);
+						//28
+						mul_assign_1(
+							&account_struct.y0_range_s, f_cubic_0_range,
+							&account_struct.i_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+						//29
+						mul_assign_2(
+							&account_struct.y0_range_s, f_cubic_1_range,
+							&account_struct.i_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+						//30
+						mul_assign_3(
+							&mut account_struct.y0_range_s
+						);
+						//31
+						mul_assign_4_1(
+							&account_struct.i_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y0_range_s,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+						//32
+						mul_assign_5(
+							&mut account_struct.y0_range_s,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+					}
+				}
+			}
+
+			//will always conjugate
+			//if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
+				//println!("conjugate");
+				//f.conjugate();
+			conjugate_wrapper(&mut account_struct.y0_range_s);
+
+			//}
+
+			assert_eq!(y0,  parse_f_from_bytes_new(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
+
+			/*
+			*
+			*
+			* ------------------------- y0.cyclotomic_square() -------------------------
+			*
+			*
+			*/
+
             let y1 = y0.cyclotomic_square();
+			custom_cyclotomic_square(&account_struct.y0_range_s, &mut account_struct.y1_range_s);
+			assert_eq!(y1,  parse_f_from_bytes_new(&account_struct.y1_range_s), "exp_by_neg_x(r) ");
 			//y0 last used
+
+			/*
+			*
+			*
+			* ------------------------- y0.cyclotomic_square() -------------------------
+			*
+			*
+			*/
+
             let y2 = y1.cyclotomic_square();
+			//y2 is stored in y0_range_s
+			custom_cyclotomic_square(&account_struct.y1_range_s , &mut account_struct.y0_range_s);
+			assert_eq!(y2,  parse_f_from_bytes_new(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
+
+			/*
+			*
+			*
+			* ------------------------- mulassign -------------------------
+			*
+			*
+			*/
+
             let mut y3 = y2 * &y1;
-			//y2 last used
+			//y3 is stored in y0_range_s
+
+			mul_assign_1(
+				&account_struct.y0_range_s,  f_cubic_0_range,
+				&account_struct.y1_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y0_range_s,  f_cubic_1_range,
+				&account_struct.y1_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			mul_assign_3(
+				&mut account_struct.y0_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.y1_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y0_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y0_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y3,  parse_f_from_bytes_new(&account_struct.y0_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- y4 = exp_by_neg_x(y3) -------------------------
+			*
+			*
+			*/
+
             let y4 = exp_by_neg_x(y3);
+			//y4 is stored in y2_range_s
+
+
+			//init
+			account_struct.i_range_s = account_struct.y0_range_s.clone();
+
+			conjugate_wrapper(&mut account_struct.i_range_s);
+
+			account_struct.y2_range_s = account_struct.y0_range_s.clone();
+
+			for i in 1..63 {
+				//20
+				if i == 1 {
+					assert_eq!(account_struct.y2_range_s, account_struct.y0_range_s);
+				}
+
+				//cyclotomic_exp
+				if i != 0 {
+					//println!("i {}", i);
+					custom_cyclotomic_square_in_place(&mut account_struct.y2_range_s);
+				}
+
+				if naf_vec[i] != 0 {
+					if naf_vec[i] > 0 {
+						//println!("if i {}", i);
+						//23
+						mul_assign_1(
+							&account_struct.y2_range_s, f_cubic_0_range,
+							&account_struct.y0_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+
+						//24
+						mul_assign_2(
+							&account_struct.y2_range_s, f_cubic_1_range,
+							&account_struct.y0_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+
+						//25
+						mul_assign_3(
+							&mut account_struct.y2_range_s
+						);
+
+
+						//26
+						mul_assign_4_1(
+							&account_struct.y0_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y2_range_s,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+
+						//27
+						mul_assign_5(
+							&mut account_struct.y2_range_s,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+
+					} else {
+						//println!("else i {}", i);
+						//28
+						mul_assign_1(
+							&account_struct.y2_range_s, f_cubic_0_range,
+							&account_struct.i_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+						//29
+						mul_assign_2(
+							&account_struct.y2_range_s, f_cubic_1_range,
+							&account_struct.i_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+						//30
+						mul_assign_3(
+							&mut account_struct.y2_range_s
+						);
+						//31
+						mul_assign_4_1(
+							&account_struct.i_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y2_range_s,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+						//32
+						mul_assign_5(
+							&mut account_struct.y2_range_s,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+					}
+				}
+			}
+
+			conjugate_wrapper(&mut account_struct.y2_range_s);
+
+			assert_eq!(y4,  parse_f_from_bytes_new(&account_struct.y2_range_s), "exp_by_neg_x(r) ");
+
+
+			/*
+			*
+			*
+			* ------------------------- y4.cyclotomic_square() -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	f2 not used anymore
+			* y0_range:  		y3
+			* y1_range:			y1
+			* y2_range:			y4
+			*/
+
+
             let y5 = y4.cyclotomic_square();
+			//y5 is stored in f_f2_range_s
+			custom_cyclotomic_square(&account_struct.y2_range_s, &mut account_struct.f_f2_range_s);
+			assert_eq!(y5,  parse_f_from_bytes_new(&account_struct.f_f2_range_s), "cyclotomic_square ");
+
+			/*
+			*
+			*
+			* ------------------------- y4 = exp_by_neg_x(y3) -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	y5 			//y5 last used here
+			* y0_range:  		y3
+			* y1_range:			y1
+			* y2_range:			y4
+			* y6_range:			free
+			*/
+
             let mut y6 = exp_by_neg_x(y5);
-			//y5 last used
+			//y4 is stored in y6_range
+
+
+			//init
+			account_struct.i_range_s = account_struct.f_f2_range_s.clone();
+
+			conjugate_wrapper(&mut account_struct.i_range_s);
+
+			account_struct.y6_range = account_struct.f_f2_range_s.clone();
+
+			for i in 1..63 {
+				//20
+				if i == 1 {
+					assert_eq!(account_struct.y6_range, account_struct.f_f2_range_s);
+				}
+
+				//cyclotomic_exp
+				if i != 0 {
+					//println!("i {}", i);
+					custom_cyclotomic_square_in_place(&mut account_struct.y6_range);
+				}
+
+				if naf_vec[i] != 0 {
+					if naf_vec[i] > 0 {
+						//println!("if i {}", i);
+						//23
+						mul_assign_1(
+							&account_struct.y6_range, f_cubic_0_range,
+							&account_struct.f_f2_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+
+						//24
+						mul_assign_2(
+							&account_struct.y6_range, f_cubic_1_range,
+							&account_struct.f_f2_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+
+						//25
+						mul_assign_3(
+							&mut account_struct.y6_range
+						);
+
+
+						//26
+						mul_assign_4_1(
+							&account_struct.f_f2_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y6_range,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+
+						//27
+						mul_assign_5(
+							&mut account_struct.y6_range,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+
+					} else {
+						//println!("else i {}", i);
+						//28
+						mul_assign_1(
+							&account_struct.y6_range, f_cubic_0_range,
+							&account_struct.i_range_s, f_cubic_0_range,
+							&mut account_struct.cubic_range_0_s, solo_cubic_0_range
+						);
+						//29
+						mul_assign_2(
+							&account_struct.y6_range, f_cubic_1_range,
+							&account_struct.i_range_s, f_cubic_1_range,
+							&mut account_struct.cubic_range_1_s, solo_cubic_0_range
+						);
+						//30
+						mul_assign_3(
+							&mut account_struct.y6_range
+						);
+						//31
+						mul_assign_4_1(
+							&account_struct.i_range_s,
+							&mut account_struct.cubic_range_2_s,
+						);
+						mul_assign_4_2(
+							&mut account_struct.y6_range,
+							f_cubic_1_range,
+							&account_struct.cubic_range_2_s,
+						);
+						//32
+						mul_assign_5(
+							&mut account_struct.y6_range,
+							&account_struct.cubic_range_0_s,
+							&account_struct.cubic_range_1_s
+						);
+					}
+				}
+			}
+
+			conjugate_wrapper(&mut account_struct.y6_range);
+
+			assert_eq!(y6,  parse_f_from_bytes_new(&account_struct.y6_range), "exp_by_neg_x(r) ");
+
+			/*
+			*
+			*
+			* ------------------------- conjugate_wrapper -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y3
+			* y1_range:			y1
+			* y2_range:			y4
+			* y6_range:			y6
+			*/
+
             y3.conjugate();
+			conjugate_wrapper(&mut account_struct.y0_range_s);
+
             y6.conjugate();
+
+			conjugate_wrapper(&mut account_struct.y6_range);
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y3
+			* y1_range:			y1
+			* y2_range:			y4
+			* y6_range:			y6 last used
+			*/
+
             let y7 = y6 * &y4;
-			//y6 last used
+			// stored in y6_range
+
+			mul_assign_1(
+				&account_struct.y6_range,  f_cubic_0_range,
+				&account_struct.y2_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y6_range,  f_cubic_1_range,
+				&account_struct.y2_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			mul_assign_3(
+				&mut account_struct.y6_range
+			);
+
+			mul_assign_4_1(
+				&account_struct.y2_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y6_range,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y6_range,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y7,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y3 last used
+			* y1_range:			y1
+			* y2_range:			y4
+			* y6_range:			y7 last used
+			*/
             let mut y8 = y7 * &y3;
-			//y3 last used
+			// stored in y6_range
+
+			mul_assign_1(
+				&account_struct.y6_range,  f_cubic_0_range,
+				&account_struct.y0_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y6_range,  f_cubic_1_range,
+				&account_struct.y0_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			mul_assign_3(
+				&mut account_struct.y6_range
+			);
+
+			mul_assign_4_1(
+				&account_struct.y0_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y6_range,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y6_range,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y8,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		free
+			* y1_range:			y1		last used
+			* y2_range:			y4
+			* y6_range:			y8
+			*/
             let y9 = y8 * &y1;
-			//y1 last used
-            let y10 = y8 * &y4;
-			//y4 last used
+			// stored in y1_range
+
+			mul_assign_1(
+				&account_struct.y1_range_s,  f_cubic_0_range,
+				&account_struct.y6_range,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y1_range_s,  f_cubic_1_range,
+				&account_struct.y6_range,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			mul_assign_3(
+				&mut account_struct.y1_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.y6_range,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y1_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y1_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y9,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		free
+			* y1_range:			y9
+			* y2_range:			y4 last used
+			* y6_range:			y8
+			*/
+			let y10 = y8 * &y4;
+			// stored in y2_range_s
+
+			mul_assign_1(
+				&account_struct.y2_range_s,  f_cubic_0_range,
+				&account_struct.y6_range,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y2_range_s,  f_cubic_1_range,
+				&account_struct.y6_range,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+			mul_assign_3(
+				&mut account_struct.y2_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.y6_range,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y2_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y2_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y10,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		free
+			* y1_range:			y9
+			* y2_range:			y10  last used
+			* y6_range:			y8
+			*/
             let y11 = y10 * &r;
-			//y10 last used
+			// stored in y2_range_s
+
+			mul_assign_1(
+				&account_struct.y2_range_s,  f_cubic_0_range,
+				&account_struct.f1_r_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y2_range_s,  f_cubic_1_range,
+				&account_struct.f1_r_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+
+			mul_assign_3(
+				&mut account_struct.y2_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.f1_r_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y2_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y2_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y11,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- assign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		free
+			* y1_range:			y9
+			* y2_range:			y11
+			* y6_range:			y8
+			*/
+
             let mut y12 = y9;
+			account_struct.y0_range_s = account_struct.y1_range_s.clone();
+
+			/*
+			*
+			*
+			* ------------------------- frobenius_map(1) -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9
+			* y2_range:			y11
+			* y6_range:			y8
+			*/
             y12.frobenius_map(1);
+
+
+			custom_frobenius_map_1_1(&mut account_struct.y0_range_s);
+			custom_frobenius_map_1_2(&mut account_struct.y0_range_s);
+
+			assert_eq!(y12,  parse_f_from_bytes_new(&account_struct.y0_range_s));
+
+			/*
+			*
+			*
+			* ------------------------- frobenius_map(1) -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9
+			* y2_range:			y11 last used
+			* y6_range:			y8
+			*/
             let y13 = y12 * &y11;
-			//y11 last used
+			//y13 stored in y2_range_s
+
+			mul_assign_1(
+				&account_struct.y2_range_s,  f_cubic_0_range,
+				&account_struct.y0_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y2_range_s,  f_cubic_1_range,
+				&account_struct.y0_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+
+			mul_assign_3(
+				&mut account_struct.y2_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.y0_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y2_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y2_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y13,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- frobenius_map(2) -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9
+			* y2_range:			y13
+			* y6_range:			y8
+			*/
             y8.frobenius_map(2);
+
+
+			custom_frobenius_map_2_1(&mut account_struct.y6_range);
+			custom_frobenius_map_2_2(&mut account_struct.y6_range);
+
+			assert_eq!(y8,  parse_f_from_bytes_new(&account_struct.y6_range));
+
+
+			/*
+			*
+			*
+			* ------------------------- mulassign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9
+			* y2_range:			y13
+			* y6_range:			y8 last used
+			*/
+
             let y14 = y8 * &y13;
-			//y8 last used
+			//y14 stored in y6_range
+
+			mul_assign_1(
+				&account_struct.y6_range,  f_cubic_0_range,
+				&account_struct.y2_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y6_range,  f_cubic_1_range,
+				&account_struct.y2_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+
+			mul_assign_3(
+				&mut account_struct.y6_range
+			);
+
+			mul_assign_4_1(
+				&account_struct.y2_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y6_range,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y6_range,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y14,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- conjugate -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9
+			* y2_range:			y13
+			* y6_range:			y14
+			*/
+
             r.conjugate();
+			conjugate_wrapper(&mut account_struct.f1_r_range_s);
+
+			/*
+			*
+			*
+			* ------------------------- mul_assign -------------------------
+			*
+			* r_range: 			r		last used
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y9		last used
+			* y2_range:			y13
+			* y6_range:			y14
+			*/
+
             let mut y15 = r * &y9;
-			//y9 last used
+			//y15 stored in y1_range
+
+			mul_assign_1(
+				&account_struct.y1_range_s,  f_cubic_0_range,
+				&account_struct.f1_r_range_s,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y1_range_s,  f_cubic_1_range,
+				&account_struct.f1_r_range_s,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+
+			mul_assign_3(
+				&mut account_struct.y1_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.f1_r_range_s,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y1_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y1_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y15,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
+
+			/*
+			*
+			*
+			* ------------------------- frobenius_map(3) -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y15
+			* y2_range:			y13
+			* y6_range:			y14
+			*/
+
             y15.frobenius_map(3);
+
+			custom_frobenius_map_3_1(&mut account_struct.y1_range_s);
+			custom_frobenius_map_3_2(&mut account_struct.y1_range_s);
+
+			assert_eq!(y15,  parse_f_from_bytes_new(&account_struct.y1_range_s));
+
+			/*
+			*
+			*
+			* ------------------------- mulassign -------------------------
+			*
+			* r_range: 			r
+			* f_f2_range_s: 	free
+			* y0_range:  		y12
+			* y1_range:			y15
+			* y2_range:			y13
+			* y6_range:			y14
+			*/
+
             let y16 = y15 * &y14;
+			mul_assign_1(
+				&account_struct.y1_range_s,  f_cubic_0_range,
+				&account_struct.y6_range,  f_cubic_0_range,
+				&mut account_struct.cubic_range_0_s,  solo_cubic_0_range
+			);
+
+			mul_assign_2(
+				&account_struct.y1_range_s,  f_cubic_1_range,
+				&account_struct.y6_range,  f_cubic_1_range,
+				&mut account_struct.cubic_range_1_s,  solo_cubic_0_range
+			);
+
+			mul_assign_3(
+				&mut account_struct.y1_range_s
+			);
+
+			mul_assign_4_1(
+				&account_struct.y6_range,
+				&mut account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_4_2(
+				&mut account_struct.y1_range_s,
+				 f_cubic_1_range,
+				&account_struct.cubic_range_2_s,
+			);
+
+			mul_assign_5(
+				&mut account_struct.y1_range_s,
+				&account_struct.cubic_range_0_s,
+				&account_struct.cubic_range_1_s
+			);
+
+			assert_eq!(y16,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
 
             y16
         })
     }
+
 	use ark_ff::Fp12;
 	use ark_ec::bn::BnParameters;
 	pub fn exp_by_neg_x(mut f: Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>) -> Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {
