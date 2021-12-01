@@ -490,14 +490,99 @@ mod tests {
 
         //library result for reference
         let res_origin = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&f).unwrap();
+		let res_custom = final_exponentiation_custom(&f).unwrap();
+		assert_eq!(res_origin,res_custom);
 
-        
 
 
-
-        println!("{:?}", res_origin);
-        println!("{:?}", pvk.alpha_g1_beta_g2);
+        // println!("{:?}", res_origin);
+        // println!("{:?}", pvk.alpha_g1_beta_g2);
         assert_eq!(res_origin, pvk.alpha_g1_beta_g2);
         Ok(())
+    }
+
+	use ark_ff::Field;
+    #[allow(clippy::let_and_return)]
+    fn final_exponentiation_custom(f: &<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk) -> Option<<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
+        // Easy part: result = elt^((q^6-1)*(q^2+1)).
+        // Follows, e.g., Beuchat et al page 9, by computing result as follows:
+        //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
+
+        // f1 = r.conjugate() = f^(p^6)
+        let mut f1 = *f;
+        f1.conjugate();
+
+        f.inverse().map(|mut f2| {
+            // f2 = f^(-1);
+            // r = f^(p^6 - 1)
+            let mut r = f1 * &f2;
+
+            // f2 = f^(p^6 - 1)
+            f2 = r;
+            // r = f^((p^6 - 1)(p^2))
+            r.frobenius_map(2);
+
+            // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
+            // r = f^((p^6 - 1)(p^2 + 1))
+            r *= &f2;
+
+            // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
+            // by computing:
+            //
+            // result = elt^(q^3 * (12*z^3 + 6z^2 + 4z - 1) +
+            //               q^2 * (12*z^3 + 6z^2 + 6z) +
+            //               q   * (12*z^3 + 6z^2 + 4z) +
+            //               1   * (12*z^3 + 12z^2 + 6z + 1))
+            // which equals
+            //
+            // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
+
+            let y0 = exp_by_neg_x(r);
+            let y1 = y0.cyclotomic_square();
+			//y0 last used
+            let y2 = y1.cyclotomic_square();
+            let mut y3 = y2 * &y1;
+			//y2 last used
+            let y4 = exp_by_neg_x(y3);
+            let y5 = y4.cyclotomic_square();
+            let mut y6 = exp_by_neg_x(y5);
+			//y5 last used
+            y3.conjugate();
+            y6.conjugate();
+            let y7 = y6 * &y4;
+			//y6 last used
+            let mut y8 = y7 * &y3;
+			//y3 last used
+            let y9 = y8 * &y1;
+			//y1 last used
+            let y10 = y8 * &y4;
+			//y4 last used
+            let y11 = y10 * &r;
+			//y10 last used
+            let mut y12 = y9;
+            y12.frobenius_map(1);
+            let y13 = y12 * &y11;
+			//y11 last used
+            y8.frobenius_map(2);
+            let y14 = y8 * &y13;
+			//y8 last used
+            r.conjugate();
+            let mut y15 = r * &y9;
+			//y9 last used
+            y15.frobenius_map(3);
+            let y16 = y15 * &y14;
+
+            y16
+        })
+    }
+	use ark_ff::Fp12;
+	use ark_ec::bn::BnParameters;
+	pub fn exp_by_neg_x(mut f: Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>) -> Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {
+        f = f.cyclotomic_exp(&<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X);
+        if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
+			println!("conjugate");
+			f.conjugate();
+        }
+        f
     }
 }

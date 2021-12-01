@@ -70,6 +70,7 @@ pub fn custom_f_inverse_5(
     parse_f_to_bytes_new(<ark_ec::models::bls12::Bls12::<ark_bls12_381::Parameters> as ark_ec::PairingEngine>::Fqk::new(c0, c1), _f_f2_range);//30
 
 }
+
 pub fn custom_cubic_inverse_1(
         _cubic_range_0: &Vec<u8>,
         _quad_range_0: &mut Vec<u8>,
