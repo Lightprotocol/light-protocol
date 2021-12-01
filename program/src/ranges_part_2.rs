@@ -16,6 +16,8 @@ pub const quad_range_1_iter : usize = 10;
 pub const quad_range_2_iter : usize = 11;
 pub const quad_range_3_iter : usize = 12;
 pub const fp384_range_iter : usize = 13;
+pub const found_nullifier_iter : usize = 14;
+pub const y6_range_iter : usize = 15;
 
 
 //bls12 pub const naf_vec: [i64; 65] = [1, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
