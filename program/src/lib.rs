@@ -35,7 +35,7 @@ pub mod init_bytes11;
 
 pub mod instructions_final_exponentiation;
 pub mod parsers_part_2_254;
-
+pub mod processor_final_exp;
 use crate::processor_merkle_tree::{
     _pre_process_instruction_merkle_tree,
 };
