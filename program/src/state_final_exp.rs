@@ -12,7 +12,7 @@ use byteorder::ByteOrder;
 
 
 // Account struct for verify Part 2:
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct FinalExpBytes {
     is_initialized: bool,
     pub found_nullifier: u8,
