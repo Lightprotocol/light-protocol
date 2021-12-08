@@ -50,3 +50,4 @@ crate-type = ["cdylib", "lib"]
 [dev-dependencies]
 solana-program-test = "1.7.12"
 solana-sdk = "1.7.12"
+#ark-groth16 = {version = "0.3.0"}

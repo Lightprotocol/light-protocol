@@ -110,30 +110,6 @@ pub fn _pre_process_instruction_miller_loop(
         //let mut account_main_data = MillerLoopBytes::unpack(&account_main.data.borrow())?;
         // turn bytes into affine, then into prepared, parse prepared
 
-        let proof_a = parse_x_group_affine_from_bytes(&_instruction_data[2..98].to_vec());
-        let proof_c = parse_x_group_affine_from_bytes(&_instruction_data[98..194].to_vec());
-
-        let p1: ark_ec::bls12::G1Prepared<ark_bls12_381::Parameters> =
-            ark_ec::bls12::g1::G1Prepared::from(proof_a);
-        let p3: ark_ec::bls12::G1Prepared<ark_bls12_381::Parameters> =
-            ark_ec::bls12::g1::G1Prepared::from(proof_c);
-
-        parse_fp384_to_bytes(p1.0.x, &mut account_main_data.p_1_x_range);
-        parse_fp384_to_bytes(p1.0.y, &mut account_main_data.p_1_y_range);
-        parse_fp384_to_bytes(p3.0.x, &mut account_main_data.p_3_x_range);
-        parse_fp384_to_bytes(p3.0.y, &mut account_main_data.p_3_y_range);
-
-        account_main_data.changed_variables[P_1_X_RANGE_INDEX] = true;
-        account_main_data.changed_variables[P_1_Y_RANGE_INDEX] = true;
-        account_main_data.changed_variables[P_3_X_RANGE_INDEX] = true;
-        account_main_data.changed_variables[P_3_Y_RANGE_INDEX] = true;
-
-        // init f
-        let mut f_arr: Vec<u8> = vec![0; 576];
-        f_arr[0] = 1;
-        account_main_data.f_range = f_arr;
-        account_main_data.changed_variables[F_RANGE_INDEX] = true;
-
         // pack main
         //MillerLoopBytes::pack_into_slice(&account_main_data, &mut account_main.data.borrow_mut());
     }
