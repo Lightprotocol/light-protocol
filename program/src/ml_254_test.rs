@@ -1,7 +1,7 @@
 // use crate::parse_verifyingkey_254::*;
 // use crate::verifyingkey_254_hc::*;
 use ark_ff::{Fp256, FromBytes};
-// use ark_groth16::{prepare_inputs, prepare_verifying_key};
+use ark_groth16::{verify_proof, prepare_inputs, prepare_verifying_key};
 use ark_std::{One, Zero};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
@@ -10,6 +10,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 use std::convert::TryInto;
+
 #[test]
 fn mo_254_test_offchain() {
     let ix_order_array_mock;
@@ -17,6 +18,8 @@ fn mo_254_test_offchain() {
     let mock_account = [0; 4972];
 
     // let mut account_data = ::unpack(&mock_account).unwrap();
+
+    
 
     for index in 0..1 {
         // println!("c ixorderarr: {}", ix_order_array_mock[index]);

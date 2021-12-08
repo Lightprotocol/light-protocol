@@ -2,6 +2,7 @@ use crate::instructions::*;
 use crate::instructions_transform_g2_affine_to_g2_prepared::*;
 use crate::ranges::*;
 use crate::{FinalExpBytes, MillerLoopBytes};
+use ark_groth16::verify_proof_with_prepared_inputs;
 use solana_program::msg;
 
 pub fn _process_instruction(

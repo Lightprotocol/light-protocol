@@ -1,146 +1,131 @@
+use ark_ec::models::SWModelParameters as Parameters;
 use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
+use ark_ff::biginteger::BigInteger384;
+use ark_ff::Fp384;
 use ark_ff::PrimeField;
 use ark_relations::r1cs::{Result as R1CSResult, SynthesisError};
 use core::ops::{Add, AddAssign, MulAssign, Neg, Sub, SubAssign};
-use ark_ec::{models::SWModelParameters as Parameters};
-use ark_ff::biginteger::BigInteger384;
-use ark_ff::Fp384;
 
 // @ark_groth16::prepare_inputs
 // impl<P: Parameters> GroupAffine<P> {
-pub fn prepare_inputs_custom (
-    pvk_vk_gamma_abc_g1: Vec<ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bls12_381::g1::Parameters>>,
-    public_inputs: &[ark_ff::Fp256<ark_ed_on_bls12_381::FqParameters>],// &[E::Fr],
-// ) -> R1CSResult<E::G1Projective> {
-)-> R1CSResult<ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bls12_381::g1::Parameters>> {
-
-    println!("going in coach...");
+pub fn prepare_inputs_custom(
+    pvk_vk_gamma_abc_g1: Vec<
+        ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bls12_381::g1::Parameters>,
+    >,
+    public_inputs: &[ark_ff::Fp256<ark_ed_on_bls12_381::FqParameters>], // &[E::Fr],
+                                                                        // ) -> R1CSResult<E::G1Projective> {
+) -> R1CSResult<ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bls12_381::g1::Parameters>>
+{
+    // println!("going in coach...");
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
         return Err(SynthesisError::MalformedVerifyingKey);
     }
-    
-    let p_basefield_one : Fp384<ark_bls12_381::FqParameters> = Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([8505329371266088957, 17002214543764226050, 6865905132761471162, 8632934651105793861, 6631298214892334189, 1582556514881692819]));
 
+    let p_basefield_one: Fp384<ark_bls12_381::FqParameters> =
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([
+            8505329371266088957,
+            17002214543764226050,
+            6865905132761471162,
+            8632934651105793861,
+            6631298214892334189,
+            1582556514881692819,
+        ]));
     let mut g_ic = pvk_vk_gamma_abc_g1[0].into_projective();
-    println!("G_IC before all: {:?}", g_ic);
+    // println!("G_IC before all: {:?}", g_ic);
 
-    for (i, x) in public_inputs.iter().zip(pvk_vk_gamma_abc_g1.iter().skip(1)) { // 
+    for (i, x) in public_inputs.iter().zip(pvk_vk_gamma_abc_g1.iter().skip(1)) {
+        //
 
         let a = i.into_repr();
-        println!("(i, x) : {:?}", (i, x));
         // let x = &b.mul(a); ====> same as >
-        let bits : ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a.into());
-        println!("BITS: {:?}", bits);
+        let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a.into());
         // let x = &b.mul_bits(bits); ==> same as >
-        let mut res : ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bls12_381::g1::Parameters> = ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // <P as ark_ec::ModelParameters>::BaseField 
-        // Skip leading zeros.
-        println!("RES: {:?}", res);
+        let mut res: ark_ec::short_weierstrass_jacobian::GroupProjective<
+            ark_bls12_381::g1::Parameters,
+        > = ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // <P as ark_ec::ModelParameters>::BaseField
+                                                                         // Skip leading zeros.
 
         for i in bits.skip_while(|b| !b) {
             res.double_in_place();
-            println!("30000 double_in_place A");
-            println!("i/CURRENTBIT: {:?}", i);
             if i {
                 // res.add_assign_mixed(&x) ==> same as > (other=> <P>)
                 if x.is_zero() {
                     // return
-                    println!("0 x.is_zero");
-
-                } 
-                else if res.is_zero() {
+                    // println!("0 x.is_zero");
+                } else if res.is_zero() {
                     res.x = x.x;
                     res.y = x.y;
                     // res.z = res_t;
-                    // res.z = 
+                    // res.z =
                     res.z = p_basefield_one; // HARDCODED!&P:BASEFIELD::ONE();
-                    // return
-                    println!("200 res.is_zero");
-
+                                             // return
                 } else {
-
-                    // Z1Z1 = Z1^2                    
+                    // Z1Z1 = Z1^2
                     let z1z1 = res.z.square();
-            
                     // U2 = X2*Z1Z1
                     let u2 = x.x * &z1z1;
-            
                     // S2 = Y2*Z1*Z1Z1
                     let s2 = (x.y * &res.z) * &z1z1;
-            
-                    println!("17000 else");
-
+                    // println!("17000 else");
 
                     if res.x == u2 && res.y == s2 {
                         // The two points are equal, so we double.
                         res.double_in_place();
                     } else {
                         // If we're adding -a and a together, self.z becomes zero as H becomes zero.
-            
                         // H = U2-X1
                         let h = u2 - &res.x;
-            
                         // HH = H^2
                         let hh = h.square();
-            
                         // I = 4*HH
                         let mut i = hh;
                         i.double_in_place().double_in_place();
-            
                         // J = H*I
                         let mut j = h * &i;
-            
                         // r = 2*(S2-Y1)
                         let r = (s2 - &res.y).double();
-            
                         // V = X1*I
                         let v = res.x * &i;
-            
                         // X3 = r^2 - J - 2*V
                         res.x = r.square();
                         res.x -= &j;
                         res.x -= &v;
                         res.x -= &v;
-            
                         // Y3 = r*(V-X3)-2*Y1*J
                         j *= &res.y; // J = 2*Y1*J
                         j.double_in_place();
                         res.y = v - &res.x;
                         res.y *= &r;
                         res.y -= &j;
-            
                         // Z3 = (Z1+H)^2-Z1Z1-HH
                         res.z += &h;
                         res.z.square_in_place();
                         res.z -= &z1z1;
                         res.z -= &hh;
                     }
-                    println!("30000 else>if/else");
-
+                    // println!("30000 else>if/else");
                 }
             }
-    
         }
-        
         // BELOW: ONCE PER INPUT
         // g_ic.add_assign(res); ===> same as > (all)
-        println!("RES AFTER: {:?}", res);
+        // println!("RES AFTER: {:?}", res);
 
         // fn add_assign(&mut self, other: &'a Self) {
-        println!("G_IC IN");
+        // println!("G_IC IN");
         if g_ic.is_zero() {
             g_ic = res;
-            println!("gic is zero");
+            // println!("gic is zero");
 
             // return;
-        } else 
-        if res.is_zero() {
+        } else if res.is_zero() {
             // return;
-            println!("res is zero");
-
-        } else { // 36000
+            // println!("res is zero");
+        } else {
+            // 36000
             // http://www.hyperelliptic.org/EFD/g1p/auto-shortw-jacobian-0.html#addition-add-2007-bl
             // Works for all curves.
-            println!("36000 ");
+            // println!("36000 ");
 
             // Z1Z1 = Z1^2
             let z1z1 = g_ic.z.square();
@@ -162,14 +147,14 @@ pub fn prepare_inputs_custom (
 
             if u1 == u2 && s1 == s2 {
                 // The two points are equal, so we double.
-                println!("30000 -60000");
+                // println!("30000 -60000");
 
                 g_ic.double_in_place(); // 30k
             } else {
                 // If we're adding -a and a together, self.z becomes zero as H becomes zero.
 
-                // H = U2-U1                
-                println!("30000 -60000");
+                // H = U2-U1
+                // println!("30000 -60000");
 
                 let h = u2 - &u1;
 
@@ -196,21 +181,15 @@ pub fn prepare_inputs_custom (
             }
         }
 
-        println!("G_IC after each INPUT: {:?}", g_ic);
-
-
+        // println!("G_IC after each INPUT: {:?}", g_ic);
     }
-    println!("we did it folks...");
-    println!("G_IC after all: {:?}", g_ic);
+    // println!("we did it folks...");
+    // println!("G_IC after all: {:?}", g_ic);
 
     Ok(g_ic)
 }
 
-
-
 // -------------> test: use short...rs
-
-
 
 use ark_serialize::{
     CanonicalDeserialize, CanonicalDeserializeWithFlags, CanonicalSerialize,
@@ -229,8 +208,6 @@ use ark_ff::{
     ToConstraintField, UniformRand,
 };
 
-
-
 use num_traits::{One, Zero};
 use zeroize::Zeroize;
 
@@ -239,9 +216,9 @@ use ark_std::rand::{
     Rng,
 };
 
+use derivative::*;
 #[cfg(feature = "parallel")]
 use rayon::prelude::*;
-use derivative::*;
 
 /// Affine coordinates for a point on an elliptic curve in short Weierstrass form,
 /// over the base field `P::BaseField`.

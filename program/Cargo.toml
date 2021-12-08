@@ -47,6 +47,7 @@ arkworks-gadgets = "0.3.14"
 zeroize = "1.4.2"
 derivative = "2.2.0"
 ark-serialize = { version = "^0.3.0", default-features = false }
+ark-groth16 = "0.3.0"
 
 #ark-r1cs-std = { version = "^0.3.0", default-features = false }
 #ark-snark = { version = "^0.3.0", default-features = false }
