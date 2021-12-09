@@ -24,6 +24,7 @@ use crate::ranges_part_2::*;
 
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
+    //msg!("conjugate_wrapper: {:?}", _range);
     let mut f = parse_f_from_bytes_new(_range);
     f.conjugate();
     parse_f_to_bytes_new(f, _range);
