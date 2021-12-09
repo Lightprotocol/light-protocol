@@ -1,28 +1,8 @@
-use crate::inverse::*;
+
 use crate::ranges_part_2::*;
 use crate::state_final_exp::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2};
 use crate::state_merkle_tree;
 
-use crate::mul_assign::{
-    mul_assign_1,
-    mul_assign_2,
-    mul_assign_3,
-    mul_assign_4_1,
-    mul_assign_4_2,
-    mul_assign_5,
-};
-use crate::utils::{
-    custom_frobenius_map_1_1,
-    custom_frobenius_map_1_2,
-    custom_frobenius_map_2_1,
-    custom_frobenius_map_2_2,
-    custom_cyclotomic_square,
-    conjugate_wrapper,
-    custom_square_in_place_instruction_else_1,
-    custom_square_in_place_instruction_else_1_2,
-    custom_square_in_place_instruction_else_2,
-    custom_square_in_place_instruction_else_3,
-};
 
 use solana_program::{
     msg,
@@ -37,9 +17,9 @@ use crate::state_check_nullifier::{
     check_nullifier_in_range_1,
     check_nullifier_in_range_2,
     check_nullifier_in_range_3,
-
-
 };
+
+use crate::processor_final_exp::_process_instruction_final_exp;
 
 pub fn _pre_process_instruction_final_exp(_instruction_data: &[u8], accounts: &[AccountInfo]) -> Result<(),ProgramError>{
     let account = &mut accounts.iter();
@@ -55,9 +35,17 @@ pub fn _pre_process_instruction_final_exp(_instruction_data: &[u8], accounts: &[
         let executed_miller_loop = true;
         storage_acc_data.current_instruction_index = 0;
     }
-    //assert_eq!(_instruction_data[0],  INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index]);
-    assert_eq!(*signing_account.key, solana_program::pubkey::Pubkey::new(&storage_acc_data.signing_address), "Invalid sender");
+    //check that instruction order is called correctly
     msg!("PT 2 lib.rs - Instruction {} {}", INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index], storage_acc_data.current_instruction_index);
+
+    assert_eq!(_instruction_data[8],  INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index]);
+
+    /*
+
+    * disabled for testing
+
+    *assert_eq!(*signing_account.key, solana_program::pubkey::Pubkey::new(&storage_acc_data.signing_address), "Invalid sender");
+    */
 
 
     //init instruction for testing
@@ -75,6 +63,7 @@ pub fn _pre_process_instruction_final_exp(_instruction_data: &[u8], accounts: &[
     //     msg!("0 {}", storage_acc_data.f1_r_range_s[0] );
     //     msg!("566 {}", storage_acc_data.f1_r_range_s[566] );
 
+    /*
     if  INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index] == 103 {
         let account_from = next_account_info(account)?;
         let account_to = next_account_info(account)?;
@@ -124,23 +113,29 @@ pub fn _pre_process_instruction_final_exp(_instruction_data: &[u8], accounts: &[
         check_nullifier_in_range_3(&account_merkle_tree, &storage_acc_data.nullifer ,&mut storage_acc_data.found_nullifier);
         storage_acc_data.changed_variables[14] = true;
         //return Ok(());
-    } else {
-        _process_instruction_part_2(  INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index], &mut storage_acc_data);
-    }
-    // }
+    } else {*/
+        msg!("verify instruction ");
+        let instruction_id = INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index.clone()];
+        _process_instruction_final_exp(  &mut storage_acc_data, instruction_id);
+    //}
+
     storage_acc_data.current_instruction_index +=1;
     sol_log_compute_units();
 
     FinalExpBytes::pack_into_slice(&storage_acc_data, &mut storage_acc.data.borrow_mut());
     sol_log_compute_units();
+    msg!("packed: {:?}", storage_acc_data.changed_variables);
 
     Ok(())
 }
 
-
+/*
 pub fn _process_instruction_part_2(id: u8, account_struct: &mut FinalExpBytes) {
     msg!("PIP2 - calling instruction {}", id);
+
     if id == 0 {
+            msg!("PIP2 - calling instruction data {:?}", account_struct.f1_r_range_s);
+
             conjugate_wrapper(&mut account_struct.f1_r_range_s);
             account_struct.changed_variables[f1_r_range_iter] = true;
 
@@ -1041,3 +1036,4 @@ pub fn _process_instruction_part_2(id: u8, account_struct: &mut FinalExpBytes) {
 
         }
     }
+*/

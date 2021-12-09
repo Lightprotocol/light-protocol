@@ -1,3 +1,4 @@
+/*
 #[cfg(test)]
 mod tests {
 
@@ -2034,17 +2035,33 @@ mod tests {
     }
 
 	pub const instruction_order: [u8; 700] = [0,1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 10, 11, 12, 13, 14, 15, 19, 20, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 21, 22, 23, 24, 25, 26, 20, 20, 20, 20, 20, 27, 28, 29, 30, 31, 32, 20, 20, 20, 20, 21, 22, 23, 24, 25, 26, 33, 34, 35, 36, 37, 38, 39, 40, 41, 42, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 43, 44, 45, 46, 47, 48, 42, 42, 42, 42, 42, 49, 50, 51, 52, 53, 54, 42, 42, 42, 42, 43, 44, 45, 46, 47, 48, 55, 56, 57, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 58, 59, 60, 61, 62, 63, 57, 57, 57, 57, 57, 64, 65, 66, 67, 68, 69, 57, 57, 57, 57, 58, 59, 60, 61, 62, 63, 70, 71, 72, 73, 74, 75, 76, 77, 78, 79, 80, 81, 82, 83, 84, 85, 86, 87, 88, 89, 90, 91, 92, 93, 94, 95, 96, 97, 98, 99, 100, 101, 102, 103, 104, 105, 106, 107, 108, 109, 110, 111, 71, 72, 73, 74, 75, 76, 112, 113, 114, 115, 116, 117, 118, 119, 120, 83, 84, 85, 86, 87, 88];
-
+	use solana_program::{
+	    program_pack::{Pack},
+	};
+	use std::fs::File;
+	use std::io::{Error as ioError};
 	fn final_exponentiation_test_processor(f: &<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk) -> Option<<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
 
-			let mut account_struct = FinalExpBytes::new();
+		let mut account_struct = FinalExpBytes::new();
 
 		parse_f_to_bytes_new(*f, &mut account_struct.f1_r_range_s);
+		account_struct.changed_variables[f1_r_range_iter] = true;
+		let mut account_onchain_slice = [0u8; 3772];
+		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
+		let path = "src/final_exp_onchain_init_bytes.rs";
+		let mut output = File::create(path).ok()?;
+		write!(output, "{}",format!("pub const INIT_BYTES_FINAL_EXP : [u8;{}] = {:?};",account_onchain_slice.len(), account_onchain_slice));
 
 		for i in instruction_order {
-			_process_instruction_final_exp(&mut account_struct, i );
-		}
+			let mut account_struct_tmp = <FinalExpBytes as Pack>::unpack(&account_onchain_slice).unwrap();
+			println!("processor iter : {}", i);
+			_process_instruction_final_exp(&mut account_struct_tmp, i );
+			account_struct.y1_range_s = account_struct_tmp.y1_range_s.clone();
 
+			 <FinalExpBytes as Pack>::pack_into_slice(&account_struct_tmp, &mut account_onchain_slice);
+			 assert_eq!(account_struct.y1_range_s, account_struct_tmp.y1_range_s);
+		}
+		println!("result in bytes: {:?}",account_struct.y1_range_s );
 		Some(parse_f_from_bytes_new(&account_struct.y1_range_s))
 
 	}
@@ -2059,3 +2076,4 @@ mod tests {
         f
     }
 }
+*/

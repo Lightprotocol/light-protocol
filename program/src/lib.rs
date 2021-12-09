@@ -54,19 +54,12 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 
-// verify 1
-use crate::processor::{
-    _process_instruction,
-};
-
 use crate::parsers::*;
 use crate::ranges::*;
 
 
 // verify 2
-use crate::processor_part_2::{
-    _process_instruction_part_2,
-};
+
 use crate::parsers_part_2::*;
 use crate::ranges_part_2::*;
 
@@ -98,24 +91,29 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
+    msg!("instruction data {:?}", _instruction_data);
+
+    msg!("instruction data 9 {}", _instruction_data[9]);
 
     // MerkleTree:
-    if _instruction_data[1] == 0 {
+    if _instruction_data[9] == 0 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
 
     // //  verify part 1:
-    else if _instruction_data[1] == 1 {
+    else if _instruction_data[9] == 1 {
         _pre_process_instruction_miller_loop(&_instruction_data, accounts);
     }
 
     // verify part 2:
-    else if _instruction_data[1] == 2 {
+    else if _instruction_data[9] == 2 {
+        msg!("instruction data 8 {}", _instruction_data[9] == 2);
+
          _pre_process_instruction_final_exp(&_instruction_data, accounts);
     }
 
     // prepare inputs moved to separate program for size
-    else if _instruction_data[1] == 3 {
+    else if _instruction_data[9] == 3 {
         //_pre_process_instruction_prep_inputs(_instruction_data, accounts);
     }
 
