@@ -7,19 +7,28 @@ use crate::parsers_part_2_254::{
     parse_quad_from_bytes_new,
     parse_cubic_to_bytes_new,
     parse_cubic_from_bytes_new,
-
 };
+
 use ark_ff::{
     fields::models::{
         cubic_extension::CubicExtParameters,
         quadratic_extension::{QuadExtParameters, QuadExtField}},
-    Field
+    Field,
+    FromBytes,
 };
 use ark_ec;
 use solana_program::{
     msg,
     log::sol_log_compute_units,
+    account_info::{next_account_info, AccountInfo},
+    pubkey::Pubkey,
+    program_error::ProgramError,
 };
+use solana_program::program_pack::Pack;
+use solana_program::sysvar::rent::Rent;
+
+use crate::state_check_nullifier::NullifierBytesPda;
+use ark_ed_on_bn254::Fq;
 use crate::ranges_part_2::*;
 
 //conjugate should work onyl wrapper
@@ -428,6 +437,27 @@ pub fn custom_quadratic_fp256_inverse_2(
 
 }
 
+
+pub fn check_and_insert_nullifier(
+            program_id: &Pubkey,
+            nullifier_account: &AccountInfo,
+            _instruction_data: &[u8]
+        ) -> Result<(), ProgramError> {
+            let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+            let pubkey_from_seed = Pubkey::create_with_seed(
+                &program_id,
+                &hash.to_string()[0..15],
+                &program_id
+            ).unwrap();
+            //check for equality
+            assert_eq!(pubkey_from_seed, *nullifier_account.key);
+            //check for rent exemption
+            let rent = Rent::free();
+            assert!(rent.is_exempt(**nullifier_account.lamports.borrow(), 2));
+            let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
+            NullifierBytesPda::pack_into_slice(&nullifier_account_data, &mut nullifier_account.data.borrow_mut());
+            Ok(())
+}
 
 
 #[cfg(test)]
@@ -1150,6 +1180,5 @@ mod tests {
         assert!(reference_f != parse_f_from_bytes_new(&account_struct.y1_range_s), "f exp_by_neg_x failed");
         //println!("success");
     }
-
 
 }
