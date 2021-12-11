@@ -18,7 +18,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?;
             //init instruction
-            if _instruction_data[0] == 240{
+            if _instruction_data[8] == 240{
                 msg!("here1 _pre_process_instruction_merkle_tree");
                 let merkle_tree_storage_acc = next_account_info(account)?;
                 msg!("here2 _pre_process_instruction_merkle_tree {:?}", merkle_tree_storage_acc.key);
@@ -36,6 +36,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
             } else {
                 let hash_storage_acc = next_account_info(account)?;
                 let mut hash_tmp_account_data = HashBytes::unpack(&hash_storage_acc.data.borrow())?;
+                msg!("instruction: {}", init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index]);
 
                 if (init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index] == 24){
                     let merkle_tree_storage_acc = next_account_info(account)?;
@@ -59,18 +60,24 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     hash_tmp_account_data.current_instruction_index +=1;
 
                 } else if ( init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index] == 25 || init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index] == 26 ){
+                    msg!("instruction: {}", init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index]);
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
+                    msg!("here -2");
                     assert_eq!(*merkle_tree_storage_acc.key, solana_program::pubkey::Pubkey::new(&state_merkle_tree::MERKLE_TREE_ACC_BYTES[..]));
+                    msg!("here -1 {:?} != {:?}", *account1.key , merkle_tree_tmp_account_data.pubkey_locked);
                     if *account1.key != solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked){
+                        msg!("here err");
                         return Err(ProgramError::InvalidInstructionData);
                     }
+                    msg!("here0");
                     _process_instruction_merkle_tree(
                         init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index],
                         &mut hash_tmp_account_data,
                         &mut merkle_tree_tmp_account_data,
                         vec![0]
                     );
+                    msg!("here1");
 
                     if init_bytes11::INSERT_INSTRUCTION_ORDER_11[hash_tmp_account_data.current_instruction_index]  == 26 {
                         msg!("Lock set at slot {}", merkle_tree_tmp_account_data.time_locked );
@@ -79,6 +86,8 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                         merkle_tree_tmp_account_data.pubkey_locked = vec![0;32];
 
                     }
+                    msg!("here2");
+
                     MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
 
 
@@ -93,17 +102,20 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     //assert_eq!(true, false, "contract is still locked");
 
                     msg!("locked at slot: {}",  merkle_tree_tmp_account_data.time_locked);
-                    msg!("lock ends at slot: {}",  merkle_tree_tmp_account_data.time_locked + 500);
+                    msg!("lock ends at slot: {}",  merkle_tree_tmp_account_data.time_locked + 1000);
 
-                    msg!("locked by: {:?}", merkle_tree_tmp_account_data.pubkey_locked );
 
 
                     //lock
-                    if merkle_tree_tmp_account_data.time_locked == 0 ||  merkle_tree_tmp_account_data.time_locked + 500 < current_slot{
+                    if merkle_tree_tmp_account_data.time_locked == 0 ||  merkle_tree_tmp_account_data.time_locked + 1000 < current_slot{
                         merkle_tree_tmp_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
                         merkle_tree_tmp_account_data.pubkey_locked = account1.key.to_bytes().to_vec();
                         msg!("locked at {}", merkle_tree_tmp_account_data.time_locked);
-                    } else if merkle_tree_tmp_account_data.time_locked + 500 > current_slot /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked[..]) != *account1.key*/ {
+                        msg!("locked by: {:?}", merkle_tree_tmp_account_data.pubkey_locked );
+                        msg!("locked by: {:?}", solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked) );
+
+
+                    } else if merkle_tree_tmp_account_data.time_locked + 1000 > current_slot /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked[..]) != *account1.key*/ {
                         assert_eq!(true, false, "contract is still locked");
                         return Err(ProgramError::InvalidInstructionData);
                     } else {
@@ -168,7 +180,7 @@ pub fn _process_instruction_merkle_tree(
         leaf: Vec<u8>
         //pure_merkle_tree_account: &AccountInfo
     ){
-
+        msg!("executing instruction {}", id);
     //pub fn processor_poseidon(id: u8, hash_tmp_account: &mut PoseidonHashMemory, data: &[u8]) {
     if id == 0 {
         permute_instruction_first(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index, &hash_tmp_account.left, &hash_tmp_account.right);

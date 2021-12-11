@@ -1725,6 +1725,9 @@ async function main() {
         console.log(
           "[251, 30, 194, 174, 168, 85, 13, 188, 134, 0, 17, 157, 187, 32, 113, 104, 134, 138, 82, 128, 95, 206, 76, 34, 177, 163, 246, 27, 109, 207, 2, 85]"
         );
+        let rent = await connection.getMinimumBalanceForRentExemption(135000)
+        console.log("Rent costs for : ", rent / 1000000000 * 200);
+        console.log("Rent costs for : ", rent / 1000000000 * 200 / 1024);
       })
     );
 

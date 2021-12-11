@@ -274,7 +274,7 @@ pub fn insert_last(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut
 pub fn deposit(merkle_tree_account: &mut MerkleTree, account: &AccountInfo, account_tmp: &AccountInfo){
         //if the user actually deposited 1 sol increase current_total_deposits by one
 
-        **account_tmp.try_borrow_mut_lamports().unwrap()                -= 1000000000; // 1 SOL
+        **account_tmp.try_borrow_mut_lamports().unwrap()    -= 1000000000; // 1 SOL
 
         **account.try_borrow_mut_lamports().unwrap()        += 1000000000;
 

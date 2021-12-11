@@ -85,6 +85,7 @@ use ark_ff::{Fp256, Fp384};
 use ark_ec::{AffineCurve, PairingEngine, ProjectiveCurve};
 use ark_ff::bytes::{ToBytes, FromBytes};
 use crate::instructions_transform_g2_affine_to_g2_prepared::*;
+use ark_ed_on_bn254::Fq;
 
 pub fn process_instruction(
     program_id: &Pubkey,
@@ -92,9 +93,6 @@ pub fn process_instruction(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     msg!("instruction data {:?}", _instruction_data);
-
-    msg!("instruction data 9 {}", _instruction_data[9]);
-
     // MerkleTree:
     if _instruction_data[9] == 0 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
@@ -109,13 +107,16 @@ pub fn process_instruction(
     else if _instruction_data[9] == 2 {
         msg!("instruction data 8 {}", _instruction_data[9] == 2);
 
-         _pre_process_instruction_final_exp(&_instruction_data, accounts);
+         _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
     }
 
     // prepare inputs moved to separate program for size
     else if _instruction_data[9] == 3 {
         //_pre_process_instruction_prep_inputs(_instruction_data, accounts);
-    }
+        sol_log_compute_units();
 
+        msg!("state_check_nullifier");
+        sol_log_compute_units();
+    }
     Ok(())
 }
