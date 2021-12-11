@@ -1728,6 +1728,60 @@ async function main() {
       })
     );
 
+    program
+      .command("test_get_pdas")
+      .description(
+        "Fetch all accounts owned by a program."
+      )
+      .action(async () =>
+        getNodeConnection(solanaRPC).then(async function () {
+          //await readAccMerkletreeRoots(merkle_tree_storage_acc_pkey); //:ok smth
+          const privateKeyDecoded = PRIVATE_KEY.split(",").map((s) =>
+            parseInt(s)
+          );
+          const account = new solana.Account(privateKeyDecoded);
+          var seed3 = (seed1 = crypto.randomBytes(15).toString("hex"));
+
+          // create new random program accounts (verif1,verif2)
+          let tmp_account_0 = await create_program_acc(
+            account,
+            seed1,
+            100,
+            m_expo_program_id
+          ); // curr: 2881
+          seed3 = (seed1 = crypto.randomBytes(15).toString("hex"));
+
+          // create new random program accounts (verif1,verif2)
+          let tmp_account_1 = await create_program_acc(
+            account,
+            seed1,
+            4972,
+            m_expo_program_id
+          ); // curr: 2881
+          seed3 = (seed1 = crypto.randomBytes(15).toString("hex"));
+
+          let tmp_account_2 = await create_program_acc(
+            account,
+            seed1,
+            4972,
+            m_expo_program_id
+          ); // curr: 2881
+          try {
+            let pubkey = new solana.PublicKey(m_expo_program_id);
+
+            let res = await connection.getProgramAccounts(pubkey);
+            console.log(res);
+
+          } catch (e) {
+            console.log(e);
+          }
+          //let pubkey = new solana.GetProgramAccountsConfig();
+
+
+
+        })
+      );
+
   program.parse(process.argv);
 }
 
