@@ -284,8 +284,8 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
         .await
         .expect("get_account").unwrap();
 
-    assert_eq!(1, storage_account.data[1]);
-    assert_eq!(4, storage_account.data[2]);
+    assert_eq!(1, storage_account.data[0]);
+    assert_eq!(4, storage_account.data[1]);
 
     assert_eq!(commit, storage_account.data[2..34]);
     assert_eq!(commit, storage_account.data[34..66]);
