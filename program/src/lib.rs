@@ -92,7 +92,7 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    msg!("instruction data {:?}", _instruction_data);
+    //msg!("instruction data {:?}", _instruction_data);
     // MerkleTree:
     if _instruction_data[9] == 0 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);

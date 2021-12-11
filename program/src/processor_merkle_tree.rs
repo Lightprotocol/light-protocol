@@ -17,6 +17,7 @@ use crate::init_bytes11;
 pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?;
+
             //init instruction
             if _instruction_data[8] == 240{
                 msg!("here1 _pre_process_instruction_merkle_tree");
@@ -112,7 +113,10 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     insert_last_double ( &mut merkle_tree_tmp_account_data, &mut hash_tmp_account_data);
                     leaf_pda_account_data.leaf_left = hash_tmp_account_data.leaf_left.clone();
+                    msg!("Leaf left: {:?}", leaf_pda_account_data.leaf_left);
                     leaf_pda_account_data.leaf_right = hash_tmp_account_data.leaf_right.clone();
+                    msg!("Leaf right: {:?}", leaf_pda_account_data.leaf_right);
+                    leaf_pda_account_data.merkle_tree_pubkey = state_merkle_tree::MERKLE_TREE_ACC_BYTES.to_vec().clone();
 
 
                     msg!("here1");
