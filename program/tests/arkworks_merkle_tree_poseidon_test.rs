@@ -697,7 +697,7 @@ mod tests {
 		instruction_order.push(24u8);
 		for i in 0..smt.levels {
 			instruction_order.push(25u8);
-			instruction_order.push(27u8);
+			//instruction_order.push(27u8);
 			for j in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
 				instruction_order.push(j);
 			}
