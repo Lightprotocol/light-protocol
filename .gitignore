@@ -20,3 +20,4 @@ Client-Js/node_modules/*
 /Client\-Js/.env
 /Client\-Js/package-lock.json
 /program/dist/*.so
+*/*.so
