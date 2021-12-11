@@ -285,58 +285,6 @@ impl Pack for InitMerkleTreeBytes {
     }
 }
 
-#[derive(Debug)]
-pub struct NullifierBytes {
-    pub is_initialized: bool,
-    pub bytes: Vec<u8>,
-}
-impl Sealed for NullifierBytes {}
-impl IsInitialized for NullifierBytes {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-impl Pack for NullifierBytes {
-    //const LEN: usize = 809;
-    //const LEN: usize = 8393001;
-    const LEN: usize = 135057;
-
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
-        let input = array_ref![input, 0, NullifierBytes::LEN];
-
-        let (
-            bytes,
-            left_over,
-        //) = array_refs![input, 193, 616];
-        //) = array_refs![input, 1217, 8391784];
-        ) = array_refs![input, 769, 134288];
-
-        assert_eq!(bytes[0], 0, "Tree is already initialized");
-        Ok(
-            NullifierBytes {
-                is_initialized: true,
-                bytes: bytes.to_vec(),
-            }
-        )
-    }
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-
-        let dst = array_mut_ref![dst, 0, NullifierBytes::LEN];
-
-        let (
-            bytes_dst,
-            left_over_dst,
-        //) = mut_array_refs![dst, 1217, 8391784];
-        ) = mut_array_refs![dst, 769, 134288];
-
-        *left_over_dst = *left_over_dst;
-        *bytes_dst =    self.bytes.clone().try_into().unwrap();
-        //*is_initialized_dst = [0u8;1];
-
-    }
-}
-
 // Account structs for merkle tree:
 #[derive(Debug)]
 pub struct HashBytes {
@@ -345,6 +293,8 @@ pub struct HashBytes {
     pub current_round: usize,
     pub current_round_index: usize,
     //pub result: Vec<u8>,
+    pub leaf_left: Vec<u8>,
+    pub leaf_right: Vec<u8>,
     pub left: Vec<u8>,
     pub right: Vec<u8>,
     pub currentLevelHash: Vec<u8>,
@@ -362,8 +312,9 @@ impl IsInitialized for HashBytes {
         self.is_initialized
     }
 }
+
 impl Pack for HashBytes {
-    const LEN: usize = 233;
+    const LEN: usize = 297;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, HashBytes::LEN];
 
@@ -371,6 +322,8 @@ impl Pack for HashBytes {
             state,
             current_round,
             current_round_index,
+            leaf_left,
+            leaf_right,
             left,
             right,
             currentLevelHash,
@@ -378,7 +331,7 @@ impl Pack for HashBytes {
             currentLevel,
             current_instruction_index,
             is_initialized,
-        ) = array_refs![input,96, 8 , 8, 32, 32, 32, 8, 8, 8, 1];
+        ) = array_refs![input, 96, 8 , 8, 32, 32, 32, 32, 32, 8, 8, 8, 1];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -391,6 +344,8 @@ impl Pack for HashBytes {
                 state: parsed_state.to_vec(),
                 current_round: usize::from_le_bytes(*current_round),
                 current_round_index: usize::from_le_bytes(*current_round_index),
+                leaf_left: leaf_left.to_vec(),
+                leaf_right: leaf_right.to_vec(),
                 left: left.to_vec(),
                 right: right.to_vec(),
                 currentLevelHash: currentLevelHash.to_vec(),
@@ -409,6 +364,8 @@ impl Pack for HashBytes {
             state_dst,
             current_round_dst,
             current_round_index_dst,
+            leaf_left_dst,
+            leaf_right_dst,
             left_dst,
             right_dst,
             currentLevelHash_dst,
@@ -416,7 +373,7 @@ impl Pack for HashBytes {
             currentLevel_dst,
             current_instruction_index_dst,
             is_initialized_dst,
-        ) = mut_array_refs![dst,96, 8 , 8, 32, 32, 32, 8, 8, 8, 1];
+        ) = mut_array_refs![dst, 96, 8 , 8, 32, 32, 32, 32, 32, 8, 8, 8, 1];
 
         let mut state_tmp = [0u8;96];
         let mut z = 0;
@@ -432,6 +389,10 @@ impl Pack for HashBytes {
         *current_round_index_dst= usize::to_le_bytes(self.current_round_index);
         //assert_eq!(*state_range_3_dst.to_vec(), self.state_range_3);
         //*left_dst = *left_dst;
+        *leaf_left_dst =             self.leaf_left.clone().try_into().unwrap();
+        //assert_eq!(*left_dst.to_vec(), self.left);
+        //*right_dst = *right_dst ;
+        *leaf_right_dst =            self.leaf_right.clone().try_into().unwrap();
         *left_dst =             self.left.clone().try_into().unwrap();
         //assert_eq!(*left_dst.to_vec(), self.left);
         //*right_dst = *right_dst ;
@@ -452,6 +413,73 @@ impl Pack for HashBytes {
 
     }
 }
+
+
+
+#[derive(Clone, Debug)]
+pub struct TwoLeavesBytesPda {
+    pub is_initialized: bool,
+    pub account_type: u8,
+    pub leaf_right: Vec<u8>,
+    pub leaf_left: Vec<u8>,
+    pub merkle_tree_pubkey: Vec<u8>,
+}
+
+impl Sealed for TwoLeavesBytesPda {}
+impl IsInitialized for TwoLeavesBytesPda {
+    fn is_initialized(&self) -> bool {
+        self.is_initialized
+    }
+}
+
+impl Pack for TwoLeavesBytesPda {
+    const LEN: usize = 98;
+
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError>{
+        let input = array_ref![input,0, TwoLeavesBytesPda::LEN];
+
+        let (
+            is_initialized,
+            account_type,
+            leaf_left,
+            leaf_right,
+            merkle_tree_pubkey,
+        ) = array_refs![input, 1, 1, 32, 32, 32];
+        //check that account was not initialized before
+        assert_eq!(is_initialized[0], 0);
+        Ok(
+            TwoLeavesBytesPda {
+                is_initialized: true,
+                account_type: 4,
+                leaf_right: vec![0u8;32],
+                leaf_left: vec![0u8;32],
+                merkle_tree_pubkey: vec![0u8;32],
+            }
+        )
+
+    }
+
+    fn pack_into_slice(&self, dst: &mut [u8]) {
+        let dst = array_mut_ref![dst, 0, TwoLeavesBytesPda::LEN];
+        let (
+            is_initialized_dst,
+            account_type_dst,
+            leaf_left_dst,
+            leaf_right_dst,
+            merkle_tree_pubkey_dst,
+        ) = mut_array_refs![dst, 1, 1, 32, 32, 32];
+
+        *is_initialized_dst = [1];
+        *account_type_dst = [4];
+        *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
+        *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
+        *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();
+        msg!("packed inserted_leaves");
+
+    }
+}
+
+
 
 //1217 byte init data for height 18
 // total space required init data - one root which is included plus 100 roots in history and 2^18 leaves + total nr of deposits
