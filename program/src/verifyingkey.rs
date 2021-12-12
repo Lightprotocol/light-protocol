@@ -1,4 +1,3 @@
-//use ark_groth16::data_structures::VerifyingKey;
 use ark_bls12_381::*;
 use ark_ff::biginteger::BigInteger384;
 use ark_ff::fields::models::quadratic_extension::QuadExtField;

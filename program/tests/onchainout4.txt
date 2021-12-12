@@ -1,0 +1,12 @@
+Running: cargo-build-bpf --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program/Cargo.toml --bpf-out-dir /home/swen/Desktop/crypto/light-protocol-onchain/program/target/deploy
+BPF SDK: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf
+Running: rustup toolchain list -v
+Running: cargo +bpf build --target bpfel-unknown-unknown --release
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/scripts/strip.sh /home/swen/Desktop/crypto/light-protocol-onchain/program/target/bpfel-unknown-unknown/release/Testing_Hardcoded_Params_devnet_new.so /home/swen/Desktop/crypto/light-protocol-onchain/program/target/deploy/Testing_Hardcoded_Params_devnet_new.so
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/dependencies/bpf-tools/llvm/bin/llvm-readelf --dyn-symbols /home/swen/Desktop/crypto/light-protocol-onchain/program/target/deploy/Testing_Hardcoded_Params_devnet_new.so
+
+To deploy this program:
+  $ solana program deploy /home/swen/Desktop/crypto/light-protocol-onchain/program/target/deploy/Testing_Hardcoded_Params_devnet_new.so
+The program address will default to this keypair (override with --program-id):
+  /home/swen/Desktop/crypto/light-protocol-onchain/program/target/deploy/Testing_Hardcoded_Params_devnet_new-keypair.json
+Running: /home/swen/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program/Cargo.toml -- --nocapture test_ml_254_onchain

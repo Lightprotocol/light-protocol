@@ -49,7 +49,7 @@ pub fn parse_x_group_affine_to_bytes_254(
     // i 48..96
 }
 
-// res,g_ic
+// res,g_ic => becomes affine
 pub fn parse_group_projective_from_bytes_254(
     acc1: &Vec<u8>,
     acc2: &Vec<u8>,

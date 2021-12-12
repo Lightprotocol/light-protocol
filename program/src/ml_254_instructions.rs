@@ -15,13 +15,19 @@ use std::ops::{AddAssign, SubAssign};
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];
 
-pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>, proof_b_bytes: &Vec<u8>) {
+pub fn init_coeffs1(
+    r_range: &mut Vec<u8>,
+    proof_range: &mut Vec<u8>,
+    proof_tmp_range: &mut Vec<u8>,
+    proof_b_bytes: &Vec<u8>,
+) {
     // pass in proof.b manually
     //change below to get bytes from account and not init from hardcoded bytes
     // let q = get_proof_b();
     let proof_b = parse_proof_b_from_bytes(proof_b_bytes);
     // //comment below for the change
     parse_proof_b_to_bytes(proof_b, proof_range);
+    parse_proof_b_to_bytes(proof_b, proof_tmp_range);
 
     let mut r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
         ark_ec::models::bn::g2::G2HomProjective {
@@ -29,7 +35,6 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>, proof_b_by
             y: proof_b.y,
             z: Fp2::one(),
         };
-    println!("rrrr init: {:?}", r.z);
     parse_r_to_bytes(r, r_range);
 }
 
@@ -106,42 +111,27 @@ pub fn custom_ell_instruction_D_1(
     coeff_0_range: &mut Vec<u8>,
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
-    // coeff_2_bytes: &Vec<u8>,
-    // coeff_1_bytes: &Vec<u8>,
-    // coeff_0_bytes: &Vec<u8>,
 ) {
-    // let mut coeff_2;
-    // let mut coeff_1;
-    // let mut coeff_0;
-    // if coeff_0_bytes.len() > 0 {
-    //     coeff_2 = parse_quad_from_bytes(&coeff_2_bytes); // 7k
-    //     coeff_1 = parse_quad_from_bytes(&coeff_1_bytes); // 7k
-    //     coeff_0 = parse_quad_from_bytes(&coeff_0_bytes); // 7k
-    // } else {
-    //     // means coeffs were filled (coeff1)
-    // }
-    println!("D1/20");
+    let coeff_2 = parse_quad_from_bytes(&coeff_2_range); //
+    let mut coeff_1 = parse_quad_from_bytes(&coeff_1_range); //
+    let mut coeff_0 = parse_quad_from_bytes(&coeff_0_range); //
+    let p_y = parse_fp256_from_bytes(p_y_range); //
+    let p_x = parse_fp256_from_bytes(p_x_range); //
 
-    let coeff_2 = parse_quad_from_bytes(&coeff_2_range); // 7k
-    let mut coeff_1 = parse_quad_from_bytes(&coeff_1_range); // 7k
-    let mut coeff_0 = parse_quad_from_bytes(&coeff_0_range); // 7k
-    println!("AAA D1: COEFF_2: {:?}", coeff_2);
-    println!("AAA D1: COEFF_1: {:?}", coeff_1);
-    println!("AAA D1: COEFF_0: {:?}", coeff_0);
+    msg!("D1 -- parse from all"); // 12k
+    sol_log_compute_units();
+    coeff_0.mul_assign_by_fp(&p_y); // 4k
+    coeff_1.mul_assign_by_fp(&p_x); // 4k
 
-    let p_y = parse_fp256_from_bytes(p_y_range); // 4k
-    let p_x = parse_fp256_from_bytes(p_x_range); // 4k
-    println!("AAA D1: PY: {:?}", p_y);
-    println!("AAA D1: PX: {:?}", p_x);
+    msg!("D1 -- calc all");
+    sol_log_compute_units();
 
-    coeff_0.mul_assign_by_fp(&p_y); // 300
-    coeff_1.mul_assign_by_fp(&p_x); // 8691
-    println!("AAA D1: COEFF0AFTER: {:?}", coeff_0);
-    println!("AAA D1: COEFF1AFTER: {:?}", coeff_1);
+    parse_quad_to_bytes(coeff_2, coeff_2_range); // 3k
+    parse_quad_to_bytes(coeff_1, coeff_1_range); // 3k
+    parse_quad_to_bytes(coeff_0, coeff_0_range); // 3k
 
-    parse_quad_to_bytes(coeff_2, coeff_2_range); // 4k
-    parse_quad_to_bytes(coeff_1, coeff_1_range); // 4k
-    parse_quad_to_bytes(coeff_0, coeff_0_range); // 4k
+    msg!("D1 -- parse to all");
+    sol_log_compute_units();
 
     // total cost ~50k
 }
@@ -152,13 +142,18 @@ pub fn custom_ell_instruction_D_2(
     a_range: &mut Vec<u8>,
 ) {
     let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // 29478 // C0
-    println!("D2");
     let coeff_0 = parse_quad_from_bytes(coeff_0_range); // 9826
+
+    msg!("D2 -- parse from all");
+    sol_log_compute_units();
 
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
+
+    msg!("D2 -- compute all");
+    sol_log_compute_units();
 
     parse_cubic_to_bytes(a, a_range); // cost: 12k
                                       // 15198
@@ -166,6 +161,9 @@ pub fn custom_ell_instruction_D_2(
                                       // These two just for testing:
     parse_quad_to_bytes(coeff_0, coeff_0_range); // cost: 4k
     parse_cubic_to_bytes_sub(c0, f_range, C0_SUB_RANGE); // cost: 12k
+
+    msg!("D2 -- parse to all");
+    sol_log_compute_units();
 }
 
 pub fn custom_ell_instruction_D_3(
@@ -174,15 +172,21 @@ pub fn custom_ell_instruction_D_3(
     coeff_1_range: &Vec<u8>,
     coeff_2_range: &Vec<u8>,
 ) {
-    let mut c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 20k
-    println!("D3");
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 20k
+    let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 7k
+    let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 7k
 
-    let mut coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 7k
-    let mut coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 7k
+    msg!("D3 -- parse from all");
+    sol_log_compute_units();
 
     let mut b = c1;
-    b.mul_by_01(&coeff_1, &coeff_2); // c3,c4
+    b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
+    msg!("D3 -- compute all");
+    sol_log_compute_units();
     parse_cubic_to_bytes(b, b_range); // cost: 12k
+
+    msg!("D3 -- parse to all");
+    sol_log_compute_units();
 
     // just for testing:
     // parse_quad_to_bytes(coeff_1, coeff_1_range); // 15198
@@ -200,22 +204,27 @@ pub fn custom_ell_instruction_D_4(
     coeff_1_range: &Vec<u8>,
     coeff_2_range: &Vec<u8>,
 ) {
-    let mut c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 20k
-    let mut c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 20k
-    println!("D4");
+    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 20k
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 20k
 
     let coeff_0 = parse_quad_from_bytes(coeff_0_range); // cost: 7k
     let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 7k
     let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 7k
 
+    msg!("D4 -- parse from all"); // cost: 40k
+    sol_log_compute_units();
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
-
     let mut e = c0 + &c1;
-    e.mul_by_01(&c00, &coeff_2); // c0,c4 cost: 70k
+    e.mul_by_01(&c00, &coeff_2); // cost: 36k
+
+    msg!("D4 -- compute all");
+    sol_log_compute_units();
 
     // might need to parse coeffs ?
     parse_cubic_to_bytes(e, e_range); // cost: 11k
 
+    msg!("D4 -- parse to all");
+    sol_log_compute_units();
     // total cost
 }
 
@@ -225,20 +234,75 @@ pub fn custom_ell_instruction_D_5(
     b_range: &Vec<u8>,
     e_range: &Vec<u8>,
 ) {
-    let mut a = parse_cubic_from_bytes(a_range); // cost: 20k
-    let mut b = parse_cubic_from_bytes(b_range); // cost: 9826
-    let mut e = parse_cubic_from_bytes(e_range); // cost: 9826
+    let a = parse_cubic_from_bytes(a_range); // cost: 20k
+    let b = parse_cubic_from_bytes(b_range); // cost: 10k
+    let e = parse_cubic_from_bytes(e_range); // cost: 10k
 
+    msg!("D5 -- parse from all");
+    sol_log_compute_units();
     // create fresh ftype
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
     f.c1 = e - &(a + &b); // cost: -
-    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 500
+    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
 
-    parse_f_to_bytes(f, f_range); // cost: 21000
+    msg!("D5 -- compute all");
+    sol_log_compute_units();
+
+    parse_f_to_bytes(f, f_range); // cost: 15k
+
+    msg!("D5 -- parse to all");
+    sol_log_compute_units();
 
     // total cost: 60k
+}
+
+pub fn ell_instruction_d(
+    // ix: 69
+    f_range: &mut Vec<u8>,
+    coeff_0_range: &Vec<u8>,
+    coeff_1_range: &Vec<u8>,
+    coeff_2_range: &Vec<u8>,
+    p_y_range: &Vec<u8>,
+    p_x_range: &Vec<u8>,
+) {
+    let mut coeff_2 = parse_quad_from_bytes(&coeff_2_range); //
+    let mut coeff_1 = parse_quad_from_bytes(&coeff_1_range); // this the same
+    let mut coeff_0 = parse_quad_from_bytes(&coeff_0_range); //
+    let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
+    let p_x = parse_fp256_from_bytes(p_x_range); //
+
+    coeff_0.mul_assign_by_fp(&p_y); // 4k
+    coeff_1.mul_assign_by_fp(&p_x); // 4k
+
+    // D2
+    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
+                                                                // let coeff_0 = parse_quad_from_bytes(coeff_0_range); // cost: 5k
+    let a0 = c0.c0 * coeff_0;
+    let a1 = c0.c1 * coeff_0;
+    let a2 = c0.c2 * coeff_0;
+    let a = Fp6::new(a0, a1, a2);
+    // D3
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
+                                                                // let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 5k
+                                                                // let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 5k
+    let mut b = c1;
+    b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
+
+    // D4
+    let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
+    let mut e = c0 + &c1;
+    e.mul_by_01(&c00, &coeff_2); // cost: 36k
+                                 // D5
+
+    let mut f =
+        <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
+
+    f.c1 = e - &(a + &b); // cost: -
+    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
+
+    parse_f_to_bytes(f, f_range); // cost: 15k
 }
 
 // Note that we're not implementing a conjugate ix here
