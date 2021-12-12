@@ -5,7 +5,7 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{account::Account, signature::Signer, transaction::Transaction, msg},
-    Testing_Hardcoded_Params_devnet_new::{process_instruction, state_merkle_tree::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES}, init_bytes11},
+    Testing_Hardcoded_Params_devnet_new::{process_instruction, state_merkle_tree::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES}, init_bytes18},
     std::str::FromStr,
 };
 use solana_program_test::ProgramTestError;
@@ -69,10 +69,10 @@ async fn create_and_start_program(
         *program_id,
         processor!(process_instruction),
     );
-    let mut merkle_tree = Account::new(10000000000, 135057, &program_id);
+    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
 
 
-    if merkle_tree_init_bytes.len() == 135057 {
+    if merkle_tree_init_bytes.len() == 16657 {
 
         merkle_tree.data = merkle_tree_init_bytes;
     }
@@ -150,7 +150,8 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
         .await
         .expect("get_account").unwrap();
     //println!("merkletree: {:?}", merkle_tree_data);
-    assert_eq!(init_bytes11::INIT_BYTES_MERKLE_TREE_11, merkle_tree_data.data[0..769]);
+    assert_eq!(init_bytes18::INIT_BYTES_MERKLE_TREE_18, merkle_tree_data.data[0..641]);
+    //assert_eq!(true, false);
     println!("initializing merkle tree success");
 
     //generating random commitment
@@ -160,7 +161,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
     let commit = vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     let mut i = 0;
-    for (instruction_id) in &init_bytes11::INSERT_INSTRUCTION_ORDER_11 {
+    for (instruction_id) in &init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
         //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
         let instruction_data: Vec<u8> = [vec![*instruction_id, 0u8], commit.clone(), commit.clone(), [i as u8].to_vec() ].concat();
 
@@ -181,7 +182,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
             transaction.sign(&[&signer_keypair], program_context.last_blockhash);
 
             program_context.banks_client.process_transaction(transaction).await.unwrap();
-        } else if i == init_bytes11::INSERT_INSTRUCTION_ORDER_11.len()-1 {
+        } else if i == init_bytes18::INSERT_INSTRUCTION_ORDER_18.len()-1 {
             println!("Last tx ------------------------------");
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
@@ -266,7 +267,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
             }
 
         }
-
+        println!("Instruction index {}", i);
         i+=1;
     }
     let storage_account = program_context.banks_client
@@ -275,9 +276,9 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
         .expect("get_account").unwrap();
 
 
-    let expected_root = [182, 163, 37, 38, 17, 216, 88, 250, 82, 207, 111, 225, 97, 39, 36, 249, 120, 20, 12, 16, 254, 248, 46, 234, 165, 208, 125, 3, 62, 163, 230, 19];
+    let expected_root = [247, 16, 124, 67, 44, 62, 195, 226, 182, 62, 41, 237, 78, 64, 195, 249, 67, 169, 200, 24, 158, 153, 57, 144, 24, 245, 131, 44, 127, 129, 44, 10];
     //println!("storage_acc: {:?}", storage_account.data[700..(769+128)].to_vec());
-    assert_eq!(expected_root, storage_account.data[769..(769+32)]);
+    assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
 
     let storage_account = program_context.banks_client
         .get_account(two_leaves_pda_pubkey)
@@ -370,7 +371,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
 //         .await
 //         .expect("get_account").unwrap();
 //     //println!("merkletree: {:?}", merkle_tree_data);
-//     assert_eq!(init_bytes11::INIT_BYTES_MERKLE_TREE_11, merkle_tree_data.data[0..769]);
+//     assert_eq!(init_bytes18::INIT_BYTES_MERKLE_TREE_11, merkle_tree_data.data[0..769]);
 //     println!("initializing merkle tree success");
 //
 //     //generating random commitment
@@ -380,7 +381,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
 //     let commit = vec![1, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 //
 //     let mut i = 0;
-//     for (instruction_id) in &init_bytes11::INSERT_INSTRUCTION_ORDER_11 {
+//     for (instruction_id) in &init_bytes18::INIT_BYTES_MERKLE_TREE_18 {
 //         //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
 //         let instruction_data: Vec<u8> = [vec![*instruction_id, 0u8], commit.clone(), [i as u8].to_vec() ].concat();
 //
