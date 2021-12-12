@@ -33,7 +33,7 @@ use crate::ranges_part_2::*;
 
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
-    //msg!("conjugate_wrapper: {:?}", _range);
+    msg!("conjugate_wrapper: ------------------------------------------");
     let mut f = parse_f_from_bytes_new(_range);
     f.conjugate();
     parse_f_to_bytes_new(f, _range);
@@ -41,6 +41,8 @@ pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
 
 
 //multiplication
+
+//85282
 pub fn mul_assign_1(
         _cubic: &Vec<u8>,
         _cubic_0_range: [usize;2],
@@ -49,6 +51,8 @@ pub fn mul_assign_1(
         _store_cubic: &mut Vec<u8>,
         _store_cubic_range: [usize; 2]
     ){
+    msg!("mul_assign_1: ------------------------------------------");
+
     let f_c0 = parse_cubic_from_bytes_new(&_cubic, _cubic_0_range);//30000
     //println!("str f_c0 = {:?}", f_c0);
     let other_c0 = parse_cubic_from_bytes_new(&_cubic_other, _range_other_c0);//30000
@@ -60,6 +64,7 @@ pub fn mul_assign_1(
     //total 162000
 }
 
+//84953
 pub fn mul_assign_2(
     _cubic: &Vec<u8>,
     _cubic_1_range: [usize;2],
@@ -67,44 +72,83 @@ pub fn mul_assign_2(
     range_other_c1: [usize; 2],
     _store_cubic: &mut Vec<u8>,
     _store_cubic_range: [usize; 2]) {
+
     let mut f_c1 = parse_cubic_from_bytes_new(&_cubic, _cubic_1_range);              //30000
     let other_c1 = parse_cubic_from_bytes_new(&_cubic_other, range_other_c1);      //30000
+
     let v1 = f_c1 * &other_c1;                                                //86827
     //println!("v1 = {:?}", v1);
     parse_cubic_to_bytes_new(v1, _store_cubic, _store_cubic_range);          //15000
     //total 193000
 }
 
+pub fn mul_assign_1_2(
+        _f_range: &Vec<u8>,
+        _other: &Vec<u8>,
+        _store_cubic0: &mut Vec<u8>,
+        _store_cubic1: &mut Vec<u8>,
+    ){
+    //msg!("mul_assign_1_2: ------------------------------------------");
+
+    let f = parse_f_from_bytes_new(&_f_range);
+    let other = parse_f_from_bytes_new(&_other);
+
+    let v0 = f.c0 * &other.c0;
+
+    //let mut f_c1 = parse_cubic_from_bytes_new(&_cubic1, _cubic_1_range1);
+    //let other_c1 = parse_cubic_from_bytes_new(&_cubic_other1, range_other_c1);
+
+    let v1 = f.c1 * &other.c1;
+
+    parse_cubic_to_bytes_new(v0, _store_cubic0, solo_cubic_0_range);//15000
+    parse_cubic_to_bytes_new(v1, _store_cubic1, solo_cubic_0_range);
+
+}
+
+//52545 - 15 = 37
 pub fn mul_assign_3(_f_range: &mut Vec<u8>) {
+    //msg!("mul_assign_3: ------------------------------------------");
+
     let mut f = parse_f_from_bytes_new(&_f_range);              //60000
     f.c1 += &f.c0;                                                      //<1000
     parse_f_to_bytes_new(f, _f_range);                     //30000
     //total 93000
 }
 
-pub fn mul_assign_4(
-        _cubic_1: &mut Vec<u8>,
-        _cubic_1_range: [usize;2],
+pub fn mul_assign_3_4_5(
         _f_range_other: &Vec<u8>,
+        _cubic_range_0: &Vec<u8>,
+        _cubic_range_1: &Vec<u8>,
+        _f_range: &mut Vec<u8>,
 
     ) {
-    //let mut f = parse_f_from_bytes(&account[..], range_f);
-    let mut f_c1 = parse_cubic_from_bytes_new(&_cubic_1, _cubic_1_range); //30000
-    let other = parse_f_from_bytes_new(&_f_range_other);          //60000
+        //msg!("mul_assign_3_4_5: ------------------------------------------");
 
-    //f.c1 += &f.c0;
-    //
-    //////msg!"4");
-    f_c1 *= &(other.c0 + &other.c1);
-                                              //87075
-    parse_cubic_to_bytes_new(f_c1, _cubic_1, _cubic_1_range);           //15000
-    //195000
+    //3
+    let mut f = parse_f_from_bytes_new(&_f_range);
+    f.c1 += &f.c0;
+
+    //4
+    let other = parse_f_from_bytes_new(&_f_range_other);
+
+    f.c1 *= &(other.c0 + &other.c1);
+
+    //5
+    let v0 = parse_cubic_from_bytes_new(&_cubic_range_0, solo_cubic_0_range);       //30000
+    let v1 = parse_cubic_from_bytes_new(&_cubic_range_1, solo_cubic_0_range);       //30000
+    f.c1 -= &v0;
+    f.c1 -= &v1;
+    f.c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>  as QuadExtParameters>::add_and_mul_base_field_by_nonresidue(&v0, &v1); //1000
+
+    parse_f_to_bytes_new(f, _f_range);
 }
-
+//45031 - 8k = 37
 pub fn mul_assign_4_1(
         _f_range_other: &Vec<u8>,
         _store_cubic_range: &mut Vec<u8>,
     ) {
+    msg!("mul_assign_4_1: ------------------------------------------");
+
     //let mut f = parse_f_from_bytes(&account[..], range_f);
     //let mut f_c1 = parse_cubic_from_bytes(&account[..], _f1_r_cubic_1_range); //30000
     let other = parse_f_from_bytes_new(&_f_range_other);          //60000
@@ -119,11 +163,14 @@ pub fn mul_assign_4_1(
     //195000
 }
 
+//85164 - 27 - 8  = 50
 pub fn mul_assign_4_2(
         _f1_r_range: &mut Vec<u8>,
         _f1_r_cubic_1_range: [usize;2],
         _store_cubic_range: &Vec<u8>
     ) {
+    msg!("mul_assign_4_2: ------------------------------------------");
+
     //let mut f = parse_f_from_bytes(&account[..], range_f);
     let mut f_c1 = parse_cubic_from_bytes_new(&_f1_r_range, _f1_r_cubic_1_range); //30000
     let other_cs = parse_cubic_from_bytes_new(&_store_cubic_range, solo_cubic_0_range);          //60000
@@ -145,11 +192,14 @@ pub fn mul_assign_4_2(
     //195000
 }
 
+//81001 - 27
 pub fn mul_assign_5(
         _f1_r_range: &mut Vec<u8>,
         _cubic_range_0: &Vec<u8>,
         _cubic_range_1: &Vec<u8>
     ) {
+    msg!("mul_assign_5: ------------------------------------------");
+
     //--------------- additional split -------------------------
     let mut f = parse_f_from_bytes_new(&_f1_r_range);              //60000
     let v0 = parse_cubic_from_bytes_new(&_cubic_range_0, solo_cubic_0_range);       //30000
@@ -193,7 +243,10 @@ pub fn custom_frobenius_map_3_2(mut account:  &mut Vec<u8>) {
     custom_frobenius_map_2(&mut account, 3);
 }
 
+//88373
 pub fn custom_frobenius_map_1(account:  &mut Vec<u8>, power: usize) {
+    msg!("custom_frobenius_map_1: ------------------------------------------ power {}", power);
+
     let mut f = parse_f_from_bytes_new(&account);
     ////msg!"c0 map");
     f.c0.frobenius_map(power);  //                        cost 40641
@@ -203,8 +256,10 @@ pub fn custom_frobenius_map_1(account:  &mut Vec<u8>, power: usize) {
     parse_f_to_bytes_new(f, account);
 
 }
-
+//70772
 pub fn custom_frobenius_map_2(account:  &mut Vec<u8>, power: usize) {
+    msg!("custom_frobenius_map_2: ------------------------------------------ power {}", power);
+
     let mut f = parse_f_from_bytes_new(&account);
     ////msg!"c0 map");
     <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>  as QuadExtParameters>::mul_base_field_by_frob_coeff(&mut f.c1, power);//  cost 41569
@@ -225,6 +280,8 @@ pub fn custom_frobenius_map_2(account:  &mut Vec<u8>, power: usize) {
 
 
 pub fn custom_cyclotomic_square_in_place( _store_f_range: &mut Vec<u8>) {
+    msg!("custom_cyclotomic_square_in_place: ------------------------------------------ ");
+
     let mut f = parse_f_from_bytes_new(& _store_f_range);
     // cost 46000
     f.cyclotomic_square_in_place();
@@ -234,6 +291,7 @@ pub fn custom_cyclotomic_square_in_place( _store_f_range: &mut Vec<u8>) {
 //cyclotomic_square should work only wrapper
 
 pub fn custom_cyclotomic_square(_f_range: &Vec<u8>, _store_f_range: &mut Vec<u8>) {
+    msg!("custom_cyclotomic_square: ------------------------------------------ ");
     let mut f = parse_f_from_bytes_new(& _f_range);
     // cost 90464
     let y0 = f.cyclotomic_square();
@@ -245,6 +303,7 @@ pub fn custom_cyclotomic_square(_f_range: &Vec<u8>, _store_f_range: &mut Vec<u8>
 //inverse works
 pub fn custom_f_inverse_1(_f_f2_range: &Vec<u8>,_cubic_range_1: &mut  Vec<u8>) {
     //first part of calculating the inverse to f
+    msg!("custom_f_inverse_1: ------------------------------------------ ");
 
     let f = parse_f_from_bytes_new(_f_f2_range);
     let v1 = f.c1.square();
@@ -253,6 +312,7 @@ pub fn custom_f_inverse_1(_f_f2_range: &Vec<u8>,_cubic_range_1: &mut  Vec<u8>) {
 
 
 pub fn custom_f_inverse_2(_f_f2_range: &Vec<u8>,_cubic_range_0: &mut  Vec<u8>,_cubic_range_1: & Vec<u8>) {
+    msg!("custom_f_inverse_2: ------------------------------------------ ");
 
     let f = parse_f_from_bytes_new(_f_f2_range);
     let v1 = parse_cubic_from_bytes_new(_cubic_range_1, solo_cubic_0_range);
@@ -268,6 +328,8 @@ pub fn custom_f_inverse_3(
         _f_f2_range: &Vec<u8>,
 
     ) {
+    msg!("custom_f_inverse_3: ------------------------------------------ ");
+
     let v1 = parse_cubic_from_bytes_new(_cubic_range_0, solo_cubic_0_range);
     let f_c0 = parse_cubic_from_bytes_new(_f_f2_range, f_cubic_0_range);
 
@@ -282,6 +344,7 @@ pub fn custom_f_inverse_4(
     _cubic: &mut Vec<u8>,
     _f_f2_range: &Vec<u8>,
     ) {
+        msg!("custom_f_inverse_4: ------------------------------------------ ");
 
     let v1 = parse_cubic_from_bytes_new(_cubic, solo_cubic_0_range);//30
     let f_c1 = parse_cubic_from_bytes_new(_f_f2_range, f_cubic_1_range);//30
@@ -295,6 +358,7 @@ pub fn custom_f_inverse_5(
     _cubic_1: &Vec<u8>,
     _f_f2_range: &mut Vec<u8>,
     ) {
+        msg!("custom_f_inverse_5: ------------------------------------------ ");
 
     let c0 = parse_cubic_from_bytes_new(_cubic_1, solo_cubic_0_range);//30
     let c1 = parse_cubic_from_bytes_new(_cubic_0, solo_cubic_0_range);//30
@@ -310,6 +374,7 @@ pub fn custom_cubic_inverse_1(
         _quad_range_3: &mut Vec<u8>,
     ) {
 
+        msg!("custom_cubic_inverse_1: ------------------------------------------ ");
 
         let f = parse_cubic_from_bytes_new(_cubic_range_0, solo_cubic_0_range);
         // From "High-Speed Software Implementation of the Optimal Ate AbstractPairing
@@ -381,6 +446,7 @@ pub fn custom_cubic_inverse_2(
     _quad_range_2: & Vec<u8>,
     _quad_range_3: & Vec<u8>
     ) {
+        msg!("custom_cubic_inverse_2: ------------------------------------------ ");
 
     let t6 = parse_quad_from_bytes_new(&_quad_range_3);
     let s0 = parse_quad_from_bytes_new(& _quad_range_0);
@@ -405,6 +471,7 @@ pub fn custom_quadratic_fp256_inverse_1(
         //returns none in arkworks maybe we should add a byte to signal a crash
     //} else {
         // Guide to Pairing-based Cryptography, Algorithm 5.19.
+        msg!("custom_quadratic_fp256_inverse_1: ------------------------------------------ ");
         let f = parse_quad_from_bytes_new(_quad_range_3);
         let v1 = f.c1.square();//      cost 3659
 
@@ -418,6 +485,7 @@ pub fn custom_quadratic_fp256_inverse_2(
         _quad_range_3: &mut Vec<u8>,
         _fp384_range: &Vec<u8>
         ) {
+    msg!("custom_quadratic_fp256_inverse_2: ------------------------------------------ ");
 
     let v0 = parse_fp256_from_bytes_new(&_fp384_range);
     let f = parse_quad_from_bytes_new(&_quad_range_3);
@@ -458,7 +526,55 @@ pub fn check_and_insert_nullifier(
             NullifierBytesPda::pack_into_slice(&nullifier_account_data, &mut nullifier_account.data.borrow_mut());
             Ok(())
 }
+/*
+pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountInfo, account_to: &AccountInfo) {
 
+    //let verifyingkey = get_alpha_g1_beta_g2(); // new verif key val
+    let result = parse_f_from_bytes_new(_f1_r_range);
+
+
+    assert_eq!(
+        result,
+        QuadExtField::<ark_ff::Fp12ParamsWrapper::<ark_bls12_381::Fq12Parameters>>::new(
+        CubicExtField::<ark_ff::Fp6ParamsWrapper::<ark_bls12_381::Fq6Parameters>>::new(
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([9450009823341693778, 7567869168370272456, 18197991852398659280, 14366248363560943150, 1846449964006099810, 679186062217654437])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([14423346876892333681, 6730281363705116644, 7424630442455670057, 8270520680913369906, 129074939192573571, 1189318454514002421]))
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([15087111543975820103, 4158933278356405436, 18118066973472597158, 16470418406097340038, 7290763036760663413, 1432986065586497656])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([13142509635494830254, 1063120006913468487, 9502319634834262306, 4432211635827318749, 14796654634504989696, 1613239985088916413]))
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([8540514875150680179, 14211944784949309652, 11503029521577459949, 7848771183824012788, 12423583728904914117, 214651426791184375])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([12184631478503290601, 3754734004613789564, 18017661725911600748, 2523454429955899187, 477613221123976217, 1872837268341302997]))
+        )
+        ),
+        CubicExtField::<ark_ff::Fp6ParamsWrapper::<ark_bls12_381::Fq6Parameters>>::new(
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([3978527081928063346, 16585342381569337288, 5542417872902215541, 14433809004088446654, 4002383117313680726, 1825637594027485805])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([12282572081966365605, 4130176373697380094, 11274978495552272244, 12480637929685418438, 8247324291841073554, 1292512561380557691]))
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([14568481364640261896, 13024973709310556877, 388942695468569842, 5165814615778255344, 5461422625881874726, 998729394980441256])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([2915405947247214443, 16476827183007826276, 397625141714225917, 7683936378748485792, 7647979677775928833, 1072503992333817859]))
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bls12_381::Fq2Parameters>>::new(
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([16050027345311255108, 10820284375719774599, 7851447608520829924, 16313935448547715969, 6657343977525303700, 224196233976581852])),
+        Fp384::<ark_bls12_381::FqParameters>::new(BigInteger384::new([16673765787484129697, 12992430675039131019, 2485465101194175871, 15715616086842934831, 1003336842210694614, 1058233574352048271]))
+    ))), "VERIFICATION FAILED"
+    );
+
+
+    **account_from.try_borrow_mut_lamports().unwrap()   -= 1000000000; // 1 SOL
+
+    **account_to.try_borrow_mut_lamports().unwrap()     += 1000000000;
+    msg!("Final Exp successful");
+
+    msg!("Transfer of 1 Sol successful to {:?}", account_to.key);
+
+}
+*/
 
 #[cfg(test)]
 mod tests {
@@ -486,6 +602,8 @@ mod tests {
         mul_assign_4_1,
         mul_assign_4_2,
         mul_assign_5,
+        mul_assign_1_2,
+        mul_assign_3_4_5,
         custom_cyclotomic_square_in_place,
     };
 
@@ -823,43 +941,18 @@ mod tests {
         parse_f_to_bytes_new(actual_f, &mut account_struct.f1_r_range_s);
         parse_f_to_bytes_new(mul_f, &mut account_struct.f_f2_range_s);
 
-        mul_assign_1(
-            &account_struct.f1_r_range_s,  f_cubic_0_range,
-            &account_struct.f_f2_range_s,  f_cubic_0_range,
-            &mut account_struct.cubic_range_0_s,  solo_cubic_0_range
-        );
-
-        //println!("cubi mul assing1 ref: {:?}", parse_cubic_from_bytes(&account[..], cubic_range_0));
-        //9
-        mul_assign_2(
-            &account_struct.f1_r_range_s,  f_cubic_1_range,
-            &account_struct.f_f2_range_s,  f_cubic_1_range,
-            &mut account_struct.cubic_range_1_s,  solo_cubic_0_range
-        );
-        //10
-        mul_assign_3(
-            &mut account_struct.f1_r_range_s
-        );
-        //println!("mul assing3 ref: {:?}", parse_f_from_bytes(&account[..], f1_r_range));
-
-        //11
-        mul_assign_4_1(
+        mul_assign_1_2(
+            &account_struct.f1_r_range_s,
             &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_2_s,
-        );
-        //println!("mul assing4_1 ref: {:?}", parse_cubic_from_bytes(&account[..], cubic_range_2));
-
-        mul_assign_4_2(
-            &mut account_struct.f1_r_range_s,
-             f_cubic_1_range,
-            &account_struct.cubic_range_2_s,
+            &mut account_struct.cubic_range_0_s,
+            &mut account_struct.cubic_range_1_s
         );
 
-        //12
-        mul_assign_5(
-            &mut account_struct.f1_r_range_s,
+        mul_assign_3_4_5(
+            &account_struct.f_f2_range_s,
             &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s
+            &account_struct.cubic_range_1_s,
+            &mut account_struct.f1_r_range_s,
         );
         reference_f *= mul_f;
         assert_eq!(reference_f,  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
@@ -873,54 +966,27 @@ mod tests {
         let mut mul_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
 
         let mut actual_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
-
         let mut account_struct = FinalExpBytes::new();
 
         parse_f_to_bytes_new(actual_f, &mut account_struct.f1_r_range_s);
         parse_f_to_bytes_new(mul_f, &mut account_struct.f_f2_range_s);
 
-        mul_assign_1(
-            &account_struct.f1_r_range_s,  f_cubic_0_range,
-            &account_struct.f_f2_range_s,  f_cubic_0_range,
-            &mut account_struct.cubic_range_0_s,  solo_cubic_0_range
-        );
-
-        //println!("cubi mul assing1 ref: {:?}", parse_cubic_from_bytes(&account[..], cubic_range_0));
-        //9
-        mul_assign_2(
-            &account_struct.f1_r_range_s,  f_cubic_1_range,
-            &account_struct.f_f2_range_s,  f_cubic_1_range,
-            &mut account_struct.cubic_range_1_s,  solo_cubic_0_range
-        );
-        //10
-        mul_assign_3(
-            &mut account_struct.f1_r_range_s
-        );
-        //println!("mul assing3 ref: {:?}", parse_f_from_bytes(&account[..], f1_r_range));
-
-        //11
-        mul_assign_4_1(
+        mul_assign_1_2(
+            &account_struct.f1_r_range_s,
             &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_2_s,
-        );
-        //println!("mul assing4_1 ref: {:?}", parse_cubic_from_bytes(&account[..], cubic_range_2));
-
-        mul_assign_4_2(
-            &mut account_struct.f1_r_range_s,
-             f_cubic_1_range,
-            &account_struct.cubic_range_2_s,
+            &mut account_struct.cubic_range_0_s,
+            &mut account_struct.cubic_range_1_s
         );
 
-        //12
-        mul_assign_5(
-            &mut account_struct.f1_r_range_s,
+        mul_assign_3_4_5(
+            &account_struct.f_f2_range_s,
             &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s
+            &account_struct.cubic_range_1_s,
+            &mut account_struct.f1_r_range_s,
         );
         reference_f *= mul_f;
-        assert!(reference_f != parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
+        assert!(reference_f !=  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
     }
-
 
     pub fn exp_by_neg_x(mut f: Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>) -> Fp12::<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {
         f = f.cyclotomic_exp(&<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X);

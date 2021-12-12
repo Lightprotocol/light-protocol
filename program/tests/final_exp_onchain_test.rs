@@ -122,7 +122,10 @@ async fn test_final_exp_correct()-> Result<(), TransportError> {
                     program_context = create_and_start_program(storage_account.data.to_vec(), final_exp_bytes_pubkey, program_id).await;                },
             }
         }
-
+        if i == 3 {
+            println!("aborted at {}", i);
+            break;
+        }
         i+=1;
     }
 
