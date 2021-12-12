@@ -116,14 +116,21 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
 
 
     } else {*/
-    if storage_acc_data.current_instruction_index == 700 {
+
+    if storage_acc_data.current_instruction_index > 0 {
+        let x = [0, 121, 122];
+        let instruction_id = storage_acc_data.current_instruction_index.clone();
+
+        _process_instruction_final_exp(  &mut storage_acc_data, x[instruction_id]);
+    }
+    else if storage_acc_data.current_instruction_index == 700 {
         msg!("checking nullifier");
 
         let nullifier_account = next_account_info(account)?;
         check_and_insert_nullifier(program_id, nullifier_account, &_instruction_data[10..42]);
-    } else  {
-        msg!("verify instruction ");
+    } else {
         let instruction_id = INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index.clone()];
+        msg!("verify instruction : {}", instruction_id);
         _process_instruction_final_exp(  &mut storage_acc_data, instruction_id);
     }
 
@@ -132,7 +139,7 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
 
     FinalExpBytes::pack_into_slice(&storage_acc_data, &mut storage_acc.data.borrow_mut());
     sol_log_compute_units();
-    msg!("packed: {:?}", storage_acc_data.changed_variables);
+    //msg!("packed: {:?}", storage_acc_data.changed_variables);
 
     Ok(())
 }

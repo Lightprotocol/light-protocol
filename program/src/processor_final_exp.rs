@@ -26,6 +26,8 @@ use crate::instructions_final_exponentiation::{
     mul_assign_4_1,
     mul_assign_4_2,
     mul_assign_5,
+    mul_assign_1_2,
+    mul_assign_3_4_5,
     custom_cyclotomic_square_in_place,
 };
 
@@ -898,6 +900,22 @@ pub fn _process_instruction_final_exp(
         } else if id == 120 {
             custom_frobenius_map_3_2(&mut account_struct.y1_range_s);
             account_struct.changed_variables[y1_range_iter] = true;
-        }
+        } else if id == 121 {
+            //let mut actual_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
+            mul_assign_1_2(&account_struct.f1_r_range_s,
+            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_0_s,
+            &mut account_struct.cubic_range_1_s);
+            account_struct.changed_variables[cubic_range_0_iter] = true;
+            account_struct.changed_variables[cubic_range_1_iter] = true;
+
+        } else if id == 122 {
+            mul_assign_3_4_5(&mut account_struct.f1_r_range_s,
+                &account_struct.cubic_range_0_s,
+                &account_struct.cubic_range_1_s,
+                &mut account_struct.f_f2_range_s
+            );
+            account_struct.changed_variables[f1_r_range_iter] = true;
+        }
 }
