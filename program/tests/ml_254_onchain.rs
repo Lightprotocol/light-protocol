@@ -271,10 +271,6 @@ async fn test_ml_254_onchain() {
     println!("init state P3y: {:?}", account_data.p_3_y_range);
 
     println!("init state PROOFB: {:?}", account_data.proof_b);
-    println!(
-        "init state PROOFB_TMP: {:?}",
-        account_data.proof_b_tmp_range
-    );
 
     // Executes 1973 following ix.
     println!("xxxxx");
