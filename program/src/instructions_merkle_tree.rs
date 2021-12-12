@@ -16,7 +16,8 @@ use ark_ff::PrimeField;
 use ark_ff::BigInteger;
 use crate::get_params;
 use crate::state_merkle_tree::{MerkleTree,HashBytes, TwoLeavesBytesPda};
-
+use crate::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
+/*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
     assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leafs can be added");
@@ -27,7 +28,7 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
 
     merkle_tree_account.inserted_leaf = true;
 }
-
+*/
 pub fn insert_0_double(leaf_r: &Vec<u8>, leaf_l: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
     assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leafs can be added");
@@ -52,7 +53,7 @@ pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_acco
     if(hash_bytes_account.currentIndex % 2 == 0) {
         //msg!("updating subtree: {:?}", hash_bytes_account.currentLevelHash);
         hash_bytes_account.left = hash_bytes_account.currentLevelHash.clone();
-        hash_bytes_account.right =  merkle_tree_account.zeros[ hash_bytes_account.currentLevel].clone();
+        hash_bytes_account.right =  ZERO_BYTES_MERKLE_TREE_18[ hash_bytes_account.currentLevel * 32..(hash_bytes_account.currentLevel * 32 + 32) ].to_vec().clone();
         merkle_tree_account.filledSubtrees[ hash_bytes_account.currentLevel] = hash_bytes_account.currentLevelHash.clone();
     } else {
         hash_bytes_account.left =  merkle_tree_account.filledSubtrees[ hash_bytes_account.currentLevel].clone();
