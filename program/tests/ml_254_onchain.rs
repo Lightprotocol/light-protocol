@@ -279,7 +279,12 @@ async fn test_ml_254_onchain() {
     // Executes 1973 following ix.
     println!("xxxxx");
     let mut i = 0usize;
-    for _id in 3..884usize {
+    for _id in 3..430usize {
+        // 3..612 @merging helpers and add step
+        // 3..639 @14,15,16 merged
+        // 3..693 11,12,13 merged
+        // 3..821 @3,4 merged
+        // 3..884 @d1-d5 merged
         // 3..1157 @d2-d5 merged
         // 3..1976
         let mut success = false;
