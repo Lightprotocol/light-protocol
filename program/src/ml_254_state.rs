@@ -1,12 +1,7 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::ByteOrder;
-use byteorder::LittleEndian;
 use solana_program::{
-    log::sol_log_compute_units,
-    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
-    pubkey::Pubkey,
 };
 use std::convert::TryInto;
 
@@ -41,8 +36,9 @@ pub struct ML254Bytes {
     pub proof_b: Vec<u8>,
     pub current_coeff_2_range: Vec<u8>,
     pub current_coeff_3_range: Vec<u8>,
+    pub proof_b_tmp_range: Vec<u8>,
 
-    pub changed_variables: [bool; 22],
+    pub changed_variables: [bool; 23],
 }
 impl Sealed for ML254Bytes {}
 impl IsInitialized for ML254Bytes {
@@ -87,10 +83,11 @@ impl Pack for ML254Bytes {
             proof_b,
             current_coeff_2_range,
             current_coeff_3_range,
+            proof_b_tmp_range,
             unused_remainder,
         ) = array_refs![
             input, 1, 3, 32, 176, 8, 384, 192, 192, 192, 64, 64, 64, 32, 32, 32, 32, 32, 32, 64,
-            64, 64, 64, 64, 192, 128, 1, 1, 2766
+            64, 64, 64, 64, 192, 128, 1, 1, 128, 2638 // 2766
         ];
         Ok(
             //216 - 32 - 8
@@ -125,7 +122,9 @@ impl Pack for ML254Bytes {
                 proof_b: proof_b.to_vec(),
                 current_coeff_2_range: current_coeff_2_range.to_vec(),
                 current_coeff_3_range: current_coeff_3_range.to_vec(),
-                changed_variables: [false; 22],
+                proof_b_tmp_range: proof_b_tmp_range.to_vec(),
+
+                changed_variables: [false; 23],
             },
         )
     }
@@ -163,10 +162,11 @@ impl Pack for ML254Bytes {
             proof_b_dst,
             current_coeff_2_range_dst,
             current_coeff_3_range_dst,
+            proof_b_tmp_range_dst,
             unused_remainder,
         ) = mut_array_refs![
             dst, 1, 3, 32, 176, 8, 384, 192, 192, 192, 64, 64, 64, 32, 32, 32, 32, 32, 32, 64, 64,
-            64, 64, 64, 192, 128, 1, 1, 2766
+            64, 64, 64, 192, 128, 1, 1, 128, 2638 // 2766
         ];
 
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
@@ -220,6 +220,8 @@ impl Pack for ML254Bytes {
                 } else if i == 21 {
                     *current_coeff_3_range_dst =
                         self.current_coeff_3_range.clone().try_into().unwrap();
+                } else if i == 22 {
+                    *proof_b_tmp_range_dst = self.proof_b_tmp_range.clone().try_into().unwrap();
                 }
             } else {
                 if i == 0 {
@@ -269,6 +271,8 @@ impl Pack for ML254Bytes {
                     *current_coeff_2_range_dst = *current_coeff_2_range_dst;
                 } else if i == 21 {
                     *current_coeff_3_range_dst = *current_coeff_3_range_dst;
+                } else if i == 22 {
+                    *proof_b_tmp_range_dst = *proof_b_tmp_range_dst;
                 }
             };
         }

@@ -32,7 +32,6 @@ pub fn parse_f_to_bytes(
                             &mut range[tmp..iter],
                         );
                     } else if j == 0 && z == 1 {
-                        //println!("Parsing {:?}", f.c0.c0.c0);
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c0.c1,
                             &mut range[tmp..iter],
@@ -50,7 +49,6 @@ pub fn parse_f_to_bytes(
                     }
                 } else if i == 1 {
                     if j == 0 && z == 0 {
-                        //println!("Parsing {:?}", f.c0.c0.c0);
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c0.c0,
                             &mut range[tmp..iter],
@@ -66,7 +64,6 @@ pub fn parse_f_to_bytes(
                             &mut range[tmp..iter],
                         );
                     } else if j == 0 && z == 1 {
-                        //println!("Parsing {:?}", f.c0.c0.c0);
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c0.c1,
                             &mut range[tmp..iter],
@@ -260,14 +257,12 @@ pub fn parse_cubic_to_bytes(
             let tmp = iter;
             iter += 32;
             if j == 0 && z == 0 {
-                //println!("Parsing {:?}", f.c0.c0.c0);
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]);
             } else if j == 1 && z == 0 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]);
             } else if j == 2 && z == 0 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]);
             } else if j == 0 && z == 1 {
-                //println!("Parsing {:?}", f.c0.c0.c0);
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]);
             } else if j == 1 && z == 1 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]);
@@ -323,14 +318,12 @@ pub fn parse_cubic_to_bytes_sub(
             let tmp = iter;
             iter += 32;
             if j == 0 && z == 0 {
-                //println!("Parsing {:?}", f.c0.c0.c0);
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]);
             } else if j == 1 && z == 0 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]);
             } else if j == 2 && z == 0 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]);
             } else if j == 0 && z == 1 {
-                //println!("Parsing {:?}", f.c0.c0.c0);
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]);
             } else if j == 1 && z == 1 {
                 <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]);

@@ -30,4 +30,14 @@ pub const P_2_Y_RANGE_INDEX: usize = 10;
 pub const P_3_X_RANGE_INDEX: usize = 11;
 pub const P_3_Y_RANGE_INDEX: usize = 12;
 
+pub const H_RANGE_INDEX: usize = 13;
+pub const G_RANGE_INDEX: usize = 14;
+pub const E_RANGE_INDEX: usize = 15;
+pub const LAMBDA_RANGE_INDEX: usize = 16;
+pub const THETA_RANGE_INDEX: usize = 17;
+pub const R_RANGE_INDEX: usize = 18;
+pub const PROOF_B_INDEX: usize = 19;
+pub const CURRENT_COEFF_2_RANGE_INDEX: usize = 20;
+pub const CURRENT_COEFF_3_RANGE_INDEX: usize = 21;
+pub const PROOF_B_TMP_RANGE_INDEX: usize = 22;
 // TODO: add h,g,e,labda,theta,r,proof_b,...

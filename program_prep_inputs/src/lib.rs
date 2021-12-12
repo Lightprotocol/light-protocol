@@ -36,7 +36,8 @@ pub fn process_instruction(
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?; // this one isn't needed
                                                 // the remaining storage accounts are being pulled inside inside pre_process/process
-    msg!("IDATA: {:?}", _instruction_data[0..20].to_vec());
+    msg!("IDATA: {:?}", _instruction_data[..].to_vec());
+    msg!("len: {:?}", _instruction_data[..].len());
     // println!("I data: {:?}", _instruction_data);
     _pre_process_instruction(_instruction_data, accounts);
 

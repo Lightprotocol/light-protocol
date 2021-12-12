@@ -1,4 +1,5 @@
 use crate::tokio::runtime::Runtime;
+use crate::tokio::time::timeout;
 use ark_ed_on_bn254::Fq;
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::bytes::{FromBytes, ToBytes};
@@ -21,6 +22,29 @@ use {
     Prepare_Inputs::process_instruction,
 };
 
+use std::{fs, thread, time};
+
+async fn create_and_start_program(
+    account_init_bytes: Vec<u8>,
+    storage_pubkey: Pubkey,
+    program_id: Pubkey,
+) -> ProgramTestContext {
+    let mut program_test = ProgramTest::new(
+        "Prepare_Inputs",
+        program_id,
+        processor!(process_instruction),
+    );
+
+    // Initializes acc based on x state and y pubkey
+    let mut account_storage = Account::new(10000000000, 4972, &program_id);
+    account_storage.data = account_init_bytes;
+    program_test.add_account(storage_pubkey, account_storage);
+
+    let tmp = program_test.start_with_context().await;
+    println!("program started w/ context");
+    tmp
+}
+
 // TODO: add handler for silent breaks:
 // If executing too many ix.
 // If parsing bytes that arent on the curve bn254.
@@ -30,19 +54,15 @@ use {
 async fn test_pi_254_onchain() /*-> io::Result<()>*/
 {
     // Creates program, accounts, setup.
-    let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+    let program_id = Pubkey::from_str("TransferLamports111111111551111111111111111").unwrap();
 
+    let init_bytes_storage: [u8; 4972] = [0; 4972];
     let storage_pubkey = Pubkey::new_unique();
-    let mut program_test = ProgramTest::new(
-        "Prepare_Inputs",
-        program_id,
-        processor!(process_instruction),
-    );
 
-    program_test.add_account(storage_pubkey, Account::new(5000000000, 4972, &program_id));
-    let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
+    let mut program_context =
+        create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
 
-    // Executes first ix with input data
+    // Executes first ix with input data, this would come from client.
     let inputs_bytes: Vec<u8> = vec![
         40, 3, 139, 101, 98, 198, 106, 26, 157, 253, 217, 85, 208, 20, 62, 194, 7, 229, 230, 196,
         195, 91, 112, 106, 227, 5, 89, 90, 68, 176, 218, 172, 23, 34, 1, 0, 63, 128, 161, 110, 190,
@@ -61,42 +81,98 @@ async fn test_pi_254_onchain() /*-> io::Result<()>*/
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
-            &inputs_bytes,
+            &[inputs_bytes],
             vec![
-                AccountMeta::new(payer.pubkey(), true),
+                AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(storage_pubkey, false),
             ],
         )],
-        Some(&payer.pubkey()),
+        Some(&program_context.payer.pubkey()),
     );
-    transaction.sign(&[&payer], recent_blockhash);
-    banks_client.process_transaction(transaction).await.unwrap();
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
 
-    // Executes 1808 other tx. ixids are done onchain.
-    // let mut vecvec = [3, 3, 0];
-    for i in 0..1808 {
-        println!("i: {:?}", i);
-        let mut transaction = Transaction::new_with_payer(
-            &[Instruction::new_with_bincode(
-                program_id,
-                // vec of input data i guess
-                &vec![98, 99, i],
-                vec![
-                    AccountMeta::new(payer.pubkey(), true),
-                    AccountMeta::new(storage_pubkey, false),
-                ],
-            )],
-            Some(&payer.pubkey()),
-        );
-        transaction.sign(&[&payer], recent_blockhash);
+    //   // Executes 1808 other tx. ixids are done onchain.
+    //   // let mut vecvec = [3, 3, 0];
+    // for i in 1..1809 {
+    //     println!("i: {:?}", i);
+    //     let mut transaction = Transaction::new_with_payer(
+    //         &[Instruction::new_with_bincode(
+    //             program_id,
+    //             // vec of input data i guess
+    //             &vec![98, 99, i],
+    //             vec![
+    //                 AccountMeta::new(payer.pubkey(), true),
+    //                 AccountMeta::new(storage_pubkey, false),
+    //             ],
+    //         )],
+    //         Some(&payer.pubkey()),
+    //     );
+    //     transaction.sign(&[&payer], recent_blockhash);
 
-        banks_client.process_transaction(transaction).await.unwrap();
+    //     banks_client.process_transaction(transaction).await.unwrap();
+    // }
+
+    //  retry logic
+    let mut i = 0usize;
+    for id in 0..1808usize {
+        let mut success = false;
+        let mut retries_left = 2;
+        while retries_left > 0 && success != true {
+            let idd: u8 = id as u8;
+            let mut transaction = Transaction::new_with_payer(
+                &[Instruction::new_with_bincode(
+                    program_id,
+                    &vec![98, 99, i],
+                    vec![
+                        AccountMeta::new(program_context.payer.pubkey(), true),
+                        AccountMeta::new(storage_pubkey, false),
+                    ],
+                )],
+                Some(&program_context.payer.pubkey()),
+            );
+            transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+            let res_request = timeout(
+                time::Duration::from_millis(500),
+                program_context
+                    .banks_client
+                    .process_transaction(transaction),
+            )
+            .await;
+
+            match res_request {
+                Ok(_) => success = true,
+                Err(e) => {
+                    println!("retries_left {}", retries_left);
+                    retries_left -= 1;
+                    let storage_account = program_context
+                        .banks_client
+                        .get_account(storage_pubkey)
+                        .await
+                        .expect("get_account")
+                        .unwrap();
+                    //println!("data: {:?}", storage_account.data);
+                    program_context = create_and_start_program(
+                        storage_account.data.to_vec(),
+                        storage_pubkey,
+                        program_id,
+                    )
+                    .await;
+                }
+            }
+        }
+        i += 1;
     }
 
     // Gets bytes that resemble x_1_range in the account: g_ic value after final compuation.
     // Compute the affine value from this and compare to the (hardcoded) value that's returned from
     // prepare_inputs lib call/reference.
-    let storage_account = banks_client
+    let storage_account = program_context
+        .banks_client
         .get_account(storage_pubkey)
         .await
         .expect("get_account")
