@@ -302,25 +302,90 @@ pub fn _process_instruction(
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
     } else if id == 70 {
-        ell_instruction_d(
+        ell_instruction_d_c2(
             &mut account_main.f_range,
-            &account_main.coeff_0_range,
-            &account_main.coeff_1_range,
-            &account_main.coeff_2_range,
             &account_main.p_2_y_range,
             &account_main.p_2_x_range,
+            &mut account_main.current_coeff_2_range,
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
+        account_main.changed_variables[CURRENT_COEFF_2_RANGE_INDEX] = true;
     } else if id == 71 {
-        ell_instruction_d(
+        ell_instruction_d_c3(
             &mut account_main.f_range,
-            &account_main.coeff_0_range,
-            &account_main.coeff_1_range,
-            &account_main.coeff_2_range,
             &account_main.p_3_y_range,
             &account_main.p_3_x_range,
+            &mut account_main.current_coeff_3_range,
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
+        account_main.changed_variables[CURRENT_COEFF_3_RANGE_INDEX] = true;
+    } else if id == 72 {
+        // test: replaces 3, 4
+        square_in_place_instruction(&mut account_main.f_range);
+        account_main.changed_variables[F_RANGE_INDEX] = true;
+    } else if id == 73 {
+        doubling_step(
+            &mut account_main.r,
+            &mut account_main.coeff_0_range,
+            &mut account_main.coeff_1_range,
+            &mut account_main.coeff_2_range,
+        );
+        account_main.changed_variables[R_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
+    } else if id == 74 {
+        addition_step::<ark_bn254::Parameters>(
+            &mut account_main.coeff_0_range,
+            &mut account_main.coeff_1_range,
+            &mut account_main.coeff_2_range,
+            &mut account_main.r,
+            &account_main.proof_b,
+            "normal",
+        );
+        account_main.changed_variables[R_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
+    } else if id == 75 {
+        addition_step::<ark_bn254::Parameters>(
+            &mut account_main.coeff_0_range,
+            &mut account_main.coeff_1_range,
+            &mut account_main.coeff_2_range,
+            &mut account_main.r,
+            &account_main.proof_b,
+            "negq",
+        );
+        account_main.changed_variables[R_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
+    } else if id == 76 {
+        addition_step::<ark_bn254::Parameters>(
+            &mut account_main.coeff_0_range,
+            &mut account_main.coeff_1_range,
+            &mut account_main.coeff_2_range,
+            &mut account_main.r,
+            &account_main.proof_b,
+            "q1",
+        );
+        account_main.changed_variables[R_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
+    } else if id == 77 {
+        addition_step::<ark_bn254::Parameters>(
+            &mut account_main.coeff_0_range,
+            &mut account_main.coeff_1_range,
+            &mut account_main.coeff_2_range,
+            &mut account_main.r,
+            &account_main.proof_b,
+            "q2",
+        );
+        account_main.changed_variables[R_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
+        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
     }
     msg!("compute costs:");
     sol_log_compute_units();
