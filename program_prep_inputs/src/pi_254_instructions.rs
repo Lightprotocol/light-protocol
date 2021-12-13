@@ -116,10 +116,9 @@ pub fn init_res_instruction(
     res_y_range: &mut Vec<u8>,
     res_z_range: &mut Vec<u8>,
 ) {
-    let mut res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
+    let res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // 88
 
-    println!("res me: {:?}", res);
     parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
     //Cost: 10k
 }
@@ -153,105 +152,117 @@ pub fn maths_instruction(
     // println!("bits w/o 0s: {:?}", bits_without_leading_zeroes);
     let skipped = 256 - bits_without_leading_zeroes.len();
 
-    // println!("current index: {}", current_index);
-    // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
-    if current_index < skipped {
-        // msg!("skipping leading zero instruction...");
-        return;
-    } else {
-        // sol_log_compute_units();
-        // msg!("current index: {:?}", current_index);
-        // msg!("skipped: {:?}", skipped);
-        // Get the current bit but account for removed zeroes.
-        let current_bit = bits_without_leading_zeroes[current_index - skipped];
-        // Info: when refering to the library's implementation keep in mind that here:
-        // res == self
-        // x == other
-        res.double_in_place(); // 252 // 28145 // 28469 // 28411 // 28522 // 28306
-                               // sol_log_compute_units();
-        println!("res.double_in_place: {:?}", res);
-        println!("current_bit/i {:?}", current_bit);
+    // testing multi call: merging 2 ix into one:
+    let mut index_in = current_index;
+    // msg!("current index start: {}", index_in);
 
-        if current_bit {
-            // res.add_assign_mixed(&x) ==> same as >
-            println!("res/self {:?}", res);
-            println!("x/other {:?}", x);
-            if x.is_zero() {
-                // cost: 0
-                // msg!("if if");
-            } else if res.is_zero() {
-                // cost: 162
-                // msg!("if if else if");
-                // This is always the same value for the same curve.
-                // Hardcoded here since we can't pass in the P: of the library's implementation.
-                // TODO: Explain why.
-                let p_basefield_one: Fp256<ark_bn254::FqParameters> =
-                    Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                        15230403791020821917,
-                        754611498739239741,
-                        7381016538464732716,
-                        1011752739694698287,
-                    ])); // Cost: 31
-                res.x = x.x;
-                res.y = x.y;
-                res.z = p_basefield_one; // Replaces: &P:BASEFIELD::ONE();
-                println!("add_assign_mixed res/self {:?}", res);
-            } else {
-                // msg!("if if else if else");
-                // Z1Z1 = Z1^2
-                let z1z1 = res.z.square();
-                // U2 = X2*Z1Z1
-                let u2 = x.x * &z1z1;
-                // S2 = Y2*Z1*Z1Z1
-                let s2 = (x.y * &res.z) * &z1z1;
-                // sol_log_compute_units(); // cost: 16709
+    for m in 0..4 {
+        // println!("current index: {}", current_index);
+        // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
+        // msg!("current index (index in): {}, m: {}", index_in, m);
+        if index_in < skipped {
+            // msg!("skipping leading zero instruction...");
+            // parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
+            // Only needed for if m==0 goes into else, which doesnt store the res value, then goes into if at m==1
+            if m == 3 {
+                parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
+            }
 
-                if res.x == u2 && res.y == s2 {
-                    // cost: 30k
-                    // msg!("if if else if else if");
+            // return;
+        } else {
+            // sol_log_compute_units();
+            // msg!("current index: {:?}", current_index);
+            // msg!("skipped: {:?}", skipped);
+            // Get the current bit but account for removed zeroes.
+            let current_bit = bits_without_leading_zeroes[index_in - skipped];
+            // Info: when refering to the library's implementation keep in mind that here:
+            // res == self
+            // x == other
+            res.double_in_place(); // 252 // 28145 // 28469 // 28411 // 28522 // 28306
+                                   // sol_log_compute_units();
 
-                    // The two points are equal, so we double.
-                    res.double_in_place();
-                    // sol_log_compute_units();
+            if current_bit {
+                // res.add_assign_mixed(&x) ==> same as >
+                if x.is_zero() {
+                    // cost: 0
+                    // msg!("if if");
+                } else if res.is_zero() {
+                    // cost: 162
+                    // msg!("if if else if");
+                    // This is always the same value for the same curve.
+                    // Hardcoded here since we can't pass in the P: of the library's implementation.
+                    // TODO: Explain why.
+                    let p_basefield_one: Fp256<ark_bn254::FqParameters> =
+                        Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                            15230403791020821917,
+                            754611498739239741,
+                            7381016538464732716,
+                            1011752739694698287,
+                        ])); // Cost: 31
+                    res.x = x.x;
+                    res.y = x.y;
+                    res.z = p_basefield_one; // Replaces: &P:BASEFIELD::ONE();
                 } else {
-                    // cost: 29894
+                    // msg!("if if else if else");
+                    // Z1Z1 = Z1^2
+                    let z1z1 = res.z.square();
+                    // U2 = X2*Z1Z1
+                    let u2 = x.x * &z1z1;
+                    // S2 = Y2*Z1*Z1Z1
+                    let s2 = (x.y * &res.z) * &z1z1;
+                    // sol_log_compute_units(); // cost: 16709
 
-                    // If we're adding -a and a together, self.z becomes zero as H becomes zero.
-                    // msg!("if if else if else if else");
-                    // H = U2-X1
-                    let h = u2 - &res.x;
-                    // HH = H^2
-                    let hh = h.square();
-                    // I = 4*HH
-                    let mut i = hh;
-                    i.double_in_place().double_in_place();
-                    // J = H*I
-                    let mut j = h * &i;
-                    // r = 2*(S2-Y1)
-                    let r = (s2 - &res.y).double();
-                    // V = X1*I
-                    let v = res.x * &i;
-                    // X3 = r^2 - J - 2*V
-                    res.x = r.square();
-                    res.x -= &j;
-                    res.x -= &v;
-                    res.x -= &v;
-                    // Y3 = r*(V-X3)-2*Y1*J
-                    j *= &res.y; // J = 2*Y1*J
-                    j.double_in_place();
-                    res.y = v - &res.x;
-                    res.y *= &r;
-                    res.y -= &j;
-                    // Z3 = (Z1+H)^2-Z1Z1-HH
-                    res.z += &h;
-                    res.z.square_in_place();
-                    res.z -= &z1z1;
-                    res.z -= &hh;
+                    if res.x == u2 && res.y == s2 {
+                        // cost: 30k
+                        // msg!("if if else if else if");
+
+                        // The two points are equal, so we double.
+                        res.double_in_place();
+                        // sol_log_compute_units();
+                    } else {
+                        // cost: 29894
+
+                        // If we're adding -a and a together, self.z becomes zero as H becomes zero.
+                        // msg!("if if else if else if else");
+                        // H = U2-X1
+                        let h = u2 - &res.x;
+                        // HH = H^2
+                        let hh = h.square();
+                        // I = 4*HH
+                        let mut i = hh;
+                        i.double_in_place().double_in_place();
+                        // J = H*I
+                        let mut j = h * &i;
+                        // r = 2*(S2-Y1)
+                        let r = (s2 - &res.y).double();
+                        // V = X1*I
+                        let v = res.x * &i;
+                        // X3 = r^2 - J - 2*V
+                        res.x = r.square();
+                        res.x -= &j;
+                        res.x -= &v;
+                        res.x -= &v;
+                        // Y3 = r*(V-X3)-2*Y1*J
+                        j *= &res.y; // J = 2*Y1*J
+                        j.double_in_place();
+                        res.y = v - &res.x;
+                        res.y *= &r;
+                        res.y -= &j;
+                        // Z3 = (Z1+H)^2-Z1Z1-HH
+                        res.z += &h;
+                        res.z.square_in_place();
+                        res.z -= &z1z1;
+                        res.z -= &hh;
+                    }
                 }
             }
+            // sol_log_compute_units();
+            // if m == max
+            if m == 3 {
+                parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
+            }
         }
-        // sol_log_compute_units();
-        parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
+        index_in += 1;
     }
 }
 

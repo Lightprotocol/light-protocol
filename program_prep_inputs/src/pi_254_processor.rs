@@ -1,6 +1,7 @@
 use crate::pi_254_instructions::*;
 use crate::pi_254_ranges::*;
 use crate::pi_254_state::PiBytes;
+use solana_program::{log, msg};
 
 pub fn _pi_254_process_instruction(
     id: u8,
@@ -9,6 +10,9 @@ pub fn _pi_254_process_instruction(
     current_index: usize,
 ) {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x4]
+    msg!("instruction: {:?}", id);
+    log::sol_log_compute_units();
+
     if id == 40 {
         init_pairs_instruction(
             &public_inputs,
@@ -191,4 +195,6 @@ pub fn _pi_254_process_instruction(
             account.changed_variables[*i] = true;
         }
     }
+    msg!("executed, cost: ");
+    log::sol_log_compute_units();
 }
