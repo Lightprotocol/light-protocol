@@ -48,12 +48,13 @@ arkworks-gadgets = "0.3.14"
 zeroize = "1.4.2"
 derivative = "2.2.0"
 ark-serialize = { version = "^0.3.0", default-features = false }
+#ark-groth16 = "0.3.0"
 
 #ark-r1cs-std = { version = "^0.3.0", default-features = false }
 #ark-snark = { version = "^0.3.0", default-features = false }
 #tracing = { version = "0.1", default-features = false, features = [ "attributes" ] }
 #tracing-subscriber = { version = "0.2" }
-#ark-groth16 = {version = "0.3.0"}
+ark-groth16 = {version = "0.3.0", default-features = false, features = ["std"]}
 #ark-ec = { version = "^0.3.0", default-features = false }
 
 [dev-dependencies]
