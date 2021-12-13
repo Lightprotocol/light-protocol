@@ -344,7 +344,7 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
 //
 //     program_test.add_account(
 //         merkle_tree_pubkey,
-//         Account::new(10000000000, 135057, &program_id),
+//         Account::new(10000000000, 16657, &program_id),
 //     );
 //
 //     let (mut program_context.banks_client, signer_keypair, program_context.last_blockhash) = program_test.start().await;

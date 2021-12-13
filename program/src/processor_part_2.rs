@@ -117,13 +117,14 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
 
     } else {*/
 
-    if storage_acc_data.current_instruction_index > 0 {
-        let x = [0, 121, 122];
-        let instruction_id = storage_acc_data.current_instruction_index.clone();
-
-        _process_instruction_final_exp(  &mut storage_acc_data, x[instruction_id]);
-    }
-    else if storage_acc_data.current_instruction_index == 700 {
+    // if storage_acc_data.current_instruction_index > 0 {
+    //     let x = [0, 121, 122];
+    //     let instruction_id = storage_acc_data.current_instruction_index.clone();
+    //
+    //     _process_instruction_final_exp(  &mut storage_acc_data, x[instruction_id]);
+    // }
+    // else
+    if storage_acc_data.current_instruction_index == 700 {
         msg!("checking nullifier");
 
         let nullifier_account = next_account_info(account)?;

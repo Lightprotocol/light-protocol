@@ -60,7 +60,7 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 solana-program-test = "1.7.12"
 solana-sdk = "1.7.12"
 serde_json = "1.0.59"
-ark-groth16 = "0.3.0"
+ark-groth16 ={ version = "^0.3.0", default-features = false , features = ["std"]}
 
 [lib]
 crate-type = ["cdylib", "lib"]

@@ -776,7 +776,7 @@ mod tests {
         println!("tree_height: {}", tree_height);
         //let zero_value = [1u8, 32];
         let zero_value = vec![1 as u8;32];
-		let mut account_data_merkle_tree = [0u8;135057];
+		let mut account_data_merkle_tree = [0u8;16657];
 		//initing merkle tree with init bytes
 		for i in 0..init_bytes11::INIT_BYTES_MERKLE_TREE_11.len() {
 			account_data_merkle_tree[i] = init_bytes11::INIT_BYTES_MERKLE_TREE_11[i];
@@ -854,7 +854,7 @@ mod tests {
         println!("tree_height: {}", tree_height);
         //let zero_value = [1u8, 32];
         let zero_value = vec![1 as u8;32];
-		let mut account_data_merkle_tree = [0u8;135057];
+		let mut account_data_merkle_tree = [0u8;16657];
 		//initing merkle tree with init bytes
 		for i in 0..init_bytes11::INIT_BYTES_MERKLE_TREE_11.len() {
 			account_data_merkle_tree[i] = init_bytes11::INIT_BYTES_MERKLE_TREE_11[i];
@@ -1020,7 +1020,7 @@ mod tests {
 		println!("tree_height: {}", tree_height);
 		//let zero_value = [1u8, 32];
 		let zero_value = vec![1 as u8;32];
-		let mut account_data_merkle_tree = [0u8;135057];
+		let mut account_data_merkle_tree = [0u8;16657];
 		//initing merkle tree with init bytes
 		for i in 0..init_bytes18::INIT_BYTES_MERKLE_TREE_18.len() {
 			account_data_merkle_tree[i] = init_bytes18::INIT_BYTES_MERKLE_TREE_18[i];
