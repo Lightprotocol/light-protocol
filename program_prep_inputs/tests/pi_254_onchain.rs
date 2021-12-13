@@ -1,28 +1,18 @@
-use crate::tokio::runtime::Runtime;
 use crate::tokio::time::timeout;
-use ark_ed_on_bn254::Fq;
 use ark_ff::biginteger::BigInteger256;
-use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::{BigInteger, Fp256, PrimeField};
-use ark_std::One;
-use solana_program::program_pack::Pack;
-use solana_program_test::ProgramTestError;
-use solana_sdk::signer::keypair::Keypair;
+use ark_ff::Fp256;
+use std::time;
 use Prepare_Inputs::pi_254_parsers::parse_x_group_affine_from_bytes_254;
-
-use Prepare_Inputs::pi_254_state::*;
 use {
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
     },
     solana_program_test::*,
-    solana_sdk::{account::Account, msg, signature::Signer, transaction::Transaction},
+    solana_sdk::{account::Account, signature::Signer, transaction::Transaction},
     std::str::FromStr,
     Prepare_Inputs::process_instruction,
 };
-
-use std::{fs, thread, time};
 
 async fn create_and_start_program(
     account_init_bytes: Vec<u8>,
@@ -45,14 +35,10 @@ async fn create_and_start_program(
     tmp
 }
 
-// TODO: add handler for silent breaks:
-// If executing too many ix.
-// If parsing bytes that arent on the curve bn254.
 // TODO: execute prepare_inputs lib call before with the same inputs as onchain, write g_ic to
 // file, and read the value here for an assert. Need to make it compile with ark-groth16 before.
 #[tokio::test]
-async fn test_pi_254_onchain() /*-> io::Result<()>*/
-{
+async fn test_pi_254_onchain() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111551111111111111111").unwrap();
 
@@ -95,31 +81,10 @@ async fn test_pi_254_onchain() /*-> io::Result<()>*/
         .process_transaction(transaction)
         .await
         .unwrap();
-
-    //   // Executes 1808 other tx. ixids are done onchain.
-    //   // let mut vecvec = [3, 3, 0];
-    // for i in 1..1809 {
-    //     println!("i: {:?}", i);
-    //     let mut transaction = Transaction::new_with_payer(
-    //         &[Instruction::new_with_bincode(
-    //             program_id,
-    //             // vec of input data i guess
-    //             &vec![98, 99, i],
-    //             vec![
-    //                 AccountMeta::new(payer.pubkey(), true),
-    //                 AccountMeta::new(storage_pubkey, false),
-    //             ],
-    //         )],
-    //         Some(&payer.pubkey()),
-    //     );
-    //     transaction.sign(&[&payer], recent_blockhash);
-
-    //     banks_client.process_transaction(transaction).await.unwrap();
-    // }
-
-    //  retry logic
     let mut i = 0usize;
-    for id in 0..1808usize {
+    for id in 0..464usize {
+        // 0..912 @working
+        // 0..1808 @
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {

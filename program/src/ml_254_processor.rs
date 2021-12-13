@@ -15,9 +15,9 @@ pub fn _process_instruction(
     msg!("instruction: {:?}", id);
     sol_log_compute_units();
     if id == 0 {
-        // First instruction for the millerloop.
+        // First instruction of miller_loop.
         // Reads gic_affine from prepared_inputs account.
-        // Ix moved to pre-processor.
+        // This Ix has been moved to the pre_processor.
     } else if id == 1 {
         // Inits proof_a and proof_c into the account.
         // (p1,p3)
@@ -31,7 +31,6 @@ pub fn _process_instruction(
             &mut account_main.p_3_y_range,
             &mut account_main.f_range,
         );
-
         account_main.changed_variables[P_1_X_RANGE_INDEX] = true;
         account_main.changed_variables[P_1_Y_RANGE_INDEX] = true;
         account_main.changed_variables[P_3_X_RANGE_INDEX] = true;
@@ -43,255 +42,20 @@ pub fn _process_instruction(
         init_coeffs1(
             &mut account_main.r,
             &mut account_main.proof_b,
-            &mut account_main.proof_b_tmp_range,
             proof_b_bytes,
         );
-        // account_main.changed_variables[20] = true;
-        // account_main.changed_variables[21] = true;
-        // account_main.changed_variables[22] = true;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[PROOF_B_INDEX] = true;
-        account_main.changed_variables[PROOF_B_TMP_RANGE_INDEX] = true;
-
-        // Next: 3,4 are ix that replicate .square_in_place()
     } else if id == 3 {
-        custom_square_in_place_instruction_else_1(
-            &account_main.f_range,
-            &mut account_main.cubic_v0_range,
-            &mut account_main.cubic_v2_range,
-            &mut account_main.cubic_v3_range,
-        );
-        account_main.changed_variables[CUBIC_V0_RANGE_INDEX] = true;
-        account_main.changed_variables[CUBIC_V2_RANGE_INDEX] = true;
-        account_main.changed_variables[CUBIC_V3_RANGE_INDEX] = true;
+        square_in_place_instruction(&mut account_main.f_range);
+        account_main.changed_variables[F_RANGE_INDEX] = true;
     } else if id == 4 {
-        custom_square_in_place_instruction_else_2(
-            &account_main.cubic_v0_range,
-            &account_main.cubic_v2_range,
-            &account_main.cubic_v3_range,
-            &mut account_main.f_range,
-        );
-        account_main.changed_variables[F_RANGE_INDEX] = true;
-    } else if id == 5 {
-    } else if id == 6 {
-    } else if id == 7 {
-        // Note that v0,v2,v3 ranges are overwritten by
-        // the following instructions.
-        custom_ell_instruction_D_2(
-            &mut account_main.f_range,
-            &mut account_main.coeff_0_range,
-            &mut account_main.cubic_v0_range, // used as a_range
-        );
-        account_main.changed_variables[F_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-        account_main.changed_variables[CUBIC_V0_RANGE_INDEX] = true;
-    } else if id == 8 {
-        custom_ell_instruction_D_3(
-            &mut account_main.cubic_v2_range, // used as b_range
-            &account_main.f_range,
-            &account_main.coeff_1_range,
-            &account_main.coeff_2_range,
-        );
-        account_main.changed_variables[CUBIC_V2_RANGE_INDEX] = true;
-    } else if id == 9 {
-        custom_ell_instruction_D_4(
-            &mut account_main.cubic_v3_range, // used as e_range
-            &account_main.f_range,
-            &account_main.coeff_0_range,
-            &account_main.coeff_1_range,
-            &account_main.coeff_2_range,
-        );
-        account_main.changed_variables[CUBIC_V3_RANGE_INDEX] = true;
-    } else if id == 10 {
-        custom_ell_instruction_D_5(
-            &mut account_main.f_range,
-            &account_main.cubic_v0_range, // used as a_range
-            &account_main.cubic_v2_range, // used as b_range
-            &account_main.cubic_v3_range, // used as e_range
-        );
-        account_main.changed_variables[F_RANGE_INDEX] = true;
-    // (11)-(16) compute the current coeff_0.
-    // (11)-(13) and (14)-(16) alternate.
-    // So at any given round it's just calling 3 ix.
-    } else if id == 11 {
-        doubling_step_custom_0(
-            &mut account_main.r,
-            &mut account_main.h,
-            &mut account_main.g,
-            &mut account_main.e,
-            &mut account_main.lambda,
-            &mut account_main.theta,
-        );
-        account_main.changed_variables[R_RANGE_INDEX] = true;
-        account_main.changed_variables[H_RANGE_INDEX] = true;
-        account_main.changed_variables[G_RANGE_INDEX] = true;
-        account_main.changed_variables[E_RANGE_INDEX] = true;
-        account_main.changed_variables[LAMBDA_RANGE_INDEX] = true;
-        account_main.changed_variables[THETA_RANGE_INDEX] = true;
-    } else if id == 12 {
-        doubling_step_custom_1(
-            &mut account_main.r,
-            &mut account_main.h,
-            &mut account_main.g,
-            &account_main.e,
-            &account_main.lambda,
-        );
-        //5 6 8
-        account_main.changed_variables[R_RANGE_INDEX] = true;
-        account_main.changed_variables[H_RANGE_INDEX] = true;
-        account_main.changed_variables[G_RANGE_INDEX] = true;
-    } else if id == 13 {
-        doubling_step_custom_2(
-            &mut account_main.coeff_0_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_2_range,
-            &account_main.h,
-            &account_main.g,
-            &account_main.theta,
-        );
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-    } else if id == 14 {
-        addition_step_custom_0::<ark_bn254::Parameters>(
-            &account_main.r,
-            &mut account_main.h,
-            &mut account_main.g,
-            &mut account_main.e,
-            &mut account_main.lambda,
-            &mut account_main.theta,
-            &account_main.proof_b,
-        );
-
-        account_main.changed_variables[H_RANGE_INDEX] = true;
-        account_main.changed_variables[G_RANGE_INDEX] = true;
-        account_main.changed_variables[E_RANGE_INDEX] = true;
-        account_main.changed_variables[LAMBDA_RANGE_INDEX] = true;
-        account_main.changed_variables[THETA_RANGE_INDEX] = true;
-        account_main.changed_variables[PROOF_B_INDEX] = true;
-    } else if id == 15 {
-        addition_step_custom_1::<ark_bn254::Parameters>(
-            &mut account_main.r,
-            &account_main.h,
-            &account_main.g,
-            &account_main.e,
-            &account_main.lambda,
-            &account_main.theta,
-        );
-        account_main.changed_variables[R_RANGE_INDEX] = true;
-    } else if id == 16 {
-        addition_step_custom_2::<ark_bn254::Parameters>(
-            &mut account_main.coeff_0_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_2_range,
-            &account_main.lambda,
-            &account_main.theta,
-            &account_main.proof_b,
-        );
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-
-    // (17) and (18) compute coeffs_2 and coeffs_3 respectively.
-    // This consumes less resources than (16) since they're
-    // just reading the values from a hardcoded pvk.
-    } else if id == 17 {
-        instruction_onchain_coeffs_2(
-            &mut account_main.current_coeff_2_range,
-            &mut account_main.coeff_2_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_0_range,
-        );
-
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-        account_main.changed_variables[CURRENT_COEFF_2_RANGE_INDEX] = true;
-    } else if id == 18 {
-        instruction_onchain_coeffs_3(
-            &mut account_main.current_coeff_3_range,
-            &mut account_main.coeff_2_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_0_range,
-        );
-
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-        account_main.changed_variables[CURRENT_COEFF_3_RANGE_INDEX] = true;
-    } else if id == 19 {
-    }
-    // Below ix (20,21,22) are called 91 times each
-    // in alternating order.
-    // They each draw the currently computed coeffs
-    else if id == 20 {
-        // For p_1
-        custom_ell_instruction_D_1(
-            &mut account_main.coeff_2_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_0_range,
-            &account_main.p_1_y_range,
-            &account_main.p_1_x_range,
-        );
-
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-    } else if id == 21 {
-        custom_ell_instruction_D_1(
-            // For p_2
-            &mut account_main.coeff_2_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_0_range,
-            &account_main.p_2_y_range,
-            &account_main.p_2_x_range,
-        );
-
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-    } else if id == 22 {
-        custom_ell_instruction_D_1(
-            // For p_1
-            &mut account_main.coeff_2_range,
-            &mut account_main.coeff_1_range,
-            &mut account_main.coeff_0_range,
-            &account_main.p_3_y_range,
-            &account_main.p_3_x_range,
-        );
-
-        account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
-        account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
-    } else if id == 23 {
-        addition_step_helper::<ark_bn254::Parameters>(
-            &mut account_main.proof_b,
-            &account_main.proof_b_tmp_range,
-            "normal",
-        );
-        account_main.changed_variables[PROOF_B_INDEX] = true;
-    } else if id == 24 {
-        addition_step_helper::<ark_bn254::Parameters>(
-            &mut account_main.proof_b,
-            &account_main.proof_b_tmp_range,
-            "negq",
-        );
-        account_main.changed_variables[PROOF_B_INDEX] = true;
-    } else if id == 25 {
-        addition_step_helper::<ark_bn254::Parameters>(
-            &mut account_main.proof_b,
-            &account_main.proof_b_tmp_range,
-            "q1",
-        );
-        account_main.changed_variables[PROOF_B_INDEX] = true;
-    } else if id == 26 {
-        addition_step_helper::<ark_bn254::Parameters>(
-            &mut account_main.proof_b,
-            &account_main.proof_b_tmp_range,
-            "q2",
-        );
-        account_main.changed_variables[PROOF_B_INDEX] = true;
-    } else if id == 69 {
+        // The following three ix calls (4 and 5 and 6) each execute the same ELL loop.
+        // Ix 4 executes the ELL loop for the first coeffs pair of 3.
+        // Since the coeffs1/2/3 come from a proof.b compute this ix
+        // call is pre-run by a computation ix:
+        // either "doubling_step" (ix 7) or "addition_step" (ix 8 or 9 or 10 or 11)
+        // The call_order of those is based on a constant as defined in the ark_ec library.
         ell_instruction_d(
             &mut account_main.f_range,
             &account_main.coeff_0_range,
@@ -301,7 +65,10 @@ pub fn _process_instruction(
             &account_main.p_1_x_range,
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
-    } else if id == 70 {
+    } else if id == 5 {
+        // This ix (5) as well as ix 6 work a little differently. That's because here the ell loop derives
+        // the coeff1/2/3 values not from a on-the-fly computation. It instead
+        // reads the respective values from a hardcoded verifying key that's stored onchain.
         ell_instruction_d_c2(
             &mut account_main.f_range,
             &account_main.p_2_y_range,
@@ -310,7 +77,8 @@ pub fn _process_instruction(
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
         account_main.changed_variables[CURRENT_COEFF_2_RANGE_INDEX] = true;
-    } else if id == 71 {
+    } else if id == 6 {
+        // Works analogue to ix 5, but reads from a different part of the verifying key.
         ell_instruction_d_c3(
             &mut account_main.f_range,
             &account_main.p_3_y_range,
@@ -319,11 +87,7 @@ pub fn _process_instruction(
         );
         account_main.changed_variables[F_RANGE_INDEX] = true;
         account_main.changed_variables[CURRENT_COEFF_3_RANGE_INDEX] = true;
-    } else if id == 72 {
-        // test: replaces 3, 4
-        square_in_place_instruction(&mut account_main.f_range);
-        account_main.changed_variables[F_RANGE_INDEX] = true;
-    } else if id == 73 {
+    } else if id == 7 {
         doubling_step(
             &mut account_main.r,
             &mut account_main.coeff_0_range,
@@ -334,7 +98,11 @@ pub fn _process_instruction(
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-    } else if id == 74 {
+    } else if id == 8 {
+        // The reason "addition_step" needs 4 different ix calls (8/9/10/11)
+        // is that we need to parse in a unique flag based on which precompute
+        // needs to be done with the &q value. This is analogue to the
+        // ark_ec library implementation for bn254.
         addition_step::<ark_bn254::Parameters>(
             &mut account_main.coeff_0_range,
             &mut account_main.coeff_1_range,
@@ -347,7 +115,7 @@ pub fn _process_instruction(
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-    } else if id == 75 {
+    } else if id == 9 {
         addition_step::<ark_bn254::Parameters>(
             &mut account_main.coeff_0_range,
             &mut account_main.coeff_1_range,
@@ -360,7 +128,7 @@ pub fn _process_instruction(
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-    } else if id == 76 {
+    } else if id == 10 {
         addition_step::<ark_bn254::Parameters>(
             &mut account_main.coeff_0_range,
             &mut account_main.coeff_1_range,
@@ -373,7 +141,7 @@ pub fn _process_instruction(
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
-    } else if id == 77 {
+    } else if id == 11 {
         addition_step::<ark_bn254::Parameters>(
             &mut account_main.coeff_0_range,
             &mut account_main.coeff_1_range,

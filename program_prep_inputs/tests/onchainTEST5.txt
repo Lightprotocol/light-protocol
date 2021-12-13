@@ -1,0 +1,56 @@
+Running: cargo-build-bpf --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/Cargo.toml --bpf-out-dir /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy
+BPF SDK: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf
+Running: rustup toolchain list -v
+Running: cargo +bpf build --target bpfel-unknown-unknown --release
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/scripts/strip.sh /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/bpfel-unknown-unknown/release/Prepare_Inputs.so /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/dependencies/bpf-tools/llvm/bin/llvm-readelf --dyn-symbols /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+
+To deploy this program:
+  $ solana program deploy /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+The program address will default to this keypair (override with --program-id):
+  /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs-keypair.json
+Running: /home/swen/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/Cargo.toml -- --nocapture test_pi_254_onchain
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+
+running 1 test
+program started w/ context
+inputs bytes length: 226
+retries_left 2
+program started w/ context
+retries_left 2
+program started w/ context
+account length should be 64 bytes: 64
+test test_pi_254_onchain ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 37.06s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+Running: cargo-build-bpf --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/Cargo.toml --bpf-out-dir /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy
+BPF SDK: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf
+Running: rustup toolchain list -v
+Running: cargo +bpf build --target bpfel-unknown-unknown --release
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/scripts/strip.sh /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/bpfel-unknown-unknown/release/Prepare_Inputs.so /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+Running: /home/swen/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/dependencies/bpf-tools/llvm/bin/llvm-readelf --dyn-symbols /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+
+To deploy this program:
+  $ solana program deploy /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs.so
+The program address will default to this keypair (override with --program-id):
+  /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/target/deploy/Prepare_Inputs-keypair.json
+Running: /home/swen/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --manifest-path /home/swen/Desktop/crypto/light-protocol-onchain/program_prep_inputs/Cargo.toml -- --nocapture test_pi_254_onchain
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 1 filtered out; finished in 0.00s
+
+
+running 1 test
+program started w/ context
+inputs bytes length: 226
