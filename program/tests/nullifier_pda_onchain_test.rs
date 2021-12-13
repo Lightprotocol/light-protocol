@@ -47,7 +47,7 @@ async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_bytes_p
     );
     program_test.add_account(
         merkle_tree_pubkey,
-        Account::new(10000000000, 135057, &program_id),
+        Account::new(10000000000, 16657, &program_id),
     );
 
     program_test.add_account(
