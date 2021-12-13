@@ -16,7 +16,7 @@ use crate::parsers_prepare_inputs::parse_x_group_affine_from_bytes;
 use crate::processor::{_process_instruction, _process_instruction_bridge_to_final_exp};
 use crate::ranges::*;
 use crate::state_prep_inputs;
-use crate::FinalExpBytes; //state_final_exp::FinalExpBytes;
+use crate::state_final_exp::FinalExpBytes; //state_final_exp::FinalExpBytes;
 
 pub fn _pre_process_instruction_miller_loop(
     _instruction_data: &[u8],
