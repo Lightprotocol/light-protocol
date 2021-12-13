@@ -219,30 +219,24 @@ pub fn mul_assign_5(
 }
 
 //frobenius_map should work only wrapper
-pub fn custom_frobenius_map_1_1(mut account: &mut Vec<u8>) {
-    custom_frobenius_map_1(&mut account, 1);
+pub fn custom_frobenius_map_1(mut account: &mut Vec<u8>) {
+    let mut f = parse_f_from_bytes_new(&account);
+    f.frobenius_map(1);
+    parse_f_to_bytes_new(f, account);
 }
 
-pub fn custom_frobenius_map_1_2(mut account:  &mut Vec<u8>) {
-    custom_frobenius_map_2(&mut account,1);
+pub fn custom_frobenius_map_2(mut account:  &mut Vec<u8>){
+    let mut f = parse_f_from_bytes_new(&account);
+    f.frobenius_map(2);
+    parse_f_to_bytes_new(f, account);
 }
 
-pub fn custom_frobenius_map_2_1(mut account:  &mut Vec<u8>){
-    custom_frobenius_map_1(&mut account, 2);
+pub fn custom_frobenius_map_3(mut account:  &mut Vec<u8>){
+    let mut f = parse_f_from_bytes_new(&account);
+    f.frobenius_map(3);
+    parse_f_to_bytes_new(f, account);
 }
-
-pub fn custom_frobenius_map_2_2(mut account:  &mut Vec<u8>) {
-    custom_frobenius_map_2(&mut account, 2);
-}
-
-pub fn custom_frobenius_map_3_1(mut account:  &mut Vec<u8>){
-    custom_frobenius_map_1(&mut account, 3);
-}
-
-pub fn custom_frobenius_map_3_2(mut account:  &mut Vec<u8>) {
-    custom_frobenius_map_2(&mut account, 3);
-}
-
+/*
 //88373
 pub fn custom_frobenius_map_1(account:  &mut Vec<u8>, power: usize) {
     msg!("custom_frobenius_map_1: ------------------------------------------ power {}", power);
@@ -266,7 +260,7 @@ pub fn custom_frobenius_map_2(account:  &mut Vec<u8>, power: usize) {
 
     parse_f_to_bytes_new(f, account);
 
-}
+}*/
 
 
 /*exp_by_neg_x is cyclotomic_exp plus possible conjugate
@@ -579,12 +573,9 @@ pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountI
 #[cfg(test)]
 mod tests {
     use crate::instructions_final_exponentiation::{
-        custom_frobenius_map_1_1,
-        custom_frobenius_map_1_2,
-        custom_frobenius_map_2_1,
-        custom_frobenius_map_2_2,
-        custom_frobenius_map_3_1,
-        custom_frobenius_map_3_2,
+        custom_frobenius_map_1,
+        custom_frobenius_map_2,
+        custom_frobenius_map_3,
         custom_cyclotomic_square,
         conjugate_wrapper,
         custom_f_inverse_1,
@@ -639,16 +630,13 @@ mod tests {
             let mut account = vec![0u8;384];
             parse_f_to_bytes_new(actual_f, &mut account);
             if i == 1 {
-                custom_frobenius_map_1_1(&mut account);
-                custom_frobenius_map_1_2(&mut account);
+                custom_frobenius_map_1(&mut account);
 
             } else if i == 2 {
-                custom_frobenius_map_2_1(&mut account);
-                custom_frobenius_map_2_2(&mut account);
+                custom_frobenius_map_2(&mut account);
 
             } else {
-                custom_frobenius_map_3_1(&mut account);
-                custom_frobenius_map_3_2(&mut account);
+                custom_frobenius_map_3(&mut account);
 
             }
 
@@ -658,7 +646,7 @@ mod tests {
         }
 
     }
-
+    /*
     #[test]
     fn frobenius_map_test_fails() {
         //generating input
@@ -690,7 +678,7 @@ mod tests {
         }
 
     }
-
+    */
     #[test]
     fn custom_cyclotomic_square_test_correct() {
         //generating input
