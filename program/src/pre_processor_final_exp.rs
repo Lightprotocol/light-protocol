@@ -12,7 +12,6 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-use crate::utils::verify_result_and_withdraw;
 
 use crate::instructions_final_exponentiation::check_and_insert_nullifier;
 
