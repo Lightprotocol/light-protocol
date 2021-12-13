@@ -1,5 +1,4 @@
 use crate::instructions_merkle_tree::*;
-use crate::parsers_merkle_tree::*;
 use crate::state_merkle_tree::{MerkleTree, HashBytes, TwoLeavesBytesPda};
 use crate::state_merkle_tree;
 use solana_program::{

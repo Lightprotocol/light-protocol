@@ -1,5 +1,3 @@
-use crate::parsers_merkle_tree::*;
-
 use ark_crypto_primitives::crh::{pedersen, poseidon, *};
 use ark_ff::{fields, models::Fp256};
 use ark_ec::twisted_edwards_extended::*;
@@ -14,7 +12,7 @@ use solana_program::{
 };
 use ark_ff::PrimeField;
 use ark_ff::BigInteger;
-use crate::get_params;
+
 use crate::state_merkle_tree::{MerkleTree,HashBytes, TwoLeavesBytesPda};
 use crate::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
