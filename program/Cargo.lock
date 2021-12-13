@@ -19,6 +19,7 @@ dependencies = [
  "ark-ed-on-bls12-381",
  "ark-ed-on-bn254",
  "ark-ff",
+ "ark-groth16",
  "ark-relations",
  "ark-serialize",
  "ark-sponge",
