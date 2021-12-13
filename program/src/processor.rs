@@ -1,7 +1,8 @@
 use crate::instructions::*;
 use crate::ranges::*;
 // use crate::constraints::{BytesCoeffs, MillerLoopBytes};
-use crate::{MillerLoopBytes, FinalExpBytes};
+use crate::state_miller_loop::{MillerLoopBytes};
+use crate::state_final_exp::FinalExpBytes;
 use solana_program::{
     msg,
     log::sol_log_compute_units,

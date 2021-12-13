@@ -8,7 +8,8 @@ edition = "2018"
 
 [features]
 no-entrypoint = []
-
+[profile.test] # fixed
+opt-level = 2
 [dependencies]
 byteorder = "1.3"
 solana-program = "1.7.10"
@@ -59,7 +60,7 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 solana-program-test = "1.7.12"
 solana-sdk = "1.7.12"
 serde_json = "1.0.59"
-ark-groth16 = "0.3.0"
+ark-groth16 ={ version = "^0.3.0", default-features = false , features = ["std"]}
 
 [lib]
 crate-type = ["cdylib", "lib"]
