@@ -47,7 +47,7 @@ impl IsInitialized for ML254Bytes {
 }
 
 impl Pack for ML254Bytes {
-    const LEN: usize = 4972; // 1728;
+    const LEN: usize = 3772; // 1728;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, ML254Bytes::LEN];
@@ -58,6 +58,7 @@ impl Pack for ML254Bytes {
             signing_address,
             _unused_constants1,
             current_instruction_index,
+            //604
             f_range,
             // cubic_v0_range, // used for square_in_place
             // cubic_v2_range, // used for square_in_place
@@ -85,7 +86,7 @@ impl Pack for ML254Bytes {
             _unused_remainder,
         ) = array_refs![
             input, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1,
-            3662 // w hge etc 2638 // 2766
+            2462 // w hge etc 2638 // 2766
         ];
         Ok(
             //216 - 32 - 8
@@ -163,7 +164,7 @@ impl Pack for ML254Bytes {
             unused_remainder,
         ) = mut_array_refs![
             dst, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1,
-            3662 // w hge etc 2638 // 2766
+            2462 // w hge etc 2638 // 2766
         ];
 
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {

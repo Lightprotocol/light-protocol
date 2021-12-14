@@ -27,7 +27,10 @@ pub fn _pre_process_instruction_miller_loop(
         "new ix -- IX_DATA ARRIVED: {:?}",
         _instruction_data[..].to_vec()
     );
+    msg!("unpacking");
     let mut account_main_data = ML254Bytes::unpack(&account_main.data.borrow())?;
+    msg!("unpacked");
+
     // assert!(
     //     account_main_data.current_instruction_index < 1821,
     //     "Miller loop finished"
@@ -154,7 +157,14 @@ pub fn _pre_process_instruction_miller_loop(
         // );
 
         account_main_data.current_instruction_index += 1;
+        //resetting instruction index to be able to reuse account
+        if account_main_data.current_instruction_index == 430 {
+            account_main_data.current_instruction_index = 0;
+
+        }
+        msg!("packing");
         ML254Bytes::pack_into_slice(&account_main_data, &mut account_main.data.borrow_mut());
+        msg!("packed");
         Ok(())
     }
 }

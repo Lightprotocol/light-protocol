@@ -108,6 +108,7 @@ impl Pack for FinalExpBytes {
             current_instruction_index,
 
             f_f2_range_s,
+            //604
             f1_r_range_s,
             i_range_s,
 

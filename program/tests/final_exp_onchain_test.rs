@@ -26,7 +26,7 @@ use crate::tokio::time::timeout;
 
 use std::{thread, time};
 
-async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_bytes_pubkey: Pubkey,program_id: Pubkey) -> ProgramTestContext {
+pub async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_bytes_pubkey: Pubkey,program_id: Pubkey) -> ProgramTestContext {
 
     let mut program_test = ProgramTest::new(
         "Testing_Hardcoded_Params_devnet_new",
