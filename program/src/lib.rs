@@ -47,6 +47,9 @@ use solana_program::{
 
 pub mod state_miller_loop;
 use crate::ml_254_pre_processor::*;
+//use crate::ml_254_state::ML254Bytes;
+use crate::state_final_exp::InstructionIndex;
+use solana_program::program_pack::Pack;
 
 entrypoint!(process_instruction);
 
@@ -60,18 +63,32 @@ pub fn process_instruction(
     if _instruction_data[9] == 0 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
-    // //  verify part 1:
-    else if _instruction_data[9] == 1 {
-        _pre_process_instruction_miller_loop(&_instruction_data, accounts);
+    // unified instruction order for miller loop and final exp
+    else if _instruction_data[9] == 1 ||  _instruction_data[9] == 2 {
+        let accounts_mut = accounts.clone();
+        let account = &mut accounts_mut.iter();
+        let signing_account = next_account_info(account)?;
+        let account_main = next_account_info(account)?;
+        let account_main_data = InstructionIndex::unpack(&account_main.data.borrow())?;
 
-        // testing:
-        // testing all parsers
-        // log_parser_compute_costs(&_instruction_data, accounts);
+        msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
+
+        if account_main_data.current_instruction_index < 430 {
+            _pre_process_instruction_miller_loop(&_instruction_data, accounts);
+        }
+        else if account_main_data.current_instruction_index >= 430 {
+            _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
+
+        }
+        else if account_main_data.current_instruction_index >= 730 {
+            //_pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
+
+        }
     }
     // verify part 2:
-    else if _instruction_data[9] == 2 {
-        _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
-    }
+    // else if _instruction_data[9] == 2 {
+    //     _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
+    // }
     // prepare inputs moved to separate program for size
     else if _instruction_data[9] == 3 {
         //_pre_process_instruction_prep_inputs(_instruction_data, accounts);
@@ -82,3 +99,23 @@ pub fn process_instruction(
     }
     Ok(())
 }
+
+pub const IX_ORDER: [u8; 801] = [
+    //miller loop
+    0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
+    4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
+    4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,
+    3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5,
+    6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
+    4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3,
+    7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6,
+    8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5,
+    6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4,
+    5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
+    4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3,
+    7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,
+    3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5,
+    6, 3, 7, 4, 5, 6, 10, 4, 5, 6, 11, 4, 5, 6,
+    //final exp
+    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 15, 15, 16, 17, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 15, 16, 17, 15, 15, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 15, 15, 15, 18, 19, 15, 15, 15, 15, 16, 17, 20, 21, 22, 23, 24, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 25, 26, 27, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 26, 27, 25, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 25, 25, 28, 29, 25, 25, 25, 25, 26, 27, 30, 31, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 32, 32, 35, 36, 32, 32, 32, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 38, 39, 52, 53, 54, 55, 42, 43
+];

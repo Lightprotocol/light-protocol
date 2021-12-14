@@ -15,6 +15,7 @@ use solana_program::{
     msg,
     program_error::ProgramError,
 };
+use crate::IX_ORDER;
 
 pub fn _pre_process_instruction_miller_loop(
     _instruction_data: &[u8],
@@ -29,13 +30,18 @@ pub fn _pre_process_instruction_miller_loop(
     );
     msg!("unpacking");
     let mut account_main_data = ML254Bytes::unpack(&account_main.data.borrow())?;
-    msg!("unpacked");
+    msg!("unpacked Current instruction {}", account_main_data.current_instruction_index);
+    assert_eq!(
+        ML_IX_ORDER[account_main_data.current_instruction_index],
+        IX_ORDER[account_main_data.current_instruction_index],
+        "Instruction order broken ---------------------------------"
+    );
 
     // assert!(
     //     account_main_data.current_instruction_index < 1821,
     //     "Miller loop finished"
     // );
-    // let mut ix_order_array = [];
+    // let mut ML_IX_ORDER_array = [];
 
     // First ix: "0" -> Parses g_ic_affine from prepared_inputs.
     // Hardcoded for test purposes.
@@ -158,10 +164,10 @@ pub fn _pre_process_instruction_miller_loop(
 
         account_main_data.current_instruction_index += 1;
         //resetting instruction index to be able to reuse account
-        if account_main_data.current_instruction_index == 430 {
-            account_main_data.current_instruction_index = 0;
-
-        }
+        // if account_main_data.current_instruction_index == 430 {
+        //     account_main_data.current_instruction_index = 0;
+        //
+        // }
         msg!("packing");
         ML254Bytes::pack_into_slice(&account_main_data, &mut account_main.data.borrow_mut());
         msg!("packed");

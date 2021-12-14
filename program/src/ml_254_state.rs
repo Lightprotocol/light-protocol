@@ -57,9 +57,11 @@ impl Pack for ML254Bytes {
             _unused_constants0,
             signing_address,
             _unused_constants1,
+            //220
             current_instruction_index,
-            //604
+            //228
             f_range,
+            //604
             // cubic_v0_range, // used for square_in_place
             // cubic_v2_range, // used for square_in_place
             // cubic_v3_range, // used for square_in_place

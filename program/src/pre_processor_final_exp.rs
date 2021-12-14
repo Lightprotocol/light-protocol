@@ -1,8 +1,8 @@
 
 use crate::ranges_part_2::*;
-use crate::state_final_exp::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2};
+use crate::state_final_exp::{FinalExpBytes};
 use crate::state_merkle_tree;
-
+use crate::IX_ORDER;
 
 use solana_program::{
     msg,
@@ -29,10 +29,10 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
     //check for signer
     //assert_eq!(*signing_account.key, solana_program::pubkey::Pubkey::new(&storage_acc_data.signing_address[..]));
 
-    if storage_acc_data.current_instruction_index == 1821 {
-        let executed_miller_loop = true;
-        storage_acc_data.current_instruction_index = 0;
-    }
+    // if storage_acc_data.current_instruction_index == 1821 {
+    //     let executed_miller_loop = true;
+    //     storage_acc_data.current_instruction_index = 0;
+    // }
     //check that instruction order is called correctly
     //msg!("PT 2 lib.rs - Instruction {} {}", INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index], storage_acc_data.current_instruction_index);
 
@@ -123,13 +123,14 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
     //     _process_instruction_final_exp(  &mut storage_acc_data, x[instruction_id]);
     // }
     // else
-    if storage_acc_data.current_instruction_index == 700 {
-        msg!("checking nullifier");
-
-        let nullifier_account = next_account_info(account)?;
-        check_and_insert_nullifier(program_id, nullifier_account, &_instruction_data[10..42]);
-    } else {
-        let instruction_id = INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index.clone()];
+    // if storage_acc_data.current_instruction_index == 700 {
+    //     msg!("checking nullifier");
+    //
+    //     let nullifier_account = next_account_info(account)?;
+    //     check_and_insert_nullifier(program_id, nullifier_account, &_instruction_data[10..42]);
+    // } else
+    {
+        let instruction_id = IX_ORDER[storage_acc_data.current_instruction_index.clone()];
         msg!("verify instruction : {}", instruction_id);
         _process_instruction_final_exp(  &mut storage_acc_data, instruction_id);
     }
