@@ -46,10 +46,23 @@ use solana_program::{
 };
 
 pub mod state_miller_loop;
+pub mod parse_verifyingkey_254;
+mod pi_254_test;
 use crate::ml_254_pre_processor::*;
 //use crate::ml_254_state::ML254Bytes;
 use crate::state_final_exp::InstructionIndex;
 use solana_program::program_pack::Pack;
+
+
+pub mod pi_254_instructions;
+pub mod pi_254_parsers;
+pub mod pi_254_processor;
+pub mod pi_254_ranges;
+pub mod pi_254_state;
+pub mod pre_processor;
+use crate::pre_processor::_pre_process_instruction;
+pub mod state_merkle_tree_roots;
+pub mod verifyingkey_254_hc;
 
 entrypoint!(process_instruction);
 
@@ -59,6 +72,9 @@ pub fn process_instruction(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     //msg!("instruction data {:?}", _instruction_data);
+    //_pre_process_instruction(_instruction_data, accounts);
+
+
     // MerkleTree:
     if _instruction_data[9] == 0 && _instruction_data[8] == 240 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
@@ -89,6 +105,7 @@ pub fn process_instruction(
 
         }
     }
+
     // verify part 2:
     // else if _instruction_data[9] == 2 {
     //     _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
