@@ -37,7 +37,8 @@ pub fn _process_instruction_final_exp(
 
         if id == 0 {
             //init and conjugate
-            account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+            account_struct.f1_r_range_s = account_struct.f_f2_range_s.clone();
+            //account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
             conjugate_wrapper(&mut account_struct.f1_r_range_s);
             account_struct.changed_variables[f1_r_range_iter] = true;
             account_struct.changed_variables[f_f2_range_iter] = true;
