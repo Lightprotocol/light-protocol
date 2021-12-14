@@ -71,7 +71,7 @@ pub fn process_instruction(
         let signing_account = next_account_info(account)?;
         let account_main = next_account_info(account)?;
         let mut account_main_data = InstructionIndex::unpack(&account_main.data.borrow())?;
-        
+
         msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
 
         //miller loop

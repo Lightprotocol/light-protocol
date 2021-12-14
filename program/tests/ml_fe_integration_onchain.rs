@@ -309,7 +309,7 @@ async fn test_ml_fe_integration_onchain() {
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
             let res_request = timeout(
-                time::Duration::from_millis(250),
+                time::Duration::from_millis(500),
                 program_context
                     .banks_client
                     .process_transaction(transaction),
@@ -423,7 +423,7 @@ async fn test_ml_fe_integration_onchain() {
                 Some(&program_context.payer.pubkey()),
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-            let res_request = timeout(time::Duration::from_millis(250), program_context.banks_client.process_transaction(transaction)).await;
+            let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
 
             match res_request {
                 Ok(_) => success = true,
@@ -556,7 +556,7 @@ async fn test_ml_fe_integration_onchain() {
                 );
                 transaction.sign(&[&signer_keypair], program_context.last_blockhash);
 
-                let res_request = timeout(time::Duration::from_millis(250), program_context.banks_client.process_transaction(transaction)).await;
+                let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
 
                 match res_request {
                     Ok(_) => success = true,
@@ -618,11 +618,15 @@ async fn test_ml_fe_integration_onchain() {
         .await
         .expect("get_account").unwrap();
 
+    //account was initialized correctly
     assert_eq!(1, storage_account.data[0]);
+    //account type is correct
     assert_eq!(4, storage_account.data[1]);
-
+    //saved left leaf correctly
     assert_eq!(commit, storage_account.data[2..34]);
+    //saved right leaf correctly
     assert_eq!(commit, storage_account.data[34..66]);
+    //saved merkle tree pubkey in which leaves were insorted
     assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[66..98]);
 
     println!("pda_account_data = : {:?}", storage_account.data);
