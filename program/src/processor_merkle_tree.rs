@@ -12,13 +12,15 @@ use solana_program::{
 };
 use crate::instructions_poseidon::{permute_instruction_first,permute_instruction_6,permute_instruction_3, permute_instruction_last};
 use crate::init_bytes18;
+use crate::IX_ORDER;
+
 
 pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?;
 
             //init instruction
-            if _instruction_data[8] == 240{
+            if _instruction_data[8] == 240 {
                 msg!("here1 _pre_process_instruction_merkle_tree");
                 let merkle_tree_storage_acc = next_account_info(account)?;
                 msg!("here2 _pre_process_instruction_merkle_tree {:?}", merkle_tree_storage_acc.key);
@@ -38,9 +40,13 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
             } else {
                 let hash_storage_acc = next_account_info(account)?;
                 let mut hash_tmp_account_data = HashBytes::unpack(&hash_storage_acc.data.borrow())?;
-                msg!("instruction: {}", init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index]);
+                // if hash_tmp_account_data.current_instruction_index == 0 {
+                //     hash_tmp_account_data.current_instruction_index += 801;
+                // }
+                assert_eq!(IX_ORDER[hash_tmp_account_data.current_instruction_index], init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index - 801]);
+                msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
 
-                if init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index] ==  14
+                if IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  14
                     {
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
@@ -53,7 +59,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     // msg!("data equal: {:?}", _instruction_data[10..42].to_vec());
 
                     _process_instruction_merkle_tree(
-                        init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index],
+                        IX_ORDER[hash_tmp_account_data.current_instruction_index],
                         &mut hash_tmp_account_data,
                         &mut merkle_tree_tmp_account_data,
                         _instruction_data[10..42].to_vec(),
@@ -63,10 +69,10 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
                     hash_tmp_account_data.current_instruction_index +=1;
 
-                } else if ( init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index] == 25
+                } else if ( IX_ORDER[hash_tmp_account_data.current_instruction_index] == 25
                     ){
 
-                    msg!("instruction: {}", init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index]);
+                    msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
                     msg!("here -2");
@@ -78,7 +84,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     }
                     msg!("here0");
                     _process_instruction_merkle_tree(
-                        init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index],
+                        IX_ORDER[hash_tmp_account_data.current_instruction_index],
                         &mut hash_tmp_account_data,
                         &mut merkle_tree_tmp_account_data,
                         vec![0],
@@ -93,11 +99,11 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     hash_tmp_account_data.current_instruction_index +=1;
 
-                } else if init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index] == 16
+                } else if IX_ORDER[hash_tmp_account_data.current_instruction_index] == 16
                     {
                     //the pda account should be created in the same tx, the pda account also functions as escrow account
 
-                    msg!("instruction: {}", init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index]);
+                    msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
                     let leaf_pda = next_account_info(account)?;
@@ -136,7 +142,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     hash_tmp_account_data.current_instruction_index +=1;
 
-                } else if ( init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index] == 34 ){
+                } else if ( IX_ORDER[hash_tmp_account_data.current_instruction_index] == 34 ){
                     //locks and transfers deposit money
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
@@ -170,7 +176,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     //deposit(&mut merkle_tree_tmp_account_data, &merkle_tree_storage_acc, &tmp_escrow_acc);
                     //deposit(merkle_tree_account, pure_merkle_tree_account);
 
-                    //_process_instruction_merkle_tree( init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index],);
+                    //_process_instruction_merkle_tree( IX_ORDER[hash_tmp_account_data.current_instruction_index],);
 
                     MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
                     hash_tmp_account_data.current_instruction_index +=1;
@@ -198,7 +204,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     };
                     _process_instruction_merkle_tree(
-                        init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index],
+                        IX_ORDER[hash_tmp_account_data.current_instruction_index],
                         &mut hash_tmp_account_data,
                         &mut dummy_smt,
                         vec![0],

@@ -83,14 +83,14 @@ impl FinalExpBytes {
             quad_range_3_s: vec![0;64],
 
             fp384_range_s: vec![0;32],
-            current_instruction_index: 0,
+            current_instruction_index: 430,
             changed_variables: [false;16],
         }
     }
 }
 
 impl Pack for FinalExpBytes {
-    const LEN: usize = 3772;
+    const LEN: usize = 3900;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, FinalExpBytes::LEN];
 
@@ -129,8 +129,9 @@ impl Pack for FinalExpBytes {
 
             fp384_range_s,
             y6_range,
+            unused_remainder,
 
-        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384];
+        ) = array_refs![input,1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384, 128];
 
         Ok(
             FinalExpBytes {
@@ -196,10 +197,10 @@ impl Pack for FinalExpBytes {
             quad_range_3_dst,
 
             fp384_range_dst,
-            y6_range_dst
+            y6_range_dst,
+            unused_remainder_dst
 
-
-        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384];
+        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384, 128];
         println!("modifying: {:?}", self.changed_variables);
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {
             if *variable_has_changed {
@@ -301,7 +302,7 @@ impl IsInitialized for InstructionIndex {
 }
 
 impl Pack for InstructionIndex {
-    const LEN: usize = 3772;
+    const LEN: usize = 3900;//3772;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, InstructionIndex::LEN];
 
@@ -311,7 +312,7 @@ impl Pack for InstructionIndex {
             current_instruction_index,
             unused_remainder1
 
-        ) = array_refs![input,1, 211, 8,3552];
+        ) = array_refs![input,1, 211, 8,3680];
 
         Ok(
             InstructionIndex {
@@ -326,36 +327,13 @@ impl Pack for InstructionIndex {
         let dst = array_mut_ref![dst, 0,  InstructionIndex::LEN];
 
         let (
-            is_initialized_dst,
-            found_root_dst,
-            found_nullifier_dst,
-            unused_constants_dst,
-            current_instruction_index_dst,
-
-            f_f2_range_dst,
-            f1_r_range_dst,
-            i_range_dst,
-
-            y0_range_dst,
-            y1_range_dst,
-            y2_range_dst,
-
-            cubic_range_0_dst,
-            cubic_range_1_dst,
-            cubic_range_2_dst,
-
-            quad_range_0_dst,
-            quad_range_1_dst,
-            quad_range_2_dst,
-            quad_range_3_dst,
-
-            fp384_range_dst,
-            y6_range_dst
-
-
-        ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384];
+            is_initialized,
+            unused_remainder0,
+            current_instruction_index,
+            unused_remainder1
+        ) = mut_array_refs![dst, 1, 211, 8, 3680];
         //is not meant to be used
-        *is_initialized_dst = [1u8; 1];
+        *is_initialized = *is_initialized;
 
     }
 }

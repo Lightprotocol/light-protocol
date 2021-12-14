@@ -68,7 +68,7 @@ async fn create_and_start_program(
     .into();
 
     // Initializes acc based on x state and y pubkey.
-    let mut account_ml = Account::new(10000000000, 3772, &program_id);
+    let mut account_ml = Account::new(10000000000, 3900, &program_id);
     account_ml.data = account_init_bytes;
     program_test.add_account(ml_bytes_pubkey, account_ml);
 
@@ -113,8 +113,8 @@ async fn test_ml_fe_integration_onchain() {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let ml_bytes_pubkey = Pubkey::new_unique();
     let pi_bytes_pubkey = Pubkey::new_unique();
-    /*
-    let init_bytes_ml: [u8; 3772] = [0; 3772];
+
+    let init_bytes_ml: [u8; 3900] = [0; 3900];
     let mut program_context = create_and_start_program(
         init_bytes_ml.to_vec(),
         ml_bytes_pubkey,
@@ -309,7 +309,7 @@ async fn test_ml_fe_integration_onchain() {
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
             let res_request = timeout(
-                time::Duration::from_millis(100),
+                time::Duration::from_millis(250),
                 program_context
                     .banks_client
                     .process_transaction(transaction),
@@ -423,7 +423,7 @@ async fn test_ml_fe_integration_onchain() {
                 Some(&program_context.payer.pubkey()),
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-            let res_request = timeout(time::Duration::from_millis(100), program_context.banks_client.process_transaction(transaction)).await;
+            let res_request = timeout(time::Duration::from_millis(250), program_context.banks_client.process_transaction(transaction)).await;
 
             match res_request {
                 Ok(_) => success = true,
@@ -450,15 +450,13 @@ async fn test_ml_fe_integration_onchain() {
         .get_account(ml_bytes_pubkey)
         .await
         .expect("get_account").unwrap();
-    let mut unpacked_data = vec![0u8;3772];
 
-    unpacked_data = storage_account.data.clone();
     let result = FinalExpBytes::unpack(&storage_account.data.clone()).unwrap();
     let expected_result_bytes = vec![198, 242, 4, 28, 9, 35, 146, 101, 152, 133, 231, 128, 253, 46, 174, 170, 116, 96, 135, 45, 77, 156, 161, 40, 238, 232, 55, 247, 15, 79, 136, 20, 73, 78, 229, 119, 48, 86, 133, 39, 142, 172, 194, 67, 33, 2, 66, 111, 127, 20, 159, 85, 92, 82, 21, 187, 149, 99, 99, 91, 169, 57, 127, 10, 238, 159, 54, 204, 152, 63, 242, 50, 16, 39, 141, 61, 149, 81, 36, 246, 69, 1, 232, 157, 153, 3, 1, 25, 105, 84, 109, 205, 9, 78, 8, 26, 113, 240, 149, 249, 171, 170, 41, 39, 144, 143, 89, 229, 207, 106, 60, 195, 236, 5, 73, 82, 126, 170, 50, 181, 192, 135, 129, 217, 185, 227, 223, 0, 50, 203, 114, 165, 128, 252, 58, 245, 74, 48, 92, 144, 199, 108, 126, 82, 103, 46, 23, 236, 159, 71, 113, 45, 183, 105, 200, 135, 142, 182, 196, 3, 138, 113, 217, 236, 105, 118, 157, 226, 54, 90, 23, 215, 59, 110, 169, 133, 96, 175, 12, 86, 33, 94, 130, 8, 57, 246, 139, 86, 246, 147, 174, 17, 57, 27, 122, 247, 174, 76, 162, 173, 26, 134, 230, 177, 70, 148, 183, 2, 54, 46, 65, 165, 64, 15, 42, 11, 245, 15, 136, 32, 213, 228, 4, 27, 176, 63, 169, 82, 178, 89, 227, 58, 204, 40, 159, 210, 216, 255, 223, 194, 117, 203, 57, 49, 152, 42, 162, 80, 248, 55, 92, 240, 231, 192, 161, 14, 169, 65, 231, 215, 238, 131, 144, 139, 153, 142, 76, 100, 40, 134, 147, 164, 89, 148, 195, 194, 117, 36, 53, 100, 231, 61, 164, 217, 129, 190, 160, 44, 30, 94, 13, 159, 6, 83, 126, 195, 26, 86, 113, 177, 101, 79, 110, 143, 220, 57, 110, 235, 91, 73, 189, 191, 253, 187, 76, 214, 232, 86, 132, 6, 135, 153, 111, 175, 12, 109, 157, 73, 181, 171, 29, 118, 147, 102, 65, 153, 99, 57, 198, 45, 85, 153, 67, 208, 177, 113, 205, 237, 210, 233, 79, 46, 231, 168, 16, 11, 21, 249, 174, 127, 70, 3, 32, 60, 115, 188, 192, 101, 159, 85, 66, 193, 194, 157, 76, 121, 108, 222, 128, 27, 15, 163, 156, 8];
 
     assert_eq!(expected_result_bytes, result.y1_range_s);
 
-    */
+
 
 
 
@@ -469,7 +467,7 @@ async fn test_ml_fe_integration_onchain() {
     */
 
 
-
+    //
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
 
     let signer_pubkey = signer_keypair.pubkey();
@@ -478,7 +476,7 @@ async fn test_ml_fe_integration_onchain() {
     let two_leaves_pda_pubkey = Pubkey::new_unique();
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
 
-    let mut program_context = merkle_tree_onchain_test::create_and_start_program(vec![0], vec![0], &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
+    let mut program_context = merkle_tree_onchain_test::create_and_start_program(vec![0], storage_account.data.clone(), &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
 
     //initialize MerkleTree account
 
@@ -558,7 +556,7 @@ async fn test_ml_fe_integration_onchain() {
                 );
                 transaction.sign(&[&signer_keypair], program_context.last_blockhash);
 
-                let res_request = timeout(time::Duration::from_millis(100), program_context.banks_client.process_transaction(transaction)).await;
+                let res_request = timeout(time::Duration::from_millis(250), program_context.banks_client.process_transaction(transaction)).await;
 
                 match res_request {
                     Ok(_) => success = true,
