@@ -58,7 +58,7 @@ async fn create_and_start_program(
     .into();
 
     // Initializes acc based on x state and y pubkey.
-    let mut account_ml = Account::new(10000000000, 4972, &program_id);
+    let mut account_ml = Account::new(10000000000, 3772, &program_id);
     account_ml.data = account_init_bytes;
     program_test.add_account(ml_bytes_pubkey, account_ml);
 
@@ -104,7 +104,7 @@ async fn test_ml_254_onchain() {
     let ml_bytes_pubkey = Pubkey::new_unique();
     let pi_bytes_pubkey = Pubkey::new_unique();
 
-    let init_bytes_ml: [u8; 4972] = [0; 4972];
+    let init_bytes_ml: [u8; 3772] = [0; 3772];
     let mut program_context = create_and_start_program(
         init_bytes_ml.to_vec(),
         ml_bytes_pubkey,
@@ -299,7 +299,7 @@ async fn test_ml_254_onchain() {
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
             let res_request = timeout(
-                time::Duration::from_millis(500),
+                time::Duration::from_millis(100),
                 program_context
                     .banks_client
                     .process_transaction(transaction),

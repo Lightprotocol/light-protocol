@@ -305,7 +305,7 @@ async fn test_ml_fe_integration_onchain() {
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
             let res_request = timeout(
-                time::Duration::from_millis(500),
+                time::Duration::from_millis(100),
                 program_context
                     .banks_client
                     .process_transaction(transaction),
@@ -373,33 +373,11 @@ async fn test_ml_fe_integration_onchain() {
         "onchain f result != reference f (hardcoded from lib call)"
     );
     println!("onchain test success");
-
-    //let final_exp_bytes_pubkey = Pubkey::new_unique();
-
-    let mut final_exp_account_data = FinalExpBytes::new();
-    final_exp_account_data.f1_r_range_s = account_data.f_range;
-    final_exp_account_data.changed_variables[f1_r_range_iter] = true;
-    let mut final_exp_init_slice = [0u8;3772];
-    //FinalExpBytes::pack_into_slice(&final_exp_account_data, &mut final_exp_init_slice);
-    final_exp_init_slice[0] = 1;
-    //final_exp_init_slice[604..604+384] = storage_account.data[604..604+384].clone();
-
-    // for i in 604..988 {
-    //     final_exp_init_slice[i] = storage_account.data[i - 384].clone()
-    // }
-    //assert_eq!(final_exp_onchain_test::INIT_BYTES_FINAL_EXP, storage_account.data);
-    //let final_e;
-    // let mut program_context = final_exp_onchain_test::create_and_start_program(
-    //     final_exp_init_slice.to_vec(),
-    //     //final_exp_onchain_test::INIT_BYTES_FINAL_EXP.to_vec(),
-    //     final_exp_bytes_pubkey,
-    //     program_id
-    // ).await;
+    // println!("Final exp init bytes:  {:?}", storage_account.data);
+    // assert_eq!(true, false);
 
     let mut i = 0usize;
     for (instruction_id) in INSTRUCTION_ORDER_VERIFIER_PART_2 {
-        //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
-        //let instruction_data: Vec<u8> = [vec![*instruction_id, 1u8], commit.clone(), [i as u8].to_vec() ].concat();
         println!("INSTRUCTION_ORDER_VERIFIER_PART_2: {}", instruction_id);
 
         let mut success = false;
@@ -419,12 +397,8 @@ async fn test_ml_fe_integration_onchain() {
                 Some(&program_context.payer.pubkey()),
             );
             transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-            //tokio::time::timeout(std::time::Duration::from_secs(2), self.process).await
-            let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
-            //let ten_millis = time::Duration::from_millis(400);
+            let res_request = timeout(time::Duration::from_millis(100), program_context.banks_client.process_transaction(transaction)).await;
 
-            //thread::sleep(ten_millis);
-            //println!("res: {:?}", res_request);
             match res_request {
                 Ok(_) => success = true,
                 Err(e) => {
@@ -454,13 +428,8 @@ async fn test_ml_fe_integration_onchain() {
 
     unpacked_data = storage_account.data.clone();
     let result = FinalExpBytes::unpack(&storage_account.data.clone()).unwrap();
-    // for i in 0..2140 {
-    //     print!("{}, ",unpacked_data[i]);
-    // }
-    // println!("Len data: {}", storage_account.data.len());
     let expected_result_bytes = vec![198, 242, 4, 28, 9, 35, 146, 101, 152, 133, 231, 128, 253, 46, 174, 170, 116, 96, 135, 45, 77, 156, 161, 40, 238, 232, 55, 247, 15, 79, 136, 20, 73, 78, 229, 119, 48, 86, 133, 39, 142, 172, 194, 67, 33, 2, 66, 111, 127, 20, 159, 85, 92, 82, 21, 187, 149, 99, 99, 91, 169, 57, 127, 10, 238, 159, 54, 204, 152, 63, 242, 50, 16, 39, 141, 61, 149, 81, 36, 246, 69, 1, 232, 157, 153, 3, 1, 25, 105, 84, 109, 205, 9, 78, 8, 26, 113, 240, 149, 249, 171, 170, 41, 39, 144, 143, 89, 229, 207, 106, 60, 195, 236, 5, 73, 82, 126, 170, 50, 181, 192, 135, 129, 217, 185, 227, 223, 0, 50, 203, 114, 165, 128, 252, 58, 245, 74, 48, 92, 144, 199, 108, 126, 82, 103, 46, 23, 236, 159, 71, 113, 45, 183, 105, 200, 135, 142, 182, 196, 3, 138, 113, 217, 236, 105, 118, 157, 226, 54, 90, 23, 215, 59, 110, 169, 133, 96, 175, 12, 86, 33, 94, 130, 8, 57, 246, 139, 86, 246, 147, 174, 17, 57, 27, 122, 247, 174, 76, 162, 173, 26, 134, 230, 177, 70, 148, 183, 2, 54, 46, 65, 165, 64, 15, 42, 11, 245, 15, 136, 32, 213, 228, 4, 27, 176, 63, 169, 82, 178, 89, 227, 58, 204, 40, 159, 210, 216, 255, 223, 194, 117, 203, 57, 49, 152, 42, 162, 80, 248, 55, 92, 240, 231, 192, 161, 14, 169, 65, 231, 215, 238, 131, 144, 139, 153, 142, 76, 100, 40, 134, 147, 164, 89, 148, 195, 194, 117, 36, 53, 100, 231, 61, 164, 217, 129, 190, 160, 44, 30, 94, 13, 159, 6, 83, 126, 195, 26, 86, 113, 177, 101, 79, 110, 143, 220, 57, 110, 235, 91, 73, 189, 191, 253, 187, 76, 214, 232, 86, 132, 6, 135, 153, 111, 175, 12, 109, 157, 73, 181, 171, 29, 118, 147, 102, 65, 153, 99, 57, 198, 45, 85, 153, 67, 208, 177, 113, 205, 237, 210, 233, 79, 46, 231, 168, 16, 11, 21, 249, 174, 127, 70, 3, 32, 60, 115, 188, 192, 101, 159, 85, 66, 193, 194, 157, 76, 121, 108, 222, 128, 27, 15, 163, 156, 8];
 
-    assert_eq!(expected_result_bytes, unpacked_data[1756..2140]);
     assert_eq!(expected_result_bytes, result.y1_range_s);
 
 }
