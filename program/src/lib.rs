@@ -12,22 +12,11 @@ pub mod parsers;
 pub mod parsers_prepare_inputs;
 pub mod pi_254_state_COPY;
 pub mod pre_processor_final_exp;
-pub mod pre_processor_miller_loop;
-pub mod pre_processor_miller_loop;
-pub mod processor;
-pub mod processor;
-pub mod processor_part_2;
-pub mod proof;
-pub mod ranges;
-pub mod ranges;
-pub mod ranges_part_2;
 pub mod ranges_part_2;
 pub mod state_check_nullifier;
 pub mod state_final_exp;
-pub mod state_prep_inputs;
-pub mod utils;
-pub mod verifyingkey;
 
+pub mod instructions_poseidon;
 pub mod poseidon_round_constants_split;
 
 pub mod state_miller_loop_transfer;
@@ -44,7 +33,6 @@ pub mod instructions_final_exponentiation;
 pub mod parsers_part_2_254;
 pub mod processor_final_exp;
 use crate::pre_processor_final_exp::_pre_process_instruction_final_exp;
-use crate::pre_processor_miller_loop::_pre_process_instruction_miller_loop;
 use crate::processor_merkle_tree::_pre_process_instruction_merkle_tree;
 
 use solana_program::{
@@ -59,8 +47,6 @@ use solana_program::{
 
 pub mod state_miller_loop;
 use crate::ml_254_pre_processor::*;
-
-pub mod state_miller_loop;
 
 entrypoint!(process_instruction);
 

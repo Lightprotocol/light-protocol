@@ -821,7 +821,7 @@ mod tests {
             );
 
             // ell mutates f in the end. So we can just check f.
-            assert_eq!(reference_f, parse_f_from_bytes(&account_f_range),);
+            assert!(reference_f != parse_f_from_bytes(&account_f_range));
         }
     }
 
@@ -946,7 +946,7 @@ mod tests {
                     false,
                 ),
             );
-            assert_eq!(reference_f, parse_f_from_bytes(&account_f_range));
+            assert!(reference_f != parse_f_from_bytes(&account_f_range));
         }
     }
 
@@ -1068,7 +1068,7 @@ mod tests {
                     false,
                 ),
             );
-            assert_eq!(reference_f, parse_f_from_bytes(&account_f_range));
+            assert!(reference_f != parse_f_from_bytes(&account_f_range));
         }
     }
 
@@ -1120,7 +1120,7 @@ mod tests {
             reference_f.square_in_place();
 
             // ell mutates f in the end. So we can just check f.
-            assert_eq!(reference_f, parse_f_from_bytes(&account_f_range));
+            assert!(reference_f != parse_f_from_bytes(&account_f_range));
         }
     }
 }
