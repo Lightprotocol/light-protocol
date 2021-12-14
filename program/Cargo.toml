@@ -43,7 +43,7 @@ ark-relations = { version = "^0.3.0", default-features = false  }
 arkworks-gadgets = "0.3.14"
 
 
-
+serde_json = "1.0.59"
 # for tests
 zeroize = "1.4.2"
 derivative = "2.2.0"
