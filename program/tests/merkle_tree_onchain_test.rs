@@ -54,7 +54,7 @@ pub fn get_poseidon_ref_hash(left_input: &[u8], right_input: &[u8]) -> Vec<u8> {
     out_bytes.to_vec()
 }
 
-async fn create_and_start_program(
+pub async fn create_and_start_program(
         merkle_tree_init_bytes: Vec<u8>,
         hash_bytes_init_bytes: Vec<u8>,
         merkle_tree_pubkey: &Pubkey,
@@ -80,9 +80,9 @@ async fn create_and_start_program(
         *merkle_tree_pubkey,
         merkle_tree,
     );
-    let mut hash_byte = Account::new(10000000000, 297, &program_id);
+    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
 
-    if hash_bytes_init_bytes.len() == 297 {
+    if hash_bytes_init_bytes.len() == 3900 {
 
         hash_byte.data = hash_bytes_init_bytes;
     }
@@ -119,7 +119,6 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
 
     println!("HashBytes {:?}", hash_bytes_pubkey);
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-
 
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
 

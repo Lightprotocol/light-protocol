@@ -39,6 +39,11 @@ pub fn insert_0_double(leaf_r: &Vec<u8>, leaf_l: &Vec<u8>, merkle_tree_account: 
     hash_bytes_account.right =  leaf_l.clone();
     hash_bytes_account.currentLevel = 1;
     merkle_tree_account.inserted_leaf = true;
+    //zeroing out prior state since the account was used for prior computation
+    hash_bytes_account.state = vec![vec![0u8;32];3];
+    hash_bytes_account.current_round  = 0;
+    hash_bytes_account.current_round_index  = 0;
+    hash_bytes_account.currentLevelHash  = vec![0u8;32];
 }
 
 pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {

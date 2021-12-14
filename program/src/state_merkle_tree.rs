@@ -228,24 +228,31 @@ impl IsInitialized for HashBytes {
 }
 
 impl Pack for HashBytes {
-    const LEN: usize = 297;
+    const LEN: usize = 3900;//297;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, HashBytes::LEN];
 
         let (
+            is_initialized,
+            unused_remainder0,
+            current_instruction_index,
+            //220
+            unused_remainder1,
+
             state,
             current_round,
             current_round_index,
-            leaf_left,
-            leaf_right,
             left,
             right,
             currentLevelHash,
             currentIndex,
             currentLevel,
-            current_instruction_index,
-            is_initialized,
-        ) = array_refs![input, 96, 8 , 8, 32, 32, 32, 32, 32, 8, 8, 8, 1];
+            leaf_left,
+            leaf_right,
+            //+288
+            nullifier_0,
+            nullifier_1,
+        ) = array_refs![input, 1, 211, 8, 3328, 96, 8 , 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -275,19 +282,26 @@ impl Pack for HashBytes {
         let dst = array_mut_ref![dst, 0,  HashBytes::LEN];
 
         let (
+            is_initialized_dst,
+            unused_remainder0_dst,
+            current_instruction_index_dst,
+            //220
+            unused_remainder1_dst,
+
             state_dst,
             current_round_dst,
             current_round_index_dst,
-            leaf_left_dst,
-            leaf_right_dst,
             left_dst,
             right_dst,
             currentLevelHash_dst,
             currentIndex_dst,
             currentLevel_dst,
-            current_instruction_index_dst,
-            is_initialized_dst,
-        ) = mut_array_refs![dst, 96, 8 , 8, 32, 32, 32, 32, 32, 8, 8, 8, 1];
+            leaf_left_dst,
+            leaf_right_dst,
+            //+288
+            nullifier_0_dst,
+            nullifier_1_dst,
+        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8 , 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut state_tmp = [0u8;96];
         let mut z = 0;
@@ -301,30 +315,18 @@ impl Pack for HashBytes {
         *state_dst = state_tmp;
         *current_round_dst = usize::to_le_bytes(self.current_round);
         *current_round_index_dst= usize::to_le_bytes(self.current_round_index);
-        //assert_eq!(*state_range_3_dst.to_vec(), self.state_range_3);
-        //*left_dst = *left_dst;
+
         *leaf_left_dst =             self.leaf_left.clone().try_into().unwrap();
-        //assert_eq!(*left_dst.to_vec(), self.left);
-        //*right_dst = *right_dst ;
+
         *leaf_right_dst =            self.leaf_right.clone().try_into().unwrap();
         *left_dst =             self.left.clone().try_into().unwrap();
-        //assert_eq!(*left_dst.to_vec(), self.left);
-        //*right_dst = *right_dst ;
+
         *right_dst =            self.right.clone().try_into().unwrap();
-        //*currentLevelHash_dst = *currentLevelHash_dst;
         *currentLevelHash_dst = self.currentLevelHash.clone().try_into().unwrap();
-        //msg!("packed level hash input: {:?}", self.currentLevelHash);
 
-        //msg!("packed level hash in dst: {:?}", currentLevelHash_dst);
-        //*currentIndex_dst = *currentIndex_dst;
         *currentIndex_dst = usize::to_le_bytes(self.currentIndex);
-        //*currentLevel_dst = *currentLevel_dst;
         *currentLevel_dst = usize::to_le_bytes(self.currentLevel);
-
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-
-        *is_initialized_dst = [1u8; 1];
-
     }
 }
 

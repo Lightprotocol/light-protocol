@@ -35,7 +35,7 @@ pub async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_byt
     );
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
 
-    let mut account_exp = Account::new(10000000000, 3772, &program_id);
+    let mut account_exp = Account::new(10000000000, 3900, &program_id);
     account_exp.data = account_init_bytes;
     program_test.add_account(
         final_exp_bytes_pubkey,
