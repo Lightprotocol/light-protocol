@@ -32,7 +32,7 @@ async fn create_and_start_program(
     );
 
     // Initializes acc based on x state and y pubkey
-    let mut account_storage = Account::new(10000000000, 4972, &program_id);
+    let mut account_storage = Account::new(10000000000, 3900, &program_id);
     account_storage.data = account_init_bytes;
     program_test.add_account(storage_pubkey, account_storage);
 
@@ -67,7 +67,7 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
     //println!("input bytes: {:?}", input_bytes_from_file);
     let program_id = Pubkey::from_str("TransferLamports111111111551111111111111111").unwrap();
 
-    let init_bytes_storage: [u8; 4972] = [0; 4972];
+    let init_bytes_storage: [u8; 3900] = [0; 3900];
     let storage_pubkey = Pubkey::new_unique();
 
     let mut program_context =
@@ -177,7 +177,7 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
         .await
         .expect("get_account")
         .unwrap();
-    let mut unpacked_data = vec![0u8; 4972];
+    let mut unpacked_data = vec![0u8; 3900];
     unpacked_data = storage_account.data.clone();
 
     // x_1_range: 252..316.

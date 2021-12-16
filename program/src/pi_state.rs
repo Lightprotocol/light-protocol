@@ -58,7 +58,7 @@ impl IsInitialized for PiBytes {
     }
 }
 impl Pack for PiBytes {
-    const LEN: usize = 4972; // 1020
+    const LEN: usize = 3900; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, PiBytes::LEN];
@@ -96,13 +96,13 @@ impl Pack for PiBytes {
             res_z_range,
             g_ic_x_range,
             g_ic_y_range,
-            g_ic_z_range, // 144b 3*48 // actually now 3*32
-            //until here 1020 bytes // actuall 288 more now so 1308 bytes
+            g_ic_z_range, // 3*32
+            //until here 1084 bytes
             unused_remainder,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,   //  48, 48, 48, 48, 48, 48, replaced
-            3888 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            2816 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
         ];
         msg!("unpacked");
 
@@ -191,7 +191,7 @@ impl Pack for PiBytes {
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
-            3888 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            2816 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
                   //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
                   //  48, 48, 48, 48, 48, 3952
         ];
