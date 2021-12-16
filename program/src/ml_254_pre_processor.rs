@@ -21,6 +21,8 @@ pub fn _pre_process_instruction_miller_loop(
     _instruction_data: &[u8],
     accounts: &[AccountInfo],
 ) -> Result<(), ProgramError> {
+    msg!("entered _pre_process_instruction_miller_loop");
+
     let account = &mut accounts.iter();
     let signing_account = next_account_info(account)?;
     let account_main = next_account_info(account)?;
@@ -30,12 +32,12 @@ pub fn _pre_process_instruction_miller_loop(
     );
     msg!("unpacking");
     let mut account_main_data = ML254Bytes::unpack(&account_main.data.borrow())?;
-    msg!("unpacked Current instruction {}", account_main_data.current_instruction_index);
-    assert_eq!(
-        ML_IX_ORDER[account_main_data.current_instruction_index],
-        IX_ORDER[account_main_data.current_instruction_index],
-        "Instruction order broken ---------------------------------"
-    );
+    msg!("unpacked Current instruction {}", IX_ORDER[account_main_data.current_instruction_index]);
+    // assert_eq!(
+    //     IX_ORDER[account_main_data.current_instruction_index],
+    //     IX_ORDER[account_main_data.current_instruction_index],
+    //     "Instruction order broken ---------------------------------"
+    // );
 
     // assert!(
     //     account_main_data.current_instruction_index < 1821,
@@ -45,11 +47,13 @@ pub fn _pre_process_instruction_miller_loop(
 
     // First ix: "0" -> Parses g_ic_affine from prepared_inputs.
     // Hardcoded for test purposes.
-    if ML_IX_ORDER[account_main_data.current_instruction_index] == 0 {
+    if IX_ORDER[account_main_data.current_instruction_index] == 0 {
+        msg!("parsing state from prepare inputs to ml");
         // let mut account_main_data = MillerLoopTransferBytes::unpack(&account_main.data.borrow())?; // ..7081
         let account_prepare_inputs = next_account_info(account)?;
+        msg!("here0");
         let account_prepare_inputs_data = PiBytes::unpack(&account_prepare_inputs.data.borrow())?;
-
+        msg!("here1");
         // //signer which completed prepared inputs is the same as of this tx
         // assert_eq!(
         //     *account_prepare_inputs.owner,
@@ -71,14 +75,16 @@ pub fn _pre_process_instruction_miller_loop(
         //     account_prepare_inputs_data.current_instruction_index, 1809,
         //     "prepare inputs is not completed yet"
         // );
-
+        msg!("here2");
         let g_ic_affine = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.x_1_range); // 10k
+        msg!("here3");
+
         let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
             ark_ec::bn::g1::G1Prepared::from(g_ic_affine);
-        msg!(
-            "prepared inputs bytes:{:?}",
-            account_prepare_inputs_data.x_1_range
-        );
+        // msg!(
+        //     "prepared inputs bytes:{:?}",
+        //     account_prepare_inputs_data.x_1_range
+        // );
         // //assert_eq!(true, false);
         // account_main_data.found_root = account_prepare_inputs_data.found_root.clone();
         // account_main_data.found_nullifier = account_prepare_inputs_data.found_nullifier.clone();
@@ -91,8 +97,10 @@ pub fn _pre_process_instruction_miller_loop(
         // account_main_data.root_hash = account_prepare_inputs_data.root_hash.clone();
         // account_main_data.data_hash = account_prepare_inputs_data.data_hash.clone();
         // account_main_data.tx_integrity_hash = account_prepare_inputs_data.tx_integrity_hash.clone();
+        msg!("here4");
 
         parse_fp256_to_bytes(p2.0.x, &mut account_main_data.p_2_x_range);
+        msg!("here5");
         parse_fp256_to_bytes(p2.0.y, &mut account_main_data.p_2_y_range);
         account_main_data.current_instruction_index += 1;
         // MillerLoopTransferBytes::pack_into_slice(
@@ -104,6 +112,7 @@ pub fn _pre_process_instruction_miller_loop(
         // account_main_data.changed_variables[P_2_Y_RANGE] = true;
 
         ML254Bytes::pack_into_slice(&account_main_data, &mut account_main.data.borrow_mut());
+        msg!("here6");
         return Ok(());
     }
     // Passes final f to account_verif2. Skipped for testing purposes.
@@ -131,20 +140,20 @@ pub fn _pre_process_instruction_miller_loop(
         let mut p_1_bytes = vec![];
         let mut p_3_bytes = vec![];
 
-        if ML_IX_ORDER[account_main_data.current_instruction_index] == 1 {
+        if IX_ORDER[account_main_data.current_instruction_index] == 1 {
             p_1_bytes = _instruction_data[10..74].to_vec(); // 2..194 (192 ) // are 128 => 2..130 BUT starting at 10 bc
             p_3_bytes = _instruction_data[74..138].to_vec();
         }
-        if ML_IX_ORDER[account_main_data.current_instruction_index] == 2 {
+        if IX_ORDER[account_main_data.current_instruction_index] == 2 {
             proof_b_bytes = _instruction_data[10..138].to_vec(); // 2..194 => 2..130 (bc proofb now 128) => 10..138
         }
 
-        if ML_IX_ORDER[account_main_data.current_instruction_index] == 3 {
+        if IX_ORDER[account_main_data.current_instruction_index] == 3 {
             // assert that p1,3,proof.b and p2(prepared inputs) are eq
             // account_main_data,
         }
         _process_instruction(
-            ML_IX_ORDER[account_main_data.current_instruction_index],
+            IX_ORDER[account_main_data.current_instruction_index],
             &mut account_main_data,
             &proof_b_bytes,
             &p_1_bytes,
@@ -195,7 +204,7 @@ pub fn _pre_process_instruction_miller_loop(
 //     72, 73, 69, 70, 71, 74, 69, 70, 71, 72, 73, 69, 70, 71, 72, 73, 69, 70, 71, 74, 69, 70, 71, 72,
 //     73, 69, 70, 71, 72, 73, 69, 70, 71, 72, 73, 69, 70, 71, 76, 69, 70, 71, 77, 69, 70, 71,
 // ];
-
+/*
 pub const ML_IX_ORDER: [u8; 430] = [
     0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
     4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
@@ -212,3 +221,4 @@ pub const ML_IX_ORDER: [u8; 430] = [
     3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5,
     6, 3, 7, 4, 5, 6, 10, 4, 5, 6, 11, 4, 5, 6,
 ];
+*/
