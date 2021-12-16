@@ -26,15 +26,15 @@ use {
 use solana_program_test::ProgramTestContext;
 use std::{fs, time};
 
-mod final_exp_onchain_test;
+mod fe_onchain_test;
 
-//mod tests::final_exp_onchain_test;
-//use crate::final_exp_onchain_test;
-mod merkle_tree_onchain_test;
+//mod tests::fe_onchain_test;
+//use crate::fe_onchain_test;
+mod mt_onchain_test;
 
-mod pi_254_onchain;
-// mod verifier_final_exp_test;
-// use crate::verifier_final_exp_test::tests::get_public_inputs_from_bytes_254;
+mod pi_onchain_test;
+// mod fe_offchain_test;
+// use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
 
 
 async fn create_and_start_program(
@@ -133,7 +133,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     let storage_pubkey = Pubkey::new_unique();
 
     let mut program_context =
-        pi_254_onchain::create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
+        pi_onchain_test::create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
 
     //first instruction + prepare inputs id + 7 public inputs in bytes = 226 bytes
     let inputs_bytes: Vec<u8> = vec![
@@ -204,7 +204,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                         .expect("get_account")
                         .unwrap();
                     //println!("data: {:?}", storage_account.data);
-                    program_context = pi_254_onchain::create_and_start_program(
+                    program_context = pi_onchain_test::create_and_start_program(
                         storage_account.data.to_vec(),
                         storage_pubkey,
                         program_id,
@@ -595,7 +595,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                         .await
                         .expect("get_account").unwrap();
                     //println!("data: {:?}", storage_account.data);
-                    program_context = final_exp_onchain_test::create_and_start_program(storage_account.data.to_vec(), storage_pubkey, program_id).await;                },
+                    program_context = fe_onchain_test::create_and_start_program(storage_account.data.to_vec(), storage_pubkey, program_id).await;                },
             }
         }
         // if i == 3 {
@@ -635,7 +635,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     let two_leaves_pda_pubkey = Pubkey::new_unique();
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
 
-    let mut program_context = merkle_tree_onchain_test::create_and_start_program(vec![0], storage_account.data.clone(), &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
+    let mut program_context = mt_onchain_test::create_and_start_program(vec![0], storage_account.data.clone(), &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
 
     //initialize MerkleTree account
 
@@ -733,7 +733,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                             .expect("get_account").unwrap();
                         //println!("data: {:?}", storage_account.data);
                         //let old_payer = signer_keypair;
-                        program_context = merkle_tree_onchain_test::create_and_start_program(
+                        program_context = mt_onchain_test::create_and_start_program(
                             merkle_tree_account.data.to_vec(),
                             hash_bytes_account.data.to_vec(),
                             &merkle_tree_pubkey,

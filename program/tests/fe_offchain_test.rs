@@ -1647,7 +1647,7 @@ pub mod tests {
 		account_struct.changed_variables[f_f2_range_iter] = true;
 		let mut account_onchain_slice = [0u8; 3900];
 		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
-		let path = "tests/final_exp_onchain_init_bytes.rs";
+		let path = "tests/fe_onchain_init_bytes.rs";
 		let mut output = File::create(path).ok()?;
 		write!(output, "{}",format!("pub const INIT_BYTES_FINAL_EXP : [u8;{}] = {:?};",account_onchain_slice.len(), account_onchain_slice));
 

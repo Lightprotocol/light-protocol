@@ -8,7 +8,7 @@ use {
     Testing_Hardcoded_Params_devnet_new::{process_instruction, state_merkle_tree::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES}, state_final_exp::{INSTRUCTION_ORDER_VERIFIER_PART_2, FinalExpBytes}},
     std::str::FromStr,
 };
-pub mod merkle_tree_onchain_test;
+pub mod mt_onchain_test;
 
 
 use solana_program_test::ProgramTestError;
@@ -39,7 +39,7 @@ async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_bytes_p
     );
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
 
-    let mut account_exp = Account::new(10000000000, 3772, &program_id);
+    let mut account_exp = Account::new(10000000000, 3900, &program_id);
     account_exp.data = account_init_bytes;
     program_test.add_account(
         final_exp_bytes_pubkey,
@@ -69,10 +69,10 @@ async fn test_nullifier_correct()-> Result<(), TransportError> {
     let mut final_exp_data = FinalExpBytes::new();
     final_exp_data.current_instruction_index = 700;
 
-    let mut final_exp_data_slice = [0u8; 3772];
+    let mut final_exp_data_slice = [0u8; 3900];
     <FinalExpBytes as Pack>::pack_into_slice(&final_exp_data, &mut final_exp_data_slice);
     println!("init bytes: {:?}", final_exp_data_slice);
-    let example_nullifier = merkle_tree_onchain_test::get_poseidon_ref_hash(&[1;32], &[2;32]);
+    let example_nullifier = mt_onchain_test::get_poseidon_ref_hash(&[1;32], &[2;32]);
     let hash = <Fq as FromBytes>::read(&example_nullifier[..]).unwrap();
     let nullifier_pubkey = Pubkey::create_with_seed(
         &program_id,
@@ -142,7 +142,7 @@ async fn test_nullifier_fails()-> Result<(), TransportError> {
 
     let final_exp_bytes_pubkey = Pubkey::new_unique();
 
-    let example_nullifier = merkle_tree_onchain_test::get_poseidon_ref_hash(&[1;32], &[2;32]);
+    let example_nullifier = mt_onchain_test::get_poseidon_ref_hash(&[1;32], &[2;32]);
     let hash = <Fq as FromBytes>::read(&example_nullifier[..]).unwrap();
     let nullifier_pubkey = Pubkey::create_with_seed(
         &program_id,
