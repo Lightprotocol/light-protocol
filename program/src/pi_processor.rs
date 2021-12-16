@@ -1,6 +1,6 @@
-use crate::pi_254_instructions::*;
-use crate::pi_254_ranges::*;
-use crate::pi_254_state::PiBytes;
+use crate::pi_instructions::*;
+use crate::pi_ranges::*;
+use crate::pi_state::PiBytes;
 use solana_program::{log, msg};
 
 pub fn _pi_254_process_instruction(

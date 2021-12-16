@@ -8,8 +8,8 @@ use solana_program::{
     program_pack::Pack,
 };
 
-use crate::pi_254_processor::_pi_254_process_instruction;
-use crate::pi_254_state::PiBytes;
+use crate::pi_processor::_pi_254_process_instruction;
+use crate::pi_state::PiBytes;
 
 pub fn _pre_process_instruction(
     _instruction_data: &[u8],
@@ -128,7 +128,7 @@ pub fn _pre_process_instruction(
 // This continues for a total of 7 times because 7 inputs.
 // Note: As we can see at every new round the 256 b.mul ix have different ix_ids (42,43,44,45,56,57,58).
 // That's because we're accessing different i,x ranges. If you look
-// at the actual calls inside /pi_254_processor.rs you'll see the minor differences.
+// at the actual calls inside /pi_processor.rs you'll see the minor differences.
 const IX_ORDER_ARRAY_tmp: [u8; 1809] = [
     40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,

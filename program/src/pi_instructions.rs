@@ -1,5 +1,5 @@
 use crate::pi_254_parsers::*;
-use crate::verifyingkey_254_hc::*;
+use crate::hard_coded_verifying_key_pvk_254::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::fields::BitIteratorBE;

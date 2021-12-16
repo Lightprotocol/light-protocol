@@ -64,7 +64,7 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
         <Fp256<ark_bn254::FrParameters> as ToBytes>::write(&public_inputs[i], &mut input_bytes_from_file[(i * 32)..(i * 32 + 32)]); // i 0..48
 
     }
-    println!("input bytes: {:?}", input_bytes_from_file);
+    //println!("input bytes: {:?}", input_bytes_from_file);
     let program_id = Pubkey::from_str("TransferLamports111111111551111111111111111").unwrap();
 
     let init_bytes_storage: [u8; 4972] = [0; 4972];
@@ -92,7 +92,7 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
         112, 138, 244, 188, 161, 144, 60, 210, 99, 115, 64, 69, 63, 35, 176, 250, 189, 20, 28, 23,
         2, 19, 94, 196, 88, 14, 51, 12, 21,
     ];
-    println!("inputs bytes length: {} {}", input_bytes_from_file.len(), inputs_bytes.len());
+    println!("inputs bytes length: {} {}", inputs_bytes.len(), inputs_bytes.len());
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
