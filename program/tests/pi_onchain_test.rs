@@ -17,8 +17,8 @@ use {
 use ark_crypto_primitives::{Error};
 // use ark_groth16::prepare_verifying_key;
 // use ark_groth16::{verify_proof, prepare_inputs, verify_proof_with_prepared_inputs};
-// create_and_start_programmod verifier_final_exp_test::tests;
-// use crate::verifier_final_exp_test::tests::get_public_inputs_from_bytes_254;
+// create_and_start_programmod fe_offchain_test::tests;
+// use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
 pub async fn create_and_start_program(
     account_init_bytes: Vec<u8>,
     storage_pubkey: Pubkey,
@@ -45,11 +45,11 @@ pub async fn create_and_start_program(
 #[tokio::test]
 async fn test_pi_254_onchain() -> Result<(), Error>{
 
-    // let pvk_unprepped = verifier_final_exp_test::tests::verifier_final_exp_test::get_pvk_from_bytes_254()?;
+    // let pvk_unprepped = fe_offchain_test::tests::fe_offchain_test::get_pvk_from_bytes_254()?;
     // let pvk = prepare_verifying_key(&pvk_unprepped);
-    // let proof = verifier_final_exp_test::tests::verifier_final_exp_test::get_proof_from_bytes_254()?;
+    // let proof = fe_offchain_test::tests::fe_offchain_test::get_proof_from_bytes_254()?;
     //
-    // let public_inputs = verifier_final_exp_test::tests::verifier_final_exp_test::get_public_inputs_from_bytes_254()?;
+    // let public_inputs = fe_offchain_test::tests::fe_offchain_test::get_public_inputs_from_bytes_254()?;
     //
     // let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
     //

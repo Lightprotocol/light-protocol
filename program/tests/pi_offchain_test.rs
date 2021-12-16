@@ -25,8 +25,8 @@ pi_254_parsers::*,
 hard_coded_verifying_key_pvk_254::*,
 //parse_verifyingkey_254::get_pvk_from_bytes_254,
 };
-mod verifier_final_exp_test;
-use crate::verifier_final_exp_test::tests::get_pvk_from_bytes_254;
+mod fe_offchain_test;
+use crate::fe_offchain_test::tests::get_pvk_from_bytes_254;
 
 #[test]
 fn pi_254_test_with_7_inputs() {

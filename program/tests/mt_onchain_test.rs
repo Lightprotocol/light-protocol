@@ -125,7 +125,14 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
     let signer_pubkey = signer_keypair.pubkey();
 
     //let (mut program_context.banks_client, signer_keypair, program_context.last_blockhash) = program_test.start().await;
-    let mut program_context = create_and_start_program(vec![0], vec![0], &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
+
+    let mut init_bytes = vec![0u8; 3900];
+    let x = usize::to_le_bytes(801+465);
+    for i in 212..220 {
+        init_bytes[i] = x[i-212];
+    }
+
+    let mut program_context = create_and_start_program(vec![0], init_bytes, &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
 
     //initialize MerkleTree account
 
@@ -292,37 +299,8 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
     assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[66..98]);
 
     println!("pda_account_data = : {:?}", storage_account.data);
-    // let storage_account = program_context.banks_client
-    //     .get_account(merkle_tree_pubkey)
-    //     .await
-    //     .expect("get_account").unwrap();
-    // let mut unpacked_data = vec![0u8;121];
-    //
-    // unpacked_data = storage_account.data.clone();
-    //
-    // for i in 1..33 {
-    //     print!("{}, ",unpacked_data[i]);
-    // }
-    // println!("Len data: {}", storage_account.data.len());
-    //
-    //
-    //
-    // assert_eq!(unpacked_data[1..33], poseidon_hash_ref);
-
-    //let data = <PoseidonHashMemory as Pack>::unpack_from_slice(&unpacked_data).unwrap();
-
-    // let storage_account = program_context.banks_client
-    //     .get_packed_account_data::<PoseidonHashMemory>(merkle_tree_pubkey)
-    //     .await
-    //     .expect("get_packed_account_data");
-    //println!("{:?}",unpacked_data[1..33]);
-    // let storage_account = program_context.banks_client
-    //     .get_packed_account_data::<Testing_Hardcoded_Params::PoseidonHashMemory>(merkle_tree_pubkey)
-    //     .await
-    //     .expect("get_packed_account_data");
-    // //let data = Testing_Hardcoded_Params::PoseidonHashMemory::unpack(&storage_account.data).unwrap();
-
 }
+
 // #[tokio::test]
 // async fn test_merkle_tree_fails()/*-> io::Result<()>*/ {
 //     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
