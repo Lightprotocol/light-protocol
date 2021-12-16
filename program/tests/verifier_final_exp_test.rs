@@ -3,7 +3,7 @@
 pub mod tests {
 
 	use ark_serialize::{Read, Write};
-	use ark_std::vec::Vec;
+
 	use ark_ed_on_bn254;
 	use ark_ed_on_bn254::Fq;
     use ark_bn254;
@@ -17,21 +17,21 @@ pub mod tests {
     use ark_std::{UniformRand, test_rng};
 
 
-	use ark_std::{One};
+	use ark_std::{One, vec::Vec};
 
     use std::fs;
     use serde_json::{Result, Value};
     use ark_ff::biginteger::{BigInteger384, BigInteger256};
     use serde_json::Value::String;
-    use ark_ec;
+
     use ark_ff::bytes::{ToBytes, FromBytes};
     use ark_ff::QuadExtField;
     use ark_ff::{Fp256};
     use ark_groth16::prepare_verifying_key;
     use ark_groth16::{verify_proof, prepare_inputs, verify_proof_with_prepared_inputs};
 
-
-    use ark_ec::AffineCurve;
+	use ark_ec;
+    use ark_ec::{AffineCurve, ProjectiveCurve};
 	use ark_ff::Field;
 	use solana_program::{
 		program_pack::{Pack},
@@ -39,7 +39,10 @@ pub mod tests {
 	use std::fs::File;
 	use std::io::{Error as ioError};
 
-    //use Testing_Hardcoded_Params_devnet_new::hard_coded_verifying_key_pvk_254::*;
+
+	use Testing_Hardcoded_Params_devnet_new::parsers_part_2_254::*;
+	use Testing_Hardcoded_Params_devnet_new::state_final_exp::FinalExpBytes;
+	use Testing_Hardcoded_Params_devnet_new::ranges_part_2::*;
 	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
 	use Testing_Hardcoded_Params_devnet_new::processor_merkle_tree;
 	use Testing_Hardcoded_Params_devnet_new::state_merkle_tree::{HashBytes, MerkleTree as MerkleTreeOnchain};
@@ -47,7 +50,6 @@ pub mod tests {
 	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
 	use Testing_Hardcoded_Params_devnet_new::processor_final_exp::_process_instruction_final_exp;
 	use Testing_Hardcoded_Params_devnet_new::hard_coded_verifying_key_pvk_254::*;
-
 
 
 
@@ -519,10 +521,7 @@ pub mod tests {
         Ok(())
     }
 
-    use ark_ec::ProjectiveCurve;
-	use Testing_Hardcoded_Params_devnet_new::parsers_part_2_254::*;
-	use Testing_Hardcoded_Params_devnet_new::state_final_exp::FinalExpBytes;
-	use Testing_Hardcoded_Params_devnet_new::ranges_part_2::*;
+
 
 	#[test]
     fn final_exp_offchain() -> Result<()> {
@@ -534,8 +533,7 @@ pub mod tests {
         let public_inputs = get_public_inputs_from_bytes_254()?;
 
         let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
-		println!("prepared_inputs {:?}", prepared_inputs);
-		assert_eq!(true, false);
+
         let miller_output = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
             [
                 (proof.a.into(), proof.b.into()),
@@ -587,7 +585,7 @@ pub mod tests {
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
 		parse_f_to_bytes_new(*f, &mut account_struct.f1_r_range_s);
-		parse_f_to_bytes_new(*f, &mut account_struct1.f1_r_range_s);
+		parse_f_to_bytes_new(*f, &mut account_struct1.f_f2_range_s);
 
 		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s), "0 failed");
 		assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,0);
@@ -841,11 +839,14 @@ pub mod tests {
 				if i == 1 {
 					assert_eq!(account_struct.y0_range_s, account_struct.f1_r_range_s);
 				}
-
+				println!("i {}", i);
 				//cyclotomic_exp
 				//instruction 15 ---------------------------------------------
 				instruction_order.push(15);
-                assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,15);
+                assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s);
+				assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s);
+				assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);
+				assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,15);
 
 				custom_cyclotomic_square_in_place(&mut account_struct.y0_range_s);
 
@@ -1642,11 +1643,11 @@ pub mod tests {
 
 		let mut account_struct = FinalExpBytes::new();
 
-		parse_f_to_bytes_new(*f, &mut account_struct.f1_r_range_s);
-		account_struct.changed_variables[f1_r_range_iter] = true;
-		let mut account_onchain_slice = [0u8; 3772];
+		parse_f_to_bytes_new(*f, &mut account_struct.f_f2_range_s);
+		account_struct.changed_variables[f_f2_range_iter] = true;
+		let mut account_onchain_slice = [0u8; 3900];
 		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
-		let path = "src/final_exp_onchain_init_bytes.rs";
+		let path = "tests/final_exp_onchain_init_bytes.rs";
 		let mut output = File::create(path).ok()?;
 		write!(output, "{}",format!("pub const INIT_BYTES_FINAL_EXP : [u8;{}] = {:?};",account_onchain_slice.len(), account_onchain_slice));
 
