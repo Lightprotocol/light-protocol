@@ -69,8 +69,8 @@ pub fn process_instruction(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     //msg!("instruction data {:?}", _instruction_data);
-    _pre_process_instruction(_instruction_data, accounts);
-    /*
+    //_pre_process_instruction(_instruction_data, accounts);
+
 
     // MerkleTree:
     if _instruction_data[9] == 0 && _instruction_data[8] == 240 {
@@ -86,22 +86,26 @@ pub fn process_instruction(
         let mut account_main_data = InstructionIndex::unpack(&account_main.data.borrow())?;
 
         msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
+        //prepare inputs for proof verification with miller loop and final exponentiation
+        if account_main_data.current_instruction_index < 465 {
+            _pre_process_instruction(_instruction_data, accounts);
 
+        }
         //miller loop
-        if account_main_data.current_instruction_index < 430 {
+        else if account_main_data.current_instruction_index < 430+ 465 && account_main_data.current_instruction_index <= 465{
             _pre_process_instruction_miller_loop(&_instruction_data, accounts);
         }
         //final Exponentiation
-        else if account_main_data.current_instruction_index >= 430  && account_main_data.current_instruction_index < 801{
+        else if account_main_data.current_instruction_index >= 430 + 465  && account_main_data.current_instruction_index < 801 + 465{
             _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
 
         }
         //merkle tree insertion of new utxos
-        else if account_main_data.current_instruction_index >= 801 {
+        else if account_main_data.current_instruction_index >= 801+ 465 {
             _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
 
         }
-    }*/
+    }
 
     // verify part 2:
     // else if _instruction_data[9] == 2 {
@@ -118,7 +122,28 @@ pub fn process_instruction(
     Ok(())
 }
 
-pub const IX_ORDER: [u8; 1037] = [
+pub const IX_ORDER: [u8; 1502] = [
+    //prepare inputs
+    40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 46, 41, 43, 43, 43, 43,
+    43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,
+    43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,
+    43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 46, 41, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+    44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+    44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+    44, 44, 44, 44, 44, 44, 46, 41, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
+    45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
+    45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
+    46, 41, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 46, 41, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 46, 41, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    58, 58, 58, 58, 58, 58, 46, 47, 48,
     //miller loop
     0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
     4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
