@@ -33,7 +33,7 @@ fn pi_254_test_with_7_inputs() {
 // 7 inputs á 32 bytes. For bn254 curve. Skip the first two bytes.
 // TODO: add random input testing
 let inputs_bytes = [
-0, 0, 139, 101, 98, 198, 106, 26, 157, 253, 217, 85, 208, 20, 62, 194, 7, 229, 230, 196,
+40, 3, 139, 101, 98, 198, 106, 26, 157, 253, 217, 85, 208, 20, 62, 194, 7, 229, 230, 196,
 195, 91, 112, 106, 227, 5, 89, 90, 68, 176, 218, 172, 23, 34, 1, 0, 63, 128, 161, 110, 190,
 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129, 129, 182, 69, 80, 184, 41, 160, 49,
 225, 114, 78, 100, 48, 224, 137, 70, 92, 255, 138, 142, 119, 60, 162, 100, 218, 34, 199,
@@ -80,7 +80,7 @@ println!("prepared inputs from library: {:?}", prepared_inputs);
 // mocking the parsing of instruction_data between 42-45 and 56,57,58  (current_index)
 
 // init local bytes array (mocking onchain account)
-let mock_account = [0; 4972];
+let mock_account = [0; 3900];
 // ix_order_array
 // for each ix call processor. If applicable with extra instruction_data
 // let mut current_index = 99;

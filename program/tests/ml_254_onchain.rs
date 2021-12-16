@@ -63,8 +63,8 @@ async fn create_and_start_program(
     program_test.add_account(ml_bytes_pubkey, account_ml);
 
     // Inits gic account.
-    let mut account_pi = Account::new(10000000000, 4972, &program_id);
-    let mut pi_acc_init_bytes: [u8; 4972] = [0; 4972];
+    let mut account_pi = Account::new(10000000000, 3900, &program_id);
+    let mut pi_acc_init_bytes: [u8; 3900] = [0; 3900];
     // Keep in mind that g_ic_reference_value is based on running groth16.prepare_inputs() with 7 hardcoded inputs.
     // This done in preproc.
     let mut g_ic_init_bytes: Vec<u8> = vec![0; 64];
@@ -103,8 +103,12 @@ async fn test_ml_254_onchain() {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let ml_bytes_pubkey = Pubkey::new_unique();
     let pi_bytes_pubkey = Pubkey::new_unique();
-
-    let init_bytes_ml: [u8; 3900] = [0; 3900];
+    let instruction_index = usize::to_le_bytes(465).to_vec();
+    let mut init_bytes_ml = vec![0; 3900];
+    for i in 212..220 {
+        init_bytes_ml[i] = instruction_index[i - 212].clone();
+    }
+    //init_bytes_ml[212..220] = usize::to_le_bytes(465).to_vec();
     let mut program_context = create_and_start_program(
         init_bytes_ml.to_vec(),
         ml_bytes_pubkey,
@@ -271,7 +275,7 @@ async fn test_ml_254_onchain() {
     println!("init state P3y: {:?}", account_data.p_3_y_range);
 
     println!("init state PROOFB: {:?}", account_data.proof_b);
-
+    //assert_eq!(true, false);
     // Executes 1973 following ix.
     println!("xxxxx");
     let mut i = 0usize;

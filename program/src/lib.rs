@@ -72,7 +72,7 @@ pub fn process_instruction(
     //_pre_process_instruction(_instruction_data, accounts);
 
 
-    // MerkleTree:
+    // initialize new merkle tree account
     if _instruction_data[9] == 0 && _instruction_data[8] == 240 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
@@ -92,10 +92,11 @@ pub fn process_instruction(
 
         }
         //miller loop
-        else if account_main_data.current_instruction_index < 430+ 465 && account_main_data.current_instruction_index <= 465{
+        else if account_main_data.current_instruction_index >= 465 && account_main_data.current_instruction_index < 430+ 465 {
+            msg!("else if _pre_process_instruction_miller_loop");
             _pre_process_instruction_miller_loop(&_instruction_data, accounts);
         }
-        //final Exponentiation
+        //final exponentiation
         else if account_main_data.current_instruction_index >= 430 + 465  && account_main_data.current_instruction_index < 801 + 465{
             _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
 
@@ -107,18 +108,6 @@ pub fn process_instruction(
         }
     }
 
-    // verify part 2:
-    // else if _instruction_data[9] == 2 {
-    //     _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
-    // }
-    // prepare inputs moved to separate program for size
-    // else if _instruction_data[9] == 3 {
-    //     //_pre_process_instruction_prep_inputs(_instruction_data, accounts);
-    //     sol_log_compute_units();
-    //
-    //     msg!("state_check_nullifier");
-    //     sol_log_compute_units();
-    // }
     Ok(())
 }
 

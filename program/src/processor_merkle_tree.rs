@@ -43,7 +43,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                 // if hash_tmp_account_data.current_instruction_index == 0 {
                 //     hash_tmp_account_data.current_instruction_index += 801;
                 // }
-                assert_eq!(IX_ORDER[hash_tmp_account_data.current_instruction_index], init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index - 801]);
+                assert_eq!(IX_ORDER[hash_tmp_account_data.current_instruction_index], init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index - (801+ 465)]);
                 msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
 
                 if IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  14

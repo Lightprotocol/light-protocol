@@ -17,10 +17,9 @@ use {
 use ark_crypto_primitives::{Error};
 // use ark_groth16::prepare_verifying_key;
 // use ark_groth16::{verify_proof, prepare_inputs, verify_proof_with_prepared_inputs};
-mod verifier_final_exp_test;
-use crate::verifier_final_exp_test::tests::get_public_inputs_from_bytes_254;
-
-async fn create_and_start_program(
+// create_and_start_programmod verifier_final_exp_test::tests;
+// use crate::verifier_final_exp_test::tests::get_public_inputs_from_bytes_254;
+pub async fn create_and_start_program(
     account_init_bytes: Vec<u8>,
     storage_pubkey: Pubkey,
     program_id: Pubkey,
@@ -57,13 +56,13 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
     // println!("prepared_inputs: {:?}", prepared_inputs);
     // assert_eq!(true, false);
     // Creates program, accounts, setup.
-    let public_inputs = get_public_inputs_from_bytes_254()?;
-    let mut input_bytes_from_file = vec![0u8;224];
-    for i in 0..7 {
-
-        <Fp256<ark_bn254::FrParameters> as ToBytes>::write(&public_inputs[i], &mut input_bytes_from_file[(i * 32)..(i * 32 + 32)]); // i 0..48
-
-    }
+    // let public_inputs = get_public_inputs_from_bytes_254()?;
+    // let mut input_bytes_from_file = vec![0u8;224];
+    // for i in 0..7 {
+    //
+    //     <Fp256<ark_bn254::FrParameters> as ToBytes>::write(&public_inputs[i], &mut input_bytes_from_file[(i * 32)..(i * 32 + 32)]); // i 0..48
+    //
+    // }
     //println!("input bytes: {:?}", input_bytes_from_file);
     let program_id = Pubkey::from_str("TransferLamports111111111551111111111111111").unwrap();
 
