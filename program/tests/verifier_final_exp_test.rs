@@ -46,12 +46,12 @@ pub mod tests {
 	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
 	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
 	use Testing_Hardcoded_Params_devnet_new::processor_final_exp::_process_instruction_final_exp;
-	use Testing_Hardcoded_Params_devnet_new::verifyingkey_254_hc::*;
+	use Testing_Hardcoded_Params_devnet_new::hard_coded_verifying_key_pvk_254::*;
 
 
 
 
-    fn get_pvk_from_bytes_254() -> Result<ark_groth16::data_structures::VerifyingKey::<ark_ec::models::bn::Bn<ark_bn254::Parameters>>>{
+    pub fn get_pvk_from_bytes_254() -> Result<ark_groth16::data_structures::VerifyingKey::<ark_ec::models::bn::Bn<ark_bn254::Parameters>>>{
         let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
