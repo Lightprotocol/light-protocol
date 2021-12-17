@@ -61,6 +61,10 @@ use crate::pi_pre_processor::_pre_process_instruction;
 pub mod state_merkle_tree_roots;
 //pub mod verifyingkey_254_hc;
 
+use crate::pi_ranges::*;
+use ark_ff::{Fp256, FromBytes};
+use crate::pi_state::PiBytes;
+
 entrypoint!(process_instruction);
 
 pub fn process_instruction(
@@ -68,24 +72,121 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    //msg!("instruction data {:?}", _instruction_data);
-    //_pre_process_instruction(_instruction_data, accounts);
-
 
     // initialize new merkle tree account
     if _instruction_data[9] == 0 && _instruction_data[8] == 240 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
-    // unified instruction order for miller loop and final exp
+    //initialize temporary storage account for shielded pool deposit, transfer or withdraw
+    else if _instruction_data[9] == 0 && _instruction_data[8] == 239  {
+        msg!("initing hash bytes account");
+        //initing temporary storage account with bytes
+        let account = &mut accounts.iter();
+        let signing_account = next_account_info(account)?;
+        let main_account = next_account_info(account)?;
+        let _test_instruction_data = &_instruction_data[8..];
+        let mut main_account_data = PiBytes::unpack(&main_account.data.borrow())?;
+        let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+
+        // get public_inputs from _instruction_data.
+        //root
+        let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[2..34],
+        )
+        .unwrap();
+        //public amount
+        let input2 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[34..66],
+        )
+        .unwrap();
+        //external data hash
+        let input3 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[66..98],
+        )
+        .unwrap();
+        //inputNullifier0
+        let input4 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[98..130],
+        )
+        .unwrap();
+        //inputNullifier1
+        let input5 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[130..162],
+        )
+        .unwrap();
+        //inputCommitment0
+        let input6 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[162..194],
+        )
+        .unwrap();
+        //inputCommitment1
+        let input7 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_test_instruction_data[194..226],
+        )
+        .unwrap();
+
+        public_inputs = vec![input1, input2, input3, input4, input5, input6, input7];
+
+        pi_instructions::init_pairs_instruction(
+            &public_inputs,
+            &mut main_account_data.i_1_range,
+            &mut main_account_data.x_1_range,
+            &mut main_account_data.i_2_range,
+            &mut main_account_data.x_2_range,
+            &mut main_account_data.i_3_range,
+            &mut main_account_data.x_3_range,
+            &mut main_account_data.i_4_range,
+            &mut main_account_data.x_4_range,
+            &mut main_account_data.i_5_range,
+            &mut main_account_data.x_5_range,
+            &mut main_account_data.i_6_range,
+            &mut main_account_data.x_6_range,
+            &mut main_account_data.i_7_range,
+            &mut main_account_data.x_7_range,
+            &mut main_account_data.g_ic_x_range,
+            &mut main_account_data.g_ic_y_range,
+            &mut main_account_data.g_ic_z_range,
+        );
+        msg!("len _test_instruction_data{}", _test_instruction_data.len());
+        main_account_data.proof_a_c_b_leafs_and_nullifiers = _test_instruction_data[226..482].to_vec();
+        main_account_data.changed_constants[11] = true;
+        let indices: [usize; 17] = [
+            I_1_RANGE_INDEX,
+            X_1_RANGE_INDEX,
+            I_2_RANGE_INDEX,
+            X_2_RANGE_INDEX,
+            I_3_RANGE_INDEX,
+            X_3_RANGE_INDEX,
+            I_4_RANGE_INDEX,
+            X_4_RANGE_INDEX,
+            I_5_RANGE_INDEX,
+            X_5_RANGE_INDEX,
+            I_6_RANGE_INDEX,
+            X_6_RANGE_INDEX,
+            I_7_RANGE_INDEX,
+            X_7_RANGE_INDEX,
+            G_IC_X_RANGE_INDEX,
+            G_IC_Y_RANGE_INDEX,
+            G_IC_Z_RANGE_INDEX,
+        ];
+        for i in indices.iter() {
+            main_account_data.changed_variables[*i] = true;
+        }
+        main_account_data.current_instruction_index += 1;
+        PiBytes::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
+        msg!("packed successfully");
+    }
+    // transact with shielded pool
     else {
 
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
         let signing_account = next_account_info(account)?;
         let account_main = next_account_info(account)?;
+        //unpack helper struct to determine in which computational step the contract is
         let mut account_main_data = InstructionIndex::unpack(&account_main.data.borrow())?;
-
         msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
+
         //prepare inputs for proof verification with miller loop and final exponentiation
         if account_main_data.current_instruction_index < 465 {
             _pre_process_instruction(_instruction_data, accounts);
@@ -111,6 +212,7 @@ pub fn process_instruction(
     Ok(())
 }
 
+//instruction order
 pub const IX_ORDER: [u8; 1502] = [
     //prepare inputs
     40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
