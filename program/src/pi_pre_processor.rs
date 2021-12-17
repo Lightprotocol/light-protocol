@@ -19,27 +19,19 @@ pub fn _pre_process_instruction(
     let _signing_account = next_account_info(account)?;
 
     let pi_account = next_account_info(account)?;
-    let mut account_data = PiBytes::unpack(&pi_account.data.borrow())?;
-    assert!(
-        account_data.current_instruction_index < 1809,
-        "Preparing inputs finished"
-    );
-    msg!(
-        "Executing instruction: {}",
-        IX_ORDER_ARRAY[account_data.current_instruction_index]
-    );
+
     // Needs to slice this because test injects 7 zeroes (u64?).
-    let _test_instruction_data = &_instruction_data[8..];
+
     // println!("tid_: {:?}", _test_instruction_data[0..10].to_vec());
     // Fills inputs with data if init_pairs ix. Else parse empty inputs.
     // TODO: Migrate inputs to ix 40, pass as bytes, remove complexity.
-    let mut inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
-    if _test_instruction_data[0] == 40 {
-        // msg!(
-        //     "instruction processing...current index: {:?}, inputs: {:?}",
-        //     CURRENT_INDEX_ARRAY[account_data.current_instruction_index],
-        //     public_inputs
-        // );
+    /*
+    if instruction_index == 40 {
+
+        //initing temporary storage account with bytes
+        let _test_instruction_data = &_instruction_data[8..];
+        let mut inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+
         // get public_inputs from _instruction_data.
         let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
             &_test_instruction_data[2..34],
@@ -72,7 +64,21 @@ pub fn _pre_process_instruction(
         .unwrap();
 
         inputs = vec![input1, input2, input3, input4, input5, input6, input7];
+    } else {*/
+
+
+    let mut account_data = PiBytes::unpack(&pi_account.data.borrow())?;
+    //remove 40 from instruction array then remove this
+    if account_data.current_instruction_index == 0 {
+        account_data.current_instruction_index += 1;
+        PiBytes::pack_into_slice(&account_data, &mut pi_account.data.borrow_mut());
+        return Ok(());
     }
+    let mut inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+    msg!(
+        "Executing instruction: {}",
+        IX_ORDER_ARRAY[account_data.current_instruction_index]
+    );
 
     let current_instruction_index = account_data.current_instruction_index;
     _pi_254_process_instruction(
@@ -94,6 +100,7 @@ pub fn _pre_process_instruction(
         account_data.current_instruction_index
     );
     PiBytes::pack_into_slice(&account_data, &mut pi_account.data.borrow_mut());
+    //}
     Ok(())
 }
 

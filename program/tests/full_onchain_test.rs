@@ -120,30 +120,72 @@ async fn test_pi_ml_fe_integration_onchain() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
 
-
-    /*
-    *
-    *
-    * Prepare inputs
-    *
-    *
-    */
-
-    let init_bytes_storage: [u8; 3900] = [0; 3900];
+    //create pubkey for temporary storage account
     let storage_pubkey = Pubkey::new_unique();
+    let init_bytes_storage: [u8; 3900] = [0; 3900];
+
 
     let mut program_context =
         pi_onchain_test::create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
 
+    /*
+    *
+    *
+    * Send data to chain
+    *
+    *
+    */
     //first instruction + prepare inputs id + 7 public inputs in bytes = 226 bytes
-    let inputs_bytes: Vec<u8> = vec![
-        40, 3, 89,73,181,223,102,213,65,254,19,15,156,236,156,28,242,244,137,6,141,198,148,190,214,144,232,66,205,181,194,5,202,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,177,80,240,13,221,245,120,254,37,1,128,209,15,117,127,48,128,212,60,0,139,4,61,76,148,132,161,75,84,166,205,39,52,242,73,174,72,47,8,123,19,170,193,153,185,200,250,205,155,186,207,101,19,135,243,148,46,174,54,70,192,214,240,29,66,73,129,124,71,219,147,101,210,32,61,169,93,102,2,121,61,214,146,36,73,175,30,191,82,205,197,197,28,204,51,18, 49,111,114,83,155,28,206,135,243,18,244,157,59,217,100,227,113,62,168,167,211,92,221,133,29,12,187,219,16,97,59,12,160,198,101,107,12,153,155,83,44,166,226,22,139,237,186,192,170,237,48,183,223,198,243,73,14,161,131,26,151,8,45,1
+    let public_inputs_bytes: Vec<u8> = vec![
+        239, 0, 89,73,181,223,102,213,65,254,19,15,156,236,156,28,242,244,137,6,141,198,148,190,214,144,232,66,205,181,194,5,202,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,177,80,240,13,221,245,120,254,37,1,128,209,15,117,127,48,128,212,60,0,139,4,61,76,148,132,161,75,84,166,205,39,52,242,73,174,72,47,8,123,19,170,193,153,185,200,250,205,155,186,207,101,19,135,243,148,46,174,54,70,192,214,240,29,66,73,129,124,71,219,147,101,210,32,61,169,93,102,2,121,61,214,146,36,73,175,30,191,82,205,197,197,28,204,51,18, 49,111,114,83,155,28,206,135,243,18,244,157,59,217,100,227,113,62,168,167,211,92,221,133,29,12,187,219,16,97,59,12,160,198,101,107,12,153,155,83,44,166,226,22,139,237,186,192,170,237,48,183,223,198,243,73,14,161,131,26,151,8,45,1
     ];
 
+    // Preparing inputs datas like in client (g_ic from prpd inputs, proof.a.b.c from client)
+    let proof_a_bytes = vec![
+        69, 130, 7, 152, 173, 46, 198, 166, 181, 14, 22, 145, 185, 13, 203, 6, 137, 135, 214, 126,
+        20, 88, 220, 3, 105, 33, 77, 120, 104, 159, 197, 32, 103, 123, 208, 55, 205, 101, 80, 10,
+        180, 216, 217, 177, 14, 196, 164, 108, 249, 131, 207, 100, 192, 194, 74, 200, 16, 192, 219,
+        4, 161, 93, 141,
+        15,
+        // 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    let proof_b_bytes = vec![
+        32, 255, 161, 204, 195, 74, 249, 196, 139, 193, 49, 109, 241, 230, 145, 100, 91, 134, 188,
+        102, 83, 190, 140, 12, 84, 21, 107, 182, 225, 139, 23, 16, 64, 152, 20, 230, 245, 127, 35,
+        113, 194, 4, 161, 242, 179, 131, 135, 66, 70, 179, 115, 118, 237, 158, 246, 97, 35, 85, 25,
+        13, 30, 21, 183, 18, 254, 194, 12, 96, 211, 37, 160, 170, 7, 173, 208, 52, 22, 169, 113,
+        149, 235, 85, 90, 20, 14, 171, 22, 22, 247, 254, 71, 236, 207, 18, 90, 29, 236, 211, 193,
+        206, 15, 107, 89, 218, 207, 62, 76, 75, 88, 71, 9, 45, 114, 212, 43, 127, 163, 183, 245,
+        213, 117, 216, 64, 56, 26, 102, 15,
+        37,
+        //1, 0, 0, 0, 0, 0, 0, 0,
+        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    let proof_c_bytes = vec![
+        187, 25, 7, 191, 235, 134, 124, 225, 209, 30, 66, 253, 195, 106, 121, 199, 99, 89, 183,
+        179, 203, 75, 203, 177, 10, 104, 149, 210, 7, 63, 131, 24, 197, 174, 244, 228, 219, 108,
+        228, 249, 71, 84, 209, 158, 244, 104, 179, 116, 118, 246, 158, 237, 87, 197, 134, 24, 140,
+        103, 27, 203, 108, 245, 42,
+        1,
+        //1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+        //0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+    ];
+    // coeffs1 -- ix 2
+
+    let complete_input_bytes = [
+        public_inputs_bytes,
+        proof_a_bytes,
+        proof_b_bytes,
+        proof_c_bytes
+    ].concat();
+
+    //sends bytes
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
-            &[inputs_bytes],
+            &complete_input_bytes,
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(storage_pubkey, false),
@@ -157,6 +199,14 @@ async fn test_pi_ml_fe_integration_onchain() {
         .process_transaction(transaction)
         .await
         .unwrap();
+
+    /*
+    *
+    *
+    * Prepare inputs
+    *
+    *
+    */
 
     let mut i = 0usize;
     for id in 0..464usize {
@@ -248,7 +298,6 @@ async fn test_pi_ml_fe_integration_onchain() {
         "different g_ic projective than libray implementation with the same inputs"
     );
 
-    //assert_eq!(true, false);
 
 
 
@@ -282,81 +331,48 @@ async fn test_pi_ml_fe_integration_onchain() {
     .await;
 
 
-    // Preparing inputs datas like in client (g_ic from prpd inputs, proof.a.b.c from client)
-    let proof_a_bytes = [
-        69, 130, 7, 152, 173, 46, 198, 166, 181, 14, 22, 145, 185, 13, 203, 6, 137, 135, 214, 126,
-        20, 88, 220, 3, 105, 33, 77, 120, 104, 159, 197, 32, 103, 123, 208, 55, 205, 101, 80, 10,
-        180, 216, 217, 177, 14, 196, 164, 108, 249, 131, 207, 100, 192, 194, 74, 200, 16, 192, 219,
-        4, 161, 93, 141,
-        15,
-        // 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    let proof_c_bytes = [
-        187, 25, 7, 191, 235, 134, 124, 225, 209, 30, 66, 253, 195, 106, 121, 199, 99, 89, 183,
-        179, 203, 75, 203, 177, 10, 104, 149, 210, 7, 63, 131, 24, 197, 174, 244, 228, 219, 108,
-        228, 249, 71, 84, 209, 158, 244, 104, 179, 116, 118, 246, 158, 237, 87, 197, 134, 24, 140,
-        103, 27, 203, 108, 245, 42,
-        1,
-        //1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        //0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    // coeffs1 -- ix 2
-    let proof_b_bytes = [
-        32, 255, 161, 204, 195, 74, 249, 196, 139, 193, 49, 109, 241, 230, 145, 100, 91, 134, 188,
-        102, 83, 190, 140, 12, 84, 21, 107, 182, 225, 139, 23, 16, 64, 152, 20, 230, 245, 127, 35,
-        113, 194, 4, 161, 242, 179, 131, 135, 66, 70, 179, 115, 118, 237, 158, 246, 97, 35, 85, 25,
-        13, 30, 21, 183, 18, 254, 194, 12, 96, 211, 37, 160, 170, 7, 173, 208, 52, 22, 169, 113,
-        149, 235, 85, 90, 20, 14, 171, 22, 22, 247, 254, 71, 236, 207, 18, 90, 29, 236, 211, 193,
-        206, 15, 107, 89, 218, 207, 62, 76, 75, 88, 71, 9, 45, 114, 212, 43, 127, 163, 183, 245,
-        213, 117, 216, 64, 56, 26, 102, 15,
-        37,
-        //1, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
 
-    // Testing integrity of the hardcoded bytes:
-    let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
-        .expect("Something went wrong reading the file");
-    let v: Value = serde_json::from_str(&contents).unwrap();
-
-    let mut bytes: Vec<u8> = Vec::new();
-    for i in 0..2 {
-        for i in v["pi_a"][i].as_str().unwrap().split(',') {
-            bytes.push((*i).parse::<u8>().unwrap());
-        }
-    }
-    assert_eq!(
-        bytes,
-        proof_a_bytes[0..64],
-        "parsed proof.a != hardcoded proof.a"
-    );
-
-    let mut bytes: Vec<u8> = Vec::new();
-    for i in 0..2 {
-        for j in 0..2 {
-            for z in v["pi_b"][i][j].as_str().unwrap().split(',') {
-                bytes.push((*z).parse::<u8>().unwrap());
-            }
-        }
-    }
-    assert_eq!(
-        bytes,
-        proof_b_bytes[0..128],
-        "parsed proof.b != hardcoded proof.b"
-    );
-    let mut bytes: Vec<u8> = Vec::new();
-    for i in 0..2 {
-        for i in v["pi_c"][i].as_str().unwrap().split(',') {
-            bytes.push((*i).parse::<u8>().unwrap());
-        }
-    }
-    assert_eq!(
-        bytes,
-        proof_c_bytes[0..64],
-        "parsed proof.c != hardcoded proof.c"
-    );
+    // // Testing integrity of the hardcoded bytes:
+    // let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
+    //     .expect("Something went wrong reading the file");
+    // let v: Value = serde_json::from_str(&contents).unwrap();
+    //
+    // let mut bytes: Vec<u8> = Vec::new();
+    // for i in 0..2 {
+    //     for i in v["pi_a"][i].as_str().unwrap().split(',') {
+    //         bytes.push((*i).parse::<u8>().unwrap());
+    //     }
+    // }
+    // assert_eq!(
+    //     bytes,
+    //     proof_a_bytes[0..64],
+    //     "parsed proof.a != hardcoded proof.a"
+    // );
+    //
+    // let mut bytes: Vec<u8> = Vec::new();
+    // for i in 0..2 {
+    //     for j in 0..2 {
+    //         for z in v["pi_b"][i][j].as_str().unwrap().split(',') {
+    //             bytes.push((*z).parse::<u8>().unwrap());
+    //         }
+    //     }
+    // }
+    // assert_eq!(
+    //     bytes,
+    //     proof_b_bytes[0..128],
+    //     "parsed proof.b != hardcoded proof.b"
+    // );
+    // let mut bytes: Vec<u8> = Vec::new();
+    // for i in 0..2 {
+    //     for i in v["pi_c"][i].as_str().unwrap().split(',') {
+    //         bytes.push((*i).parse::<u8>().unwrap());
+    //     }
+    // }
+    // assert_eq!(
+    //     bytes,
+    //     proof_c_bytes[0..64],
+    //     "parsed proof.c != hardcoded proof.c"
+    // );
 
     // Executes first ix: [0]
     // Parses in initialized pi_account 2nd. Preprocessor then reads g_ic from that.
@@ -382,7 +398,7 @@ async fn test_pi_ml_fe_integration_onchain() {
 
     // Executes second ix: [1]
     // Parses proof_a and proof_c bytes ()
-    let i_data: Vec<u8> = [proof_a_bytes, proof_c_bytes].concat(); // 128 b
+    let i_data: Vec<u8> = vec![0];//[proof_a_bytes, proof_c_bytes].concat(); // 128 b
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -403,7 +419,7 @@ async fn test_pi_ml_fe_integration_onchain() {
 
     // Executes third ix [2]
     // Parses proof_b_bytes (2..194) // 128 b
-    let i_data_2: Vec<u8> = proof_b_bytes[..].to_vec();
+    let i_data_2: Vec<u8> = vec![0];//proof_b_bytes[..].to_vec();
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -440,11 +456,11 @@ async fn test_pi_ml_fe_integration_onchain() {
     println!("init state P3y: {:?}", account_data.p_3_y_range);
 
     println!("init state PROOFB: {:?}", account_data.proof_b);
-
+    //assert_eq!(true, false);
     // Executes 1973 following ix.
     println!("xxxxx");
     let mut i = 0usize;
-    for _id in 3..430usize {
+    for _id in 3..431usize {
         // 3..612 @merging helpers and add step
         // 3..639 @14,15,16 merged
         // 3..693 11,12,13 merged
@@ -538,6 +554,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     println!("onchain test success");
     // println!("Final exp init bytes:  {:?}", storage_account.data);
     // assert_eq!(true, false);
+    //assert_eq!(true, false);
 
 
 

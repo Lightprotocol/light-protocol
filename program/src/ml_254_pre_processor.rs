@@ -50,9 +50,10 @@ pub fn _pre_process_instruction_miller_loop(
     if IX_ORDER[account_main_data.current_instruction_index] == 0 {
         msg!("parsing state from prepare inputs to ml");
         // let mut account_main_data = MillerLoopTransferBytes::unpack(&account_main.data.borrow())?; // ..7081
-        let account_prepare_inputs = next_account_info(account)?;
+        //let account_prepare_inputs = next_account_info(account)?;
         msg!("here0");
-        let account_prepare_inputs_data = PiBytes::unpack(&account_prepare_inputs.data.borrow())?;
+        let account_prepare_inputs_data = PiBytes::unpack(&account_main.data.borrow())?;
+
         msg!("here1");
         // //signer which completed prepared inputs is the same as of this tx
         // assert_eq!(
@@ -81,6 +82,7 @@ pub fn _pre_process_instruction_miller_loop(
 
         let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
             ark_ec::bn::g1::G1Prepared::from(g_ic_affine);
+
         // msg!(
         //     "prepared inputs bytes:{:?}",
         //     account_prepare_inputs_data.x_1_range
@@ -97,6 +99,10 @@ pub fn _pre_process_instruction_miller_loop(
         // account_main_data.root_hash = account_prepare_inputs_data.root_hash.clone();
         // account_main_data.data_hash = account_prepare_inputs_data.data_hash.clone();
         // account_main_data.tx_integrity_hash = account_prepare_inputs_data.tx_integrity_hash.clone();
+
+
+        move_proofs(&mut account_main_data, &account_prepare_inputs_data);
+
         msg!("here4");
 
         parse_fp256_to_bytes(p2.0.x, &mut account_main_data.p_2_x_range);
@@ -110,6 +116,7 @@ pub fn _pre_process_instruction_miller_loop(
         account_main_data.changed_variables[P_2_Y_RANGE_INDEX] = true;
         account_main_data.changed_variables[P_2_X_RANGE_INDEX] = true;
         // account_main_data.changed_variables[P_2_Y_RANGE] = true;
+
 
         ML254Bytes::pack_into_slice(&account_main_data, &mut account_main.data.borrow_mut());
         msg!("here6");
@@ -141,11 +148,11 @@ pub fn _pre_process_instruction_miller_loop(
         let mut p_3_bytes = vec![];
 
         if IX_ORDER[account_main_data.current_instruction_index] == 1 {
-            p_1_bytes = _instruction_data[10..74].to_vec(); // 2..194 (192 ) // are 128 => 2..130 BUT starting at 10 bc
-            p_3_bytes = _instruction_data[74..138].to_vec();
+            // p_1_bytes = _instruction_data[10..74].to_vec(); // 2..194 (192 ) // are 128 => 2..130 BUT starting at 10 bc
+            // p_3_bytes = _instruction_data[74..138].to_vec();
         }
         if IX_ORDER[account_main_data.current_instruction_index] == 2 {
-            proof_b_bytes = _instruction_data[10..138].to_vec(); // 2..194 => 2..130 (bc proofb now 128) => 10..138
+            //proof_b_bytes = _instruction_data[10..138].to_vec(); // 2..194 => 2..130 (bc proofb now 128) => 10..138
         }
 
         if IX_ORDER[account_main_data.current_instruction_index] == 3 {
