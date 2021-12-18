@@ -143,28 +143,28 @@ pub fn _pre_process_instruction_miller_loop(
     // }
     else {
         // Empty vecs that pass data from the client if called with respective ix.
-        let mut proof_b_bytes = vec![];
-        let mut p_1_bytes = vec![];
-        let mut p_3_bytes = vec![];
-
-        if IX_ORDER[account_main_data.current_instruction_index] == 1 {
-            // p_1_bytes = _instruction_data[10..74].to_vec(); // 2..194 (192 ) // are 128 => 2..130 BUT starting at 10 bc
-            // p_3_bytes = _instruction_data[74..138].to_vec();
-        }
-        if IX_ORDER[account_main_data.current_instruction_index] == 2 {
-            //proof_b_bytes = _instruction_data[10..138].to_vec(); // 2..194 => 2..130 (bc proofb now 128) => 10..138
-        }
-
-        if IX_ORDER[account_main_data.current_instruction_index] == 3 {
-            // assert that p1,3,proof.b and p2(prepared inputs) are eq
-            // account_main_data,
-        }
+        // let mut proof_b_bytes = vec![];
+        // let mut p_1_bytes = vec![];
+        // let mut p_3_bytes = vec![];
+        //
+        // if IX_ORDER[account_main_data.current_instruction_index] == 1 {
+        //     // p_1_bytes = _instruction_data[10..74].to_vec(); // 2..194 (192 ) // are 128 => 2..130 BUT starting at 10 bc
+        //     // p_3_bytes = _instruction_data[74..138].to_vec();
+        // }
+        // if IX_ORDER[account_main_data.current_instruction_index] == 2 {
+        //     //proof_b_bytes = _instruction_data[10..138].to_vec(); // 2..194 => 2..130 (bc proofb now 128) => 10..138
+        // }
+        //
+        // if IX_ORDER[account_main_data.current_instruction_index] == 3 {
+        //     // assert that p1,3,proof.b and p2(prepared inputs) are eq
+        //     // account_main_data,
+        // }
         _process_instruction(
             IX_ORDER[account_main_data.current_instruction_index],
             &mut account_main_data,
-            &proof_b_bytes,
-            &p_1_bytes,
-            &p_3_bytes,
+            // &proof_b_bytes,
+            // &p_1_bytes,
+            // &p_3_bytes,
         ); // updated: will always pass coeff quads as empty. Acc gets them from prior instructions.    }
            // msg!(
            //     "Instruction {}",
