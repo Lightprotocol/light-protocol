@@ -6,6 +6,8 @@ use solana_program::{log::sol_log_compute_units, msg};
 use crate::pi_state::PiBytes;
 use crate::ml_254_parsers::parse_x_group_affine_from_bytes;
 use crate::ml_254_parsers::parse_fp256_to_bytes;
+use crate::ml_254_parsers::parse_f_from_bytes;
+use crate::ml_254_parsers::parse_f_to_bytes;
 
 pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_data: &PiBytes) {
     let proof_a = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[..64].to_vec());
@@ -31,14 +33,21 @@ pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_da
     // account_main_data.p_3_y_range = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[224..256].to_vec().clone();
     account_main_data.changed_variables[P_3_Y_RANGE_INDEX] = true;
     account_main_data.changed_variables[P_3_X_RANGE_INDEX] = true;
+
+    let mut f_arr: Vec<u8> = vec![0; 384];
+    f_arr[0] = 1;
+
+    let f = parse_f_from_bytes(&mut f_arr);
+    parse_f_to_bytes(f, &mut account_main_data.f_range);
+    account_main_data.changed_variables[F_RANGE_INDEX] = true;
 }
 
 pub fn _process_instruction(
     id: u8,
     account_main: &mut ML254Bytes,
-    proof_b_bytes: &Vec<u8>,
-    p_1_bytes: &Vec<u8>,
-    p_3_bytes: &Vec<u8>,
+    // proof_b_bytes: &Vec<u8>,
+    // p_1_bytes: &Vec<u8>,
+    // p_3_bytes: &Vec<u8>,
 ) {
     msg!("in processor.");
     msg!("instruction: {:?}", id);
@@ -51,20 +60,20 @@ pub fn _process_instruction(
         // Inits proof_a and proof_c into the account.
         // (p1,p3)
         // Also inits f.
-        initialize_p1_p3_f_instruction(
-            &p_1_bytes,
-            &p_3_bytes,
-            &mut account_main.p_1_x_range,
-            &mut account_main.p_1_y_range,
-            &mut account_main.p_3_x_range,
-            &mut account_main.p_3_y_range,
-            &mut account_main.f_range,
-        );
-        account_main.changed_variables[P_1_X_RANGE_INDEX] = true;
-        account_main.changed_variables[P_1_Y_RANGE_INDEX] = true;
-        account_main.changed_variables[P_3_X_RANGE_INDEX] = true;
-        account_main.changed_variables[P_3_Y_RANGE_INDEX] = true;
-        account_main.changed_variables[F_RANGE_INDEX] = true;
+        // initialize_p1_p3_f_instruction(
+        //     // &p_1_bytes,
+        //     // &p_3_bytes,
+        //     &mut account_main.p_1_x_range,
+        //     &mut account_main.p_1_y_range,
+        //     &mut account_main.p_3_x_range,
+        //     &mut account_main.p_3_y_range,
+        //     &mut account_main.f_range,
+        // );
+        // account_main.changed_variables[P_1_X_RANGE_INDEX] = true;
+        // account_main.changed_variables[P_1_Y_RANGE_INDEX] = true;
+        // account_main.changed_variables[P_3_X_RANGE_INDEX] = true;
+        // account_main.changed_variables[P_3_Y_RANGE_INDEX] = true;
+        // account_main.changed_variables[F_RANGE_INDEX] = true;
     } else if id == 2 {
         // Parses proof_b bytes into the account.(p1)
         // Called once at the beginning. Moved from 237

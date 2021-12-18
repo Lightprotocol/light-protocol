@@ -313,13 +313,17 @@ impl Pack for InstructionIndex {
             unused_remainder1
 
         ) = array_refs![input,1, 211, 8,3680];
+        if is_initialized[0] == 0 {
+            Err(ProgramError::InvalidAccountData)
+        } else {
+            Ok(
+                InstructionIndex {
+                    is_initialized: true,
+                    current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+                }
+            )
+        }
 
-        Ok(
-            InstructionIndex {
-                is_initialized: true,
-                current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-            }
-        )
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {

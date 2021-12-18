@@ -701,9 +701,9 @@ pub mod tests {
             _process_instruction(
                 ML_IX_ORDER[i],
                 &mut account_data,
-                &proof_b_bytes.to_vec(),
-                &proof_a_bytes.to_vec(),
-                &proof_c_bytes.to_vec(),
+                // &proof_b_bytes.to_vec(),
+                // &proof_a_bytes.to_vec(),
+                // &proof_c_bytes.to_vec(),
             );
             if ML_IX_ORDER[i] == 2 {
                 println!("init state f_range: {:?}", account_data.f_range);
