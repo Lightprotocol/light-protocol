@@ -238,7 +238,7 @@ fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction_dat
         &mut main_account_data.g_ic_z_range,
     );
     msg!("len _instruction_data{}", _instruction_data.len());
-    main_account_data.proof_a_c_b_leafs_and_nullifiers = [
+    main_account_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[226..482].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
     main_account_data.changed_constants[11] = true;
     let indices: [usize; 17] = [
