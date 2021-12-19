@@ -127,6 +127,7 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
     //     msg!("checking nullifier");
     //
     //     let nullifier_account = next_account_info(account)?;
+
     //     check_and_insert_nullifier(program_id, nullifier_account, &_instruction_data[10..42]);
     // } else
     {

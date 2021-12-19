@@ -27,16 +27,16 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
     merkle_tree_account.inserted_leaf = true;
 }
 */
-pub fn insert_0_double(leaf_r: &Vec<u8>, leaf_l: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
+pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
     assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leafs can be added");
 
     //hash_bytes_account.currentLevelHash = leaf.clone();
     //merkle_tree_account.leaves = leaf.clone();
-    hash_bytes_account.leaf_left =  leaf_r.clone();
-    hash_bytes_account.leaf_right =  leaf_l.clone();
-    hash_bytes_account.left = leaf_r.clone();
-    hash_bytes_account.right =  leaf_l.clone();
+    //hash_bytes_account.leaf_left =  leaf_r.clone();
+    //hash_bytes_account.leaf_right =  leaf_l.clone();
+    hash_bytes_account.left = hash_bytes_account.leaf_left.clone();
+    hash_bytes_account.right =  hash_bytes_account.leaf_right.clone();
     hash_bytes_account.currentLevel = 1;
     merkle_tree_account.inserted_leaf = true;
     //zeroing out prior state since the account was used for prior computation
@@ -88,16 +88,4 @@ pub fn insert_last_double(merkle_tree_account: &mut MerkleTree, hash_bytes_accou
     merkle_tree_account.inserted_root = true;
 
 
-}
-
-
-pub fn deposit(merkle_tree_account: &mut MerkleTree, account: &AccountInfo, account_tmp: &AccountInfo){
-        //if the user actually deposited 1 sol increase current_total_deposits by one
-
-        **account_tmp.try_borrow_mut_lamports().unwrap()    -= 1000000000; // 1 SOL
-
-        **account.try_borrow_mut_lamports().unwrap()        += 1000000000;
-
-        merkle_tree_account.current_total_deposits += 1;
-        msg!("Deposit of 1 Sol successfull");
 }

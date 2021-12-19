@@ -1,6 +1,6 @@
 use crate::tokio::time::timeout;
 use ark_ff::biginteger::BigInteger256;
-use ark_ff::Fp256;
+use ark_ff::{Fp256, FromBytes};
 use serde_json::Value;
 use solana_program::program_pack::Pack;
 use Testing_Hardcoded_Params_devnet_new::{
@@ -25,6 +25,8 @@ use {
 
 use solana_program_test::ProgramTestContext;
 use std::{fs, time};
+use std::convert::TryInto;
+use ark_ed_on_bn254::Fq;
 
 mod fe_onchain_test;
 
@@ -36,11 +38,11 @@ mod pi_onchain_test;
 // mod fe_offchain_test;
 // use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
 
-
+/*
 async fn create_and_start_program(
     account_init_bytes: Vec<u8>,
     ml_bytes_pubkey: Pubkey,
-    pi_bytes_pubkey: Pubkey,
+    merkle_tree_pubkey: Pubkey,
     program_id: Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
@@ -49,55 +51,11 @@ async fn create_and_start_program(
         processor!(process_instruction),
     );
 
-    // Not used after all.
-    let g_ic_reference_value: ark_ec::short_weierstrass_jacobian::GroupAffine<
-        ark_bn254::g1::Parameters,
-    > = ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
-        Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            471223499747275859,
-            7569467397224972520,
-            7773394081695017935,
-            2286200356768260157,
-        ])), // Cost: 31
-        Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            3547148427379123761,
-            953159675554207994,
-            12994789713999071316,
-            608791868936298975,
-        ])), // Cost: 31
-        Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            18420557557863729053,
-            2004103336708983265,
-            11245578246982574736,
-            2207358309629838870,
-        ])), // Cost: 31
-    )
-    // .into_affine()
-    .into();
-
     // Initializes acc based on x state and y pubkey.
     let mut account_ml = Account::new(10000000000, 3900, &program_id);
     account_ml.data = account_init_bytes;
     program_test.add_account(ml_bytes_pubkey, account_ml);
 
-    // Inits gic account.
-    let mut account_pi = Account::new(10000000000, 3900, &program_id);
-    let mut pi_acc_init_bytes: [u8; 3900] = [0; 3900];
-    // // Keep in mind that g_ic_reference_value is based on running groth16.prepare_inputs() with 7 hardcoded inputs.
-    // This done in preproc.
-    let mut g_ic_init_bytes: Vec<u8> = vec![0; 64];
-    parse_x_group_affine_to_bytes(g_ic_reference_value, &mut g_ic_init_bytes);
-    println!("g_ic_init_bytes: {:?}", g_ic_init_bytes);
-    //
-    // // Tmp test: hardcoded bytes == offchain bytes of preparedinputs/gic etc
-    let init_p2x = [
-        100, 40, 113, 154, 67, 121, 202, 201, 76, 235, 138, 200, 226, 180, 215, 158, 50, 175, 84,
-        220, 140, 125, 70, 226, 143, 61, 4, 218, 156, 132, 189, 26,
-    ];
-    let init_p2y = [
-        102, 134, 203, 168, 30, 25, 139, 190, 23, 227, 191, 231, 63, 83, 110, 168, 17, 250, 213,
-        214, 90, 94, 40, 179, 94, 56, 209, 32, 129, 142, 178, 11,
-    ];
     let init_p: Vec<u8> = vec![init_p2x.to_vec(), init_p2y.to_vec()].concat();
     // Where x_1_range starts
     for i in 252..316 {
@@ -114,6 +72,124 @@ async fn create_and_start_program(
     println!("program started w/ context");
     tmp
 }
+*/
+
+pub async fn create_and_start_program(
+        merkle_tree_init_bytes: Vec<u8>,
+        hash_bytes_init_bytes: Vec<u8>,
+        merkle_tree_pubkey: &Pubkey,
+        storage_account: &Pubkey,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey
+    ) -> ProgramTestContext {
+
+    let mut program_test = ProgramTest::new(
+        "Testing_Hardcoded_Params_devnet_new",
+        *program_id,
+        processor!(process_instruction),
+    );
+    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+
+
+    if merkle_tree_init_bytes.len() == 16657 {
+
+        merkle_tree.data = merkle_tree_init_bytes;
+    }
+    program_test.add_account(
+        *merkle_tree_pubkey,
+        merkle_tree,
+    );
+    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
+
+    if hash_bytes_init_bytes.len() == 3900 {
+
+        hash_byte.data = hash_bytes_init_bytes;
+    }
+    program_test.add_account(
+        *storage_account,
+        hash_byte,
+    );
+    //let mut two_leaves_pda_byte = Account::new(10000000000, 98, &program_id);
+
+    // if two_leaves_pda_bytes_init_bytes.len() == 98 {
+    //
+    //     two_leaves_pda_byte.data = two_leaves_pda_bytes_init_bytes;
+    // }
+    // program_test.add_account(
+    //     *two_leaves_pda_pubkey,
+    //     two_leaves_pda_byte,
+    // );
+
+    let mut program_context = program_test.start_with_context().await;
+    let mut transaction = solana_sdk::system_transaction::transfer(&program_context.payer, &signer_pubkey, 10000000000000, program_context.last_blockhash);
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    let res_request = program_context.banks_client.process_transaction(transaction).await;
+
+    program_context
+}
+
+pub async fn create_and_start_program_with_nullfier_pdas(
+        merkle_tree_init_bytes: Vec<u8>,
+        hash_bytes_init_bytes: Vec<u8>,
+        merkle_tree_pubkey: &Pubkey,
+        storage_account: &Pubkey,
+        two_leaves_pda_pubkey: &Pubkey,
+        nullifier_pubkeys: &Vec<Pubkey>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey
+    ) -> ProgramTestContext {
+
+    let mut program_test = ProgramTest::new(
+        "Testing_Hardcoded_Params_devnet_new",
+        *program_id,
+        processor!(process_instruction),
+    );
+    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+
+
+    if merkle_tree_init_bytes.len() == 16657 {
+
+        merkle_tree.data = merkle_tree_init_bytes;
+    }
+    program_test.add_account(
+        *merkle_tree_pubkey,
+        merkle_tree,
+    );
+    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
+
+    if hash_bytes_init_bytes.len() == 3900 {
+
+        hash_byte.data = hash_bytes_init_bytes;
+    }
+    program_test.add_account(
+        *storage_account,
+        hash_byte,
+    );
+    let mut two_leaves_pda_byte = Account::new(10000000000, 98, &program_id);
+
+    // if two_leaves_pda_bytes_init_bytes.len() == 98 {
+    //
+    //     two_leaves_pda_byte.data = two_leaves_pda_bytes_init_bytes;
+    // }
+    program_test.add_account(
+        *two_leaves_pda_pubkey,
+        two_leaves_pda_byte,
+    );
+
+    for pubkey in nullifier_pubkeys.iter() {
+        program_test.add_account(
+            *pubkey,
+            Account::new(10000000000, 2, &program_id),
+        );
+    }
+
+    let mut program_context = program_test.start_with_context().await;
+    let mut transaction = solana_sdk::system_transaction::transfer(&program_context.payer, &signer_pubkey, 10000000000000, program_context.last_blockhash);
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    let res_request = program_context.banks_client.process_transaction(transaction).await;
+
+    program_context
+}
 
 #[tokio::test]
 async fn test_pi_ml_fe_integration_onchain() {
@@ -122,12 +198,41 @@ async fn test_pi_ml_fe_integration_onchain() {
 
     //create pubkey for temporary storage account
     let storage_pubkey = Pubkey::new_unique();
-    let init_bytes_storage: [u8; 3900] = [0; 3900];
+    let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
 
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
 
     let mut program_context =
-        pi_onchain_test::create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
+        create_and_start_program(
+            vec![0],
+            vec![0],
+            &merkle_tree_pubkey,
+            &storage_pubkey,
+            &program_id,
+            &signer_pubkey
+        ).await;
 
+    //initialize MerkleTree account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![240u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(),true),
+                AccountMeta::new(merkle_tree_pubkey, false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context.banks_client.process_transaction(transaction).await.unwrap();
+    let merkle_tree_account = program_context.banks_client
+        .get_account(merkle_tree_pubkey)
+        .await
+        .expect("get_account").unwrap();
     /*
     *
     *
@@ -175,7 +280,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     // coeffs1 -- ix 2
 
     let complete_input_bytes = [
-        public_inputs_bytes,
+        public_inputs_bytes.clone(),
         proof_a_bytes,
         proof_b_bytes,
         proof_c_bytes
@@ -187,18 +292,49 @@ async fn test_pi_ml_fe_integration_onchain() {
             program_id,
             &complete_input_bytes,
             vec![
-                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
             ],
         )],
-        Some(&program_context.payer.pubkey()),
+        Some(&signer_pubkey),
     );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
     program_context
         .banks_client
         .process_transaction(transaction)
         .await
         .unwrap();
+
+    /*
+    *
+    *
+    * check merkle root
+    *
+    *
+    */
+
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &complete_input_bytes,
+            vec![
+                AccountMeta::new(signer_pubkey, true),
+                AccountMeta::new(storage_pubkey, false),
+                AccountMeta::new(merkle_tree_pubkey, false),
+            ],
+        )],
+        Some(&signer_pubkey),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+    //assert!(true == false);
+
+
 
     /*
     *
@@ -210,6 +346,7 @@ async fn test_pi_ml_fe_integration_onchain() {
 
     let mut i = 0usize;
     for id in 0..464usize {
+
         // 0..912 @working
         // 0..1808 @
         let mut success = false;
@@ -221,13 +358,13 @@ async fn test_pi_ml_fe_integration_onchain() {
                     program_id,
                     &vec![98, 99, i],
                     vec![
-                        AccountMeta::new(program_context.payer.pubkey(), true),
+                        AccountMeta::new(signer_pubkey, true),
                         AccountMeta::new(storage_pubkey, false),
                     ],
                 )],
-                Some(&program_context.payer.pubkey()),
+                Some(&signer_pubkey),
             );
-            transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
             let res_request = timeout(
                 time::Duration::from_millis(500),
                 program_context
@@ -254,12 +391,20 @@ async fn test_pi_ml_fe_integration_onchain() {
                         .expect("get_account")
                         .unwrap();
                     //println!("data: {:?}", storage_account.data);
-                    program_context = pi_onchain_test::create_and_start_program(
+                    // program_context = pi_onchain_test::create_and_start_program(
+                    //     storage_account.data.to_vec(),
+                    //     storage_pubkey,
+                    //     program_id,
+                    // )
+                    // .await;
+                    program_context = create_and_start_program(
+                        merkle_tree_account.data.to_vec(),
                         storage_account.data.to_vec(),
-                        storage_pubkey,
-                        program_id,
-                    )
-                    .await;
+                        &merkle_tree_pubkey,
+                        &storage_pubkey,
+                        &program_id,
+                        &signer_pubkey
+                    ).await;
                 }
             }
         }
@@ -318,78 +463,21 @@ async fn test_pi_ml_fe_integration_onchain() {
     */
 
 
-    //let storage_pubkey = Pubkey::new_unique();
-    let pi_bytes_pubkey = Pubkey::new_unique();
-
-    // let init_bytes_ml: [u8; 3900] = [0; 3900];
-    let mut program_context = create_and_start_program(
-        storage_account.data.to_vec(),
-        storage_pubkey,
-        pi_bytes_pubkey,
-        program_id,
-    )
-    .await;
-
-
-
-    // // Testing integrity of the hardcoded bytes:
-    // let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
-    //     .expect("Something went wrong reading the file");
-    // let v: Value = serde_json::from_str(&contents).unwrap();
-    //
-    // let mut bytes: Vec<u8> = Vec::new();
-    // for i in 0..2 {
-    //     for i in v["pi_a"][i].as_str().unwrap().split(',') {
-    //         bytes.push((*i).parse::<u8>().unwrap());
-    //     }
-    // }
-    // assert_eq!(
-    //     bytes,
-    //     proof_a_bytes[0..64],
-    //     "parsed proof.a != hardcoded proof.a"
-    // );
-    //
-    // let mut bytes: Vec<u8> = Vec::new();
-    // for i in 0..2 {
-    //     for j in 0..2 {
-    //         for z in v["pi_b"][i][j].as_str().unwrap().split(',') {
-    //             bytes.push((*z).parse::<u8>().unwrap());
-    //         }
-    //     }
-    // }
-    // assert_eq!(
-    //     bytes,
-    //     proof_b_bytes[0..128],
-    //     "parsed proof.b != hardcoded proof.b"
-    // );
-    // let mut bytes: Vec<u8> = Vec::new();
-    // for i in 0..2 {
-    //     for i in v["pi_c"][i].as_str().unwrap().split(',') {
-    //         bytes.push((*i).parse::<u8>().unwrap());
-    //     }
-    // }
-    // assert_eq!(
-    //     bytes,
-    //     proof_c_bytes[0..64],
-    //     "parsed proof.c != hardcoded proof.c"
-    // );
-
     // Executes first ix: [0]
-    // Parses in initialized pi_account 2nd. Preprocessor then reads g_ic from that.
     let i_data0: Vec<u8> = vec![0; 2];
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
             &[vec![1, 1], i_data0].concat(),
             vec![
-                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
                 AccountMeta::new(storage_pubkey, false),
             ],
         )],
-        Some(&program_context.payer.pubkey()),
+        Some(&signer_pubkey),
     );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -404,13 +492,13 @@ async fn test_pi_ml_fe_integration_onchain() {
             program_id,
             &[vec![1, 1], i_data].concat(), // 129++
             vec![
-                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
             ],
         )],
-        Some(&program_context.payer.pubkey()),
+        Some(&signer_pubkey),
     );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -425,13 +513,13 @@ async fn test_pi_ml_fe_integration_onchain() {
             program_id,
             &[vec![1, 1], i_data_2].concat(),
             vec![
-                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
             ],
         )],
-        Some(&program_context.payer.pubkey()),
+        Some(&signer_pubkey),
     );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -476,13 +564,13 @@ async fn test_pi_ml_fe_integration_onchain() {
                     program_id,
                     &[vec![1, 1], usize::to_le_bytes(i).to_vec()].concat(),
                     vec![
-                        AccountMeta::new(program_context.payer.pubkey(), true),
+                        AccountMeta::new(signer_pubkey, true),
                         AccountMeta::new(storage_pubkey, false),
                     ],
                 )],
-                Some(&program_context.payer.pubkey()),
+                Some(&signer_pubkey),
             );
-            transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
             let res_request = timeout(
                 time::Duration::from_millis(500),
                 program_context
@@ -501,13 +589,21 @@ async fn test_pi_ml_fe_integration_onchain() {
                         .await
                         .expect("get_account")
                         .unwrap();
+                    // program_context = create_and_start_program(
+                    //     storage_account.data.to_vec(),
+                    //     storage_pubkey,
+                    //     pi_bytes_pubkey,
+                    //     program_id,
+                    // )
+                    // .await;
                     program_context = create_and_start_program(
+                        merkle_tree_account.data.to_vec(),
                         storage_account.data.to_vec(),
-                        storage_pubkey,
-                        pi_bytes_pubkey,
-                        program_id,
-                    )
-                    .await;
+                        &merkle_tree_pubkey,
+                        &storage_pubkey,
+                        &program_id,
+                        &signer_pubkey
+                    ).await;
                 }
             }
         }
@@ -591,14 +687,14 @@ async fn test_pi_ml_fe_integration_onchain() {
                     program_id,
                     &[vec![instruction_id, 2u8], usize::to_le_bytes(i).to_vec()].concat(),
                     vec![
-                        AccountMeta::new(program_context.payer.pubkey(),true),
+                        AccountMeta::new(signer_pubkey,true),
                         AccountMeta::new(storage_pubkey, false),
                         //AccountMeta::new(merkle_tree_pubkey, false),
                     ],
                 )],
-                Some(&program_context.payer.pubkey()),
+                Some(&signer_pubkey),
             );
-            transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
             let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
 
             match res_request {
@@ -612,7 +708,15 @@ async fn test_pi_ml_fe_integration_onchain() {
                         .await
                         .expect("get_account").unwrap();
                     //println!("data: {:?}", storage_account.data);
-                    program_context = fe_onchain_test::create_and_start_program(storage_account.data.to_vec(), storage_pubkey, program_id).await;                },
+                    program_context = create_and_start_program(
+                        merkle_tree_account.data.to_vec(),
+                        storage_account.data.to_vec(),
+                        &merkle_tree_pubkey,
+                        &storage_pubkey,
+                        &program_id,
+                        &signer_pubkey
+                    ).await;
+                },
             }
         }
         // if i == 3 {
@@ -643,36 +747,22 @@ async fn test_pi_ml_fe_integration_onchain() {
     */
 
 
-    //
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
-
-    let signer_pubkey = signer_keypair.pubkey();
-
-    let hash_bytes_pubkey = Pubkey::new_unique();
     let two_leaves_pda_pubkey = Pubkey::new_unique();
-    let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-
-    let mut program_context = mt_onchain_test::create_and_start_program(vec![0], storage_account.data.clone(), &merkle_tree_pubkey, &hash_bytes_pubkey, &two_leaves_pda_pubkey, &program_id, &signer_pubkey).await;
-
-    //initialize MerkleTree account
-
-    let mut transaction = Transaction::new_with_payer(
-        &[Instruction::new_with_bincode(
-            program_id,
-            &[vec![240u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
-            vec![
-                AccountMeta::new(signer_keypair.pubkey(),true),
-                AccountMeta::new(merkle_tree_pubkey, false),
-            ],
-        )],
-        Some(&signer_keypair.pubkey()),
-    );
-    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
-
-    program_context.banks_client.process_transaction(transaction).await.unwrap();
 
 
-    let commit = vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
+    //restart is necessary to add pda account
+    let mut program_context = mt_onchain_test::create_and_start_program(
+        merkle_tree_account.data.to_vec(),
+        storage_account.data.clone(),
+        &merkle_tree_pubkey,
+        &storage_pubkey,
+        &two_leaves_pda_pubkey,
+        &program_id,
+        &signer_pubkey
+    ).await;
+
+
+    let commit = vec![0u8; 32];//vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     let mut i = 0;
     for (instruction_id) in &init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
@@ -686,9 +776,9 @@ async fn test_pi_ml_fe_integration_onchain() {
                     &instruction_data,
                     vec![
                         AccountMeta::new(signer_keypair.pubkey(),true),
-                        AccountMeta::new(hash_bytes_pubkey, false),
+                        AccountMeta::new(storage_pubkey, false),
                         AccountMeta::new(merkle_tree_pubkey, false),
-                        AccountMeta::new(hash_bytes_pubkey, false),
+                        AccountMeta::new(storage_pubkey, false),
                     ],
                 )],
                 Some(&signer_keypair.pubkey()),
@@ -704,7 +794,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                     &instruction_data,
                     vec![
                         AccountMeta::new(signer_keypair.pubkey(),true),
-                        AccountMeta::new(hash_bytes_pubkey, false),
+                        AccountMeta::new(storage_pubkey, false),
                         AccountMeta::new(merkle_tree_pubkey, false),
                         AccountMeta::new(two_leaves_pda_pubkey, false),
                     ],
@@ -724,7 +814,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                         &instruction_data,
                         vec![
                             AccountMeta::new(signer_keypair.pubkey(),true),
-                            AccountMeta::new(hash_bytes_pubkey, false),
+                            AccountMeta::new(storage_pubkey, false),
                             AccountMeta::new(merkle_tree_pubkey, false),
                         ],
                     )],
@@ -745,7 +835,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                             .await
                             .expect("get_account").unwrap();
                         let hash_bytes_account = program_context.banks_client
-                            .get_account(hash_bytes_pubkey)
+                            .get_account(storage_pubkey)
                             .await
                             .expect("get_account").unwrap();
                         //println!("data: {:?}", storage_account.data);
@@ -754,7 +844,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                             merkle_tree_account.data.to_vec(),
                             hash_bytes_account.data.to_vec(),
                             &merkle_tree_pubkey,
-                            &hash_bytes_pubkey,
+                            &storage_pubkey,
                             &two_leaves_pda_pubkey,
                             &program_id,
                             &signer_pubkey
@@ -765,7 +855,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                             .await
                             .expect("get_account").unwrap();
                         let hash_bytes_account_new = program_context.banks_client
-                            .get_account(hash_bytes_pubkey)
+                            .get_account(storage_pubkey)
                             .await
                             .expect("get_account").unwrap();
                         assert_eq!(merkle_tree_account_new.data, merkle_tree_account.data);
@@ -786,8 +876,7 @@ async fn test_pi_ml_fe_integration_onchain() {
 
 
     let expected_root = [247, 16, 124, 67, 44, 62, 195, 226, 182, 62, 41, 237, 78, 64, 195, 249, 67, 169, 200, 24, 158, 153, 57, 144, 24, 245, 131, 44, 127, 129, 44, 10];
-    //println!("storage_acc: {:?}", storage_account.data[700..(769+128)].to_vec());
-    assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
+    //assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
 
     let storage_account = program_context.banks_client
         .get_account(two_leaves_pda_pubkey)
@@ -799,12 +888,92 @@ async fn test_pi_ml_fe_integration_onchain() {
     //account type is correct
     assert_eq!(4, storage_account.data[1]);
     //saved left leaf correctly
-    assert_eq!(commit, storage_account.data[2..34]);
+    assert_eq!(public_inputs_bytes[162..194], storage_account.data[2..34]);
     //saved right leaf correctly
-    assert_eq!(commit, storage_account.data[34..66]);
+    assert_eq!(public_inputs_bytes[194..226], storage_account.data[34..66]);
     //saved merkle tree pubkey in which leaves were insorted
     assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[66..98]);
 
-    println!("pda_account_data = : {:?}", storage_account.data);
 
+    let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[98..130].to_vec().clone()).unwrap();
+    let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[130..162].to_vec().clone()).unwrap();
+    //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+    let mut nullifier_pubkeys = Vec::new();
+
+    let pubkey_from_seed = Pubkey::create_with_seed(
+        &program_id,
+        &nullifer0.to_string()[0..15],
+        &program_id
+    ).unwrap();
+    nullifier_pubkeys.push(pubkey_from_seed);
+
+    let pubkey_from_seed = Pubkey::create_with_seed(
+        &program_id,
+        &nullifer1.to_string()[0..15],
+        &program_id
+    ).unwrap();
+    nullifier_pubkeys.push(pubkey_from_seed);
+    //restart to add nullifer pdas
+    // create_and_start_program_with_nullfier_pdas(
+    //         merkle_tree_init_bytes: Vec<u8>,
+    //         hash_bytes_init_bytes: Vec<u8>,
+    //         merkle_tree_pubkey: &Pubkey,
+    //         storage_account: &Pubkey,
+    //         two_leaves_pda_pubkey: &Pubkey,
+    //         nullifier_pubkeys: &Vec<Pubkey>,
+    //         program_id: &Pubkey,
+    //         signer_pubkey: &Pubkey
+    let storage_account = program_context.banks_client
+        .get_account(storage_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    let merkel_tree_account_old = program_context.banks_client
+        .get_account(merkle_tree_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    program_context = create_and_start_program_with_nullfier_pdas(
+        merkle_tree_account.data.to_vec(),
+        storage_account.data.to_vec(),
+        &merkle_tree_pubkey,
+        &storage_pubkey,
+        &two_leaves_pda_pubkey,
+        &nullifier_pubkeys,
+        &program_id,
+        &signer_pubkey
+    ).await;
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[0],
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(),true),
+                AccountMeta::new(storage_pubkey, false),
+                AccountMeta::new(two_leaves_pda_pubkey, false),
+                AccountMeta::new(nullifier_pubkeys[0], false),
+                AccountMeta::new(nullifier_pubkeys[1], false),
+                AccountMeta::new(merkle_tree_pubkey, false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
+
+    let nullifier0_account = program_context.banks_client
+        .get_account(nullifier_pubkeys[0])
+        .await
+        .expect("get_account").unwrap();
+    let nullifier1_account = program_context.banks_client
+        .get_account(nullifier_pubkeys[1])
+        .await
+        .expect("get_account").unwrap();
+    assert_eq!(nullifier0_account.data[0], 1);
+    assert_eq!(nullifier1_account.data[0], 1);
+
+    let merkel_tree_account_new = program_context.banks_client
+        .get_account(merkle_tree_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    assert!(merkel_tree_account_new.lamports == merkel_tree_account_old.lamports + 1000000000);
 }

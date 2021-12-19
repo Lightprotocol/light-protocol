@@ -10,7 +10,7 @@ use solana_program::{
 
 use crate::pi_processor::_pi_254_process_instruction;
 use crate::pi_state::PiBytes;
-
+use crate::IX_ORDER;
 pub fn _pre_process_instruction(
     _instruction_data: &[u8],
     accounts: &[AccountInfo],
@@ -77,15 +77,15 @@ pub fn _pre_process_instruction(
     let mut inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
     msg!(
         "Executing instruction: {}",
-        IX_ORDER_ARRAY[account_data.current_instruction_index]
+        IX_ORDER[account_data.current_instruction_index]
     );
 
     let current_instruction_index = account_data.current_instruction_index;
     _pi_254_process_instruction(
-        IX_ORDER_ARRAY[current_instruction_index],
+        IX_ORDER[current_instruction_index],
         &mut account_data,
         &inputs,
-        usize::from(CURRENT_INDEX_ARRAY[current_instruction_index]),
+        usize::from(CURRENT_INDEX_ARRAY[current_instruction_index - 1]),
     );
 
     // assert_eq!(
@@ -137,6 +137,7 @@ pub fn _pre_process_instruction(
 // That's because we're accessing different i,x ranges. If you look
 // at the actual calls inside /pi_processor.rs you'll see the minor differences.
 
+
 pub const IX_ORDER_ARRAY: [u8; 465] = [
     40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
@@ -159,6 +160,7 @@ pub const IX_ORDER_ARRAY: [u8; 465] = [
     58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
     58, 58, 58, 58, 58, 58, 46, 47, 48,
 ];
+
 // The current_index informs the maths_instruction where we are in the 256* loop.
 // This is needed because we have to skip leading zeroes and can't keep
 // track of state. So we strip anew in every ix call:

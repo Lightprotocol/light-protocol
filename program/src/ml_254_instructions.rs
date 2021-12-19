@@ -22,20 +22,7 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>/*, proof_b_
     let proof_b = parse_proof_b_from_bytes(proof_range);
     // //comment below for the change
     //parse_proof_b_to_bytes(proof_b, proof_range);
-    let mut proof_b_bytes: Vec<u8> = vec![
-        32, 255, 161, 204, 195, 74, 249, 196, 139, 193, 49, 109, 241, 230, 145, 100, 91, 134, 188,
-        102, 83, 190, 140, 12, 84, 21, 107, 182, 225, 139, 23, 16, 64, 152, 20, 230, 245, 127, 35,
-        113, 194, 4, 161, 242, 179, 131, 135, 66, 70, 179, 115, 118, 237, 158, 246, 97, 35, 85, 25,
-        13, 30, 21, 183, 18, 254, 194, 12, 96, 211, 37, 160, 170, 7, 173, 208, 52, 22, 169, 113,
-        149, 235, 85, 90, 20, 14, 171, 22, 22, 247, 254, 71, 236, 207, 18, 90, 29, 236, 211, 193,
-        206, 15, 107, 89, 218, 207, 62, 76, 75, 88, 71, 9, 45, 114, 212, 43, 127, 163, 183, 245,
-        213, 117, 216, 64, 56, 26, 102, 15,
-        37,
-        //1, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    assert_eq!(*proof_range, proof_b_bytes);
+
     let mut r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
         ark_ec::models::bn::g2::G2HomProjective {
             x: proof_b.x,
@@ -54,41 +41,7 @@ pub fn initialize_p1_p3_f_instruction(
     p_3_y_range: &mut Vec<u8>,
     f_range: &mut Vec<u8>,
 ) {
-    // let proof_a = parse_x_group_affine_from_bytes(&p_1_bytes);
-    // let proof_c = parse_x_group_affine_from_bytes(&p_3_bytes);
-    //
-    // let p_1: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
-    //     ark_ec::bn::g1::G1Prepared::from(proof_a);
-    // let p_3: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
-    //     ark_ec::bn::g1::G1Prepared::from(proof_c);
-    //
-    // parse_fp256_to_bytes(p_1.0.x, p_1_x_range);
-    // parse_fp256_to_bytes(p_1.0.y, p_1_y_range);
-    // parse_fp256_to_bytes(p_3.0.x, p_3_x_range);
-    // parse_fp256_to_bytes(p_3.0.y, p_3_y_range);
-    let proof_a_bytes = vec![
-        69, 130, 7, 152, 173, 46, 198, 166, 181, 14, 22, 145, 185, 13, 203, 6, 137, 135, 214, 126,
-        20, 88, 220, 3, 105, 33, 77, 120, 104, 159, 197, 32, 103, 123, 208, 55, 205, 101, 80, 10,
-        180, 216, 217, 177, 14, 196, 164, 108, 249, 131, 207, 100, 192, 194, 74, 200, 16, 192, 219,
-        4, 161, 93, 141,
-        15,
-        // 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        // 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    assert_eq!(*p_1_x_range, proof_a_bytes[0..32].to_vec());
-    assert_eq!(*p_1_y_range, proof_a_bytes[32..64].to_vec());
 
-    let proof_c_bytes = vec![
-        187, 25, 7, 191, 235, 134, 124, 225, 209, 30, 66, 253, 195, 106, 121, 199, 99, 89, 183,
-        179, 203, 75, 203, 177, 10, 104, 149, 210, 7, 63, 131, 24, 197, 174, 244, 228, 219, 108,
-        228, 249, 71, 84, 209, 158, 244, 104, 179, 116, 118, 246, 158, 237, 87, 197, 134, 24, 140,
-        103, 27, 203, 108, 245, 42,
-        1,
-        //1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-        //0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
-    ];
-    assert_eq!(*p_3_x_range, proof_c_bytes[0..32].to_vec());
-    assert_eq!(*p_3_y_range, proof_c_bytes[32..64].to_vec());
     // init f
     let mut f_arr: Vec<u8> = vec![0; 384];
     f_arr[0] = 1;

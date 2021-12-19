@@ -105,7 +105,7 @@ impl Pack for PiBytes {
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,   //  48, 48, 48, 48, 48, 48, replaced
-            2560, 256 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            2432, 384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
         ];
         msg!("unpacked");
 
@@ -196,7 +196,7 @@ impl Pack for PiBytes {
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
-            2560, 256 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            2432, 384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
                   //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
                   //  48, 48, 48, 48, 48, 3952
         ];

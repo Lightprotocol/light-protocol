@@ -982,9 +982,9 @@ mod tests {
 
             <Fp256::<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&new_leaf_hash_1, &mut new_leaf_hash_bytes_1[..]);
 			println!("initial_leaf_hash: {:?}", new_leaf_hash_bytes);
-
+			assert_eq!(true, false,"will fail because no data is incjected");
 			for i in init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
-				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone());
+				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/);
 			}
 
 			let mut filled_leaves = Vec::new();
