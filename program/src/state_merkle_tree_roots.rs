@@ -33,13 +33,28 @@ impl IsInitialized for MerkleTreeRoots {
 }
 
 impl Pack for MerkleTreeRoots {
-    const LEN: usize = 135057;
+    const LEN: usize = 16657;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, MerkleTreeRoots::LEN];
 
-        let (is_initialized, unused_prior, ROOT_HISTORY_SIZE, roots, unused_remainder) =
-            array_refs![input, 1, 728, 8, 3200, 131120];
+        let (
+            is_initialized,
+            levels,
+            filledSubtrees,
+            currentRootIndex,
+            nextIndex,
+            ROOT_HISTORY_SIZE,
+            //609
+            roots,
+            //18137
+            unused_remainder
+        ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 48];
+
+        if is_initialized[0] != 1u8 {
+            msg!("Merkle Tree is not initialized");
+            return Err(ProgramError::InvalidAccountData);
+        }
 
         Ok(MerkleTreeRoots {
             is_initialized: true,
@@ -55,32 +70,43 @@ impl Pack for MerkleTreeRoots {
 
 pub fn check_root_hash_exists(
     account_main: &AccountInfo,
-    root_bytes: Vec<u8>,
-    found_root: &mut u8,
-) {
+    root_bytes: &Vec<u8>,
+    //found_root: &mut u8,
+) -> Result<u8,ProgramError>{
     let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
         "key to check: {:?}",
         solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     );
-    assert_eq!(
-        *account_main.key,
-        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
-    );
+    // assert_eq!(
+    //     *account_main.key,
+    //     solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
+    // );
+
+
+    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) {
+        msg!("merkle tree account is incorrect");
+        return Err(ProgramError::IllegalOwner);
+    }
     msg!("did not crash {}", account_main_data.ROOT_HISTORY_SIZE);
-    assert!(
-        account_main_data.ROOT_HISTORY_SIZE < 593,
-        "root history size too large"
-    );
-    msg!("looking for root {:?}", root_bytes);
+    // assert!(
+    //     account_main_data.ROOT_HISTORY_SIZE < 593,
+    //     "root history size too large"
+    // );
+    if account_main_data.ROOT_HISTORY_SIZE > 593 {
+        msg!("root history size too large");
+        return Err(ProgramError::InvalidAccountData);
+    }
+    msg!("looking for root {:?}", *root_bytes);
+    let mut found_root = 0;
     let mut i = 0;
     let mut counter = 0;
     loop {
         //sol_log_compute_units();
-        if account_main_data.roots[i..i + 32] == root_bytes {
+        if account_main_data.roots[i..i + 32] == *root_bytes {
             msg!("found root hash index {}", counter);
-            *found_root = 1u8;
+            found_root = 1u8;
             break;
         }
 
@@ -90,7 +116,11 @@ pub fn check_root_hash_exists(
         i += 32;
         counter += 1;
         if counter == account_main_data.ROOT_HISTORY_SIZE {
+            msg!("did not find root should panic here but is disabled for testing");
+            //panic!("did not find root");
+            //return Err(ProgramError::InvalidAccountData);
             break;
         }
     }
+    Ok(found_root)
 }

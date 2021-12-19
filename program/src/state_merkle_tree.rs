@@ -249,7 +249,6 @@ impl Pack for HashBytes {
             currentLevel,
             leaf_left,
             leaf_right,
-            //+288
             nullifier_0,
             nullifier_1,
         ) = array_refs![input, 1, 211, 8, 3328, 96, 8 , 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
@@ -319,6 +318,7 @@ impl Pack for HashBytes {
         *leaf_left_dst =             self.leaf_left.clone().try_into().unwrap();
 
         *leaf_right_dst =            self.leaf_right.clone().try_into().unwrap();
+        msg!("self.left {:?}", self.left);
         *left_dst =             self.left.clone().try_into().unwrap();
 
         *right_dst =            self.right.clone().try_into().unwrap();

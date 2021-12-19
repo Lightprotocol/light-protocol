@@ -290,6 +290,7 @@ impl Pack for FinalExpBytes {
 #[derive(Debug, Clone)]
 pub struct InstructionIndex {
     is_initialized: bool,
+    pub signer_pubkey: Pubkey,
     pub current_instruction_index: usize,
 
 
@@ -309,16 +310,19 @@ impl Pack for InstructionIndex {
         let (
             is_initialized,
             unused_remainder0,
+            signer_pubkey,
+            unused_remainder1,
             current_instruction_index,
-            unused_remainder1
+            unused_remainder2
 
-        ) = array_refs![input,1, 211, 8,3680];
+        ) = array_refs![input,1, 3, 32, 176, 8, 3680];
         if is_initialized[0] == 0 {
             Err(ProgramError::InvalidAccountData)
         } else {
             Ok(
                 InstructionIndex {
                     is_initialized: true,
+                    signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),
                     current_instruction_index: usize::from_le_bytes(*current_instruction_index),
                 }
             )

@@ -504,7 +504,7 @@ pub fn check_and_insert_nullifier(
             program_id: &Pubkey,
             nullifier_account: &AccountInfo,
             _instruction_data: &[u8]
-        ) -> Result<(), ProgramError> {
+        ) -> Result<u8, ProgramError> {
             let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
             let pubkey_from_seed = Pubkey::create_with_seed(
                 &program_id,
@@ -518,7 +518,7 @@ pub fn check_and_insert_nullifier(
             assert!(rent.is_exempt(**nullifier_account.lamports.borrow(), 2));
             let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
             NullifierBytesPda::pack_into_slice(&nullifier_account_data, &mut nullifier_account.data.borrow_mut());
-            Ok(())
+            Ok(1u8)
 }
 /*
 pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountInfo, account_to: &AccountInfo) {
