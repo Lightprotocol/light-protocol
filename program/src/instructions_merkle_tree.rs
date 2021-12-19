@@ -18,7 +18,7 @@ use crate::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
-    assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leafs can be added");
+    assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
 
     hash_bytes_account.currentLevelHash = leaf.clone();
     merkle_tree_account.leaves = leaf.clone();
@@ -29,7 +29,7 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
 */
 pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
-    assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leafs can be added");
+    assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
 
     //hash_bytes_account.currentLevelHash = leaf.clone();
     //merkle_tree_account.leaves = leaf.clone();

@@ -10,8 +10,8 @@ use crate::ml_254_parsers::parse_f_from_bytes;
 use crate::ml_254_parsers::parse_f_to_bytes;
 
 pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_data: &PiBytes) {
-    let proof_a = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[..64].to_vec());
-    let proof_c = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[192..256].to_vec());
+    let proof_a = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec());
+    let proof_c = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[192..256].to_vec());
     let p_1: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
         ark_ec::bn::g1::G1Prepared::from(proof_a);
     let p_3: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
@@ -21,16 +21,16 @@ pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_da
     parse_fp256_to_bytes(p_1.0.y, &mut account_main_data.p_1_y_range);
     parse_fp256_to_bytes(p_3.0.x, &mut account_main_data.p_3_x_range);
     parse_fp256_to_bytes(p_3.0.y, &mut account_main_data.p_3_y_range);
-    // account_main_data.p_1_x_range = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[..32].to_vec().clone();
-    // account_main_data.p_1_y_range = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[32..64].to_vec().clone();
+    // account_main_data.p_1_x_range = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..32].to_vec().clone();
+    // account_main_data.p_1_y_range = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[32..64].to_vec().clone();
     account_main_data.changed_variables[P_1_Y_RANGE_INDEX] = true;
     account_main_data.changed_variables[P_1_X_RANGE_INDEX] = true;
 
-    account_main_data.proof_b = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[64..192].to_vec().clone();
+    account_main_data.proof_b = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[64..192].to_vec().clone();
     account_main_data.changed_variables[PROOF_B_INDEX] = true;
 
-    // account_main_data.p_3_x_range = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[192..224].to_vec().clone();
-    // account_main_data.p_3_y_range = account_prepare_inputs_data.proof_a_c_b_leafs_and_nullifiers[224..256].to_vec().clone();
+    // account_main_data.p_3_x_range = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[192..224].to_vec().clone();
+    // account_main_data.p_3_y_range = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[224..256].to_vec().clone();
     account_main_data.changed_variables[P_3_Y_RANGE_INDEX] = true;
     account_main_data.changed_variables[P_3_X_RANGE_INDEX] = true;
 

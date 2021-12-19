@@ -48,7 +48,7 @@ pub struct PiBytes {
     pub g_ic_z_range: Vec<u8>,
     pub current_instruction_index: usize,
 
-    pub proof_a_c_b_leafs_and_nullifiers: Vec<u8>,
+    pub proof_a_b_c_leaves_and_nullifiers: Vec<u8>,
 
     pub changed_variables: [bool; 20],
     pub changed_constants: [bool; 12],
@@ -101,7 +101,7 @@ impl Pack for PiBytes {
             g_ic_z_range, // 3*32
             //until here 1084 bytes
             unused_remainder,
-            proof_a_c_b_leafs_and_nullifiers,
+            proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,   //  48, 48, 48, 48, 48, 48, replaced
@@ -123,7 +123,7 @@ impl Pack for PiBytes {
             root_hash: root_hash.to_vec(),                 //8
             data_hash: data_hash.to_vec(),                 //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
-            proof_a_c_b_leafs_and_nullifiers: proof_a_c_b_leafs_and_nullifiers.to_vec(),//11
+            proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(),//11
 
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
             i_1_range: i_1_range.to_vec(),       //0
@@ -192,7 +192,7 @@ impl Pack for PiBytes {
             g_ic_y_range_dst,
             g_ic_z_range_dst,
             unused_remainder_dst,
-            proof_a_c_b_leafs_and_nullifiers_dst,
+            proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
@@ -314,7 +314,7 @@ impl Pack for PiBytes {
                 } else if i == 10 {
                     *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
                 } else if i == 11 {
-                    *proof_a_c_b_leafs_and_nullifiers_dst = self.proof_a_c_b_leafs_and_nullifiers.clone().try_into().unwrap();
+                    *proof_a_b_c_leaves_and_nullifiers_dst = self.proof_a_b_c_leaves_and_nullifiers.clone().try_into().unwrap();
                 }
             } else {
                 if i == 0 {

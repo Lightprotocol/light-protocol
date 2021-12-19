@@ -61,14 +61,14 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             nullifier0,
-            &account_data.proof_a_c_b_leafs_and_nullifiers[320..352]
+            &account_data.proof_a_b_c_leaves_and_nullifiers[320..352]
         )?;
         msg!("starting nullifier0 inserted");
 
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             nullifier1,
-            &account_data.proof_a_c_b_leafs_and_nullifiers[352..384],
+            &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
         msg!("starting nullifier1 inserted");
 
