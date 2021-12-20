@@ -280,6 +280,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     // coeffs1 -- ix 2
 
     let complete_input_bytes = [
+        vec![0],
         public_inputs_bytes.clone(),
         proof_a_bytes,
         proof_b_bytes,
