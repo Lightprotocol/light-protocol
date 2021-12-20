@@ -80,7 +80,7 @@ pub fn process_instruction(
 ) -> ProgramResult {
 
     // initialize new merkle tree account
-    if _instruction_data.len() >= 9 && _instruction_data[9] == 0 && _instruction_data[8] == 240 {
+    if _instruction_data.len() >= 8 && _instruction_data[8] == 240 {
         _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
     // transact with shielded pool
@@ -151,7 +151,7 @@ pub fn process_instruction(
             //if account is not initialized yet try initialize
             Err(account_main_data) => (
                 //initialize temporary storage account for shielded pool deposit, transfer or withdraw
-                try_initialize_hash_bytes_account(account_main, &_instruction_data[8..], signing_account.key)
+                try_initialize_hash_bytes_account(account_main, &_instruction_data[9..], signing_account.key)
 
             ),
         };
