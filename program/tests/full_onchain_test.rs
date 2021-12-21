@@ -38,42 +38,6 @@ mod pi_onchain_test;
 // mod fe_offchain_test;
 // use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
 
-/*
-async fn create_and_start_program(
-    account_init_bytes: Vec<u8>,
-    ml_bytes_pubkey: Pubkey,
-    merkle_tree_pubkey: Pubkey,
-    program_id: Pubkey,
-) -> ProgramTestContext {
-    let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
-        program_id,
-        processor!(process_instruction),
-    );
-
-    // Initializes acc based on x state and y pubkey.
-    let mut account_ml = Account::new(10000000000, 3900, &program_id);
-    account_ml.data = account_init_bytes;
-    program_test.add_account(ml_bytes_pubkey, account_ml);
-
-    let init_p: Vec<u8> = vec![init_p2x.to_vec(), init_p2y.to_vec()].concat();
-    // Where x_1_range starts
-    for i in 252..316 {
-        pi_acc_init_bytes[i] = init_p[i - 252];
-    }
-    println!("pi_acc_init_bytes g_ic_range: {:?}", pi_acc_init_bytes);
-
-    account_pi.data = pi_acc_init_bytes[..].to_vec();
-    println!("adding new pi acc");
-    program_test.add_account(pi_bytes_pubkey, account_pi);
-    println!("new pi acc added");
-
-    let tmp = program_test.start_with_context().await;
-    println!("program started w/ context");
-    tmp
-}
-*/
-
 pub async fn create_and_start_program(
         merkle_tree_init_bytes: Vec<u8>,
         hash_bytes_init_bytes: Vec<u8>,
@@ -151,6 +115,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
 
         merkle_tree.data = merkle_tree_init_bytes;
     }
+
     program_test.add_account(
         *merkle_tree_pubkey,
         merkle_tree,
@@ -340,7 +305,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     /*
     *
     *
-    * Prepare inputs
+    * Proof Verification
     *
     *
     */
@@ -879,23 +844,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     let expected_root = [247, 16, 124, 67, 44, 62, 195, 226, 182, 62, 41, 237, 78, 64, 195, 249, 67, 169, 200, 24, 158, 153, 57, 144, 24, 245, 131, 44, 127, 129, 44, 10];
     //assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
 
-    let storage_account = program_context.banks_client
-        .get_account(two_leaves_pda_pubkey)
-        .await
-        .expect("get_account").unwrap();
-
-    //account was initialized correctly
-    assert_eq!(1, storage_account.data[0]);
-    //account type is correct
-    assert_eq!(4, storage_account.data[1]);
-    //saved left leaf correctly
-    assert_eq!(public_inputs_bytes[162..194], storage_account.data[2..34]);
-    //saved right leaf correctly
-    assert_eq!(public_inputs_bytes[194..226], storage_account.data[34..66]);
-    //saved merkle tree pubkey in which leaves were insorted
-    assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[66..98]);
-
-
+    println!("finished merkle tree calculations");
     let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[98..130].to_vec().clone()).unwrap();
     let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[130..162].to_vec().clone()).unwrap();
     //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
@@ -928,12 +877,12 @@ async fn test_pi_ml_fe_integration_onchain() {
         .get_account(storage_pubkey)
         .await
         .expect("get_account").unwrap();
-    let merkel_tree_account_old = program_context.banks_client
+    let merkle_tree_account_old = program_context.banks_client
         .get_account(merkle_tree_pubkey)
         .await
         .expect("get_account").unwrap();
     program_context = create_and_start_program_with_nullfier_pdas(
-        merkle_tree_account.data.to_vec(),
+        merkle_tree_account_old.data.to_vec(),
         storage_account.data.to_vec(),
         &merkle_tree_pubkey,
         &storage_pubkey,
@@ -942,6 +891,11 @@ async fn test_pi_ml_fe_integration_onchain() {
         &program_id,
         &signer_pubkey
     ).await;
+    let merkle_tree_account = program_context.banks_client
+        .get_account(merkle_tree_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    assert_eq!(merkle_tree_account.data, merkle_tree_account_old.data);
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -976,5 +930,23 @@ async fn test_pi_ml_fe_integration_onchain() {
         .get_account(merkle_tree_pubkey)
         .await
         .expect("get_account").unwrap();
-    assert!(merkel_tree_account_new.lamports == merkel_tree_account_old.lamports + 1000000000);
+    assert!(merkel_tree_account_new.lamports == merkle_tree_account_old.lamports + 1000000000);
+
+    let two_leaves_pda_account = program_context.banks_client
+        .get_account(two_leaves_pda_pubkey)
+        .await
+        .expect("get_account").unwrap();
+
+    //account was initialized correctly
+    assert_eq!(1, two_leaves_pda_account.data[0]);
+    //account type is correct
+    assert_eq!(4, two_leaves_pda_account.data[1]);
+    //saved left leaf correctly
+    assert_eq!(public_inputs_bytes[162..194], two_leaves_pda_account.data[2..34]);
+    //saved right leaf correctly
+    assert_eq!(public_inputs_bytes[194..226], two_leaves_pda_account.data[34..66]);
+    //saved merkle tree pubkey in which leaves were insorted
+    assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[66..98]);
+
+
 }

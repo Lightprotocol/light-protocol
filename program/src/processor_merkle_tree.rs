@@ -18,9 +18,8 @@ use crate::IX_ORDER;
 pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
     let account = &mut accounts.iter();
     let account1 = next_account_info(account)?;
-
             //init instruction
-            if _instruction_data[8] == 240 {
+            if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
                 msg!("here1 _pre_process_instruction_merkle_tree");
                 let merkle_tree_storage_acc = next_account_info(account)?;
                 msg!("here2 _pre_process_instruction_merkle_tree {:?}", merkle_tree_storage_acc.key);
@@ -40,13 +39,14 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
             } else {
                 let hash_storage_acc = next_account_info(account)?;
                 let mut hash_tmp_account_data = HashBytes::unpack(&hash_storage_acc.data.borrow())?;
+                msg!("hash_tmp_account_data.current_instruction_index {}", hash_tmp_account_data.current_instruction_index);
                 // if hash_tmp_account_data.current_instruction_index == 0 {
                 //     hash_tmp_account_data.current_instruction_index += 801;
                 // }
-                assert_eq!(IX_ORDER[hash_tmp_account_data.current_instruction_index], init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index - (801+ 466)]);
-                msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
+                //assert_eq!(IX_ORDER[hash_tmp_account_data.current_instruction_index], init_bytes18::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account_data.current_instruction_index - (801+ 466)]);
+                //msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
 
-                if IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  14
+                if hash_tmp_account_data.current_instruction_index < IX_ORDER.len() && IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  14
                     {
                     msg!("here");
                     let merkle_tree_storage_acc = next_account_info(account)?;
@@ -70,8 +70,8 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
                     hash_tmp_account_data.current_instruction_index +=1;
                     msg!("here4");
-                } else if ( IX_ORDER[hash_tmp_account_data.current_instruction_index] == 25
-                    ){
+                } else if hash_tmp_account_data.current_instruction_index < IX_ORDER.len() && IX_ORDER[hash_tmp_account_data.current_instruction_index] == 25
+                    {
 
                     msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
                     let merkle_tree_storage_acc = next_account_info(account)?;
@@ -100,21 +100,23 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     hash_tmp_account_data.current_instruction_index +=1;
 
-                } else if IX_ORDER[hash_tmp_account_data.current_instruction_index] == 16
+                } else if hash_tmp_account_data.current_instruction_index == 1502
                     {
                     //the pda account should be created in the same tx, the pda account also functions as escrow account
 
                     msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
-                    let merkle_tree_storage_acc = next_account_info(account)?;
-                    let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
                     let leaf_pda = next_account_info(account)?;
                     let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
+                    let nullifer0 = next_account_info(account)?;
+                    let nullifer1 = next_account_info(account)?;
+                    let merkle_tree_storage_acc = next_account_info(account)?;
+                    let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
 
                     msg!("here -2");
                     assert_eq!(*merkle_tree_storage_acc.key, solana_program::pubkey::Pubkey::new(&state_merkle_tree::MERKLE_TREE_ACC_BYTES[..]));
                     msg!("here -1 {:?} != {:?}", *account1.key , merkle_tree_tmp_account_data.pubkey_locked);
                     if *account1.key != solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked){
-                        msg!("here err");
+                        msg!("merkle tree account is locked by other pubkey");
                         return Err(ProgramError::InvalidInstructionData);
                     }
                     msg!("here0");
@@ -137,13 +139,13 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     //deposit(&mut merkle_tree_tmp_account_data, &merkle_tree_storage_acc, &leaf_pda);
 
                     msg!("here2");
-
                     MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
                     TwoLeavesBytesPda::pack_into_slice(&leaf_pda_account_data, &mut leaf_pda.data.borrow_mut());
 
-                    hash_tmp_account_data.current_instruction_index +=1;
+                    //hash_tmp_account_data.current_instruction_index +=1;
+                    //return Ok(());
 
-                } else if ( IX_ORDER[hash_tmp_account_data.current_instruction_index] == 34 ){
+                } else if (hash_tmp_account_data.current_instruction_index < IX_ORDER.len() &&  IX_ORDER[hash_tmp_account_data.current_instruction_index] == 34 ){
                     //locks and transfers deposit money
                     let merkle_tree_storage_acc = next_account_info(account)?;
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
