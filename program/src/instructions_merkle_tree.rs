@@ -69,16 +69,6 @@ pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_acco
 
 }
 
-pub fn insert_last(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
-    merkle_tree_account.currentRootIndex = ( merkle_tree_account.currentRootIndex + 1) %  merkle_tree_account.ROOT_HISTORY_SIZE;
-    merkle_tree_account.nextIndex+= 1;
-
-    //roots unpack only current root and write only this one
-    merkle_tree_account.roots = hash_bytes_account.state[0].clone();
-    merkle_tree_account.inserted_root = true;
-
-}
-
 pub fn insert_last_double(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     merkle_tree_account.currentRootIndex = ( merkle_tree_account.currentRootIndex + 1) %  merkle_tree_account.ROOT_HISTORY_SIZE;
     merkle_tree_account.nextIndex+= 2;

@@ -10,6 +10,7 @@ use solana_program::{
     program_pack::Pack
 };
 use std::convert::TryInto;
+use crate::_pre_process_instruction_merkle_tree;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -51,7 +52,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
     }
     //nullifier checks
     //deposit and withdraw logic
-    else if current_instruction_index == 1503 {
+    else if current_instruction_index == 1502 {
         //assert_eq!(true, false, "does not work yet");
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0 = next_account_info(account)?;
@@ -63,14 +64,20 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
             nullifier0,
             &account_data.proof_a_b_c_leaves_and_nullifiers[320..352]
         )?;
-        msg!("starting nullifier0 inserted");
+        msg!("nullifier0 inserted");
 
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             nullifier1,
             &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
-        msg!("starting nullifier1 inserted");
+        msg!("nullifier1 inserted");
+
+        //
+        msg!("inserting new merkle root");
+        //insert_last_double()
+        _pre_process_instruction_merkle_tree(&[0u8],accounts)?;
+
 
         let amount = i64::from_le_bytes(account_data.amount.clone().try_into().unwrap());
         let amount: i64 = 1000000000;
@@ -83,7 +90,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
             transfer(recipient_account, two_leaves_pda, amount);
         } else if amount < 0 {
             if *recipient_account.key != solana_program::pubkey::Pubkey::new(&account_data.to_address) {
-                msg!("recipient has to be merkle tree account for deposit");
+                msg!("recipient has to be address specified in tx integrity hash");
                 return Err(ProgramError::InvalidInstructionData);
             }
             transfer(recipient_account, two_leaves_pda, amount);
