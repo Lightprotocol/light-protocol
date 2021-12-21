@@ -845,6 +845,14 @@ async fn test_pi_ml_fe_integration_onchain() {
     //assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
 
     println!("finished merkle tree calculations");
+    /*
+    *
+    *
+    * Inserting Merkle root and transferring funds
+    *
+    *
+    */
+
     let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[98..130].to_vec().clone()).unwrap();
     let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[130..162].to_vec().clone()).unwrap();
     //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
