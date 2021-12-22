@@ -57,43 +57,49 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0 = next_account_info(account)?;
         let nullifier1 = next_account_info(account)?;
-        let recipient_account = next_account_info(account)?;
+        let merkel_tree_account = next_account_info(account)?;
         msg!("starting nullifier check");
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             nullifier0,
             &account_data.proof_a_b_c_leaves_and_nullifiers[320..352]
         )?;
-        msg!("nullifier0 inserted");
+        msg!("nullifier0 inserted {}", account_data.found_nullifier);
 
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             nullifier1,
             &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
-        msg!("nullifier1 inserted");
+        msg!("nullifier1 inserted {}", account_data.found_nullifier);
 
         //
         msg!("inserting new merkle root");
-        //insert_last_double()
         _pre_process_instruction_merkle_tree(&[0u8],accounts)?;
 
 
         let amount = i64::from_le_bytes(account_data.amount.clone().try_into().unwrap());
-        let amount: i64 = 1000000000;
-        if amount > 0 {
 
-            if *recipient_account.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
+        //remove this for dynamic testing adjust full unit test after
+        let amount: i64 = 1000000000;
+
+        if amount > 0 {
+            msg!("deposited {}", amount);
+            if *merkel_tree_account.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
                 msg!("recipient has to be merkle tree account for deposit");
                 return Err(ProgramError::InvalidInstructionData);
             }
-            transfer(recipient_account, two_leaves_pda, amount);
+            transfer(two_leaves_pda, merkel_tree_account, u64::try_from(amount).unwrap());
         } else if amount < 0 {
-            if *recipient_account.key != solana_program::pubkey::Pubkey::new(&account_data.to_address) {
-                msg!("recipient has to be address specified in tx integrity hash");
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            transfer(recipient_account, two_leaves_pda, amount);
+            let recipient_account = next_account_info(account)?;
+
+
+            msg!("withdraw of {}", amount);
+            // if *recipient_account.key != solana_program::pubkey::Pubkey::new(&account_data.to_address) {
+            //     msg!("recipient has to be address specified in tx integrity hash");
+            //     return Err(ProgramError::InvalidInstructionData);
+            // }
+            transfer(merkel_tree_account, recipient_account, u64::try_from((amount * -1)).unwrap());
         }
 
     } else if current_instruction_index == 4 {
@@ -102,7 +108,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
 
     account_data.current_instruction_index +=1;
     PiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
-
+    msg!("finished successfully");
     Ok(())
 }
 
@@ -124,13 +130,12 @@ pub fn li_security_checks(accounts: &[AccountInfo]) -> Result<(),ProgramError> {
     Ok(())
 }
 use std::convert::TryFrom;
-pub fn transfer(_to: &AccountInfo, _from: &AccountInfo, amount: i64){
-        //if the user actually deposited 1 sol increase current_total_deposits by one
+pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
+    **_from.try_borrow_mut_lamports().unwrap()      -= amount;//1000000000; // 1 SOL
 
-        **_from.try_borrow_mut_lamports().unwrap()    -= u64::try_from(amount).unwrap();//1000000000; // 1 SOL
+    **_to.try_borrow_mut_lamports().unwrap()        += amount;
 
-        **_to.try_borrow_mut_lamports().unwrap()        += u64::try_from(amount).unwrap();
 
         //merkle_tree_account.current_total_deposits += 1;
-        msg!("transferred of {} Sol from {:?} to {:?}", amount,_from.key, _to.key);
+        msg!("transferred of {} Sol from {:?} to {:?}", amount / 1000000000,_from.key, _to.key);
 }

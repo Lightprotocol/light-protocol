@@ -130,7 +130,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
         *storage_account,
         hash_byte,
     );
-    let mut two_leaves_pda_byte = Account::new(10000000000, 98, &program_id);
+    let mut two_leaves_pda_byte = Account::new(1100000000, 98, &program_id);
 
     // if two_leaves_pda_bytes_init_bytes.len() == 98 {
     //
@@ -144,7 +144,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
     for pubkey in nullifier_pubkeys.iter() {
         program_test.add_account(
             *pubkey,
-            Account::new(10000000000, 2, &program_id),
+            Account::new(10000000, 2, &program_id),
         );
     }
 
@@ -207,7 +207,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     */
     //first instruction + prepare inputs id + 7 public inputs in bytes = 226 bytes
     let public_inputs_bytes: Vec<u8> = vec![
-        239, 0, 89,73,181,223,102,213,65,254,19,15,156,236,156,28,242,244,137,6,141,198,148,190,214,144,232,66,205,181,194,5,202,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,177,80,240,13,221,245,120,254,37,1,128,209,15,117,127,48,128,212,60,0,139,4,61,76,148,132,161,75,84,166,205,39,52,242,73,174,72,47,8,123,19,170,193,153,185,200,250,205,155,186,207,101,19,135,243,148,46,174,54,70,192,214,240,29,66,73,129,124,71,219,147,101,210,32,61,169,93,102,2,121,61,214,146,36,73,175,30,191,82,205,197,197,28,204,51,18, 49,111,114,83,155,28,206,135,243,18,244,157,59,217,100,227,113,62,168,167,211,92,221,133,29,12,187,219,16,97,59,12,160,198,101,107,12,153,155,83,44,166,226,22,139,237,186,192,170,237,48,183,223,198,243,73,14,161,131,26,151,8,45,1
+        89,73,181,223,102,213,65,254,19,15,156,236,156,28,242,244,137,6,141,198,148,190,214,144,232,66,205,181,194,5,202,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,177,80,240,13,221,245,120,254,37,1,128,209,15,117,127,48,128,212,60,0,139,4,61,76,148,132,161,75,84,166,205,39,52,242,73,174,72,47,8,123,19,170,193,153,185,200,250,205,155,186,207,101,19,135,243,148,46,174,54,70,192,214,240,29,66,73,129,124,71,219,147,101,210,32,61,169,93,102,2,121,61,214,146,36,73,175,30,191,82,205,197,197,28,204,51,18, 49,111,114,83,155,28,206,135,243,18,244,157,59,217,100,227,113,62,168,167,211,92,221,133,29,12,187,219,16,97,59,12,160,198,101,107,12,153,155,83,44,166,226,22,139,237,186,192,170,237,48,183,223,198,243,73,14,161,131,26,151,8,45,1
     ];
 
     // Preparing inputs datas like in client (g_ic from prpd inputs, proof.a.b.c from client)
@@ -438,7 +438,7 @@ async fn test_pi_ml_fe_integration_onchain() {
             vec![
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
-                AccountMeta::new(storage_pubkey, false),
+                //AccountMeta::new(storage_pubkey, false),
             ],
         )],
         Some(&signer_pubkey),
@@ -853,8 +853,8 @@ async fn test_pi_ml_fe_integration_onchain() {
     *
     */
 
-    let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[98..130].to_vec().clone()).unwrap();
-    let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[130..162].to_vec().clone()).unwrap();
+    let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[96..128].to_vec().clone()).unwrap();
+    let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[128..160].to_vec().clone()).unwrap();
     //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
     let mut nullifier_pubkeys = Vec::new();
 
@@ -899,6 +899,9 @@ async fn test_pi_ml_fe_integration_onchain() {
         &program_id,
         &signer_pubkey
     ).await;
+
+    let receiver_pubkey = Pubkey::new_unique();
+
     let merkle_tree_account = program_context.banks_client
         .get_account(merkle_tree_pubkey)
         .await
@@ -915,6 +918,7 @@ async fn test_pi_ml_fe_integration_onchain() {
                 AccountMeta::new(nullifier_pubkeys[0], false),
                 AccountMeta::new(nullifier_pubkeys[1], false),
                 AccountMeta::new(merkle_tree_pubkey, false),
+                AccountMeta::new(receiver_pubkey, false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -931,14 +935,15 @@ async fn test_pi_ml_fe_integration_onchain() {
         .get_account(nullifier_pubkeys[1])
         .await
         .expect("get_account").unwrap();
+    println!("nullifier0_account.data {:?}", nullifier0_account.data);
     assert_eq!(nullifier0_account.data[0], 1);
+    println!("nullifier0_account.data {:?}", nullifier0_account.data);
     assert_eq!(nullifier1_account.data[0], 1);
 
     let merkel_tree_account_new = program_context.banks_client
         .get_account(merkle_tree_pubkey)
         .await
         .expect("get_account").unwrap();
-    assert!(merkel_tree_account_new.lamports == merkle_tree_account_old.lamports + 1000000000);
 
     let two_leaves_pda_account = program_context.banks_client
         .get_account(two_leaves_pda_pubkey)
@@ -950,11 +955,21 @@ async fn test_pi_ml_fe_integration_onchain() {
     //account type is correct
     assert_eq!(4, two_leaves_pda_account.data[1]);
     //saved left leaf correctly
-    assert_eq!(public_inputs_bytes[162..194], two_leaves_pda_account.data[2..34]);
+    assert_eq!(public_inputs_bytes[160..192], two_leaves_pda_account.data[2..34]);
     //saved right leaf correctly
-    assert_eq!(public_inputs_bytes[194..226], two_leaves_pda_account.data[34..66]);
+    assert_eq!(public_inputs_bytes[192..224], two_leaves_pda_account.data[34..66]);
     //saved merkle tree pubkey in which leaves were insorted
     assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[66..98]);
+    println!("deposit success {}" , merkel_tree_account_new.lamports == merkle_tree_account_old.lamports + 1000000000);
+    if merkel_tree_account_new.lamports != merkle_tree_account_old.lamports + 1000000000 {
+        let receiver_account = program_context.banks_client
+            .get_account(receiver_pubkey)
+            .await
+            .expect("get_account").unwrap();
+
+        println!("withdraw success {}", receiver_account.lamports == 1000000000, );
+
+    }
 
 
 }
