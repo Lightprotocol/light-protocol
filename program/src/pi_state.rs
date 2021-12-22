@@ -200,7 +200,7 @@ impl Pack for PiBytes {
                   //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
                   //  48, 48, 48, 48, 48, 3952
         ];
-
+        msg!("entered pack pi state");
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {
                 if i == 0 {
@@ -342,9 +342,10 @@ impl Pack for PiBytes {
                 }
             };
         }
-        msg!("packed");
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
         *is_initialized_dst = [1u8; 1];
         *unused_remainder_dst = *unused_remainder_dst;
+        msg!("packed");
+
     }
 }

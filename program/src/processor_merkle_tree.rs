@@ -66,12 +66,17 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
 
                     msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
                     let leaf_pda = next_account_info(account)?;
+                    msg!("pm here0");
                     let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
+                    msg!("pm here1");
                     let nullifer0 = next_account_info(account)?;
+                    msg!("pm here2");
                     let nullifer1 = next_account_info(account)?;
+                    msg!("pm here3");
                     let merkle_tree_storage_acc = next_account_info(account)?;
+                    msg!("pm here4");
                     let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
-
+                    msg!("pm here5");
 
 
                     pubkey_check(

@@ -171,45 +171,45 @@ fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction_dat
     main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
     // get public_inputs from _instruction_data.
     //root
-    main_account_data.root_hash = _instruction_data[2..34].to_vec().clone();
+    main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
     let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         &*main_account_data.root_hash,
     )
     .unwrap();
     //public amount
     let input2 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        &_instruction_data[34..66],
+        &_instruction_data[32..64],
     )
     .unwrap();
-    main_account_data.amount = _instruction_data[34..42].to_vec().clone();
+    main_account_data.amount = _instruction_data[32..40].to_vec().clone();
     //external data hash
-    main_account_data.tx_integrity_hash = _instruction_data[66..98].to_vec().clone();
+    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone();
     let input3 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         &*main_account_data.tx_integrity_hash,
     )
     .unwrap();
 
     //inputNullifier0
-    let inputNullifier0 = _instruction_data[98..130].to_vec().clone();
+    let inputNullifier0 = _instruction_data[96..128].to_vec().clone();
     let input4 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         &*inputNullifier0,
     )
     .unwrap();
 
     //inputNullifier1
-    let inputNullifier1 = &_instruction_data[130..162];
+    let inputNullifier1 = &_instruction_data[128..160];
     let input5 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         inputNullifier1,
     )
     .unwrap();
     //inputCommitment0
-    let commitment_right = &_instruction_data[162..194];
+    let commitment_right = &_instruction_data[160..192];
     let input6 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         commitment_right,
     )
     .unwrap();
     //inputCommitment1
-    let commitment_left = &_instruction_data[194..226];
+    let commitment_left = &_instruction_data[192..224];
     let input7 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
         commitment_left,
     )
@@ -239,7 +239,7 @@ fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction_dat
     );
     msg!("len _instruction_data{}", _instruction_data.len());
     main_account_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[226..482].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
+        _instruction_data[224..480].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
     main_account_data.changed_constants[11] = true;
     let indices: [usize; 17] = [
         I_1_RANGE_INDEX,
