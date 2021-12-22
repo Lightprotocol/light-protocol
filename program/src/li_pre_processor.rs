@@ -9,6 +9,7 @@ use solana_program::{
     pubkey::Pubkey,
     program_pack::Pack
 };
+use borsh::ser::BorshSerialize;
 use std::convert::TryInto;
 use crate::_pre_process_instruction_merkle_tree;
 //pre processor for light protocol logic
@@ -61,6 +62,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         msg!("starting nullifier check");
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
+            _signing_account.key,
             nullifier0,
             &account_data.proof_a_b_c_leaves_and_nullifiers[320..352]
         )?;
@@ -68,6 +70,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
 
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
+            _signing_account.key,
             nullifier1,
             &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
@@ -93,12 +96,11 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         } else if amount < 0 {
             let recipient_account = next_account_info(account)?;
 
-
             msg!("withdraw of {}", amount);
-            // if *recipient_account.key != solana_program::pubkey::Pubkey::new(&account_data.to_address) {
-            //     msg!("recipient has to be address specified in tx integrity hash");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
+            if *recipient_account.key != solana_program::pubkey::Pubkey::new(&account_data.to_address) {
+                msg!("recipient has to be address specified in tx integrity hash");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             transfer(merkel_tree_account, recipient_account, u64::try_from((amount * -1)).unwrap());
         }
 
@@ -138,4 +140,21 @@ pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
 
         //merkle_tree_account.current_total_deposits += 1;
         msg!("transferred of {} Sol from {:?} to {:?}", amount / 1000000000,_from.key, _to.key);
+}
+
+pub fn check_tx_integrity_hash(
+    recipient: Vec<u8>,
+    amount: Vec<u8>,
+    tx_integrity_hash: Vec<u8>
+
+    ) -> Result<(), ProgramError> {
+
+    let input = [recipient, ].concat();
+    let hash = solana_program::hash::hash(&input[..]).try_to_vec()?;
+
+    if tx_integrity_hash != hash {
+        msg!("tx_integrity_hash verification failed");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    Ok(())
 }

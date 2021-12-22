@@ -859,15 +859,15 @@ async fn test_pi_ml_fe_integration_onchain() {
     let mut nullifier_pubkeys = Vec::new();
 
     let pubkey_from_seed = Pubkey::create_with_seed(
-        &program_id,
-        &nullifer0.to_string()[0..15],
+        &signer_pubkey,
+        &nullifer0.to_string()[8..23],
         &program_id
     ).unwrap();
     nullifier_pubkeys.push(pubkey_from_seed);
 
     let pubkey_from_seed = Pubkey::create_with_seed(
-        &program_id,
-        &nullifer1.to_string()[0..15],
+        &signer_pubkey,
+        &nullifer1.to_string()[8..23],
         &program_id
     ).unwrap();
     nullifier_pubkeys.push(pubkey_from_seed);

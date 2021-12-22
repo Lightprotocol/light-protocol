@@ -502,15 +502,21 @@ pub fn custom_quadratic_fp256_inverse_2(
 
 pub fn check_and_insert_nullifier(
             program_id: &Pubkey,
+            signer_account_pubkey: &Pubkey,
             nullifier_account: &AccountInfo,
             _instruction_data: &[u8]
         ) -> Result<u8, ProgramError> {
             let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
             let pubkey_from_seed = Pubkey::create_with_seed(
-                &program_id,
-                &hash.to_string()[0..15],
+                &signer_account_pubkey,
+                &hash.to_string()[8..23],
                 &program_id
             ).unwrap();
+            //let mut i = 0;
+            // for (i) in 0..30 {
+            //     msg!("{} {}", i, &hash.to_string()[i..i+1]);
+            //     //i +=1;
+            // }
             //check for equality
             assert_eq!(pubkey_from_seed, *nullifier_account.key);
             //check for rent exemption
