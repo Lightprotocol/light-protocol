@@ -56,6 +56,7 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 #tracing-subscriber = { version = "0.2" }
 ark-groth16 = {version = "0.3.0", default-features = false, features = ["std"]}
 #ark-ec = { version = "^0.3.0", default-features = false }
+borsh = "0.9.1"
 
 [dev-dependencies]
 solana-program-test = "1.7.12"

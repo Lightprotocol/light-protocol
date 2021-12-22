@@ -26,6 +26,7 @@ dependencies = [
  "ark-std",
  "arkworks-gadgets",
  "arrayref",
+ "borsh",
  "bytemuck",
  "byteorder",
  "derivative",
