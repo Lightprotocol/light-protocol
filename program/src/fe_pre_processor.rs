@@ -1,5 +1,5 @@
 
-use crate::ranges_part_2::*;
+use crate::fe_ranges::*;
 use crate::fe_state::{FinalExpBytes};
 use crate::mt_state;
 use crate::IX_ORDER;
@@ -13,7 +13,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::instructions_final_exponentiation::check_and_insert_nullifier;
+use crate::fe_instructions::check_and_insert_nullifier;
 
 use crate::fe_processor::_process_instruction_final_exp;
 

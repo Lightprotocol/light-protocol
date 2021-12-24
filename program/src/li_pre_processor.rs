@@ -1,5 +1,5 @@
 use crate::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
-use crate::instructions_final_exponentiation::{
+use crate::fe_instructions::{
     check_and_insert_nullifier,
     check_tx_integrity_hash
 };

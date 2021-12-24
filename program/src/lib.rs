@@ -20,11 +20,9 @@ pub mod ml_state;
 
 //final exponentiation
 pub mod fe_pre_processor;
-pub mod ranges_part_2;
-pub mod state_check_nullifier;
+pub mod fe_ranges;
 pub mod fe_state;
-pub mod instructions_final_exponentiation;
-pub mod parsers_part_2_254;
+pub mod fe_instructions;
 pub mod fe_processor;
 
 
@@ -33,10 +31,15 @@ pub mod utils;
 
 //merkle tree
 pub mod init_bytes18;
-pub mod instructions_merkle_tree;
+pub mod mt_instructions;
 pub mod mt_processor;
 pub mod mt_state;
 pub mod instructions_poseidon;
+
+
+pub mod li_pre_processor;
+pub mod state_check_nullifier;
+pub mod mt_state_roots;
 
 use crate::fe_pre_processor::_pre_process_instruction_final_exp;
 use crate::mt_processor::_pre_process_instruction_merkle_tree;
@@ -54,7 +57,6 @@ use solana_program::{
 
 
 use crate::pi_pre_processor::_pre_process_instruction;
-pub mod mt_state_roots;
 
 use crate::ml_pre_processor::*;
 use crate::fe_state::InstructionIndex;
@@ -64,7 +66,6 @@ use ark_ff::{Fp256, FromBytes};
 use crate::pi_state::PiBytes;
 
 
-pub mod li_pre_processor;
 use crate::li_pre_processor::li_pre_process_instruction;
 
 
