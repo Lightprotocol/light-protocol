@@ -1,5 +1,8 @@
 use crate::state_merkle_tree_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
-use crate::instructions_final_exponentiation::{check_and_insert_nullifier};
+use crate::instructions_final_exponentiation::{
+    check_and_insert_nullifier,
+    check_tx_integrity_hash
+};
 use crate::pi_state::PiBytes;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -9,7 +12,6 @@ use solana_program::{
     pubkey::Pubkey,
     program_pack::Pack
 };
-use borsh::ser::BorshSerialize;
 use std::convert::TryInto;
 use crate::_pre_process_instruction_merkle_tree;
 //pre processor for light protocol logic
@@ -76,9 +78,20 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         )?;
         msg!("nullifier1 inserted {}", account_data.found_nullifier);
 
+
+        check_tx_integrity_hash(
+            vec![1u8,32],
+            vec![1u8,8],
+            vec![1u8,32],
+            vec![1u8,8],
+            vec![1u8,32],
+            vec![1u8,32],
+            &account_data.tx_integrity_hash
+        )?;
         //
         msg!("inserting new merkle root");
         _pre_process_instruction_merkle_tree(&[0u8],accounts)?;
+
 
 
         let amount = i64::from_le_bytes(account_data.amount.clone().try_into().unwrap());
@@ -131,6 +144,7 @@ pub fn li_security_checks(accounts: &[AccountInfo]) -> Result<(),ProgramError> {
     // );
     Ok(())
 }
+
 use std::convert::TryFrom;
 pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
     **_from.try_borrow_mut_lamports().unwrap()      -= amount;//1000000000; // 1 SOL
@@ -142,19 +156,9 @@ pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
         msg!("transferred of {} Sol from {:?} to {:?}", amount / 1000000000,_from.key, _to.key);
 }
 
-pub fn check_tx_integrity_hash(
-    recipient: Vec<u8>,
-    amount: Vec<u8>,
-    tx_integrity_hash: Vec<u8>
-
-    ) -> Result<(), ProgramError> {
-
-    let input = [recipient, ].concat();
-    let hash = solana_program::hash::hash(&input[..]).try_to_vec()?;
-
-    if tx_integrity_hash != hash {
-        msg!("tx_integrity_hash verification failed");
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    Ok(())
-}
+// recipient: toFixedHex(recipient, 20),
+// extAmount: toFixedHex(extAmount),
+// relayer: toFixedHex(relayer, 20),
+// fee: toFixedHex(fee),
+// encryptedOutput1: encryptedOutput1,
+// encryptedOutput2: encryptedOutput2,

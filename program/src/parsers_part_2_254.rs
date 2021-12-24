@@ -3,7 +3,7 @@ use ark_ff::Fp256;
 use ark_ec;
 use ark_bn254;
 use ark_ff::fields::models::quadratic_extension::{QuadExtField};
-use num_traits::{One};
+use ark_ff::{One};
 use solana_program::{
     msg,
     log::sol_log_compute_units,

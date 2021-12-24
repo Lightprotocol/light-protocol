@@ -1,5 +1,5 @@
 // use crate::parsers::*;
-use crate::ml_254_parsers::*;
+use crate::ml_parsers::*;
 // use crate::get_proof_b;
 
 use solana_program::{log::sol_log_compute_units, msg};
@@ -13,7 +13,7 @@ use ark_ec::SWModelParameters;
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::fields::models::quadratic_extension::QuadExtField;
 use ark_ff::Field;
-use num_traits::One;
+use ark_ff::One;
 
 pub fn doubling_step(
     r_bytes: &mut Vec<u8>,

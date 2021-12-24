@@ -21,8 +21,8 @@ pub mod tests {
     use ark_ec::{AffineCurve, ProjectiveCurve};
 
     use Testing_Hardcoded_Params_devnet_new::{
-        hard_coded_verifying_key_pvk_254::*, ml_254_parsers::*, ml_254_pre_processor::*,
-        ml_254_processor::*, ml_254_state::*,
+        utils::prepared_verifying_key::*, ml_parsers::*, ml_pre_processor::*,
+        ml_processor::*, ml_state::*,
     };
 
     // For native miller loop implementation

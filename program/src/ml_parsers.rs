@@ -3,7 +3,7 @@ use ark_ec;
 use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_ff::fields::models::quadratic_extension::{QuadExtField, QuadExtParameters};
 use ark_ff::Fp256;
-use num_traits::One;
+use ark_ff::One;
 
 pub fn parse_f_to_bytes(
     f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,

@@ -7,8 +7,7 @@ use solana_program::{
 };
 use std::convert::TryInto;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::LittleEndian;
-use byteorder::ByteOrder;
+use byteorder::{LittleEndian,ByteOrder};
 
 #[derive(Debug)]
 pub struct MerkleTree {
