@@ -9,7 +9,6 @@ use Testing_Hardcoded_Params_devnet_new::{
     fe_ranges::*,
     mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES},
     init_bytes18,
-    pi_254_parsers::parse_x_group_affine_from_bytes_254
 };
 use ark_crypto_primitives::{Error};
 
@@ -391,7 +390,7 @@ async fn test_pi_ml_fe_integration_onchain() {
 
     // x_1_range: 252..316.
     // Keep in mind that g_ic_reference_value is based on running groth16.prepare_inputs() with 7 hardcoded inputs.
-    let g_ic_projective = parse_x_group_affine_from_bytes_254(&unpacked_data[252..316].to_vec());
+    let g_ic_projective = parse_x_group_affine_from_bytes(&unpacked_data[252..316].to_vec());
     let g_ic_reference_value =
         ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
             Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([

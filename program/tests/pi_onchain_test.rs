@@ -3,7 +3,7 @@ use ark_ff::biginteger::BigInteger256;
 use ark_ff::{Fp256, ToBytes};
 use ark_bn254;
 use std::time;
-use Testing_Hardcoded_Params_devnet_new::pi_254_parsers::parse_x_group_affine_from_bytes_254;
+use Testing_Hardcoded_Params_devnet_new::ml_parsers::parse_x_group_affine_from_bytes;
 use {
     solana_program::{
         instruction::{AccountMeta, Instruction},
@@ -181,7 +181,7 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
 
     // x_1_range: 252..316.
     // Keep in mind that g_ic_reference_value is based on running groth16.prepare_inputs() with 7 hardcoded inputs.
-    let g_ic_projective = parse_x_group_affine_from_bytes_254(&unpacked_data[252..316].to_vec());
+    let g_ic_projective = parse_x_group_affine_from_bytes(&unpacked_data[252..316].to_vec());
     let g_ic_reference_value =
         ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
             Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([

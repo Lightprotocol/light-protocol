@@ -18,11 +18,11 @@ program_pack::{IsInitialized, Pack, Sealed},
 //use crate::pi_processor::*;
 //use crate::pi_state::*;
 use Testing_Hardcoded_Params_devnet_new::{
-pi_pre_processor::*,
-pi_state::*,
-pi_processor::*,
-pi_254_parsers::*,
-utils::prepared_verifying_key::*,
+    pi_pre_processor::*,
+    pi_state::*,
+    pi_processor::*,
+    ml_parsers::*,
+    utils::prepared_verifying_key::*,
 //parse_verifyingkey_254::get_pvk_from_bytes_254,
 };
 mod fe_offchain_test;
@@ -100,7 +100,7 @@ _pi_254_process_instruction(
 }
 
 assert_eq!(
-parse_x_group_affine_from_bytes_254(&account_data.x_1_range),
+parse_x_group_affine_from_bytes(&account_data.x_1_range),
 prepared_inputs.into_affine(),
 "library implementation differs from pi_instructions"
 );
