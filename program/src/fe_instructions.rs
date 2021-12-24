@@ -29,7 +29,7 @@ use solana_program::{
 
 use crate::state_check_nullifier::NullifierBytesPda;
 use ark_ed_on_bn254::Fq;
-use crate::ranges_part_2::*;
+use crate::fe_ranges::*;
 use borsh::ser::BorshSerialize;
 
 //conjugate should work onyl wrapper
@@ -610,7 +610,7 @@ pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountI
 
 #[cfg(test)]
 mod tests {
-    use crate::instructions_final_exponentiation::{
+    use crate::fe_instructions::{
         custom_frobenius_map_1,
         custom_frobenius_map_2,
         custom_frobenius_map_3,
@@ -645,7 +645,7 @@ mod tests {
         parse_cubic_from_bytes_sub
     };
 
-    use crate::ranges_part_2::{
+    use crate::fe_ranges::{
         f_cubic_0_range,
         f_cubic_1_range,
         solo_cubic_0_range,

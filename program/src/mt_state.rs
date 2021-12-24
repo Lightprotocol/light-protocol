@@ -107,13 +107,13 @@ impl Pack for MerkleTree {
             let dst = array_mut_ref![dst, 0,  MerkleTree::LEN];
 
             let (
-                mut is_initialized_dst,
-                mut levels_dst,
-                mut filledSubtrees_dst,
-                mut currentRootIndex_dst,
-                mut next_index_dst,
-                mut root_history_size_dst,
-                mut roots_dst,
+                is_initialized_dst,
+                levels_dst,
+                filledSubtrees_dst,
+                currentRootIndex_dst,
+                next_index_dst,
+                root_history_size_dst,
+                roots_dst,
                 current_total_deposits_dst,
                 pubkey_locked_dst,
                 time_locked_dst,

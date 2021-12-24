@@ -1,8 +1,8 @@
-use crate::ranges_part_2::*;
+use crate::fe_ranges::*;
 use crate::fe_state::{FinalExpBytes};
 use crate::mt_state;
 
-use crate::instructions_final_exponentiation::{
+use crate::fe_instructions::{
     custom_frobenius_map_1,
     custom_frobenius_map_2,
     custom_frobenius_map_3,

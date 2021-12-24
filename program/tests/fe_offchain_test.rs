@@ -40,14 +40,14 @@ pub mod tests {
 	use std::io::{Error as ioError};
 
 
-	use Testing_Hardcoded_Params_devnet_new::parsers_part_2_254::*;
+	use Testing_Hardcoded_Params_devnet_new::ml_parsers::*;
 	use Testing_Hardcoded_Params_devnet_new::fe_state::FinalExpBytes;
-	use Testing_Hardcoded_Params_devnet_new::ranges_part_2::*;
+	use Testing_Hardcoded_Params_devnet_new::fe_ranges::*;
 	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
 	use Testing_Hardcoded_Params_devnet_new::mt_processor;
 	use Testing_Hardcoded_Params_devnet_new::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
 	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
-	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
+	use Testing_Hardcoded_Params_devnet_new::fe_instructions::*;
 	use Testing_Hardcoded_Params_devnet_new::fe_processor::_process_instruction_final_exp;
 	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;
 
@@ -566,7 +566,7 @@ pub mod tests {
     #[allow(clippy::let_and_return)]
     fn final_exponentiation_custom(f: &<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk) -> Option<<ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
 		//adapted from ark_ec bn254
-		//executes instructions_final_exponentiation alongside reference implementation and
+		//executes fe_instructions alongside reference implementation and
 		//asserts after every step
 
 		//from original repo:
