@@ -1,18 +1,26 @@
-use std::ops::Mul;
-use std::ops::Add;
-use std::ops::AddAssign;
+use std::ops::{Mul, Add, AddAssign};
 use crate::utils::poseidon_round_constants_split;
 use solana_program::{
     msg,
     log::sol_log_compute_units,
+    program_error::ProgramError,
 };
-use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::BigInteger;
-
+use ark_ff::{
+        bytes::{FromBytes, ToBytes},
+        BigInteger
+};
 use ark_ed_on_bn254::Fq;
-use arkworks_gadgets::poseidon::{PoseidonParameters, PoseidonError, Rounds,circom::CircomCRH, sbox::PoseidonSbox};
+use arkworks_gadgets::poseidon::{
+    PoseidonParameters,
+    PoseidonError,
+    Rounds,circom::CircomCRH,
+    sbox::PoseidonSbox
+};
 use arkworks_gadgets::utils;
-use ark_crypto_primitives::{crh::{TwoToOneCRH, CRH}, Error};
+use ark_crypto_primitives::{
+        crh::{TwoToOneCRH, CRH},
+        Error
+};
 use ark_std::{One, Zero};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
@@ -27,7 +35,12 @@ impl Rounds for PoseidonCircomRounds3 {
 }
 
 //instructions
-pub fn permute_instruction_first(state: &mut Vec<Vec<u8>>, current_round: &mut usize, current_round_index: &mut usize, left_input: &[u8], right_input: &[u8]) -> Vec<Fq> {
+pub fn permute_instruction_first(   state: &mut Vec<Vec<u8>>,
+                                    current_round: &mut usize,
+                                    current_round_index: &mut usize,
+                                    left_input: &[u8],
+                                    right_input: &[u8])
+                                    -> Result<Vec<Fq>, ProgramError> {
     //parsing poseidon inputs to Fq elements and performing the first 4 full round permutations
     let rounds =  poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(0);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
@@ -45,12 +58,15 @@ pub fn permute_instruction_first(state: &mut Vec<Vec<u8>>, current_round: &mut u
 
     //parsing state back into the account
     for (i, input_state) in state.iter_mut().enumerate() {
-        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..]);
+        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..])?;
     }
-    state_new
+    Ok(state_new)
 }
 
-pub fn permute_instruction_6(state: &mut Vec<Vec<u8>>, current_round: &mut usize, current_round_index: &mut usize){
+pub fn permute_instruction_6(   state: &mut Vec<Vec<u8>>,
+                                current_round: &mut usize,
+                                current_round_index: &mut usize)
+                                -> Result<(), ProgramError> {
     //6 permute poseidon instructions which should be inner instructions
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(*current_round_index);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
@@ -68,11 +84,15 @@ pub fn permute_instruction_6(state: &mut Vec<Vec<u8>>, current_round: &mut usize
 
     //parsing state back into the account
     for (i, input_state) in state.iter_mut().enumerate() {
-        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..]);
+        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..])?;
     }
+    Ok(())
 }
 
-pub fn permute_instruction_3(state: &mut Vec<Vec<u8>>, current_round: &mut usize, current_round_index: &mut usize){
+pub fn permute_instruction_3(   state: &mut Vec<Vec<u8>>,
+                                current_round: &mut usize,
+                                current_round_index: &mut usize)
+                                -> Result<(), ProgramError> {
     //3 permute poseidon instructions which should be inner instructions to fill up the 65 rounds
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(*current_round_index);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
@@ -90,11 +110,15 @@ pub fn permute_instruction_3(state: &mut Vec<Vec<u8>>, current_round: &mut usize
 
     //parsing state back into the account
     for (i, input_state) in state.iter_mut().enumerate() {
-        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..]);
+        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..])?;
     }
+    Ok(())
 }
 
-pub fn permute_instruction_last(state: &mut Vec<Vec<u8>>, current_round: &mut usize, current_round_index: &mut usize) {
+pub fn permute_instruction_last(state: &mut Vec<Vec<u8>>,
+                                current_round: &mut usize,
+                                current_round_index: &mut usize)
+                                -> Result<(), ProgramError> {
     //4 permute poseidon instructions for the second half of full rounds at the end
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(*current_round_index);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
@@ -113,13 +137,17 @@ pub fn permute_instruction_last(state: &mut Vec<Vec<u8>>, current_round: &mut us
 
     //parsing state back into the account, the resulting hash is in state[0]
     for (i, input_state) in state.iter_mut().enumerate() {
-        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..]);
+        <Fq as ToBytes>::write(&state_new[i], &mut input_state[..])?;
     }
+    Ok(())
 
 }
 
 //foundational functions for instructions
-pub fn prepare_inputs(parameters: &PoseidonParameters::<Fq>, left_input: &[u8], right_input: &[u8]) -> Result<Vec<Fq>, Error>/*-> Result<Self::Output, Error> */{
+pub fn prepare_inputs(  parameters: &PoseidonParameters::<Fq>,
+                        left_input: &[u8],
+                        right_input: &[u8])
+                        -> Result<Vec<Fq>, Error>/*-> Result<Self::Output, Error> */{
     //modified from arkworks_gadgets
 
     const INPUT_SIZE_BITS: usize = ark_ff::biginteger::BigInteger256::NUM_LIMBS * 8 * PoseidonCircomRounds3::WIDTH * 8;
@@ -151,7 +179,11 @@ pub fn prepare_inputs(parameters: &PoseidonParameters::<Fq>, left_input: &[u8], 
 
 }
 
-pub fn permute_custom_split(params: &PoseidonParameters<Fq>, mut state: Vec<Fq>, nr_start: usize, nr_iterations: usize ) -> Result<Vec<Fq>, PoseidonError> {
+pub fn permute_custom_split(params: &PoseidonParameters<Fq>,
+                            mut state: Vec<Fq>,
+                            nr_start: usize,
+                            nr_iterations: usize)
+                            -> Result<Vec<Fq>, PoseidonError> {
     //modified from arkworks_gadgets
 
     //let nr = P::FULL_ROUNDS + P::PARTIAL_ROUNDS;
@@ -199,7 +231,7 @@ mod tests {
 	get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
     };
     use ark_std::{UniformRand, test_rng};
-    use crate::state_merkle_tree::HashBytes;
+    use crate::mt_state::HashBytes;
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
 

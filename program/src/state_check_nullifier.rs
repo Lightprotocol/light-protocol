@@ -12,7 +12,7 @@ use solana_program::{
 use solana_program::program_pack::IsInitialized;
 use solana_program::program_pack::Pack;
 use solana_program::program_pack::Sealed;
-use crate::state_merkle_tree;
+use crate::mt_state;
 
 #[derive(Clone, Debug)]
 pub struct NullifierBytesPda {

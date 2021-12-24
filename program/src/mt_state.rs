@@ -15,8 +15,8 @@ pub struct MerkleTree {
     pub levels: usize,
     pub filledSubtrees : Vec<Vec<u8>>,
     pub currentRootIndex : usize,
-    pub nextIndex : usize,
-    pub ROOT_HISTORY_SIZE : usize,
+    pub next_index : usize,
+    pub root_history_size : usize,
     pub roots : Vec<u8>,
     pub current_total_deposits: u64,
     pub inserted_leaf: bool,
@@ -47,8 +47,8 @@ impl Pack for MerkleTree {
             levels,
             filledSubtrees,
             currentRootIndex,
-            nextIndex,
-            ROOT_HISTORY_SIZE,
+            next_index,
+            root_history_size,
             //609
             roots,
             //18137
@@ -79,7 +79,7 @@ impl Pack for MerkleTree {
             tmp_roots_vec[i] = *byte;
         }
 
-        let nextIndex = usize::from_le_bytes(*nextIndex);
+        let next_index = usize::from_le_bytes(*next_index);
 
         sol_log_compute_units();
         Ok(
@@ -88,8 +88,8 @@ impl Pack for MerkleTree {
                 levels: usize::from_le_bytes(*levels),
                 filledSubtrees: tmp_subtree_vec,
                 currentRootIndex : current_root_index,
-                nextIndex : nextIndex,
-                ROOT_HISTORY_SIZE : usize::from_le_bytes(*ROOT_HISTORY_SIZE),
+                next_index : next_index,
+                root_history_size : usize::from_le_bytes(*root_history_size),
                 roots : tmp_roots_vec.to_vec(),
                 current_total_deposits: LittleEndian::read_u64(current_total_deposits),
                 inserted_leaf: false,
@@ -111,8 +111,8 @@ impl Pack for MerkleTree {
                 mut levels_dst,
                 mut filledSubtrees_dst,
                 mut currentRootIndex_dst,
-                mut nextIndex_dst,
-                mut ROOT_HISTORY_SIZE_dst,
+                mut next_index_dst,
+                mut root_history_size_dst,
                 mut roots_dst,
                 current_total_deposits_dst,
                 pubkey_locked_dst,
@@ -142,7 +142,7 @@ impl Pack for MerkleTree {
 
             //should change u64 to usize
             LittleEndian::write_u64(currentRootIndex_dst, self.currentRootIndex.try_into().unwrap());
-            LittleEndian::write_u64(nextIndex_dst, self.nextIndex.try_into().unwrap());
+            LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
             LittleEndian::write_u64(current_total_deposits_dst, self.current_total_deposits.try_into().unwrap());
             *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
 

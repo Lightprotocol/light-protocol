@@ -21,12 +21,12 @@ mod tests {
 	use std::convert::TryInto;
     use ark_std::{UniformRand, test_rng};
 
-	use Testing_Hardcoded_Params_devnet_new::state_merkle_tree::{HashBytes, MerkleTree as MerkleTreeOnchain};
+	use Testing_Hardcoded_Params_devnet_new::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
 
 	use ark_std::{One};
 
 	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::processor_merkle_tree;
+	use Testing_Hardcoded_Params_devnet_new::mt_processor;
 
 	use std::fs::File;
 	use std::io::{Error as ioError};
@@ -519,8 +519,8 @@ mod tests {
 	    pub filledSubtrees : Vec<Vec<u8>>,
 	    pub zeros : Vec<Vec<u8>>,
 	    pub currentRootIndex : usize,
-	    pub nextIndex : usize,
-	    pub ROOT_HISTORY_SIZE : usize,
+	    pub next_index : usize,
+	    pub root_history_size : usize,
 	    pub roots : Vec<Vec<u8>>,
 	    pub leaves: Vec<Vec<u8>>,
 	}
@@ -607,8 +607,8 @@ mod tests {
 		        filledSubtrees:vec![vec![0 as u8; 32];1],
 		        zeros: vec![vec![0 as u8; 32];1],
 		        currentRootIndex: 0,
-		        nextIndex: 0,
-		        ROOT_HISTORY_SIZE: 100,
+		        next_index: 0,
+		        root_history_size: 100,
 		        roots: vec![vec![0 as u8; 32]; 10],
 		        leaves: vec![vec![0 as u8; 32]; 10],
 		    };
@@ -661,12 +661,12 @@ mod tests {
 	        print!(", {}", i);
 	        init_bytes.push(*i);
 	    }
-	    for i in &smt.nextIndex.to_le_bytes() {
+	    for i in &smt.next_index.to_le_bytes() {
 	        print!(", {}", i);
 	        init_bytes.push(*i);
 
 	    }
-	    for i in &smt.ROOT_HISTORY_SIZE.to_le_bytes() {
+	    for i in &smt.root_history_size.to_le_bytes() {
 	        print!(", {}", i);
 	        init_bytes.push(*i);
 
@@ -747,8 +747,8 @@ mod tests {
 	        filledSubtrees:vec![vec![0 as u8; 32];1],
 	        zeros: vec![vec![0 as u8; 32];1],
 	        currentRootIndex: 0,
-	        nextIndex: 0,
-	        ROOT_HISTORY_SIZE: 500,
+	        next_index: 0,
+	        root_history_size: 500,
 	        roots: vec![vec![0 as u8; 32]; 1],
 	        leaves: vec![vec![0 as u8; 32]; 1],
 	    };
@@ -822,7 +822,7 @@ mod tests {
 			println!("initial_leaf_hash: {:?}", new_leaf_hash_bytes);
 
 			for i in init_bytes11::INSERT_INSTRUCTION_ORDER_11 {
-				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), vec![0]);
+				mt_processor::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), vec![0]);
 			}
 
 			let mut filled_leaves = Vec::new();
@@ -899,7 +899,7 @@ mod tests {
             <Fp256::<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&new_leaf_hash, &mut new_leaf_hash_bytes[..]);
 
 			for i in init_bytes11::INSERT_INSTRUCTION_ORDER_11 {
-				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), vec![0]);
+				mt_processor::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), vec![0]);
 			}
 
 			let mut filled_leaves = Vec::new();
@@ -984,7 +984,7 @@ mod tests {
 			println!("initial_leaf_hash: {:?}", new_leaf_hash_bytes);
 			assert_eq!(true, false,"will fail because no data is incjected");
 			for i in init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
-				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/);
+				mt_processor::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/);
 			}
 
 			let mut filled_leaves = Vec::new();
@@ -1066,7 +1066,7 @@ mod tests {
 			println!("initial_leaf_hash: {:?}", new_leaf_hash_bytes);
 
 			for i in init_bytes18::INIT_BYTES_MERKLE_TREE_18 {
-				processor_merkle_tree::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), new_leaf_hash_bytes.clone());
+				mt_processor::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, new_leaf_hash_bytes.clone(), new_leaf_hash_bytes.clone());
 			}
 			/*
 			let mut filled_leaves = Vec::new();

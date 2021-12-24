@@ -1,6 +1,6 @@
 use crate::ranges_part_2::*;
-use crate::state_final_exp::{FinalExpBytes};
-use crate::state_merkle_tree;
+use crate::fe_state::{FinalExpBytes};
+use crate::mt_state;
 
 use crate::instructions_final_exponentiation::{
     custom_frobenius_map_1,
