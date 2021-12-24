@@ -22,7 +22,7 @@ pi_pre_processor::*,
 pi_state::*,
 pi_processor::*,
 pi_254_parsers::*,
-hard_coded_verifying_key_pvk_254::*,
+utils::prepared_verifying_key::*,
 //parse_verifyingkey_254::get_pvk_from_bytes_254,
 };
 mod fe_offchain_test;

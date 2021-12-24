@@ -1,35 +1,43 @@
-pub mod instructions;
-pub mod instructions_transform_g2_affine_to_g2_prepared;
-pub mod ml_254_instructions;
-pub mod ml_254_instructions_transform;
-pub mod ml_254_parsers;
-pub mod ml_254_pre_processor;
-pub mod ml_254_processor;
-pub mod ml_254_ranges;
-pub mod ml_254_state;
-pub mod parsers;
-pub mod parsers_prepare_inputs;
+
+//prepare inputs
+pub mod pi_instructions;
+pub mod pi_254_parsers;
+pub mod pi_processor;
+pub mod pi_ranges;
+pub mod pi_state;
+pub mod pi_pre_processor;
+
+
+//miller loop
+pub mod ml_instructions;
+pub mod ml_instructions_transform;
+pub mod ml_parsers;
+pub mod ml_pre_processor;
+pub mod ml_processor;
+pub mod ml_ranges;
+pub mod ml_state;
+
+
+//final exponentiation
 pub mod pre_processor_final_exp;
 pub mod ranges_part_2;
 pub mod state_check_nullifier;
 pub mod state_final_exp;
+pub mod instructions_final_exponentiation;
+pub mod parsers_part_2_254;
+pub mod processor_final_exp;
 
-pub mod instructions_poseidon;
-pub mod poseidon_round_constants_split;
 
-pub mod state_miller_loop_transfer;
+//constants for verifying key and poseidon
+pub mod utils;
 
-pub mod hard_coded_verifying_key_pvk_254;
-
-pub mod init_bytes11;
+//merkle tree
 pub mod init_bytes18;
 pub mod instructions_merkle_tree;
 pub mod processor_merkle_tree;
 pub mod state_merkle_tree;
+pub mod instructions_poseidon;
 
-pub mod instructions_final_exponentiation;
-pub mod parsers_part_2_254;
-pub mod processor_final_exp;
 use crate::pre_processor_final_exp::_pre_process_instruction_final_exp;
 use crate::processor_merkle_tree::_pre_process_instruction_merkle_tree;
 
@@ -41,25 +49,15 @@ use solana_program::{
     msg,
     program_error::ProgramError,
     pubkey::Pubkey,
+    program_pack::Pack,
 };
 
-pub mod state_miller_loop;
-//mod pi_254_test;
-use crate::ml_254_pre_processor::*;
-//use crate::ml_254_state::ML254Bytes;
-use crate::state_final_exp::InstructionIndex;
-use solana_program::program_pack::Pack;
 
-
-pub mod pi_instructions;
-pub mod pi_254_parsers;
-pub mod pi_processor;
-pub mod pi_ranges;
-pub mod pi_state;
-pub mod pi_pre_processor;
 use crate::pi_pre_processor::_pre_process_instruction;
 pub mod state_merkle_tree_roots;
-//pub mod verifyingkey_254_hc;
+
+use crate::ml_pre_processor::*;
+use crate::state_final_exp::InstructionIndex;
 
 use crate::pi_ranges::*;
 use ark_ff::{Fp256, FromBytes};

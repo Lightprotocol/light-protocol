@@ -1,7 +1,7 @@
 use std::ops::Mul;
 use std::ops::Add;
 use std::ops::AddAssign;
-use crate::poseidon_round_constants_split;
+use crate::utils::poseidon_round_constants_split;
 use solana_program::{
     msg,
     log::sol_log_compute_units,

@@ -23,13 +23,14 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     pubkey::Pubkey,
     program_error::ProgramError,
+    program_pack::Pack,
+    sysvar::rent::Rent,
 };
-use solana_program::program_pack::Pack;
-use solana_program::sysvar::rent::Rent;
 
 use crate::state_check_nullifier::NullifierBytesPda;
 use ark_ed_on_bn254::Fq;
 use crate::ranges_part_2::*;
+use borsh::ser::BorshSerialize;
 
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
@@ -526,6 +527,37 @@ pub fn check_and_insert_nullifier(
             NullifierBytesPda::pack_into_slice(&nullifier_account_data, &mut nullifier_account.data.borrow_mut());
             Ok(1u8)
 }
+
+
+pub fn check_tx_integrity_hash(
+        recipient: Vec<u8>,
+        extAmount: Vec<u8>,
+        relayer: Vec<u8>,
+        fee: Vec<u8>,
+        encryptedOutput1: Vec<u8>,
+        encryptedOutput2: Vec<u8>,
+        tx_integrity_hash: &Vec<u8>
+    ) -> Result<(), ProgramError> {
+
+    let input = [
+        recipient,
+        extAmount,
+        relayer,
+        fee,
+        encryptedOutput1,
+        encryptedOutput2,
+    ].concat();
+
+    let hash = solana_program::hash::hash(&input[..]).try_to_vec()?;
+    msg!("tx integrity hash is {:?} == onchain {:?}", *tx_integrity_hash, hash);
+
+    // if *tx_integrity_hash != hash {
+    //     msg!("tx_integrity_hash verification failed");
+    //     return Err(ProgramError::InvalidInstructionData);
+    // }
+    Ok(())
+}
+
 /*
 pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountInfo, account_to: &AccountInfo) {
 

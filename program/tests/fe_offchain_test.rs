@@ -49,7 +49,7 @@ pub mod tests {
 	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
 	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
 	use Testing_Hardcoded_Params_devnet_new::processor_final_exp::_process_instruction_final_exp;
-	use Testing_Hardcoded_Params_devnet_new::hard_coded_verifying_key_pvk_254::*;
+	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;
 
 
 
