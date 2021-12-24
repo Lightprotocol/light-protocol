@@ -1,4 +1,4 @@
-use crate::pi_254_parsers::*;
+use crate::ml_parsers::*;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::biginteger::BigInteger256;
@@ -85,27 +85,27 @@ pub fn init_pairs_instruction(
     // println!("i me: {:?}", i_vec[6]);
     // println!("x me: {:?}", x_vec[6]);
 
-    parse_fp256_to_bytes_254(i_vec[0], i_1_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[1], i_2_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[2], i_3_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[3], i_4_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[4], i_5_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[5], i_6_range, [0, 32]); // 3k
-    parse_fp256_to_bytes_254(i_vec[6], i_7_range, [0, 32]); // 3k
+    parse_fp256_ed_to_bytes(i_vec[0], i_1_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[1], i_2_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[2], i_3_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[3], i_4_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[4], i_5_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[5], i_6_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[6], i_7_range); // 3k
 
-    parse_x_group_affine_to_bytes_254(x_vec[0], x_1_range); // 96bytes 10kr, 3kwr => 6k
-    parse_x_group_affine_to_bytes_254(x_vec[1], x_2_range); // 6k
-    parse_x_group_affine_to_bytes_254(x_vec[2], x_3_range); // 6k
-    parse_x_group_affine_to_bytes_254(x_vec[3], x_4_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[0], x_1_range); // 96bytes 10kr, 3kwr => 6k
+    parse_x_group_affine_to_bytes(x_vec[1], x_2_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[2], x_3_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[3], x_4_range); // 6k
 
-    parse_x_group_affine_to_bytes_254(x_vec[4], x_5_range); // 6k
-    parse_x_group_affine_to_bytes_254(x_vec[5], x_6_range); // 6k
-    parse_x_group_affine_to_bytes_254(x_vec[6], x_7_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[4], x_5_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[5], x_6_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[6], x_7_range); // 6k
 
     // check proper parsing
-    // let a = parse_fp256_from_bytes_254(i_1_range, [0, 32]);
+    // let a = parse_fp256_ed_from_bytes(i_1_range);
     // assert_eq!(a, i_vec[0]);
-    // let b = parse_x_group_affine_from_bytes_254(x_1_range);
+    // let b = parse_x_group_affine_from_bytes(x_1_range);
     // assert_eq!(b, x_vec[0]);
     // assert_eq!(b, pvk_vk_gamma_abc_g1[1]); // groupAffine vs G1Affine
 }
@@ -140,8 +140,8 @@ pub fn maths_instruction(
 ) {
     // Parses res,x,i from range.
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); //15k
-    let x = parse_x_group_affine_from_bytes_254(x_range); // 10k
-    let i = parse_fp256_from_bytes_254(i_range, [0, 32]); // 5k
+    let x = parse_x_group_affine_from_bytes(x_range); // 10k
+    let i = parse_fp256_ed_from_bytes(i_range); // 5k
 
     // create bit: (current i,x * current index).
     // First constructs all bits of current i,x pair.
@@ -378,5 +378,5 @@ pub fn g_ic_into_affine_2(
         ark_ec::short_weierstrass_jacobian::GroupAffine::new(x, y, false);
 
     println!("g_ic_affine: {:?}", g_ic_affine);
-    parse_x_group_affine_to_bytes_254(g_ic_affine, x_1_range); // overwrite x1range w: 5066
+    parse_x_group_affine_to_bytes(g_ic_affine, x_1_range); // overwrite x1range w: 5066
 }

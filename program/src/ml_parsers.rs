@@ -170,6 +170,27 @@ pub fn parse_fp256_from_bytes(range: &Vec<u8>) -> ark_ff::Fp256<ark_bn254::FqPar
     fp256
 }
 
+pub fn parse_fp256_ed_to_bytes(
+    fp256: ark_ff::Fp256<ark_ed_on_bn254::FqParameters>,
+    account: &mut Vec<u8>,
+) {
+    let start = 0;
+    let end = 32;
+    <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&fp256, &mut account[start..end]);
+}
+
+pub fn parse_fp256_ed_from_bytes(
+    account: &Vec<u8>,
+    ) -> ark_ff::Fp256<ark_ed_on_bn254::FqParameters> {
+    let fp256: ark_ff::Fp256<ark_ed_on_bn254::FqParameters>;
+    let start = 0;
+    let end = 32;
+    fp256 =
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&account[start..end]).unwrap();
+
+    fp256
+}
+
 // j: proof.b prep
 pub fn parse_r_to_bytes(
     r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,
@@ -387,4 +408,29 @@ pub fn parse_x_group_affine_to_bytes(
 ) {
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.x, &mut account[0..32]);
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.y, &mut account[32..64]);
+}
+
+pub fn parse_group_projective_from_bytes_254(
+    acc1: &Vec<u8>,
+    acc2: &Vec<u8>,
+    acc3: &Vec<u8>,
+) -> ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> {
+    let res = ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
+        <Fp256<ark_bn254::FqParameters> as FromBytes>::read(&acc1[0..32]).unwrap(), // i 0..48
+        <Fp256<ark_bn254::FqParameters> as FromBytes>::read(&acc2[0..32]).unwrap(), // i 0..48
+        <Fp256<ark_bn254::FqParameters> as FromBytes>::read(&acc3[0..32]).unwrap(), // i 0..48
+    );
+    res
+}
+
+pub fn parse_group_projective_to_bytes_254(
+    res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters>,
+    acc1: &mut Vec<u8>,
+    acc2: &mut Vec<u8>,
+    acc3: &mut Vec<u8>,
+) {
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..32]); // i 0..48
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..32]);
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.z, &mut acc3[0..32]);
+    // i 0..48
 }

@@ -1,7 +1,6 @@
 
 //prepare inputs
 pub mod pi_instructions;
-pub mod pi_254_parsers;
 pub mod pi_processor;
 pub mod pi_ranges;
 pub mod pi_state;
@@ -138,11 +137,7 @@ pub fn process_instruction(
                         Ok(())
 
                     }
-                    //do actual withdrawal
-                    else if account_main_data.current_instruction_index == 1503 {
-                        //TODO should check the nullifier again and insert it
-                        Ok(())
-                    } else {
+                    else {
                         Err(ProgramError::InvalidArgument)
                     }
                 }
