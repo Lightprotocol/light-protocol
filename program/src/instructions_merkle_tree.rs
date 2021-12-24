@@ -13,11 +13,11 @@ use solana_program::{
 use ark_ff::PrimeField;
 use ark_ff::BigInteger;
 
-use crate::state_merkle_tree::{MerkleTree,HashBytes, TwoLeavesBytesPda};
+use crate::mt_state::{MerkleTree,HashBytes, TwoLeavesBytesPda};
 use crate::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
-    hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
+    hash_bytes_account.currentIndex =  merkle_tree_account.next_index;
     assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
 
     hash_bytes_account.currentLevelHash = leaf.clone();
@@ -28,7 +28,7 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
 }
 */
 pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
-    hash_bytes_account.currentIndex =  merkle_tree_account.nextIndex;
+    hash_bytes_account.currentIndex =  merkle_tree_account.next_index;
     assert!(hash_bytes_account.currentIndex != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
 
     //hash_bytes_account.currentLevelHash = leaf.clone();
@@ -70,8 +70,8 @@ pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_acco
 }
 
 pub fn insert_last_double(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
-    merkle_tree_account.currentRootIndex = ( merkle_tree_account.currentRootIndex + 1) %  merkle_tree_account.ROOT_HISTORY_SIZE;
-    merkle_tree_account.nextIndex+= 2;
+    merkle_tree_account.currentRootIndex = ( merkle_tree_account.currentRootIndex + 1) %  merkle_tree_account.root_history_size;
+    merkle_tree_account.next_index+= 2;
 
     //roots unpacks only the current root and write only this one
     merkle_tree_account.roots = hash_bytes_account.state[0].clone();

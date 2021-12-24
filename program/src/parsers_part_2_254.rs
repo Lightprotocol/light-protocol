@@ -10,7 +10,7 @@ use solana_program::{
 };
 
 
-pub fn parse_f_to_bytes_new(f : <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk, account: &mut Vec<u8>){
+pub fn parse_f_to_bytes(f : <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk, account: &mut Vec<u8>){
     //~15k
     sol_log_compute_units();
     msg!("parsing f to bytes");
@@ -59,7 +59,7 @@ pub fn parse_f_to_bytes_new(f : <ark_ec::models::bn::Bn::<ark_bn254::Parameters>
         sol_log_compute_units();
 }
 
-pub fn parse_f_from_bytes_new(account: &Vec<u8>) -> <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk {
+pub fn parse_f_from_bytes(account: &Vec<u8>) -> <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk {
     //~27k
     sol_log_compute_units();
     msg!("parsing f from bytes");
@@ -109,14 +109,14 @@ pub fn parse_f_from_bytes_new(account: &Vec<u8>) -> <ark_ec::models::bn::Bn::<ar
 }
 
 
-pub fn parse_fp256_to_bytes_new(fp256 : ark_bn254::Fq, account: &mut Vec<u8>){
+pub fn parse_fp256_to_bytes(fp256 : ark_bn254::Fq, account: &mut Vec<u8>){
 
     let start = 0;
     let end = 32;
     <ark_bn254::Fq as ToBytes>::write(&fp256, &mut account[start..end]);
 }
 
-pub fn parse_fp256_from_bytes_new(account: &Vec<u8>) -> ark_bn254::Fq{
+pub fn parse_fp256_from_bytes(account: &Vec<u8>) -> ark_bn254::Fq{
     let fp256: ark_bn254::Fq;
     let start = 0;
     let end = 32;
@@ -124,7 +124,7 @@ pub fn parse_fp256_from_bytes_new(account: &Vec<u8>) -> ark_bn254::Fq{
     fp256
 }
 
-pub fn parse_quad_to_bytes_new(q : ark_ff::QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>, account: &mut Vec<u8>){
+pub fn parse_quad_to_bytes(q : ark_ff::QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>, account: &mut Vec<u8>){
 
     let mut iter = 0;
 
@@ -140,7 +140,7 @@ pub fn parse_quad_to_bytes_new(q : ark_ff::QuadExtField<ark_ff::Fp2ParamsWrapper
         }
 }
 
-pub fn parse_quad_from_bytes_new(account: &Vec<u8>) -> ark_ff::QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>> {
+pub fn parse_quad_from_bytes(account: &Vec<u8>) -> ark_ff::QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>> {
 
     let start = 0;
     let end = 64;
@@ -154,10 +154,10 @@ pub fn parse_quad_from_bytes_new(account: &Vec<u8>) -> ark_ff::QuadExtField<ark_
 
 }
 
-pub fn parse_cubic_to_bytes_new(c : ark_ff::CubicExtField<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>, account: &mut Vec<u8>,range:[usize;2]) {
+pub fn parse_cubic_to_bytes(c : ark_ff::CubicExtField<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>, account: &mut Vec<u8>,range:[usize;2]) {
     //~8k
     sol_log_compute_units();
-    msg!("parse_cubic_to_bytes_new");
+    msg!("parse_cubic_to_bytes");
     let mut iter = range[0];
     for j in 0..3 as u8 {
         for z in 0..2 as u8 {
@@ -184,10 +184,10 @@ pub fn parse_cubic_to_bytes_new(c : ark_ff::CubicExtField<ark_ff::Fp6ParamsWrapp
 
 }
 
-pub fn parse_cubic_from_bytes_new(account: &Vec<u8>,range:[usize;2]) -> ark_ff::CubicExtField<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>> {
+pub fn parse_cubic_from_bytes(account: &Vec<u8>,range:[usize;2]) -> ark_ff::CubicExtField<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>> {
     //~13k
     sol_log_compute_units();
-    msg!("parse_cubic_from_bytes_new");
+    msg!("parse_cubic_from_bytes");
     let mut iter = range[0];
     let mut cubic = ark_ff::CubicExtField::<ark_ff::Fp6ParamsWrapper::<ark_bn254::Fq6Parameters>>::one();
     for j in 0..3 as u8 {

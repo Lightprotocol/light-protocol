@@ -22,7 +22,7 @@ pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
 pub struct MerkleTreeRoots {
     pub is_initialized: bool,
     pub roots: Vec<u8>,
-    pub ROOT_HISTORY_SIZE: u64,
+    pub root_history_size: u64,
 }
 
 impl Sealed for MerkleTreeRoots {}
@@ -43,8 +43,8 @@ impl Pack for MerkleTreeRoots {
             levels,
             filledSubtrees,
             currentRootIndex,
-            nextIndex,
-            ROOT_HISTORY_SIZE,
+            next_index,
+            root_history_size,
             //609
             roots,
             //18137
@@ -59,7 +59,7 @@ impl Pack for MerkleTreeRoots {
         Ok(MerkleTreeRoots {
             is_initialized: true,
             roots: roots.to_vec(),
-            ROOT_HISTORY_SIZE: u64::from_le_bytes(*ROOT_HISTORY_SIZE),
+            root_history_size: u64::from_le_bytes(*root_history_size),
         })
     }
     fn pack_into_slice(&self, dst: &mut [u8]) {
@@ -89,12 +89,12 @@ pub fn check_root_hash_exists(
         msg!("merkle tree account is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
-    msg!("did not crash {}", account_main_data.ROOT_HISTORY_SIZE);
+    msg!("did not crash {}", account_main_data.root_history_size);
     // assert!(
-    //     account_main_data.ROOT_HISTORY_SIZE < 593,
+    //     account_main_data.root_history_size < 593,
     //     "root history size too large"
     // );
-    if account_main_data.ROOT_HISTORY_SIZE > 593 {
+    if account_main_data.root_history_size > 593 {
         msg!("root history size too large");
         return Err(ProgramError::InvalidAccountData);
     }
@@ -115,7 +115,7 @@ pub fn check_root_hash_exists(
         }
         i += 32;
         counter += 1;
-        if counter == account_main_data.ROOT_HISTORY_SIZE {
+        if counter == account_main_data.root_history_size {
             msg!("did not find root should panic here but is disabled for testing");
             //panic!("did not find root");
             //return Err(ProgramError::InvalidAccountData);

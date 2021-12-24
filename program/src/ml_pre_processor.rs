@@ -7,7 +7,7 @@ use crate::pi_state::*;
 // use crate::state_miller_loop_transfer::MillerLoopTransferBytes;
 // use crate::state_prep_inputs;
 // use crate::state_prep_inputs::PrepareInputsBytes;
-// use crate::FinalExpBytes; //state_final_exp::FinalExpBytes;
+// use crate::FinalExpBytes; //fe_state::FinalExpBytes;
 use solana_program::program_pack::Pack;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},

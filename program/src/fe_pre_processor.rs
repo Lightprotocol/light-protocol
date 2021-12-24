@@ -1,7 +1,7 @@
 
 use crate::ranges_part_2::*;
-use crate::state_final_exp::{FinalExpBytes};
-use crate::state_merkle_tree;
+use crate::fe_state::{FinalExpBytes};
+use crate::mt_state;
 use crate::IX_ORDER;
 
 use solana_program::{
@@ -15,7 +15,7 @@ use solana_program::{
 
 use crate::instructions_final_exponentiation::check_and_insert_nullifier;
 
-use crate::processor_final_exp::_process_instruction_final_exp;
+use crate::fe_processor::_process_instruction_final_exp;
 
 pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> Result<(),ProgramError>{
     let account = &mut accounts.iter();
@@ -65,12 +65,12 @@ pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[Accou
     if  INSTRUCTION_ORDER_VERIFIER_PART_2[storage_acc_data.current_instruction_index] == 103 {
         let account_from = next_account_info(account)?;
         let account_to = next_account_info(account)?;
-        //let f_f2_range_s = parse_f_from_bytes_new(&storage_acc_data.f_f2_range_s);
+        //let f_f2_range_s = parse_f_from_bytes(&storage_acc_data.f_f2_range_s);
         // msg!("f_f2_range_s: {:?} ", f_f2_range_s);
         assert_eq!(storage_acc_data.found_nullifier,2, "nullifier_hash already exists");
         //let merkletree_acc_bytes: [u8;32] = [251, 30, 194, 174, 168, 85, 13, 188, 134, 0, 17, 157, 187, 32, 113, 104, 134, 138, 82, 128, 95, 206, 76, 34, 177, 163, 246, 27, 109, 207, 2, 85];
         //check that withdraw is from merkletree account
-        assert_eq!(*account_from.key, solana_program::pubkey::Pubkey::new(&state_merkle_tree::MERKLE_TREE_ACC_BYTES[..]));
+        assert_eq!(*account_from.key, solana_program::pubkey::Pubkey::new(&mt_state::MERKLE_TREE_ACC_BYTES[..]));
 
         //check that withdraw is to right account
         assert_eq!(*account_to.key, solana_program::pubkey::Pubkey::new(&storage_acc_data.to_address[..]));

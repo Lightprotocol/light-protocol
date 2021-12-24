@@ -41,14 +41,14 @@ pub mod tests {
 
 
 	use Testing_Hardcoded_Params_devnet_new::parsers_part_2_254::*;
-	use Testing_Hardcoded_Params_devnet_new::state_final_exp::FinalExpBytes;
+	use Testing_Hardcoded_Params_devnet_new::fe_state::FinalExpBytes;
 	use Testing_Hardcoded_Params_devnet_new::ranges_part_2::*;
 	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::processor_merkle_tree;
-	use Testing_Hardcoded_Params_devnet_new::state_merkle_tree::{HashBytes, MerkleTree as MerkleTreeOnchain};
+	use Testing_Hardcoded_Params_devnet_new::mt_processor;
+	use Testing_Hardcoded_Params_devnet_new::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
 	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
 	use Testing_Hardcoded_Params_devnet_new::instructions_final_exponentiation::*;
-	use Testing_Hardcoded_Params_devnet_new::processor_final_exp::_process_instruction_final_exp;
+	use Testing_Hardcoded_Params_devnet_new::fe_processor::_process_instruction_final_exp;
 	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;
 
 
@@ -584,10 +584,10 @@ pub mod tests {
 
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
-		parse_f_to_bytes_new(*f, &mut account_struct.f1_r_range_s);
-		parse_f_to_bytes_new(*f, &mut account_struct1.f_f2_range_s);
+		parse_f_to_bytes(*f, &mut account_struct.f1_r_range_s);
+		parse_f_to_bytes(*f, &mut account_struct1.f_f2_range_s);
 
-		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s), "0 failed");
+		assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s), "0 failed");
 		assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,0);
 
 		let reference_f = f.clone();
@@ -599,7 +599,7 @@ pub mod tests {
         f1.conjugate();
 		conjugate_wrapper(&mut account_struct.f1_r_range_s);
         instruction_order.push(0);
-		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s), "1 failed");
+		assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s), "1 failed");
 
 		/*
 		*
@@ -689,8 +689,8 @@ pub mod tests {
 			&mut account_struct.f_f2_range_s,
 		);
 
-		assert_eq!(reference_f.inverse().unwrap() , parse_f_from_bytes_new(&account_struct.f_f2_range_s), "f inverse failed");
-		assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s));
+		assert_eq!(reference_f.inverse().unwrap() , parse_f_from_bytes(&account_struct.f_f2_range_s), "f inverse failed");
+		assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s));
 
         f.inverse().map(|mut f2| {
 
@@ -707,8 +707,8 @@ pub mod tests {
 
             let mut r = f1 * &f2;
 
-			assert_eq!(f2, parse_f_from_bytes_new(&account_struct.f_f2_range_s));
-			assert_eq!(f1, parse_f_from_bytes_new(&account_struct.f1_r_range_s));
+			assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range_s));
+			assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s));
 			//instruction 10 ---------------------------------------------
 			instruction_order.push(10);
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,10);
@@ -731,7 +731,7 @@ pub mod tests {
                 &mut account_struct.f1_r_range_s,
             );
 
-			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
+			assert_eq!(r,  parse_f_from_bytes(&account_struct.f1_r_range_s), "f mulassign failed");
 
 			/*
 			*
@@ -748,7 +748,7 @@ pub mod tests {
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,12);
 
 			account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
-			assert_eq!(f2,  parse_f_from_bytes_new(&account_struct.f_f2_range_s));
+			assert_eq!(f2,  parse_f_from_bytes(&account_struct.f_f2_range_s));
 
 			/*
 			*
@@ -767,7 +767,7 @@ pub mod tests {
 
 			custom_frobenius_map_2(&mut account_struct.f1_r_range_s);
 
-			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s));
+			assert_eq!(r,  parse_f_from_bytes(&account_struct.f1_r_range_s));
 
 			/*
 			*
@@ -803,7 +803,7 @@ pub mod tests {
                 &mut account_struct.f1_r_range_s,
             );
 
-			assert_eq!(r,  parse_f_from_bytes_new(&account_struct.f1_r_range_s), "f mulassign failed");
+			assert_eq!(r,  parse_f_from_bytes(&account_struct.f1_r_range_s), "f mulassign failed");
 
 			/*
 			*
@@ -905,7 +905,7 @@ pub mod tests {
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,20);
 
 			conjugate_wrapper(&mut account_struct.y0_range_s);
-			assert_eq!(y0,  parse_f_from_bytes_new(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
+			assert_eq!(y0,  parse_f_from_bytes(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
 
 			/*
 			*
@@ -917,7 +917,7 @@ pub mod tests {
 
             let y1 = y0.cyclotomic_square();
 			custom_cyclotomic_square(&account_struct.y0_range_s, &mut account_struct.y1_range_s);
-			assert_eq!(y1,  parse_f_from_bytes_new(&account_struct.y1_range_s), "exp_by_neg_x(r) ");
+			assert_eq!(y1,  parse_f_from_bytes(&account_struct.y1_range_s), "exp_by_neg_x(r) ");
 			//y0 last used
 
 			/*
@@ -935,7 +935,7 @@ pub mod tests {
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,21);
 
 			custom_cyclotomic_square(&account_struct.y1_range_s , &mut account_struct.y0_range_s);
-			assert_eq!(y2,  parse_f_from_bytes_new(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
+			assert_eq!(y2,  parse_f_from_bytes(&account_struct.y0_range_s), "exp_by_neg_x(r) ");
 
 			/*
 			*
@@ -968,7 +968,7 @@ pub mod tests {
                 &mut account_struct.y0_range_s,
             );
 
-			assert_eq!(y3,  parse_f_from_bytes_new(&account_struct.y0_range_s), "mulassign ");
+			assert_eq!(y3,  parse_f_from_bytes(&account_struct.y0_range_s), "mulassign ");
 
 			/*
 			*
@@ -1056,7 +1056,7 @@ pub mod tests {
 			assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,30);
 			conjugate_wrapper(&mut account_struct.y2_range_s);
 
-			assert_eq!(y4,  parse_f_from_bytes_new(&account_struct.y2_range_s), "exp_by_neg_x(r) ");
+			assert_eq!(y4,  parse_f_from_bytes(&account_struct.y2_range_s), "exp_by_neg_x(r) ");
 
 
 			/*
@@ -1076,7 +1076,7 @@ pub mod tests {
             let y5 = y4.cyclotomic_square();
 			//y5 is stored in f_f2_range_s
 			custom_cyclotomic_square(&account_struct.y2_range_s, &mut account_struct.f_f2_range_s);
-			assert_eq!(y5,  parse_f_from_bytes_new(&account_struct.f_f2_range_s), "cyclotomic_square ");
+			assert_eq!(y5,  parse_f_from_bytes(&account_struct.f_f2_range_s), "cyclotomic_square ");
 
 			/*
 			*
@@ -1169,7 +1169,7 @@ pub mod tests {
 
             conjugate_wrapper(&mut account_struct.y6_range);
 
-			assert_eq!(y6,  parse_f_from_bytes_new(&account_struct.y6_range), "exp_by_neg_x(r) ");
+			assert_eq!(y6,  parse_f_from_bytes(&account_struct.y6_range), "exp_by_neg_x(r) ");
 
 			/*
 			*
@@ -1228,7 +1228,7 @@ pub mod tests {
                 &mut account_struct.y6_range,
             );
 
-			assert_eq!(y7,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+			assert_eq!(y7,  parse_f_from_bytes(&account_struct.y6_range), "mulassign ");
 
 			/*
 			*
@@ -1265,7 +1265,7 @@ pub mod tests {
                 &mut account_struct.y6_range,
             );
 
-			assert_eq!(y8,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+			assert_eq!(y8,  parse_f_from_bytes(&account_struct.y6_range), "mulassign ");
 
 			/*
 			*
@@ -1302,7 +1302,7 @@ pub mod tests {
                 &mut account_struct.y1_range_s,
             );
 
-			assert_eq!(y9,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
+			assert_eq!(y9,  parse_f_from_bytes(&account_struct.y1_range_s), "mulassign ");
 
 			/*
 			*
@@ -1339,7 +1339,7 @@ pub mod tests {
                 &mut account_struct.y2_range_s,
             );
 
-			assert_eq!(y10,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+			assert_eq!(y10,  parse_f_from_bytes(&account_struct.y2_range_s), "mulassign ");
 
 			/*
 			*
@@ -1376,7 +1376,7 @@ pub mod tests {
                 &mut account_struct.y2_range_s,
             );
 
-			assert_eq!(y11,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+			assert_eq!(y11,  parse_f_from_bytes(&account_struct.y2_range_s), "mulassign ");
 
 			/*
 			*
@@ -1397,7 +1397,7 @@ pub mod tests {
 			instruction_order.push(48);
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range);            _process_instruction_final_exp(&mut account_struct1,48);
 
-            //assert_eq!(y12,  parse_f_from_bytes_new(&account_struct.y0_range_s));
+            //assert_eq!(y12,  parse_f_from_bytes(&account_struct.y0_range_s));
 	        account_struct.y0_range_s = account_struct.y1_range_s.clone();
 			/*
 			*
@@ -1415,7 +1415,7 @@ pub mod tests {
 
             custom_frobenius_map_1(&mut account_struct.y0_range_s);
 
-			assert_eq!(y12,  parse_f_from_bytes_new(&account_struct.y0_range_s));
+			assert_eq!(y12,  parse_f_from_bytes(&account_struct.y0_range_s));
 
 			/*
 			*
@@ -1452,7 +1452,7 @@ pub mod tests {
                 &mut account_struct.y2_range_s,
             );
 
-			assert_eq!(y13,  parse_f_from_bytes_new(&account_struct.y2_range_s), "mulassign ");
+			assert_eq!(y13,  parse_f_from_bytes(&account_struct.y2_range_s), "mulassign ");
 
 			/*
 			*
@@ -1474,7 +1474,7 @@ pub mod tests {
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,51);
 			custom_frobenius_map_2(&mut account_struct.y6_range);
 
-			assert_eq!(y8,  parse_f_from_bytes_new(&account_struct.y6_range));
+			assert_eq!(y8,  parse_f_from_bytes(&account_struct.y6_range));
 
 
 			/*
@@ -1514,7 +1514,7 @@ pub mod tests {
                 &mut account_struct.y6_range,
             );
 
-			assert_eq!(y14,  parse_f_from_bytes_new(&account_struct.y6_range), "mulassign ");
+			assert_eq!(y14,  parse_f_from_bytes(&account_struct.y6_range), "mulassign ");
 
 			/*
 			*
@@ -1571,7 +1571,7 @@ pub mod tests {
                 &mut account_struct.y1_range_s,
             );
 
-			assert_eq!(y15,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
+			assert_eq!(y15,  parse_f_from_bytes(&account_struct.y1_range_s), "mulassign ");
 
 			/*
 			*
@@ -1593,7 +1593,7 @@ pub mod tests {
             assert_eq!(account_struct1.y0_range_s,account_struct.y0_range_s); assert_eq!(account_struct1.y1_range_s,account_struct.y1_range_s); assert_eq!(account_struct1.y2_range_s,account_struct.y2_range_s);  assert_eq!(account_struct1.y6_range,account_struct.y6_range); _process_instruction_final_exp(&mut account_struct1,55);
 			custom_frobenius_map_3(&mut account_struct.y1_range_s);
 
-			assert_eq!(y15,  parse_f_from_bytes_new(&account_struct.y1_range_s));
+			assert_eq!(y15,  parse_f_from_bytes(&account_struct.y1_range_s));
 
 			/*
 			*
@@ -1631,7 +1631,7 @@ pub mod tests {
                 &mut account_struct.y1_range_s,
             );
 
-			assert_eq!(y16,  parse_f_from_bytes_new(&account_struct.y1_range_s), "mulassign ");
+			assert_eq!(y16,  parse_f_from_bytes(&account_struct.y1_range_s), "mulassign ");
 			println!("Let instruction order: [u8; {}] = {:?}",instruction_order.len(), instruction_order);
             y16
         })
@@ -1643,7 +1643,7 @@ pub mod tests {
 
 		let mut account_struct = FinalExpBytes::new();
 
-		parse_f_to_bytes_new(*f, &mut account_struct.f_f2_range_s);
+		parse_f_to_bytes(*f, &mut account_struct.f_f2_range_s);
 		account_struct.changed_variables[f_f2_range_iter] = true;
 		let mut account_onchain_slice = [0u8; 3900];
 		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
@@ -1661,7 +1661,7 @@ pub mod tests {
 			assert_eq!(account_struct.y1_range_s, account_struct_tmp.y1_range_s);
 		}
 		println!("result in bytes: {:?}",account_struct.y1_range_s );
-		Some(parse_f_from_bytes_new(&account_struct.y1_range_s))
+		Some(parse_f_from_bytes(&account_struct.y1_range_s))
 
 	}
 	use ark_ff::Fp12;

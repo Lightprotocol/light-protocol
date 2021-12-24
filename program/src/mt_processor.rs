@@ -1,6 +1,6 @@
 use crate::instructions_merkle_tree::*;
-use crate::state_merkle_tree::{MerkleTree, HashBytes, TwoLeavesBytesPda};
-use crate::state_merkle_tree;
+use crate::mt_state::{MerkleTree, HashBytes, TwoLeavesBytesPda};
+use crate::mt_state;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
@@ -22,7 +22,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
             //init instruction
             if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
                 let merkle_tree_storage_acc = next_account_info(account)?;
-                let mut merkle_tree_tmp_account_data = state_merkle_tree::InitMerkleTreeBytes::unpack(&merkle_tree_storage_acc.data.borrow())?;
+                let mut merkle_tree_tmp_account_data = mt_state::InitMerkleTreeBytes::unpack(&merkle_tree_storage_acc.data.borrow())?;
 
                 for i in 0..init_bytes18::INIT_BYTES_MERKLE_TREE_18.len() {
                     merkle_tree_tmp_account_data.bytes[i] = init_bytes18::INIT_BYTES_MERKLE_TREE_18[i];
@@ -32,7 +32,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     msg!("merkle tree init failed");
                     return Err(ProgramError::InvalidAccountData);
                 }
-                state_merkle_tree::InitMerkleTreeBytes::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
+                mt_state::InitMerkleTreeBytes::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
 
             } else {
                 let hash_storage_acc = next_account_info(account)?;
@@ -91,7 +91,7 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                     insert_last_double ( &mut merkle_tree_tmp_account_data, &mut hash_tmp_account_data);
                     leaf_pda_account_data.leaf_left = hash_tmp_account_data.leaf_left.clone();
                     leaf_pda_account_data.leaf_right = hash_tmp_account_data.leaf_right.clone();
-                    leaf_pda_account_data.merkle_tree_pubkey = state_merkle_tree::MERKLE_TREE_ACC_BYTES.to_vec().clone();
+                    leaf_pda_account_data.merkle_tree_pubkey = mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
 
                     msg!("Lock set at slot {}", merkle_tree_tmp_account_data.time_locked );
                     msg!("lock released at slot: {}",  <Clock as Sysvar>::get()?.slot);
@@ -141,8 +141,8 @@ pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: 
                         filledSubtrees:vec![vec![0 as u8; 1];1],
                         //zeros: vec![vec![0 as u8; 1];1],
                         currentRootIndex: 0,
-                        nextIndex: 0,
-                        ROOT_HISTORY_SIZE: 10,
+                        next_index: 0,
+                        root_history_size: 10,
                         roots: vec![0 as u8; 1],
                         //leaves: vec![0],
                         current_total_deposits: 0,
@@ -198,7 +198,7 @@ pub fn _process_instruction_merkle_tree(
 }
 
 pub fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
-    if account_pubkey != solana_program::pubkey::Pubkey::new(&state_merkle_tree::MERKLE_TREE_ACC_BYTES[..]) {
+    if account_pubkey != solana_program::pubkey::Pubkey::new(&mt_state::MERKLE_TREE_ACC_BYTES[..]) {
         msg!("invalid merkle tree");
         return Err(ProgramError::InvalidAccountData);
     }
