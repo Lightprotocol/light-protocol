@@ -258,15 +258,6 @@ pub fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction
         &mut main_account_data.g_ic_z_range,
     );
     msg!("len _instruction_data{}", _instruction_data.len());
-
-    for i in indices.iter() {
-        main_account_data.changed_variables[*i] = true;
-    }
-
-    // should occur in light protocol logic
-    main_account_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[224..480].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
-    main_account_data.changed_constants[11] = true;
     let indices: [usize; 17] = [
         I_1_RANGE_INDEX,
         X_1_RANGE_INDEX,
@@ -286,6 +277,15 @@ pub fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction
         G_IC_Y_RANGE_INDEX,
         G_IC_Z_RANGE_INDEX,
     ];
+    for i in indices.iter() {
+        main_account_data.changed_variables[*i] = true;
+    }
+
+    // should occur in light protocol logic
+    main_account_data.proof_a_b_c_leaves_and_nullifiers = [
+        _instruction_data[224..480].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
+    main_account_data.changed_constants[11] = true;
+
 
     for i in 0..12 {
         main_account_data.changed_constants[i] = true;

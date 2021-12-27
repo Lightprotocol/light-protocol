@@ -12,8 +12,6 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::fe_instructions::check_and_insert_nullifier;
-
 use crate::fe_processor::_process_instruction_final_exp;
 
 pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> Result<(),ProgramError>{
