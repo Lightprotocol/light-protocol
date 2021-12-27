@@ -30,18 +30,13 @@ pub mod utils;
 
 //merkle tree
 pub mod init_bytes18;
-pub mod mt_instructions;
-pub mod mt_processor;
-pub mod mt_state;
-pub mod instructions_poseidon;
-
+pub mod poseidon_merkle_tree;
 
 pub mod li_pre_processor;
 pub mod state_check_nullifier;
-pub mod mt_state_roots;
 
 use crate::fe_pre_processor::_pre_process_instruction_final_exp;
-//use crate::mt_processor::_pre_process_instruction_merkle_tree;
+//use crate::mt_processor::process_instruction_merkle_tree;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -63,11 +58,11 @@ use crate::fe_state::InstructionIndex;
 use crate::pi_ranges::*;
 use ark_ff::{Fp256, FromBytes};
 use crate::pi_state::PiBytes;
-use crate::mt_state::InitMerkleTreeBytes;
+use crate::poseidon_merkle_tree::mt_state::InitMerkleTreeBytes;
 
 use crate::li_pre_processor::li_pre_process_instruction;
 
-use crate::mt_processor::MerkleTreeProcessor;
+use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 
 
 entrypoint!(process_instruction);
@@ -103,7 +98,7 @@ pub fn process_instruction(
         merkle_tree_processor.initialize_new_merkle_tree_from_bytes(
             &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..]
         );
-        //_pre_process_instruction_merkle_tree(&_instruction_data, accounts);
+        //process_instruction_merkle_tree(&_instruction_data, accounts);
     }
     // transact with shielded pool
     else {
@@ -157,12 +152,12 @@ pub fn process_instruction(
                     //merkle tree insertion of new utxos
                     else if account_main_data.current_instruction_index >= 801+ 466 {
 
-                        //_pre_process_instruction_merkle_tree(&_instruction_data, accounts)?;
+                        //process_instruction_merkle_tree(&_instruction_data, accounts)?;
                         let mut merkle_tree_processor = MerkleTreeProcessor::new(
                             Some(account_main),
                             None
                         )?;
-                        merkle_tree_processor._pre_process_instruction_merkle_tree(
+                        merkle_tree_processor.process_instruction_merkle_tree(
                             accounts
                         );
                         Ok(())

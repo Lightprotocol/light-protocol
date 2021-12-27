@@ -7,7 +7,7 @@ use Testing_Hardcoded_Params_devnet_new::{
     ml_parsers::*, ml_state::*, process_instruction,
     fe_state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
     fe_ranges::*,
-    mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES},
+    poseidon_merkle_tree::mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES},
     init_bytes18,
 };
 use ark_crypto_primitives::{Error};
@@ -197,7 +197,7 @@ async fn test_pi_ml_fe_integration_onchain() {
         .get_account(merkle_tree_pubkey)
         .await
         .expect("get_account").unwrap();
-    
+
     /*
     *
     *
@@ -731,9 +731,9 @@ async fn test_pi_ml_fe_integration_onchain() {
     let commit = vec![0u8; 32];//vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     let mut i = 0;
-    for (instruction_id) in &init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
+    for (instruction_id) in 0..235 {
         //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
-        let instruction_data: Vec<u8> = [vec![*instruction_id, 0u8], commit.clone(), commit.clone(), [i as u8].to_vec() ].concat();
+        let instruction_data: Vec<u8> = [vec![instruction_id, 0u8], commit.clone(), commit.clone(), [i as u8].to_vec() ].concat();
 
         if i == 0 {
             let mut transaction = Transaction::new_with_payer(

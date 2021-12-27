@@ -44,9 +44,9 @@ pub mod tests {
 	use Testing_Hardcoded_Params_devnet_new::fe_state::FinalExpBytes;
 	use Testing_Hardcoded_Params_devnet_new::fe_ranges::*;
 	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::mt_processor;
-	use Testing_Hardcoded_Params_devnet_new::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
-	use Testing_Hardcoded_Params_devnet_new::instructions_poseidon::PoseidonCircomRounds3;
+	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_processor;
+	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
+	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
 	use Testing_Hardcoded_Params_devnet_new::fe_instructions::*;
 	use Testing_Hardcoded_Params_devnet_new::fe_processor::_process_instruction_final_exp;
 	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;

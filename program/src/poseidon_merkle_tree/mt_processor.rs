@@ -1,11 +1,11 @@
-use crate::mt_instructions::*;
-use crate::mt_state::{
+use crate::poseidon_merkle_tree::mt_instructions::*;
+use crate::poseidon_merkle_tree::mt_state::{
     MerkleTree,
     HashBytes,
     TwoLeavesBytesPda,
     InitMerkleTreeBytes
 };
-use crate::mt_state;
+use crate::poseidon_merkle_tree::mt_state;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
@@ -16,7 +16,7 @@ use solana_program::{
     sysvar::Sysvar,
     pubkey::Pubkey,
 };
-use crate::instructions_poseidon::{permute_instruction_first,permute_instruction_6,permute_instruction_3, permute_instruction_last};
+use crate::poseidon_merkle_tree::instructions_poseidon::{permute_instruction_first,permute_instruction_6,permute_instruction_3, permute_instruction_last};
 use crate::init_bytes18;
 use crate::IX_ORDER;
 
@@ -78,7 +78,7 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
     }
 
 
-    pub fn _pre_process_instruction_merkle_tree(
+    pub fn process_instruction_merkle_tree(
             &mut self,
             accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
 
@@ -114,11 +114,8 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
                 main_account_data.current_instruction_index < IX_ORDER.len() &&
                 IX_ORDER[main_account_data.current_instruction_index] == 34 {
             //locks and transfers deposit money
-            msg!("34_here0");
             let merkle_tree_account = next_account_info(account)?;
-            msg!("34_here1 {}", merkle_tree_account.data.borrow().len());
             let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
-            msg!("34_here2");
             let current_slot = <Clock as Sysvar>::get()?.slot.clone();
             msg!("Current slot: {:?}",  current_slot);
 
@@ -165,18 +162,11 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
 
            msg!("instruction: {}", IX_ORDER[main_account_data.current_instruction_index]);
            let leaf_pda = next_account_info(account)?;
-           msg!("pm here0");
            let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-           msg!("pm here1");
            let nullifer0 = next_account_info(account)?;
-           msg!("pm here2");
            let nullifer1 = next_account_info(account)?;
-           msg!("pm here3");
            let merkle_tree_account = next_account_info(account)?;
-           msg!("pm here4");
            let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
-           msg!("pm here5");
-
 
            pubkey_check(
                *signer.key,
@@ -207,37 +197,38 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
     }
 
 }
+
 pub fn _process_instruction_merkle_tree(
         id: u8,
-        hash_tmp_account: &mut HashBytes,
-        merkle_tree_account: &mut MerkleTree,
+        main_account_data: &mut HashBytes,
+        merkle_tree_account_data: &mut MerkleTree,
     ){
         msg!("executing instruction {}", id);
     if id == 0 {
-        permute_instruction_first(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index, &hash_tmp_account.left, &hash_tmp_account.right);
+        permute_instruction_first(&mut main_account_data.state,&mut main_account_data.current_round, &mut main_account_data.current_round_index, &main_account_data.left, &main_account_data.right);
 
     } else if id == 1{
-        permute_instruction_6(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+        permute_instruction_6(&mut main_account_data.state,&mut main_account_data.current_round, &mut main_account_data.current_round_index);
 
     } else if id == 2 {
-        permute_instruction_3(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+        permute_instruction_3(&mut main_account_data.state,&mut main_account_data.current_round, &mut main_account_data.current_round_index);
 
     } else if id == 3 {
-        permute_instruction_last(&mut hash_tmp_account.state,&mut hash_tmp_account.current_round, &mut hash_tmp_account.current_round_index);
+        permute_instruction_last(&mut main_account_data.state,&mut main_account_data.current_round, &mut main_account_data.current_round_index);
 
     } else if id == 25 {
-        insert_1_inner_loop(merkle_tree_account, hash_tmp_account);
+        insert_1_inner_loop(merkle_tree_account_data, main_account_data);
 
     } else if id == 14 {
-        insert_0_double (&vec![0], &vec![0], merkle_tree_account, hash_tmp_account);
+        insert_0_double (&vec![0], &vec![0], merkle_tree_account_data, main_account_data);
 
     } else if id == 16 {
-        insert_last_double ( merkle_tree_account, hash_tmp_account);
+        insert_last_double ( merkle_tree_account_data, main_account_data);
     }
 
 }
 
-pub fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
+fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
     if account_pubkey != solana_program::pubkey::Pubkey::new(&mt_state::MERKLE_TREE_ACC_BYTES[..]) {
         msg!("invalid merkle tree");
         return Err(ProgramError::InvalidAccountData);
@@ -245,7 +236,7 @@ pub fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramErr
     Ok(())
 }
 
-pub fn pubkey_check(account_pubkey0: Pubkey, account_pubkey1: Pubkey, msg: String) -> Result<(), ProgramError> {
+fn pubkey_check(account_pubkey0: Pubkey, account_pubkey1: Pubkey, msg: String) -> Result<(), ProgramError> {
     if account_pubkey0 != account_pubkey1{
         msg!(&msg);
         return Err(ProgramError::InvalidInstructionData);
