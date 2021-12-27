@@ -1,5 +1,5 @@
 use std::ops::{Mul, Add, AddAssign};
-use crate::utils::poseidon_round_constants_split;
+use crate::poseidon_merkle_tree::poseidon_round_constants_split;
 use solana_program::{
     msg,
     log::sol_log_compute_units,
@@ -231,7 +231,7 @@ mod tests {
 	get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
     };
     use ark_std::{UniformRand, test_rng};
-    use crate::mt_state::HashBytes;
+    use crate::poseidon_merkle_tree::mt_state::HashBytes;
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
 

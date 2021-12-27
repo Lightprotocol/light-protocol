@@ -1,6 +1,5 @@
 use crate::fe_ranges::*;
 use crate::fe_state::{FinalExpBytes};
-use crate::mt_state;
 
 use crate::fe_instructions::{
     custom_frobenius_map_1,

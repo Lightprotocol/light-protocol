@@ -1,18 +1,11 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use std::convert::TryInto;
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint,
-    entrypoint::ProgramResult,
     msg,
     program_error::ProgramError,
-    pubkey::Pubkey,
-    log::sol_log_compute_units,
 };
 use solana_program::program_pack::IsInitialized;
 use solana_program::program_pack::Pack;
 use solana_program::program_pack::Sealed;
-use crate::mt_state;
 
 #[derive(Clone, Debug)]
 pub struct NullifierBytesPda {

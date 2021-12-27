@@ -1,4 +1,4 @@
-use crate::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
+use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
 use crate::fe_instructions::{
     check_and_insert_nullifier,
     check_tx_integrity_hash
@@ -13,9 +13,9 @@ use solana_program::{
     program_pack::Pack
 };
 use std::convert::TryInto;
-use crate::mt_processor::MerkleTreeProcessor;
+use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 
-//use crate::_pre_process_instruction_merkle_tree;
+//use crate::process_instruction_merkle_tree;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -96,10 +96,10 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
             Some(main_account),
             None
         )?;
-        merkle_tree_processor._pre_process_instruction_merkle_tree(
+        merkle_tree_processor.process_instruction_merkle_tree(
             accounts
         );
-        //_pre_process_instruction_merkle_tree(&[0u8],accounts)?;
+        //process_instruction_merkle_tree(&[0u8],accounts)?;
 
 
 

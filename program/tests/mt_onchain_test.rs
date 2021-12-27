@@ -5,7 +5,7 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{account::Account, signature::Signer, transaction::Transaction, msg},
-    Testing_Hardcoded_Params_devnet_new::{process_instruction, mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES}, init_bytes18},
+    Testing_Hardcoded_Params_devnet_new::{process_instruction, poseidon_merkle_tree::mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES}, init_bytes18},
     std::str::FromStr,
 };
 use solana_program_test::ProgramTestError;
