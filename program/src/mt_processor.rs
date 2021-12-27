@@ -21,12 +21,16 @@ use crate::init_bytes18;
 use crate::IX_ORDER;
 
 pub struct MerkleTreeProcessor<'a, 'b> {
-    account: &'a AccountInfo<'b>,
+    merkle_tree_account: Option<&'a AccountInfo<'b>>,
+    main_account: Option<&'a AccountInfo<'b>>,
     unpacked_merkle_tree: MerkleTree,
 }
 
 impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
-    pub fn new(account: &'a AccountInfo<'b>) -> Result<Self, ProgramError>{
+    pub fn new(
+        main_account: Option<&'a AccountInfo<'b>>,
+        merkle_tree_account: Option<&'a AccountInfo<'b>>,
+        ) -> Result<Self, ProgramError>{
         let mut empty_smt = MerkleTree {is_initialized: false,
             levels: 1,
             filled_subtrees:vec![vec![0 as u8; 1];1],
@@ -43,20 +47,20 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
             time_locked: 0,
 
         };
+
         Ok(MerkleTreeProcessor {
-            account: account,
+            merkle_tree_account: merkle_tree_account,
+            main_account: main_account,
             unpacked_merkle_tree: empty_smt,
-            //instruction_data: instruction_data,
-            //IX_ORDER: PhantomData::<P>::INIT_BYTES,
         })
+
     }
-    //init_bytes18::INIT_BYTES_MERKLE_TREE_18
+
     pub fn initialize_new_merkle_tree_from_bytes(
         &mut self,
-        //init_account: AccountInfo,
         init_bytes: &[u8],
     ) -> Result<(), ProgramError> {
-        let mut unpacked_init_merkle_tree = InitMerkleTreeBytes::unpack(&self.account.data.borrow())?;
+        let mut unpacked_init_merkle_tree = InitMerkleTreeBytes::unpack(&self.merkle_tree_account.unwrap().data.borrow())?;
 
         for i in 0..unpacked_init_merkle_tree.bytes.len() {
             unpacked_init_merkle_tree.bytes[i] = init_bytes[i];
@@ -64,172 +68,145 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
 
         InitMerkleTreeBytes::pack_into_slice(
             &unpacked_init_merkle_tree,
-            &mut self.account.data.borrow_mut()
+            &mut self.merkle_tree_account.unwrap().data.borrow_mut()
         );
-
-        // if self.bytes[0..self.init.INIT_BYTES.len()] != self.init.INIT_BYTES[..] {
-        //     msg!("merkle tree init failed");
-        //     return Err(ProgramError::InvalidAccountData);
-        // }
+        if unpacked_init_merkle_tree.bytes[0..init_bytes.len()] != init_bytes[..] {
+            msg!("merkle tree init failed");
+            return Err(ProgramError::InvalidAccountData);
+        }
         Ok(())
     }
 
-}
 
-pub fn _pre_process_instruction_merkle_tree(_instruction_data: &[u8], accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
-    let account = &mut accounts.iter();
-    let signer = next_account_info(account)?;
-            //init instruction
-            if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
-                /*let merkle_tree_storage_acc = next_account_info(account)?;
-                let mut merkle_tree_tmp_account_data = mt_state::InitMerkleTreeBytes::unpack(&merkle_tree_storage_acc.data.borrow())?;
+    pub fn _pre_process_instruction_merkle_tree(
+            &mut self,
+            accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
 
-                for i in 0..init_bytes18::INIT_BYTES_MERKLE_TREE_18.len() {
-                    merkle_tree_tmp_account_data.bytes[i] = init_bytes18::INIT_BYTES_MERKLE_TREE_18[i];
-                }
+        let account = &mut accounts.iter();
+        let signer = next_account_info(account)?;
+        let main_account = next_account_info(account)?;
+        let mut main_account_data = HashBytes::unpack(&self.main_account.unwrap().data.borrow())?;
+        msg!("main_account_data.current_instruction_index {}", main_account_data.current_instruction_index);
 
-                if merkle_tree_tmp_account_data.bytes[0..init_bytes18::INIT_BYTES_MERKLE_TREE_18.len()] != init_bytes18::INIT_BYTES_MERKLE_TREE_18[..] {
-                    msg!("merkle tree init failed");
-                    return Err(ProgramError::InvalidAccountData);
-                }
-                mt_state::InitMerkleTreeBytes::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
-                */
+        if  main_account_data.current_instruction_index < IX_ORDER.len() &&
+            (IX_ORDER[main_account_data.current_instruction_index] == 14 ||
+            IX_ORDER[main_account_data.current_instruction_index] ==  25) {
+
+            let merkle_tree_account = next_account_info(account)?;
+            let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+
+            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            pubkey_check(
+                *signer.key,
+                solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
+                String::from("merkle tree locked by other account")
+            )?;
+
+            _process_instruction_merkle_tree(
+                IX_ORDER[main_account_data.current_instruction_index],
+                &mut main_account_data,
+                &mut merkle_tree_account_data,
+            );
+
+            MerkleTree::pack_into_slice(&merkle_tree_account_data, &mut merkle_tree_account.data.borrow_mut());
+
+        } else if
+                main_account_data.current_instruction_index < IX_ORDER.len() &&
+                IX_ORDER[main_account_data.current_instruction_index] == 34 {
+            //locks and transfers deposit money
+            msg!("34_here0");
+            let merkle_tree_account = next_account_info(account)?;
+            msg!("34_here1 {}", merkle_tree_account.data.borrow().len());
+            let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+            msg!("34_here2");
+            let current_slot = <Clock as Sysvar>::get()?.slot.clone();
+            msg!("Current slot: {:?}",  current_slot);
+
+            msg!("locked at slot: {}",  merkle_tree_account_data.time_locked);
+            msg!("lock ends at slot: {}",  merkle_tree_account_data.time_locked + 1000);
+
+            //lock
+            if merkle_tree_account_data.time_locked == 0 || merkle_tree_account_data.time_locked + 1000 < current_slot {
+                merkle_tree_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
+                merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                msg!("locked at {}", merkle_tree_account_data.time_locked);
+                msg!("locked by: {:?}", merkle_tree_account_data.pubkey_locked );
+                msg!("locked by: {:?}", solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked) );
+
+            } else if merkle_tree_account_data.time_locked + 1000 > current_slot /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked[..]) != *signer.key*/ {
+                msg!("contract is still locked");
+                return Err(ProgramError::InvalidInstructionData);
             } else {
-                let hash_storage_acc = next_account_info(account)?;
-                let mut hash_tmp_account_data = HashBytes::unpack(&hash_storage_acc.data.borrow())?;
-                msg!("hash_tmp_account_data.current_instruction_index {}", hash_tmp_account_data.current_instruction_index);
-
-                if hash_tmp_account_data.current_instruction_index < IX_ORDER.len() && (IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  14
-                    || IX_ORDER[hash_tmp_account_data.current_instruction_index] ==  25) {
-
-                    let merkle_tree_storage_acc = next_account_info(account)?;
-                    let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
-
-                    merkle_tree_pubkey_check(*merkle_tree_storage_acc.key)?;
-                    pubkey_check(
-                        *signer.key,
-                        solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked),
-                        String::from("merkle tree locked by other account")
-                    )?;
-
-                    _process_instruction_merkle_tree(
-                        IX_ORDER[hash_tmp_account_data.current_instruction_index],
-                        &mut hash_tmp_account_data,
-                        &mut merkle_tree_tmp_account_data,
-                    );
-
-                    MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
-                    hash_tmp_account_data.current_instruction_index +=1;
-                }
-                 else if hash_tmp_account_data.current_instruction_index == 1502
-                    {
-                    //the pda account should be created in the same tx, the pda account also functions as escrow account
-
-                    msg!("instruction: {}", IX_ORDER[hash_tmp_account_data.current_instruction_index]);
-                    let leaf_pda = next_account_info(account)?;
-                    msg!("pm here0");
-                    let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-                    msg!("pm here1");
-                    let nullifer0 = next_account_info(account)?;
-                    msg!("pm here2");
-                    let nullifer1 = next_account_info(account)?;
-                    msg!("pm here3");
-                    let merkle_tree_storage_acc = next_account_info(account)?;
-                    msg!("pm here4");
-                    let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
-                    msg!("pm here5");
-
-
-                    pubkey_check(
-                        *signer.key,
-                        solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked),
-                        String::from("merkle tree locked by other account")
-                    )?;
-
-                    merkle_tree_pubkey_check(*merkle_tree_storage_acc.key)?;
-
-
-                    insert_last_double ( &mut merkle_tree_tmp_account_data, &mut hash_tmp_account_data);
-                    leaf_pda_account_data.leaf_left = hash_tmp_account_data.leaf_left.clone();
-                    leaf_pda_account_data.leaf_right = hash_tmp_account_data.leaf_right.clone();
-                    leaf_pda_account_data.merkle_tree_pubkey = mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
-
-                    msg!("Lock set at slot {}", merkle_tree_tmp_account_data.time_locked );
-                    msg!("lock released at slot: {}",  <Clock as Sysvar>::get()?.slot);
-                    merkle_tree_tmp_account_data.time_locked = 0;
-                    merkle_tree_tmp_account_data.pubkey_locked = vec![0;32];
-
-                    MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
-                    TwoLeavesBytesPda::pack_into_slice(&leaf_pda_account_data, &mut leaf_pda.data.borrow_mut());
-
-                }
-
-                else if (hash_tmp_account_data.current_instruction_index < IX_ORDER.len() &&  IX_ORDER[hash_tmp_account_data.current_instruction_index] == 34 ){
-                    //locks and transfers deposit money
-                    let merkle_tree_storage_acc = next_account_info(account)?;
-                    let mut merkle_tree_tmp_account_data = MerkleTree::unpack(&merkle_tree_storage_acc.data.borrow())?;
-                    let current_slot = <Clock as Sysvar>::get()?.slot.clone();
-                    msg!("Current slot: {:?}",  current_slot);
-
-                    msg!("locked at slot: {}",  merkle_tree_tmp_account_data.time_locked);
-                    msg!("lock ends at slot: {}",  merkle_tree_tmp_account_data.time_locked + 1000);
-
-                    //lock
-                    if merkle_tree_tmp_account_data.time_locked == 0 ||  merkle_tree_tmp_account_data.time_locked + 1000 < current_slot{
-                        merkle_tree_tmp_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                        merkle_tree_tmp_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
-                        msg!("locked at {}", merkle_tree_tmp_account_data.time_locked);
-                        msg!("locked by: {:?}", merkle_tree_tmp_account_data.pubkey_locked );
-                        msg!("locked by: {:?}", solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked) );
-
-                    } else if merkle_tree_tmp_account_data.time_locked + 1000 > current_slot /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_tmp_account_data.pubkey_locked[..]) != *signer.key*/ {
-                        msg!("contract is still locked");
-                        return Err(ProgramError::InvalidInstructionData);
-                    } else {
-                        merkle_tree_tmp_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                        merkle_tree_tmp_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
-                    }
-
-                    merkle_tree_pubkey_check(*merkle_tree_storage_acc.key)?;
-                    MerkleTree::pack_into_slice(&merkle_tree_tmp_account_data, &mut merkle_tree_storage_acc.data.borrow_mut());
-                    hash_tmp_account_data.current_instruction_index +=1;
-
-                } else {
-                    //hash instructions do not need the merkle tree
-                    let merkle_tree_storage_acc = next_account_info(account)?;
-                    merkle_tree_pubkey_check(*merkle_tree_storage_acc.key)?;
-
-                    let mut dummy_smt = MerkleTree {is_initialized: true,
-                        levels: 1,
-                        filled_subtrees:vec![vec![0 as u8; 1];1],
-                        //zeros: vec![vec![0 as u8; 1];1],
-                        current_root_index: 0,
-                        next_index: 0,
-                        root_history_size: 10,
-                        roots: vec![0 as u8; 1],
-                        //leaves: vec![0],
-                        current_total_deposits: 0,
-                        inserted_leaf: false,
-                        inserted_root: false,
-                        pubkey_locked: vec![0],
-                        time_locked: 0,
-
-                    };
-                    _process_instruction_merkle_tree(
-                        IX_ORDER[hash_tmp_account_data.current_instruction_index],
-                        &mut hash_tmp_account_data,
-                        &mut dummy_smt,
-                    );
-
-                    hash_tmp_account_data.current_instruction_index +=1;
-                }
-                HashBytes::pack_into_slice(&hash_tmp_account_data, &mut hash_storage_acc.data.borrow_mut());
+                merkle_tree_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
+                merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
             }
-            Ok(())
+
+            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            MerkleTree::pack_into_slice(&merkle_tree_account_data, &mut merkle_tree_account.data.borrow_mut());
+
+        } else if
+                IX_ORDER[main_account_data.current_instruction_index] == 0 ||
+                IX_ORDER[main_account_data.current_instruction_index] == 1 ||
+                IX_ORDER[main_account_data.current_instruction_index] == 2 ||
+                IX_ORDER[main_account_data.current_instruction_index] == 3 {
+
+            let merkle_tree_account = next_account_info(account)?;
+            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            //hash instructions do not need the merkle tree
+            _process_instruction_merkle_tree(
+                IX_ORDER[main_account_data.current_instruction_index],
+                &mut main_account_data,
+                &mut self.unpacked_merkle_tree,
+            );
+
+        } else if IX_ORDER[main_account_data.current_instruction_index] == 241 {
+            ///inserting root and creating leave pda accounts
+            //the pda account should be created in the same tx, the pda account also functions as escrow account
+
+           msg!("instruction: {}", IX_ORDER[main_account_data.current_instruction_index]);
+           let leaf_pda = next_account_info(account)?;
+           msg!("pm here0");
+           let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
+           msg!("pm here1");
+           let nullifer0 = next_account_info(account)?;
+           msg!("pm here2");
+           let nullifer1 = next_account_info(account)?;
+           msg!("pm here3");
+           let merkle_tree_account = next_account_info(account)?;
+           msg!("pm here4");
+           let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+           msg!("pm here5");
+
+
+           pubkey_check(
+               *signer.key,
+               solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
+               String::from("merkle tree locked by other account")
+           )?;
+
+           merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+
+           insert_last_double(&mut merkle_tree_account_data, &mut main_account_data);
+           leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
+           leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
+           leaf_pda_account_data.merkle_tree_pubkey = mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
+
+           msg!("Lock set at slot {}", merkle_tree_account_data.time_locked );
+           msg!("lock released at slot: {}",  <Clock as Sysvar>::get()?.slot);
+           merkle_tree_account_data.time_locked = 0;
+           merkle_tree_account_data.pubkey_locked = vec![0;32];
+
+           MerkleTree::pack_into_slice(&merkle_tree_account_data, &mut merkle_tree_account.data.borrow_mut());
+           TwoLeavesBytesPda::pack_into_slice(&leaf_pda_account_data, &mut leaf_pda.data.borrow_mut());
+       }
+       main_account_data.current_instruction_index +=1;
+       HashBytes::pack_into_slice(&main_account_data, &mut self.main_account.unwrap().data.borrow_mut());
+
+    Ok(())
+
+    }
 
 }
-
-
 pub fn _process_instruction_merkle_tree(
         id: u8,
         hash_tmp_account: &mut HashBytes,

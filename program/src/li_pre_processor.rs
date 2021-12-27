@@ -13,7 +13,9 @@ use solana_program::{
     program_pack::Pack
 };
 use std::convert::TryInto;
-use crate::_pre_process_instruction_merkle_tree;
+use crate::mt_processor::MerkleTreeProcessor;
+
+//use crate::_pre_process_instruction_merkle_tree;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -90,7 +92,14 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
         )?;
         //
         msg!("inserting new merkle root");
-        _pre_process_instruction_merkle_tree(&[0u8],accounts)?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(
+            Some(main_account),
+            None
+        )?;
+        merkle_tree_processor._pre_process_instruction_merkle_tree(
+            accounts
+        );
+        //_pre_process_instruction_merkle_tree(&[0u8],accounts)?;
 
 
 

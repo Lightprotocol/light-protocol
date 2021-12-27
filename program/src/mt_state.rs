@@ -63,32 +63,41 @@ impl  Pack for MerkleTree {
             pubkey_locked,
             time_locked,
     ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
-        assert_eq!(1, is_initialized[0], "Account is not initialized");
+        //assert_eq!(1, is_initialized[0], "Account is not initialized");
+        if 1u8 != is_initialized[0] {
+            msg!("merkle tree account is not initialized");
+            panic!();
+        }
         /*
         let is_initialized = match is_initialized {
             [0] => false,
             [1] => true,
             _ => return Err(ProgramError::InvalidAccountData),
         };*/
-
+        msg!("mt unpack0");
         let mut tmp_subtree_vec = vec![vec![0u8;32]; 18];
+        msg!("mt unpack1");
 
         for (i, bytes) in filled_subtrees.chunks(32).enumerate() {
             tmp_subtree_vec[i] = bytes.to_vec();
         }
+        msg!("mt unpack2");
 
         let current_root_index = usize::from_le_bytes(*current_root_index);
+        msg!("mt unpack3");
 
         let mut tmp_roots_vec = vec![0u8;32];
         let current_root_start_range = current_root_index * 32;
         let current_root_end_range = (current_root_index + 1) * 32;
+        msg!("mt unpack4");
+
         for (i, byte) in roots[current_root_start_range..current_root_end_range].iter().enumerate() {
             tmp_roots_vec[i] = *byte;
         }
+        msg!("mt unpack5");
 
         let next_index = usize::from_le_bytes(*next_index);
 
-        sol_log_compute_units();
         Ok(
             MerkleTree {
                 is_initialized: true,
