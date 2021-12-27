@@ -30,7 +30,7 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
     pub fn new(
         main_account: Option<&'a AccountInfo<'b>>,
         merkle_tree_account: Option<&'a AccountInfo<'b>>,
-        ) -> Result<Self, ProgramError>{
+        ) -> Result<Self, ProgramError> {
         let mut empty_smt = MerkleTree {is_initialized: false,
             levels: 1,
             filled_subtrees:vec![vec![0 as u8; 1];1],
@@ -80,7 +80,8 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
 
     pub fn process_instruction_merkle_tree(
             &mut self,
-            accounts: &[AccountInfo] ) -> Result<(),ProgramError> {
+            accounts: &[AccountInfo]
+            ) -> Result<(),ProgramError> {
 
         let account = &mut accounts.iter();
         let signer = next_account_info(account)?;
