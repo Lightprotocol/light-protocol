@@ -516,9 +516,9 @@ mod tests {
 	pub struct merkle_tree {
 	    pub is_initialized: bool,
 	    pub levels: usize,
-	    pub filledSubtrees : Vec<Vec<u8>>,
+	    pub filled_subtrees : Vec<Vec<u8>>,
 	    pub zeros : Vec<Vec<u8>>,
-	    pub currentRootIndex : usize,
+	    pub current_root_index : usize,
 	    pub next_index : usize,
 	    pub root_history_size : usize,
 	    pub roots : Vec<Vec<u8>>,
@@ -544,7 +544,7 @@ mod tests {
         <Fq as ToBytes>::write(&current_zero, &mut tree.zeros[0][..]);
 		println!("first zero {:?}",  tree.zeros[tree.zeros.len()- 1]);
 
-        <Fq as ToBytes>::write(&current_zero, &mut tree.filledSubtrees[0][..]);
+        <Fq as ToBytes>::write(&current_zero, &mut tree.filled_subtrees[0][..]);
         // first level done
 
         for i in 1..tree.levels  {
@@ -558,7 +558,7 @@ mod tests {
             let mut tmp = vec![0u8;32];
             <Fq as ToBytes>::write(&current_zero, &mut tmp[..]);
             tree.zeros.push(tmp.clone());
-            tree.filledSubtrees.push(tmp);
+            tree.filled_subtrees.push(tmp);
 
         }
 
@@ -604,9 +604,9 @@ mod tests {
 
 			let mut smt = merkle_tree {is_initialized: true,
 		        levels: 1,
-		        filledSubtrees:vec![vec![0 as u8; 32];1],
+		        filled_subtrees:vec![vec![0 as u8; 32];1],
 		        zeros: vec![vec![0 as u8; 32];1],
-		        currentRootIndex: 0,
+		        current_root_index: 0,
 		        next_index: 0,
 		        root_history_size: 100,
 		        roots: vec![vec![0 as u8; 32]; 10],
@@ -643,7 +643,7 @@ mod tests {
 	        print!(", {}", i);
 	        init_bytes.push(*i);
 	    }
-	    for i in &smt.filledSubtrees {
+	    for i in &smt.filled_subtrees {
 	        for j in i {
 	            print!(", {}", j);
 	            init_bytes.push(*j);
@@ -657,7 +657,7 @@ mod tests {
 
 	        }
 	    }
-	    for i in &smt.currentRootIndex.to_le_bytes() {
+	    for i in &smt.current_root_index.to_le_bytes() {
 	        print!(", {}", i);
 	        init_bytes.push(*i);
 	    }
@@ -691,7 +691,7 @@ mod tests {
 		write!(output, "{}",format!("pub const INIT_BYTES_MERKLE_TREE_{} : [u8;{}] = {:?};",smt.levels, init_bytes.len(), init_bytes));
 		write!(output, "{}",format!("\n\npub const ZERO_BYTES_MERKLE_TREE_{} : [u8;{}] = {:?};",smt.levels, zero_bytes.len(), zero_bytes));
 
-	    println!("subtrees len : {}", smt.filledSubtrees.len());
+	    println!("subtrees len : {}", smt.filled_subtrees.len());
 	    println!("zeros len : {}", smt.zeros.len());
 	    println!("Number of init bytes: {}", init_bytes.len());
 
@@ -744,9 +744,9 @@ mod tests {
 		let mut smt = merkle_tree {
 			is_initialized: true,
 	        levels: 1,
-	        filledSubtrees:vec![vec![0 as u8; 32];1],
+	        filled_subtrees:vec![vec![0 as u8; 32];1],
 	        zeros: vec![vec![0 as u8; 32];1],
-	        currentRootIndex: 0,
+	        current_root_index: 0,
 	        next_index: 0,
 	        root_history_size: 500,
 	        roots: vec![vec![0 as u8; 32]; 1],
@@ -809,9 +809,9 @@ mod tests {
                 leaf_right: vec![0 as u8; 32],
 				left: vec![0 as u8; 32],
                 right: vec![0 as u8; 32],
-                currentLevelHash: vec![0u8;32],
-                currentIndex: 0usize,
-                currentLevel: 0usize,
+                current_level_hash: vec![0u8;32],
+                current_index: 0usize,
+                current_level: 0usize,
                 current_instruction_index: 0usize,
             };
 
@@ -887,9 +887,9 @@ mod tests {
                 leaf_right: vec![0 as u8; 32],
 				left: vec![0 as u8; 32],
                 right: vec![0 as u8; 32],
-                currentLevelHash: vec![0u8;32],
-                currentIndex: 0usize,
-                currentLevel: 0usize,
+                current_level_hash: vec![0u8;32],
+                current_index: 0usize,
+                current_level: 0usize,
                 current_instruction_index: 0usize,
             };
 
@@ -967,9 +967,9 @@ mod tests {
                 leaf_right: vec![0 as u8; 32],
 				left: vec![0 as u8; 32],
                 right: vec![0 as u8; 32],
-                currentLevelHash: vec![0u8;32],
-                currentIndex: 0usize,
-                currentLevel: 0usize,
+                current_level_hash: vec![0u8;32],
+                current_index: 0usize,
+                current_level: 0usize,
                 current_instruction_index: 0usize,
             };
 
@@ -1053,9 +1053,9 @@ mod tests {
 				leaf_right: vec![0 as u8; 32],
 				left: vec![0 as u8; 32],
 				right: vec![0 as u8; 32],
-				currentLevelHash: vec![0u8;32],
-				currentIndex: 0usize,
-				currentLevel: 0usize,
+				current_level_hash: vec![0u8;32],
+				current_index: 0usize,
+				current_level: 0usize,
 				current_instruction_index: 0usize,
 			};
 

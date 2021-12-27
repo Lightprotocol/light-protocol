@@ -1,16 +1,29 @@
 use crate::utils::prepared_verifying_key::*;
 use crate::ml_parsers::*;
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::fields::models::fp2::*;
-use ark_ff::fields::models::fp6_3over2::{Fp6, Fp6Parameters};
-use ark_ff::fields::models::quadratic_extension::QuadExtField;
-use ark_ff::fields::models::quadratic_extension::QuadExtParameters;
-use ark_ff::fields::Fp2;
-use ark_ff::fields::{Field, PrimeField, SquareRootField};
-use ark_ff::fp12_2over3over2::{Fp12, Fp12Parameters};
-use ark_ff::One;
-use solana_program::{log::sol_log_compute_units, msg};
-use std::ops::{AddAssign, SubAssign};
+use ark_ff::{
+    One,
+    fp12_2over3over2::{
+        Fp12Parameters
+    },
+    biginteger::BigInteger256,
+    fields::{
+        models::{
+            fp6_3over2::{
+                Fp6,
+            },
+            quadratic_extension::QuadExtField,
+            quadratic_extension::QuadExtParameters,
+        },
+        Fp2,
+        Field,
+
+    }
+
+};
+use solana_program::{
+    log::sol_log_compute_units,
+    msg
+};
 
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];

@@ -41,8 +41,8 @@ impl Pack for MerkleTreeRoots {
         let (
             is_initialized,
             levels,
-            filledSubtrees,
-            currentRootIndex,
+            filled_subtrees,
+            current_root_index,
             next_index,
             root_history_size,
             //609

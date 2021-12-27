@@ -286,9 +286,9 @@ mod tests {
                 leaf_right: right_input.to_vec(),
                 left: left_input.to_vec(),
                 right: right_input.to_vec(),
-                currentLevelHash: vec![0u8;32],
-                currentIndex: 0usize,
-                currentLevel: 0usize,
+                current_level_hash: vec![0u8;32],
+                current_index: 0usize,
+                current_level: 0usize,
                 current_instruction_index: 0usize,
             };
 
@@ -335,9 +335,9 @@ mod tests {
                 leaf_right: right_input.to_vec(),
                 left: left_input.to_vec(),
                 right: right_input.to_vec(),
-                currentLevelHash: vec![0u8;32],
-                currentIndex: 0usize,
-                currentLevel: 0usize,
+                current_level_hash: vec![0u8;32],
+                current_index: 0usize,
+                current_level: 0usize,
                 current_instruction_index: 0usize,
             };
 

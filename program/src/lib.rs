@@ -63,23 +63,46 @@ use crate::fe_state::InstructionIndex;
 use crate::pi_ranges::*;
 use ark_ff::{Fp256, FromBytes};
 use crate::pi_state::PiBytes;
-
+use crate::mt_state::InitMerkleTreeBytes;
 
 use crate::li_pre_processor::li_pre_process_instruction;
 
+use crate::mt_processor::MerkleTreeProcessor;
 
 
 entrypoint!(process_instruction);
 
+//use crate::mt_state::MtConfig;
+
+// #[derive(Clone)]
+// struct MtInitConfig;
+//
+// impl MtConfig for MtInitConfig {
+//     const INIT_BYTES: &'static[u8] = &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..];
+// }
+
+
 pub fn process_instruction(
     program_id: &Pubkey,
-    accounts: &[AccountInfo],
+    accounts: &[ AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
     //msg!("instruction_data len: {}", &_instruction_data.len());
     // initialize new merkle tree account
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
-        _pre_process_instruction_merkle_tree(&_instruction_data, accounts);
+        let accounts_mut = accounts.clone();
+        let account = &mut accounts_mut.iter();
+        let signing_account = next_account_info(account)?;
+        let merkle_tree_storage_acc = next_account_info(account)?;
+        //merkle_tree_tmp_account_data.initialize();
+        //mt_state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(
+            merkle_tree_storage_acc
+        )?;
+        merkle_tree_processor.initialize_new_merkle_tree_from_bytes(
+            &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..]
+        );
+        //_pre_process_instruction_merkle_tree(&_instruction_data, accounts);
     }
     // transact with shielded pool
     else {
