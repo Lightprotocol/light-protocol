@@ -135,8 +135,7 @@ pub fn process_instruction(
                         Ok(())
                     }
                     //prepare inputs for proof verification with miller loop and final exponentiation
-                    else if account_main_data.current_instruction_index < 466 {
-                        //_pre_process_instruction(_instruction_data, accounts);
+                    else if account_main_data.current_instruction_index < 801+ 466 {
                         let mut groth16_processor = Groth16Processor::new(
                             account_main,
                             account_main_data.current_instruction_index,
@@ -144,17 +143,6 @@ pub fn process_instruction(
                         groth16_processor.process_instruction_groth16_verifier()?;
                         Ok(())
 
-                    }
-                    //miller loop
-                    else if account_main_data.current_instruction_index >= 466 && account_main_data.current_instruction_index < 430+ 466 {
-                        msg!("else if _pre_process_instruction_miller_loop");
-                        _pre_process_instruction_miller_loop(&_instruction_data, accounts);
-                        Ok(())
-                    }
-                    //final exponentiation
-                    else if account_main_data.current_instruction_index >= 430 + 466  && account_main_data.current_instruction_index < 801 + 466{
-                        _pre_process_instruction_final_exp(program_id, accounts, &_instruction_data);
-                        Ok(())
                     }
                     //merkle tree insertion of new utxos
                     else if account_main_data.current_instruction_index >= 801+ 466 {
