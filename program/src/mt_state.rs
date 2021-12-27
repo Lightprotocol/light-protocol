@@ -4,17 +4,24 @@ use solana_program::{
     log::sol_log_compute_units,
     program_pack::{IsInitialized, Pack, Sealed},
     program_error::ProgramError,
+    account_info::{AccountInfo},
+
 };
 use std::convert::TryInto;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{LittleEndian,ByteOrder};
+use ark_std::marker::PhantomData;
+pub trait MtConfig: Clone {
+	/// The size of the permutation, in field elements.
+	const INIT_BYTES: &'static[u8];
+}
 
 #[derive(Debug)]
 pub struct MerkleTree {
     pub is_initialized: bool,
     pub levels: usize,
-    pub filledSubtrees : Vec<Vec<u8>>,
-    pub currentRootIndex : usize,
+    pub filled_subtrees : Vec<Vec<u8>>,
+    pub current_root_index : usize,
     pub next_index : usize,
     pub root_history_size : usize,
     pub roots : Vec<u8>,
@@ -32,7 +39,7 @@ impl IsInitialized for MerkleTree {
 
     }
 }
-impl Pack for MerkleTree {
+impl  Pack for MerkleTree {
     //height 2
     //const LEN: usize = 809;
     //height 18 8392993
@@ -45,8 +52,8 @@ impl Pack for MerkleTree {
         let (
             is_initialized,
             levels,
-            filledSubtrees,
-            currentRootIndex,
+            filled_subtrees,
+            current_root_index,
             next_index,
             root_history_size,
             //609
@@ -66,11 +73,11 @@ impl Pack for MerkleTree {
 
         let mut tmp_subtree_vec = vec![vec![0u8;32]; 18];
 
-        for (i, bytes) in filledSubtrees.chunks(32).enumerate() {
+        for (i, bytes) in filled_subtrees.chunks(32).enumerate() {
             tmp_subtree_vec[i] = bytes.to_vec();
         }
 
-        let current_root_index = usize::from_le_bytes(*currentRootIndex);
+        let current_root_index = usize::from_le_bytes(*current_root_index);
 
         let mut tmp_roots_vec = vec![0u8;32];
         let current_root_start_range = current_root_index * 32;
@@ -86,8 +93,8 @@ impl Pack for MerkleTree {
             MerkleTree {
                 is_initialized: true,
                 levels: usize::from_le_bytes(*levels),
-                filledSubtrees: tmp_subtree_vec,
-                currentRootIndex : current_root_index,
+                filled_subtrees: tmp_subtree_vec,
+                current_root_index : current_root_index,
                 next_index : next_index,
                 root_history_size : usize::from_le_bytes(*root_history_size),
                 roots : tmp_roots_vec.to_vec(),
@@ -109,8 +116,8 @@ impl Pack for MerkleTree {
             let (
                 is_initialized_dst,
                 levels_dst,
-                filledSubtrees_dst,
-                currentRootIndex_dst,
+                filled_subtrees_dst,
+                current_root_index_dst,
                 next_index_dst,
                 root_history_size_dst,
                 roots_dst,
@@ -121,16 +128,16 @@ impl Pack for MerkleTree {
 
             // could change this to insert only the changed subtree if one is changed
             let mut i = 0;
-            for it in &self.filledSubtrees {
+            for it in &self.filled_subtrees {
                 for j in it {
-                    filledSubtrees_dst[i] = *j;
+                    filled_subtrees_dst[i] = *j;
                     i += 1;
                 }
             }
             if self.inserted_root {
                 let mut i = 0;
-                if self.currentRootIndex != 0 {
-                    i = (self.currentRootIndex) ;
+                if self.current_root_index != 0 {
+                    i = (self.current_root_index) ;
                 }
                 let mut i_tmp = i * 32;
                 for it in self.roots.iter() {
@@ -141,7 +148,7 @@ impl Pack for MerkleTree {
             }
 
             //should change u64 to usize
-            LittleEndian::write_u64(currentRootIndex_dst, self.currentRootIndex.try_into().unwrap());
+            LittleEndian::write_u64(current_root_index_dst, self.current_root_index.try_into().unwrap());
             LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
             LittleEndian::write_u64(current_total_deposits_dst, self.current_total_deposits.try_into().unwrap());
             *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
@@ -152,10 +159,12 @@ impl Pack for MerkleTree {
 
 
 
-#[derive(Debug)]
+
+#[derive(Debug, Clone)]
 pub struct InitMerkleTreeBytes {
     pub is_initialized: bool,
     pub bytes: Vec<u8>,
+    //init: PhantomData<P>,
 }
 impl Sealed for InitMerkleTreeBytes {}
 impl IsInitialized for InitMerkleTreeBytes {
@@ -167,6 +176,7 @@ impl Pack for InitMerkleTreeBytes {
     //const LEN: usize = 809;
     //const LEN: usize = 8393001;
     const LEN: usize = 16657;
+    //const P: MtConfig = PhantomData<P>;
 
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, InitMerkleTreeBytes::LEN];
@@ -198,6 +208,7 @@ impl Pack for InitMerkleTreeBytes {
     }
 }
 
+
 // Account structs for merkle tree:
 #[derive(Debug)]
 pub struct HashBytes {
@@ -210,12 +221,12 @@ pub struct HashBytes {
     pub leaf_right: Vec<u8>,
     pub left: Vec<u8>,
     pub right: Vec<u8>,
-    pub currentLevelHash: Vec<u8>,
-    pub currentIndex: usize,
-    pub currentLevel: usize,
+    pub current_level_hash: Vec<u8>,
+    pub current_index: usize,
+    pub current_level: usize,
     pub current_instruction_index: usize,
     // levels,
-    // filledSubtrees,
+    // filled_subtrees,
     // zeros,
     //new_root,
 }
@@ -243,9 +254,9 @@ impl Pack for HashBytes {
             current_round_index,
             left,
             right,
-            currentLevelHash,
-            currentIndex,
-            currentLevel,
+            current_level_hash,
+            current_index,
+            current_level,
             leaf_left,
             leaf_right,
             nullifier_0,
@@ -267,9 +278,9 @@ impl Pack for HashBytes {
                 leaf_right: leaf_right.to_vec(),
                 left: left.to_vec(),
                 right: right.to_vec(),
-                currentLevelHash: currentLevelHash.to_vec(),
-                currentIndex: usize::from_le_bytes(*currentIndex),
-                currentLevel: usize::from_le_bytes(*currentLevel),
+                current_level_hash: current_level_hash.to_vec(),
+                current_index: usize::from_le_bytes(*current_index),
+                current_level: usize::from_le_bytes(*current_level),
                 current_instruction_index: usize::from_le_bytes(*current_instruction_index),
             }
         )
@@ -291,9 +302,9 @@ impl Pack for HashBytes {
             current_round_index_dst,
             left_dst,
             right_dst,
-            currentLevelHash_dst,
-            currentIndex_dst,
-            currentLevel_dst,
+            current_level_hash_dst,
+            current_index_dst,
+            current_level_dst,
             leaf_left_dst,
             leaf_right_dst,
             //+288
@@ -321,10 +332,10 @@ impl Pack for HashBytes {
         *left_dst =             self.left.clone().try_into().unwrap();
 
         *right_dst =            self.right.clone().try_into().unwrap();
-        *currentLevelHash_dst = self.currentLevelHash.clone().try_into().unwrap();
+        *current_level_hash_dst = self.current_level_hash.clone().try_into().unwrap();
 
-        *currentIndex_dst = usize::to_le_bytes(self.currentIndex);
-        *currentLevel_dst = usize::to_le_bytes(self.currentLevel);
+        *current_index_dst = usize::to_le_bytes(self.current_index);
+        *current_level_dst = usize::to_le_bytes(self.current_level);
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
     }
 }
