@@ -41,7 +41,7 @@ pub mod state_check_nullifier;
 pub mod mt_state_roots;
 
 use crate::fe_pre_processor::_pre_process_instruction_final_exp;
-use crate::mt_processor::_pre_process_instruction_merkle_tree;
+//use crate::mt_processor::_pre_process_instruction_merkle_tree;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -97,7 +97,8 @@ pub fn process_instruction(
         //merkle_tree_tmp_account_data.initialize();
         //mt_state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
         let mut merkle_tree_processor = MerkleTreeProcessor::new(
-            merkle_tree_storage_acc
+            None,
+            Some(merkle_tree_storage_acc)
         )?;
         merkle_tree_processor.initialize_new_merkle_tree_from_bytes(
             &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..]
@@ -156,7 +157,14 @@ pub fn process_instruction(
                     //merkle tree insertion of new utxos
                     else if account_main_data.current_instruction_index >= 801+ 466 {
 
-                        _pre_process_instruction_merkle_tree(&_instruction_data, accounts)?;
+                        //_pre_process_instruction_merkle_tree(&_instruction_data, accounts)?;
+                        let mut merkle_tree_processor = MerkleTreeProcessor::new(
+                            Some(account_main),
+                            None
+                        )?;
+                        merkle_tree_processor._pre_process_instruction_merkle_tree(
+                            accounts
+                        );
                         Ok(())
 
                     }
@@ -336,6 +344,6 @@ pub const IX_ORDER: [u8; 1503] = [
     34, 14, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
     //16,
     //perform last checks and transfer requested amount
-    240
+    241
 
 ];
