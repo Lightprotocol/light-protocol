@@ -1,5 +1,6 @@
 use crate::utils::prepared_verifying_key::*;
-use crate::ml_parsers::*;
+use crate::Groth16_verifier::parsers::*;
+
 use ark_ff::{
     One,
     fp12_2over3over2::{
@@ -650,19 +651,19 @@ pub fn ell_instruction_d_c3(
 
 #[cfg(test)]
 mod tests {
-    use crate::ml_instructions::{
+    use crate::Groth16_verifier::miller_loop::ml_instructions::{
         ell_instruction_d, ell_instruction_d_c2, ell_instruction_d_c3, square_in_place_instruction,
     };
 
     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
-    use crate::ml_parsers::{
+    use crate::Groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
         parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
     };
-    use crate::ml_state::ML254Bytes;
+    use crate::Groth16_verifier::miller_loop::ml_state::ML254Bytes;
 
-    use crate::ml_ranges::{COEFF_0_RANGE, COEFF_1_RANGE, COEFF_2_RANGE, F_RANGE};
+    use crate::Groth16_verifier::miller_loop::ml_ranges::{COEFF_0_RANGE, COEFF_1_RANGE, COEFF_2_RANGE, F_RANGE};
 
     use ark_ec::bn::BnParameters;
     use ark_ff::{Field, Fp12};

@@ -1,6 +1,11 @@
-use crate::pi_instructions::*;
-use crate::pi_ranges::*;
-use crate::pi_state::PiBytes;
+use crate::Groth16_verifier::{
+    parsers::*,
+    prepare_inputs::{
+        pi_state::PiBytes,
+        pi_ranges::*,
+        pi_instructions::*,
+    }
+};
 use solana_program::{log, msg};
 
 pub fn _pi_254_process_instruction(

@@ -12,7 +12,7 @@ use {
             HashBytes,
             MERKLE_TREE_ACC_BYTES
         },
-        fe_state::{
+        Groth16_verifier::final_exponentiation::fe_state::{
             INSTRUCTION_ORDER_VERIFIER_PART_2,
             FinalExpBytes
         }

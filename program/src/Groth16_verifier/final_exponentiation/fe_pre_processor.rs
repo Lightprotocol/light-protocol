@@ -1,6 +1,10 @@
+use crate::Groth16_verifier::final_exponentiation::{
+    fe_ranges::*,
+    fe_state::FinalExpBytes,
+    fe_processor::_process_instruction_final_exp,
 
-use crate::fe_ranges::*;
-use crate::fe_state::{FinalExpBytes};
+};
+
 use crate::IX_ORDER;
 
 use solana_program::{
@@ -11,8 +15,6 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-
-use crate::fe_processor::_process_instruction_final_exp;
 
 pub fn _pre_process_instruction_final_exp(program_id: &Pubkey, accounts: &[AccountInfo], _instruction_data: &[u8]) -> Result<(),ProgramError>{
     let account = &mut accounts.iter();

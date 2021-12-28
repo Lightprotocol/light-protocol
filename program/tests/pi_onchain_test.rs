@@ -3,7 +3,7 @@ use ark_ff::biginteger::BigInteger256;
 use ark_ff::{Fp256, ToBytes};
 use ark_bn254;
 use std::time;
-use Testing_Hardcoded_Params_devnet_new::ml_parsers::parse_x_group_affine_from_bytes;
+use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_x_group_affine_from_bytes;
 use {
     solana_program::{
         instruction::{AccountMeta, Instruction},

@@ -14,10 +14,8 @@ pub mod tests {
 	use arkworks_gadgets::poseidon::{PoseidonParameters, PoseidonError, Rounds,circom::CircomCRH, sbox::PoseidonSbox};
 	use ark_crypto_primitives::{crh::{TwoToOneCRH, CRH}, Error};
 	use std::convert::TryInto;
-    use ark_std::{UniformRand, test_rng};
+    use ark_std::{UniformRand, test_rng, One, vec::Vec};
 
-
-	use ark_std::{One, vec::Vec};
 
     use std::fs;
     use serde_json::{Result, Value};
@@ -40,16 +38,24 @@ pub mod tests {
 	use std::io::{Error as ioError};
 
 
-	use Testing_Hardcoded_Params_devnet_new::ml_parsers::*;
-	use Testing_Hardcoded_Params_devnet_new::fe_state::FinalExpBytes;
-	use Testing_Hardcoded_Params_devnet_new::fe_ranges::*;
-	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_processor;
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
-	use Testing_Hardcoded_Params_devnet_new::fe_instructions::*;
-	use Testing_Hardcoded_Params_devnet_new::fe_processor::_process_instruction_final_exp;
-	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;
+	use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::*;
+	use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::final_exponentiation::{
+		fe_state::FinalExpBytes,
+		fe_ranges::*,
+		fe_instructions::*,
+		fe_processor::_process_instruction_final_exp,
+	};
+
+	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::{
+		mt_processor,
+		mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain},
+		instructions_poseidon::PoseidonCircomRounds3,
+	};
+	
+	use Testing_Hardcoded_Params_devnet_new::utils::{
+		prepared_verifying_key::*,
+		init_bytes18
+	};
 
 
 

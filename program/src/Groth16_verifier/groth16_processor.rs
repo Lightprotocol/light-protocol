@@ -6,28 +6,33 @@ use solana_program::{
     pubkey::Pubkey,
 
 };
-use crate::pi_processor::_pi_254_process_instruction;
-use crate::pi_state::PiBytes;
 use crate::IX_ORDER;
-use crate::_pre_process_instruction_miller_loop;
-use crate::pi_pre_processor::CURRENT_INDEX_ARRAY;
-use crate::pi_instructions;
+
+
+use crate::Groth16_verifier::{
+    parsers::*,
+    prepare_inputs::{
+        pi_instructions,
+        pi_pre_processor::CURRENT_INDEX_ARRAY,
+        pi_processor::_pi_254_process_instruction,
+        pi_state::PiBytes
+        //use crate::pi_state::*;
+    },
+    miller_loop::{
+        ml_instructions::*,
+        ml_processor::*,
+        ml_ranges::*,
+        ml_state::*,
+    },
+    final_exponentiation::{
+        fe_state::{FinalExpBytes},
+        fe_processor::_process_instruction_final_exp
+    }
+};
 pub struct Groth16Processor<'a, 'b> {
     main_account: &'a AccountInfo<'b>,
     current_instruction_index: usize,
 }
-
-use crate::ml_instructions::*;
-use crate::ml_parsers::*;
-use crate::ml_processor::*;
-use crate::ml_ranges::*;
-use crate::ml_state::*;
-use crate::pi_state::*;
-
-
-use crate::fe_processor::_process_instruction_final_exp;
-
-use crate::fe_state::{FinalExpBytes};
 impl <'a, 'b> Groth16Processor <'a, 'b>{
     pub fn new(
         main_account: &'a AccountInfo<'b>,
@@ -53,7 +58,7 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
             self.miller_loop()?;
             Ok(())
         } else if self.current_instruction_index >= 430 + 466  && self.current_instruction_index < 801 + 466{
-            self.final_exponentiation();
+            self.final_exponentiation()?;
             Ok(())
         }
         else {

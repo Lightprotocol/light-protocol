@@ -25,7 +25,7 @@ mod tests {
 
 	use ark_std::{One};
 
-	use Testing_Hardcoded_Params_devnet_new::init_bytes18;
+	use Testing_Hardcoded_Params_devnet_new::utils::init_bytes18;
 	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_processor;
 
 	use std::fs::File;

@@ -1,24 +1,25 @@
-use crate::fe_ranges::*;
-use crate::fe_state::{FinalExpBytes};
-
-use crate::fe_instructions::{
-    custom_frobenius_map_1,
-    custom_frobenius_map_2,
-    custom_frobenius_map_3,
-    custom_cyclotomic_square,
-    conjugate_wrapper,
-    custom_f_inverse_1,
-    custom_f_inverse_2,
-    custom_f_inverse_3,
-    custom_f_inverse_4,
-    custom_f_inverse_5,
-    custom_cubic_inverse_1,
-    custom_cubic_inverse_2,
-    custom_quadratic_fp256_inverse_1,
-    custom_quadratic_fp256_inverse_2,
-    mul_assign_1_2,
-    mul_assign_3_4_5,
-    custom_cyclotomic_square_in_place,
+use crate::Groth16_verifier::final_exponentiation::{
+    fe_ranges::*,
+    fe_state::FinalExpBytes,
+    fe_instructions::{
+        custom_frobenius_map_1,
+        custom_frobenius_map_2,
+        custom_frobenius_map_3,
+        custom_cyclotomic_square,
+        conjugate_wrapper,
+        custom_f_inverse_1,
+        custom_f_inverse_2,
+        custom_f_inverse_3,
+        custom_f_inverse_4,
+        custom_f_inverse_5,
+        custom_cubic_inverse_1,
+        custom_cubic_inverse_2,
+        custom_quadratic_fp256_inverse_1,
+        custom_quadratic_fp256_inverse_2,
+        mul_assign_1_2,
+        mul_assign_3_4_5,
+        custom_cyclotomic_square_in_place,
+    },
 };
 
 use solana_program::{

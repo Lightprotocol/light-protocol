@@ -1,42 +1,13 @@
-
-//prepare inputs
-pub mod pi_instructions;
-pub mod pi_processor;
-pub mod pi_ranges;
-pub mod pi_state;
-pub mod pi_pre_processor;
-
-
-//miller loop
-pub mod ml_instructions;
-pub mod ml_instructions_transform;
-pub mod ml_parsers;
-pub mod ml_pre_processor;
-pub mod ml_processor;
-pub mod ml_ranges;
-pub mod ml_state;
-
-
-//final exponentiation
-pub mod fe_pre_processor;
-pub mod fe_ranges;
-pub mod fe_state;
-pub mod fe_instructions;
-pub mod fe_processor;
-
-
 //constants for verifying key and poseidon
 pub mod utils;
 
 //merkle tree
-pub mod init_bytes18;
 pub mod poseidon_merkle_tree;
 
 pub mod li_pre_processor;
+pub mod li_instructions;
+pub mod li_state;
 pub mod state_check_nullifier;
-
-use crate::fe_pre_processor::_pre_process_instruction_final_exp;
-//use crate::mt_processor::process_instruction_merkle_tree;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -49,14 +20,9 @@ use solana_program::{
     program_pack::Pack,
 };
 
+use crate::Groth16_verifier::final_exponentiation::fe_state::InstructionIndex;
+use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 
-
-use crate::ml_pre_processor::*;
-use crate::fe_state::InstructionIndex;
-
-
-use ark_ff::{Fp256, FromBytes};
-use crate::pi_state::PiBytes;
 use crate::poseidon_merkle_tree::mt_state::InitMerkleTreeBytes;
 
 use crate::li_pre_processor::{
@@ -65,8 +31,9 @@ use crate::li_pre_processor::{
 };
 
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
-pub mod groth16_processor;
-use crate::groth16_processor::Groth16Processor;
+pub mod Groth16_verifier;
+use crate::Groth16_verifier::groth16_processor;
+use crate::utils::init_bytes18;
 
 entrypoint!(process_instruction);
 

@@ -1,13 +1,19 @@
-use crate::ml_instructions::*;
-use crate::ml_instructions_transform::*;
-use crate::ml_ranges::*;
-use crate::ml_state::*;
+use crate::Groth16_verifier::{
+    parsers::parse_x_group_affine_from_bytes,
+    parsers::parse_fp256_to_bytes,
+    parsers::parse_f_from_bytes,
+    parsers::parse_f_to_bytes,
+    miller_loop::{
+        ml_instructions::*,
+        ml_ranges::*,
+        ml_state::*,
+        ml_instructions_transform::*
+    },
+    prepare_inputs::pi_state::*,
+};
 use solana_program::{log::sol_log_compute_units, msg};
-use crate::pi_state::PiBytes;
-use crate::ml_parsers::parse_x_group_affine_from_bytes;
-use crate::ml_parsers::parse_fp256_to_bytes;
-use crate::ml_parsers::parse_f_from_bytes;
-use crate::ml_parsers::parse_f_to_bytes;
+
+
 
 pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_data: &PiBytes) {
     let proof_a = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec());

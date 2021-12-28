@@ -14,7 +14,7 @@ use ark_ff::PrimeField;
 use ark_ff::BigInteger;
 
 use crate::poseidon_merkle_tree::mt_state::{MerkleTree,HashBytes, TwoLeavesBytesPda};
-use crate::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
+use crate::utils::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
     hash_bytes_account.current_index =  merkle_tree_account.next_index;
