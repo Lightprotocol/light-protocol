@@ -1,9 +1,13 @@
-use crate::ml_instructions::*;
-use crate::ml_parsers::*;
-use crate::ml_processor::*;
-use crate::ml_ranges::*;
-use crate::ml_state::*;
-use crate::pi_state::*;
+use crate::Groth16_verifier::{
+    parsers::*,
+    miller_loop::{
+        ml_instructions::*,
+        ml_processor::*,
+        ml_ranges::*,
+        ml_state::*,
+    },
+    prepare_inputs::pi_state::*,
+};
 use solana_program::program_pack::Pack;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},

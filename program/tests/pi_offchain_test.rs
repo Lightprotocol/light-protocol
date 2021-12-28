@@ -13,17 +13,17 @@ use solana_program::{
 program_error::ProgramError,
 program_pack::{IsInitialized, Pack, Sealed},
 };
-// use std::convert::TryInto;
-//use crate::pi_254_parsers::*;
-//use crate::pi_processor::*;
-//use crate::pi_state::*;
+
 use Testing_Hardcoded_Params_devnet_new::{
-    pi_pre_processor::*,
-    pi_state::*,
-    pi_processor::*,
-    ml_parsers::*,
+    Groth16_verifier::{
+        parsers::*,
+        prepare_inputs::{
+            pi_pre_processor::*,
+            pi_state::*,
+            pi_processor::*,
+        }
+    },
     utils::prepared_verifying_key::*,
-//parse_verifyingkey_254::get_pvk_from_bytes_254,
 };
 mod fe_offchain_test;
 use crate::fe_offchain_test::tests::get_pvk_from_bytes_254;

@@ -1,9 +1,9 @@
 use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
-use crate::fe_instructions::{
+use crate::li_instructions::{
     check_and_insert_nullifier,
     check_tx_integrity_hash
 };
-use crate::pi_state::PiBytes;
+use crate::li_state::LiBytes;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     log::sol_log_compute_units,
@@ -12,8 +12,12 @@ use solana_program::{
     pubkey::Pubkey,
     program_pack::Pack
 };
-use crate::pi_instructions;
+use crate::Groth16_verifier::prepare_inputs::{
+    pi_instructions,
+    pi_ranges::*
 
+};
+use ark_ff::{Fp256, FromBytes};
 use std::convert::TryInto;
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 
@@ -34,7 +38,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
     msg!("here1");
     let main_account = next_account_info(account)?;
     msg!("here2");
-    let mut account_data = PiBytes::unpack(&main_account.data.borrow())?;
+    let mut account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
     if current_instruction_index == 1 {
         msg!("here3");
@@ -133,7 +137,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
     }
 
     account_data.current_instruction_index +=1;
-    PiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
+    LiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
     msg!("finished successfully");
     Ok(())
 }
@@ -175,14 +179,13 @@ pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
 // encryptedOutput2: encryptedOutput2,
 
 
-use crate::pi_ranges::*;
-use ark_ff::{Fp256, FromBytes};
+
 
 pub fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction_data: &[u8], signing_address: &Pubkey) -> Result<(), ProgramError>{
     msg!("initing hash bytes account {}", main_account.data.borrow().len());
     //initing temporary storage account with bytes
 
-    let mut main_account_data = PiBytes::unpack(&main_account.data.borrow())?;
+    let mut main_account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
 
     //should occur in groth16 processor
@@ -291,7 +294,7 @@ pub fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction
         main_account_data.changed_constants[i] = true;
     }
     main_account_data.current_instruction_index += 1;
-    PiBytes::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
+    LiBytes::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
     msg!("packed successfully");
     Ok(())
 }

@@ -4,11 +4,22 @@ use ark_ff::{Fp256, FromBytes};
 use serde_json::Value;
 use solana_program::program_pack::Pack;
 use Testing_Hardcoded_Params_devnet_new::{
-    ml_parsers::*, ml_state::*, process_instruction,
-    fe_state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
-    fe_ranges::*,
-    poseidon_merkle_tree::mt_state::{MerkleTree,HashBytes,MERKLE_TREE_ACC_BYTES},
-    init_bytes18,
+    Groth16_verifier::{
+        parsers::*,
+        miller_loop::ml_state::*,
+        final_exponentiation::fe_state::{
+            FinalExpBytes,
+            INSTRUCTION_ORDER_VERIFIER_PART_2
+        },
+        final_exponentiation::fe_ranges::*
+    },
+    process_instruction,
+    poseidon_merkle_tree::mt_state::{
+        MerkleTree,
+        HashBytes,
+        MERKLE_TREE_ACC_BYTES
+    },
+    utils::init_bytes18,
 };
 use ark_crypto_primitives::{Error};
 
