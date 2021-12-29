@@ -24,16 +24,14 @@ use crate::Groth16_verifier::final_exponentiation::{
 
 use solana_program::{
     msg,
-    log::sol_log_compute_units,
-    account_info::{next_account_info, AccountInfo},
+    // log::sol_log_compute_units,
     program_error::ProgramError,
-    program_pack::Pack,
 };
 
 pub fn _process_instruction_final_exp(
         account_struct: &mut FinalExpBytes,
         id: u8
-    ) {
+    ) -> Result<(), ProgramError>{
 
         if id == 0 {
             //init and conjugate
@@ -503,5 +501,6 @@ pub fn _process_instruction_final_exp(
             );
             account_struct.changed_variables[f1_r_range_iter] = true;
         }
-        println!("processor wants to modify {:?}",account_struct.changed_variables);
+        msg!("processor wants to modify {:?}",account_struct.changed_variables);
+        Ok(())
 }

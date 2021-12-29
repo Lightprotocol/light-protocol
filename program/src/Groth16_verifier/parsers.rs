@@ -1,7 +1,7 @@
 use ark_bn254;
 use ark_ec;
 use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::fields::models::quadratic_extension::{QuadExtField, QuadExtParameters};
+use ark_ff::fields::models::quadratic_extension::QuadExtField;
 use ark_ff::Fp256;
 use ark_ff::One;
 

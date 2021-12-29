@@ -1,11 +1,10 @@
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
+    account_info::AccountInfo,
     msg,
     program_error::ProgramError,
     program_pack::Pack,
-    pubkey::Pubkey,
-
 };
+
 use crate::IX_ORDER;
 
 use crate::Groth16_verifier::{
@@ -18,7 +17,6 @@ use crate::Groth16_verifier::{
         pi_ranges::*
     },
     miller_loop::{
-        ml_instructions::*,
         ml_processor::*,
         ml_ranges::*,
         ml_state::*,
@@ -67,8 +65,8 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
             Ok(())
         }
         else {
-            panic!("should not enter here");
-            Ok(())
+            msg!("should not enter here");
+            Err(ProgramError::InvalidArgument)
         }
     }
 

@@ -10,7 +10,7 @@ pub trait MtConfig: Clone {
 	/// The size of the permutation, in field elements.
 	const INIT_BYTES: &'static[u8];
 }
-
+#[allow(unused_variables)]
 #[derive(Debug)]
 pub struct MerkleTree {
     pub is_initialized: bool,
@@ -35,11 +35,7 @@ impl IsInitialized for MerkleTree {
     }
 }
 impl  Pack for MerkleTree {
-    //height 2
-    //const LEN: usize = 809;
-    //height 18 8392993
-    //const LEN: usize = 8393001;
-    //height 11
+    //height 18
     const LEN: usize = 16657;
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, MerkleTree::LEN];
@@ -63,33 +59,22 @@ impl  Pack for MerkleTree {
             msg!("merkle tree account is not initialized");
             panic!();
         }
-        /*
-        let is_initialized = match is_initialized {
-            [0] => false,
-            [1] => true,
-            _ => return Err(ProgramError::InvalidAccountData),
-        };*/
-        msg!("mt unpack0");
+
         let mut tmp_subtree_vec = vec![vec![0u8;32]; 18];
-        msg!("mt unpack1");
 
         for (i, bytes) in filled_subtrees.chunks(32).enumerate() {
             tmp_subtree_vec[i] = bytes.to_vec();
         }
-        msg!("mt unpack2");
 
         let current_root_index = usize::from_le_bytes(*current_root_index);
-        msg!("mt unpack3");
 
         let mut tmp_roots_vec = vec![0u8;32];
         let current_root_start_range = current_root_index * 32;
         let current_root_end_range = (current_root_index + 1) * 32;
-        msg!("mt unpack4");
 
         for (i, byte) in roots[current_root_start_range..current_root_end_range].iter().enumerate() {
             tmp_roots_vec[i] = *byte;
         }
-        msg!("mt unpack5");
 
         let next_index = usize::from_le_bytes(*next_index);
 

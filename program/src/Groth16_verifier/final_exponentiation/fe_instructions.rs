@@ -17,22 +17,12 @@ use ark_ff::{
         cubic_extension::CubicExtParameters,
         quadratic_extension::{QuadExtParameters, QuadExtField}},
     Field,
-    FromBytes,
 };
 use ark_ec;
 use solana_program::{
     msg,
     log::sol_log_compute_units,
-    account_info::{next_account_info, AccountInfo},
-    pubkey::Pubkey,
-    program_error::ProgramError,
-    program_pack::Pack,
-    sysvar::rent::Rent,
 };
-
-use crate::state_check_nullifier::NullifierBytesPda;
-use ark_ed_on_bn254::Fq;
-use borsh::ser::BorshSerialize;
 
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
@@ -76,7 +66,7 @@ pub fn mul_assign_2(
     _store_cubic: &mut Vec<u8>,
     _store_cubic_range: [usize; 2]) {
 
-    let mut f_c1 = parse_cubic_from_bytes_sub(&_cubic, _cubic_1_range);              //30000
+    let f_c1 = parse_cubic_from_bytes_sub(&_cubic, _cubic_1_range);              //30000
     let other_c1 = parse_cubic_from_bytes_sub(&_cubic_other, range_other_c1);      //30000
 
     let v1 = f_c1 * &other_c1;                                                //86827
@@ -222,48 +212,23 @@ pub fn mul_assign_5(
 }
 
 //frobenius_map should work only wrapper
-pub fn custom_frobenius_map_1(mut account: &mut Vec<u8>) {
+pub fn custom_frobenius_map_1(account: &mut Vec<u8>) {
     let mut f = parse_f_from_bytes(&account);
     f.frobenius_map(1);
     parse_f_to_bytes(f, account);
 }
 
-pub fn custom_frobenius_map_2(mut account:  &mut Vec<u8>){
+pub fn custom_frobenius_map_2(account:  &mut Vec<u8>){
     let mut f = parse_f_from_bytes(&account);
     f.frobenius_map(2);
     parse_f_to_bytes(f, account);
 }
 
-pub fn custom_frobenius_map_3(mut account:  &mut Vec<u8>){
+pub fn custom_frobenius_map_3(account:  &mut Vec<u8>){
     let mut f = parse_f_from_bytes(&account);
     f.frobenius_map(3);
     parse_f_to_bytes(f, account);
 }
-/*
-//88373
-pub fn custom_frobenius_map_1(account:  &mut Vec<u8>, power: usize) {
-    msg!("custom_frobenius_map_1: ------------------------------------------ power {}", power);
-
-    let mut f = parse_f_from_bytes(&account);
-    ////msg!"c0 map");
-    f.c0.frobenius_map(power);  //                        cost 40641
-
-    ////msg!"c1 map");
-    f.c1.frobenius_map(power);//                          cost 40643
-    parse_f_to_bytes(f, account);
-
-}
-//70772
-pub fn custom_frobenius_map_2(account:  &mut Vec<u8>, power: usize) {
-    msg!("custom_frobenius_map_2: ------------------------------------------ power {}", power);
-
-    let mut f = parse_f_from_bytes(&account);
-    ////msg!"c0 map");
-    <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>  as QuadExtParameters>::mul_base_field_by_frob_coeff(&mut f.c1, power);//  cost 41569
-
-    parse_f_to_bytes(f, account);
-
-}*/
 
 
 /*exp_by_neg_x is cyclotomic_exp plus possible conjugate

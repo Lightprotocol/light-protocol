@@ -83,7 +83,7 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
 
         let account = &mut accounts.iter();
         let signer = next_account_info(account)?;
-        let main_account = next_account_info(account)?;
+        let _main_account = next_account_info(account)?;
         let mut main_account_data = HashBytes::unpack(&self.main_account.unwrap().data.borrow())?;
         msg!("main_account_data.current_instruction_index {}", main_account_data.current_instruction_index);
 
@@ -162,8 +162,8 @@ impl <'a, 'b> MerkleTreeProcessor <'a, 'b>{
            msg!("instruction: {}", IX_ORDER[main_account_data.current_instruction_index]);
            let leaf_pda = next_account_info(account)?;
            let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-           let nullifer0 = next_account_info(account)?;
-           let nullifer1 = next_account_info(account)?;
+           let _nullifer0 = next_account_info(account)?;
+           let _nullifer1 = next_account_info(account)?;
            let merkle_tree_account = next_account_info(account)?;
            let mut merkle_tree_account_data = MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
 
@@ -219,10 +219,10 @@ pub fn _process_instruction_merkle_tree(
         insert_1_inner_loop(merkle_tree_account_data, main_account_data);
 
     } else if id == 14 {
-        insert_0_double (&vec![0], &vec![0], merkle_tree_account_data, main_account_data);
+        insert_0_double (merkle_tree_account_data, main_account_data);
 
     } else if id == 16 {
-        insert_last_double ( merkle_tree_account_data, main_account_data);
+        insert_last_double (merkle_tree_account_data, main_account_data);
     }
 
 }

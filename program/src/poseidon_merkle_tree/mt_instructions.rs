@@ -21,7 +21,7 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
     merkle_tree_account.inserted_leaf = true;
 }
 */
-pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) -> Result<(), ProgramError>{
+pub fn insert_0_double(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) -> Result<(), ProgramError>{
     hash_bytes_account.current_index =  merkle_tree_account.next_index;
     //assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
     if hash_bytes_account.current_index == 262144 {
