@@ -13,7 +13,6 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
     entrypoint::ProgramResult,
-    log::sol_log_compute_units,
     msg,
     program_error::ProgramError,
     pubkey::Pubkey,
@@ -22,8 +21,6 @@ use solana_program::{
 
 use crate::Groth16_verifier::final_exponentiation::fe_state::InstructionIndex;
 use crate::Groth16_verifier::groth16_processor::Groth16Processor;
-
-use crate::poseidon_merkle_tree::mt_state::InitMerkleTreeBytes;
 
 use crate::li_pre_processor::{
     li_pre_process_instruction,

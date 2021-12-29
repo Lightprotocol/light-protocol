@@ -13,15 +13,14 @@ use ark_ed_on_bn254::Fq;
 use arkworks_gadgets::poseidon::{
     PoseidonParameters,
     PoseidonError,
-    Rounds,circom::CircomCRH,
+    Rounds,
     sbox::PoseidonSbox
 };
 use arkworks_gadgets::utils;
 use ark_crypto_primitives::{
-        crh::{TwoToOneCRH, CRH},
         Error
 };
-use ark_std::{One, Zero};
+use ark_std::Zero;
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
 #[derive(Default, Clone)]

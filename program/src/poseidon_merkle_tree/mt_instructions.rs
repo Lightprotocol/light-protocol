@@ -1,19 +1,13 @@
-use ark_crypto_primitives::crh::{pedersen, poseidon, *};
-use ark_ff::{fields, models::Fp256};
-use ark_ec::twisted_edwards_extended::*;
-
-use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::fields::models::Fp256Parameters;
-use ark_ff::biginteger::BigInteger256;
 use solana_program::{
     msg,
     log::sol_log_compute_units,
-    account_info::{next_account_info, AccountInfo},
+    program_error::ProgramError,
 };
-use ark_ff::PrimeField;
-use ark_ff::BigInteger;
 
-use crate::poseidon_merkle_tree::mt_state::{MerkleTree,HashBytes, TwoLeavesBytesPda};
+use crate::poseidon_merkle_tree::mt_state::{
+    MerkleTree,
+    HashBytes
+};
 use crate::utils::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
@@ -27,14 +21,13 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
     merkle_tree_account.inserted_leaf = true;
 }
 */
-pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
+pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) -> Result<(), ProgramError>{
     hash_bytes_account.current_index =  merkle_tree_account.next_index;
-    assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
-
-    //hash_bytes_account.current_level_hash = leaf.clone();
-    //merkle_tree_account.leaves = leaf.clone();
-    //hash_bytes_account.leaf_left =  leaf_r.clone();
-    //hash_bytes_account.leaf_right =  leaf_l.clone();
+    //assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
+    if hash_bytes_account.current_index == 262144 {
+        msg!("Merkle tree full");
+        return Err(ProgramError::InvalidInstructionData);
+    }
     hash_bytes_account.left = hash_bytes_account.leaf_left.clone();
     hash_bytes_account.right =  hash_bytes_account.leaf_right.clone();
     hash_bytes_account.current_level = 1;
@@ -44,6 +37,7 @@ pub fn insert_0_double(leaf_l: &Vec<u8>, leaf_r: &Vec<u8>, merkle_tree_account: 
     hash_bytes_account.current_round  = 0;
     hash_bytes_account.current_round_index  = 0;
     hash_bytes_account.current_level_hash  = vec![0u8;32];
+    Ok(())
 }
 
 pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
@@ -53,7 +47,7 @@ pub fn insert_1_inner_loop(merkle_tree_account: &mut MerkleTree, hash_bytes_acco
         hash_bytes_account.current_level_hash = hash_bytes_account.state[0].clone();
     }
 
-    if(hash_bytes_account.current_index % 2 == 0) {
+    if hash_bytes_account.current_index % 2 == 0 {
         //msg!("updating subtree: {:?}", hash_bytes_account.current_level_hash);
         hash_bytes_account.left = hash_bytes_account.current_level_hash.clone();
         hash_bytes_account.right =  ZERO_BYTES_MERKLE_TREE_18[ hash_bytes_account.current_level * 32..(hash_bytes_account.current_level * 32 + 32) ].to_vec().clone();

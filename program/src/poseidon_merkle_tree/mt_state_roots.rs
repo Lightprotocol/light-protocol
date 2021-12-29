@@ -1,19 +1,12 @@
 use solana_program::{
-    account_info::{next_account_info, AccountInfo},
-    entrypoint,
-    entrypoint::ProgramResult,
-    log::sol_log_compute_units,
+    account_info::AccountInfo,
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
-    pubkey::Pubkey,
 };
 
-use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use std::convert::TryInto;
+use arrayref::{array_ref, array_refs};
 
-use byteorder::ByteOrder;
-use byteorder::LittleEndian;
 pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,

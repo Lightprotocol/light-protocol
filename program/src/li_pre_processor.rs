@@ -14,13 +14,8 @@ use solana_program::{
 };
 
 use crate::Groth16_verifier::{
-    prepare_inputs::{
-        pi_instructions,
-        pi_ranges::*
-    },
     groth16_processor::Groth16Processor,
 };
-use ark_ff::{Fp256, FromBytes};
 use std::convert::TryInto;
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 
@@ -56,12 +51,6 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
             merkle_tree_account,
             &account_data.root_hash
         )?;
-
-    }
-    //check tx data hash and public amount
-    else if current_instruction_index == 2 {
-        //account_data.tx_integrity_hash
-        //account_data.amount
 
     }
     //nullifier checks
@@ -132,7 +121,7 @@ pub fn li_pre_process_instruction(program_id: &Pubkey, accounts: &[AccountInfo],
                 msg!("recipient has to be address specified in tx integrity hash");
                 return Err(ProgramError::InvalidInstructionData);
             }
-            transfer(merkel_tree_account, recipient_account, u64::try_from((amount * -1)).unwrap());
+            transfer(merkel_tree_account, recipient_account, u64::try_from(amount * -1).unwrap());
         }
 
     } else if current_instruction_index == 4 {
