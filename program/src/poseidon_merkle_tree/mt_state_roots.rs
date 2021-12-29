@@ -11,6 +11,7 @@ pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
 ];
+
 #[derive(Clone, Debug)]
 pub struct MerkleTreeRoots {
     pub is_initialized: bool,

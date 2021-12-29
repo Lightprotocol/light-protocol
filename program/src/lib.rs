@@ -18,8 +18,7 @@ use solana_program::{
     pubkey::Pubkey,
     program_pack::Pack,
 };
-
-use crate::Groth16_verifier::final_exponentiation::fe_state::InstructionIndex;
+use crate::li_state::InstructionIndex;
 use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 
 use crate::li_pre_processor::{
@@ -29,7 +28,6 @@ use crate::li_pre_processor::{
 
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 pub mod Groth16_verifier;
-use crate::Groth16_verifier::groth16_processor;
 use crate::utils::init_bytes18;
 
 entrypoint!(process_instruction);
@@ -54,7 +52,7 @@ pub fn process_instruction(
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
-        let signing_account = next_account_info(account)?;
+        let _signing_account = next_account_info(account)?;
         let merkle_tree_storage_acc = next_account_info(account)?;
         //merkle_tree_tmp_account_data.initialize();
         //mt_state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
@@ -64,7 +62,7 @@ pub fn process_instruction(
         )?;
         merkle_tree_processor.initialize_new_merkle_tree_from_bytes(
             &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..]
-        );
+        )?;
         //process_instruction_merkle_tree(&_instruction_data, accounts);
     }
     // transact with shielded pool
@@ -128,12 +126,12 @@ pub fn process_instruction(
                 }
             ),
             //if account is not initialized yet try initialize
-            Err(account_main_data) => (
+            Err(_) => (
                 //initialize temporary storage account for shielded pool deposit, transfer or withdraw
                 try_initialize_hash_bytes_account(account_main, &_instruction_data[9..], signing_account.key)
 
             ),
-        };
+        }?;
 
     }
 

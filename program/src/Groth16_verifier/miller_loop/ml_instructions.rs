@@ -37,7 +37,7 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>/*, proof_b_
     // //comment below for the change
     //parse_proof_b_to_bytes(proof_b, proof_range);
 
-    let mut r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
+    let r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
         ark_ec::models::bn::g2::G2HomProjective {
             x: proof_b.x,
             y: proof_b.y,
@@ -606,7 +606,7 @@ pub fn ell_instruction_d_c3(
         // +=1
         current_coeff_3_range[0] += 1;
     }
-    let mut coeff_2 = coeff.2;
+    let coeff_2 = coeff.2;
     let mut coeff_1 = coeff.1;
     let mut coeff_0 = coeff.0;
     let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k

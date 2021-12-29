@@ -1,15 +1,11 @@
 use solana_program::{
-    msg,
-    pubkey::Pubkey,
-    log::sol_log_compute_units,
+    // msg,
+    // log::sol_log_compute_units,
     program_pack::{IsInitialized, Pack, Sealed},
     program_error::ProgramError,
 };
 use std::convert::TryInto;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::LittleEndian;
-use byteorder::ByteOrder;
-
 
 // Account struct for verify Part 2:
 #[derive(Debug, Clone)]
@@ -201,15 +197,13 @@ impl Pack for FinalExpBytes {
             unused_remainder_dst
 
         ) = mut_array_refs![dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32, 384, 128];
-        println!("modifying: {:?}", self.changed_variables);
+
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {
             if *variable_has_changed {
                 if i == 0  {
                     *f_f2_range_dst = self.f_f2_range_s.clone().try_into().unwrap();
-                    msg!("modifying: f_f2_range_dst" );
                 } else if i == 1 {
                     *f1_r_range_dst = self.f1_r_range_s.clone().try_into().unwrap();
-                    msg!("modifying: f1_r_range_dst" );
                 }  else if i == 2 {
                     *i_range_dst = self.i_range_s.clone().try_into().unwrap();
                 }  else if i == 3 {
@@ -236,112 +230,15 @@ impl Pack for FinalExpBytes {
                     *fp384_range_dst = self.fp384_range_s.clone().try_into().unwrap();
                 }   else if i == 14 {
                     *found_nullifier_dst = [self.found_nullifier; 1];
-                    msg!("modifying: found_nullifier_dst" );
                 }   else if i == 15 {
                     *y6_range_dst = self.y6_range.clone().try_into().unwrap();
-                    msg!("modifying: found_nullifier_dst" );
-                }
-            }
-            else {
-                if i == 0  {
-                    *f_f2_range_dst = *f_f2_range_dst;
-                } else if i == 1 {
-                    *f1_r_range_dst = *f1_r_range_dst;
-                }  else if i == 2 {
-                    *i_range_dst = *i_range_dst;
-                }  else if i == 3 {
-                    *y0_range_dst = *y0_range_dst;
-                }  else if i == 4 {
-                    *y1_range_dst = *y1_range_dst;
-                }  else if i == 5 {
-                    *y2_range_dst = *y2_range_dst;
-                }  else if i == 6 {
-                    *cubic_range_0_dst = *cubic_range_0_dst;
-                }  else if i == 7 {
-                    *cubic_range_1_dst = *cubic_range_1_dst;
-                }  else if i == 8 {
-                    *cubic_range_2_dst = *cubic_range_2_dst;
-                }  else if i == 9 {
-                    *quad_range_0_dst = *quad_range_0_dst;
-                }   else if i == 10 {
-                    *quad_range_1_dst = *quad_range_1_dst;
-                }   else if i == 11 {
-                    *quad_range_2_dst = *quad_range_2_dst;
-                }   else if i == 12 {
-                    *quad_range_3_dst = *quad_range_3_dst;
-                }   else if i == 13 {
-                    *fp384_range_dst = *fp384_range_dst;
-                }   else if i == 14 {
-                    *found_nullifier_dst = *found_nullifier_dst;
                 }
             }
 
         }
-        *found_root_dst = *found_root_dst;
-        *unused_constants_dst = *unused_constants_dst;
+
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        *is_initialized_dst = [1u8; 1];
-
-    }
-}
-
-
-// Account struct for verify Part 2:
-#[derive(Debug, Clone)]
-pub struct InstructionIndex {
-    is_initialized: bool,
-    pub signer_pubkey: Pubkey,
-    pub current_instruction_index: usize,
-
-
-}
-impl Sealed for InstructionIndex {}
-impl IsInitialized for InstructionIndex {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-
-impl Pack for InstructionIndex {
-    const LEN: usize = 3900;//3772;
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
-        let input = array_ref![input, 0, InstructionIndex::LEN];
-
-        let (
-            is_initialized,
-            unused_remainder0,
-            signer_pubkey,
-            unused_remainder1,
-            current_instruction_index,
-            unused_remainder2
-
-        ) = array_refs![input,1, 3, 32, 176, 8, 3680];
-        if is_initialized[0] == 0 {
-            Err(ProgramError::InvalidAccountData)
-        } else {
-            Ok(
-                InstructionIndex {
-                    is_initialized: true,
-                    signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),
-                    current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-                }
-            )
-        }
-
-    }
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-
-        let dst = array_mut_ref![dst, 0,  InstructionIndex::LEN];
-
-        let (
-            is_initialized,
-            unused_remainder0,
-            current_instruction_index,
-            unused_remainder1
-        ) = mut_array_refs![dst, 1, 211, 8, 3680];
-        //is not meant to be used
-        *is_initialized = *is_initialized;
+        *is_initialized_dst = *is_initialized_dst;
 
     }
 }
