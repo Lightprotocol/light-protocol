@@ -1,6 +1,6 @@
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
-    //msg,
+    msg,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
@@ -8,15 +8,14 @@ use solana_program::{
 };
 use crate::IX_ORDER;
 
-
 use crate::Groth16_verifier::{
     parsers::*,
     prepare_inputs::{
         pi_instructions,
         pi_pre_processor::CURRENT_INDEX_ARRAY,
-        pi_processor::_pi_254_process_instruction,
-        pi_state::PiBytes
-        //use crate::pi_state::*;
+        pi_processor::_pi_process_instruction,
+        pi_state::PiBytes,
+        pi_ranges::*
     },
     miller_loop::{
         ml_instructions::*,
@@ -29,6 +28,12 @@ use crate::Groth16_verifier::{
         fe_processor::_process_instruction_final_exp
     }
 };
+
+
+use ark_ff::{Fp256, FromBytes};
+
+
+
 pub struct Groth16Processor<'a, 'b> {
     main_account: &'a AccountInfo<'b>,
     current_instruction_index: usize,
@@ -84,10 +89,9 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
         // );
 
         let current_instruction_index = account_data.current_instruction_index;
-        _pi_254_process_instruction(
+        _pi_process_instruction(
             IX_ORDER[current_instruction_index],
             &mut account_data,
-            &vec![],
             usize::from(CURRENT_INDEX_ARRAY[current_instruction_index - 1]),
         );
 
@@ -155,6 +159,102 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
         _process_instruction_final_exp(&mut main_account_data, IX_ORDER[self.current_instruction_index]);
         main_account_data.current_instruction_index +=1;
         FinalExpBytes::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
+        Ok(())
+    }
+
+    pub fn try_initialize(
+        &mut self,
+        _instruction_data: &[u8])
+        -> Result<(), ProgramError>{
+        let mut main_account_data = PiBytes::unpack(&self.main_account.data.borrow())?;
+
+        let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+
+        // get public_inputs from _instruction_data.
+        //root
+        let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[0..32],
+        )
+        .unwrap();
+        //public amount
+        let input2 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[32..64],
+        )
+        .unwrap();
+        //external data hash
+        let input3 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[64..96],
+        )
+        .unwrap();
+
+        //inputNullifier0
+        let input4 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            & _instruction_data[96..128],
+        )
+        .unwrap();
+
+        //inputNullifier1
+        let input5 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[128..160],
+        )
+        .unwrap();
+        //inputCommitment0
+        let input6 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[160..192],
+        )
+        .unwrap();
+        //inputCommitment1
+        let input7 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &_instruction_data[192..224],
+        )
+        .unwrap();
+
+        public_inputs = vec![input1, input2, input3, input4, input5, input6, input7];
+
+        pi_instructions::init_pairs_instruction(
+            &public_inputs,
+            &mut main_account_data.i_1_range,
+            &mut main_account_data.x_1_range,
+            &mut main_account_data.i_2_range,
+            &mut main_account_data.x_2_range,
+            &mut main_account_data.i_3_range,
+            &mut main_account_data.x_3_range,
+            &mut main_account_data.i_4_range,
+            &mut main_account_data.x_4_range,
+            &mut main_account_data.i_5_range,
+            &mut main_account_data.x_5_range,
+            &mut main_account_data.i_6_range,
+            &mut main_account_data.x_6_range,
+            &mut main_account_data.i_7_range,
+            &mut main_account_data.x_7_range,
+            &mut main_account_data.g_ic_x_range,
+            &mut main_account_data.g_ic_y_range,
+            &mut main_account_data.g_ic_z_range,
+        );
+        msg!("len _instruction_data{}", _instruction_data.len());
+        let indices: [usize; 17] = [
+            I_1_RANGE_INDEX,
+            X_1_RANGE_INDEX,
+            I_2_RANGE_INDEX,
+            X_2_RANGE_INDEX,
+            I_3_RANGE_INDEX,
+            X_3_RANGE_INDEX,
+            I_4_RANGE_INDEX,
+            X_4_RANGE_INDEX,
+            I_5_RANGE_INDEX,
+            X_5_RANGE_INDEX,
+            I_6_RANGE_INDEX,
+            X_6_RANGE_INDEX,
+            I_7_RANGE_INDEX,
+            X_7_RANGE_INDEX,
+            G_IC_X_RANGE_INDEX,
+            G_IC_Y_RANGE_INDEX,
+            G_IC_Z_RANGE_INDEX,
+        ];
+        for i in indices.iter() {
+            main_account_data.changed_variables[*i] = true;
+        }
+        PiBytes::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
         Ok(())
     }
 

@@ -8,16 +8,16 @@ use crate::Groth16_verifier::{
 };
 use solana_program::{log, msg};
 
-pub fn _pi_254_process_instruction(
+pub fn _pi_process_instruction(
     id: u8,
     account: &mut PiBytes,
-    public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>],
+    //public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>],
     current_index: usize,
 ) {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x4]
     msg!("instruction: {:?}", id);
     log::sol_log_compute_units();
-
+    /*
     if id == 40 {
         init_pairs_instruction(
             &public_inputs,
@@ -62,7 +62,7 @@ pub fn _pi_254_process_instruction(
         for i in indices.iter() {
             account.changed_variables[*i] = true;
         }
-    } else if id == 41 {
+    } else */if id == 41 {
         init_res_instruction(
             &mut account.res_x_range,
             &mut account.res_y_range,

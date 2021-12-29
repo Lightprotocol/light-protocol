@@ -8,7 +8,7 @@
 //     program_pack::Pack,
 // };
 // use crate::Groth16_verifier::prepare_inputs::{
-//     pi_processor::_pi_254_process_instruction,
+//     pi_processor::_pi_process_instruction,
 //     pi_state::PiBytes,
 //
 // }
@@ -39,7 +39,7 @@ pub fn _pre_process_instruction(
     // );
 
     let current_instruction_index = account_data.current_instruction_index;
-    _pi_254_process_instruction(
+    _pi_process_instruction(
         IX_ORDER[current_instruction_index],
         &mut account_data,
         &inputs,

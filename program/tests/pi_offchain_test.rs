@@ -90,11 +90,11 @@ for index in 0..465 {
 // 0..1809 @ last
 println!("c ixorderarr: {}", IX_ORDER_ARRAY[index]);
 println!("index: {:?}", index);
-_pi_254_process_instruction(
+_pi_process_instruction(
     // IX_ORDER_ARRAY[usize::from(index)],
     IX_ORDER_ARRAY[index],
     &mut account_data,
-    &inputs,
+    //&inputs,
     usize::from(CURRENT_INDEX_ARRAY[index]), // usize::from(CURRENT_INDEX_ARRAY[usize::from(index)]),
 );
 }

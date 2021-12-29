@@ -12,10 +12,13 @@ use solana_program::{
     pubkey::Pubkey,
     program_pack::Pack
 };
-use crate::Groth16_verifier::prepare_inputs::{
-    pi_instructions,
-    pi_ranges::*
 
+use crate::Groth16_verifier::{
+    prepare_inputs::{
+        pi_instructions,
+        pi_ranges::*
+    },
+    groth16_processor::Groth16Processor,
 };
 use ark_ff::{Fp256, FromBytes};
 use std::convert::TryInto;
@@ -180,115 +183,41 @@ pub fn transfer( _from: &AccountInfo, _to: &AccountInfo, amount: u64){
 
 
 
-
-pub fn try_initialize_hash_bytes_account(main_account: &AccountInfo,_instruction_data: &[u8], signing_address: &Pubkey) -> Result<(), ProgramError>{
+pub fn try_initialize_hash_bytes_account(
+        main_account: &AccountInfo,
+        _instruction_data: &[u8],
+        signing_address: &Pubkey
+        ) -> Result<(), ProgramError>{
     msg!("initing hash bytes account {}", main_account.data.borrow().len());
     //initing temporary storage account with bytes
 
     let mut main_account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
-
-    //should occur in groth16 processor
-    let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+    let mut groth16_processor = Groth16Processor::new(
+        main_account,
+        main_account_data.current_instruction_index,
+    )?;
+    groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
     main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
-    // get public_inputs from _instruction_data.
-    //root
     main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
-    let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        &*main_account_data.root_hash,
-    )
-    .unwrap();
-    //public amount
-    let input2 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        &_instruction_data[32..64],
-    )
-    .unwrap();
     main_account_data.amount = _instruction_data[32..40].to_vec().clone();
-    //external data hash
     main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone();
-    let input3 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        &*main_account_data.tx_integrity_hash,
-    )
-    .unwrap();
 
-    //inputNullifier0
     let inputNullifier0 = _instruction_data[96..128].to_vec().clone();
-    let input4 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        &*inputNullifier0,
-    )
-    .unwrap();
-
-    //inputNullifier1
     let inputNullifier1 = &_instruction_data[128..160];
-    let input5 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        inputNullifier1,
-    )
-    .unwrap();
-    //inputCommitment0
+
     let commitment_right = &_instruction_data[160..192];
-    let input6 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        commitment_right,
-    )
-    .unwrap();
-    //inputCommitment1
     let commitment_left = &_instruction_data[192..224];
-    let input7 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
-        commitment_left,
-    )
-    .unwrap();
 
-    public_inputs = vec![input1, input2, input3, input4, input5, input6, input7];
-
-    pi_instructions::init_pairs_instruction(
-        &public_inputs,
-        &mut main_account_data.i_1_range,
-        &mut main_account_data.x_1_range,
-        &mut main_account_data.i_2_range,
-        &mut main_account_data.x_2_range,
-        &mut main_account_data.i_3_range,
-        &mut main_account_data.x_3_range,
-        &mut main_account_data.i_4_range,
-        &mut main_account_data.x_4_range,
-        &mut main_account_data.i_5_range,
-        &mut main_account_data.x_5_range,
-        &mut main_account_data.i_6_range,
-        &mut main_account_data.x_6_range,
-        &mut main_account_data.i_7_range,
-        &mut main_account_data.x_7_range,
-        &mut main_account_data.g_ic_x_range,
-        &mut main_account_data.g_ic_y_range,
-        &mut main_account_data.g_ic_z_range,
-    );
-    msg!("len _instruction_data{}", _instruction_data.len());
-    let indices: [usize; 17] = [
-        I_1_RANGE_INDEX,
-        X_1_RANGE_INDEX,
-        I_2_RANGE_INDEX,
-        X_2_RANGE_INDEX,
-        I_3_RANGE_INDEX,
-        X_3_RANGE_INDEX,
-        I_4_RANGE_INDEX,
-        X_4_RANGE_INDEX,
-        I_5_RANGE_INDEX,
-        X_5_RANGE_INDEX,
-        I_6_RANGE_INDEX,
-        X_6_RANGE_INDEX,
-        I_7_RANGE_INDEX,
-        X_7_RANGE_INDEX,
-        G_IC_X_RANGE_INDEX,
-        G_IC_Y_RANGE_INDEX,
-        G_IC_Z_RANGE_INDEX,
-    ];
-    for i in indices.iter() {
-        main_account_data.changed_variables[*i] = true;
-    }
-
-    // should occur in light protocol logic
     main_account_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[224..480].to_vec(), commitment_right.to_vec(), commitment_left.to_vec(), inputNullifier0.to_vec(), inputNullifier1.to_vec()].concat();
-    main_account_data.changed_constants[11] = true;
-
+        _instruction_data[224..480].to_vec(),
+        commitment_right.to_vec(),
+        commitment_left.to_vec(),
+        inputNullifier0.to_vec(),
+        inputNullifier1.to_vec()
+    ].concat();
+    //main_account_data.changed_constants[11] = true;
 
     for i in 0..12 {
         main_account_data.changed_constants[i] = true;
