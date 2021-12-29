@@ -2,21 +2,14 @@ use ark_ed_on_bn254::Fq;
 
 use solana_program::{
     msg,
-    log::sol_log_compute_units,
-    account_info::{next_account_info, AccountInfo},
+    account_info::AccountInfo,
     pubkey::Pubkey,
     program_error::ProgramError,
     program_pack::Pack,
     sysvar::rent::Rent,
 };
 
-use ark_ff::{
-    fields::models::{
-        cubic_extension::CubicExtParameters,
-        quadratic_extension::{QuadExtParameters, QuadExtField}},
-    Field,
-    FromBytes,
-};
+use ark_ff::FromBytes;
 use borsh::BorshSerialize;
 use crate::state_check_nullifier::NullifierBytesPda;
 

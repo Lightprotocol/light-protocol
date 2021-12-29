@@ -1,18 +1,22 @@
-
-use crate::Groth16_verifier::{
-    parsers::*,
-
-};
-
+use crate::Groth16_verifier::parsers::*;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::fields::BitIteratorBE;
-use ark_ff::fields::{Field, PrimeField};
-use ark_ff::{Fp256, Fp384};
+use ark_ff::{
+    biginteger::BigInteger256,
+    BitIteratorBE,
+    fields::{
+        Field,
+        PrimeField
+    },
+    Fp256
+};
 use ark_relations::r1cs::SynthesisError; // currently commented out, should implement manual error.
 use ark_std::Zero;
-use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+// use solana_program::{
+//     log::sol_log_compute_units,
+//     msg,
+//     program_error::ProgramError
+// };
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
 // Creates all i,x pairs once, then stores them in specified ranges.

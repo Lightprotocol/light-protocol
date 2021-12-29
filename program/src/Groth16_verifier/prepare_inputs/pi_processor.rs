@@ -1,5 +1,4 @@
 use crate::Groth16_verifier::{
-    parsers::*,
     prepare_inputs::{
         pi_state::PiBytes,
         pi_ranges::*,

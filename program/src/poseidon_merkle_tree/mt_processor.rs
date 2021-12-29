@@ -10,14 +10,12 @@ use solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
     program_error::ProgramError,
-    log::sol_log_compute_units,
-    program_pack::{IsInitialized, Pack, Sealed},
+    program_pack::Pack,
     clock::Clock,
     sysvar::Sysvar,
     pubkey::Pubkey,
 };
 use crate::poseidon_merkle_tree::instructions_poseidon::{permute_instruction_first,permute_instruction_6,permute_instruction_3, permute_instruction_last};
-use crate::init_bytes18;
 use crate::IX_ORDER;
 
 pub struct MerkleTreeProcessor<'a, 'b> {

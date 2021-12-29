@@ -1,16 +1,11 @@
 use solana_program::{
     msg,
-    pubkey::Pubkey,
-    log::sol_log_compute_units,
     program_pack::{IsInitialized, Pack, Sealed},
     program_error::ProgramError,
-    account_info::{AccountInfo},
-
 };
 use std::convert::TryInto;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{LittleEndian,ByteOrder};
-use ark_std::marker::PhantomData;
 pub trait MtConfig: Clone {
 	/// The size of the permutation, in field elements.
 	const INIT_BYTES: &'static[u8];
@@ -146,7 +141,7 @@ impl  Pack for MerkleTree {
             if self.inserted_root {
                 let mut i = 0;
                 if self.current_root_index != 0 {
-                    i = (self.current_root_index) ;
+                    i = self.current_root_index;
                 }
                 let mut i_tmp = i * 32;
                 for it in self.roots.iter() {
@@ -156,7 +151,6 @@ impl  Pack for MerkleTree {
                 }
             }
 
-            //should change u64 to usize
             LittleEndian::write_u64(current_root_index_dst, self.current_root_index.try_into().unwrap());
             LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
             LittleEndian::write_u64(current_total_deposits_dst, self.current_total_deposits.try_into().unwrap());
@@ -173,7 +167,6 @@ impl  Pack for MerkleTree {
 pub struct InitMerkleTreeBytes {
     pub is_initialized: bool,
     pub bytes: Vec<u8>,
-    //init: PhantomData<P>,
 }
 impl Sealed for InitMerkleTreeBytes {}
 impl IsInitialized for InitMerkleTreeBytes {
@@ -182,10 +175,7 @@ impl IsInitialized for InitMerkleTreeBytes {
     }
 }
 impl Pack for InitMerkleTreeBytes {
-    //const LEN: usize = 809;
-    //const LEN: usize = 8393001;
     const LEN: usize = 16657;
-    //const P: MtConfig = PhantomData<P>;
 
     fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
         let input = array_ref![input, 0, InitMerkleTreeBytes::LEN];
@@ -194,8 +184,12 @@ impl Pack for InitMerkleTreeBytes {
             bytes,
             left_over,
         ) = array_refs![input, 641, 16016];
-        msg!("unpacking init bytes");
-        assert_eq!(bytes[0], 0, "Tree is already initialized");
+
+        if bytes[0] == 0 {
+            msg!("Tree is already initialized");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         Ok(
             InitMerkleTreeBytes {
                 is_initialized: true,
@@ -225,7 +219,6 @@ pub struct HashBytes {
     pub state: Vec<Vec<u8>>,
     pub current_round: usize,
     pub current_round_index: usize,
-    //pub result: Vec<u8>,
     pub leaf_left: Vec<u8>,
     pub leaf_right: Vec<u8>,
     pub left: Vec<u8>,
@@ -234,11 +227,8 @@ pub struct HashBytes {
     pub current_index: usize,
     pub current_level: usize,
     pub current_instruction_index: usize,
-    // levels,
-    // filled_subtrees,
-    // zeros,
-    //new_root,
 }
+
 impl Sealed for HashBytes {}
 impl IsInitialized for HashBytes {
     fn is_initialized(&self) -> bool {
@@ -337,7 +327,6 @@ impl Pack for HashBytes {
         *leaf_left_dst =             self.leaf_left.clone().try_into().unwrap();
 
         *leaf_right_dst =            self.leaf_right.clone().try_into().unwrap();
-        msg!("self.left {:?}", self.left);
         *left_dst =             self.left.clone().try_into().unwrap();
 
         *right_dst =            self.right.clone().try_into().unwrap();
@@ -410,7 +399,6 @@ impl Pack for TwoLeavesBytesPda {
         *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
         *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();
         msg!("packed inserted_leaves");
-
     }
 }
 
