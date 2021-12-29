@@ -22,7 +22,7 @@ use ark_ff::{
 
 };
 use solana_program::{
-    log::sol_log_compute_units,
+    //log::sol_log_compute_units,
     msg
 };
 
