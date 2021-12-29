@@ -185,7 +185,7 @@ impl Pack for InitMerkleTreeBytes {
             left_over,
         ) = array_refs![input, 641, 16016];
 
-        if bytes[0] == 0 {
+        if bytes[0] != 0 {
             msg!("Tree is already initialized");
             return Err(ProgramError::InvalidAccountData);
         }
@@ -370,7 +370,11 @@ impl Pack for TwoLeavesBytesPda {
             merkle_tree_pubkey,
         ) = array_refs![input, 1, 1, 32, 32, 32];
         //check that account was not initialized before
-        assert_eq!(is_initialized[0], 0);
+        //assert_eq!(is_initialized[0], 0);
+        if is_initialized[0] != 0 {
+            msg!("Leaf pda is already initialized");
+            return Err(ProgramError::InvalidAccountData);
+        }
         Ok(
             TwoLeavesBytesPda {
                 is_initialized: true,

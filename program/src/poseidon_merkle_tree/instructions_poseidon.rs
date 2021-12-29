@@ -14,11 +14,13 @@ use arkworks_gadgets::poseidon::{
     PoseidonParameters,
     PoseidonError,
     Rounds,
-    sbox::PoseidonSbox
+    sbox::PoseidonSbox,
+    circom::CircomCRH
 };
 use arkworks_gadgets::utils;
 use ark_crypto_primitives::{
-        Error
+    crh::{TwoToOneCRH, CRH},
+    Error
 };
 use ark_std::Zero;
 

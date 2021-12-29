@@ -1,17 +1,22 @@
 use crate::Groth16_verifier::parsers::*;
-
-use solana_program::{log::sol_log_compute_units, msg};
-
-use ark_ff::Fp256;
-
+// use solana_program::{
+//     log::sol_log_compute_units,
+//     msg
+// };
 use ark_ec;
-use ark_ec::models::bn::BnParameters;
-use ark_ec::models::bn::TwistType;
-use ark_ec::SWModelParameters;
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::fields::models::quadratic_extension::QuadExtField;
-use ark_ff::Field;
-use ark_ff::One;
+use ark_ec::{
+    models::bn::{
+        BnParameters,
+        TwistType
+    },
+    SWModelParameters
+};
+use ark_ff::{
+    biginteger::BigInteger256,
+    fields::models::quadratic_extension::QuadExtField,
+    Field,
+    Fp256,
+};
 
 pub fn doubling_step(
     r_bytes: &mut Vec<u8>,
