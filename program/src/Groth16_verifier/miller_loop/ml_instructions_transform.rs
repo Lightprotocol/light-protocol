@@ -5,17 +5,11 @@ use crate::Groth16_verifier::parsers::*;
 // };
 use ark_ec;
 use ark_ec::{
-    models::bn::{
-        BnParameters,
-        TwistType
-    },
-    SWModelParameters
+    models::bn::{BnParameters, TwistType},
+    SWModelParameters,
 };
 use ark_ff::{
-    biginteger::BigInteger256,
-    fields::models::quadratic_extension::QuadExtField,
-    Field,
-    Fp256,
+    biginteger::BigInteger256, fields::models::quadratic_extension::QuadExtField, Field, Fp256,
 };
 
 pub fn doubling_step(

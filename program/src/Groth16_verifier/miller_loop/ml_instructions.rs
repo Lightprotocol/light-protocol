@@ -2,34 +2,26 @@ use crate::utils::prepared_verifying_key::*;
 use crate::Groth16_verifier::parsers::*;
 
 use ark_ff::{
-    One,
-    fp12_2over3over2::{
-        Fp12Parameters
-    },
     biginteger::BigInteger256,
     fields::{
         models::{
-            fp6_3over2::{
-                Fp6,
-            },
-            quadratic_extension::QuadExtField,
+            fp6_3over2::Fp6, quadratic_extension::QuadExtField,
             quadratic_extension::QuadExtParameters,
         },
-        Fp2,
-        Field,
-
-    }
-
+        Field, Fp2,
+    },
+    fp12_2over3over2::Fp12Parameters,
+    One,
 };
-use solana_program::{
-    //log::sol_log_compute_units,
-    msg
-};
+use solana_program::msg;
 
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];
 
-pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>/*, proof_b_bytes: &Vec<u8>*/) {
+pub fn init_coeffs1(
+    r_range: &mut Vec<u8>,
+    proof_range: &mut Vec<u8>, /*, proof_b_bytes: &Vec<u8>*/
+) {
     // pass in proof.b manually
     //change below to get bytes from account and not init from hardcoded bytes
     // let q = get_proof_b();
@@ -55,7 +47,6 @@ pub fn initialize_p1_p3_f_instruction(
     p_3_y_range: &mut Vec<u8>,
     f_range: &mut Vec<u8>,
 ) {
-
     // init f
     let mut f_arr: Vec<u8> = vec![0; 384];
     f_arr[0] = 1;
@@ -656,14 +647,16 @@ mod tests {
     };
 
     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
+    use crate::Groth16_verifier::miller_loop::ml_state::ML254Bytes;
     use crate::Groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
         parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
     };
-    use crate::Groth16_verifier::miller_loop::ml_state::ML254Bytes;
 
-    use crate::Groth16_verifier::miller_loop::ml_ranges::{COEFF_0_RANGE, COEFF_1_RANGE, COEFF_2_RANGE, F_RANGE};
+    use crate::Groth16_verifier::miller_loop::ml_ranges::{
+        COEFF_0_RANGE, COEFF_1_RANGE, COEFF_2_RANGE, F_RANGE,
+    };
 
     use ark_ec::bn::BnParameters;
     use ark_ff::{Field, Fp12};

@@ -69,11 +69,11 @@ impl Pack for ML254Bytes {
             coeff_1_range,
             coeff_0_range,
             //796
-            p_1_x_range,//32
-            p_1_y_range,//32
+            p_1_x_range, //32
+            p_1_y_range, //32
             //860
-            p_2_x_range,//32
-            p_2_y_range,//32
+            p_2_x_range, //32
+            p_2_y_range, //32
             //904
             p_3_x_range,
             p_3_y_range,
@@ -85,7 +85,7 @@ impl Pack for ML254Bytes {
             // theta,
             r,
             //1180
-            proof_b,//128
+            proof_b, //128
             current_coeff_2_range,
             current_coeff_3_range,
             // proof_b_tmp_range,

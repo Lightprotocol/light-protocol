@@ -42,7 +42,7 @@ impl Pack for MerkleTreeRoots {
             //609
             roots,
             //18137
-            unused_remainder
+            unused_remainder,
         ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 48];
 
         if is_initialized[0] != 1u8 {
@@ -66,7 +66,7 @@ pub fn check_root_hash_exists(
     account_main: &AccountInfo,
     root_bytes: &Vec<u8>,
     //found_root: &mut u8,
-) -> Result<u8,ProgramError>{
+) -> Result<u8, ProgramError> {
     let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
@@ -77,7 +77,6 @@ pub fn check_root_hash_exists(
     //     *account_main.key,
     //     solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     // );
-
 
     if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) {
         msg!("merkle tree account is incorrect");

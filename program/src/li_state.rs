@@ -55,9 +55,7 @@ impl Pack for LiBytes {
             //220
             unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
-        ) = array_refs![
-            input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384
-        ];
+        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
         msg!("unpacked");
 
         Ok(LiBytes {
@@ -74,7 +72,7 @@ impl Pack for LiBytes {
             root_hash: root_hash.to_vec(),                 //8
             data_hash: data_hash.to_vec(),                 //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
-            proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(),//11
+            proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(), //11
 
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
             changed_constants: [false; 12],
@@ -103,8 +101,7 @@ impl Pack for LiBytes {
             //220
             unused_remainder_dst,
             proof_a_b_c_leaves_and_nullifiers_dst,
-        ) = mut_array_refs![
-            dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
+        ) = mut_array_refs![dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
 
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
@@ -131,7 +128,11 @@ impl Pack for LiBytes {
                 } else if i == 10 {
                     *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
                 } else if i == 11 {
-                    *proof_a_b_c_leaves_and_nullifiers_dst = self.proof_a_b_c_leaves_and_nullifiers.clone().try_into().unwrap();
+                    *proof_a_b_c_leaves_and_nullifiers_dst = self
+                        .proof_a_b_c_leaves_and_nullifiers
+                        .clone()
+                        .try_into()
+                        .unwrap();
                 }
             }
         }
@@ -140,7 +141,6 @@ impl Pack for LiBytes {
     }
 }
 
-
 // Account struct to determine state of the computation
 // and perform basic security checks
 #[derive(Debug, Clone)]
@@ -148,7 +148,6 @@ pub struct InstructionIndex {
     is_initialized: bool,
     pub signer_pubkey: Pubkey,
     pub current_instruction_index: usize,
-
 }
 
 impl Sealed for InstructionIndex {}
@@ -160,8 +159,8 @@ impl IsInitialized for InstructionIndex {
 }
 
 impl Pack for InstructionIndex {
-    const LEN: usize = 3900;//3772;
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
+    const LEN: usize = 3900; //3772;
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InstructionIndex::LEN];
 
         let (
@@ -170,35 +169,25 @@ impl Pack for InstructionIndex {
             signer_pubkey,
             unused_remainder1,
             current_instruction_index,
-            unused_remainder2
-        ) = array_refs![input,1, 3, 32, 176, 8, 3680];
-        
+            unused_remainder2,
+        ) = array_refs![input, 1, 3, 32, 176, 8, 3680];
         if is_initialized[0] == 0 {
             Err(ProgramError::InvalidAccountData)
         } else {
-            Ok(
-                InstructionIndex {
-                    is_initialized: true,
-                    signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),
-                    current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-                }
-            )
+            Ok(InstructionIndex {
+                is_initialized: true,
+                signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),
+                current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+            })
         }
-
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
+        let dst = array_mut_ref![dst, 0, InstructionIndex::LEN];
 
-        let dst = array_mut_ref![dst, 0,  InstructionIndex::LEN];
-
-        let (
-            is_initialized,
-            unused_remainder0,
-            current_instruction_index,
-            unused_remainder1
-        ) = mut_array_refs![dst, 1, 211, 8, 3680];
+        let (is_initialized, unused_remainder0, current_instruction_index, unused_remainder1) =
+            mut_array_refs![dst, 1, 211, 8, 3680];
         //is not meant to be used
         *is_initialized = *is_initialized;
-
     }
 }

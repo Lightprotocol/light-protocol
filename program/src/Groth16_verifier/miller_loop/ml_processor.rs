@@ -1,23 +1,20 @@
 use crate::Groth16_verifier::{
-    parsers::parse_x_group_affine_from_bytes,
-    parsers::parse_fp256_to_bytes,
+    miller_loop::{ml_instructions::*, ml_instructions_transform::*, ml_ranges::*, ml_state::*},
     parsers::parse_f_from_bytes,
     parsers::parse_f_to_bytes,
-    miller_loop::{
-        ml_instructions::*,
-        ml_ranges::*,
-        ml_state::*,
-        ml_instructions_transform::*
-    },
+    parsers::parse_fp256_to_bytes,
+    parsers::parse_x_group_affine_from_bytes,
     prepare_inputs::pi_state::*,
 };
 use solana_program::{log::sol_log_compute_units, msg};
 
-
-
 pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_data: &PiBytes) {
-    let proof_a = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec());
-    let proof_c = parse_x_group_affine_from_bytes(&account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[192..256].to_vec());
+    let proof_a = parse_x_group_affine_from_bytes(
+        &account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec(),
+    );
+    let proof_c = parse_x_group_affine_from_bytes(
+        &account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[192..256].to_vec(),
+    );
     let p_1: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
         ark_ec::bn::g1::G1Prepared::from(proof_a);
     let p_3: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
@@ -32,7 +29,10 @@ pub fn move_proofs(account_main_data: &mut ML254Bytes, account_prepare_inputs_da
     account_main_data.changed_variables[P_1_Y_RANGE_INDEX] = true;
     account_main_data.changed_variables[P_1_X_RANGE_INDEX] = true;
 
-    account_main_data.proof_b = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[64..192].to_vec().clone();
+    account_main_data.proof_b = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers
+        [64..192]
+        .to_vec()
+        .clone();
     account_main_data.changed_variables[PROOF_B_INDEX] = true;
 
     // account_main_data.p_3_x_range = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[192..224].to_vec().clone();
