@@ -1,43 +1,41 @@
+use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use byteorder::{ByteOrder, LittleEndian};
 use solana_program::{
     msg,
-    program_pack::{IsInitialized, Pack, Sealed},
     program_error::ProgramError,
+    program_pack::{IsInitialized, Pack, Sealed},
 };
 use std::convert::TryInto;
-use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::{LittleEndian,ByteOrder};
 pub trait MtConfig: Clone {
-	/// The size of the permutation, in field elements.
-	const INIT_BYTES: &'static[u8];
+    /// The size of the permutation, in field elements.
+    const INIT_BYTES: &'static [u8];
 }
 #[allow(unused_variables)]
 #[derive(Debug)]
 pub struct MerkleTree {
     pub is_initialized: bool,
     pub levels: usize,
-    pub filled_subtrees : Vec<Vec<u8>>,
-    pub current_root_index : usize,
-    pub next_index : usize,
-    pub root_history_size : usize,
-    pub roots : Vec<u8>,
+    pub filled_subtrees: Vec<Vec<u8>>,
+    pub current_root_index: usize,
+    pub next_index: usize,
+    pub root_history_size: usize,
+    pub roots: Vec<u8>,
     pub current_total_deposits: u64,
     pub inserted_leaf: bool,
     pub inserted_root: bool,
     pub time_locked: u64,
-    pub pubkey_locked:Vec<u8>,
-
+    pub pubkey_locked: Vec<u8>,
 }
 impl Sealed for MerkleTree {}
 impl IsInitialized for MerkleTree {
     fn is_initialized(&self) -> bool {
         self.is_initialized
-
     }
 }
-impl  Pack for MerkleTree {
+impl Pack for MerkleTree {
     //height 18
     const LEN: usize = 16657;
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, MerkleTree::LEN];
 
         let (
@@ -53,14 +51,14 @@ impl  Pack for MerkleTree {
             current_total_deposits,
             pubkey_locked,
             time_locked,
-    ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
+        ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
         //assert_eq!(1, is_initialized[0], "Account is not initialized");
         if 1u8 != is_initialized[0] {
             msg!("merkle tree account is not initialized");
             panic!();
         }
 
-        let mut tmp_subtree_vec = vec![vec![0u8;32]; 18];
+        let mut tmp_subtree_vec = vec![vec![0u8; 32]; 18];
 
         for (i, bytes) in filled_subtrees.chunks(32).enumerate() {
             tmp_subtree_vec[i] = bytes.to_vec();
@@ -68,85 +66,86 @@ impl  Pack for MerkleTree {
 
         let current_root_index = usize::from_le_bytes(*current_root_index);
 
-        let mut tmp_roots_vec = vec![0u8;32];
+        let mut tmp_roots_vec = vec![0u8; 32];
         let current_root_start_range = current_root_index * 32;
         let current_root_end_range = (current_root_index + 1) * 32;
 
-        for (i, byte) in roots[current_root_start_range..current_root_end_range].iter().enumerate() {
+        for (i, byte) in roots[current_root_start_range..current_root_end_range]
+            .iter()
+            .enumerate()
+        {
             tmp_roots_vec[i] = *byte;
         }
 
         let next_index = usize::from_le_bytes(*next_index);
 
-        Ok(
-            MerkleTree {
-                is_initialized: true,
-                levels: usize::from_le_bytes(*levels),
-                filled_subtrees: tmp_subtree_vec,
-                current_root_index : current_root_index,
-                next_index : next_index,
-                root_history_size : usize::from_le_bytes(*root_history_size),
-                roots : tmp_roots_vec.to_vec(),
-                current_total_deposits: LittleEndian::read_u64(current_total_deposits),
-                inserted_leaf: false,
-                inserted_root: false,
-                pubkey_locked: pubkey_locked.to_vec(),
-                time_locked: u64::from_le_bytes(*time_locked),
-            }
-        )
+        Ok(MerkleTree {
+            is_initialized: true,
+            levels: usize::from_le_bytes(*levels),
+            filled_subtrees: tmp_subtree_vec,
+            current_root_index: current_root_index,
+            next_index: next_index,
+            root_history_size: usize::from_le_bytes(*root_history_size),
+            roots: tmp_roots_vec.to_vec(),
+            current_total_deposits: LittleEndian::read_u64(current_total_deposits),
+            inserted_leaf: false,
+            inserted_root: false,
+            pubkey_locked: pubkey_locked.to_vec(),
+            time_locked: u64::from_le_bytes(*time_locked),
+        })
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-
-
         //if self.inserted_leaf {
-            let dst = array_mut_ref![dst, 0,  MerkleTree::LEN];
+        let dst = array_mut_ref![dst, 0, MerkleTree::LEN];
 
-            let (
-                is_initialized_dst,
-                levels_dst,
-                filled_subtrees_dst,
-                current_root_index_dst,
-                next_index_dst,
-                root_history_size_dst,
-                roots_dst,
-                current_total_deposits_dst,
-                pubkey_locked_dst,
-                time_locked_dst,
+        let (
+            is_initialized_dst,
+            levels_dst,
+            filled_subtrees_dst,
+            current_root_index_dst,
+            next_index_dst,
+            root_history_size_dst,
+            roots_dst,
+            current_total_deposits_dst,
+            pubkey_locked_dst,
+            time_locked_dst,
         ) = mut_array_refs![dst, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
 
-            // could change this to insert only the changed subtree if one is changed
+        // could change this to insert only the changed subtree if one is changed
+        let mut i = 0;
+        for it in &self.filled_subtrees {
+            for j in it {
+                filled_subtrees_dst[i] = *j;
+                i += 1;
+            }
+        }
+        if self.inserted_root {
             let mut i = 0;
-            for it in &self.filled_subtrees {
-                for j in it {
-                    filled_subtrees_dst[i] = *j;
-                    i += 1;
-                }
+            if self.current_root_index != 0 {
+                i = self.current_root_index;
             }
-            if self.inserted_root {
-                let mut i = 0;
-                if self.current_root_index != 0 {
-                    i = self.current_root_index;
-                }
-                let mut i_tmp = i * 32;
-                for it in self.roots.iter() {
-                    roots_dst[i_tmp] = *it;
-                    i_tmp += 1;
-
-                }
+            let mut i_tmp = i * 32;
+            for it in self.roots.iter() {
+                roots_dst[i_tmp] = *it;
+                i_tmp += 1;
             }
+        }
 
-            LittleEndian::write_u64(current_root_index_dst, self.current_root_index.try_into().unwrap());
-            LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
-            LittleEndian::write_u64(current_total_deposits_dst, self.current_total_deposits.try_into().unwrap());
-            *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
+        LittleEndian::write_u64(
+            current_root_index_dst,
+            self.current_root_index.try_into().unwrap(),
+        );
+        LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
+        LittleEndian::write_u64(
+            current_total_deposits_dst,
+            self.current_total_deposits.try_into().unwrap(),
+        );
+        *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
 
-            LittleEndian::write_u64(time_locked_dst, self.time_locked.try_into().unwrap());
+        LittleEndian::write_u64(time_locked_dst, self.time_locked.try_into().unwrap());
     }
 }
-
-
-
 
 #[derive(Debug, Clone)]
 pub struct InitMerkleTreeBytes {
@@ -162,40 +161,30 @@ impl IsInitialized for InitMerkleTreeBytes {
 impl Pack for InitMerkleTreeBytes {
     const LEN: usize = 16657;
 
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InitMerkleTreeBytes::LEN];
 
-        let (
-            bytes,
-            left_over,
-        ) = array_refs![input, 641, 16016];
+        let (bytes, left_over) = array_refs![input, 641, 16016];
 
         if bytes[0] != 0 {
             msg!("Tree is already initialized");
             return Err(ProgramError::InvalidAccountData);
         }
 
-        Ok(
-            InitMerkleTreeBytes {
-                is_initialized: true,
-                bytes: bytes.to_vec(),
-            }
-        )
+        Ok(InitMerkleTreeBytes {
+            is_initialized: true,
+            bytes: bytes.to_vec(),
+        })
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-
         let dst = array_mut_ref![dst, 0, InitMerkleTreeBytes::LEN];
 
-        let (
-            bytes_dst,
-            left_over_dst,
-        ) = mut_array_refs![dst, 641, 16016];
+        let (bytes_dst, left_over_dst) = mut_array_refs![dst, 641, 16016];
 
-        *bytes_dst =    self.bytes.clone().try_into().unwrap();
+        *bytes_dst = self.bytes.clone().try_into().unwrap();
     }
 }
-
 
 // Account structs for merkle tree:
 #[derive(Debug)]
@@ -222,8 +211,8 @@ impl IsInitialized for HashBytes {
 }
 
 impl Pack for HashBytes {
-    const LEN: usize = 3900;//297;
-    fn unpack_from_slice(input:  &[u8]) ->  Result<Self, ProgramError>{
+    const LEN: usize = 3900; //297;
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, HashBytes::LEN];
 
         let (
@@ -232,7 +221,6 @@ impl Pack for HashBytes {
             current_instruction_index,
             //220
             unused_remainder1,
-
             state,
             current_round,
             current_round_index,
@@ -245,34 +233,31 @@ impl Pack for HashBytes {
             leaf_right,
             nullifier_0,
             nullifier_1,
-        ) = array_refs![input, 1, 211, 8, 3328, 96, 8 , 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
+        ) = array_refs![input, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
             parsed_state.push(i.to_vec());
         }
 
-        Ok(
-            HashBytes {
-                is_initialized: true,
-                state: parsed_state.to_vec(),
-                current_round: usize::from_le_bytes(*current_round),
-                current_round_index: usize::from_le_bytes(*current_round_index),
-                leaf_left: leaf_left.to_vec(),
-                leaf_right: leaf_right.to_vec(),
-                left: left.to_vec(),
-                right: right.to_vec(),
-                current_level_hash: current_level_hash.to_vec(),
-                current_index: usize::from_le_bytes(*current_index),
-                current_level: usize::from_le_bytes(*current_level),
-                current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-            }
-        )
+        Ok(HashBytes {
+            is_initialized: true,
+            state: parsed_state.to_vec(),
+            current_round: usize::from_le_bytes(*current_round),
+            current_round_index: usize::from_le_bytes(*current_round_index),
+            leaf_left: leaf_left.to_vec(),
+            leaf_right: leaf_right.to_vec(),
+            left: left.to_vec(),
+            right: right.to_vec(),
+            current_level_hash: current_level_hash.to_vec(),
+            current_index: usize::from_le_bytes(*current_index),
+            current_level: usize::from_le_bytes(*current_level),
+            current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+        })
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-
-        let dst = array_mut_ref![dst, 0,  HashBytes::LEN];
+        let dst = array_mut_ref![dst, 0, HashBytes::LEN];
 
         let (
             is_initialized_dst,
@@ -280,7 +265,6 @@ impl Pack for HashBytes {
             current_instruction_index_dst,
             //220
             unused_remainder1_dst,
-
             state_dst,
             current_round_dst,
             current_round_index_dst,
@@ -294,27 +278,27 @@ impl Pack for HashBytes {
             //+288
             nullifier_0_dst,
             nullifier_1_dst,
-        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8 , 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
+        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
-        let mut state_tmp = [0u8;96];
+        let mut state_tmp = [0u8; 96];
         let mut z = 0;
         for i in self.state.iter() {
             for j in i {
                 state_tmp[z] = *j;
-                z +=1;
+                z += 1;
             }
         }
 
         *state_dst = state_tmp;
         *current_round_dst = usize::to_le_bytes(self.current_round);
-        *current_round_index_dst= usize::to_le_bytes(self.current_round_index);
+        *current_round_index_dst = usize::to_le_bytes(self.current_round_index);
 
-        *leaf_left_dst =             self.leaf_left.clone().try_into().unwrap();
+        *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
 
-        *leaf_right_dst =            self.leaf_right.clone().try_into().unwrap();
-        *left_dst =             self.left.clone().try_into().unwrap();
+        *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
+        *left_dst = self.left.clone().try_into().unwrap();
 
-        *right_dst =            self.right.clone().try_into().unwrap();
+        *right_dst = self.right.clone().try_into().unwrap();
         *current_level_hash_dst = self.current_level_hash.clone().try_into().unwrap();
 
         *current_index_dst = usize::to_le_bytes(self.current_index);
@@ -322,8 +306,6 @@ impl Pack for HashBytes {
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
     }
 }
-
-
 
 #[derive(Clone, Debug)]
 pub struct TwoLeavesBytesPda {
@@ -344,32 +326,24 @@ impl IsInitialized for TwoLeavesBytesPda {
 impl Pack for TwoLeavesBytesPda {
     const LEN: usize = 98;
 
-    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError>{
-        let input = array_ref![input,0, TwoLeavesBytesPda::LEN];
+    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
+        let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
 
-        let (
-            is_initialized,
-            account_type,
-            leaf_left,
-            leaf_right,
-            merkle_tree_pubkey,
-        ) = array_refs![input, 1, 1, 32, 32, 32];
+        let (is_initialized, account_type, leaf_left, leaf_right, merkle_tree_pubkey) =
+            array_refs![input, 1, 1, 32, 32, 32];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
             msg!("Leaf pda is already initialized");
             return Err(ProgramError::InvalidAccountData);
         }
-        Ok(
-            TwoLeavesBytesPda {
-                is_initialized: true,
-                account_type: 4,
-                leaf_right: vec![0u8;32],
-                leaf_left: vec![0u8;32],
-                merkle_tree_pubkey: vec![0u8;32],
-            }
-        )
-
+        Ok(TwoLeavesBytesPda {
+            is_initialized: true,
+            account_type: 4,
+            leaf_right: vec![0u8; 32],
+            leaf_left: vec![0u8; 32],
+            merkle_tree_pubkey: vec![0u8; 32],
+        })
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
@@ -391,8 +365,6 @@ impl Pack for TwoLeavesBytesPda {
     }
 }
 
-
-
 //1217 byte init data for height 18
 // total space required init data - one root which is included plus 100 roots in history and 2^18 leaves + total nr of deposits
 //1217 - 32 + 100 * 32 + (2**18) * 32 + 8 = 8393001 bytes
@@ -408,8 +380,7 @@ impl Pack for TwoLeavesBytesPda {
 //pub const MERKLE_TREE_ACC_BYTES: [u8;32] =[126, 172,  99,  74, 140, 170, 149,  84, 1, 182, 133, 240, 194, 184, 188,  75, 106, 171, 128, 167,  19, 237, 167, 181, 207,  88,  29, 194,  64,  97,  42,  14];
 //pub const MERKLE_TREE_ACC_BYTES: [u8;32] =[   60, 116, 160, 179, 184, 158,  24, 255,   95, 137, 245, 130,  79, 227,  94,  63,  222, 123, 229,   5, 161,  89, 124, 141,   27,  45, 192,  72, 158, 106, 180, 197];
 //pub const MERKLE_TREE_ACC_BYTES: [u8;32] =[  248, 195,  48, 203,   9,  32,  62,  30,  228, 182, 113, 174,   6, 199,  42, 142,   28,  50, 151,  71, 124,  39,  36, 163,  243, 193, 128, 139,  33,   3, 225,  20];
-pub const MERKLE_TREE_ACC_BYTES: [u8;32] =[222,  66,  10, 195,  58, 162, 229,  40,
-  247,  92,  17,  93,  85, 233,  85, 138,
-  197, 136,   2,  65, 208, 158,  38,  39,
-  155, 208, 117, 251, 244,  33,  72, 213
+pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
+    222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
+    158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
 ];
