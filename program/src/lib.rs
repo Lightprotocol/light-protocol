@@ -1,6 +1,6 @@
 //constants for verifying key and poseidon
 pub mod utils;
-
+pub mod user_account;
 //merkle tree
 pub mod poseidon_merkle_tree;
 
@@ -30,6 +30,11 @@ use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 pub mod Groth16_verifier;
 use crate::utils::init_bytes18;
 
+use crate::user_account::instructions::{
+    initialize_user_account,
+    modify_user_account
+};
+
 entrypoint!(process_instruction);
 
 //use crate::mt_state::MtConfig;
@@ -47,7 +52,9 @@ pub fn process_instruction(
     accounts: &[ AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    //msg!("instruction_data len: {}", &_instruction_data.len());
+    // msg!("instruction_data len: {}", &_instruction_data.len());
+    // msg!("instruction_data: {:?}", &_instruction_data);
+
     // initialize new merkle tree account
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let accounts_mut = accounts.clone();
@@ -62,8 +69,21 @@ pub fn process_instruction(
         )?;
         merkle_tree_processor.initialize_new_merkle_tree_from_bytes(
             &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..]
-        )?;
-        //process_instruction_merkle_tree(&_instruction_data, accounts);
+        )
+
+    } else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
+        let accounts_mut = accounts.clone();
+        let account = &mut accounts_mut.iter();
+        let signing_account = next_account_info(account)?;
+        let user_account = next_account_info(account)?;
+        initialize_user_account(user_account, *signing_account.key)
+
+    } else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
+        let accounts_mut = accounts.clone();
+        let account = &mut accounts_mut.iter();
+        let signing_account = next_account_info(account)?;
+        let user_account = next_account_info(account)?;
+        modify_user_account(&user_account, *signing_account.key, &_instruction_data[9..])
     }
     // transact with shielded pool
     else {
@@ -131,11 +151,10 @@ pub fn process_instruction(
                 try_initialize_hash_bytes_account(account_main, &_instruction_data[9..], signing_account.key)
 
             ),
-        }?;
+        }
 
     }
 
-    Ok(())
 }
 
 
