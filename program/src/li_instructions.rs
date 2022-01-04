@@ -48,10 +48,17 @@ pub fn check_and_insert_nullifier(
             nullifier_account: &AccountInfo,
             _instruction_data: &[u8]
         ) -> Result<u8, ProgramError> {
-            let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+            // let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+            // let pubkey_from_seed = Pubkey::create_with_seed(
+            //     &signer_account_pubkey,
+            //     &hash.to_string()[8..23],
+            //     &program_id
+            // ).unwrap();
+            let nullifer_pubkey = Pubkey::new(&_instruction_data);
+
             let pubkey_from_seed = Pubkey::create_with_seed(
-                &signer_account_pubkey,
-                &hash.to_string()[8..23],
+                &nullifer_pubkey,
+                &"nullifier",
                 &program_id
             ).unwrap();
             //let mut i = 0;
@@ -60,10 +67,18 @@ pub fn check_and_insert_nullifier(
             //     //i +=1;
             // }
             //check for equality
-            assert_eq!(pubkey_from_seed, *nullifier_account.key);
+            //assert_eq!(pubkey_from_seed, *nullifier_account.key);
+            if pubkey_from_seed != *nullifier_account.key {
+                msg!("passed in nullifier account is wrong");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             //check for rent exemption
             let rent = Rent::free();
-            assert!(rent.is_exempt(**nullifier_account.lamports.borrow(), 2));
+            //assert!(rent.is_exempt(**nullifier_account.lamports.borrow(), 2));
+            if rent.is_exempt(**nullifier_account.lamports.borrow(), 2) != true {
+                msg!("nullifier account is not rent exempt");
+                return Err(ProgramError::InvalidAccountData);
+            }
             let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
             NullifierBytesPda::pack_into_slice(&nullifier_account_data, &mut nullifier_account.data.borrow_mut());
             Ok(1u8)
