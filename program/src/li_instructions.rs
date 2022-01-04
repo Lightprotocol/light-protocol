@@ -48,10 +48,11 @@ pub fn check_and_insert_nullifier(
     nullifier_account: &AccountInfo,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
-    let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+    // let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
+    let hash = format!("{:?}", &_instruction_data);
     let pubkey_from_seed = Pubkey::create_with_seed(
         &signer_account_pubkey,
-        &hash.to_string()[8..23],
+        &hash.to_string()[1..16], // 8..23
         &program_id,
     )
     .unwrap();
