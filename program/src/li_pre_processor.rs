@@ -1,6 +1,8 @@
 use crate::li_instructions::{check_and_insert_nullifier, check_tx_integrity_hash};
 use crate::li_state::LiBytes;
+use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
+use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     log::sol_log_compute_units,
@@ -9,9 +11,11 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-
-use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
-use crate::Groth16_verifier::groth16_processor::Groth16Processor;
+// use spl_math::uint::U256;
+use ark_ff::biginteger::{BigInteger256, BigInteger384};
+use ark_ff::bytes::{FromBytes, ToBytes};
+use ark_ff::BigInteger;
+use ark_ff::Fp256;
 use std::convert::TryInto;
 
 //use crate::process_instruction_merkle_tree;
@@ -56,7 +60,7 @@ pub fn li_pre_process_instruction(
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0 = next_account_info(account)?;
         let nullifier1 = next_account_info(account)?;
-        let merkel_tree_account = next_account_info(account)?;
+        let merkle_tree_account = next_account_info(account)?;
         msg!("starting nullifier check");
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
@@ -83,44 +87,61 @@ pub fn li_pre_process_instruction(
             vec![1u8, 32],
             &account_data.tx_integrity_hash,
         )?;
-        //
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
         merkle_tree_processor.process_instruction_merkle_tree(accounts);
-        //process_instruction_merkle_tree(&[0u8],accounts)?;
 
-        let amount = i64::from_le_bytes(account_data.amount.clone().try_into().unwrap());
+        // TODO: this is a hotfix. Checks first byte only.
+        let ext_amount_bool =
+            i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
+        let amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
 
-        //remove this for dynamic testing adjust full unit test after
-        let amount: i64 = 1000000000;
+        msg!("amount 0 or 1? {:?}", ext_amount_bool);
+        msg!("amount: {:?}", amount);
 
-        if amount > 0 {
-            msg!("deposited {}", amount);
-            if *merkel_tree_account.key
+        if ext_amount_bool > 0 {
+            if *merkle_tree_account.key
                 != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES)
             {
                 msg!("recipient has to be merkle tree account for deposit");
                 return Err(ProgramError::InvalidInstructionData);
             }
+
+            // calculate extAmount from pubAmount:
+            let ext_amount = i64::from_str_radix(&amount.to_string(), 16).unwrap();
+            msg!("deposited {}", ext_amount);
             transfer(
                 two_leaves_pda,
-                merkel_tree_account,
-                u64::try_from(amount).unwrap(),
+                merkle_tree_account,
+                u64::try_from(ext_amount).unwrap(),
             );
-        } else if amount < 0 {
+        } else if ext_amount_bool <= 0 {
+            // bool is 0 hotfix.
+            // TODO: replace "bool" with negative bytes of extAmount.
             let recipient_account = next_account_info(account)?;
 
-            msg!("withdraw of {}", amount);
-            if *recipient_account.key
-                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
-            {
-                msg!("recipient has to be address specified in tx integrity hash");
-                return Err(ProgramError::InvalidInstructionData);
-            }
+            // if *recipient_account.key
+            //     != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+            // {
+            //     msg!("recipient has to be address specified in tx integrity hash");
+            //     return Err(ProgramError::InvalidInstructionData);
+            // }
+            // calculate extAmount:
+            let field_size: Vec<u8> = vec![
+                1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
+                129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
+            ];
+            let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
+            field.sub_noborrow(&amount);
+            let string = field.to_string();
+            let ext_amount = i64::from_str_radix(&string, 16).unwrap();
+
+            msg!("withdraw of {}", ext_amount);
+
             transfer(
-                merkel_tree_account,
+                merkle_tree_account,
                 recipient_account,
-                u64::try_from(amount * -1).unwrap(),
+                u64::try_from(ext_amount).unwrap(), // *-1?
             );
         }
     } else if current_instruction_index == 4 {
@@ -159,8 +180,8 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) {
 
     //merkle_tree_account.current_total_deposits += 1;
     msg!(
-        "transferred of {} Sol from {:?} to {:?}",
-        amount / 1000000000,
+        "transferred of {} Lamp from {:?} to {:?}",
+        amount,
         _from.key,
         _to.key
     );
@@ -192,11 +213,11 @@ pub fn try_initialize_hash_bytes_account(
 
     main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
     main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
-    main_account_data.amount = _instruction_data[32..40].to_vec().clone();
+    main_account_data.amount = _instruction_data[32..64].to_vec().clone(); // note: changed from 8 to 32 bytes to support negative amounts
     main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone();
 
-    let inputNullifier0 = _instruction_data[96..128].to_vec().clone();
-    let inputNullifier1 = &_instruction_data[128..160];
+    let input_nullifier_0 = _instruction_data[96..128].to_vec().clone();
+    let input_nullifier_1 = &_instruction_data[128..160];
 
     let commitment_right = &_instruction_data[160..192];
     let commitment_left = &_instruction_data[192..224];
@@ -205,10 +226,12 @@ pub fn try_initialize_hash_bytes_account(
         _instruction_data[224..480].to_vec(),
         commitment_right.to_vec(),
         commitment_left.to_vec(),
-        inputNullifier0.to_vec(),
-        inputNullifier1.to_vec(),
+        input_nullifier_0.to_vec(),
+        input_nullifier_1.to_vec(),
     ]
     .concat();
+    // adding ext_amount to indicate + - transfer.
+    main_account_data.ext_amount = _instruction_data[480..488].to_vec().clone();
     //main_account_data.changed_constants[11] = true;
 
     for i in 0..12 {

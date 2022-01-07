@@ -126,12 +126,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             msg!("locked at slot: {}", merkle_tree_account_data.time_locked);
             msg!(
                 "lock ends at slot: {}",
-                merkle_tree_account_data.time_locked + 1000
+                merkle_tree_account_data.time_locked + 10 // TODO: change lok back to higher no.
             );
 
             //lock
             if merkle_tree_account_data.time_locked == 0
-                || merkle_tree_account_data.time_locked + 1000 < current_slot
+                || merkle_tree_account_data.time_locked + 10 < current_slot
             {
                 merkle_tree_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
                 merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
@@ -141,7 +141,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                     "locked by: {:?}",
                     solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked)
                 );
-            } else if merkle_tree_account_data.time_locked + 1000 > current_slot
+            } else if merkle_tree_account_data.time_locked + 10 > current_slot
             /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked[..]) != *signer.key*/
             {
                 msg!("contract is still locked");

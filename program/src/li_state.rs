@@ -16,11 +16,11 @@ pub struct LiBytes {
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_refund: Vec<u8>,
     pub to_address: Vec<u8>,
+    pub ext_amount: Vec<u8>,
     pub amount: Vec<u8>,
-    pub nullifier_hash: Vec<u8>,
     pub root_hash: Vec<u8>,
     pub data_hash: Vec<u8>,         // is commit hash until changed
-    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, amount, signing_address,
+    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, ext_amount, signing_address,
     pub current_instruction_index: usize,
     pub proof_a_b_c_leaves_and_nullifiers: Vec<u8>,
     pub changed_constants: [bool; 12],
@@ -46,8 +46,8 @@ impl Pack for LiBytes {
             signing_address, // is relayer address
             relayer_refund,
             to_address,
+            ext_amount,
             amount,
-            nullifier_hash,
             root_hash,
             data_hash, // is commit hash until changed
             tx_integrity_hash,
@@ -55,7 +55,7 @@ impl Pack for LiBytes {
             //220
             unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
-        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
+        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384]; // 8->32 -- 24+ (old rem: 3296)
         msg!("unpacked");
 
         Ok(LiBytes {
@@ -67,8 +67,8 @@ impl Pack for LiBytes {
             signing_address: signing_address.to_vec(),     //3
             relayer_refund: relayer_refund.to_vec(),       //4
             to_address: to_address.to_vec(),               //5
-            amount: amount.to_vec(),                       //6
-            nullifier_hash: nullifier_hash.to_vec(),       //7
+            ext_amount: ext_amount.to_vec(),               //6
+            amount: amount.to_vec(),                       //7
             root_hash: root_hash.to_vec(),                 //8
             data_hash: data_hash.to_vec(),                 //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
@@ -91,8 +91,8 @@ impl Pack for LiBytes {
             signing_address_dst, // is relayer address
             relayer_refund_dst,
             to_address_dst,
+            ext_amount_dst,
             amount_dst,
-            nullifier_hash_dst,
             root_hash_dst,
             data_hash_dst,
             tx_integrity_hash_dst,
@@ -118,9 +118,9 @@ impl Pack for LiBytes {
                 } else if i == 5 {
                     *to_address_dst = self.to_address.clone().try_into().unwrap();
                 } else if i == 6 {
-                    *amount_dst = self.amount.clone().try_into().unwrap();
+                    *ext_amount_dst = self.ext_amount.clone().try_into().unwrap();
                 } else if i == 7 {
-                    *nullifier_hash_dst = self.nullifier_hash.clone().try_into().unwrap();
+                    *amount_dst = self.amount.clone().try_into().unwrap();
                 } else if i == 8 {
                     *root_hash_dst = self.root_hash.clone().try_into().unwrap();
                 } else if i == 9 {
