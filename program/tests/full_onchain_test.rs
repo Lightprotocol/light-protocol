@@ -742,7 +742,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     let commit = vec![0u8; 32];//vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     let mut i = 0;
-    for (instruction_id) in 0..235 {
+    for (instruction_id) in 0..237 {
         //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
         let instruction_data: Vec<u8> = [vec![instruction_id, 0u8], commit.clone(), commit.clone(), [i as u8].to_vec() ].concat();
 
@@ -863,7 +863,7 @@ async fn test_pi_ml_fe_integration_onchain() {
     *
     *
     */
-
+    /*
     let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[96..128].to_vec().clone()).unwrap();
     let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[128..160].to_vec().clone()).unwrap();
     //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
@@ -882,6 +882,26 @@ async fn test_pi_ml_fe_integration_onchain() {
         &program_id
     ).unwrap();
     nullifier_pubkeys.push(pubkey_from_seed);
+    */
+
+    let nullifer0 = Pubkey::new(&*public_inputs_bytes[96..128].to_vec().clone());
+    let nullifer1 = Pubkey::new(&*public_inputs_bytes[128..160].to_vec().clone());
+    let mut nullifier_pubkeys = Vec::new();
+    let pubkey_from_seed = Pubkey::create_with_seed(
+        &nullifer0,
+        &"nullifier",
+        &program_id
+    ).unwrap();
+    nullifier_pubkeys.push(pubkey_from_seed);
+
+    let pubkey_from_seed = Pubkey::create_with_seed(
+        &nullifer1,
+        &"nullifier",
+        &program_id
+    ).unwrap();
+    nullifier_pubkeys.push(pubkey_from_seed);
+    println!("derriving nullifier pubkeys from: {:?}", nullifier_pubkeys);
+
     //restart to add nullifer pdas
     // create_and_start_program_with_nullfier_pdas(
     //         merkle_tree_init_bytes: Vec<u8>,
