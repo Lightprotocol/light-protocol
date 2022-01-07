@@ -78,28 +78,18 @@ pub fn li_pre_process_instruction(
         )?;
         msg!("nullifier1 inserted {}", account_data.found_nullifier);
 
-        check_tx_integrity_hash(
-            vec![1u8, 32],
-            vec![1u8, 8],
-            vec![1u8, 32],
-            vec![1u8, 8],
-            vec![1u8, 32],
-            vec![1u8, 32],
-            &account_data.tx_integrity_hash,
-        )?;
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
         merkle_tree_processor.process_instruction_merkle_tree(accounts);
 
         // TODO: this is a hotfix. Checks first byte only.
-        let ext_amount_bool =
-            i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
-        let amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
+        let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
+        let pub_amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
 
-        msg!("amount 0 or 1? {:?}", ext_amount_bool);
-        msg!("amount: {:?}", amount);
+        msg!("amount 0 or 1? {:?}", ext_amount);
+        msg!("amount: {:?}", pub_amount);
 
-        if ext_amount_bool > 0 {
+        if ext_amount > 0 {
             if *merkle_tree_account.key
                 != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES)
             {
@@ -108,40 +98,45 @@ pub fn li_pre_process_instruction(
             }
 
             // calculate extAmount from pubAmount:
-            let ext_amount = i64::from_str_radix(&amount.to_string(), 16).unwrap();
+            let ext_amount_from_pub = i64::from_str_radix(&pub_amount.to_string(), 16).unwrap();
+
+            assert_eq!(ext_amount, ext_amount_from_pub, "ext_amount != pub_amount");
             msg!("deposited {}", ext_amount);
             transfer(
                 two_leaves_pda,
                 merkle_tree_account,
                 u64::try_from(ext_amount).unwrap(),
             );
-        } else if ext_amount_bool <= 0 {
-            // bool is 0 hotfix.
-            // TODO: replace "bool" with negative bytes of extAmount.
+        } else if ext_amount <= 0 {
             let recipient_account = next_account_info(account)?;
 
-            // if *recipient_account.key
-            //     != solana_program::pubkey::Pubkey::new(&account_data.to_address)
-            // {
-            //     msg!("recipient has to be address specified in tx integrity hash");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
-            // calculate extAmount:
+            if *recipient_account.key
+                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+            {
+                msg!("recipient has to be address specified in tx integrity hash");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            // calculate extAmount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
                 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
             ];
             let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
-            field.sub_noborrow(&amount);
+            field.sub_noborrow(&pub_amount);
+            // field is the positive value
             let string = field.to_string();
-            let ext_amount = i64::from_str_radix(&string, 16).unwrap();
-
-            msg!("withdraw of {}", ext_amount);
+            let ext_amount_from_pub = i64::from_str_radix(&string, 16).unwrap();
+            // let ext_amount_from_pub = field.0[0];
+            assert_eq!(
+                ext_amount,
+                ext_amount_from_pub * -1, // if we *-1 the i64 val it could work
+                "ext_amount != pub_amount"
+            );
 
             transfer(
                 merkle_tree_account,
                 recipient_account,
-                u64::try_from(ext_amount).unwrap(), // *-1?
+                u64::try_from(ext_amount * -1).unwrap(), // *-1?
             );
         }
     } else if current_instruction_index == 4 {
@@ -187,13 +182,6 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) {
     );
 }
 
-// recipient: toFixedHex(recipient, 20),
-// extAmount: toFixedHex(extAmount),
-// relayer: toFixedHex(relayer, 20),
-// fee: toFixedHex(fee),
-// encryptedOutput1: encryptedOutput1,
-// encryptedOutput2: encryptedOutput2,
-
 pub fn try_initialize_hash_bytes_account(
     main_account: &AccountInfo,
     _instruction_data: &[u8],
@@ -213,8 +201,8 @@ pub fn try_initialize_hash_bytes_account(
 
     main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
     main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
-    main_account_data.amount = _instruction_data[32..64].to_vec().clone(); // note: changed from 8 to 32 bytes to support negative amounts
-    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone();
+    main_account_data.amount = _instruction_data[32..64].to_vec().clone(); // pubAmount (32bytes)
+    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone(); // Todo: may need LE->BE
 
     let input_nullifier_0 = _instruction_data[96..128].to_vec().clone();
     let input_nullifier_1 = &_instruction_data[128..160];
@@ -230,9 +218,29 @@ pub fn try_initialize_hash_bytes_account(
         input_nullifier_1.to_vec(),
     ]
     .concat();
-    // adding ext_amount to indicate + - transfer.
-    main_account_data.ext_amount = _instruction_data[480..488].to_vec().clone();
+    main_account_data.to_address = _instruction_data[480..512].to_vec().clone(); // ..688
+    main_account_data.ext_amount = _instruction_data[512..520].to_vec().clone();
+    let relayer = _instruction_data[520..552].to_vec().clone();
+    let fee = _instruction_data[552..560].to_vec().clone();
+    let encrypted_output_0 = _instruction_data[560..624].to_vec().clone(); // 64
+    let encrypted_output_1 = _instruction_data[624..688].to_vec().clone();
     //main_account_data.changed_constants[11] = true;
+
+    // check_tx_integrity_hash(
+    //     // vec![1u8, 32],   // recipient
+    //     main_account_data.to_address.to_vec(),
+    //     // vec![1u8, 8],    // extAmount
+    //     main_account_data.ext_amount.to_vec(),
+    //     // vec![1u8, 32],   // relayer
+    //     relayer.to_vec(),
+    //     //vec![1u8, 8],    // fee
+    //     fee.to_vec(),
+    //     // vec![1u8, 32],   // o0
+    //     encrypted_output_0.to_vec(),
+    //     // vec![1u8, 32],   // o1
+    //     encrypted_output_1.to_vec(),
+    //     &main_account_data.tx_integrity_hash,
+    // )?;
 
     for i in 0..12 {
         main_account_data.changed_constants[i] = true;
