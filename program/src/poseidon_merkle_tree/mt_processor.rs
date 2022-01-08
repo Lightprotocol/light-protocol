@@ -196,6 +196,10 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             insert_last_double(&mut merkle_tree_account_data, &mut main_account_data);
             leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
             leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
+            // msg!("leafleft: {:?}", leaf_pda_account_data.leaf_left);
+            // msg!("leafright: {:?}", leaf_pda_account_data.leaf_right);
+            // panic!();
+
             leaf_pda_account_data.merkle_tree_pubkey =
                 mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
 

@@ -309,6 +309,7 @@ async fn test_pi_ml_fe_integration_onchain() {
         proof_a_bytes,
         proof_b_bytes,
         proof_c_bytes,
+        [1; 158].to_vec(),
     ]
     .concat();
 

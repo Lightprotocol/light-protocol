@@ -62,21 +62,21 @@ pub fn li_pre_process_instruction(
         let nullifier1 = next_account_info(account)?;
         let merkle_tree_account = next_account_info(account)?;
         msg!("starting nullifier check");
-        account_data.found_nullifier = check_and_insert_nullifier(
-            program_id,
-            _signing_account.key,
-            nullifier0,
-            &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
-        )?;
-        msg!("nullifier0 inserted {}", account_data.found_nullifier);
+        // account_data.found_nullifier = check_and_insert_nullifier(
+        //     program_id,
+        //     _signing_account.key,
+        //     nullifier0,
+        //     &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+        // )?;
+        // msg!("nullifier0 inserted {}", account_data.found_nullifier);
 
-        account_data.found_nullifier = check_and_insert_nullifier(
-            program_id,
-            _signing_account.key,
-            nullifier1,
-            &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
-        )?;
-        msg!("nullifier1 inserted {}", account_data.found_nullifier);
+        // account_data.found_nullifier = check_and_insert_nullifier(
+        //     program_id,
+        //     _signing_account.key,
+        //     nullifier1,
+        //     &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
+        // )?;
+        // msg!("nullifier1 inserted {}", account_data.found_nullifier);
 
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
@@ -110,12 +110,12 @@ pub fn li_pre_process_instruction(
         } else if ext_amount <= 0 {
             let recipient_account = next_account_info(account)?;
 
-            if *recipient_account.key
-                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
-            {
-                msg!("recipient has to be address specified in tx integrity hash");
-                return Err(ProgramError::InvalidInstructionData);
-            }
+            // if *recipient_account.key
+            //     != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+            // {
+            //     msg!("recipient has to be address specified in tx integrity hash");
+            //     return Err(ProgramError::InvalidInstructionData);
+            // }
             // calculate extAmount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
@@ -124,14 +124,14 @@ pub fn li_pre_process_instruction(
             let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
             field.sub_noborrow(&pub_amount);
             // field is the positive value
-            let string = field.to_string();
-            let ext_amount_from_pub = i64::from_str_radix(&string, 16).unwrap();
-            // let ext_amount_from_pub = field.0[0];
-            assert_eq!(
-                ext_amount,
-                ext_amount_from_pub * -1, // if we *-1 the i64 val it could work
-                "ext_amount != pub_amount"
-            );
+            // let string = field.to_string();
+            // let ext_amount_from_pub = i64::from_str_radix(&string, 16).unwrap();
+            let ext_amount_from_pub = field.0[0];
+            // assert_eq!(
+            //     (ext_amount * -1) as u64,
+            //     ext_amount_from_pub, // if we *-1 the i64 val it could work
+            //     "ext_amount != pub_amount"
+            // );
 
             transfer(
                 merkle_tree_account,
@@ -222,8 +222,40 @@ pub fn try_initialize_hash_bytes_account(
     main_account_data.ext_amount = _instruction_data[512..520].to_vec().clone();
     let relayer = _instruction_data[520..552].to_vec().clone();
     let fee = _instruction_data[552..560].to_vec().clone();
-    let encrypted_output_0 = _instruction_data[560..624].to_vec().clone(); // 64
-    let encrypted_output_1 = _instruction_data[624..688].to_vec().clone();
+    let encrypted_output_0 = _instruction_data[560..599].to_vec().clone(); // 16
+    let encrypted_output_1 = _instruction_data[599..638].to_vec().clone();
+
+    msg!(
+        "main_account_data.signing_address {:?}",
+        main_account_data.signing_address
+    );
+    msg!(
+        "main_account_data.root_hash {:?}",
+        main_account_data.root_hash
+    );
+    msg!("main_account_data.amount {:?}", main_account_data.amount);
+    msg!(
+        "main_account_data.tx_integrity_hash {:?}",
+        main_account_data.tx_integrity_hash
+    );
+    msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
+    msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
+    msg!("commitment_right ); {:?}", commitment_right);
+    msg!("commitment_left ); {:?}", commitment_left);
+    // panic!();
+    // msg!(
+    //     "main_account_data.to_address {:?}",
+    //     main_account_data.to_address
+    // );
+    // msg!(
+    //     "main_account_data.ext_amount {:?}",
+    //     main_account_data.ext_amount
+    // );
+    // msg!("relayer ); {:?}", relayer);
+    // msg!("fee ); {:?}", fee);
+    // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
+    // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
+
     //main_account_data.changed_constants[11] = true;
 
     // check_tx_integrity_hash(
