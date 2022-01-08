@@ -80,8 +80,9 @@ pub fn check_and_insert_nullifier<'a, 'b>(
         &system_instruction::create_account(
             signer_account.key,
             nullifier_account.key,
-            1e7 as u64,
-            // rent.minimum_balance(2).max(1),
+            // 1e7 as u64,
+            904800, // TODO: adapt
+            // rent.minimum_balance(2), //.max(1),
             2,
             &program_id,
         ),
