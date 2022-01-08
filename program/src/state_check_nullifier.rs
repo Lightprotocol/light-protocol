@@ -25,7 +25,11 @@ impl Pack for NullifierBytesPda {
 
         let (is_initialized, account_type) = array_refs![input, 1, 1];
         //check that account was not initialized before
-        assert_eq!(is_initialized[0], 0);
+        // assert_eq!(is_initialized[0], 0);
+        if is_initialized[0] != 0 {
+            msg!("nullifier already spent");
+            panic!();
+        }
         Ok(NullifierBytesPda {
             is_initialized: true,
             account_type: 3,
