@@ -61,22 +61,26 @@ pub fn li_pre_process_instruction(
         let nullifier0 = next_account_info(account)?;
         let nullifier1 = next_account_info(account)?;
         let merkle_tree_account = next_account_info(account)?;
+        
+        let system_program_info = next_account_info(account)?;
         msg!("starting nullifier check");
-        // account_data.found_nullifier = check_and_insert_nullifier(
-        //     program_id,
-        //     _signing_account.key,
-        //     nullifier0,
-        //     &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
-        // )?;
-        // msg!("nullifier0 inserted {}", account_data.found_nullifier);
+        account_data.found_nullifier = check_and_insert_nullifier(
+            program_id,
+            _signing_account,
+            nullifier0,
+            system_program_info,
+            &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+        )?;
+        msg!("nullifier0 inserted {}", account_data.found_nullifier);
 
-        // account_data.found_nullifier = check_and_insert_nullifier(
-        //     program_id,
-        //     _signing_account.key,
-        //     nullifier1,
-        //     &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
-        // )?;
-        // msg!("nullifier1 inserted {}", account_data.found_nullifier);
+        account_data.found_nullifier = check_and_insert_nullifier(
+            program_id,
+            _signing_account,
+            nullifier1,
+            system_program_info,
+            &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
+        )?;
+        msg!("nullifier1 inserted {}", account_data.found_nullifier);
 
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
@@ -225,55 +229,55 @@ pub fn try_initialize_hash_bytes_account(
     let encrypted_output_0 = _instruction_data[560..599].to_vec().clone(); // 16
     let encrypted_output_1 = _instruction_data[599..638].to_vec().clone();
 
-    msg!(
-        "main_account_data.signing_address {:?}",
-        main_account_data.signing_address
-    );
-    msg!(
-        "main_account_data.root_hash {:?}",
-        main_account_data.root_hash
-    );
-    msg!("main_account_data.amount {:?}", main_account_data.amount);
+    // msg!(
+    //     "main_account_data.signing_address {:?}",
+    //     main_account_data.signing_address
+    // );
+    // msg!(
+    //     "main_account_data.root_hash {:?}",
+    //     main_account_data.root_hash
+    // );
+    // msg!("main_account_data.amount {:?}", main_account_data.amount);
     msg!(
         "main_account_data.tx_integrity_hash {:?}",
         main_account_data.tx_integrity_hash
     );
-    msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
-    msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
-    msg!("commitment_right ); {:?}", commitment_right);
-    msg!("commitment_left ); {:?}", commitment_left);
+    // msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
+    // msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
+    // msg!("commitment_right ); {:?}", commitment_right);
+    // msg!("commitment_left ); {:?}", commitment_left);
+    msg!(
+        "main_account_data.to_address {:?}",
+        main_account_data.to_address
+    );
+    msg!(
+        "main_account_data.ext_amount {:?}",
+        main_account_data.ext_amount
+    );
+    msg!("relayer ); {:?}", relayer);
+    msg!("fee ); {:?}", fee);
+    msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
+    msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
     // panic!();
-    // msg!(
-    //     "main_account_data.to_address {:?}",
-    //     main_account_data.to_address
-    // );
-    // msg!(
-    //     "main_account_data.ext_amount {:?}",
-    //     main_account_data.ext_amount
-    // );
-    // msg!("relayer ); {:?}", relayer);
-    // msg!("fee ); {:?}", fee);
-    // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
-    // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
 
     //main_account_data.changed_constants[11] = true;
 
-    // check_tx_integrity_hash(
-    //     // vec![1u8, 32],   // recipient
-    //     main_account_data.to_address.to_vec(),
-    //     // vec![1u8, 8],    // extAmount
-    //     main_account_data.ext_amount.to_vec(),
-    //     // vec![1u8, 32],   // relayer
-    //     relayer.to_vec(),
-    //     //vec![1u8, 8],    // fee
-    //     fee.to_vec(),
-    //     // vec![1u8, 32],   // o0
-    //     encrypted_output_0.to_vec(),
-    //     // vec![1u8, 32],   // o1
-    //     encrypted_output_1.to_vec(),
-    //     &main_account_data.tx_integrity_hash,
-    // )?;
-
+    check_tx_integrity_hash(
+        // vec![1u8, 32],   // recipient
+        main_account_data.to_address.to_vec(),
+        // vec![1u8, 8],    // extAmount
+        main_account_data.ext_amount.to_vec(),
+        // vec![1u8, 32],   // relayer
+        relayer.to_vec(),
+        //vec![1u8, 8],    // fee
+        fee.to_vec(),
+        // vec![1u8, 32],   // o0
+        encrypted_output_0.to_vec(),
+        // vec![1u8, 32],   // o1
+        encrypted_output_1.to_vec(),
+        &main_account_data.tx_integrity_hash,
+    )?;
+    // panic!();
     for i in 0..12 {
         main_account_data.changed_constants[i] = true;
     }
