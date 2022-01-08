@@ -4,6 +4,7 @@ use solana_program::{
     account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
     pubkey::Pubkey, sysvar::rent::Rent,
 };
+// use solana_sdk::{account::Account, signature::Signer, transaction::Transaction};
 
 use crate::state_check_nullifier::NullifierBytesPda;
 use ark_ff::FromBytes;
@@ -56,8 +57,13 @@ pub fn check_and_insert_nullifier(
     // ).unwrap();
     let nullifer_pubkey = Pubkey::new(&_instruction_data);
 
-    let pubkey_from_seed =
-        Pubkey::create_with_seed(&nullifer_pubkey, &"nullifier", &program_id).unwrap();
+    // let nullifier_keypair =
+    //    keypair_from_seed(&_instruction_data).unwrap();
+    // // PDA:
+    // let pubkey_from_seed =
+    //     Pubkey::create_with_seed(&nullifier_keypair.pubkey(), &"nullifier", &program_id).unwrap();
+    // let signer_pubkey = nullifier.();
+
     //let mut i = 0;
     // for (i) in 0..30 {
     //     msg!("{} {}", i, &hash.to_string()[i..i+1]);
@@ -65,7 +71,7 @@ pub fn check_and_insert_nullifier(
     // }
     //check for equality
     //assert_eq!(pubkey_from_seed, *nullifier_account.key);
-    if pubkey_from_seed != *nullifier_account.key {
+    if nullifer_pubkey != *nullifier_account.key {
         msg!("passed in nullifier account is wrong");
         return Err(ProgramError::InvalidInstructionData);
     }

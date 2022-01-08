@@ -21,6 +21,8 @@ borsh = "0.9.1"
 getrandom = { version = "0.2.2", features = ["custom"] }
 #spl-math = "0.1.0"
 #bitcoin = "0.27.1"
+#solana-sdk = "1.7.12"
+
 
 #crypto
 ark-crypto-primitives = { version = "^0.3.0", default-features = true, features = [ "r1cs" ] }
