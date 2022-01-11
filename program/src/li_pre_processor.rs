@@ -33,21 +33,16 @@ pub fn li_pre_process_instruction(
     msg!("entered li_pre_process_instruction");
 
     let account = &mut accounts.iter();
-    msg!("here0");
-
     let _signing_account = next_account_info(account)?;
-    msg!("here1");
     let main_account = next_account_info(account)?;
-    msg!("here2");
     let mut account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
     if current_instruction_index == 1 {
-        msg!("here3");
+
         let merkle_tree_account = next_account_info(account)?;
-        msg!("here4");
         msg!("merkletree acc key: {:?}", *merkle_tree_account.key);
         msg!(
-            "key to check: {:?}",
+            "merkletree key to check: {:?}",
             solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
         );
         account_data.found_root =
@@ -89,8 +84,7 @@ pub fn li_pre_process_instruction(
         let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
         let pub_amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
 
-        msg!("amount 0 or 1? {:?}", ext_amount);
-        msg!("amount: {:?}", pub_amount);
+        msg!("withdrawal amount: {:?}", pub_amount);
 
         if ext_amount > 0 {
             if *merkle_tree_account.key
