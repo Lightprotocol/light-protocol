@@ -70,7 +70,7 @@ pub fn check_root_hash_exists(
     let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
-        "key to check: {:?}",
+        "merkletree acc key to check: {:?}",
         solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     );
     // assert_eq!(
@@ -82,7 +82,7 @@ pub fn check_root_hash_exists(
         msg!("merkle tree account is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
-    msg!("did not crash {}", account_main_data.root_history_size);
+    //msg!("did not crash {}", account_main_data.root_history_size);
     // assert!(
     //     account_main_data.root_history_size < 593,
     //     "root history size too large"
@@ -104,12 +104,12 @@ pub fn check_root_hash_exists(
         }
 
         if counter % 10 == 0 {
-            msg!("{}", counter);
+            //msg!("{}", counter);
         }
         i += 32;
         counter += 1;
         if counter == account_main_data.root_history_size {
-            msg!("did not find root should panic here but is disabled for testing");
+            //msg!("did not find root should panic here but is disabled for testing");
             //panic!("did not find root");
             //return Err(ProgramError::InvalidAccountData);
             break;
