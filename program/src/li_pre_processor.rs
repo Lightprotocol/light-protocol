@@ -107,12 +107,12 @@ pub fn li_pre_process_instruction(
         } else if ext_amount <= 0 {
             let recipient_account = next_account_info(account)?;
 
-            // if *recipient_account.key
-            //     != solana_program::pubkey::Pubkey::new(&account_data.to_address)
-            // {
-            //     msg!("recipient has to be address specified in tx integrity hash");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
+            if *recipient_account.key
+                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+            {
+                msg!("recipient has to be address specified in tx integrity hash");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             // calculate extAmount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
