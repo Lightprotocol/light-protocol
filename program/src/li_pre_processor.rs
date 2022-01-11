@@ -61,7 +61,6 @@ pub fn li_pre_process_instruction(
         let nullifier0 = next_account_info(account)?;
         let nullifier1 = next_account_info(account)?;
         let merkle_tree_account = next_account_info(account)?;
-        
         let system_program_info = next_account_info(account)?;
         msg!("starting nullifier check");
         account_data.found_nullifier = check_and_insert_nullifier(
@@ -226,8 +225,8 @@ pub fn try_initialize_hash_bytes_account(
     main_account_data.ext_amount = _instruction_data[512..520].to_vec().clone();
     let relayer = _instruction_data[520..552].to_vec().clone();
     let fee = _instruction_data[552..560].to_vec().clone();
-    let encrypted_output_0 = _instruction_data[560..599].to_vec().clone(); // 16
-    let encrypted_output_1 = _instruction_data[599..638].to_vec().clone();
+    // let encrypted_output_0 = _instruction_data[560..796].to_vec().clone(); // 16
+    // let encrypted_output_1 = _instruction_data[796..1032].to_vec().clone();
 
     // msg!(
     //     "main_account_data.signing_address {:?}",
@@ -256,9 +255,9 @@ pub fn try_initialize_hash_bytes_account(
     );
     msg!("relayer ); {:?}", relayer);
     msg!("fee ); {:?}", fee);
-    msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
-    msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
-    // panic!();
+    // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
+    // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
+    // // panic!();
 
     //main_account_data.changed_constants[11] = true;
 
@@ -272,9 +271,9 @@ pub fn try_initialize_hash_bytes_account(
         //vec![1u8, 8],    // fee
         fee.to_vec(),
         // vec![1u8, 32],   // o0
-        encrypted_output_0.to_vec(),
-        // vec![1u8, 32],   // o1
-        encrypted_output_1.to_vec(),
+        // encrypted_output_0.to_vec(),
+        // // vec![1u8, 32],   // o1
+        // encrypted_output_1.to_vec(),
         &main_account_data.tx_integrity_hash,
     )?;
     // panic!();
