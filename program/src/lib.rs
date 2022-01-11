@@ -61,10 +61,14 @@ pub fn process_instruction(
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
     } else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
+        msg!("in: {:?}", _instruction_data);
+        msg!("in: {:?}", accounts);
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
         let signing_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
+        msg!("in in");
+
         initialize_user_account(user_account, *signing_account.key)
     } else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let accounts_mut = accounts.clone();

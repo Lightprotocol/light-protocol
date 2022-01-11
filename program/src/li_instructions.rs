@@ -18,17 +18,14 @@ pub fn check_tx_integrity_hash(
     extAmount: Vec<u8>,
     relayer: Vec<u8>,
     fee: Vec<u8>,
-    encryptedOutput1: Vec<u8>,
-    encryptedOutput2: Vec<u8>,
+    // encryptedOutput1: Vec<u8>,
+    // encryptedOutput2: Vec<u8>,
     tx_integrity_hash: &Vec<u8>,
 ) -> Result<(), ProgramError> {
     let input = [
-        recipient,
-        extAmount,
-        relayer,
-        fee,
-        encryptedOutput1,
-        encryptedOutput2,
+        recipient, extAmount, relayer, fee,
+        // encryptedOutput1,
+        // encryptedOutput2,
     ]
     .concat();
     let mut hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;

@@ -4,14 +4,16 @@ use solana_program::{
     //log::sol_log_compute_units,
     msg,
     program_error::ProgramError,
-    pubkey::Pubkey,
     program_pack::Pack,
-    sysvar::rent::Rent
+    pubkey::Pubkey,
+    sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
-pub fn initialize_user_account(account: &AccountInfo, pubkey_signer: Pubkey) -> Result<(),ProgramError> {
-
+pub fn initialize_user_account(
+    account: &AccountInfo,
+    pubkey_signer: Pubkey,
+) -> Result<(), ProgramError> {
     //check for rent exemption
     let rent = Rent::free();
     if rent.is_exempt(**account.lamports.borrow(), 2) != true {
@@ -26,7 +28,11 @@ pub fn initialize_user_account(account: &AccountInfo, pubkey_signer: Pubkey) -> 
     Ok(())
 }
 
-pub fn modify_user_account(account: &AccountInfo, signer: Pubkey, data: &[u8]) -> Result<(),ProgramError> {
+pub fn modify_user_account(
+    account: &AccountInfo,
+    signer: Pubkey,
+    data: &[u8],
+) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
 
     // data.chunks(8 + SIZE_UTXO as usize).map(|x| {
@@ -46,16 +52,26 @@ pub fn modify_user_account(account: &AccountInfo, signer: Pubkey, data: &[u8]) -
         msg!("wrong signer");
         return Err(ProgramError::InvalidArgument);
     }
-    for x in data.chunks(8 + SIZE_UTXO as usize) {
+    for y in data.chunks(8 + SIZE_UTXO as usize) {
         //first 8 bytes are index
-        let modifying_index = usize::from_le_bytes(x[0..8].try_into().unwrap());
+        let modifying_index = usize::from_be_bytes(y[0..8].try_into().unwrap());
         //last 64 bytes are the utxo
-        let enc_utxo = &x[8..SIZE_UTXO as usize + 8];
-        for (i, x) in user_account_data.enc_utxos[modifying_index*SIZE_UTXO as usize..modifying_index*SIZE_UTXO as usize + SIZE_UTXO as usize].iter_mut().enumerate() {
-            *x= enc_utxo[i];
-            //msg!("i {}, x {}", i, x);
+        let enc_utxo = &y[8..SIZE_UTXO as usize + 8];
+        for (i, x) in user_account_data.enc_utxos[modifying_index * SIZE_UTXO as usize
+            ..modifying_index * SIZE_UTXO as usize + SIZE_UTXO as usize]
+            .iter_mut()
+            .enumerate()
+        {
+            *x = enc_utxo[i];
+            // msg!("i {}, x {}", i, x);
         }
         user_account_data.modified_ranges.push(modifying_index);
+        // msg!("data {:?}",data);
+        msg!(
+            "r: {} .. {}",
+            modifying_index * SIZE_UTXO as usize,
+            modifying_index * SIZE_UTXO as usize + SIZE_UTXO as usize
+        );
     }
 
     UserAccount::pack_into_slice(&user_account_data, &mut account.data.borrow_mut());
