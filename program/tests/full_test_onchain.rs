@@ -150,7 +150,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
 }
 
 #[tokio::test]
-async fn test_pi_ml_fe_integration_onchain() {
+async fn full_test_onchain() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
 

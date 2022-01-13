@@ -3,14 +3,12 @@ pub mod user_account;
 pub mod utils;
 //merkle tree
 pub mod poseidon_merkle_tree;
-
 pub mod li_instructions;
 pub mod li_pre_processor;
 pub mod li_state;
 pub mod state_check_nullifier;
+pub mod Groth16_verifier;
 
-use crate::li_state::InstructionIndex;
-use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -20,11 +18,12 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-
+use crate::li_state::InstructionIndex;
 use crate::li_pre_processor::{li_pre_process_instruction, try_initialize_hash_bytes_account};
 
+use crate::Groth16_verifier::groth16_processor::Groth16Processor;
+
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
-pub mod Groth16_verifier;
 use crate::utils::init_bytes18;
 
 use crate::user_account::instructions::{initialize_user_account, modify_user_account};
@@ -46,7 +45,11 @@ pub fn process_instruction(
     _instruction_data: &[u8],
 ) -> ProgramResult {
     // msg!("instruction_data len: {}", &_instruction_data.len());
-    // msg!("instruction_data: {:?}", &_instruction_data);
+    // // msg!("instruction_data: {:?}", &_instruction_data);
+    // if _instruction_data.len() >= 99 {
+    //     msg!("_instruction_data: {:?}", _instruction_data[0..100].to_vec());
+    //
+    // }
 
     // initialize new merkle tree account
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {

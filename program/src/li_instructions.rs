@@ -29,18 +29,18 @@ pub fn check_tx_integrity_hash(
     ]
     .concat();
     let mut hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    msg!(
-        "1tx integrity hash is {:?} == onchain {:?}",
-        *tx_integrity_hash,
-        hash
-    );
-    // hash.reverse();
-
-    msg!(
-        "tx integrity hash is {:?} == onchain {:?}",
-        *tx_integrity_hash,
-        hash
-    );
+    // msg!(
+    //     "1tx integrity hash is {:?} == onchain {:?}",
+    //     *tx_integrity_hash,
+    //     hash
+    // );
+    // // hash.reverse();
+    //
+    // msg!(
+    //     "tx integrity hash is {:?} == onchain {:?}",
+    //     *tx_integrity_hash,
+    //     hash
+    // );
 
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash[..])
     {
@@ -60,9 +60,11 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     system_program: &'a AccountInfo<'b>,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
+    msg!("check_and_insert_nullifier0");
     let nullifer_pubkey = Pubkey::find_program_address(&[&_instruction_data[..]], &program_id);
-
+    msg!("check_and_insert_nullifier1");
     let rent = Rent::free();
+    msg!("check_and_insert_nullifier2");
 
     if nullifer_pubkey.0 != *nullifier_account.key {
         msg!("passed in nullifier account is wrong");

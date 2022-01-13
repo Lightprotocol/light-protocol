@@ -185,14 +185,16 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let mut merkle_tree_account_data =
                 MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
 
+            //checking if signer locked 
             pubkey_check(
                 *signer.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
                 String::from("merkle tree locked by other account"),
             )?;
-
+            //checking merkle tree pubkey for consistency
             merkle_tree_pubkey_check(*merkle_tree_account.key)?;
 
+            //insert root into merkle tree
             insert_last_double(&mut merkle_tree_account_data, &mut main_account_data);
             leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
             leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
