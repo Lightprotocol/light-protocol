@@ -30,6 +30,7 @@ use crate::Groth16_verifier::{
 
 use ark_ff::{Fp256, FromBytes};
 
+use ark_ff::BigInteger256;
 
 
 pub struct Groth16Processor<'a, 'b> {
@@ -167,7 +168,7 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
         let mut main_account_data = PiBytes::unpack(&self.main_account.data.borrow())?;
 
         let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
-
+        msg!("_instruction_data: {:?}", _instruction_data[0..100].to_vec());
         // get public_inputs from _instruction_data.
         //root
         let input1 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
@@ -180,6 +181,7 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
         )
         .unwrap();
         //external data hash
+        //let input3 = Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([0,0,0,0]));
         let input3 = <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
             &_instruction_data[64..96],
         )
