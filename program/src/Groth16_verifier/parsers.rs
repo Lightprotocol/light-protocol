@@ -20,64 +20,64 @@ pub fn parse_f_to_bytes(
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c0.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 1 && z == 0 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c1.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 2 && z == 0 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c2.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 0 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c0.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 1 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c1.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 2 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c0.c2.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     }
                 } else if i == 1 {
                     if j == 0 && z == 0 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c0.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 1 && z == 0 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c1.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 2 && z == 0 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c2.c0,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 0 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c0.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 1 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c1.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     } else if j == 2 && z == 1 {
                         <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
                             &f.c1.c2.c1,
                             &mut range[tmp..iter],
-                        );
+                        ).unwrap();
                     }
                 }
             }
@@ -159,7 +159,7 @@ pub fn parse_f_from_bytes(
 pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut Vec<u8>) {
     let start = 0;
     let end = 32;
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&fp256, &mut range[start..end]);
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&fp256, &mut range[start..end]).unwrap();
 }
 
 pub fn parse_fp256_from_bytes(range: &Vec<u8>) -> ark_ff::Fp256<ark_bn254::FqParameters> {
@@ -176,7 +176,7 @@ pub fn parse_fp256_ed_to_bytes(
 ) {
     let start = 0;
     let end = 32;
-    <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&fp256, &mut account[start..end]);
+    <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&fp256, &mut account[start..end]).unwrap();
 }
 
 pub fn parse_fp256_ed_from_bytes(
@@ -247,9 +247,9 @@ pub fn parse_quad_to_bytes(
         let tmp = iter;
         iter += 32;
         if z == 0 {
-            <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&q.c0, &mut range[tmp..iter]);
+            <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&q.c0, &mut range[tmp..iter]).unwrap();
         } else if z == 1 {
-            <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&q.c1, &mut range[tmp..iter]);
+            <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&q.c1, &mut range[tmp..iter]).unwrap();
         }
     }
 }
@@ -278,17 +278,17 @@ pub fn parse_cubic_to_bytes(
             let tmp = iter;
             iter += 32;
             if j == 0 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 1 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 2 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 0 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]).unwrap();
             } else if j == 1 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]).unwrap();
             } else if j == 2 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c1, &mut range[tmp..iter]).unwrap();
             }
         }
     }
@@ -339,17 +339,17 @@ pub fn parse_cubic_to_bytes_sub(
             let tmp = iter;
             iter += 32;
             if j == 0 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 1 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 2 && z == 0 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c0, &mut range[tmp..iter]).unwrap();
             } else if j == 0 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c0.c1, &mut range[tmp..iter]).unwrap();
             } else if j == 1 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c1.c1, &mut range[tmp..iter]).unwrap();
             } else if j == 2 && z == 1 {
-                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c1, &mut range[tmp..iter]);
+                <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&c.c2.c1, &mut range[tmp..iter]).unwrap();
             }
         }
     }
@@ -406,8 +406,8 @@ pub fn parse_x_group_affine_to_bytes(
     x: ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
     account: &mut Vec<u8>,
 ) {
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.x, &mut account[0..32]);
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.y, &mut account[32..64]);
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.x, &mut account[0..32]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.y, &mut account[32..64]).unwrap();
 }
 
 pub fn parse_group_projective_from_bytes_254(
@@ -429,8 +429,8 @@ pub fn parse_group_projective_to_bytes_254(
     acc2: &mut Vec<u8>,
     acc3: &mut Vec<u8>,
 ) {
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..32]); // i 0..48
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..32]);
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.z, &mut acc3[0..32]);
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..32]).unwrap(); // i 0..48
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..32]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.z, &mut acc3[0..32]).unwrap();
     // i 0..48
 }

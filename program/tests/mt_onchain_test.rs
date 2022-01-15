@@ -97,7 +97,7 @@ pub async fn create_and_start_program(
         *hash_bytes_pubkey,
         hash_byte,
     );
-    let mut two_leaves_pda_byte = Account::new(10000000000, 98, &program_id);
+    let mut two_leaves_pda_byte = Account::new(10000000000, 106, &program_id);
 
     // if two_leaves_pda_bytes_init_bytes.len() == 98 {
     //
@@ -301,9 +301,9 @@ async fn test_merkle_tree_correct()/*-> io::Result<()>*/ {
     assert_eq!(1, storage_account.data[0]);
     assert_eq!(4, storage_account.data[1]);
 
-    assert_eq!(commit, storage_account.data[2..34]);
-    assert_eq!(commit, storage_account.data[34..66]);
-    assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[66..98]);
+    assert_eq!(commit, storage_account.data[10..42]);
+    assert_eq!(commit, storage_account.data[42..74]);
+    assert_eq!(MERKLE_TREE_ACC_BYTES, storage_account.data[74..106]);
 
     println!("pda_account_data = : {:?}", storage_account.data);
 }

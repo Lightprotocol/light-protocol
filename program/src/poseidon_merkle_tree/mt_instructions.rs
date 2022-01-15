@@ -18,7 +18,11 @@ pub fn insert_0_double(
     merkle_tree_account: &mut MerkleTree,
     hash_bytes_account: &mut HashBytes,
 ) -> Result<(), ProgramError> {
-    hash_bytes_account.current_index = merkle_tree_account.next_index;
+    hash_bytes_account.current_index = merkle_tree_account.next_index / 2;
+    msg!("current index hash bytes: {}", hash_bytes_account.current_index);
+    msg!("hash_bytes_account.leaf_left: {:?}", hash_bytes_account.leaf_left);
+    msg!("hash_bytes_account.leaf_right: {:?}", hash_bytes_account.leaf_right);
+
     //assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
     if hash_bytes_account.current_index == 262144 {
         msg!("Merkle tree full");
@@ -39,15 +43,15 @@ pub fn insert_0_double(
 pub fn insert_1_inner_loop(
     merkle_tree_account: &mut MerkleTree,
     hash_bytes_account: &mut HashBytes,
-) {
-    //msg!("insert_1_inner_loop_0 level {:?}",hash_bytes_account.current_level);
-    //msg!("current_level_hash {:?}",hash_bytes_account.current_level_hash);
+) -> Result<(), ProgramError> {
+    msg!("insert_1_inner_loop_0 level {:?}",hash_bytes_account.current_level);
+    msg!("current_level_hash {:?}",hash_bytes_account.current_level_hash);
     if hash_bytes_account.current_level != 0 {
         hash_bytes_account.current_level_hash = hash_bytes_account.state[0].clone();
     }
 
     if hash_bytes_account.current_index % 2 == 0 {
-        //msg!("updating subtree: {:?}", hash_bytes_account.current_level_hash);
+        msg!("updating subtree: {:?}", hash_bytes_account.current_level_hash);
         hash_bytes_account.left = hash_bytes_account.current_level_hash.clone();
         hash_bytes_account.right = ZERO_BYTES_MERKLE_TREE_18
             [hash_bytes_account.current_level * 32..(hash_bytes_account.current_level * 32 + 32)]
@@ -62,19 +66,24 @@ pub fn insert_1_inner_loop(
     }
     hash_bytes_account.current_index /= 2;
     hash_bytes_account.current_level += 1;
-    //merkle_tree_account.inserted_leaf = true;
-    //msg!("insert_1_inner_loop_0 subtrees {:?}",merkle_tree_account.filled_subtrees);
+    msg!("current_index {:?}",hash_bytes_account.current_index);
+
+    msg!("hash_bytes_account.leaf_left: {:?}", hash_bytes_account.left);
+    msg!("hash_bytes_account.leaf_right: {:?}", hash_bytes_account.right);
+    Ok(())
 }
 
 pub fn insert_last_double(
     merkle_tree_account: &mut MerkleTree,
     hash_bytes_account: &mut HashBytes,
-) {
+) -> Result<(), ProgramError>{
     merkle_tree_account.current_root_index =
         (merkle_tree_account.current_root_index + 1) % merkle_tree_account.root_history_size;
     merkle_tree_account.next_index += 2;
+    msg!("merkle_tree_account.next_index {:?}",merkle_tree_account.next_index);
 
     //roots unpacks only the current root and write only this one
     merkle_tree_account.roots = hash_bytes_account.state[0].clone();
     merkle_tree_account.inserted_root = true;
+    Ok(())
 }
