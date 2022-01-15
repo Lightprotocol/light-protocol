@@ -1,6 +1,5 @@
 //prepare inputs
-pub mod pi_instructions;
-pub mod pi_processor;
-pub mod pi_ranges;
-pub mod pi_state;
-pub mod pi_pre_processor;
+pub mod instructions;
+pub mod processor;
+pub mod ranges;
+pub mod state;

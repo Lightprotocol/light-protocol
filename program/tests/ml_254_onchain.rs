@@ -4,11 +4,8 @@ use ark_ff::Fp256;
 use serde_json::Value;
 use solana_program::program_pack::Pack;
 use Testing_Hardcoded_Params_devnet_new::{
-    Groth16_verifier::{
-        parsers::*,
-        miller_loop::ml_state::*,
-    },
     process_instruction,
+    Groth16_verifier::{miller_loop::state::*, parsers::*},
 };
 use {
     solana_program::{

@@ -1,6 +1,10 @@
 use crate::utils::prepared_verifying_key::*;
 use crate::Groth16_verifier::parsers::*;
-
+use ark_ec;
+use ark_ec::{
+    models::bn::{BnParameters, TwistType},
+    SWModelParameters,
+};
 use ark_ff::{
     biginteger::BigInteger256,
     fields::{
@@ -11,24 +15,165 @@ use ark_ff::{
         Field, Fp2,
     },
     fp12_2over3over2::Fp12Parameters,
-    One,
+    Fp256, One,
 };
 use solana_program::msg;
 
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];
 
-pub fn init_coeffs1(
-    r_range: &mut Vec<u8>,
-    proof_range: &mut Vec<u8>, /*, proof_b_bytes: &Vec<u8>*/
+// All instructions are as per the bn256 implemenation of arkworks
+// TODO: add link?
+pub fn doubling_step(
+    r_bytes: &mut Vec<u8>,
+    coeff_0_range: &mut Vec<u8>,
+    coeff_1_range: &mut Vec<u8>,
+    coeff_2_range: &mut Vec<u8>,
 ) {
-    // pass in proof.b manually
-    //change below to get bytes from account and not init from hardcoded bytes
-    // let q = get_proof_b();
-    let proof_b = parse_proof_b_from_bytes(proof_range);
-    // //comment below for the change
-    //parse_proof_b_to_bytes(proof_b, proof_range);
+    // step 0
+    let mut r = parse_r_from_bytes(&r_bytes);
+    let two_inv = Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+        9781510331150239090,
+        15059239858463337189,
+        10331104244869713732,
+        2249375503248834476,
+    ]));
+    let mut a = r.x * &r.y;
+    a.mul_assign_by_fp(&two_inv);
+    let b = r.y.square();
+    let c = r.z.square();
+    let e = <ark_bn254::Parameters as ark_ec::models::bn::BnParameters>::G2Parameters::COEFF_B
+        * &(c.double() + &c);
+    let f = e.double() + &e;
+    let j = r.x.square();
+    r.x = a * &(b - &f);
 
+    // step 1
+    let mut g = b + &f;
+    g.mul_assign_by_fp(&two_inv);
+    let h = (r.y + &r.z).square() - &(b + &c);
+    let i = e - &b;
+    let e_square = e.square();
+    r.y = g.square() - &(e_square.double() + &e_square);
+    r.z = b * &h;
+    parse_r_to_bytes(r, r_bytes);
+
+    // step 2
+    let j_d = j.double() + &j;
+    let h = -h;
+
+    match ark_bn254::Parameters::TWIST_TYPE {
+        TwistType::M => (
+            parse_quad_to_bytes(i, coeff_0_range),
+            parse_quad_to_bytes(j_d, coeff_1_range),
+            parse_quad_to_bytes(h, coeff_2_range),
+        ),
+        TwistType::D => (
+            parse_quad_to_bytes(h, coeff_0_range),
+            parse_quad_to_bytes(j_d, coeff_1_range),
+            parse_quad_to_bytes(i, coeff_2_range),
+        ),
+    };
+}
+
+pub fn addition_step<B: BnParameters>(
+    coeff_0_range: &mut Vec<u8>,
+    coeff_1_range: &mut Vec<u8>,
+    coeff_2_range: &mut Vec<u8>,
+    r_bytes: &mut Vec<u8>,
+    proof_bytes: &Vec<u8>,
+    computation_flag: &str,
+) {
+    let mut q = parse_proof_b_from_bytes(proof_bytes);
+
+    let TWIST_MUL_BY_Q_X = QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+            13075984984163199792,
+            3782902503040509012,
+            8791150885551868305,
+            1825854335138010348,
+        ])),
+        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+            7963664994991228759,
+            12257807996192067905,
+            13179524609921305146,
+            2767831111890561987,
+        ])),
+    );
+    let TWIST_MUL_BY_Q_Y = QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+            16482010305593259561,
+            13488546290961988299,
+            3578621962720924518,
+            2681173117283399901,
+        ])),
+        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+            11661927080404088775,
+            553939530661941723,
+            7860678177968807019,
+            3208568454732775116,
+        ])),
+    );
+
+    if computation_flag == "normal" {
+    } else if computation_flag == "negq" {
+        q = -q;
+    } else if computation_flag == "q1" {
+        q.x.frobenius_map(1);
+        q.x *= &TWIST_MUL_BY_Q_X;
+        q.y.frobenius_map(1);
+        q.y *= &TWIST_MUL_BY_Q_Y;
+    } else if computation_flag == "q2" {
+        q.x.frobenius_map(1);
+        q.x *= &TWIST_MUL_BY_Q_X;
+        q.y.frobenius_map(1);
+        q.y *= &TWIST_MUL_BY_Q_Y;
+        q.x.frobenius_map(1);
+        q.x *= &TWIST_MUL_BY_Q_X;
+        q.y.frobenius_map(1);
+        q.y *= &TWIST_MUL_BY_Q_Y;
+        q.y = -q.y;
+    }
+
+    // step 0
+    // Formula for line function when working with
+    // homogeneous projective coordinates.
+    let mut r = parse_r_from_bytes(r_bytes);
+
+    let theta = r.y - &(q.y * &r.z);
+    let lambda = r.x - &(q.x * &r.z);
+    let c = theta.square();
+    let d = lambda.square();
+    let e = lambda * &d;
+    let f = r.z * &c;
+    let g = r.x * &d;
+    let h = e + &f - &g.double();
+
+    // step 1
+    r.x = lambda * &h;
+    r.y = theta * &(g - &h) - &(e * &r.y);
+    r.z *= &e;
+    parse_r_to_bytes(r, r_bytes);
+
+    // step 2
+    let j = theta * &q.x - &(lambda * &q.y);
+
+    match B::TWIST_TYPE {
+        TwistType::M => (
+            parse_quad_to_bytes(j, coeff_0_range),
+            parse_quad_to_bytes(-theta, coeff_1_range),
+            parse_quad_to_bytes(lambda, coeff_2_range),
+        ),
+        TwistType::D => (
+            parse_quad_to_bytes(lambda, coeff_0_range),
+            parse_quad_to_bytes(-theta, coeff_1_range),
+            parse_quad_to_bytes(j, coeff_2_range),
+        ),
+    };
+}
+
+pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) {
+    let proof_b = parse_proof_b_from_bytes(proof_range);
     let r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
         ark_ec::models::bn::g2::G2HomProjective {
             x: proof_b.x,
@@ -38,22 +183,6 @@ pub fn init_coeffs1(
     parse_r_to_bytes(r, r_range);
 }
 
-pub fn initialize_p1_p3_f_instruction(
-    p_1_bytes: &Vec<u8>,
-    p_3_bytes: &Vec<u8>,
-    p_1_x_range: &mut Vec<u8>,
-    p_1_y_range: &mut Vec<u8>,
-    p_3_x_range: &mut Vec<u8>,
-    p_3_y_range: &mut Vec<u8>,
-    f_range: &mut Vec<u8>,
-) {
-    // init f
-    let mut f_arr: Vec<u8> = vec![0; 384];
-    f_arr[0] = 1;
-    let f = parse_f_from_bytes(&mut f_arr);
-    parse_f_to_bytes(f, f_range);
-}
-
 pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
     let f = parse_f_from_bytes(f_range); // cost: 30k
 
@@ -61,10 +190,7 @@ pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
     let v3 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
         ark_bn254::Fq12Parameters,
         > as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0, &f.c1); // cost: 1k
-
     let v2 = f.c0 * &f.c1; // cost: 70k
-
-    // else_2
     v0 *= &v3; // cost: 86k
     let c1 = v2.double(); // cost: <1k
     let c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
@@ -76,7 +202,7 @@ pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
 }
 
 pub fn ell_instruction_d(
-    // used for coeff1 but can be general as well (unmerged)
+    // used for coeff1 but can be general as well
     f_range: &mut Vec<u8>,
     coeff_0_range: &Vec<u8>,
     coeff_1_range: &Vec<u8>,
@@ -95,15 +221,12 @@ pub fn ell_instruction_d(
 
     // D2
     let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
-                                                                // let coeff_0 = parse_quad_from_bytes(coeff_0_range); // cost: 5k
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
     // D3
     let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
-                                                                // let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 5k
-                                                                // let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 5k
     let mut b = c1;
     b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
 
@@ -111,18 +234,16 @@ pub fn ell_instruction_d(
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + &c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
-                                 // D5
 
+    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-
     f.c1 = e - &(a + &b); // cost: -
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
     parse_f_to_bytes(f, f_range); // cost: 15k
 }
 
 pub fn ell_instruction_d_c2(
-    // ix: 69
     f_range: &mut Vec<u8>,
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
@@ -148,6 +269,7 @@ pub fn ell_instruction_d_c2(
             ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
         ),
     );
+    // Reads from hardcoded verifying key.
     if id == 0 {
         coeff = get_gamma_g2_neg_pc_0();
     } else if id == 1 {
@@ -341,7 +463,7 @@ pub fn ell_instruction_d_c2(
         current_coeff_2_range[0] += 1;
     }
 
-    let mut coeff_2 = coeff.2;
+    let coeff_2 = coeff.2;
     let mut coeff_1 = coeff.1;
     let mut coeff_0 = coeff.0;
     let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
@@ -352,15 +474,12 @@ pub fn ell_instruction_d_c2(
 
     // D2
     let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
-                                                                // let coeff_0 = parse_quad_from_bytes(coeff_0_range); // cost: 5k
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
     // D3
     let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
-                                                                // let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 5k
-                                                                // let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 5k
     let mut b = c1;
     b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
 
@@ -368,8 +487,8 @@ pub fn ell_instruction_d_c2(
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + &c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
-                                 // D5
 
+    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
@@ -405,6 +524,7 @@ pub fn ell_instruction_d_c3(
             ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
         ),
     );
+    // Reads from hardcoded verifying key.
     if id == 0 {
         coeff = get_delta_g2_neg_pc_0();
     } else if id == 1 {
@@ -608,15 +728,12 @@ pub fn ell_instruction_d_c3(
 
     // D2
     let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
-                                                                // let coeff_0 = parse_quad_from_bytes(coeff_0_range); // cost: 5k
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
     // D3
     let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
-                                                                // let coeff_1 = parse_quad_from_bytes(coeff_1_range); // cost: 5k
-                                                                // let coeff_2 = parse_quad_from_bytes(coeff_2_range); // cost: 5k
     let mut b = c1;
     b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
 
@@ -624,8 +741,8 @@ pub fn ell_instruction_d_c3(
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + &c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
-                                 // D5
 
+    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
@@ -642,19 +759,19 @@ pub fn ell_instruction_d_c3(
 
 #[cfg(test)]
 mod tests {
-    use crate::Groth16_verifier::miller_loop::ml_instructions::{
+    use crate::Groth16_verifier::miller_loop::instructions::{
         ell_instruction_d, ell_instruction_d_c2, ell_instruction_d_c3, square_in_place_instruction,
     };
 
     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
-    use crate::Groth16_verifier::miller_loop::ml_state::ML254Bytes;
+    use crate::Groth16_verifier::miller_loop::state::ML254Bytes;
     use crate::Groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
         parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
     };
 
-    use crate::Groth16_verifier::miller_loop::ml_ranges::{
+    use crate::Groth16_verifier::miller_loop::ranges::{
         COEFF_0_RANGE, COEFF_1_RANGE, COEFF_2_RANGE, F_RANGE,
     };
 
@@ -666,38 +783,38 @@ mod tests {
     fn ell_instruction_d_test_should_succeed() {
         //generating input
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_2 =
+            let reference_coeff_2 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_1 =
+            let reference_coeff_1 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_0 =
+            let reference_coeff_0 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
-            let mut test_f = reference_f.clone();
-            let mut test_coeff_2 = reference_coeff_2.clone();
-            let mut test_coeff_1 = reference_coeff_1.clone();
-            let mut test_coeff_0 = reference_coeff_0.clone();
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_f = reference_f.clone();
+            let test_coeff_2 = reference_coeff_2.clone();
+            let test_coeff_1 = reference_coeff_1.clone();
+            let test_coeff_0 = reference_coeff_0.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -743,42 +860,42 @@ mod tests {
     fn ell_instruction_d_test_should_fail() {
         //generating input
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_2 =
+            let reference_coeff_2 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_1 =
+            let reference_coeff_1 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_coeff_0 =
+            let reference_coeff_0 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
-            let mut test_f = reference_f.clone();
-            let mut test_coeff_2 = reference_coeff_2.clone();
-            let mut test_coeff_1 = reference_coeff_1.clone();
+            let test_f = reference_f.clone();
+            let test_coeff_2 = reference_coeff_2.clone();
+            let test_coeff_1 = reference_coeff_1.clone();
             // failing here:
-            let mut test_coeff_0 =
+            let test_coeff_0 =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
                     &mut rng,
                 );
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -829,23 +946,23 @@ mod tests {
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut current_coeff_2 = i.clone();
-            let mut reference_coeff_0 = get_gamma_g2_neg_pc_0().0;
-            let mut reference_coeff_1 = get_gamma_g2_neg_pc_0().1;
-            let mut reference_coeff_2 = get_gamma_g2_neg_pc_0().2;
+            let current_coeff_2 = i.clone();
+            let reference_coeff_0 = get_gamma_g2_neg_pc_0().0;
+            let reference_coeff_1 = get_gamma_g2_neg_pc_0().1;
+            let reference_coeff_2 = get_gamma_g2_neg_pc_0().2;
 
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
-            let mut test_f = reference_f.clone();
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_f = reference_f.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -892,26 +1009,26 @@ mod tests {
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut current_coeff_2 = i.clone();
-            let mut reference_coeff_0 = get_gamma_g2_neg_pc_0().0;
-            let mut reference_coeff_1 = get_gamma_g2_neg_pc_0().1;
-            let mut reference_coeff_2 = get_gamma_g2_neg_pc_0().2;
+            let current_coeff_2 = i.clone();
+            let reference_coeff_0 = get_gamma_g2_neg_pc_0().0;
+            let reference_coeff_1 = get_gamma_g2_neg_pc_0().1;
+            let reference_coeff_2 = get_gamma_g2_neg_pc_0().2;
 
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
-            let mut test_f =
+            let test_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -954,23 +1071,23 @@ mod tests {
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut current_coeff_3 = i.clone();
-            let mut reference_coeff_0 = get_delta_g2_neg_pc_0().0;
-            let mut reference_coeff_1 = get_delta_g2_neg_pc_0().1;
-            let mut reference_coeff_2 = get_delta_g2_neg_pc_0().2;
+            let current_coeff_3 = i.clone();
+            let reference_coeff_0 = get_delta_g2_neg_pc_0().0;
+            let reference_coeff_1 = get_delta_g2_neg_pc_0().1;
+            let reference_coeff_2 = get_delta_g2_neg_pc_0().2;
 
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
-            let mut test_f = reference_f.clone();
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_f = reference_f.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -1013,27 +1130,27 @@ mod tests {
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut current_coeff_2 = i.clone();
-            let mut reference_coeff_0 = get_delta_g2_neg_pc_0().0;
-            let mut reference_coeff_1 = get_delta_g2_neg_pc_0().1;
-            let mut reference_coeff_2 = get_delta_g2_neg_pc_0().2;
+            let current_coeff_2 = i.clone();
+            let reference_coeff_0 = get_delta_g2_neg_pc_0().0;
+            let reference_coeff_1 = get_delta_g2_neg_pc_0().1;
+            let reference_coeff_2 = get_delta_g2_neg_pc_0().2;
 
-            let mut reference_p_y =
+            let reference_p_y =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
-            let mut reference_p_x =
+            let reference_p_x =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
                     &mut rng,
                 );
 
             // fails because of this:
-            let mut test_f =
+            let test_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut test_p_y = reference_p_y.clone();
-            let mut test_p_x = reference_p_x.clone();
+            let test_p_y = reference_p_y.clone();
+            let test_p_x = reference_p_x.clone();
 
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
@@ -1071,12 +1188,12 @@ mod tests {
     fn square_in_place_test_should_succeed() {
         //generating input
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
-            let mut test_f = reference_f.clone();
+            let test_f = reference_f.clone();
             //simulating the onchain account
             let mut account_f_range = vec![0u8; 384];
 
@@ -1095,13 +1212,13 @@ mod tests {
     fn square_in_place_test_should_fail() {
         //generating input
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
             // should fail because of this:
-            let mut test_f =
+            let test_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );

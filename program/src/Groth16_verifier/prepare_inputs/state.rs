@@ -104,8 +104,9 @@ impl Pack for PiBytes {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,   //  48, 48, 48, 48, 48, 48, replaced
-            2432, 384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
+            2432,
+            384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
         ];
         msg!("unpacked");
 
@@ -123,7 +124,7 @@ impl Pack for PiBytes {
             root_hash: root_hash.to_vec(),                 //8
             data_hash: data_hash.to_vec(),                 //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
-            proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(),//11
+            proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(), //11
 
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
             i_1_range: i_1_range.to_vec(),       //0
@@ -196,11 +197,11 @@ impl Pack for PiBytes {
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
-            2432, 384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
-                  //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
-                  //  48, 48, 48, 48, 48, 3952
+            2432,
+            384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+                 //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
+                 //  48, 48, 48, 48, 48, 3952
         ];
-        msg!("entered pack pi state");
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {
                 if i == 0 {
@@ -314,7 +315,11 @@ impl Pack for PiBytes {
                 } else if i == 10 {
                     *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
                 } else if i == 11 {
-                    *proof_a_b_c_leaves_and_nullifiers_dst = self.proof_a_b_c_leaves_and_nullifiers.clone().try_into().unwrap();
+                    *proof_a_b_c_leaves_and_nullifiers_dst = self
+                        .proof_a_b_c_leaves_and_nullifiers
+                        .clone()
+                        .try_into()
+                        .unwrap();
                 }
             } else {
                 if i == 0 {
@@ -346,6 +351,5 @@ impl Pack for PiBytes {
         *is_initialized_dst = [1u8; 1];
         *unused_remainder_dst = *unused_remainder_dst;
         msg!("packed");
-
     }
 }
