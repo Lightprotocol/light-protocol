@@ -3,6 +3,7 @@ use solana_program::{
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
+    log::sol_log_compute_units
 };
 
 use arrayref::{array_ref, array_refs};
@@ -67,12 +68,15 @@ pub fn check_root_hash_exists(
     root_bytes: &Vec<u8>,
     //found_root: &mut u8,
 ) -> Result<u8, ProgramError> {
+    sol_log_compute_units();
     let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
+    sol_log_compute_units();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
         "merkletree acc key to check: {:?}",
         solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     );
+    sol_log_compute_units();
     // assert_eq!(
     //     *account_main.key,
     //     solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
@@ -82,6 +86,7 @@ pub fn check_root_hash_exists(
         msg!("merkle tree account is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
+    sol_log_compute_units();
     //msg!("did not crash {}", account_main_data.root_history_size);
     // assert!(
     //     account_main_data.root_history_size < 593,
@@ -97,6 +102,7 @@ pub fn check_root_hash_exists(
     let mut counter = 0;
     loop {
         //sol_log_compute_units();
+        //msg!("{:?}", account_main_data.roots[i..i + 32].to_vec());
         if account_main_data.roots[i..i + 32] == *root_bytes {
             msg!("found root hash index {}", counter);
             found_root = 1u8;
@@ -104,12 +110,12 @@ pub fn check_root_hash_exists(
         }
 
         if counter % 10 == 0 {
-            //msg!("{}", counter);
+            msg!("{}", counter);
         }
         i += 32;
         counter += 1;
         if counter == account_main_data.root_history_size {
-            //msg!("did not find root should panic here but is disabled for testing");
+            msg!("did not find root should panic here but is disabled for testing");
             //panic!("did not find root");
             //return Err(ProgramError::InvalidAccountData);
             break;

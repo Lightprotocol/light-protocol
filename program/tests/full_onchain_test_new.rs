@@ -121,7 +121,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
         hash_byte.data = hash_bytes_init_bytes;
     }
     program_test.add_account(*storage_account, hash_byte);
-    let mut two_leaves_pda_byte = Account::new(1100000000, 98, &program_id);
+    let mut two_leaves_pda_byte = Account::new(1100000000, 106, &program_id);
 
     // if two_leaves_pda_bytes_init_bytes.len() == 98 {
     //
@@ -982,18 +982,20 @@ async fn full_test_onchain_new() {
         .await
         .expect("get_account")
         .unwrap();
-
+    println!("root[0]: {:?}", merkel_tree_account_new.data[609..641].to_vec());
+    println!("root[1]: {:?}", merkel_tree_account_new.data[641..673].to_vec());
     let two_leaves_pda_account = program_context
         .banks_client
         .get_account(two_leaves_pda_pubkey)
         .await
         .expect("get_account")
         .unwrap();
-
+    println!("two_leaves_pda_account.data: {:?}", two_leaves_pda_account.data);
     //account was initialized correctly
     assert_eq!(1, two_leaves_pda_account.data[0]);
     //account type is correct
     assert_eq!(4, two_leaves_pda_account.data[1]);
+
     //saved left leaf correctly
     // assert_eq!(
     //     public_inputs_bytes[160..192],
@@ -1005,7 +1007,9 @@ async fn full_test_onchain_new() {
     //     two_leaves_pda_account.data[34..66]
     // );
     //saved merkle tree pubkey in which leaves were insorted
-    assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[66..98]);
+    assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[74..106]);
+    
+
     println!(
         "deposit success {}",
         merkel_tree_account_new.lamports == merkle_tree_account_old.lamports + 100000000

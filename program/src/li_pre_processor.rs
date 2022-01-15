@@ -78,7 +78,7 @@ pub fn li_pre_process_instruction(
 
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
-        merkle_tree_processor.process_instruction_merkle_tree(accounts);
+        merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
 
         // TODO: this is a hotfix. Checks first byte only.
         let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
