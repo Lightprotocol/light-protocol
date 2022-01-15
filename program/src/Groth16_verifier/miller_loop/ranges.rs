@@ -25,3 +25,6 @@ pub const R_RANGE_INDEX: usize = 10;
 pub const PROOF_B_INDEX: usize = 11;
 pub const CURRENT_COEFF_2_RANGE_INDEX: usize = 12;
 pub const CURRENT_COEFF_3_RANGE_INDEX: usize = 13;
+
+pub const MILLER_LOOP_START_INDEX: usize = 466;
+pub const MILLER_LOOP_END_INDEX: usize = 430 + 466;

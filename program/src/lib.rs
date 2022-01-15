@@ -40,6 +40,7 @@ entrypoint!(process_instruction);
 //     const INIT_BYTES: &'static[u8] = &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..];
 // }
 
+// We use current_instruction_index move through the call order as per [IX_ORDER].
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -114,7 +115,7 @@ pub fn process_instruction(
 
                             Ok(())
                         }
-                        //prepare inputs for proof verification with miller loop and final exponentiation
+                        //prepare inputs for proof verification + miller loop and final exponentiation
                         else if account_main_data.current_instruction_index < 801 + 466 {
                             let mut groth16_processor = Groth16Processor::new(
                                 account_main,
@@ -136,7 +137,7 @@ pub fn process_instruction(
                     }
                 )
             }
-            //if account is not initialized yet try initialize
+            //Try to initialize the account if it's is not initialized yet
             Err(_) => {
                 (
                     //initialize temporary storage account for shielded pool deposit, transfer or withdraw

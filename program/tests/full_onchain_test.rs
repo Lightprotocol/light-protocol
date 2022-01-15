@@ -11,7 +11,7 @@ use Testing_Hardcoded_Params_devnet_new::{
     Groth16_verifier::{
         final_exponentiation::fe_ranges::*,
         final_exponentiation::fe_state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
-        miller_loop::ml_state::*,
+        miller_loop::state::*,
         parsers::*,
     },
 };

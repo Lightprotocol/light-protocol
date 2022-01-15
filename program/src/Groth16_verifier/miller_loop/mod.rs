@@ -1,6 +1,5 @@
 //miller loop
-pub mod ml_instructions;
-pub mod ml_instructions_transform;
-pub mod ml_processor;
-pub mod ml_ranges;
-pub mod ml_state;
+pub mod instructions;
+pub mod processor;
+pub mod ranges;
+pub mod state;

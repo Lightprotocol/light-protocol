@@ -5,18 +5,14 @@ use solana_program::{
 };
 use std::convert::TryInto;
 
+// Implements partial pack to save compute budget.
 #[derive(Clone)]
 pub struct ML254Bytes {
     pub is_initialized: bool,
     pub signing_address: Vec<u8>, // is relayer address
     pub current_instruction_index: usize,
-
     // common ranges
     pub f_range: Vec<u8>,
-    // pub c0_copy_range: Vec<u8>,
-    // pub cubic_v0_range: Vec<u8>,
-    // pub cubic_v2_range: Vec<u8>,
-    // pub cubic_v3_range: Vec<u8>,
     pub coeff_2_range: Vec<u8>,
     pub coeff_1_range: Vec<u8>,
     pub coeff_0_range: Vec<u8>,
@@ -26,18 +22,11 @@ pub struct ML254Bytes {
     pub p_2_y_range: Vec<u8>,
     pub p_3_x_range: Vec<u8>,
     pub p_3_y_range: Vec<u8>,
-    // ELL p1,2,3 ranges
-    // pub h: Vec<u8>,
-    // pub g: Vec<u8>,
-    // pub e: Vec<u8>,
-    // pub lambda: Vec<u8>,
-    // pub theta: Vec<u8>,
     pub r: Vec<u8>,
     pub proof_b: Vec<u8>,
     pub current_coeff_2_range: Vec<u8>,
     pub current_coeff_3_range: Vec<u8>,
-    // pub proof_b_tmp_range: Vec<u8>,
-    pub changed_variables: [bool; 14], // 23
+    pub changed_variables: [bool; 14],
 }
 impl Sealed for ML254Bytes {}
 impl IsInitialized for ML254Bytes {
@@ -57,80 +46,48 @@ impl Pack for ML254Bytes {
             _unused_constants0,
             signing_address,
             _unused_constants1,
-            //220
             current_instruction_index,
-            //228
             f_range,
-            //604
-            // cubic_v0_range, // used for square_in_place
-            // cubic_v2_range, // used for square_in_place
-            // cubic_v3_range, // used for square_in_place
             coeff_2_range,
             coeff_1_range,
             coeff_0_range,
-            //796
             p_1_x_range, //32
             p_1_y_range, //32
-            //860
-            p_2_x_range, //32
-            p_2_y_range, //32
-            //904
+            p_2_x_range,
+            p_2_y_range,
             p_3_x_range,
             p_3_y_range,
-            //additions ell_coeffs
-            // h,
-            // g,
-            // e,
-            // lambda,
-            // theta,
             r,
-            //1180
             proof_b, //128
             current_coeff_2_range,
             current_coeff_3_range,
-            // proof_b_tmp_range,
             _unused_remainder,
         ) = array_refs![
-            input, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1,
-            2590 // w hge etc 2638 // 2766
+            input, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
         ];
-        Ok(
-            //216 - 32 - 8
-            ML254Bytes {
-                is_initialized: true,
-                signing_address: signing_address.to_vec(),
-                current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+        Ok(ML254Bytes {
+            is_initialized: true,
+            signing_address: signing_address.to_vec(),
+            current_instruction_index: usize::from_le_bytes(*current_instruction_index),
 
-                f_range: f_range.to_vec(),
-                // c0_copy_range: c0_copy_range.to_vec(),
-                // cubic_v0_range: cubic_v0_range.to_vec(),
-                // cubic_v2_range: cubic_v2_range.to_vec(),
-                // cubic_v3_range: cubic_v3_range.to_vec(),
-                coeff_2_range: coeff_2_range.to_vec(),
-                coeff_1_range: coeff_1_range.to_vec(),
-                coeff_0_range: coeff_0_range.to_vec(),
+            f_range: f_range.to_vec(),
+            coeff_2_range: coeff_2_range.to_vec(),
+            coeff_1_range: coeff_1_range.to_vec(),
+            coeff_0_range: coeff_0_range.to_vec(),
 
-                p_1_x_range: p_1_x_range.to_vec(),
-                p_1_y_range: p_1_y_range.to_vec(),
-                p_2_x_range: p_2_x_range.to_vec(),
-                p_2_y_range: p_2_y_range.to_vec(),
-                p_3_x_range: p_3_x_range.to_vec(),
-                p_3_y_range: p_3_y_range.to_vec(),
+            p_1_x_range: p_1_x_range.to_vec(),
+            p_1_y_range: p_1_y_range.to_vec(),
+            p_2_x_range: p_2_x_range.to_vec(),
+            p_2_y_range: p_2_y_range.to_vec(),
+            p_3_x_range: p_3_x_range.to_vec(),
+            p_3_y_range: p_3_y_range.to_vec(),
 
-                //additions ell_coeffs
-                // h: h.to_vec(),
-                // g: g.to_vec(),
-                // e: e.to_vec(),
-                // lambda: lambda.to_vec(),
-                // theta: theta.to_vec(),
-                r: r.to_vec(),
-                proof_b: proof_b.to_vec(),
-                current_coeff_2_range: current_coeff_2_range.to_vec(),
-                current_coeff_3_range: current_coeff_3_range.to_vec(),
-                // proof_b_tmp_range: proof_b_tmp_range.to_vec(),
-                changed_variables: [false; 14], // 23
-            },
-        )
+            r: r.to_vec(),
+            proof_b: proof_b.to_vec(),
+            current_coeff_2_range: current_coeff_2_range.to_vec(),
+            current_coeff_3_range: current_coeff_3_range.to_vec(),
+            changed_variables: [false; 14],
+        })
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
@@ -143,10 +100,6 @@ impl Pack for ML254Bytes {
             unused_constants1_dst,
             current_instruction_index_dst,
             f_range_dst,
-            // c0_copy_range_dst,
-            // cubic_v0_range_dst,
-            // cubic_v2_range_dst,
-            // cubic_v3_range_dst,
             coeff_2_range_dst,
             coeff_1_range_dst,
             coeff_0_range_dst,
@@ -156,21 +109,13 @@ impl Pack for ML254Bytes {
             p_2_y_range_dst,
             p_3_x_range_dst,
             p_3_y_range_dst,
-            //additions ell_coeffs
-            // h_dst,
-            // g_dst,
-            // e_dst,
-            // lambda_dst,
-            // theta_dst,
             r_dst,
             proof_b_dst,
             current_coeff_2_range_dst,
             current_coeff_3_range_dst,
-            // proof_b_tmp_range_dst,
             unused_remainder,
         ) = mut_array_refs![
-            dst, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1,
-            2590 // w hge etc 2638 // 2766
+            dst, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
         ];
 
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
