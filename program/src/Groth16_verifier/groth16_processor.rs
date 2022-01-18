@@ -23,7 +23,8 @@ use crate::Groth16_verifier::{
     },
     final_exponentiation::{
         fe_state::{FinalExpBytes},
-        fe_processor::_process_instruction_final_exp
+        fe_processor::_process_instruction_final_exp,
+        fe_instructions::verify_result,
     }
 };
 
@@ -64,8 +65,7 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
         } else if self.current_instruction_index >= 430 + 466  && self.current_instruction_index < 801 + 466{
             self.final_exponentiation()?;
             Ok(())
-        }
-        else {
+        } else {
             msg!("should not enter here");
             Err(ProgramError::InvalidArgument)
         }
@@ -156,6 +156,10 @@ impl <'a, 'b> Groth16Processor <'a, 'b>{
     ) -> Result<(), ProgramError> {
         let mut main_account_data = FinalExpBytes::unpack(&self.main_account.data.borrow())?;
         _process_instruction_final_exp(&mut main_account_data, IX_ORDER[self.current_instruction_index]);
+
+        if self.current_instruction_index == 1266 {
+            verify_result(&main_account_data)?;
+        }
         main_account_data.current_instruction_index +=1;
         FinalExpBytes::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
         Ok(())
