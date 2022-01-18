@@ -22,66 +22,127 @@ use solana_sdk::signer::keypair::Keypair;
 use crate::tokio::runtime::Runtime;
 use ark_ed_on_bn254::Fq;
 use ark_std::{One};
-use ark_ff::{PrimeField, BigInteger, Fp256};
+use ark_ff::{PrimeField, BigInteger, Fp256, QuadExtField};
 use arkworks_gadgets::poseidon::{PoseidonError, PoseidonParameters, Rounds,circom::CircomCRH, sbox::PoseidonSbox};
 use ark_crypto_primitives::{crh::{TwoToOneCRH}};
 use ark_ff::bytes::{FromBytes, ToBytes};
-use arkworks_gadgets::utils::{
-	get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
-};
 use ark_std::{UniformRand, test_rng};
 use crate::tokio::time::timeout;
+use ark_groth16::prepare_verifying_key;
 
 use std::{thread, time};
+use ark_groth16::prepare_inputs;
+use ark_groth16::verify_proof;
 
-pub async fn create_and_start_program(account_init_bytes: Vec<u8>, final_exp_bytes_pubkey: Pubkey,program_id: Pubkey) -> ProgramTestContext {
-
-    let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
-        program_id,
-        processor!(process_instruction),
-    );
-    let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-
-    let mut account_exp = Account::new(10000000000, 3900, &program_id);
-    account_exp.data = account_init_bytes;
-    program_test.add_account(
-        final_exp_bytes_pubkey,
-        account_exp,
-    );
-    program_test.add_account(
-        merkle_tree_pubkey,
-        Account::new(10000000000, 16657, &program_id),
-    );
-    let tmp = program_test.start_with_context().await;
-    tmp
-
-}
-
+use std::{fs};
+use ark_ec::ProjectiveCurve;
+use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_f_to_bytes;
+use serde_json::Value;
+use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_x_group_affine_from_bytes;
+use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::*;
+use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::final_exponentiation::fe_state::FinalExpBytes;
 #[tokio::test]
-async fn test_final_exp_correct()-> Result<(), TransportError> {
+async fn test_final_exp_correct() /*-> Result<(), TransportError>*/ {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+    let storage_pubkey = Pubkey::new_unique();
+    // let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+    // start program the program with the exact account state.
+    // ...The account state (current instruction index,...) must match the
+    // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
+    // read proof, public inputs from test file, prepare_inputs
+    let ix_data = read_test_data();
+    // Pick the data we need from the test file. 9.. bc of input structure
+    let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
+    let proof_bytes = ix_data[233..489].to_vec(); // 256 length
+    let pvk_unprepped = get_vk_from_file().unwrap(); //?// TODO: check if same vk
+    let pvk = prepare_verifying_key(&pvk_unprepped);
+    let proof = get_proof_from_bytes(&proof_bytes);
+    let public_inputs = get_public_inputs_from_bytes(&public_inputs_bytes).unwrap(); // TODO: debug
+    let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
+    println!("public_inputs_bytes: {:?}", public_inputs_bytes);
+    let res = verify_proof(
+            &pvk,
+            &proof,
+            &public_inputs[..]
+        );
+    println!("res {:?}", res);
+    println!("public_inputs_bytes: {:?}", public_inputs_bytes);
 
-    let final_exp_bytes_pubkey = Pubkey::new_unique();
+    panic!("proof incorrect");
 
-    let mut program_context = create_and_start_program(INIT_BYTES_FINAL_EXP.to_vec(), final_exp_bytes_pubkey, program_id).await;
+    // Calculate miller_ouput with the ark library. Will be used to compare the
+    // on-chain output with.
+    let miller_output =
+        <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
+            [
+                (proof.a.into(), proof.b.into()),
+                (
+                    (prepared_inputs).into_affine().into(),
+                    pvk.gamma_g2_neg_pc.clone(),
+                ),
+                (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
+            ]
+            .iter(),
+        );
+    println!("miller_output: {:?}", miller_output);
+    // We must convert to affine here since the program converts projective into affine already as the last step of prepare_inputs.
+    // While the native library implementation does the conversion only when the millerloop is called.
+    // The reason we're doing it as part of prepare_inputs is that it takes >1 ix to compute the conversion.
+    // let as_affine = (prepared_inputs).into_affine();
+    // let mut affine_bytes = vec![0; 64];
+    // parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
+    // mock account state after prepare_inputs (instruction index = 466)
+    let mut account_state = vec![0; 3900];
+    // set is_initialized:true
+    account_state[0] = 1;
+    // for x_1_range alas prepared_inputs.into_affine()
+    // for (index, i) in affine_bytes.iter().enumerate() {
+    //     account_state[index + 252] = *i;
+    // }
+    // for proof a,b,c
+    // for (index, i) in proof_bytes.iter().enumerate() {
+    //     account_state[index + 3516] = *i;
+    // }
+    // set current index
+    let current_index = 896 as usize;
+    for (index, i) in current_index.to_le_bytes().iter().enumerate() {
+        account_state[index + 212] = *i;
+    }
+    let mut miller_loop_bytes = vec![0u8;384];
+    parse_f_to_bytes(miller_output.clone(), &mut miller_loop_bytes);
+
+    // set miller_loop data
+    for (index, i) in miller_loop_bytes.iter().enumerate() {
+        account_state[index + 220] = *i;
+
+    }
+    // println!("miller_output: {:?}", account_state[212..212+384].to_vec());
+    // panic!("");
+    // We need to set the signer since otherwise the signer check fails on-chain
+    let signer_pubkey_bytes = signer_keypair.to_bytes();
+    for (index, i) in signer_pubkey_bytes[32..].iter().enumerate() {
+        account_state[index + 4] = *i;
+    }
+    let mut accounts_vector = Vec::new();
+    // accounts_vector.push((&merkle_tree_pubkey, 16657, None));
+    accounts_vector.push((&storage_pubkey, 3900, Some(account_state.clone())));
+    let mut program_context =
+        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+
+
+
+    //let storage_pubkey = Pubkey::new_unique();
+
+    //let mut program_context = create_and_start_program(INIT_BYTES_FINAL_EXP.to_vec(), storage_pubkey, program_id).await;
 
     let init_data = program_context.banks_client
-        .get_account(final_exp_bytes_pubkey)
+        .get_account(storage_pubkey)
         .await
         .expect("get_account").unwrap();
-    assert_eq!(init_data.data, INIT_BYTES_FINAL_EXP);
+    assert_eq!(init_data.data, account_state);
 
-    println!("initializing merkle tree success");
-
-
-    //assert_eq!();
-
-    //generating random commitment
-    // let mut rng = test_rng();
-    // let left_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
-    // let right_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
-    //let commit = vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     //padding to make every tx unique otherwise the test will not execute repeated instructions
 
@@ -100,14 +161,14 @@ async fn test_final_exp_correct()-> Result<(), TransportError> {
                     program_id,
                     &[vec![instruction_id, 2u8], usize::to_le_bytes(i).to_vec()].concat(),
                     vec![
-                        AccountMeta::new(program_context.payer.pubkey(),true),
-                        AccountMeta::new(final_exp_bytes_pubkey, false),
+                        AccountMeta::new(signer_pubkey,true),
+                        AccountMeta::new(storage_pubkey, false),
                         //AccountMeta::new(merkle_tree_pubkey, false),
                     ],
                 )],
-                Some(&program_context.payer.pubkey()),
+                Some(&signer_pubkey),
             );
-            transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
             //tokio::time::timeout(std::time::Duration::from_secs(2), self.process).await
             let res_request = timeout(time::Duration::from_millis(500), program_context.banks_client.process_transaction(transaction)).await;
             //let ten_millis = time::Duration::from_millis(400);
@@ -120,13 +181,15 @@ async fn test_final_exp_correct()-> Result<(), TransportError> {
 
                     println!("retries_left {}", retries_left);
                     retries_left -=1;
-                    let storage_account = program_context.banks_client
-                        .get_account(final_exp_bytes_pubkey)
-                        .await
-                        .expect("get_account").unwrap();
-                    //println!("data: {:?}", storage_account.data);
-                    program_context = create_and_start_program(storage_account.data.to_vec(), final_exp_bytes_pubkey, program_id).await;                },
-            }
+                    program_context = restart_program(
+                        &mut accounts_vector,
+                        &program_id,
+                        &signer_pubkey,
+                        program_context
+                    ).await;
+
+
+                }
         }
         // if i == 3 {
         //     println!("aborted at {}", i);
@@ -134,44 +197,278 @@ async fn test_final_exp_correct()-> Result<(), TransportError> {
         // }
         i+=1;
     }
+    }
 
-    //bytes resulting from successful final_exp_offchain test equivalent to respective VerifyingKey bytes
-    let expected_result_bytes = vec![198, 242, 4, 28, 9, 35, 146, 101, 152, 133, 231, 128, 253, 46, 174, 170, 116, 96, 135, 45, 77, 156, 161, 40, 238, 232, 55, 247, 15, 79, 136, 20, 73, 78, 229, 119, 48, 86, 133, 39, 142, 172, 194, 67, 33, 2, 66, 111, 127, 20, 159, 85, 92, 82, 21, 187, 149, 99, 99, 91, 169, 57, 127, 10, 238, 159, 54, 204, 152, 63, 242, 50, 16, 39, 141, 61, 149, 81, 36, 246, 69, 1, 232, 157, 153, 3, 1, 25, 105, 84, 109, 205, 9, 78, 8, 26, 113, 240, 149, 249, 171, 170, 41, 39, 144, 143, 89, 229, 207, 106, 60, 195, 236, 5, 73, 82, 126, 170, 50, 181, 192, 135, 129, 217, 185, 227, 223, 0, 50, 203, 114, 165, 128, 252, 58, 245, 74, 48, 92, 144, 199, 108, 126, 82, 103, 46, 23, 236, 159, 71, 113, 45, 183, 105, 200, 135, 142, 182, 196, 3, 138, 113, 217, 236, 105, 118, 157, 226, 54, 90, 23, 215, 59, 110, 169, 133, 96, 175, 12, 86, 33, 94, 130, 8, 57, 246, 139, 86, 246, 147, 174, 17, 57, 27, 122, 247, 174, 76, 162, 173, 26, 134, 230, 177, 70, 148, 183, 2, 54, 46, 65, 165, 64, 15, 42, 11, 245, 15, 136, 32, 213, 228, 4, 27, 176, 63, 169, 82, 178, 89, 227, 58, 204, 40, 159, 210, 216, 255, 223, 194, 117, 203, 57, 49, 152, 42, 162, 80, 248, 55, 92, 240, 231, 192, 161, 14, 169, 65, 231, 215, 238, 131, 144, 139, 153, 142, 76, 100, 40, 134, 147, 164, 89, 148, 195, 194, 117, 36, 53, 100, 231, 61, 164, 217, 129, 190, 160, 44, 30, 94, 13, 159, 6, 83, 126, 195, 26, 86, 113, 177, 101, 79, 110, 143, 220, 57, 110, 235, 91, 73, 189, 191, 253, 187, 76, 214, 232, 86, 132, 6, 135, 153, 111, 175, 12, 109, 157, 73, 181, 171, 29, 118, 147, 102, 65, 153, 99, 57, 198, 45, 85, 153, 67, 208, 177, 113, 205, 237, 210, 233, 79, 46, 231, 168, 16, 11, 21, 249, 174, 127, 70, 3, 32, 60, 115, 188, 192, 101, 159, 85, 66, 193, 194, 157, 76, 121, 108, 222, 128, 27, 15, 163, 156, 8];
-    //println!("storage_acc: {:?}", storage_account.data[700..(769+128)].to_vec());
-    //assert_eq!(expected_root, storage_account.data[769..(769+32)]);
     let storage_account = program_context.banks_client
-        .get_account(final_exp_bytes_pubkey)
+        .get_account(storage_pubkey)
         .await
         .expect("get_account").unwrap();
-    let mut unpacked_data = vec![0u8;3900];
 
-    unpacked_data = storage_account.data.clone();
+    let unpacked_data = FinalExpBytes::unpack(&storage_account.data).unwrap();
+    let res_ref = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&miller_output).unwrap();
+    let mut res_ref_bytes = vec![0;384];
+    parse_f_to_bytes(res_ref, &mut res_ref_bytes);
+    println!("res_bytes: {:?}", res_ref_bytes);
+    assert_eq!(res_ref_bytes, unpacked_data.y1_range_s);
+    let mut pvk_ref = vec![0u8;384];
+    parse_f_to_bytes(pvk.alpha_g1_beta_g2, &mut pvk_ref);
 
-    // for i in 0..2140 {
-    //     print!("{}, ",unpacked_data[i]);
-    // }
-    // println!("Len data: {}", storage_account.data.len());
+    assert_eq!(pvk_ref, unpacked_data.y1_range_s);
 
-    assert_eq!(expected_result_bytes, unpacked_data[1756..2140]);
-
-    //assert_eq!(unpacked_data[1..33], poseidon_hash_ref);
-
-    //let data = <PoseidonHashMemory as Pack>::unpack_from_slice(&unpacked_data).unwrap();
-
-    // let storage_account = program_context.banks_client
-    //     .get_packed_account_data::<PoseidonHashMemory>(merkle_tree_pubkey)
-    //     .await
-    //     .expect("get_packed_account_data");
-    //println!("{:?}",unpacked_data[1..33]);
-    // let storage_account = program_context.banks_client
-    //     .get_packed_account_data::<Testing_Hardcoded_Params::PoseidonHashMemory>(merkle_tree_pubkey)
-    //     .await
-    //     .expect("get_packed_account_data");
-    // //let data = Testing_Hardcoded_Params::PoseidonHashMemory::unpack(&storage_account.data).unwrap();
-    Ok(())
 }
 
 
 //init bytes resulting from miller loop execution,
 //account is initialized has initial f stored and right instruction index
-pub const INIT_BYTES_FINAL_EXP : [u8;3900] = [1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 127, 3, 0, 0, 0, 0, 0, 0, 41, 164, 125, 219, 237, 181, 202, 195, 98, 55, 97, 232, 35, 147, 153, 23, 164, 70, 211, 144, 151, 9, 219, 197, 234, 13, 164, 242, 67, 59, 148, 5, 132, 108, 82, 161, 228, 167, 20, 24, 207, 201, 203, 25, 249, 125, 54, 96, 182, 231, 150, 215, 149, 43, 216, 0, 36, 166, 232, 13, 126, 3, 53, 0, 174, 209, 16, 242, 177, 143, 60, 247, 181, 65, 132, 142, 14, 231, 170, 52, 3, 34, 70, 49, 210, 158, 211, 173, 165, 155, 219, 80, 225, 32, 64, 8, 65, 139, 16, 138, 240, 218, 36, 220, 8, 100, 236, 141, 1, 223, 60, 59, 24, 38, 90, 254, 47, 91, 205, 228, 169, 103, 178, 30, 124, 141, 43, 9, 83, 155, 75, 140, 209, 26, 2, 250, 250, 20, 185, 78, 53, 54, 68, 178, 88, 78, 246, 132, 97, 167, 124, 253, 96, 26, 213, 99, 157, 155, 40, 9, 60, 139, 112, 126, 230, 195, 217, 125, 68, 169, 208, 149, 175, 33, 226, 17, 47, 132, 8, 154, 237, 156, 34, 97, 55, 129, 155, 64, 202, 54, 161, 19, 24, 1, 208, 104, 140, 149, 25, 229, 96, 239, 202, 24, 235, 221, 133, 137, 30, 226, 62, 112, 26, 58, 1, 85, 207, 182, 41, 213, 42, 72, 139, 41, 108, 152, 252, 164, 121, 76, 17, 62, 147, 226, 220, 79, 236, 132, 109, 130, 163, 209, 203, 14, 144, 180, 25, 216, 234, 198, 199, 74, 48, 62, 57, 0, 206, 138, 12, 130, 25, 12, 187, 216, 86, 208, 84, 198, 58, 204, 6, 161, 93, 63, 68, 121, 173, 129, 255, 249, 47, 42, 218, 214, 129, 29, 136, 7, 213, 160, 139, 148, 58, 6, 191, 11, 161, 114, 56, 174, 224, 86, 243, 103, 166, 151, 107, 36, 205, 170, 206, 196, 248, 251, 147, 91, 3, 136, 208, 36, 3, 51, 84, 102, 139, 252, 193, 9, 172, 113, 116, 50, 242, 70, 26, 115, 166, 252, 204, 163, 149, 78, 13, 255, 235, 222, 174, 120, 182, 178, 186, 22, 169, 153, 73, 48, 242, 139, 120, 98, 33, 101, 204, 204, 169, 57, 249, 168, 45, 197, 126, 105, 54, 187, 35, 241, 253, 4, 33, 70, 246, 206, 32, 17, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+pub async fn create_and_start_program_var(
+    accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+) -> ProgramTestContext {
+    let mut program_test = ProgramTest::new(
+        "Testing_Hardcoded_Params_devnet_new",
+        *program_id,
+        processor!(process_instruction),
+    );
+    for (pubkey, size, data) in accounts.iter() {
+
+        let mut account = Account::new(10000000000, *size, &program_id);
+        match data {
+            Some(d) => (account.data = d.clone()),
+            None => ()
+        }
+        program_test.add_account(**pubkey, account);
+        println!("added account {:?}", **pubkey);
+    }
+
+    let mut program_context = program_test.start_with_context().await;
+    let mut transaction = solana_sdk::system_transaction::transfer(
+        &program_context.payer,
+        &signer_pubkey,
+        10000000000000,
+        program_context.last_blockhash,
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    let res_request = program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    program_context
+}
+
+
+
+pub fn read_test_data() -> Vec<u8> {
+    let ix_data_file = fs::read_to_string("./tests/test_data/deposit_0_1_sol.txt")
+        .expect("Something went wrong reading the file");
+    let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
+    let mut ix_data = Vec::new();
+    for i in ix_data_json["bytes"][0].as_str().unwrap().split(',') {
+        let j = (*i).parse::<u8>();
+        match j {
+            Ok(x) => (ix_data.push(x)),
+            Err(_e) => (),
+        }
+    }
+    println!("{:?}", ix_data);
+    ix_data
+}
+
+pub fn get_proof_from_bytes(
+    proof_bytes: &Vec<u8>,
+) -> ark_groth16::data_structures::Proof<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
+    let proof_a = parse_x_group_affine_from_bytes(&proof_bytes[0..64].to_vec());
+    let proof_b = parse_proof_b_from_bytes(&proof_bytes[64..192].to_vec());
+    let proof_c = parse_x_group_affine_from_bytes(&proof_bytes[192..256].to_vec());
+    let proof =
+        ark_groth16::data_structures::Proof::<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
+            a: proof_a,
+            b: proof_b,
+            c: proof_c,
+        };
+    proof
+}
+
+pub fn get_public_inputs_from_bytes(
+    public_inputs_bytes: &Vec<u8>,
+) -> Result<Vec<Fp256<ark_ed_on_bn254::FqParameters>>, serde_json::Error> {
+    let mut res = Vec::new();
+    for i in public_inputs_bytes.chunks(32) {
+        //let current_input = &public_inputs_bytes[(i * 32)..((i * 32) + 32)];
+
+        res.push(
+            <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&i[..])
+                .unwrap(),
+        )
+    }
+    Ok(res)
+}
+
+
+pub fn get_vk_from_file() -> Result<
+    ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,serde_json::Error> {
+    let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
+        .expect("Something went wrong reading the file");
+    let v: Value = serde_json::from_str(&contents)?;
+    //println!("{}",  v);
+
+    //println!("With text:\n{:?}", v["vk_alpha_1"][1]);
+
+    let mut a_g1_bigints = Vec::new();
+    for i in 0..2 {
+        let mut bytes: Vec<u8> = Vec::new();
+        for i in v["vk_alpha_1"][i].as_str().unwrap().split(',') {
+            bytes.push((*i).parse::<u8>().unwrap());
+        }
+        a_g1_bigints
+            .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
+    }
+    let alpha_g1_bigints = ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
+        a_g1_bigints[0],
+        a_g1_bigints[1],
+        false,
+    );
+
+    let mut b_g2_bigints = Vec::new();
+    //println!("{}",  v["vk_beta_2"]);
+    for i in 0..2 {
+        for j in 0..2 {
+            let mut bytes: Vec<u8> = Vec::new();
+            for z in v["vk_beta_2"][i][j].as_str().unwrap().split(',') {
+                bytes.push((*z).parse::<u8>().unwrap());
+            }
+            b_g2_bigints
+                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
+        }
+    }
+
+    let beta_g2 = ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            b_g2_bigints[0],
+            b_g2_bigints[1],
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            b_g2_bigints[2],
+            b_g2_bigints[3],
+        ),
+        false,
+    );
+    for (i, _) in b_g2_bigints.iter().enumerate() {
+        //println!("b_g2 {}", b_g2_bigints[i]);
+    }
+
+    let mut delta_g2_bytes = Vec::new();
+    //println!("{}",  v["vk_delta_2"]);
+    for i in 0..2 {
+        for j in 0..2 {
+            let mut bytes: Vec<u8> = Vec::new();
+            for z in v["vk_delta_2"][i][j].as_str().unwrap().split(',') {
+                bytes.push((*z).parse::<u8>().unwrap());
+            }
+            delta_g2_bytes
+                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
+        }
+    }
+
+    let delta_g2 = ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            delta_g2_bytes[0],
+            delta_g2_bytes[1],
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            delta_g2_bytes[2],
+            delta_g2_bytes[3],
+        ),
+        false,
+    );
+
+    for (i, _) in delta_g2_bytes.iter().enumerate() {
+        //println!("delta_g2 {}", delta_g2_bytes[i]);
+    }
+
+    let mut gamma_g2_bytes = Vec::new();
+    //println!("{}",  v["vk_gamma_2"]);
+    for i in 0..2 {
+        for j in 0..2 {
+            let mut bytes: Vec<u8> = Vec::new();
+            for z in v["vk_gamma_2"][i][j].as_str().unwrap().split(',') {
+                bytes.push((*z).parse::<u8>().unwrap());
+            }
+            gamma_g2_bytes
+                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
+        }
+    }
+    let gamma_g2 = ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            gamma_g2_bytes[0],
+            gamma_g2_bytes[1],
+        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+            gamma_g2_bytes[2],
+            gamma_g2_bytes[3],
+        ),
+        false,
+    );
+
+    for (i, _) in gamma_g2_bytes.iter().enumerate() {
+        //println!("gamma_g2 {}", gamma_g2_bytes[i]);
+    }
+
+    let mut gamma_abc_g1_bigints_bytes = Vec::new();
+
+    for i in 0..8 {
+        //for j in 0..1 {
+        let mut g1_bytes = Vec::new();
+        //println!("{:?}", v["IC"][i][j]);
+        //println!("Iter: {}", i);
+        for u in 0..2 {
+            //println!("{:?}", v["IC"][i][u]);
+            let mut bytes: Vec<u8> = Vec::new();
+            for z in v["IC"][i][u].as_str().unwrap().split(',') {
+                bytes.push((*z).parse::<u8>().unwrap());
+            }
+            //println!("bytes.len() {} {}", bytes.len(), bytes[bytes.len() - 1]);
+            g1_bytes
+                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
+        }
+        gamma_abc_g1_bigints_bytes.push(ark_ec::models::bn::g1::G1Affine::<
+            ark_bn254::Parameters,
+        >::new(g1_bytes[0], g1_bytes[1], false));
+    }
+
+    Ok(ark_groth16::data_structures::VerifyingKey::<
+        ark_ec::models::bn::Bn<ark_bn254::Parameters>,
+    > {
+        alpha_g1: alpha_g1_bigints,
+        beta_g2: beta_g2,
+        gamma_g2: gamma_g2,
+        delta_g2: delta_g2,
+        gamma_abc_g1: gamma_abc_g1_bigints_bytes,
+    })
+}
+
+pub async fn restart_program(
+    accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+    mut program_context: ProgramTestContext
+) -> ProgramTestContext {
+    for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+        let account = program_context
+            .banks_client
+            .get_account(**pubkey)
+            .await
+            .expect("get_account")
+            .unwrap();
+            *current_data = Some(account.data.to_vec());
+
+    }
+    // accounts_vector[1].2 = Some(storage_account.data.to_vec());
+    let mut program_context_new = create_and_start_program_var(
+        &accounts_vector,
+        &program_id,
+        &signer_pubkey,
+    ).await;
+    program_context_new
+}

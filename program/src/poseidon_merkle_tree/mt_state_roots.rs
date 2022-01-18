@@ -68,30 +68,19 @@ pub fn check_root_hash_exists(
     root_bytes: &Vec<u8>,
     //found_root: &mut u8,
 ) -> Result<u8, ProgramError> {
-    sol_log_compute_units();
+
     let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
-    sol_log_compute_units();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
         "merkletree acc key to check: {:?}",
         solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     );
-    sol_log_compute_units();
-    // assert_eq!(
-    //     *account_main.key,
-    //     solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
-    // );
 
     if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) {
         msg!("merkle tree account is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
-    sol_log_compute_units();
-    //msg!("did not crash {}", account_main_data.root_history_size);
-    // assert!(
-    //     account_main_data.root_history_size < 593,
-    //     "root history size too large"
-    // );
+
     if account_main_data.root_history_size > 593 {
         msg!("root history size too large");
         return Err(ProgramError::InvalidAccountData);
@@ -101,8 +90,7 @@ pub fn check_root_hash_exists(
     let mut i = 0;
     let mut counter = 0;
     loop {
-        //sol_log_compute_units();
-        //msg!("{:?}", account_main_data.roots[i..i + 32].to_vec());
+
         if account_main_data.roots[i..i + 32] == *root_bytes {
             msg!("found root hash index {}", counter);
             found_root = 1u8;
@@ -115,10 +103,10 @@ pub fn check_root_hash_exists(
         i += 32;
         counter += 1;
         if counter == account_main_data.root_history_size {
-            msg!("did not find root should panic here but is disabled for testing");
-            //panic!("did not find root");
-            //return Err(ProgramError::InvalidAccountData);
-            break;
+            //msg!("did not find root should panic here but is disabled for testing");
+            panic!("did not find root");
+            return Err(ProgramError::InvalidAccountData);
+            //break;
         }
     }
     Ok(found_root)

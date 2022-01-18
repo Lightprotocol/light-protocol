@@ -25,9 +25,15 @@ pub fn _process_instruction_final_exp(
         //init and conjugate
         account_struct.f1_r_range_s = account_struct.f_f2_range_s.clone();
         //account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+        let zeros = vec![0u8;384];
+        account_struct.y6_range = zeros.clone();
         conjugate_wrapper(&mut account_struct.f1_r_range_s);
         account_struct.changed_variables[f1_r_range_iter] = true;
         account_struct.changed_variables[f_f2_range_iter] = true;
+        account_struct.changed_variables[y6_range_iter] = true;
+
+
+
     } else if id == 1 {
         custom_f_inverse_1(
             &account_struct.f_f2_range_s,
@@ -442,9 +448,9 @@ pub fn _process_instruction_final_exp(
         );
         account_struct.changed_variables[f1_r_range_iter] = true;
     }
-    msg!(
-        "processor wants to modify {:?}",
-        account_struct.changed_variables
-    );
+    // msg!(
+    //     "processor wants to modify {:?}",
+    //     account_struct.changed_variables
+    // );
     Ok(())
 }

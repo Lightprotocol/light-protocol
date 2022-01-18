@@ -36,7 +36,6 @@ mod fe_onchain_test;
 //mod tests::fe_onchain_test;
 //use crate::fe_onchain_test;
 mod mt_onchain_test;
-
 mod pi_onchain_test;
 // mod fe_offchain_test;
 // use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
@@ -93,13 +92,8 @@ pub async fn create_and_start_program(
     program_context
 }
 
-pub async fn create_and_start_program_with_nullfier_pdas(
-    merkle_tree_init_bytes: Vec<u8>,
-    hash_bytes_init_bytes: Vec<u8>,
-    merkle_tree_pubkey: &Pubkey,
-    storage_account: &Pubkey,
-    two_leaves_pda_pubkey: &Pubkey,
-    nullifier_pubkeys: &Vec<Pubkey>,
+pub async fn create_and_start_program_var(
+    accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
     program_id: &Pubkey,
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
@@ -108,29 +102,17 @@ pub async fn create_and_start_program_with_nullfier_pdas(
         *program_id,
         processor!(process_instruction),
     );
-    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+    println!("accounts {:?}", accounts);
+    for (pubkey, size, data) in accounts.iter() {
+        println!("accounts {:?}, {:?}, {:?}", pubkey, size, data);
 
-    if merkle_tree_init_bytes.len() == 16657 {
-        merkle_tree.data = merkle_tree_init_bytes;
-    }
-
-    program_test.add_account(*merkle_tree_pubkey, merkle_tree);
-    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
-
-    if hash_bytes_init_bytes.len() == 3900 {
-        hash_byte.data = hash_bytes_init_bytes;
-    }
-    program_test.add_account(*storage_account, hash_byte);
-    let mut two_leaves_pda_byte = Account::new(1100000000, 106, &program_id);
-
-    // if two_leaves_pda_bytes_init_bytes.len() == 98 {
-    //
-    //     two_leaves_pda_byte.data = two_leaves_pda_bytes_init_bytes;
-    // }
-    program_test.add_account(*two_leaves_pda_pubkey, two_leaves_pda_byte);
-
-    for pubkey in nullifier_pubkeys.iter() {
-        program_test.add_account(*pubkey, Account::new(10000000, 2, &program_id));
+        let mut account = Account::new(10000000000, *size, &program_id);
+        match data {
+            Some(d) => (account.data = d.clone()),
+            None => ()
+        }
+        program_test.add_account(**pubkey, account);
+        println!("added account {:?}", **pubkey);
     }
 
     let mut program_context = program_test.start_with_context().await;
@@ -149,27 +131,37 @@ pub async fn create_and_start_program_with_nullfier_pdas(
     program_context
 }
 
-#[tokio::test]
-async fn full_test_onchain_new() {
-    // Creates program, accounts, setup.
-    let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
+pub async fn restart_program(
+    accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+    mut program_context: ProgramTestContext
+) -> ProgramTestContext {
+    for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+        let account = program_context
+            .banks_client
+            .get_account(**pubkey)
+            .await
+            .expect("get_account")
+            .unwrap();
+            *current_data = Some(account.data.to_vec());
 
-    //create pubkey for temporary storage account
-    let storage_pubkey = Pubkey::new_unique();
-    let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
-    let signer_pubkey = signer_keypair.pubkey();
-
-    let mut program_context = create_and_start_program(
-        vec![0],
-        vec![0],
-        &merkle_tree_pubkey,
-        &storage_pubkey,
+    }
+    // accounts_vector[1].2 = Some(storage_account.data.to_vec());
+    let mut program_context_new = create_and_start_program_var(
+        &accounts_vector,
         &program_id,
         &signer_pubkey,
-    )
-    .await;
+    ).await;
+    program_context_new
+}
+
+//use core::num::<impl u64>::checked_add;
+#[tokio::test]
+async fn full_test_onchain_new() {
+
+    //getting instruction data from file
+    //this is necessary for Light only supports proof generation with snarkjs
     let ix_data_file = fs::read_to_string("./tests/test_data/deposit_0_1_sol.txt")
         .expect("Something went wrong reading the file");
     let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
@@ -185,6 +177,42 @@ async fn full_test_onchain_new() {
         }
     }
     println!("{:?}", ix_data);
+
+    // Creates program, accounts, setup.
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
+    let mut accounts_vector = Vec::new();
+    //create pubkey for temporary storage account
+    let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
+    accounts_vector.push((&merkle_tree_pubkey, 16657, None));
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+    let two_leaves_pda_pubkey = Pubkey::find_program_address(&[&ix_data[105..137], &b"leaves"[..]], &program_id).0;
+    println!("leaves add seed: {:?}", [ &ix_data[105..137], &b"leaves"[..]]);
+    let storage_pubkey = Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
+    println!("storage_pubkey add seed: {:?}", [&ix_data[105..137], &b"storage"[..]]);
+
+    let mut nullifier_pubkeys = Vec::new();
+    println!("nf0 seed data: {:?}", ix_data[96 + 9..128 + 9].to_vec());
+    let pubkey_from_seed = Pubkey::find_program_address(&[&ix_data[96 + 9..128 + 9], &b"nf"[..]], &program_id);
+    nullifier_pubkeys.push(pubkey_from_seed.0);
+
+    let pubkey_from_seed = Pubkey::find_program_address(&[&ix_data[128 + 9..160 + 9], &b"nf"[..]], &program_id);
+    nullifier_pubkeys.push(pubkey_from_seed.0);
+    println!("derriving nullifier pubkeys from: {:?}", nullifier_pubkeys);
+
+    //panic!();
+    let mut program_context = create_and_start_program_var(
+        &accounts_vector,
+        &program_id,
+        &signer_pubkey,
+    ).await;
+    let merkle_tree_account = program_context
+        .banks_client
+        .get_account(merkle_tree_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
     //let tx_bytes = tx_bytes["bytes"]
 
     // println!("yy: {:?}", yy);
@@ -217,7 +245,7 @@ async fn full_test_onchain_new() {
     /*
      *
      *
-     * Send data to chain
+     * Send data to chain and initialize temp storage account
      *
      *
      */
@@ -231,6 +259,7 @@ async fn full_test_onchain_new() {
             vec![
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
+                AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
             ],
         )],
         Some(&signer_pubkey),
@@ -241,6 +270,10 @@ async fn full_test_onchain_new() {
         .process_transaction(transaction)
         .await
         .unwrap();
+
+
+    accounts_vector.push((&storage_pubkey, 3900, None));
+
 
     /*
      *
@@ -305,40 +338,20 @@ async fn full_test_onchain_new() {
                     .process_transaction(transaction),
             )
             .await;
-            let storage_account = program_context
-                .banks_client
-                .get_account(storage_pubkey)
-                .await
-                .expect("get_account")
-                .unwrap();
-            //println!("")
+
             match res_request {
                 Ok(_) => success = true,
                 Err(e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    let storage_account = program_context
-                        .banks_client
-                        .get_account(storage_pubkey)
-                        .await
-                        .expect("get_account")
-                        .unwrap();
-                    //println!("data: {:?}", storage_account.data);
-                    // program_context = pi_onchain_test::create_and_start_program(
-                    //     storage_account.data.to_vec(),
-                    //     storage_pubkey,
-                    //     program_id,
-                    // )
-                    // .await;
-                    program_context = create_and_start_program(
-                        merkle_tree_account.data.to_vec(),
-                        storage_account.data.to_vec(),
-                        &merkle_tree_pubkey,
-                        &storage_pubkey,
+
+                    program_context = restart_program(
+                        &mut accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                    )
-                    .await;
+                        program_context
+                    ).await;
+
                 }
             }
         }
@@ -551,34 +564,14 @@ async fn full_test_onchain_new() {
         .expect("get_account")
         .unwrap();
     let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
+    //println!("account_data.f_range: {:?}", account_data.f_range);
 
     // = ark_groth16-miller_output reference
-    let reference_f = [
-        41, 164, 125, 219, 237, 181, 202, 195, 98, 55, 97, 232, 35, 147, 153, 23, 164, 70, 211,
-        144, 151, 9, 219, 197, 234, 13, 164, 242, 67, 59, 148, 5, 132, 108, 82, 161, 228, 167, 20,
-        24, 207, 201, 203, 25, 249, 125, 54, 96, 182, 231, 150, 215, 149, 43, 216, 0, 36, 166, 232,
-        13, 126, 3, 53, 0, 174, 209, 16, 242, 177, 143, 60, 247, 181, 65, 132, 142, 14, 231, 170,
-        52, 3, 34, 70, 49, 210, 158, 211, 173, 165, 155, 219, 80, 225, 32, 64, 8, 65, 139, 16, 138,
-        240, 218, 36, 220, 8, 100, 236, 141, 1, 223, 60, 59, 24, 38, 90, 254, 47, 91, 205, 228,
-        169, 103, 178, 30, 124, 141, 43, 9, 83, 155, 75, 140, 209, 26, 2, 250, 250, 20, 185, 78,
-        53, 54, 68, 178, 88, 78, 246, 132, 97, 167, 124, 253, 96, 26, 213, 99, 157, 155, 40, 9, 60,
-        139, 112, 126, 230, 195, 217, 125, 68, 169, 208, 149, 175, 33, 226, 17, 47, 132, 8, 154,
-        237, 156, 34, 97, 55, 129, 155, 64, 202, 54, 161, 19, 24, 1, 208, 104, 140, 149, 25, 229,
-        96, 239, 202, 24, 235, 221, 133, 137, 30, 226, 62, 112, 26, 58, 1, 85, 207, 182, 41, 213,
-        42, 72, 139, 41, 108, 152, 252, 164, 121, 76, 17, 62, 147, 226, 220, 79, 236, 132, 109,
-        130, 163, 209, 203, 14, 144, 180, 25, 216, 234, 198, 199, 74, 48, 62, 57, 0, 206, 138, 12,
-        130, 25, 12, 187, 216, 86, 208, 84, 198, 58, 204, 6, 161, 93, 63, 68, 121, 173, 129, 255,
-        249, 47, 42, 218, 214, 129, 29, 136, 7, 213, 160, 139, 148, 58, 6, 191, 11, 161, 114, 56,
-        174, 224, 86, 243, 103, 166, 151, 107, 36, 205, 170, 206, 196, 248, 251, 147, 91, 3, 136,
-        208, 36, 3, 51, 84, 102, 139, 252, 193, 9, 172, 113, 116, 50, 242, 70, 26, 115, 166, 252,
-        204, 163, 149, 78, 13, 255, 235, 222, 174, 120, 182, 178, 186, 22, 169, 153, 73, 48, 242,
-        139, 120, 98, 33, 101, 204, 204, 169, 57, 249, 168, 45, 197, 126, 105, 54, 187, 35, 241,
-        253, 4, 33, 70, 246, 206, 32, 17,
-    ];
-    // assert_eq!(
-    //     account_data.f_range, reference_f,
-    //     "onchain f result != reference f (hardcoded from lib call)"
-    // );
+    let reference_f = [106, 144, 87, 58, 158, 145, 226, 63, 202, 195, 194, 54, 236, 52, 22, 124, 12, 243, 67, 209, 110, 138, 149, 137, 17, 147, 150, 72, 148, 22, 101, 47, 122, 190, 109, 122, 161, 30, 171, 178, 184, 89, 27, 154, 54, 115, 196, 79, 92, 15, 217, 7, 74, 206, 234, 6, 126, 240, 126, 205, 197, 167, 144, 24, 34, 158, 136, 249, 93, 100, 136, 41, 219, 142, 182, 14, 170, 147, 73, 190, 40, 241, 16, 103, 202, 220, 24, 78, 103, 103, 240, 211, 137, 231, 213, 17, 234, 17, 19, 74, 235, 65, 155, 173, 26, 145, 147, 137, 52, 42, 89, 125, 41, 233, 73, 85, 242, 208, 149, 19, 19, 82, 84, 141, 218, 109, 136, 18, 70, 18, 11, 3, 153, 147, 17, 37, 171, 63, 128, 126, 102, 178, 76, 135, 16, 184, 100, 240, 195, 7, 51, 21, 194, 170, 149, 105, 27, 145, 230, 14, 18, 172, 134, 204, 66, 85, 62, 91, 111, 119, 233, 16, 244, 27, 78, 58, 245, 78, 47, 170, 16, 94, 101, 102, 107, 6, 203, 99, 180, 148, 42, 1, 147, 112, 231, 85, 35, 119, 60, 179, 99, 13, 9, 39, 165, 184, 125, 221, 221, 59, 4, 203, 220, 32, 120, 57, 192, 35, 42, 0, 89, 20, 77, 34, 125, 35, 28, 101, 127, 195, 73, 148, 201, 28, 22, 50, 88, 53, 65, 158, 60, 227, 253, 27, 204, 82, 214, 150, 129, 75, 57, 74, 22, 43, 43, 15, 254, 162, 118, 165, 240, 45, 110, 35, 244, 97, 240, 218, 57, 148, 236, 60, 248, 234, 68, 31, 213, 236, 21, 55, 224, 59, 236, 5, 54, 89, 39, 38, 238, 70, 134, 88, 195, 238, 15, 204, 151, 184, 61, 152, 210, 119, 143, 81, 209, 46, 134, 243, 207, 108, 207, 30, 217, 56, 167, 230, 118, 143, 85, 15, 180, 102, 18, 130, 107, 128, 118, 5, 108, 181, 192, 200, 46, 63, 73, 147, 55, 84, 193, 251, 24, 177, 79, 206, 82, 104, 156, 138, 197, 202, 245, 2, 236, 253, 116, 107, 179, 247, 76, 70, 206, 73, 248, 6, 219, 46, 217, 134, 253, 222, 205, 200, 230, 21, 149, 140, 244, 106, 194, 8, 203, 232, 243, 12];
+    assert_eq!(
+        account_data.f_range, reference_f,
+        "onchain f result != reference f (hardcoded from lib call)"
+    );
     println!("onchain test success");
     // println!("Final exp init bytes:  {:?}", storage_account.data);
     // assert_eq!(true, false);
@@ -680,6 +673,7 @@ async fn full_test_onchain_new() {
         127, 70, 3, 32, 60, 115, 188, 192, 101, 159, 85, 66, 193, 194, 157, 76, 121, 108, 222, 128,
         27, 15, 163, 156, 8,
     ];
+    println!("result.y1_range_s: {:?}", parse_f_from_bytes(&result.y1_range_s));
 
     //assert_eq!(expected_result_bytes, result.y1_range_s);
 
@@ -688,20 +682,6 @@ async fn full_test_onchain_new() {
      * Merkle Tree insert of new utxos
      *
      */
-
-    let two_leaves_pda_pubkey = Pubkey::new_unique();
-
-    //restart is necessary to add pda account
-    let mut program_context = mt_onchain_test::create_and_start_program(
-        merkle_tree_account.data.to_vec(),
-        storage_account.data.clone(),
-        &merkle_tree_pubkey,
-        &storage_pubkey,
-        &two_leaves_pda_pubkey,
-        &program_id,
-        &signer_pubkey,
-    )
-    .await;
 
     let commit = vec![0u8; 32]; //vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
@@ -804,12 +784,12 @@ async fn full_test_onchain_new() {
                             .unwrap();
                         //println!("data: {:?}", storage_account.data);
                         //let old_payer = signer_keypair;
-                        program_context = mt_onchain_test::create_and_start_program(
+                        program_context = create_and_start_program(
                             merkle_tree_account.data.to_vec(),
                             hash_bytes_account.data.to_vec(),
                             &merkle_tree_pubkey,
                             &storage_pubkey,
-                            &two_leaves_pda_pubkey,
+                            //&two_leaves_pda_pubkey,
                             &program_id,
                             &signer_pubkey,
                         )
@@ -850,6 +830,7 @@ async fn full_test_onchain_new() {
     //assert_eq!(expected_root, storage_account.data[609 +32..(609+64)]);
 
     println!("finished merkle tree calculations");
+
     /*
      *
      *
@@ -857,48 +838,8 @@ async fn full_test_onchain_new() {
      *
      *
      */
-    /*
-    let nullifer0 = <Fq as FromBytes>::read(&*public_inputs_bytes[96..128].to_vec().clone()).unwrap();
-    let nullifer1 = <Fq as FromBytes>::read(&*public_inputs_bytes[128..160].to_vec().clone()).unwrap();
-    //let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
-    let mut nullifier_pubkeys = Vec::new();
 
-    let pubkey_from_seed =
-        Pubkey::create_with_seed(&signer_pubkey, &nullifer0.to_string()[8..23], &program_id)
-            .unwrap();
-    nullifier_pubkeys.push(pubkey_from_seed);
 
-    let pubkey_from_seed =
-        Pubkey::create_with_seed(&signer_pubkey, &nullifer1.to_string()[8..23], &program_id)
-            .unwrap();
-    nullifier_pubkeys.push(pubkey_from_seed);
-    */
-
-    // let nullifer0 = Pubkey::new(&*ix_data[96 + 8..128 + 8].to_vec().clone());
-    // let nullifer1 = Pubkey::new(&*ix_data[128 + 8..160 + 8].to_vec().clone());
-    let mut nullifier_pubkeys = Vec::new();
-    println!("nf0 seed data: {:?}", ix_data[96 + 9..128 + 9].to_vec());
-    let pubkey_from_seed = Pubkey::find_program_address(&[&ix_data[96 + 9..128 + 9]], &program_id);
-    // let (authority, bumpSeed) = Pubkey::find_program_address(
-    //     &[&owner_keypair.pubkey().to_bytes()[..]],
-    //     &program_id
-    // );
-    nullifier_pubkeys.push(pubkey_from_seed.0);
-
-    let pubkey_from_seed = Pubkey::find_program_address(&[&ix_data[128 + 9..160 + 9]], &program_id);
-    nullifier_pubkeys.push(pubkey_from_seed.0);
-    println!("derriving nullifier pubkeys from: {:?}", nullifier_pubkeys);
-
-    //restart to add nullifer pdas
-    // create_and_start_program_with_nullfier_pdas(
-    //         merkle_tree_init_bytes: Vec<u8>,
-    //         hash_bytes_init_bytes: Vec<u8>,
-    //         merkle_tree_pubkey: &Pubkey,
-    //         storage_account: &Pubkey,
-    //         two_leaves_pda_pubkey: &Pubkey,
-    //         nullifier_pubkeys: &Vec<Pubkey>,
-    //         program_id: &Pubkey,
-    //         signer_pubkey: &Pubkey
     let storage_account = program_context
         .banks_client
         .get_account(storage_pubkey)
@@ -911,17 +852,6 @@ async fn full_test_onchain_new() {
         .await
         .expect("get_account")
         .unwrap();
-    // program_context = create_and_start_program_with_nullfier_pdas(
-    //     merkle_tree_account_old.data.to_vec(),
-    //     storage_account.data.to_vec(),
-    //     &merkle_tree_pubkey,
-    //     &storage_pubkey,
-    //     &two_leaves_pda_pubkey,
-    //     &nullifier_pubkeys,
-    //     &program_id,
-    //     &signer_pubkey,
-    // )
-    // .await;
 
     let receiver_pubkey = Pubkey::new_unique();
 
@@ -1008,11 +938,11 @@ async fn full_test_onchain_new() {
     // );
     //saved merkle tree pubkey in which leaves were insorted
     assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[74..106]);
-    
+
 
     println!(
-        "deposit success {}",
-        merkel_tree_account_new.lamports == merkle_tree_account_old.lamports + 100000000
+        "deposit success {} {}",
+        merkel_tree_account_new.lamports , merkle_tree_account_old.lamports + 100000000
     );
     if merkel_tree_account_new.lamports != merkle_tree_account_old.lamports + 100000000 {
         let receiver_account = program_context

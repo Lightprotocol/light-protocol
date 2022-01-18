@@ -11,52 +11,38 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar::rent::Rent,
 };
-// use solana_sdk::{account::Account, signature::Signer, transaction::Transaction};
+use solana_program::clock::DEFAULT_SLOTS_PER_EPOCH;
 
+use crate::li_state::LiBytes;
+use crate::Groth16Processor;
 use crate::state_check_nullifier::NullifierBytesPda;
 use ark_ff::FromBytes;
 use borsh::BorshSerialize;
+use std::convert::TryInto;
 
 pub fn check_tx_integrity_hash(
     recipient: Vec<u8>,
     extAmount: Vec<u8>,
     relayer: Vec<u8>,
     fee: Vec<u8>,
-    // encryptedOutput1: Vec<u8>,
-    // encryptedOutput2: Vec<u8>,
     tx_integrity_hash: &Vec<u8>,
 ) -> Result<(), ProgramError> {
     let input = [
-        recipient, extAmount, relayer, fee,
-        // encryptedOutput1,
-        // encryptedOutput2,
-    ]
-    .concat();
+        recipient,
+        extAmount,
+        relayer,
+        fee,
+    ].concat();
+
     let mut hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    // msg!(
-    //     "1tx integrity hash is {:?} == onchain {:?}",
-    //     *tx_integrity_hash,
-    //     hash
-    // );
-    // // hash.reverse();
-    //
-    // msg!(
-    //     "tx integrity hash is {:?} == onchain {:?}",
-    //     *tx_integrity_hash,
-    //     hash
-    // );
 
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash[..])
     {
         msg!("tx_integrity_hash verification failed");
         return Err(ProgramError::InvalidInstructionData);
     }
-
-    // if *tx_integrity_hash != hash {
-    // }
     Ok(())
 }
-
 pub fn check_and_insert_nullifier<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
@@ -64,48 +50,18 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     system_program: &'a AccountInfo<'b>,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
-    msg!("check_and_insert_nullifier0");
-    let nullifer_pubkey = Pubkey::find_program_address(&[&_instruction_data[..]], &program_id);
-    msg!("check_and_insert_nullifier1");
-    let rent = Rent::free();
-    msg!("check_and_insert_nullifier2");
-
-    if nullifer_pubkey.0 != *nullifier_account.key {
-        msg!("passed in nullifier account is wrong");
-        msg!("nulif pubkey.0 {:?}", nullifer_pubkey.0);
-        msg!("nulifaccount {:?}", *nullifier_account.key);
-        msg!("ixdata SEED  {:?}", _instruction_data);
-        // panic!();
-
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    invoke_signed(
-        &system_instruction::create_account(
-            signer_account.key,
-            nullifier_account.key,
-            // 1e7 as u64,
-            904800, // TODO: adapt
-            // rent.minimum_balance(2), //.max(1),
-            2,
-            &program_id,
-        ),
-        &[
-            signer_account.clone(),
-            nullifier_account.clone(),
-            system_program.clone(),
-        ],
-        // A slice of seed slices, each seed slice being the set
-        // of seeds used to generate one of the PDAs required by the
-        // callee program, the final seed being a single-element slice
-        // containing the `u8` bump seed.
-        &[&[&_instruction_data[..], &[nullifer_pubkey.1]]],
+    create_and_check_account(
+        program_id,
+        signer_account,
+        nullifier_account,
+        system_program,
+        _instruction_data,
+        &b"nf"[..],
+        2u64,       //bytes
+        0u64,//904800u64,  //lamports
+        true        //rent_exempt
     )?;
 
-    //check for rent exemption
-    if rent.is_exempt(**nullifier_account.lamports.borrow(), 2) != true {
-        msg!("nullifier account is not rent exempt");
-        return Err(ProgramError::InvalidAccountData);
-    }
     let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
     NullifierBytesPda::pack_into_slice(
         &nullifier_account_data,
@@ -114,49 +70,165 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     Ok(1u8)
 }
 
-// pub fn check_and_insert_nullifier(
-//     program_id: &Pubkey,
-//     signer_account_pubkey: &Pubkey,
-//     nullifier_account: &AccountInfo,
-//     _instruction_data: &[u8],
-// ) -> Result<u8, ProgramError> {
-//     // let hash = <Fq as FromBytes>::read(_instruction_data).unwrap();
-//     // let pubkey_from_seed = Pubkey::create_with_seed(
-//     //     &signer_account_pubkey,
-//     //     &hash.to_string()[8..23],
-//     //     &program_id
-//     // ).unwrap();
-//     let nullifer_pubkey = Pubkey::new(&_instruction_data);
+pub fn create_and_check_account<'a, 'b>(
+        program_id: &Pubkey,
+        signer_account: &'a AccountInfo<'b>,
+        derived_account:&'a AccountInfo<'b>,
+        system_program: &'a AccountInfo<'b>,
+        _instruction_data: &[u8],
+        domain_sep_seed: &[u8],
+        number_storage_bytes: u64,
+        lamports: u64,
+        rent_exempt: bool
+    ) -> Result<(), ProgramError> {
 
-//     // let nullifier_keypair =
-//     //    keypair_from_seed(&_instruction_data).unwrap();
-//     // // PDA:
-//     // let pubkey_from_seed =
-//     //     Pubkey::create_with_seed(&nullifier_keypair.pubkey(), &"nullifier", &program_id).unwrap();
-//     // let signer_pubkey = nullifier.();
+    msg!("domain_sep_seed: {:?}", &[&_instruction_data[..], &domain_sep_seed[..]]);
+    let derived_pubkey = Pubkey::find_program_address(&[&_instruction_data[..], &domain_sep_seed[..]], &program_id);
 
-//     //let mut i = 0;
-//     // for (i) in 0..30 {
-//     //     msg!("{} {}", i, &hash.to_string()[i..i+1]);
-//     //     //i +=1;
-//     // }
-//     //check for equality
-//     //assert_eq!(pubkey_from_seed, *nullifier_account.key);
-//     if nullifer_pubkey != *nullifier_account.key {
-//         msg!("passed in nullifier account is wrong");
-//         return Err(ProgramError::InvalidInstructionData);
-//     }
-//     //check for rent exemption
-//     let rent = Rent::free();
-//     //assert!(rent.is_exempt(**nullifier_account.lamports.borrow(), 2));
-//     if rent.is_exempt(**nullifier_account.lamports.borrow(), 2) != true {
-//         msg!("nullifier account is not rent exempt");
-//         return Err(ProgramError::InvalidAccountData);
-//     }
-//     let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
-//     NullifierBytesPda::pack_into_slice(
-//         &nullifier_account_data,
-//         &mut nullifier_account.data.borrow_mut(),
-//     );
-//     Ok(1u8)
-// }
+    if derived_pubkey.0 != *derived_account.key {
+        msg!("passed inaccount is wrong");
+        msg!(" pubkey.0 {:?}", derived_pubkey.0);
+        msg!("passed in account {:?}", *derived_account.key);
+        msg!("ixdata SEED  {:?}", _instruction_data);
+        // panic!();
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    let rent = Rent::default();
+    let mut account_lamports = lamports;
+    if rent_exempt == true {
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
+    }
+    //msg!("number_storage_bytes {}", lamports + rent.minimum_balance(number_storage_bytes.try_into().unwrap()));
+    invoke_signed(
+        &system_instruction::create_account(
+            signer_account.key,
+            derived_account.key,
+            // 1e7 as u64,
+            //lamports, // TODO: adapt
+            account_lamports, //.max(1),
+            number_storage_bytes.try_into().unwrap(),
+            &program_id,
+        ),
+        &[
+            signer_account.clone(),
+            derived_account.clone(),
+            system_program.clone(),
+        ],
+        // A slice of seed slices, each seed slice being the set
+        // of seeds used to generate one of the PDAs required by the
+        // callee program, the final seed being a single-element slice
+        // containing the `u8` bump seed.
+        &[&[&_instruction_data[..], &domain_sep_seed[..], &[derived_pubkey.1]]],
+    )?;
+
+    //check for rent exemption
+    if rent_exempt == true {
+        if rent.is_exempt(**derived_account.lamports.borrow(), 2) != true {
+            msg!("account is not rent exempt");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+    }
+    Ok(())
+
+}
+
+pub fn try_initialize_hash_bytes_account(
+    main_account: &AccountInfo,
+    _instruction_data: &[u8],
+    signing_address: &Pubkey,
+) -> Result<(), ProgramError> {
+    msg!(
+        "initing hash bytes account {}",
+        main_account.data.borrow().len()
+    );
+    //initing temporary storage account with bytes
+
+    let mut main_account_data = LiBytes::unpack(&main_account.data.borrow())?;
+
+    let mut groth16_processor =
+        Groth16Processor::new(main_account, main_account_data.current_instruction_index)?;
+    groth16_processor.try_initialize(&_instruction_data[0..224])?;
+
+    main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
+    main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
+    main_account_data.amount = _instruction_data[32..64].to_vec().clone(); // pubAmount (32bytes)
+    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone(); // Todo: may need LE->BE
+
+    let input_nullifier_0 = _instruction_data[96..128].to_vec().clone();
+    let input_nullifier_1 = &_instruction_data[128..160];
+
+    let commitment_right = &_instruction_data[160..192];
+    let commitment_left = &_instruction_data[192..224];
+
+    main_account_data.proof_a_b_c_leaves_and_nullifiers = [
+        _instruction_data[224..480].to_vec(),
+        commitment_right.to_vec(),
+        commitment_left.to_vec(),
+        input_nullifier_0.to_vec(),
+        input_nullifier_1.to_vec(),
+    ]
+    .concat();
+    main_account_data.to_address = _instruction_data[480..512].to_vec().clone(); // ..688
+    main_account_data.ext_amount = _instruction_data[512..520].to_vec().clone();
+    let relayer = _instruction_data[520..552].to_vec().clone();
+    let fee = _instruction_data[552..560].to_vec().clone();
+    // let encrypted_output_0 = _instruction_data[560..796].to_vec().clone(); // 16
+    // let encrypted_output_1 = _instruction_data[796..1032].to_vec().clone();
+
+    // msg!(
+    //     "main_account_data.signing_address {:?}",
+    //     main_account_data.signing_address
+    // );
+    // msg!(
+    //     "main_account_data.root_hash {:?}",
+    //     main_account_data.root_hash
+    // );
+    // msg!("main_account_data.amount {:?}", main_account_data.amount);
+    msg!(
+        "main_account_data.tx_integrity_hash {:?}",
+        main_account_data.tx_integrity_hash
+    );
+    // msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
+    // msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
+    // msg!("commitment_right ); {:?}", commitment_right);
+    // msg!("commitment_left ); {:?}", commitment_left);
+    msg!(
+        "main_account_data.to_address {:?}",
+        main_account_data.to_address
+    );
+    msg!(
+        "main_account_data.ext_amount {:?}",
+        main_account_data.ext_amount
+    );
+    msg!("relayer ); {:?}", relayer);
+    msg!("fee ); {:?}", fee);
+    // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
+    // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
+    // // panic!();
+
+    //main_account_data.changed_constants[11] = true;
+
+    check_tx_integrity_hash(
+        // vec![1u8, 32],   // recipient
+        main_account_data.to_address.to_vec(),
+        // vec![1u8, 8],    // extAmount
+        main_account_data.ext_amount.to_vec(),
+        // vec![1u8, 32],   // relayer
+        relayer.to_vec(),
+        //vec![1u8, 8],    // fee
+        fee.to_vec(),
+        // vec![1u8, 32],   // o0
+        // encrypted_output_0.to_vec(),
+        // // vec![1u8, 32],   // o1
+        // encrypted_output_1.to_vec(),
+        &main_account_data.tx_integrity_hash,
+    )?;
+    // panic!();
+    for i in 0..12 {
+        main_account_data.changed_constants[i] = true;
+    }
+    main_account_data.current_instruction_index += 1;
+    LiBytes::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
+    msg!("packed successfully");
+    Ok(())
+}

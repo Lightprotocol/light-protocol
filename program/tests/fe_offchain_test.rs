@@ -51,7 +51,7 @@ pub mod tests {
 		mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain},
 		instructions_poseidon::PoseidonCircomRounds3,
 	};
-	
+
 	use Testing_Hardcoded_Params_devnet_new::utils::{
 		prepared_verifying_key::*,
 		init_bytes18
@@ -528,7 +528,7 @@ pub mod tests {
     }
 
 
-
+	use ark_ff::CubicExtField;
 	#[test]
     fn final_exp_offchain() -> Result<()> {
 
@@ -564,7 +564,39 @@ pub mod tests {
 
 
         // println!("{:?}", res_origin);
-        // println!("{:?}", pvk.alpha_g1_beta_g2);
+        //println!("{:?}", pvk.alpha_g1_beta_g2.c0[0]);
+		let pvk_hard_coded = QuadExtField::<ark_ff::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>>::new(
+			CubicExtField::<ark_ff::Fp6ParamsWrapper::<ark_bn254::Fq6Parameters>>::new(
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17214827553771518527, 8103811577513533309, 5824106868827698446, 538393706883776885])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1747766986087995073, 17030008964085198309, 14711893862670036801, 1251847809326396116]))
+				),
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8670468519825929670, 6774311001955862070, 14503208649103997400, 2739832133422703605])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3403041057055849213, 5589831403557161118, 11353848742706634430, 2079335176187258289]))
+				),
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5700889876348332023, 5164370052034384707, 11026397386690668186, 1430638717145074535])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14585014708672115679, 10557724701831733650, 11346225797950201897, 163817071525994422]))
+				)
+			),
+			CubicExtField::<ark_ff::Fp6ParamsWrapper::<ark_bn254::Fq6Parameters>>::new(
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([184137068633880152, 15666126431488555624, 15896723566730834541, 327734949610890862])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5217626969957908428, 13857069499728575185, 16747932664762117536, 1511015936345776210]))
+				),
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4044920854921985794, 16524891583600629150, 17295166532143782492, 1552849265734776570])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7380548997166592537, 191847233093951225, 8211711349787187541, 2939180299531928202]))
+				),
+				QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12782511908424732804, 9912157266960376288, 15239332730960188312, 1839595783782490417])),
+					ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1680073062438571392, 2800534229562584231, 800746447625002697, 1128810302869726976]))
+				)
+			)
+		);
+		assert_eq!(pvk_hard_coded, pvk.alpha_g1_beta_g2);
+
         assert_eq!(res_origin, pvk.alpha_g1_beta_g2);
         Ok(())
     }
@@ -1667,6 +1699,7 @@ pub mod tests {
 			assert_eq!(account_struct.y1_range_s, account_struct_tmp.y1_range_s);
 		}
 		println!("result in bytes: {:?}",account_struct.y1_range_s );
+		verify_result(&account_struct);
 		Some(parse_f_from_bytes(&account_struct.y1_range_s))
 
 	}
