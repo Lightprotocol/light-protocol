@@ -1,7 +1,7 @@
-use crate::li_instructions::{check_and_insert_nullifier, check_tx_integrity_hash};
-use crate::li_state::LiBytes;
+use crate::instructions::{check_and_insert_nullifier, check_tx_integrity_hash};
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
+use crate::state::LiBytes;
 use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -25,29 +25,23 @@ use std::convert::TryInto;
 //_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
 //check tx data hash
 //deposit and withdraw logic
-pub fn li_pre_process_instruction(
+pub fn pre_process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     current_instruction_index: usize,
 ) -> Result<(), ProgramError> {
-    msg!("entered li_pre_process_instruction");
+    msg!("entered pre_process_instruction");
 
     let account = &mut accounts.iter();
-    msg!("here0");
-
     let _signing_account = next_account_info(account)?;
-    msg!("here1");
     let main_account = next_account_info(account)?;
-    msg!("here2");
     let mut account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
     if current_instruction_index == 1 {
-        msg!("here3");
         let merkle_tree_account = next_account_info(account)?;
-        msg!("here4");
         msg!("merkletree acc key: {:?}", *merkle_tree_account.key);
         msg!(
-            "key to check: {:?}",
+            "merkletree key to check: {:?}",
             solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
         );
         account_data.found_root =
@@ -83,14 +77,13 @@ pub fn li_pre_process_instruction(
 
         msg!("inserting new merkle root");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
-        merkle_tree_processor.process_instruction_merkle_tree(accounts);
+        merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
 
         // TODO: this is a hotfix. Checks first byte only.
         let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
         let pub_amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
 
-        msg!("amount 0 or 1? {:?}", ext_amount);
-        msg!("amount: {:?}", pub_amount);
+        msg!("withdrawal amount: {:?}", pub_amount);
 
         if ext_amount > 0 {
             if *merkle_tree_account.key
@@ -113,12 +106,12 @@ pub fn li_pre_process_instruction(
         } else if ext_amount <= 0 {
             let recipient_account = next_account_info(account)?;
 
-            // if *recipient_account.key
-            //     != solana_program::pubkey::Pubkey::new(&account_data.to_address)
-            // {
-            //     msg!("recipient has to be address specified in tx integrity hash");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
+            if *recipient_account.key
+                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+            {
+                msg!("recipient has to be address specified in tx integrity hash");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             // calculate extAmount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,

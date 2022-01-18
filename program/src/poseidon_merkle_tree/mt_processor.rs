@@ -16,6 +16,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::Sysvar,
+    sysvar::rent::Rent
 };
 
 pub struct MerkleTreeProcessor<'a, 'b> {
@@ -178,28 +179,38 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 IX_ORDER[main_account_data.current_instruction_index]
             );
             let leaf_pda = next_account_info(account)?;
+            msg!("here-2");
             let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
+            msg!("here-3");
             let _nullifer0 = next_account_info(account)?;
             let _nullifer1 = next_account_info(account)?;
             let merkle_tree_account = next_account_info(account)?;
             let mut merkle_tree_account_data =
                 MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
 
+            //checking if signer locked
             pubkey_check(
                 *signer.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
                 String::from("merkle tree locked by other account"),
             )?;
-
+            //checking merkle tree pubkey for consistency
             merkle_tree_pubkey_check(*merkle_tree_account.key)?;
 
-            insert_last_double(&mut merkle_tree_account_data, &mut main_account_data);
+            //insert root into merkle tree
+            insert_last_double(&mut merkle_tree_account_data, &mut main_account_data)?;
+
+            //check leaves account is rent exempt
+            let rent = Rent::free();
+            if rent.is_exempt(**leaf_pda.lamports.borrow(), 106) != true {
+                msg!("leaves account is not rent exempt");
+                return Err(ProgramError::InvalidAccountData);
+            }
+            //save leaves into pda account
             leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
             leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
-            // msg!("leafleft: {:?}", leaf_pda_account_data.leaf_left);
-            // msg!("leafright: {:?}", leaf_pda_account_data.leaf_right);
-            // panic!();
-
+            msg!("here2 main_account_data.current_index {}", main_account_data.current_index.clone());
+            leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey =
                 mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
 
@@ -231,7 +242,7 @@ pub fn _process_instruction_merkle_tree(
     id: u8,
     main_account_data: &mut HashBytes,
     merkle_tree_account_data: &mut MerkleTree,
-) {
+) -> Result<(), ProgramError>{
     msg!("executing instruction {}", id);
     if id == 0 {
         permute_instruction_first(
@@ -240,32 +251,33 @@ pub fn _process_instruction_merkle_tree(
             &mut main_account_data.current_round_index,
             &main_account_data.left,
             &main_account_data.right,
-        );
+        )?;
     } else if id == 1 {
         permute_instruction_6(
             &mut main_account_data.state,
             &mut main_account_data.current_round,
             &mut main_account_data.current_round_index,
-        );
+        )?;
     } else if id == 2 {
         permute_instruction_3(
             &mut main_account_data.state,
             &mut main_account_data.current_round,
             &mut main_account_data.current_round_index,
-        );
+        )?;
     } else if id == 3 {
         permute_instruction_last(
             &mut main_account_data.state,
             &mut main_account_data.current_round,
             &mut main_account_data.current_round_index,
-        );
+        )?;
     } else if id == 25 {
-        insert_1_inner_loop(merkle_tree_account_data, main_account_data);
+        insert_1_inner_loop(merkle_tree_account_data, main_account_data)?;
     } else if id == 14 {
-        insert_0_double(merkle_tree_account_data, main_account_data);
+        insert_0_double(merkle_tree_account_data, main_account_data)?;
     } else if id == 16 {
-        insert_last_double(merkle_tree_account_data, main_account_data);
+        insert_last_double(merkle_tree_account_data, main_account_data)?;
     }
+    Ok(())
 }
 
 fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {

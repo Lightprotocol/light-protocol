@@ -722,7 +722,7 @@ pub mod tests {
 
                 println!("init state PROOFB: {:?}", account_data.proof_b);
             }
-            if i == 66 {}
+         
         }
         // Replicating last ix (255, reading f).
         let manual_f = parse_f_from_bytes(&account_data.f_range.to_vec());
@@ -742,7 +742,7 @@ pub mod tests {
         let pvk_unprepped = get_pvk_from_bytes_254().unwrap();
         let pvk = prepare_verifying_key(&pvk_unprepped);
         let proof = get_proof_from_bytes_254().unwrap();
-        // trn proof into bytes, compare
+        // turn proof into bytes, compare
         let public_inputs = get_public_inputs_from_bytes_254().unwrap();
         let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
         let mut pairs = vec![];
@@ -820,21 +820,6 @@ pub mod tests {
         c0.mul_assign_by_fp(&p.y);
         c1.mul_assign_by_fp(&p.x);
         mul_by_034(f, &c0, &c1, &c2);
-        // match ark_bn254::Parameters::TWIST_TYPE {
-        //     TwistType::M => {
-        //         // Shouldn't be M twist in this implementation.
-        //         assert_eq!(true, false, "Twist M");
-        //     }
-        //     TwistType::D => {
-        //         c0.mul_assign_by_fp(&p.y);
-        //         c1.mul_assign_by_fp(&p.x);
-        //         mul_by_034(&mut f, &c0, &c1, &c2);
-        //         // println!("7,");
-        //         // println!("8,");
-        //         // println!("9,");
-        //         // println!("10,");
-        //     }
-        // }
     }
     pub fn mul_by_034(
         f: &mut QuadExtField<Fp12ParamsWrapper<Fq12Parameters>>,

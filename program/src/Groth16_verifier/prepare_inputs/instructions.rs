@@ -313,7 +313,6 @@ pub fn g_ic_into_affine_1(
 ) {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(&g_ic_x_range, &g_ic_y_range, &g_ic_z_range); // 15k
-
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
     let g_ic_with_zinv: ark_ec::short_weierstrass_jacobian::GroupProjective<
         ark_bn254::g1::Parameters,

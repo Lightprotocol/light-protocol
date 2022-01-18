@@ -108,7 +108,6 @@ impl Pack for PiBytes {
             2432,
             384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
         ];
-        msg!("unpacked");
 
         Ok(PiBytes {
             is_initialized: true,

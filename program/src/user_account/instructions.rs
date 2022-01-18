@@ -16,7 +16,7 @@ pub fn initialize_user_account(
 ) -> Result<(), ProgramError> {
     //check for rent exemption
     let rent = Rent::free();
-    if rent.is_exempt(**account.lamports.borrow(), 2) != true {
+    if rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) != true {
         msg!("user account is not rentexempt");
         return Err(ProgramError::InvalidInstructionData);
     }
