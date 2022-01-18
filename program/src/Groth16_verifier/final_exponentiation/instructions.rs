@@ -1,5 +1,5 @@
 use crate::Groth16_verifier::{
-    final_exponentiation::ranges::*,
+    final_exponentiation::{ranges::*, state::FinalExpBytes},
     parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
@@ -14,8 +14,113 @@ use ark_ff::{
     },
     Field,
 };
-use solana_program::{log::sol_log_compute_units, msg};
 
+use ark_ff::BigInteger256;
+use ark_ff::CubicExtField;
+use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+
+pub fn verify_result(main_account_data: &FinalExpBytes) -> Result<(), ProgramError> {
+    let pvk = QuadExtField::<ark_ff::Fp12ParamsWrapper<ark_bn254::Fq12Parameters>>::new(
+        CubicExtField::<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>::new(
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    17214827553771518527,
+                    8103811577513533309,
+                    5824106868827698446,
+                    538393706883776885,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    1747766986087995073,
+                    17030008964085198309,
+                    14711893862670036801,
+                    1251847809326396116,
+                ])),
+            ),
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    8670468519825929670,
+                    6774311001955862070,
+                    14503208649103997400,
+                    2739832133422703605,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    3403041057055849213,
+                    5589831403557161118,
+                    11353848742706634430,
+                    2079335176187258289,
+                ])),
+            ),
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    5700889876348332023,
+                    5164370052034384707,
+                    11026397386690668186,
+                    1430638717145074535,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    14585014708672115679,
+                    10557724701831733650,
+                    11346225797950201897,
+                    163817071525994422,
+                ])),
+            ),
+        ),
+        CubicExtField::<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>::new(
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    184137068633880152,
+                    15666126431488555624,
+                    15896723566730834541,
+                    327734949610890862,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    5217626969957908428,
+                    13857069499728575185,
+                    16747932664762117536,
+                    1511015936345776210,
+                ])),
+            ),
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    4044920854921985794,
+                    16524891583600629150,
+                    17295166532143782492,
+                    1552849265734776570,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    7380548997166592537,
+                    191847233093951225,
+                    8211711349787187541,
+                    2939180299531928202,
+                ])),
+            ),
+            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    12782511908424732804,
+                    9912157266960376288,
+                    15239332730960188312,
+                    1839595783782490417,
+                ])),
+                ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+                    1680073062438571392,
+                    2800534229562584231,
+                    800746447625002697,
+                    1128810302869726976,
+                ])),
+            ),
+        ),
+    );
+    let result = parse_f_from_bytes(&main_account_data.y1_range_s);
+    // let offchain_ref = vec![6, 109, 131, 156, 65, 153, 78, 36, 99, 109, 226, 43, 208, 157, 181, 67, 70, 162, 77, 110, 171, 254, 42, 244, 180, 142, 228, 29, 227, 170, 193, 46, 222, 108, 160, 114, 50, 45, 31, 28, 130, 80, 209, 42, 121, 99, 59, 93, 74, 156, 72, 47, 126, 198, 156, 22, 200, 100, 10, 4, 231, 243, 148, 2, 49, 43, 181, 76, 10, 140, 168, 169, 177, 128, 107, 151, 178, 7, 136, 22, 61, 152, 7, 8, 249, 130, 129, 153, 28, 129, 83, 20, 86, 154, 27, 43, 169, 221, 64, 86, 45, 78, 98, 89, 254, 82, 235, 28, 119, 236, 166, 200, 237, 0, 120, 91, 84, 133, 210, 49, 230, 71, 74, 231, 105, 255, 141, 1, 146, 24, 99, 28, 224, 153, 141, 236, 112, 40, 129, 209, 123, 145, 194, 225, 100, 140, 52, 118, 56, 16, 11, 6, 224, 67, 42, 204, 68, 222, 232, 28, 163, 20, 46, 27, 232, 187, 251, 101, 213, 48, 8, 145, 188, 95, 220, 238, 79, 216, 191, 213, 94, 85, 72, 183, 23, 60, 100, 38, 236, 113, 54, 31, 90, 84, 187, 223, 15, 205, 208, 226, 212, 1, 39, 62, 249, 49, 211, 81, 195, 94, 169, 164, 101, 147, 144, 119, 25, 130, 38, 13, 214, 48, 14, 20, 91, 219, 14, 250, 189, 105, 253, 104, 243, 141, 23, 76, 162, 14, 184, 36, 182, 240, 200, 255, 81, 66, 57, 179, 103, 161, 72, 155, 43, 80, 54, 7, 171, 3, 185, 72, 5, 242, 105, 150, 155, 181, 187, 151, 56, 159, 249, 118, 185, 5, 88, 253, 68, 65, 251, 171, 215, 0, 197, 195, 116, 124, 170, 8, 72, 129, 120, 110, 240, 50, 220, 179, 34, 200, 89, 3, 95, 116, 181, 26, 212, 174, 177, 209, 136, 249, 146, 141, 53, 153, 100, 7, 225, 31, 239, 44, 246, 110, 119, 77, 68, 184, 238, 11, 197, 99, 5, 231, 193, 193, 117, 141, 106, 52, 119, 16, 39, 165, 56, 221, 19, 132, 77, 158, 94, 124, 32, 34, 84, 173, 33, 85, 152, 5, 199, 18, 131, 209, 214, 239, 14, 235, 65, 190, 239, 77, 119, 159, 202, 122, 162, 206, 80, 144, 26, 16, 233, 193, 119, 11];
+    if pvk != result {
+        msg!("verification failed");
+        // msg!("expected: {:?}", pvk);
+        panic!();
+        // msg!("result: {:?}", result);
+        return Err(ProgramError::InvalidAccountData);
+    }
+    Ok(())
+}
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
     msg!("conjugate_wrapper: ------------------------------------------");

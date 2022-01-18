@@ -8,7 +8,7 @@ use solana_program::{
 // Light
 use crate::Groth16_verifier::{
     final_exponentiation,
-    final_exponentiation::state::FinalExpBytes,
+    final_exponentiation::{instructions::verify_result, state::FinalExpBytes},
     miller_loop,
     miller_loop::{ranges::*, state::*},
     parsers::*,
@@ -151,6 +151,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             &mut main_account_data,
             IX_ORDER[self.current_instruction_index],
         );
+
+        if self.current_instruction_index == 1266 {
+            verify_result(&main_account_data)?;
+        }
         main_account_data.current_instruction_index += 1;
         FinalExpBytes::pack_into_slice(
             &main_account_data,
