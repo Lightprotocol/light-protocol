@@ -1,5 +1,5 @@
 use crate::Groth16_verifier::final_exponentiation::{
-    fe_instructions::{
+    instructions::{
         conjugate_wrapper, custom_cubic_inverse_1, custom_cubic_inverse_2,
         custom_cyclotomic_square, custom_cyclotomic_square_in_place, custom_f_inverse_1,
         custom_f_inverse_2, custom_f_inverse_3, custom_f_inverse_4, custom_f_inverse_5,
@@ -7,8 +7,8 @@ use crate::Groth16_verifier::final_exponentiation::{
         custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2, mul_assign_1_2,
         mul_assign_3_4_5,
     },
-    fe_ranges::*,
-    fe_state::FinalExpBytes,
+    ranges::*,
+    state::FinalExpBytes,
 };
 
 use solana_program::{
@@ -17,7 +17,7 @@ use solana_program::{
     program_error::ProgramError,
 };
 
-pub fn _process_instruction_final_exp(
+pub fn _process_instruction(
     account_struct: &mut FinalExpBytes,
     id: u8,
 ) -> Result<(), ProgramError> {

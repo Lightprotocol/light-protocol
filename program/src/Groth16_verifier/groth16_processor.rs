@@ -1,3 +1,4 @@
+use ark_ff::BigInteger256;
 use ark_ff::{Fp256, FromBytes};
 // Solana
 use solana_program::{
@@ -6,7 +7,8 @@ use solana_program::{
 
 // Light
 use crate::Groth16_verifier::{
-    final_exponentiation::{fe_processor::_process_instruction_final_exp, fe_state::FinalExpBytes},
+    final_exponentiation,
+    final_exponentiation::state::FinalExpBytes,
     miller_loop,
     miller_loop::{ranges::*, state::*},
     parsers::*,
@@ -32,8 +34,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         })
     }
     // The groth16 verifier verifies proofs for the Groth16 zkSNARK construction that's used by Light Protocol.
-    // This implements it in a way that can be executed by the Solana runtime.
-    // As such, it's mostly just broken up into many smaller computation pieces that each fit into a single instruction's compute budget.
+    // This implements the ark-groth16 verifier in a way that can be executed by the Solana runtime.
+    // As such, it's mostly broken up into many smaller computation pieces that each fit into a single instruction's compute budget.
     // The current implemenation relies on a 200k compute budget ix-wide. With that, the Groth16 processor currently processes
     // 1k+ ix calls for a single proof verification. The call order is hardcoded on-chain as [IX_ORDER].
     // There are some caveats that come with maintaining state across all those instructions, hence the increased code complexity.
@@ -145,7 +147,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
 
     fn final_exponentiation(&mut self) -> Result<(), ProgramError> {
         let mut main_account_data = FinalExpBytes::unpack(&self.main_account.data.borrow())?;
-        _process_instruction_final_exp(
+        final_exponentiation::processor::_process_instruction(
             &mut main_account_data,
             IX_ORDER[self.current_instruction_index],
         );
@@ -159,6 +161,12 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
 
     pub fn try_initialize(&mut self, _instruction_data: &[u8]) -> Result<(), ProgramError> {
         let mut main_account_data = PiBytes::unpack(&self.main_account.data.borrow())?;
+
+        // let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
+        msg!(
+            "_instruction_data: {:?}",
+            _instruction_data[0..100].to_vec()
+        );
         // get public_inputs from _instruction_data.
         //root
         let input1 =
@@ -169,6 +177,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&_instruction_data[32..64])
                 .unwrap();
         //external data hash
+        //let input3 = Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([0,0,0,0]));
         let input3 =
             <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&_instruction_data[64..96])
                 .unwrap();

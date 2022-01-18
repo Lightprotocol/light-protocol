@@ -2,15 +2,15 @@
 pub mod user_account;
 pub mod utils;
 //merkle tree
+pub mod Groth16_verifier;
+pub mod instructions;
 pub mod poseidon_merkle_tree;
-
-pub mod li_instructions;
-pub mod li_pre_processor;
-pub mod li_state;
+pub mod pre_processor;
+pub mod state;
 pub mod state_check_nullifier;
 
-use crate::li_state::InstructionIndex;
-use crate::Groth16_verifier::groth16_processor::Groth16Processor;
+use crate::pre_processor::{pre_process_instruction, try_initialize_hash_bytes_account};
+use crate::state::InstructionIndex;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -21,10 +21,9 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::li_pre_processor::{li_pre_process_instruction, try_initialize_hash_bytes_account};
+use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
-pub mod Groth16_verifier;
 use crate::utils::init_bytes18;
 
 use crate::user_account::instructions::{initialize_user_account, modify_user_account};
@@ -40,15 +39,12 @@ entrypoint!(process_instruction);
 //     const INIT_BYTES: &'static[u8] = &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..];
 // }
 
-// We use current_instruction_index move through the call order as per [IX_ORDER].
+// We use current_instruction_index to move through the call order as per [IX_ORDER].
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    // msg!("instruction_data len: {}", &_instruction_data.len());
-    // msg!("instruction_data: {:?}", &_instruction_data);
-
     // initialize new merkle tree account
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let accounts_mut = accounts.clone();
@@ -87,7 +83,7 @@ pub fn process_instruction(
         //unpack helper struct to determine in which computational step the contract is in
         //if the account is not initialized, try to initialize, fails if data is not provided or
         //account is of the wrong size
-        let mut account_main_data = InstructionIndex::unpack(&account_main.data.borrow());
+        let account_main_data = InstructionIndex::unpack(&account_main.data.borrow());
 
         match account_main_data {
             Ok(account_main_data) => {
@@ -106,8 +102,8 @@ pub fn process_instruction(
                             //_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
                             //require(isKnownRoot(_args.root), "Invalid merkle root");
                             //_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
-                            msg!("if li_pre_process_instruction if");
-                            li_pre_process_instruction(
+                            msg!("if pre_process_instruction if");
+                            pre_process_instruction(
                                 program_id,
                                 accounts,
                                 account_main_data.current_instruction_index,

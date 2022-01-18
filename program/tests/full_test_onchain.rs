@@ -9,8 +9,8 @@ use Testing_Hardcoded_Params_devnet_new::{
     process_instruction,
     utils::init_bytes18,
     Groth16_verifier::{
-        final_exponentiation::fe_ranges::*,
-        final_exponentiation::fe_state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
+        final_exponentiation::ranges::*,
+        final_exponentiation::state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
         miller_loop::state::*,
         parsers::*,
     },
@@ -150,7 +150,7 @@ pub async fn create_and_start_program_with_nullfier_pdas(
 }
 
 #[tokio::test]
-async fn test_pi_ml_fe_integration_onchain() {
+async fn full_test_onchain() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
 

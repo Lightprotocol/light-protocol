@@ -26,7 +26,8 @@ mod tests {
 	use ark_std::{One};
 
 	use Testing_Hardcoded_Params_devnet_new::utils::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_processor;
+	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::{mt_processor, mt_instructions};
+
 
 	use std::fs::File;
 	use std::io::{Error as ioError};
@@ -151,8 +152,8 @@ mod tests {
 	        //println!("Self: {:?}", self.clone());
 	        let (left_bytes, right_bytes) =
 	            select_left_right_bytes(self.leaf_index, &claimed_leaf_hash, &&self.leaf_sibling_hash)?;
-	        //println!("left: {:?}", left_bytes);
-	        //println!("right: {:?}", right_bytes);
+			println!("left: {:?}", left_bytes);
+			println!("right: {:?}", right_bytes);
 
 	        let mut curr_path_node = hash_64_to_vec([&left_bytes[..], &right_bytes[..]].concat()).to_vec();
 	        //println!("curr_path_node: {:?}", curr_path_node);
@@ -168,6 +169,8 @@ mod tests {
 	            // check if path node at this level is left or right
 	            let (left_bytes, right_bytes) =
 	                select_left_right_bytes(index, &curr_path_node, &self.auth_path[level])?;
+					println!("left: {:?}", left_bytes);
+			        println!("right: {:?}", right_bytes);
 	            //println!("left: {:?}", left_bytes);
 	            //println!("right: {:?}", right_bytes);
 	            // update curr_path_node
@@ -539,7 +542,7 @@ mod tests {
 			<PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
 				.unwrap();
         let mut current_zero = leaf_hash.clone();
-		println!("start zero {:?}",  tree.zeros[tree.zeros.len()- 1]);
+		println!("start zero {}",  current_zero);
 
         <Fq as ToBytes>::write(&current_zero, &mut tree.zeros[0][..]);
 		println!("first zero {:?}",  tree.zeros[tree.zeros.len()- 1]);
@@ -578,7 +581,7 @@ mod tests {
         let tree_height = 4;
 
         let zero_value = hash_64_to_vec(vec![1u8;64]).to_vec();
-
+		println!("zero value: {:?}", zero_value);
         let leaves: Vec<Vec<u8>> = vec![zero_value;16];
         let mut tree = MerkleTree::new(
             &leaves,
@@ -600,7 +603,12 @@ mod tests {
         for i in 1..12 {
             println!("tree_height: {}", i);
             let tree_height = i;
-            let zero_value =  hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
+            let zero_value =  [
+  108, 175, 153,  72, 237, 133, 150,  36,
+  226,  65, 231, 118,  15,  52,  27, 130,
+  180,  93, 161, 235, 182,  53,  58,  52,
+  243, 171, 172, 211,  96,  76, 229,  47
+].to_vec();//hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
 
 			let mut smt = merkle_tree {is_initialized: true,
 		        levels: 1,
@@ -955,7 +963,9 @@ mod tests {
 		println!("init successful");
 		let mut rng = test_rng();
 
-        for i in 0..1 {
+		let mut filled_leaves = Vec::new();
+		let mut j = 0;
+		for i in 0..4 {
 
 
 			let mut hash_tmp_account = HashBytes {
@@ -976,38 +986,51 @@ mod tests {
             let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
 
             let mut new_leaf_hash_bytes = vec![0u8;32];
+			<Fp256::<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&new_leaf_hash, &mut new_leaf_hash_bytes[..]);
+
 			let new_leaf_hash_1 = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
 
             let mut new_leaf_hash_bytes_1 = vec![0u8;32];
 
             <Fp256::<ark_ed_on_bn254::FqParameters> as ToBytes>::write(&new_leaf_hash_1, &mut new_leaf_hash_bytes_1[..]);
-			println!("initial_leaf_hash: {:?}", new_leaf_hash_bytes);
-			assert_eq!(true, false,"will fail because no data is incjected");
+			println!("hash_tmp_account.leaf_left: {:?}", new_leaf_hash_bytes);
+			println!("hash_tmp_account.leaf_right: {:?}", new_leaf_hash_bytes_1);
+
+			hash_tmp_account.leaf_left = new_leaf_hash_bytes.clone();
+			hash_tmp_account.leaf_right = new_leaf_hash_bytes_1.clone();
+			filled_leaves.push(new_leaf_hash_bytes.clone());
+			filled_leaves.push(new_leaf_hash_bytes_1.clone());
+
+			//assert_eq!(true, false,"will fail because no data is incjected");
 			for i in init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
 				mt_processor::_process_instruction_merkle_tree(i, &mut hash_tmp_account, &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/);
 			}
+			mt_instructions::insert_last_double(&mut smt, &mut hash_tmp_account);
 
-			let mut filled_leaves = Vec::new();
-			filled_leaves.push(new_leaf_hash_bytes.clone());
-			filled_leaves.push(new_leaf_hash_bytes.clone());
+
 
 			// for leaf in 2..262144 {
 			// 	filled_leaves.push(initial_zero_hash.to_vec().clone());
 			// }
 			//assert_eq!(filled_leaves[0], new_leaf_hash_bytes);
-            let fll = &filled_leaves.len();
+            // let fll = &filled_leaves.len();
+			//
+            // let leaves: Vec<Vec<u8>> = [
+			// 		filled_leaves.clone(),
+			// 		vec![initial_zero_hash.to_vec(); 2_usize.pow(tree_height as u32)-fll]
+			// 	].concat();
 
-            let leaves: Vec<Vec<u8>> = [
-					filled_leaves.clone(),
-					vec![initial_zero_hash.to_vec(); 2_usize.pow(tree_height as u32)-fll]
-				].concat();
+            tree.update(j, &new_leaf_hash_bytes);
+			tree.update(j + 1, &new_leaf_hash_bytes_1);
+			let proof = tree.generate_proof(j + 1).unwrap();
 
-            tree.update(i, &new_leaf_hash_bytes);
-			tree.update(i + 1, &new_leaf_hash_bytes_1);
-
+			//println!("merkle proof: {:?}", proof);
             //assert_eq!(hash_tmp_account.state[0], tree.root());
+			println!("i: {}", i);
+			proof.verify(&tree.root(), &new_leaf_hash_bytes_1);
 			assert_eq!(smt.roots, tree.root());
 			println!("root: {:?}", smt.roots);
+			j+=2;
 
         }
 

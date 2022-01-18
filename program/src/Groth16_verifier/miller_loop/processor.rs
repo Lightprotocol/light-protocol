@@ -49,12 +49,13 @@ pub fn _process_instruction(id: u8, account_main: &mut ML254Bytes) {
     if id == 0 {
         // First instruction of miller_loop.
         // Reads gic_affine from prepared_inputs account.
-        // This ix has been moved to groth16_processor.rs.
+        // Deprecated: Moved into groth16_processor.rs > move_proofs
     } else if id == 1 {
+        // Deprecated: Moved into groth16_processor.rs > move_proofs
         // Inits proof_a and proof_c into the account (p1,p3).
         // Also inits f.
     } else if id == 2 {
-        // Parses proof_b bytes into the account (p1).
+        // Turns proof.b into type G2HomProjective and stores in r_range.
         // Called once at the beginning.
         init_coeffs1(&mut account_main.r, &mut account_main.proof_b);
         // Only changed_variables/ranges will be packed by our custom pack function to save compute budget.
@@ -68,8 +69,8 @@ pub fn _process_instruction(id: u8, account_main: &mut ML254Bytes) {
     else if id == 4 {
         // Ix 4 executes the ELL loop for the first coeffs pair of 3.
         // Since the coeffs1/2/3 come from a proof.b computation this ix
-        // is pre-run "on-the-fly" by the computation ix:
-        // either "doubling_step" (ix 7) or "addition_step" (ix 8 or 9 or 10 or 11)
+        // is pre-run "on-the-fly" by another computation ix: either
+        // "doubling_step" (ix 7) or "addition_step" (ix 8 or 9 or 10 or 11)
         // The call_order of those is based on a constant as per the ark_ec library.
         ell_instruction_d(
             &mut account_main.f_range,

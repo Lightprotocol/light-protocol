@@ -314,6 +314,7 @@ pub struct TwoLeavesBytesPda {
     pub leaf_right: Vec<u8>,
     pub leaf_left: Vec<u8>,
     pub merkle_tree_pubkey: Vec<u8>,
+    pub left_leaf_index: usize,
 }
 
 impl Sealed for TwoLeavesBytesPda {}
@@ -324,13 +325,13 @@ impl IsInitialized for TwoLeavesBytesPda {
 }
 
 impl Pack for TwoLeavesBytesPda {
-    const LEN: usize = 98;
+    const LEN: usize = 106;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
 
-        let (is_initialized, account_type, leaf_left, leaf_right, merkle_tree_pubkey) =
-            array_refs![input, 1, 1, 32, 32, 32];
+        let (is_initialized, account_type,left_leaf_index, leaf_left, leaf_right, merkle_tree_pubkey) =
+            array_refs![input, 1, 1, 8, 32, 32, 32];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
@@ -343,6 +344,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right: vec![0u8; 32],
             leaf_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
+            left_leaf_index: 0usize
         })
     }
 
@@ -351,16 +353,19 @@ impl Pack for TwoLeavesBytesPda {
         let (
             is_initialized_dst,
             account_type_dst,
+            left_leaf_index_dst,
             leaf_left_dst,
             leaf_right_dst,
             merkle_tree_pubkey_dst,
-        ) = mut_array_refs![dst, 1, 1, 32, 32, 32];
+        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32];
 
         *is_initialized_dst = [1];
         *account_type_dst = [4];
         *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
         *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
         *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();
+        *left_leaf_index_dst = usize::to_le_bytes(self.left_leaf_index);
+
         msg!("packed inserted_leaves");
     }
 }

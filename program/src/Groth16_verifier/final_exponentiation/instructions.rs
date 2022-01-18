@@ -1,5 +1,5 @@
 use crate::Groth16_verifier::{
-    final_exponentiation::fe_ranges::*,
+    final_exponentiation::ranges::*,
     parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
@@ -490,7 +490,7 @@ pub fn verify_result_and_withdraw(_f1_r_range: &Vec<u8>, account_from: &AccountI
 
 #[cfg(test)]
 mod tests {
-    use crate::Groth16_verifier::final_exponentiation::fe_instructions::{
+    use crate::Groth16_verifier::final_exponentiation::instructions::{
         conjugate_wrapper, custom_cubic_inverse_1, custom_cubic_inverse_2,
         custom_cyclotomic_square, custom_cyclotomic_square_in_place, custom_f_inverse_1,
         custom_f_inverse_2, custom_f_inverse_3, custom_f_inverse_4, custom_f_inverse_5,
@@ -500,13 +500,13 @@ mod tests {
         mul_assign_4_2, mul_assign_5,
     };
 
-    use crate::Groth16_verifier::final_exponentiation::fe_state::FinalExpBytes;
+    use crate::Groth16_verifier::final_exponentiation::state::FinalExpBytes;
 
     use crate::Groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_f_from_bytes, parse_f_to_bytes, parse_quad_from_bytes,
     };
 
-    use crate::Groth16_verifier::final_exponentiation::fe_ranges::{
+    use crate::Groth16_verifier::final_exponentiation::ranges::{
         f_cubic_0_range, f_cubic_1_range, naf_vec, solo_cubic_0_range,
     };
 
