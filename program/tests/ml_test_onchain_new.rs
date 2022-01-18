@@ -46,7 +46,7 @@ mod pi_onchain_test;
 // use crate::fe_offchain_test::tests::get_public_inputs_from_bytes_254;
 
 pub async fn create_and_start_program_var(
-    accounts: Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+    accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
     program_id: &Pubkey,
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
@@ -76,13 +76,35 @@ pub async fn create_and_start_program_var(
         program_context.last_blockhash,
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let _res_request = program_context
+    let res_request = program_context
         .banks_client
         .process_transaction(transaction)
         .await;
 
     program_context
 }
+
+pub async fn restart_program(
+    accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+    mut program_context: ProgramTestContext,
+) -> ProgramTestContext {
+    for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+        let account = program_context
+            .banks_client
+            .get_account(**pubkey)
+            .await
+            .expect("get_account")
+            .unwrap();
+        *current_data = Some(account.data.to_vec());
+    }
+    // accounts_vector[1].2 = Some(storage_account.data.to_vec());
+    let mut program_context_new =
+        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+    program_context_new
+}
+
 #[test]
 fn check_pvk_integrity() {
     let pvk_unprepped = get_vk_from_file().unwrap();
@@ -314,8 +336,6 @@ pub fn get_proof_from_bytes(
 async fn ml_test_onchain_new() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
-    //create pubkey for temporary storage account
-    let storage_pubkey = Pubkey::new_unique();
     // let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
@@ -324,6 +344,14 @@ async fn ml_test_onchain_new() {
     // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
     // read proof, public inputs from test file, prepare_inputs
     let ix_data = read_test_data();
+    //create pubkey for temporary storage account
+    let storage_pubkey =
+        Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
+    println!(
+        "storage_pubkey add seed: {:?}",
+        [&ix_data[105..137], &b"storage"[..]]
+    );
+
     // Pick the data we need from the test file. 9.. bc of input structure
     let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
     let proof_bytes = ix_data[233..489].to_vec(); // 256 length
@@ -361,10 +389,9 @@ async fn ml_test_onchain_new() {
         account_state[index + 4] = *i;
     }
     let mut accounts_vector = Vec::new();
-    // accounts_vector.push((&merkle_tree_pubkey, 16657, None));
     accounts_vector.push((&storage_pubkey, 3900, Some(account_state)));
     let mut program_context =
-        create_and_start_program_var(accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
 
     // Calculate miller_ouput with the ark library. Will be used to compare the
     // on-chain output with.
@@ -422,28 +449,13 @@ async fn ml_test_onchain_new() {
                 Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    let storage_account = program_context
-                        .banks_client
-                        .get_account(storage_pubkey)
-                        .await
-                        .expect("get_account")
-                        .unwrap();
-
-                    // start program
-                    let mut accounts_vector = Vec::new();
-                    // accounts_vector.push((
-                    //     &merkle_tree_pubkey,
-                    //     16657,
-                    //     Some(merkle_tree_account.data.to_vec()),
-                    // ));
-                    accounts_vector.push((
-                        &storage_pubkey,
-                        3900,
-                        Some(storage_account.data.to_vec()),
-                    ));
-                    program_context =
-                        create_and_start_program_var(accounts_vector, &program_id, &signer_pubkey)
-                            .await;
+                    program_context = restart_program(
+                        &mut accounts_vector,
+                        &program_id,
+                        &signer_pubkey,
+                        program_context,
+                    )
+                    .await;
                 }
             }
         }
@@ -472,7 +484,8 @@ async fn pi_test_onchain_new() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     //create pubkey for temporary storage account
-    let storage_pubkey = Pubkey::new_unique();
+    // let storage_pubkey = Pubkey::new_unique();
+
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
@@ -481,6 +494,12 @@ async fn pi_test_onchain_new() {
     // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
     // read proof, public inputs from test file, prepare_inputs
     let ix_data = read_test_data();
+    let storage_pubkey =
+        Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
+    println!(
+        "storage_pubkey add seed: {:?}",
+        [&ix_data[105..137], &b"storage"[..]]
+    );
     // Pick the data we need from the test file. 9.. bc of input structure
     let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
     let pvk_unprepped = get_vk_from_file().unwrap();
@@ -497,9 +516,8 @@ async fn pi_test_onchain_new() {
 
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&merkle_tree_pubkey, 16657, None));
-    accounts_vector.push((&storage_pubkey, 3900, None)); // accountstate
     let mut program_context =
-        create_and_start_program_var(accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
 
     // Initialize MerkleTree account
     // TODO: this needed?
@@ -545,6 +563,10 @@ async fn pi_test_onchain_new() {
             vec![
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(storage_pubkey, false),
+                AccountMeta::new(
+                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    false,
+                ),
             ],
         )],
         Some(&signer_pubkey),
@@ -555,6 +577,7 @@ async fn pi_test_onchain_new() {
         .process_transaction(transaction)
         .await
         .unwrap();
+    accounts_vector.push((&storage_pubkey, 3900, None));
 
     /*
      *
@@ -625,28 +648,13 @@ async fn pi_test_onchain_new() {
                 Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    let storage_account = program_context
-                        .banks_client
-                        .get_account(storage_pubkey)
-                        .await
-                        .expect("get_account")
-                        .unwrap();
-
-                    // start program
-                    let mut accounts_vector = Vec::new();
-                    accounts_vector.push((
-                        &merkle_tree_pubkey,
-                        16657,
-                        Some(merkle_tree_account.data.to_vec()),
-                    ));
-                    accounts_vector.push((
-                        &storage_pubkey,
-                        3900,
-                        Some(storage_account.data.to_vec()),
-                    ));
-                    program_context =
-                        create_and_start_program_var(accounts_vector, &program_id, &signer_pubkey)
-                            .await;
+                    program_context = restart_program(
+                        &mut accounts_vector,
+                        &program_id,
+                        &signer_pubkey,
+                        program_context,
+                    )
+                    .await;
                 }
             }
         }

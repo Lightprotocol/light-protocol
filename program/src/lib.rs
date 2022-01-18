@@ -9,7 +9,8 @@ pub mod pre_processor;
 pub mod state;
 pub mod state_check_nullifier;
 
-use crate::pre_processor::{pre_process_instruction, try_initialize_hash_bytes_account};
+use crate::instructions::*;
+use crate::pre_processor::pre_process_instruction;
 use crate::state::InstructionIndex;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -49,7 +50,7 @@ pub fn process_instruction(
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
-        let _signing_account = next_account_info(account)?;
+        let _signer_account = next_account_info(account)?;
         let merkle_tree_storage_acc = next_account_info(account)?;
         //merkle_tree_tmp_account_data.initialize();
         //mt_state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
@@ -62,23 +63,23 @@ pub fn process_instruction(
         msg!("in: {:?}", accounts);
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
-        let signing_account = next_account_info(account)?;
+        let signer_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
         msg!("in in");
 
-        initialize_user_account(user_account, *signing_account.key)
+        initialize_user_account(user_account, *signer_account.key)
     } else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
-        let signing_account = next_account_info(account)?;
+        let signer_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
-        modify_user_account(&user_account, *signing_account.key, &_instruction_data[9..])
+        modify_user_account(&user_account, *signer_account.key, &_instruction_data[9..])
     }
     // transact with shielded pool
     else {
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
-        let signing_account = next_account_info(account)?;
+        let signer_account = next_account_info(account)?;
         let account_main = next_account_info(account)?;
         //unpack helper struct to determine in which computational step the contract is in
         //if the account is not initialized, try to initialize, fails if data is not provided or
@@ -90,7 +91,7 @@ pub fn process_instruction(
                 (
                     //msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
                     // do signer check etc before starting a compute instruction
-                    if account_main_data.signer_pubkey != *signing_account.key {
+                    if account_main_data.signer_pubkey != *signer_account.key {
                         msg!("wrong signer");
                         Err(ProgramError::IllegalOwner)
                     } else {
@@ -137,15 +138,45 @@ pub fn process_instruction(
             Err(_) => {
                 (
                     //initialize temporary storage account for shielded pool deposit, transfer or withdraw
-                    try_initialize_hash_bytes_account(
-                        account_main,
+                    create_and_try_initialize_hash_bytes_account(
+                        program_id,
+                        accounts,
+                        3900u64,  //bytes
+                        0 as u64, //lamports
+                        true,     //rent_exempt
                         &_instruction_data[9..],
-                        signing_account.key,
                     )
                 )
             }
         }
     }
+}
+
+fn create_and_try_initialize_hash_bytes_account<'a, 'b>(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    number_storage_bytes: u64,
+    lamports: u64,
+    rent_exempt: bool,
+    _instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let accounts_mut = accounts.clone();
+    let account = &mut accounts_mut.iter();
+    let signer_account = next_account_info(account)?;
+    let account_main = next_account_info(account)?;
+    let system_program_info = next_account_info(account)?;
+    create_and_check_account(
+        program_id,
+        signer_account,
+        account_main,
+        system_program_info,
+        &_instruction_data[96..128],
+        &b"storage"[..],
+        number_storage_bytes, //bytes
+        lamports,             //lamports
+        rent_exempt,          //rent_exempt
+    )?;
+    try_initialize_hash_bytes_account(account_main, _instruction_data, signer_account.key)
 }
 
 //instruction order
