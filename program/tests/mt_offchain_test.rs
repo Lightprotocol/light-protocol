@@ -17,16 +17,16 @@ mod tests {
 	};
 	use arkworks_gadgets::poseidon::{PoseidonParameters, PoseidonError, Rounds,circom::CircomCRH, sbox::PoseidonSbox};
 	use ark_crypto_primitives::{crh::{TwoToOneCRH, CRH}, Error};
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
+	use light_protocol_core::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
 	use std::convert::TryInto;
     use ark_std::{UniformRand, test_rng};
 
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
+	use light_protocol_core::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain};
 
 	use ark_std::{One};
 
-	use Testing_Hardcoded_Params_devnet_new::utils::init_bytes18;
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::{mt_processor, mt_instructions};
+	use light_protocol_core::utils::init_bytes18;
+	use light_protocol_core::poseidon_merkle_tree::{mt_processor, mt_instructions};
 
 
 	use std::fs::File;

@@ -1,57 +1,33 @@
 #[cfg(test)]
 pub mod tests {
 
-	use ark_serialize::{Read, Write};
+	use ark_serialize::Write;
 
 	use ark_bn254;
 	use ark_ed_on_bn254;
-	use ark_ed_on_bn254::Fq;
 
-	use ark_crypto_primitives::{
-		crh::{TwoToOneCRH, CRH},
-		Error,
-	};
-	use ark_std::{test_rng, vec::Vec, One, UniformRand};
-	use arkworks_gadgets::poseidon::{
-		circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
-	};
-	use arkworks_gadgets::utils::{
-		get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
-	};
-	use std::convert::TryInto;
+	use ark_std::vec::Vec;
 
-	use ark_ff::biginteger::{BigInteger256, BigInteger384};
-	use serde_json::Value::String;
+	use ark_ff::biginteger::BigInteger256;
 	use serde_json::{Result, Value};
 	use std::fs;
 
-	use ark_ff::bytes::{FromBytes, ToBytes};
+	use ark_ff::bytes::FromBytes;
 	use ark_ff::Fp256;
 	use ark_ff::QuadExtField;
 	use ark_groth16::prepare_verifying_key;
-	use ark_groth16::{prepare_inputs, verify_proof, verify_proof_with_prepared_inputs};
+	use ark_groth16::{prepare_inputs, verify_proof};
 
 	use ark_ec;
-	use ark_ec::{AffineCurve, ProjectiveCurve};
+	use ark_ec::ProjectiveCurve;
 	use ark_ff::Field;
-	use solana_program::program_pack::Pack;
-	use std::fs::File;
-	use std::io::Error as ioError;
-
-	use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::final_exponentiation::{
+	use light_protocol_core::groth16_verifier::final_exponentiation::{
 		instructions::*, processor::_process_instruction, ranges::*, state::FinalExpBytes,
 	};
-	use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::*;
-
-	use Testing_Hardcoded_Params_devnet_new::poseidon_merkle_tree::{
-		instructions_poseidon::PoseidonCircomRounds3,
-		mt_processor,
-		mt_state::{HashBytes, MerkleTree as MerkleTreeOnchain},
-	};
-
-	use Testing_Hardcoded_Params_devnet_new::utils::{init_bytes18, prepared_verifying_key::*};
-
-	use Testing_Hardcoded_Params_devnet_new::utils::prepared_verifying_key::*;
+	use light_protocol_core::groth16_verifier::parsers::*;
+	use light_protocol_core::utils::prepared_verifying_key::*;
+	use solana_program::program_pack::Pack;
+	use std::fs::File;
 
 	pub fn get_pvk_from_bytes_254() -> Result<
 		ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
@@ -59,9 +35,6 @@ pub mod tests {
 		let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
 			.expect("Something went wrong reading the file");
 		let v: Value = serde_json::from_str(&contents)?;
-		//println!("{}",  v);
-
-		//println!("With text:\n{:?}", v["vk_alpha_1"][1]);
 
 		let mut a_g1_bigints = Vec::new();
 		for i in 0..2 {
@@ -77,10 +50,8 @@ pub mod tests {
 			a_g1_bigints[1],
 			false,
 		);
-		println!(" alpha_g1 {}", alpha_g1_bigints);
 
 		let mut b_g2_bigints = Vec::new();
-		//println!("{}",  v["vk_beta_2"]);
 		for i in 0..2 {
 			for j in 0..2 {
 				let mut bytes: Vec<u8> = Vec::new();
@@ -103,12 +74,8 @@ pub mod tests {
 			),
 			false,
 		);
-		for (i, _) in b_g2_bigints.iter().enumerate() {
-			//println!("b_g2 {}", b_g2_bigints[i]);
-		}
 
 		let mut delta_g2_bytes = Vec::new();
-		//println!("{}",  v["vk_delta_2"]);
 		for i in 0..2 {
 			for j in 0..2 {
 				let mut bytes: Vec<u8> = Vec::new();
@@ -132,12 +99,7 @@ pub mod tests {
 			false,
 		);
 
-		for (i, _) in delta_g2_bytes.iter().enumerate() {
-			//println!("delta_g2 {}", delta_g2_bytes[i]);
-		}
-
 		let mut gamma_g2_bytes = Vec::new();
-		//println!("{}",  v["vk_gamma_2"]);
 		for i in 0..2 {
 			for j in 0..2 {
 				let mut bytes: Vec<u8> = Vec::new();
@@ -160,40 +122,22 @@ pub mod tests {
 			false,
 		);
 
-		for (i, _) in gamma_g2_bytes.iter().enumerate() {
-			//println!("gamma_g2 {}", gamma_g2_bytes[i]);
-		}
-
 		let mut gamma_abc_g1_bigints_bytes = Vec::new();
 
 		for i in 0..8 {
-			//for j in 0..1 {
 			let mut g1_bytes = Vec::new();
-			//println!("{:?}", v["IC"][i][j]);
-			//println!("Iter: {}", i);
 			for u in 0..2 {
-				//println!("{:?}", v["IC"][i][u]);
 				let mut bytes: Vec<u8> = Vec::new();
 				for z in v["IC"][i][u].as_str().unwrap().split(',') {
 					bytes.push((*z).parse::<u8>().unwrap());
 				}
-				//println!("bytes.len() {} {}", bytes.len(), bytes[bytes.len() - 1]);
 				g1_bytes
 					.push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
 			}
 			gamma_abc_g1_bigints_bytes.push(ark_ec::models::bn::g1::G1Affine::<
 				ark_bn254::Parameters,
 			>::new(g1_bytes[0], g1_bytes[1], false));
-			//}
 		}
-		//println!("{:?}", gamma_abc_g1_bigints_bytes);
-
-		//let string: str = String(v["vk_alpha_1"][1].to_string());
-
-		// println!("{:?}", bytes);
-
-		// let test_bigint: BigInteger384 = b"1303703767005851722774629343754215733783027212042241028503844419575444644222078222865715146086337294141748947680479".into();
-		// println!("With text:\n{}", test_bigint);
 
 		Ok(ark_groth16::data_structures::VerifyingKey::<
 			ark_ec::models::bn::Bn<ark_bn254::Parameters>,
@@ -212,9 +156,6 @@ pub mod tests {
 		let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
 			.expect("Something went wrong reading the file");
 		let v: Value = serde_json::from_str(&contents)?;
-		//println!("{}",  v);
-
-		//println!("With text:\n{:?}", v["vk_alpha_1"][1]);
 
 		let mut a_g1_bigints = Vec::new();
 		for i in 0..2 {
@@ -222,26 +163,16 @@ pub mod tests {
 			for i in v["pi_a"][i].as_str().unwrap().split(',') {
 				bytes.push((*i).parse::<u8>().unwrap());
 			}
-			//println!("{}",v["pi_a"][i]);
-			//println!("{:?}", bytes);
 			a_g1_bigints
 				.push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
 		}
-		//println!("{}", a_g1_bigints[0]);
-		//use ark_ff::fields::models::Fp256;
-		//println!("{}", ark_ff::Fp256::<ark_bn254::FqParameters>::new(a_g1_bigints[0]));
-		//println!("{:?}",hex::decode("0B85DC05397EAC823D25C7C4682A0BE95141A33334C65A857D2491680F972BA4A5D50D9FB71A87E0594E32C02B9484E4").unwrap());
 		let a_g1 = ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-			//ark_ff::Fp256::<ark_bn254::FqParameters>::new(a_g1_bigints[0]),
-			//ark_ff::Fp256::<ark_bn254::FqParameters>::new(a_g1_bigints[1]),
 			a_g1_bigints[0],
 			a_g1_bigints[1],
 			false,
 		);
-		//println!("{}", alpha_g1_bigints);
 
 		let mut b_g2_bigints = Vec::new();
-		//println!("{}",  v["vk_beta_2"]);
 		for i in 0..2 {
 			for j in 0..2 {
 				let mut bytes: Vec<u8> = Vec::new();
@@ -264,7 +195,6 @@ pub mod tests {
 			false,
 		);
 
-		//println!("{:?}", beta_g2);
 		let mut c_g1_bigints = Vec::new();
 		for i in 0..2 {
 			let mut bytes: Vec<u8> = Vec::new();
@@ -280,8 +210,6 @@ pub mod tests {
 			false,
 		);
 
-		//println!("{:?}", delta_g2);
-
 		Ok(
 			ark_groth16::data_structures::Proof::<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
 				a: a_g1,
@@ -295,12 +223,7 @@ pub mod tests {
 		let contents = fs::read_to_string("./tests/public_inputs_254_bytes.txt")
 			.expect("Something went wrong reading the file");
 		let v: Value = serde_json::from_str(&contents)?;
-		//println!("{}",  v);
 
-		//println!("With text:\n{:?}", v["vk_alpha_1"][1]);
-		//let mut public_inputs = Vec::new();
-
-		//println!("{}", v[0]);
 		let mut res = Vec::new();
 		for i in 0..7 {
 			let mut bytes: Vec<u8> = Vec::new();
@@ -517,9 +440,8 @@ pub mod tests {
 
 		let public_inputs = get_public_inputs_from_bytes_254()?;
 
-		let res = verify_proof(&pvk, &proof, &public_inputs[..]);
+		let _res = verify_proof(&pvk, &proof, &public_inputs[..]);
 
-		//println!("{:?}", pvk);
 		Ok(())
 	}
 
@@ -547,7 +469,7 @@ pub mod tests {
 				.iter(),
 			);
 		//starting result
-		let mut f = miller_output;
+		let f = miller_output;
 
 		//library result for reference
 		let res_origin = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&f).unwrap();
@@ -1037,8 +959,8 @@ pub mod tests {
 
 				custom_cyclotomic_square_in_place(&mut account_struct.y0_range_s);
 
-				if naf_vec[i] != 0 {
-					if naf_vec[i] > 0 {
+				if NAF_VEC[i] != 0 {
+					if NAF_VEC[i] > 0 {
 						//println!("if i {}", i);
 						//instruction 16 ---------------------------------------------
 						instruction_order.push(16);
@@ -1236,8 +1158,8 @@ pub mod tests {
 				_process_instruction(&mut account_struct1, 25);
 				custom_cyclotomic_square_in_place(&mut account_struct.y2_range_s);
 
-				if naf_vec[i] != 0 {
-					if naf_vec[i] > 0 {
+				if NAF_VEC[i] != 0 {
+					if NAF_VEC[i] > 0 {
 						//instruction 26 ---------------------------------------------
 						instruction_order.push(26);
 						assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
@@ -1375,8 +1297,8 @@ pub mod tests {
 				_process_instruction(&mut account_struct1, 32);
 				custom_cyclotomic_square_in_place(&mut account_struct.y6_range);
 
-				if naf_vec[i] != 0 {
-					if naf_vec[i] > 0 {
+				if NAF_VEC[i] != 0 {
+					if NAF_VEC[i] > 0 {
 						//instruction 33 ---------------------------------------------
 						instruction_order.push(33);
 						assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
@@ -2045,7 +1967,7 @@ pub mod tests {
 		})
 	}
 
-	pub const instruction_order_const: [u8; 371] = [
+	pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [
 		0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15,
 		16, 17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16,
 		17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15,
@@ -2071,7 +1993,7 @@ pub mod tests {
 		let mut account_struct = FinalExpBytes::new();
 
 		parse_f_to_bytes(*f, &mut account_struct.f_f2_range_s);
-		account_struct.changed_variables[f_f2_range_iter] = true;
+		account_struct.changed_variables[F_F2_RANGE_ITER] = true;
 		let mut account_onchain_slice = [0u8; 3900];
 		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
 		let path = "tests/fe_onchain_init_bytes.rs";
@@ -2086,7 +2008,7 @@ pub mod tests {
 			)
 		);
 
-		for i in instruction_order_const {
+		for i in INSTRUCTION_ORDER_CONST {
 			let mut account_struct_tmp =
 				<FinalExpBytes as Pack>::unpack(&account_onchain_slice).unwrap();
 			println!("processor iter : {}", i);

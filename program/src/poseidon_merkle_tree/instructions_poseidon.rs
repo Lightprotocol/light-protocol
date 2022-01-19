@@ -147,7 +147,7 @@ pub fn permute_instruction_last(
 
 //foundational functions for instructions
 pub fn prepare_inputs(
-    parameters: &PoseidonParameters<Fq>,
+    _parameters: &PoseidonParameters<Fq>,
     left_input: &[u8],
     right_input: &[u8],
 ) -> Result<Vec<Fq>, Error> /*-> Result<Self::Output, Error> */ {
@@ -156,7 +156,6 @@ pub fn prepare_inputs(
     const INPUT_SIZE_BITS: usize =
         ark_ff::biginteger::BigInteger256::NUM_LIMBS * 8 * PoseidonCircomRounds3::WIDTH * 8;
     const LEFT_INPUT_SIZE_BITS: usize = INPUT_SIZE_BITS / 2;
-    const RIGHT_INPUT_SIZE_BITS: usize = INPUT_SIZE_BITS / 2;
     assert_eq!(left_input.len(), right_input.len());
     assert!(left_input.len() * 8 <= LEFT_INPUT_SIZE_BITS);
     let chained: Vec<_> = left_input

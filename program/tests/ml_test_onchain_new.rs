@@ -1,21 +1,11 @@
 use crate::tokio::time::timeout;
-use ark_crypto_primitives::Error;
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::{Fp256, FromBytes};
-use solana_program::program_pack::Pack;
-use Testing_Hardcoded_Params_devnet_new::{
+use light_protocol_core::{
+    groth16_verifier::{miller_loop::state::*, parsers::*, prepare_inputs::state::*},
     poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
     process_instruction,
-    utils::init_bytes18,
     utils::prepared_verifying_key::*,
-    Groth16_verifier::{
-        final_exponentiation::ranges::*,
-        final_exponentiation::state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
-        miller_loop::state::*,
-        parsers::*,
-        prepare_inputs::state::*,
-    },
 };
+use solana_program::program_pack::Pack;
 
 use serde_json::{Result, Value};
 use {
@@ -28,8 +18,6 @@ use {
     std::str::FromStr,
 };
 
-use ark_ed_on_bn254::Fq;
-use ark_ff::BigInteger;
 use solana_program_test::ProgramTestContext;
 use std::convert::TryInto;
 use std::{fs, time};
@@ -51,7 +39,7 @@ pub async fn create_and_start_program_var(
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         *program_id,
         processor!(process_instruction),
     );
@@ -76,7 +64,7 @@ pub async fn create_and_start_program_var(
         program_context.last_blockhash,
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let res_request = program_context
+    let _res_request = program_context
         .banks_client
         .process_transaction(transaction)
         .await;
@@ -100,7 +88,7 @@ pub async fn restart_program(
         *current_data = Some(account.data.to_vec());
     }
     // accounts_vector[1].2 = Some(storage_account.data.to_vec());
-    let mut program_context_new =
+    let program_context_new =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
     program_context_new
 }

@@ -2,41 +2,16 @@
 pub mod tests {
     use ark_bn254;
     use ark_ed_on_bn254;
-    use ark_ed_on_bn254::Fq;
     use ark_std::vec::Vec;
 
     use ark_ec;
-    use ark_ff::biginteger::{BigInteger256, BigInteger384};
-    use ark_ff::bytes::{FromBytes, ToBytes};
+    use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use ark_groth16::{
-        prepare_inputs, prepare_verifying_key, verify_proof, verify_proof_with_prepared_inputs,
-    };
-    use ark_std::One;
     use serde_json::{Result, Value};
-    use solana_program::{program_error::ProgramError, program_pack::Pack};
     use std::fs;
 
-    use ark_ec::{AffineCurve, ProjectiveCurve};
-
-    use Testing_Hardcoded_Params_devnet_new::{
-        utils::prepared_verifying_key::*,
-        Groth16_verifier::{
-            miller_loop::{processor::*, state::*},
-            parsers::*,
-        },
-    };
-
     // For native miller loop implementation
-    use ark_bn254::Fq12Parameters;
-    use ark_ff::fields::models::fp6_3over2::{Fp6, Fp6Parameters};
-    use ark_ff::fields::models::quadratic_extension::QuadExtParameters;
-    use ark_ff::fields::{
-        fp12_2over3over2::{Fp12, Fp12Parameters},
-        Field, Fp2,
-    };
-    use ark_ff::Fp12ParamsWrapper;
 
     pub fn get_public_inputs_from_bytes(
         public_inputs_bytes: &Vec<u8>,
@@ -59,10 +34,6 @@ pub mod tests {
         let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
-        //println!("{}",  v);
-
-        //println!("With text:\n{:?}", v["vk_alpha_1"][1]);
-
         let mut a_g1_bigints = Vec::new();
         for i in 0..2 {
             let mut bytes: Vec<u8> = Vec::new();
@@ -79,7 +50,6 @@ pub mod tests {
         );
 
         let mut b_g2_bigints = Vec::new();
-        //println!("{}",  v["vk_beta_2"]);
         for i in 0..2 {
             for j in 0..2 {
                 let mut bytes: Vec<u8> = Vec::new();
@@ -102,12 +72,8 @@ pub mod tests {
             ),
             false,
         );
-        for (i, _) in b_g2_bigints.iter().enumerate() {
-            //println!("b_g2 {}", b_g2_bigints[i]);
-        }
 
         let mut delta_g2_bytes = Vec::new();
-        //println!("{}",  v["vk_delta_2"]);
         for i in 0..2 {
             for j in 0..2 {
                 let mut bytes: Vec<u8> = Vec::new();
@@ -131,12 +97,7 @@ pub mod tests {
             false,
         );
 
-        for (i, _) in delta_g2_bytes.iter().enumerate() {
-            //println!("delta_g2 {}", delta_g2_bytes[i]);
-        }
-
         let mut gamma_g2_bytes = Vec::new();
-        //println!("{}",  v["vk_gamma_2"]);
         for i in 0..2 {
             for j in 0..2 {
                 let mut bytes: Vec<u8> = Vec::new();
@@ -159,24 +120,15 @@ pub mod tests {
             false,
         );
 
-        for (i, _) in gamma_g2_bytes.iter().enumerate() {
-            //println!("gamma_g2 {}", gamma_g2_bytes[i]);
-        }
-
         let mut gamma_abc_g1_bigints_bytes = Vec::new();
 
         for i in 0..8 {
-            //for j in 0..1 {
             let mut g1_bytes = Vec::new();
-            //println!("{:?}", v["IC"][i][j]);
-            //println!("Iter: {}", i);
             for u in 0..2 {
-                //println!("{:?}", v["IC"][i][u]);
                 let mut bytes: Vec<u8> = Vec::new();
                 for z in v["IC"][i][u].as_str().unwrap().split(',') {
                     bytes.push((*z).parse::<u8>().unwrap());
                 }
-                //println!("bytes.len() {} {}", bytes.len(), bytes[bytes.len() - 1]);
                 g1_bytes
                     .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
             }

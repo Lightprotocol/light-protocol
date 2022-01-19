@@ -3,11 +3,11 @@ use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramErro
 use crate::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree};
 use crate::utils::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
 /*
-pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes_account:&mut HashBytes) {
-    hash_bytes_account.current_index =  merkle_tree_account.next_index;
-    assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
+pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, tmp_storage_account:&mut HashBytes) {
+    tmp_storage_account.current_index =  merkle_tree_account.next_index;
+    assert!(tmp_storage_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
 
-    hash_bytes_account.current_level_hash = leaf.clone();
+    tmp_storage_account.current_level_hash = leaf.clone();
     merkle_tree_account.leaves = leaf.clone();
 
 
@@ -16,74 +16,101 @@ pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, hash_bytes
 */
 pub fn insert_0_double(
     merkle_tree_account: &mut MerkleTree,
-    hash_bytes_account: &mut HashBytes,
+    tmp_storage_account: &mut HashBytes,
 ) -> Result<(), ProgramError> {
-    hash_bytes_account.current_index = merkle_tree_account.next_index / 2;
-    msg!("current index hash bytes: {}", hash_bytes_account.current_index);
-    msg!("hash_bytes_account.leaf_left: {:?}", hash_bytes_account.leaf_left);
-    msg!("hash_bytes_account.leaf_right: {:?}", hash_bytes_account.leaf_right);
+    tmp_storage_account.current_index = merkle_tree_account.next_index / 2;
+    msg!(
+        "current index hash bytes: {}",
+        tmp_storage_account.current_index
+    );
+    msg!(
+        "tmp_storage_account.leaf_left: {:?}",
+        tmp_storage_account.leaf_left
+    );
+    msg!(
+        "tmp_storage_account.leaf_right: {:?}",
+        tmp_storage_account.leaf_right
+    );
 
-    //assert!(hash_bytes_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
-    if hash_bytes_account.current_index == 262144 {
+    //assert!(tmp_storage_account.current_index != 2048/*2usize^merkle_tree_account.levels*/, "Merkle tree is full. No more leaves can be added");
+    if tmp_storage_account.current_index == 262144 {
         msg!("Merkle tree full");
         return Err(ProgramError::InvalidInstructionData);
     }
-    hash_bytes_account.left = hash_bytes_account.leaf_left.clone();
-    hash_bytes_account.right = hash_bytes_account.leaf_right.clone();
-    hash_bytes_account.current_level = 1;
+    tmp_storage_account.left = tmp_storage_account.leaf_left.clone();
+    tmp_storage_account.right = tmp_storage_account.leaf_right.clone();
+    tmp_storage_account.current_level = 1;
     merkle_tree_account.inserted_leaf = true;
     //zeroing out prior state since the account was used for prior computation
-    hash_bytes_account.state = vec![vec![0u8; 32]; 3];
-    hash_bytes_account.current_round = 0;
-    hash_bytes_account.current_round_index = 0;
-    hash_bytes_account.current_level_hash = vec![0u8; 32];
+    tmp_storage_account.state = vec![vec![0u8; 32]; 3];
+    tmp_storage_account.current_round = 0;
+    tmp_storage_account.current_round_index = 0;
+    tmp_storage_account.current_level_hash = vec![0u8; 32];
     Ok(())
 }
 
 pub fn insert_1_inner_loop(
     merkle_tree_account: &mut MerkleTree,
-    hash_bytes_account: &mut HashBytes,
+    tmp_storage_account: &mut HashBytes,
 ) -> Result<(), ProgramError> {
-    msg!("insert_1_inner_loop_0 level {:?}",hash_bytes_account.current_level);
-    msg!("current_level_hash {:?}",hash_bytes_account.current_level_hash);
-    if hash_bytes_account.current_level != 0 {
-        hash_bytes_account.current_level_hash = hash_bytes_account.state[0].clone();
+    msg!(
+        "insert_1_inner_loop_0 level {:?}",
+        tmp_storage_account.current_level
+    );
+    msg!(
+        "current_level_hash {:?}",
+        tmp_storage_account.current_level_hash
+    );
+    if tmp_storage_account.current_level != 0 {
+        tmp_storage_account.current_level_hash = tmp_storage_account.state[0].clone();
     }
 
-    if hash_bytes_account.current_index % 2 == 0 {
-        msg!("updating subtree: {:?}", hash_bytes_account.current_level_hash);
-        hash_bytes_account.left = hash_bytes_account.current_level_hash.clone();
-        hash_bytes_account.right = ZERO_BYTES_MERKLE_TREE_18
-            [hash_bytes_account.current_level * 32..(hash_bytes_account.current_level * 32 + 32)]
+    if tmp_storage_account.current_index % 2 == 0 {
+        msg!(
+            "updating subtree: {:?}",
+            tmp_storage_account.current_level_hash
+        );
+        tmp_storage_account.left = tmp_storage_account.current_level_hash.clone();
+        tmp_storage_account.right = ZERO_BYTES_MERKLE_TREE_18
+            [tmp_storage_account.current_level * 32..(tmp_storage_account.current_level * 32 + 32)]
             .to_vec()
             .clone();
-        merkle_tree_account.filled_subtrees[hash_bytes_account.current_level] =
-            hash_bytes_account.current_level_hash.clone();
+        merkle_tree_account.filled_subtrees[tmp_storage_account.current_level] =
+            tmp_storage_account.current_level_hash.clone();
     } else {
-        hash_bytes_account.left =
-            merkle_tree_account.filled_subtrees[hash_bytes_account.current_level].clone();
-        hash_bytes_account.right = hash_bytes_account.current_level_hash.clone();
+        tmp_storage_account.left =
+            merkle_tree_account.filled_subtrees[tmp_storage_account.current_level].clone();
+        tmp_storage_account.right = tmp_storage_account.current_level_hash.clone();
     }
-    hash_bytes_account.current_index /= 2;
-    hash_bytes_account.current_level += 1;
-    msg!("current_index {:?}",hash_bytes_account.current_index);
+    tmp_storage_account.current_index /= 2;
+    tmp_storage_account.current_level += 1;
+    msg!("current_index {:?}", tmp_storage_account.current_index);
 
-    msg!("hash_bytes_account.leaf_left: {:?}", hash_bytes_account.left);
-    msg!("hash_bytes_account.leaf_right: {:?}", hash_bytes_account.right);
+    msg!(
+        "tmp_storage_account.leaf_left: {:?}",
+        tmp_storage_account.left
+    );
+    msg!(
+        "tmp_storage_account.leaf_right: {:?}",
+        tmp_storage_account.right
+    );
     Ok(())
 }
 
 pub fn insert_last_double(
     merkle_tree_account: &mut MerkleTree,
-    hash_bytes_account: &mut HashBytes,
-) -> Result<(), ProgramError>{
+    tmp_storage_account: &mut HashBytes,
+) -> Result<(), ProgramError> {
     merkle_tree_account.current_root_index =
         (merkle_tree_account.current_root_index + 1) % merkle_tree_account.root_history_size;
     merkle_tree_account.next_index += 2;
-    msg!("merkle_tree_account.next_index {:?}",merkle_tree_account.next_index);
+    msg!(
+        "merkle_tree_account.next_index {:?}",
+        merkle_tree_account.next_index
+    );
 
     //roots unpacks only the current root and write only this one
-    merkle_tree_account.roots = hash_bytes_account.state[0].clone();
+    merkle_tree_account.roots = tmp_storage_account.state[0].clone();
     merkle_tree_account.inserted_root = true;
     Ok(())
 }

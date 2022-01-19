@@ -1,5 +1,5 @@
 /program/target
-/program/dist/Testing_Hardcoded_Params_devnet_new.so
+/program/dist/light_protocol_core.so
 /program/node_modules
 /program/test-ledger
 /program/run.sh

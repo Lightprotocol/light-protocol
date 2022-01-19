@@ -13,13 +13,13 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 
-use Testing_Hardcoded_Params_devnet_new::{
-    utils::prepared_verifying_key::*,
-    Groth16_verifier::{
+use light_protocol_core::{
+    groth16_verifier::{
         parsers::*,
         prepare_inputs,
         prepare_inputs::{processor::*, state::*},
     },
+    utils::prepared_verifying_key::*,
 };
 mod fe_offchain_test;
 use crate::fe_offchain_test::tests::get_pvk_from_bytes_254;

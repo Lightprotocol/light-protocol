@@ -39,7 +39,7 @@ impl Pack for LiBytes {
         let input = array_ref![input, 0, LiBytes::LEN];
 
         let (
-            is_initialized,
+            _is_initialized,
             found_root,
             found_nullifier,
             executed_withdraw,
@@ -53,7 +53,7 @@ impl Pack for LiBytes {
             tx_integrity_hash,
             current_instruction_index,
             //220
-            unused_remainder,
+            _unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384]; // 8->32 -- 24+ (old rem: 3296)
         msg!("unpacked");
@@ -99,18 +99,18 @@ impl Pack for LiBytes {
             //variables
             current_instruction_index_dst,
             //220
-            unused_remainder_dst,
+            _unused_remainder_dst,
             proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
 
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
                 if i == 0 {
-                    *found_root_dst = [self.found_root.clone(); 1];
+                    *found_root_dst = [self.found_root; 1]; // TODO: check if removing CLONE() as per clippy has side effects
                 } else if i == 1 {
-                    *found_nullifier_dst = [self.found_nullifier.clone(); 1];
+                    *found_nullifier_dst = [self.found_nullifier; 1];
                 } else if i == 2 {
-                    *executed_withdraw_dst = [self.executed_withdraw.clone(); 1];
+                    *executed_withdraw_dst = [self.executed_withdraw; 1];
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
@@ -137,7 +137,7 @@ impl Pack for LiBytes {
             }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        *is_initialized_dst = *is_initialized_dst;
+        // *is_initialized_dst = *is_initialized_dst;
     }
 }
 
@@ -165,11 +165,11 @@ impl Pack for InstructionIndex {
 
         let (
             is_initialized,
-            unused_remainder0,
+            _unused_remainder0,
             signer_pubkey,
-            unused_remainder1,
+            _unused_remainder1,
             current_instruction_index,
-            unused_remainder2,
+            _unused_remainder2,
         ) = array_refs![input, 1, 3, 32, 176, 8, 3680];
         if is_initialized[0] == 0 {
             Err(ProgramError::InvalidAccountData)
@@ -185,9 +185,9 @@ impl Pack for InstructionIndex {
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, InstructionIndex::LEN];
 
-        let (is_initialized, unused_remainder0, current_instruction_index, unused_remainder1) =
+        let (_is_initialized, _unused_remainder0, _current_instruction_index, _unused_remainder1) =
             mut_array_refs![dst, 1, 211, 8, 3680];
         //is not meant to be used
-        *is_initialized = *is_initialized;
+        // *is_initialized = *is_initialized;
     }
 }

@@ -17,6 +17,11 @@ use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestError;
 use solana_sdk::signer::keypair::Keypair;
 use {
+    light_protocol_core::{
+        groth16_verifier::final_exponentiation::state::INSTRUCTION_ORDER_VERIFIER_PART_2,
+        poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
+        process_instruction,
+    },
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
@@ -27,11 +32,6 @@ use {
         transport::TransportError,
     },
     std::str::FromStr,
-    Testing_Hardcoded_Params_devnet_new::{
-        poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
-        process_instruction,
-        Groth16_verifier::final_exponentiation::state::INSTRUCTION_ORDER_VERIFIER_PART_2,
-    },
 };
 
 use ark_groth16::prepare_verifying_key;
@@ -41,12 +41,12 @@ use ark_groth16::verify_proof;
 use std::{thread, time};
 
 use ark_ec::ProjectiveCurve;
+use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExpBytes;
+use light_protocol_core::groth16_verifier::parsers::parse_f_to_bytes;
+use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
+use light_protocol_core::groth16_verifier::parsers::*;
 use serde_json::Value;
 use std::fs;
-use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::final_exponentiation::state::FinalExpBytes;
-use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_f_to_bytes;
-use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_x_group_affine_from_bytes;
-use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::*;
 #[tokio::test]
 async fn test_final_exp_correct() /*-> Result<(), TransportError>*/
 {
@@ -231,7 +231,7 @@ pub async fn create_and_start_program_var(
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         *program_id,
         processor!(process_instruction),
     );

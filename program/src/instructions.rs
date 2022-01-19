@@ -1,7 +1,6 @@
 use ark_ed_on_bn254::Fq;
 use ark_ff::PrimeField;
 
-use solana_program::clock::DEFAULT_SLOTS_PER_EPOCH;
 use solana_program::program::invoke_signed;
 use solana_program::system_instruction;
 use solana_program::{
@@ -12,23 +11,21 @@ use solana_program::{
 use crate::state::LiBytes;
 use crate::state_check_nullifier::NullifierBytesPda;
 use crate::Groth16Processor;
-use ark_ff::FromBytes;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
 
 pub fn check_tx_integrity_hash(
     recipient: Vec<u8>,
-    extAmount: Vec<u8>,
+    ext_amount: Vec<u8>,
     relayer: Vec<u8>,
     fee: Vec<u8>,
-    tx_integrity_hash: &Vec<u8>,
+    tx_integrity_hash: &[u8], // Vec<u8> TODO: CLIPPY
 ) -> Result<(), ProgramError> {
-    let input = [recipient, extAmount, relayer, fee].concat();
+    let input = [recipient, ext_amount, relayer, fee].concat();
 
-    let mut hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
+    let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
 
-    if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash[..])
-    {
+    if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
         msg!("tx_integrity_hash verification failed");
         return Err(ProgramError::InvalidInstructionData);
     }
@@ -53,7 +50,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
         true, //rent_exempt
     )?;
 
-    let mut nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
+    let nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
     NullifierBytesPda::pack_into_slice(
         &nullifier_account_data,
         &mut nullifier_account.data.borrow_mut(),
@@ -74,10 +71,10 @@ pub fn create_and_check_account<'a, 'b>(
 ) -> Result<(), ProgramError> {
     msg!(
         "domain_sep_seed: {:?}",
-        &[&_instruction_data[..], &domain_sep_seed[..]]
+        &[&_instruction_data, &domain_sep_seed]
     );
     let derived_pubkey =
-        Pubkey::find_program_address(&[&_instruction_data[..], &domain_sep_seed[..]], &program_id);
+        Pubkey::find_program_address(&[_instruction_data, domain_sep_seed], program_id); // TODO: clippy. check if [..] rm has sideeffects
 
     if derived_pubkey.0 != *derived_account.key {
         msg!("passed inaccount is wrong");
@@ -89,7 +86,7 @@ pub fn create_and_check_account<'a, 'b>(
     }
     let rent = Rent::default();
     let mut account_lamports = lamports;
-    if rent_exempt == true {
+    if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
     }
     //msg!("number_storage_bytes {}", lamports + rent.minimum_balance(number_storage_bytes.try_into().unwrap()));
@@ -99,9 +96,9 @@ pub fn create_and_check_account<'a, 'b>(
             derived_account.key,
             // 1e7 as u64,
             //lamports, // TODO: adapt
-            account_lamports, //.max(1),
-            number_storage_bytes.try_into().unwrap(),
-            &program_id,
+            account_lamports,     //.max(1),
+            number_storage_bytes, //.try_into().unwrap(),
+            program_id,
         ),
         &[
             signer_account.clone(),
@@ -113,15 +110,15 @@ pub fn create_and_check_account<'a, 'b>(
         // callee program, the final seed being a single-element slice
         // containing the `u8` bump seed.
         &[&[
-            &_instruction_data[..],
-            &domain_sep_seed[..],
+            _instruction_data,
+            domain_sep_seed, // Almighty clippy. check if rm [..] has sideffects
             &[derived_pubkey.1],
         ]],
     )?;
 
     //check for rent exemption
-    if rent_exempt == true {
-        if rent.is_exempt(**derived_account.lamports.borrow(), 2) != true {
+    if rent_exempt {
+        if !rent.is_exempt(**derived_account.lamports.borrow(), 2) {
             msg!("account is not rent exempt");
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -129,7 +126,7 @@ pub fn create_and_check_account<'a, 'b>(
     Ok(())
 }
 
-pub fn try_initialize_hash_bytes_account(
+pub fn try_initialize_tmp_storage_account(
     main_account: &AccountInfo,
     _instruction_data: &[u8],
     signing_address: &Pubkey,
@@ -146,12 +143,12 @@ pub fn try_initialize_hash_bytes_account(
         Groth16Processor::new(main_account, main_account_data.current_instruction_index)?;
     groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
-    main_account_data.signing_address = signing_address.to_bytes().to_vec().clone();
-    main_account_data.root_hash = _instruction_data[0..32].to_vec().clone();
-    main_account_data.amount = _instruction_data[32..64].to_vec().clone(); // pubAmount (32bytes)
-    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec().clone(); // Todo: may need LE->BE
+    main_account_data.signing_address = signing_address.to_bytes().to_vec(); // TODO: check if rm clone() has sideeffects
+    main_account_data.root_hash = _instruction_data[0..32].to_vec();
+    main_account_data.amount = _instruction_data[32..64].to_vec(); // pubAmount (32bytes)
+    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec();
 
-    let input_nullifier_0 = _instruction_data[96..128].to_vec().clone();
+    let input_nullifier_0 = _instruction_data[96..128].to_vec();
     let input_nullifier_1 = &_instruction_data[128..160];
 
     let commitment_right = &_instruction_data[160..192];
@@ -165,10 +162,10 @@ pub fn try_initialize_hash_bytes_account(
         input_nullifier_1.to_vec(),
     ]
     .concat();
-    main_account_data.to_address = _instruction_data[480..512].to_vec().clone(); // ..688
-    main_account_data.ext_amount = _instruction_data[512..520].to_vec().clone();
-    let relayer = _instruction_data[520..552].to_vec().clone();
-    let fee = _instruction_data[552..560].to_vec().clone();
+    main_account_data.to_address = _instruction_data[480..512].to_vec(); // ..688
+    main_account_data.ext_amount = _instruction_data[512..520].to_vec();
+    let relayer = _instruction_data[520..552].to_vec();
+    let fee = _instruction_data[552..560].to_vec();
     // let encrypted_output_0 = _instruction_data[560..796].to_vec().clone(); // 16
     // let encrypted_output_1 = _instruction_data[796..1032].to_vec().clone();
 
@@ -208,7 +205,7 @@ pub fn try_initialize_hash_bytes_account(
     check_tx_integrity_hash(
         // vec![1u8, 32],   // recipient
         main_account_data.to_address.to_vec(),
-        // vec![1u8, 8],    // extAmount
+        // vec![1u8, 8],    // ext_amount
         main_account_data.ext_amount.to_vec(),
         // vec![1u8, 32],   // relayer
         relayer.to_vec(),

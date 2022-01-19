@@ -5,7 +5,7 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{account::Account, signature::Signer, transaction::Transaction, msg},
-    Testing_Hardcoded_Params_devnet_new::{
+    light_protocol_core::{
         process_instruction,
         poseidon_merkle_tree::mt_state::{
             MerkleTree,HashBytes
@@ -41,7 +41,7 @@ pub async fn create_and_start_program(
     ) -> ProgramTestContext {
 
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         *program_id,
         processor!(process_instruction),
     );
@@ -60,7 +60,7 @@ pub async fn create_and_start_program(
     program_context
 
 }
-use Testing_Hardcoded_Params_devnet_new::user_account::state::SIZE_UTXO;
+use light_protocol_core::user_account::state::SIZE_UTXO;
 
 #[tokio::test]
 async fn test_user_account_correct() {
