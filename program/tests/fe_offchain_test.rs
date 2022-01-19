@@ -447,7 +447,7 @@ pub mod tests {
 
 	use ark_ff::CubicExtField;
 	#[test]
-	fn final_exp_offchain() -> Result<()> {
+	fn fe_test_offchain() -> Result<()> {
 		let pvk_unprepped = get_pvk_from_bytes_254()?;
 		let pvk = prepare_verifying_key(&pvk_unprepped);
 		let proof = get_proof_from_bytes_254()?;
