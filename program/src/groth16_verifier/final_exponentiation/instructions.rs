@@ -24,9 +24,6 @@ pub fn verify_result(main_account_data: &FinalExpBytes) -> Result<(), ProgramErr
 
     if pvk != main_account_data.y1_range_s {
         msg!("verification failed");
-        // msg!("expected: {:?}", pvk);
-        // panic!();
-        // // msg!("result: {:?}", result);
         return Err(ProgramError::InvalidAccountData);
     }
     Ok(())
