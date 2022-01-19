@@ -48,7 +48,7 @@ use light_protocol_core::groth16_verifier::parsers::*;
 use serde_json::Value;
 use std::fs;
 #[tokio::test]
-async fn test_final_exp_correct() /*-> Result<(), TransportError>*/
+async fn fe_test_onchain() /*-> Result<(), TransportError>*/
 {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
     let storage_pubkey = Pubkey::new_unique();
