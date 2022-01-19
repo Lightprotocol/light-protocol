@@ -31,7 +31,7 @@ pub mod tests {
     pub fn get_vk_from_file() -> Result<
         ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
     > {
-        let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
+        let contents = fs::read_to_string("./tests/test_data/verification_key_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
         let mut a_g1_bigints = Vec::new();

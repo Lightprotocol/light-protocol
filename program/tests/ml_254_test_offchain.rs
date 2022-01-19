@@ -58,7 +58,7 @@ pub mod tests {
     fn get_pvk_from_bytes_254() -> Result<
         ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
     > {
-        let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
+        let contents = fs::read_to_string("./tests/test_data/verification_key_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
         let mut a_g1_bigints = Vec::new();
@@ -183,7 +183,7 @@ pub mod tests {
     fn get_proof_from_bytes_254(
     ) -> Result<ark_groth16::data_structures::Proof<ark_ec::models::bn::Bn<ark_bn254::Parameters>>>
     {
-        let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
+        let contents = fs::read_to_string("./tests/test_data/proof_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
 
@@ -249,7 +249,7 @@ pub mod tests {
     }
 
     fn get_public_inputs_from_bytes_254() -> Result<Vec<Fp256<ark_ed_on_bn254::FqParameters>>> {
-        let contents = fs::read_to_string("./tests/public_inputs_254_bytes.txt")
+        let contents = fs::read_to_string("./tests/test_data/public_inputs_254_bytes.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
         let mut res = Vec::new();
@@ -545,7 +545,7 @@ pub mod tests {
 
         // Testing integrity of the hardcoded bytes:
         // Beware that the asserts only account for the first 64/128 bytes.
-        let contents = fs::read_to_string("./tests/proof_bytes_254.txt")
+        let contents = fs::read_to_string("./tests/test_data/proof_bytes_254.txt")
             .expect("Something went wrong reading the file");
         let v: Value = serde_json::from_str(&contents)?;
 
