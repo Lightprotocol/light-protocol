@@ -72,8 +72,8 @@ async fn test_final_exp_correct() /*-> Result<(), TransportError>*/
     let res = verify_proof(&pvk, &proof, &public_inputs[..]);
     println!("res {:?}", res);
     println!("public_inputs_bytes: {:?}", public_inputs_bytes);
+    panic!("");
 
-    panic!("proof incorrect");
 
     // Calculate miller_ouput with the ark library. Will be used to compare the
     // on-chain output with.
