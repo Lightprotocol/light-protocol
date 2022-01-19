@@ -488,6 +488,7 @@ async fn pi_test_onchain_new() {
         "storage_pubkey add seed: {:?}",
         [&ix_data[105..137], &b"storage"[..]]
     );
+    println!("storage_pubkey: {:?}", storage_pubkey);
     // Pick the data we need from the test file. 9.. bc of input structure
     let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
     let pvk_unprepped = get_vk_from_file().unwrap();

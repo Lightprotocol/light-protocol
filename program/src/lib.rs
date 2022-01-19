@@ -94,6 +94,11 @@ pub fn process_instruction(
                     msg!("wrong signer");
                     Err(ProgramError::IllegalOwner)
                 } else {
+                    msg!(
+                        "current ix index: {}",
+                        account_main_data.current_instruction_index
+                    );
+
                     if account_main_data.current_instruction_index == 1
                         || account_main_data.current_instruction_index == 1502
                     {
@@ -161,7 +166,6 @@ fn create_and_try_initialize_tmp_storage_account(
     let signer_account = next_account_info(account)?;
     let account_main = next_account_info(account)?;
     let system_program_info = next_account_info(account)?;
-    
     create_and_check_account(
         program_id,
         signer_account,
