@@ -72,7 +72,7 @@ async fn test_final_exp_correct() /*-> Result<(), TransportError>*/
     let res = verify_proof(&pvk, &proof, &public_inputs[..]);
     println!("res {:?}", res);
     println!("public_inputs_bytes: {:?}", public_inputs_bytes);
-    panic!("");
+    //panic!("");
 
 
     // Calculate miller_ouput with the ark library. Will be used to compare the
@@ -308,7 +308,7 @@ pub fn get_vk_from_file() -> Result<
     ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
     serde_json::Error,
 > {
-    let contents = fs::read_to_string("./tests/verification_key_bytes_254.txt")
+    let contents = fs::read_to_string("./tests/test_data/verification_key_bytes_254.txt")
         .expect("Something went wrong reading the file");
     let v: Value = serde_json::from_str(&contents)?;
     //println!("{}",  v);
