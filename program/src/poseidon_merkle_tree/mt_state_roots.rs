@@ -1,9 +1,9 @@
 use solana_program::{
     account_info::AccountInfo,
+    log::sol_log_compute_units,
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
-    log::sol_log_compute_units
 };
 
 use arrayref::{array_ref, array_refs};
@@ -35,15 +35,15 @@ impl Pack for MerkleTreeRoots {
 
         let (
             is_initialized,
-            levels,
-            filled_subtrees,
-            current_root_index,
-            next_index,
+            _levels,
+            _filled_subtrees,
+            _current_root_index,
+            _next_index,
             root_history_size,
             //609
             roots,
             //18137
-            unused_remainder,
+            _unused_remainder,
         ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 48];
 
         if is_initialized[0] != 1u8 {
@@ -57,7 +57,7 @@ impl Pack for MerkleTreeRoots {
             root_history_size: u64::from_le_bytes(*root_history_size),
         })
     }
-    fn pack_into_slice(&self, dst: &mut [u8]) {
+    fn pack_into_slice(&self, _dst: &mut [u8]) {
         //is not meant to be called since this structs purpose is to solely unpack roots
         //to check for the existence of one root
     }
@@ -68,8 +68,7 @@ pub fn check_root_hash_exists(
     root_bytes: &Vec<u8>,
     //found_root: &mut u8,
 ) -> Result<u8, ProgramError> {
-
-    let mut account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
+    let account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main.key);
     msg!(
         "merkletree acc key to check: {:?}",
@@ -86,11 +85,10 @@ pub fn check_root_hash_exists(
         return Err(ProgramError::InvalidAccountData);
     }
     msg!("looking for root {:?}", *root_bytes);
-    let mut found_root = 0;
+    let found_root;
     let mut i = 0;
     let mut counter = 0;
     loop {
-
         if account_main_data.roots[i..i + 32] == *root_bytes {
             msg!("found root hash index {}", counter);
             found_root = 1u8;

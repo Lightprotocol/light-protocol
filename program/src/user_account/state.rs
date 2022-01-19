@@ -1,7 +1,5 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
-    msg,
-    //msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
@@ -74,7 +72,6 @@ impl Pack for UserAccount {
                     .enumerate()
                 {
                     *x = self.enc_utxos[i + modifying_index * SIZE_UTXO as usize];
-                    // msg!("i,x {:?} -- {:?}", i, x);
                 }
             }
         }

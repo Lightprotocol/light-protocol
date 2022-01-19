@@ -15,8 +15,8 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    sysvar::rent::Rent,
     sysvar::Sysvar,
-    sysvar::rent::Rent
 };
 
 pub struct MerkleTreeProcessor<'a, 'b> {
@@ -202,14 +202,17 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
             //check leaves account is rent exempt
             let rent = Rent::free();
-            if rent.is_exempt(**leaf_pda.lamports.borrow(), 106) != true {
+            if !rent.is_exempt(**leaf_pda.lamports.borrow(), 106) {
                 msg!("leaves account is not rent exempt");
                 return Err(ProgramError::InvalidAccountData);
             }
             //save leaves into pda account
             leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
             leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
-            msg!("here2 main_account_data.current_index {}", main_account_data.current_index.clone());
+            msg!(
+                "here2 main_account_data.current_index {}",
+                main_account_data.current_index.clone()
+            );
             leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey =
                 mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
@@ -242,7 +245,7 @@ pub fn _process_instruction_merkle_tree(
     id: u8,
     main_account_data: &mut HashBytes,
     merkle_tree_account_data: &mut MerkleTree,
-) -> Result<(), ProgramError>{
+) -> Result<(), ProgramError> {
     msg!("executing instruction {}", id);
     if id == 0 {
         permute_instruction_first(

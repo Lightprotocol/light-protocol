@@ -1,19 +1,17 @@
 use crate::tokio::time::timeout;
-use ark_crypto_primitives::Error;
 use ark_ff::biginteger::BigInteger256;
-use ark_ff::{Fp256, FromBytes};
-use solana_program::program_pack::Pack;
-use Testing_Hardcoded_Params_devnet_new::{
-    poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
-    process_instruction,
-    utils::init_bytes18,
-    Groth16_verifier::{
-        final_exponentiation::ranges::*,
+use ark_ff::Fp256;
+use light_protocol_core::{
+    groth16_verifier::{
         final_exponentiation::state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
         miller_loop::state::*,
         parsers::*,
     },
+    poseidon_merkle_tree::mt_state::MERKLE_TREE_ACC_BYTES,
+    process_instruction,
+    utils::init_bytes18,
 };
+use solana_program::program_pack::Pack;
 
 use serde_json::{Result, Value};
 use {
@@ -26,10 +24,7 @@ use {
     std::str::FromStr,
 };
 
-use ark_ed_on_bn254::Fq;
-use ark_ff::BigInteger;
 use solana_program_test::ProgramTestContext;
-use std::convert::TryInto;
 use std::{fs, time};
 mod fe_onchain_test;
 
@@ -49,7 +44,7 @@ pub async fn create_and_start_program(
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         *program_id,
         processor!(process_instruction),
     );
@@ -84,7 +79,7 @@ pub async fn create_and_start_program(
         program_context.last_blockhash,
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let res_request = program_context
+    let _res_request = program_context
         .banks_client
         .process_transaction(transaction)
         .await;
@@ -98,7 +93,7 @@ pub async fn create_and_start_program_var(
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         *program_id,
         processor!(process_instruction),
     );
@@ -123,7 +118,7 @@ pub async fn create_and_start_program_var(
         program_context.last_blockhash,
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let res_request = program_context
+    let _res_request = program_context
         .banks_client
         .process_transaction(transaction)
         .await;
@@ -147,7 +142,7 @@ pub async fn restart_program(
         *current_data = Some(account.data.to_vec());
     }
     // accounts_vector[1].2 = Some(storage_account.data.to_vec());
-    let mut program_context_new =
+    let program_context_new =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
     program_context_new
 }
@@ -168,10 +163,10 @@ async fn full_test_onchain_new() {
         let j = (*i).parse::<u8>();
         match j {
             Ok(x) => (ix_data.push(x)),
-            Err(e) => (),
+            Err(_e) => (),
         }
     }
-    println!("{:?}", ix_data);
+    println!("instruction data: {:?}", ix_data);
 
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
@@ -208,16 +203,13 @@ async fn full_test_onchain_new() {
     //panic!();
     let mut program_context =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
-    let merkle_tree_account = program_context
+    let _merkle_tree_account = program_context
         .banks_client
         .get_account(merkle_tree_pubkey)
         .await
         .expect("get_account")
         .unwrap();
 
-    //let tx_bytes = tx_bytes["bytes"]
-
-    // println!("yy: {:?}", yy);
     //initialize MerkleTree account
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
@@ -316,12 +308,9 @@ async fn full_test_onchain_new() {
 
     let mut i = 0usize;
     for id in 0..464usize {
-        // 0..912 @working
-        // 0..1808 @
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {
-            let idd: u8 = id as u8;
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
                     program_id,
@@ -344,7 +333,7 @@ async fn full_test_onchain_new() {
 
             match res_request {
                 Ok(_) => success = true,
-                Err(e) => {
+                Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
 
@@ -374,37 +363,6 @@ async fn full_test_onchain_new() {
     unpacked_data = storage_account.data.clone();
 
     println!("account data after p_i: {:?}", unpacked_data);
-
-    // x_1_range: 252..316.
-    // Keep in mind that g_ic_reference_value is based on running groth16.prepare_inputs() with 7 hardcoded inputs.
-    let g_ic_affine = parse_x_group_affine_from_bytes(&unpacked_data[252..316].to_vec());
-    // let g_ic_affine = parse_x_group_affine_from_bytes(&unpacked_data[220..252].to_vec()); // this new
-
-    let g_ic_reference_value =
-        ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
-            Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                4558364185828577028,
-                2968328072905581441,
-                15831331149718564992,
-                1208602698044891702,
-            ])), // Cost: 31
-            Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                15482105712819104980,
-                10686255431817088435,
-                17716373216643709577,
-                264028719181254570,
-            ])), // Cost: 31
-            Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                13014122463130548586,
-                16367981906331090583,
-                13731940001588685782,
-                2029626530375041604,
-            ])), // Cost: 31
-        );
-    // assert_eq!(
-    //     g_ic_projective, g_ic_reference_value,
-    //     "different g_ic projective than libray implementation with the same inputs"
-    // );
 
     /*
      *
@@ -484,30 +442,11 @@ async fn full_test_onchain_new() {
         .expect("get_account")
         .unwrap();
     let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
-    println!("init state f_range: {:?}", account_data.f_range);
-    println!("init state P1x: {:?}", account_data.p_1_x_range);
-    println!("init state P1y: {:?}", account_data.p_1_y_range);
 
-    println!("init state P2x: {:?}", account_data.p_2_x_range);
-    println!("init state P2y: {:?}", account_data.p_2_y_range);
-
-    println!("init state P3x: {:?}", account_data.p_3_x_range);
-    println!("init state P3y: {:?}", account_data.p_3_y_range);
-
-    println!("init state PROOFB: {:?}", account_data.proof_b);
     //assert_eq!(true, false);
     // Executes 1973 following ix.
-    println!("xxxxx");
     let mut i = 8888usize;
     for _id in 0..430usize {
-        // +1 ! 341
-        // 3..612 @merging helpers and add step
-        // 3..639 @14,15,16 merged
-        // 3..693 11,12,13 merged
-        // 3..821 @3,4 merged
-        // 3..884 @d1-d5 merged
-        // 3..1157 @d2-d5 merged
-        // 3..1976
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {
@@ -541,13 +480,6 @@ async fn full_test_onchain_new() {
                         .await
                         .expect("get_account")
                         .unwrap();
-                    // program_context = create_and_start_program(
-                    //     storage_account.data.to_vec(),
-                    //     storage_pubkey,
-                    //     pi_bytes_pubkey,
-                    //     program_id,
-                    // )
-                    // .await;
                     program_context = create_and_start_program(
                         merkle_tree_account.data.to_vec(),
                         storage_account.data.to_vec(),
@@ -572,9 +504,7 @@ async fn full_test_onchain_new() {
         .expect("get_account")
         .unwrap();
     let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
-    //println!("account_data.f_range: {:?}", account_data.f_range);
 
-    // = ark_groth16-miller_output reference
     let reference_f = [
         41, 164, 125, 219, 237, 181, 202, 195, 98, 55, 97, 232, 35, 147, 153, 23, 164, 70, 211,
         144, 151, 9, 219, 197, 234, 13, 164, 242, 67, 59, 148, 5, 132, 108, 82, 161, 228, 167, 20,
@@ -602,9 +532,6 @@ async fn full_test_onchain_new() {
         "onchain f result != reference f (hardcoded from lib call)"
     );
     println!("onchain test success");
-    // println!("Final exp init bytes:  {:?}", storage_account.data);
-    // assert_eq!(true, false);
-    //assert_eq!(true, false);
 
     /*
      *
@@ -613,7 +540,7 @@ async fn full_test_onchain_new() {
      */
 
     let mut i = 0usize;
-    for (instruction_id) in INSTRUCTION_ORDER_VERIFIER_PART_2 {
+    for instruction_id in INSTRUCTION_ORDER_VERIFIER_PART_2 {
         println!("INSTRUCTION_ORDER_VERIFIER_PART_2: {}", instruction_id);
 
         let mut success = false;
@@ -627,7 +554,6 @@ async fn full_test_onchain_new() {
                     vec![
                         AccountMeta::new(signer_pubkey, true),
                         AccountMeta::new(storage_pubkey, false),
-                        //AccountMeta::new(merkle_tree_pubkey, false),
                     ],
                 )],
                 Some(&signer_pubkey),
@@ -643,7 +569,7 @@ async fn full_test_onchain_new() {
 
             match res_request {
                 Ok(_) => success = true,
-                Err(e) => {
+                Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
                     let storage_account = program_context
@@ -652,7 +578,6 @@ async fn full_test_onchain_new() {
                         .await
                         .expect("get_account")
                         .unwrap();
-                    //println!("data: {:?}", storage_account.data);
                     program_context = create_and_start_program(
                         merkle_tree_account.data.to_vec(),
                         storage_account.data.to_vec(),
@@ -665,10 +590,7 @@ async fn full_test_onchain_new() {
                 }
             }
         }
-        // if i == 3 {
-        //     println!("aborted at {}", i);
-        //     break;
-        // }
+
         i += 1;
     }
 
@@ -718,7 +640,7 @@ async fn full_test_onchain_new() {
     let commit = vec![0u8; 32]; //vec![143, 120, 199, 24, 26, 175, 31, 125, 154, 127, 245, 235, 132, 57, 229, 4, 60, 255, 3, 234, 105, 16, 109, 207, 16, 139, 73, 235, 137, 17, 240, 2];//get_poseidon_ref_hash(&left_input[..], &right_input[..]);
 
     let mut i = 0;
-    for (instruction_id) in 0..237 {
+    for instruction_id in 0..237 {
         //println!("instruction data {:?}", [vec![*instruction_id, 0u8], left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat());
         let instruction_data: Vec<u8> = [
             vec![instruction_id, 0u8],
@@ -774,7 +696,7 @@ async fn full_test_onchain_new() {
         } else {
             let mut success = false;
             let mut retries_left = 2;
-            while (retries_left > 0 && success != true) {
+            while retries_left > 0 && success != true {
                 let mut transaction = Transaction::new_with_payer(
                     &[Instruction::new_with_bincode(
                         program_id,
@@ -799,7 +721,7 @@ async fn full_test_onchain_new() {
 
                 match res_request {
                     Ok(_) => success = true,
-                    Err(e) => {
+                    Err(_e) => {
                         println!("retries_left {}", retries_left);
                         retries_left -= 1;
                         let merkle_tree_account = program_context
@@ -808,7 +730,7 @@ async fn full_test_onchain_new() {
                             .await
                             .expect("get_account")
                             .unwrap();
-                        let hash_bytes_account = program_context
+                        let tmp_storage_account = program_context
                             .banks_client
                             .get_account(storage_pubkey)
                             .await
@@ -818,7 +740,7 @@ async fn full_test_onchain_new() {
                         //let old_payer = signer_keypair;
                         program_context = create_and_start_program(
                             merkle_tree_account.data.to_vec(),
-                            hash_bytes_account.data.to_vec(),
+                            tmp_storage_account.data.to_vec(),
                             &merkle_tree_pubkey,
                             &storage_pubkey,
                             //&two_leaves_pda_pubkey,
@@ -833,14 +755,14 @@ async fn full_test_onchain_new() {
                             .await
                             .expect("get_account")
                             .unwrap();
-                        let hash_bytes_account_new = program_context
+                        let tmp_storage_account_new = program_context
                             .banks_client
                             .get_account(storage_pubkey)
                             .await
                             .expect("get_account")
                             .unwrap();
                         assert_eq!(merkle_tree_account_new.data, merkle_tree_account.data);
-                        assert_eq!(hash_bytes_account_new.data, hash_bytes_account.data);
+                        assert_eq!(tmp_storage_account_new.data, tmp_storage_account.data);
                     }
                 }
             }
@@ -871,7 +793,7 @@ async fn full_test_onchain_new() {
      *
      */
 
-    let storage_account = program_context
+    let _storage_account = program_context
         .banks_client
         .get_account(storage_pubkey)
         .await
@@ -915,7 +837,7 @@ async fn full_test_onchain_new() {
     );
     transaction.sign(&[&signer_keypair], program_context.last_blockhash);
 
-    let res_request = timeout(
+    let _res_request = timeout(
         time::Duration::from_millis(500),
         program_context
             .banks_client

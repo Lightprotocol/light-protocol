@@ -2,7 +2,7 @@
 pub mod user_account;
 pub mod utils;
 //merkle tree
-pub mod Groth16_verifier;
+pub mod groth16_verifier;
 pub mod instructions;
 pub mod poseidon_merkle_tree;
 pub mod pre_processor;
@@ -22,7 +22,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::Groth16_verifier::groth16_processor::Groth16Processor;
+use crate::groth16_verifier::groth16_processor::Groth16Processor;
 
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 use crate::utils::init_bytes18;
@@ -73,7 +73,7 @@ pub fn process_instruction(
         let account = &mut accounts_mut.iter();
         let signer_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
-        modify_user_account(&user_account, *signer_account.key, &_instruction_data[9..])
+        modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
     }
     // transact with shielded pool
     else {
@@ -88,71 +88,67 @@ pub fn process_instruction(
 
         match account_main_data {
             Ok(account_main_data) => {
-                (
-                    //msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
-                    // do signer check etc before starting a compute instruction
-                    if account_main_data.signer_pubkey != *signer_account.key {
-                        msg!("wrong signer");
-                        Err(ProgramError::IllegalOwner)
-                    } else {
-                        if account_main_data.current_instruction_index == 1
-                            || account_main_data.current_instruction_index == 1502
-                        {
-                            //TODO should check the nullifier and root in the beginning
-                            //check tx data hash
-                            //_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
-                            //require(isKnownRoot(_args.root), "Invalid merkle root");
-                            //_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
-                            msg!("if pre_process_instruction if");
-                            pre_process_instruction(
-                                program_id,
-                                accounts,
-                                account_main_data.current_instruction_index,
-                            );
+                //msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
+                // do signer check etc before starting a compute instruction
+                if account_main_data.signer_pubkey != *signer_account.key {
+                    msg!("wrong signer");
+                    Err(ProgramError::IllegalOwner)
+                } else {
+                    if account_main_data.current_instruction_index == 1
+                        || account_main_data.current_instruction_index == 1502
+                    {
+                        //TODO should check the nullifier and root in the beginning
+                        //check tx data hash
+                        //_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
+                        //require(isKnownRoot(_args.root), "Invalid merkle root");
+                        //_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
+                        msg!("if pre_process_instruction if");
+                        pre_process_instruction(
+                            program_id,
+                            accounts,
+                            account_main_data.current_instruction_index,
+                        );
 
-                            Ok(())
-                        }
-                        //prepare inputs for proof verification + miller loop and final exponentiation
-                        else if account_main_data.current_instruction_index < 801 + 466 {
-                            let mut groth16_processor = Groth16Processor::new(
-                                account_main,
-                                account_main_data.current_instruction_index,
-                            )?;
-                            groth16_processor.process_instruction_groth16_verifier()?;
-                            Ok(())
-                        }
-                        //merkle tree insertion of new utxos
-                        else if account_main_data.current_instruction_index >= 801 + 466 {
-                            //process_instruction_merkle_tree(&_instruction_data, accounts)?;
-                            let mut merkle_tree_processor =
-                                MerkleTreeProcessor::new(Some(account_main), None)?;
-                            merkle_tree_processor.process_instruction_merkle_tree(accounts);
-                            Ok(())
-                        } else {
-                            Err(ProgramError::InvalidArgument)
-                        }
+                        Ok(())
                     }
-                )
+                    //prepare inputs for proof verification + miller loop and final exponentiation
+                    else if account_main_data.current_instruction_index < 801 + 466 {
+                        let mut groth16_processor = Groth16Processor::new(
+                            account_main,
+                            account_main_data.current_instruction_index,
+                        )?;
+                        groth16_processor.process_instruction_groth16_verifier()?;
+                        Ok(())
+                    }
+                    //merkle tree insertion of new utxos
+                    else if account_main_data.current_instruction_index >= 801 + 466 {
+                        //process_instruction_merkle_tree(&_instruction_data, accounts)?;
+                        let mut merkle_tree_processor =
+                            MerkleTreeProcessor::new(Some(account_main), None)?;
+                        merkle_tree_processor.process_instruction_merkle_tree(accounts);
+                        Ok(())
+                    } else {
+                        Err(ProgramError::InvalidArgument)
+                    }
+                }
             }
             //Try to initialize the account if it's is not initialized yet
             Err(_) => {
-                (
-                    //initialize temporary storage account for shielded pool deposit, transfer or withdraw
-                    create_and_try_initialize_hash_bytes_account(
-                        program_id,
-                        accounts,
-                        3900u64,  //bytes
-                        0 as u64, //lamports
-                        true,     //rent_exempt
-                        &_instruction_data[9..],
-                    )
+                //initialize temporary storage account for shielded pool deposit, transfer or withdraw
+                create_and_try_initialize_tmp_storage_account(
+                    program_id,
+                    accounts,
+                    3900u64, //bytes
+                    0_u64,   //lamports
+                    true,    //rent_exempt
+                    &_instruction_data[9..],
                 )
             }
         }
     }
 }
 
-fn create_and_try_initialize_hash_bytes_account<'a, 'b>(
+fn create_and_try_initialize_tmp_storage_account(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     number_storage_bytes: u64,
@@ -176,7 +172,7 @@ fn create_and_try_initialize_hash_bytes_account<'a, 'b>(
         lamports,             //lamports
         rent_exempt,          //rent_exempt
     )?;
-    try_initialize_hash_bytes_account(account_main, _instruction_data, signer_account.key)
+    try_initialize_tmp_storage_account(account_main, _instruction_data, signer_account.key)
 }
 
 //instruction order

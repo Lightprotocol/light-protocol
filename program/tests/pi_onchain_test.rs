@@ -1,20 +1,20 @@
 use crate::tokio::time::timeout;
+use ark_bn254;
+use ark_crypto_primitives::Error;
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::{Fp256, ToBytes};
-use ark_bn254;
+use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
 use std::time;
-use Testing_Hardcoded_Params_devnet_new::Groth16_verifier::parsers::parse_x_group_affine_from_bytes;
 use {
+    light_protocol_core::process_instruction,
     solana_program::{
         instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey
+        pubkey::Pubkey,
     },
     solana_program_test::*,
     solana_sdk::{account::Account, signature::Signer, transaction::Transaction},
     std::str::FromStr,
-    Testing_Hardcoded_Params_devnet_new::process_instruction,
 };
-use ark_crypto_primitives::{Error};
 // use ark_groth16::prepare_verifying_key;
 // use ark_groth16::{verify_proof, prepare_inputs, verify_proof_with_prepared_inputs};
 // create_and_start_programmod fe_offchain_test::tests;
@@ -25,7 +25,7 @@ pub async fn create_and_start_program(
     program_id: Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "Testing_Hardcoded_Params_devnet_new",
+        "light_protocol_core",
         program_id,
         processor!(process_instruction),
     );
@@ -43,8 +43,7 @@ pub async fn create_and_start_program(
 // TODO: execute prepare_inputs lib call before with the same inputs as onchain, write g_ic to
 // file, and read the value here for an assert. Need to make it compile with ark-groth16 before.
 #[tokio::test]
-async fn test_pi_254_onchain() -> Result<(), Error>{
-
+async fn test_pi_254_onchain() -> Result<(), Error> {
     // let pvk_unprepped = fe_offchain_test::tests::fe_offchain_test::get_pvk_from_bytes_254()?;
     // let pvk = prepare_verifying_key(&pvk_unprepped);
     // let proof = fe_offchain_test::tests::fe_offchain_test::get_proof_from_bytes_254()?;
@@ -72,10 +71,19 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
     let mut program_context =
         create_and_start_program(init_bytes_storage.to_vec(), storage_pubkey, program_id).await;
 
-
     // Executes first ix with input data, this would come from client.
     let inputs_bytes: Vec<u8> = vec![
-        40, 3, 89,73,181,223,102,213,65,254,19,15,156,236,156,28,242,244,137,6,141,198,148,190,214,144,232,66,205,181,194,5,202,36,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,177,80,240,13,221,245,120,254,37,1,128,209,15,117,127,48,128,212,60,0,139,4,61,76,148,132,161,75,84,166,205,39,52,242,73,174,72,47,8,123,19,170,193,153,185,200,250,205,155,186,207,101,19,135,243,148,46,174,54,70,192,214,240,29,66,73,129,124,71,219,147,101,210,32,61,169,93,102,2,121,61,214,146,36,73,175,30,191,82,205,197,197,28,204,51,18, 49,111,114,83,155,28,206,135,243,18,244,157,59,217,100,227,113,62,168,167,211,92,221,133,29,12,187,219,16,97,59,12,160,198,101,107,12,153,155,83,44,166,226,22,139,237,186,192,170,237,48,183,223,198,243,73,14,161,131,26,151,8,45,1
+        40, 3, 89, 73, 181, 223, 102, 213, 65, 254, 19, 15, 156, 236, 156, 28, 242, 244, 137, 6,
+        141, 198, 148, 190, 214, 144, 232, 66, 205, 181, 194, 5, 202, 36, 0, 0, 0, 0, 0, 0, 0, 0,
+        0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 177, 80, 240, 13,
+        221, 245, 120, 254, 37, 1, 128, 209, 15, 117, 127, 48, 128, 212, 60, 0, 139, 4, 61, 76,
+        148, 132, 161, 75, 84, 166, 205, 39, 52, 242, 73, 174, 72, 47, 8, 123, 19, 170, 193, 153,
+        185, 200, 250, 205, 155, 186, 207, 101, 19, 135, 243, 148, 46, 174, 54, 70, 192, 214, 240,
+        29, 66, 73, 129, 124, 71, 219, 147, 101, 210, 32, 61, 169, 93, 102, 2, 121, 61, 214, 146,
+        36, 73, 175, 30, 191, 82, 205, 197, 197, 28, 204, 51, 18, 49, 111, 114, 83, 155, 28, 206,
+        135, 243, 18, 244, 157, 59, 217, 100, 227, 113, 62, 168, 167, 211, 92, 221, 133, 29, 12,
+        187, 219, 16, 97, 59, 12, 160, 198, 101, 107, 12, 153, 155, 83, 44, 166, 226, 22, 139, 237,
+        186, 192, 170, 237, 48, 183, 223, 198, 243, 73, 14, 161, 131, 26, 151, 8, 45, 1,
     ];
     let inputs_bytes_old: Vec<u8> = vec![
         40, 3, 139, 101, 98, 198, 106, 26, 157, 253, 217, 85, 208, 20, 62, 194, 7, 229, 230, 196,
@@ -91,7 +99,11 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
         112, 138, 244, 188, 161, 144, 60, 210, 99, 115, 64, 69, 63, 35, 176, 250, 189, 20, 28, 23,
         2, 19, 94, 196, 88, 14, 51, 12, 21,
     ];
-    println!("inputs bytes length: {} {}", inputs_bytes.len(), inputs_bytes.len());
+    println!(
+        "inputs bytes length: {} {}",
+        inputs_bytes.len(),
+        inputs_bytes.len()
+    );
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -185,13 +197,22 @@ async fn test_pi_254_onchain() -> Result<(), Error>{
     let g_ic_reference_value =
         ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
             Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                4558364185828577028, 2968328072905581441, 15831331149718564992, 1208602698044891702
+                4558364185828577028,
+                2968328072905581441,
+                15831331149718564992,
+                1208602698044891702,
             ])), // Cost: 31
             Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                15482105712819104980, 10686255431817088435, 17716373216643709577, 264028719181254570
+                15482105712819104980,
+                10686255431817088435,
+                17716373216643709577,
+                264028719181254570,
             ])), // Cost: 31
             Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                13014122463130548586, 16367981906331090583, 13731940001588685782, 2029626530375041604
+                13014122463130548586,
+                16367981906331090583,
+                13731940001588685782,
+                2029626530375041604,
             ])), // Cost: 31
         );
     assert_eq!(

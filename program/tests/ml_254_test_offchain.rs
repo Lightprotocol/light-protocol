@@ -20,12 +20,12 @@ pub mod tests {
 
     use ark_ec::{AffineCurve, ProjectiveCurve};
 
-    use Testing_Hardcoded_Params_devnet_new::{
-        utils::prepared_verifying_key::*,
-        Groth16_verifier::{
+    use light_protocol_core::{
+        groth16_verifier::{
             miller_loop::{processor::*, state::*},
             parsers::*,
         },
+        utils::prepared_verifying_key::*,
     };
 
     // For native miller loop implementation
@@ -722,7 +722,6 @@ pub mod tests {
 
                 println!("init state PROOFB: {:?}", account_data.proof_b);
             }
-         
         }
         // Replicating last ix (255, reading f).
         let manual_f = parse_f_from_bytes(&account_data.f_range.to_vec());

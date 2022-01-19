@@ -1,5 +1,5 @@
 [package]
-name = "Testing_Hardcoded_Params_devnet_new"
+name = "light_protocol_core"
 version = "0.1.0"
 authors = ["ananas-block <flow23@protonmail.com>"]
 edition = "2018"

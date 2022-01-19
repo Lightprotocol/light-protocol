@@ -1,12 +1,7 @@
 use crate::user_account::state::{UserAccount, SIZE_UTXO};
 use solana_program::{
-    account_info::AccountInfo,
-    //log::sol_log_compute_units,
-    msg,
-    program_error::ProgramError,
-    program_pack::Pack,
-    pubkey::Pubkey,
-    sysvar::rent::Rent,
+    account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
+    pubkey::Pubkey, sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
@@ -35,19 +30,6 @@ pub fn modify_user_account(
 ) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
 
-    // data.chunks(8 + SIZE_UTXO as usize).map(|x| {
-    //     //first 8 bytes are index
-    //     let modifying_index = usize::from_le_bytes(x[0..8].try_into().unwrap());
-    //     msg!("user account modify here2 {:?}", x);
-    //     //last 64 bytes are the utxo
-    //     let enc_utxo = &x[8..SIZE_UTXO as usize];
-    //     msg!("user account modify here3 {:?}", enc_utxo);
-    //     user_account_data.enc_utxos[modifying_index*SIZE_UTXO as usize..modifying_index*SIZE_UTXO as usize + SIZE_UTXO as usize].iter_mut().enumerate().map( |(i, x)| {
-    //         *x= enc_utxo[i];
-    //
-    //     });
-    //     user_account_data.modified_ranges.push(modifying_index);
-    // });
     if user_account_data.owner_pubkey != signer {
         msg!("wrong signer");
         return Err(ProgramError::InvalidArgument);
@@ -63,15 +45,8 @@ pub fn modify_user_account(
             .enumerate()
         {
             *x = enc_utxo[i];
-            // msg!("i {}, x {}", i, x);
         }
         user_account_data.modified_ranges.push(modifying_index);
-        // msg!("data {:?}",data);
-        msg!(
-            "r: {} .. {}",
-            modifying_index * SIZE_UTXO as usize,
-            modifying_index * SIZE_UTXO as usize + SIZE_UTXO as usize
-        );
     }
 
     UserAccount::pack_into_slice(&user_account_data, &mut account.data.borrow_mut());

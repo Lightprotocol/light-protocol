@@ -139,11 +139,11 @@ impl Pack for MerkleTree {
         LittleEndian::write_u64(next_index_dst, self.next_index.try_into().unwrap());
         LittleEndian::write_u64(
             current_total_deposits_dst,
-            self.current_total_deposits.try_into().unwrap(),
+            self.current_total_deposits, //.try_into().unwrap(),
         );
         *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
 
-        LittleEndian::write_u64(time_locked_dst, self.time_locked.try_into().unwrap());
+        LittleEndian::write_u64(time_locked_dst, self.time_locked); // TODO: check if removing try_into().unwrap() has sideeffects
     }
 }
 
@@ -276,8 +276,8 @@ impl Pack for HashBytes {
             leaf_left_dst,
             leaf_right_dst,
             //+288
-            nullifier_0_dst,
-            nullifier_1_dst,
+            _nullifier_0_dst,
+            _nullifier_1_dst,
         ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut state_tmp = [0u8; 96];
@@ -330,8 +330,14 @@ impl Pack for TwoLeavesBytesPda {
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
 
-        let (is_initialized, account_type,left_leaf_index, leaf_left, leaf_right, merkle_tree_pubkey) =
-            array_refs![input, 1, 1, 8, 32, 32, 32];
+        let (
+            is_initialized,
+            _account_type,
+            _left_leaf_index,
+            _leaf_left,
+            _leaf_right,
+            _merkle_tree_pubkey,
+        ) = array_refs![input, 1, 1, 8, 32, 32, 32];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
@@ -344,7 +350,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right: vec![0u8; 32],
             leaf_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
-            left_leaf_index: 0usize
+            left_leaf_index: 0usize,
         })
     }
 

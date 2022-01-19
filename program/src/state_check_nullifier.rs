@@ -23,7 +23,7 @@ impl Pack for NullifierBytesPda {
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, NullifierBytesPda::LEN];
 
-        let (is_initialized, account_type) = array_refs![input, 1, 1];
+        let (is_initialized, _account_type) = array_refs![input, 1, 1];
         //check that account was not initialized before
         // assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {

@@ -1,30 +1,25 @@
-use crate::instructions::{
-    check_and_insert_nullifier, check_tx_integrity_hash, create_and_check_account,
-};
+use crate::instructions::{check_and_insert_nullifier, create_and_check_account};
 use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
 use crate::state::LiBytes;
-use crate::Groth16_verifier::groth16_processor::Groth16Processor;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
-    log::sol_log_compute_units,
     msg,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
 };
 // use spl_math::uint::U256;
-use ark_ff::biginteger::{BigInteger256, BigInteger384};
-use ark_ff::bytes::{FromBytes, ToBytes};
+use ark_ff::biginteger::BigInteger256;
+use ark_ff::bytes::FromBytes;
 use ark_ff::BigInteger;
-use ark_ff::Fp256;
 use std::convert::{TryFrom, TryInto};
 
 //use crate::process_instruction_merkle_tree;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
-//_args.publicAmount == calculatePublicAmount(_extData.extAmount, _extData.fee)
+//_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
 //check tx data hash
 //deposit and withdraw logic
 pub fn pre_process_instruction(
@@ -110,7 +105,7 @@ pub fn pre_process_instruction(
             )?;
             msg!("created pda account onchain successfully");
             merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
-            // calculate extAmount from pubAmount:
+            // calculate ext_amount from pubAmount:
             let ext_amount_from_pub = i64::from_str_radix(&pub_amount.to_string(), 16).unwrap();
 
             assert_eq!(ext_amount, ext_amount_from_pub, "ext_amount != pub_amount");
@@ -143,7 +138,7 @@ pub fn pre_process_instruction(
             )?;
             msg!("created pda account onchain successfully");
             merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
-            // calculate extAmount from pubAmount:
+            // calculate ext_amount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
                 129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
@@ -151,12 +146,12 @@ pub fn pre_process_instruction(
             let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
             field.sub_noborrow(&pub_amount);
             // field is the positive value
-            let ext_amount_from_pub = field.0[0];
+            let _ext_amount_from_pub = field.0[0];
 
             transfer(
                 merkle_tree_account,
                 recipient_account,
-                u64::try_from(ext_amount * -1).unwrap(), // *-1?
+                u64::try_from(-ext_amount).unwrap(),
             )?;
         }
     } else if current_instruction_index == 4 {
@@ -177,12 +172,12 @@ pub fn pre_process_instruction(
 //attached to the tx, the accounts have the appropiate length
 pub fn li_security_checks(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
-    let signer_account = next_account_info(account)?;
+    let _signer_account = next_account_info(account)?;
 
-    let main_account = next_account_info(account)?;
+    let _main_account = next_account_info(account)?;
     // assert_eq!(
-    //     *signing_account.key,
-    //     solana_program::pubkey::Pubkey::new(&account_data.signing_address)
+    //     *signer_account.key,
+    //     solana_program::pubkey::Pubkey::new(&main_account.data.signing_address)
     // );
     Ok(())
 }
@@ -192,8 +187,7 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
         .try_borrow_mut_lamports()
         .unwrap()
         .checked_sub(amount)
-        .is_some()
-        != true
+        .is_none()
     {
         msg!("invalid withdrawal amount");
         return Err(ProgramError::InvalidArgument);
@@ -204,8 +198,7 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
         .try_borrow_mut_lamports()
         .unwrap()
         .checked_add(amount)
-        .is_some()
-        != true
+        .is_none()
     {
         msg!("invalid withdrawal amount");
         return Err(ProgramError::InvalidArgument);
