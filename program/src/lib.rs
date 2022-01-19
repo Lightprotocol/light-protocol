@@ -166,7 +166,7 @@ fn create_and_try_initialize_tmp_storage_account(
         signer_account,
         account_main,
         system_program_info,
-        &_instruction_data[96..128],
+        &_instruction_data[97..129],
         &b"storage"[..],
         number_storage_bytes, //bytes
         lamports,             //lamports
