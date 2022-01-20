@@ -10,20 +10,100 @@ pub mod tests {
     use ark_ff::QuadExtField;
     use serde_json::{Result, Value};
     use std::fs;
+    use light_protocol_core::groth16_verifier::parsers::parse_f_to_bytes;
+    use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
+    use light_protocol_core::groth16_verifier::parsers::*;
+    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExpBytes;
+    use light_protocol_core::process_instruction;
+    use solana_program::{
+        instruction::{AccountMeta, Instruction},
+        pubkey::Pubkey,
+    };
+    use solana_program_test::*;
+    use solana_sdk::{
+        account::Account, msg, signature::Signer, transaction::Transaction,
+        transport::TransportError,
+    };
 
-    // For native miller loop implementation
+    pub async fn create_and_start_program_var(
+        accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey,
+    ) -> ProgramTestContext {
+        let mut program_test = ProgramTest::new(
+            "light_protocol_core",
+            *program_id,
+            processor!(process_instruction),
+        );
+        for (pubkey, size, data) in accounts.iter() {
+            let mut account = Account::new(10000000000, *size, &program_id);
+            match data {
+                Some(d) => (account.data = d.clone()),
+                None => (),
+            }
+            program_test.add_account(**pubkey, account);
+            println!("added account {:?}", **pubkey);
+        }
+
+        let mut program_context = program_test.start_with_context().await;
+        //transfer an arbitrary high amount to signer keypair to have a consistent payer
+        let mut transaction = solana_sdk::system_transaction::transfer(
+            &program_context.payer,
+            &signer_pubkey,
+            10000000000000,
+            program_context.last_blockhash,
+        );
+        transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+        let res_request = program_context
+            .banks_client
+            .process_transaction(transaction)
+            .await;
+
+        program_context
+    }
+
+    pub async fn restart_program(
+        accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey,
+        mut program_context: ProgramTestContext,
+    ) -> ProgramTestContext {
+        for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+            let account = program_context
+                .banks_client
+                .get_account(**pubkey)
+                .await
+                .expect("get_account")
+                .unwrap();
+            *current_data = Some(account.data.to_vec());
+        }
+        // accounts_vector[1].2 = Some(storage_account.data.to_vec());
+        let mut program_context_new =
+            create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        program_context_new
+    }
+
+    pub fn get_proof_from_bytes(
+        proof_bytes: &Vec<u8>,
+    ) -> ark_groth16::data_structures::Proof<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
+        let proof_a = parse_x_group_affine_from_bytes(&proof_bytes[0..64].to_vec());
+        let proof_b = parse_proof_b_from_bytes(&proof_bytes[64..192].to_vec());
+        let proof_c = parse_x_group_affine_from_bytes(&proof_bytes[192..256].to_vec());
+        let proof =
+            ark_groth16::data_structures::Proof::<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
+                a: proof_a,
+                b: proof_b,
+                c: proof_c,
+            };
+        proof
+    }
 
     pub fn get_public_inputs_from_bytes(
         public_inputs_bytes: &Vec<u8>,
     ) -> Result<Vec<Fp256<ark_ed_on_bn254::FqParameters>>> {
         let mut res = Vec::new();
-        for i in 0..7 {
-            let current_input = &public_inputs_bytes[(i * 32)..((i * 32) + 32)];
-
-            res.push(
-                <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&current_input[..])
-                    .unwrap(),
-            )
+        for i in public_inputs_bytes.chunks(32) {
+            res.push(<Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&i[..]).unwrap())
         }
         Ok(res)
     }
@@ -146,5 +226,21 @@ pub mod tests {
             delta_g2: delta_g2,
             gamma_abc_g1: gamma_abc_g1_bigints_bytes,
         })
+    }
+
+    pub fn read_test_data() -> Vec<u8> {
+        let ix_data_file = fs::read_to_string("./tests/test_data/deposit_0_1_sol.txt")
+            .expect("Something went wrong reading the file");
+        let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
+        let mut ix_data = Vec::new();
+        for i in ix_data_json["bytes"][0].as_str().unwrap().split(',') {
+            let j = (*i).parse::<u8>();
+            match j {
+                Ok(x) => (ix_data.push(x)),
+                Err(_e) => (),
+            }
+        }
+        println!("{:?}", ix_data);
+        ix_data
     }
 }

@@ -42,7 +42,7 @@ pub fn pre_process_instruction(
             solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
         );
         account_data.found_root =
-            check_root_hash_exists(merkle_tree_account, &account_data.root_hash)?;
+            check_root_hash_exists(merkle_tree_account, &account_data.root_hash, &program_id)?;
     }
     //nullifier checks
     //deposit and withdraw logic

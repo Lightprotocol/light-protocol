@@ -4,6 +4,7 @@ use solana_program::{
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
+    pubkey::Pubkey
 };
 
 use arrayref::{array_ref, array_refs};
@@ -66,17 +67,22 @@ impl Pack for MerkleTreeRoots {
 pub fn check_root_hash_exists(
     account_main: &AccountInfo,
     root_bytes: &Vec<u8>,
-    //found_root: &mut u8,
+    program_id: &Pubkey
 ) -> Result<u8, ProgramError> {
     let account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
-    msg!("merkletree acc key: {:?}", *account_main.key);
+    msg!("merkletree acc key: {:?}", *account_main);
     msg!(
         "merkletree acc key to check: {:?}",
         solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
     );
 
     if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) {
-        msg!("merkle tree account is incorrect");
+        msg!("merkle tree account pubkey is incorrect");
+        return Err(ProgramError::IllegalOwner);
+    }
+
+    if *account_main.owner != *program_id {
+        msg!("merkle tree account owner is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
 

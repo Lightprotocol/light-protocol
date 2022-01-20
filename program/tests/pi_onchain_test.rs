@@ -43,6 +43,7 @@ pub async fn create_and_start_program(
 // TODO: execute prepare_inputs lib call before with the same inputs as onchain, write g_ic to
 // file, and read the value here for an assert. Need to make it compile with ark-groth16 before.
 #[tokio::test]
+#[ignore]
 async fn test_pi_254_onchain() -> Result<(), Error> {
     // let pvk_unprepped = fe_offchain_test::tests::fe_offchain_test::get_pvk_from_bytes_254()?;
     // let pvk = prepare_verifying_key(&pvk_unprepped);
