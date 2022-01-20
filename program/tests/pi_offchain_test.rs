@@ -25,6 +25,7 @@ mod fe_offchain_test;
 use crate::fe_offchain_test::tests::get_pvk_from_bytes_254;
 
 #[test]
+#[ignore]
 fn pi_254_test_with_7_inputs() {
     // 7 inputs á 32 bytes. For bn254 curve. Skip the first two bytes.
     // TODO: add random input testing
