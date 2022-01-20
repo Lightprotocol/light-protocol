@@ -109,7 +109,7 @@ pub async fn create_and_start_program(
 }
 
 #[tokio::test]
-async fn test_merkle_tree_correct() /*-> io::Result<()>*/
+async fn merkle_tree_onchain_test() /*-> io::Result<()>*/
 {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
 
@@ -162,39 +162,13 @@ async fn test_merkle_tree_correct() /*-> io::Result<()>*/
     .await;
 
     //initialize MerkleTree account
+    initialize_merkle_tree(
+        &program_id,
+        &merkle_tree_pubkey,
+        &signer_keypair,
+        &mut program_context,
+    ).await;
 
-    let mut transaction = Transaction::new_with_payer(
-        &[Instruction::new_with_bincode(
-            program_id,
-            &[vec![240u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
-            vec![
-                AccountMeta::new(signer_keypair.pubkey(), true),
-                AccountMeta::new(merkle_tree_pubkey, false),
-            ],
-        )],
-        Some(&signer_keypair.pubkey()),
-    );
-    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
-
-    program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap();
-
-    let merkle_tree_data = program_context
-        .banks_client
-        .get_account(merkle_tree_pubkey)
-        .await
-        .expect("get_account")
-        .unwrap();
-    //println!("merkletree: {:?}", merkle_tree_data);
-    assert_eq!(
-        init_bytes18::INIT_BYTES_MERKLE_TREE_18,
-        merkle_tree_data.data[0..641]
-    );
-    //assert_eq!(true, false);
-    println!("initializing merkle tree success");
 
     let mut i = 0;
     for (instruction_id) in &init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
@@ -417,4 +391,45 @@ pub async fn restart_program(
     let mut program_context_new =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
     program_context_new
+}
+
+
+pub async fn initialize_merkle_tree(
+    program_id: &Pubkey,
+    merkle_tree_pubkey: &Pubkey,
+    signer_keypair:&solana_sdk::signer::keypair::Keypair,
+    program_context: &mut ProgramTestContext
+) {
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            *program_id,
+            &[vec![240u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(*merkle_tree_pubkey, false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let merkle_tree_data = program_context
+        .banks_client
+        .get_account(*merkle_tree_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    //println!("merkletree: {:?}", merkle_tree_data);
+    assert_eq!(
+        init_bytes18::INIT_BYTES_MERKLE_TREE_18,
+        merkle_tree_data.data[0..641]
+    );
+    //assert_eq!(true, false);
+    println!("initializing merkle tree success");
 }
