@@ -155,7 +155,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         final_exponentiation::processor::_process_instruction(
             &mut main_account_data,
             IX_ORDER[self.current_instruction_index],
-        );
+        )?;
 
         if self.current_instruction_index == 1266 {
             verify_result(&main_account_data)?;
