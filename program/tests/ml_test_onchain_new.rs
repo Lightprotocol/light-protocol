@@ -43,9 +43,9 @@ pub async fn create_and_start_program_var(
         *program_id,
         processor!(process_instruction),
     );
-    println!("accounts {:?}", accounts);
+    // println!("accounts {:?}", accounts);
     for (pubkey, size, data) in accounts.iter() {
-        println!("accounts {:?}, {:?}, {:?}", pubkey, size, data);
+        // println!("accounts {:?}, {:?}, {:?}", pubkey, size, data);
 
         let mut account = Account::new(10000000000, *size, &program_id);
         match data {
@@ -90,6 +90,7 @@ pub async fn restart_program(
     // accounts_vector[1].2 = Some(storage_account.data.to_vec());
     let program_context_new =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+    println!("....after restart");
     program_context_new
 }
 
@@ -354,6 +355,7 @@ async fn ml_test_onchain_new() {
     let as_affine = (prepared_inputs).into_affine();
     let mut affine_bytes = vec![0; 64];
     parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
+    println!("affine bytes: {:?}", affine_bytes);
     // mock account state after prepare_inputs (instruction index = 466)
     let mut account_state = vec![0; 3900];
     // set is_initialized:true
@@ -381,6 +383,7 @@ async fn ml_test_onchain_new() {
     let mut program_context =
         create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
 
+    println!("...after first prgm start var");
     // Calculate miller_ouput with the ark library. Will be used to compare the
     // on-chain output with.
     let miller_output =
@@ -408,8 +411,11 @@ async fn ml_test_onchain_new() {
     // We need program restart logic here since we're firing 300+ ix and
     // the program_context seems to melt down every couple of hundred ix.
     // It basically just picks up the account state where it left off and restarts the client
+    
     let mut i = 0usize;
     for _id in 0..430usize {
+        // 3
+        //..430 FINAL
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {
@@ -457,6 +463,23 @@ async fn ml_test_onchain_new() {
         .expect("get_account")
         .unwrap();
     let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
+    println!("signer: {:?}", account_data.signing_address);
+    println!("ixidx: {:?}", account_data.current_instruction_index);
+    println!("frange: {:?}", account_data.f_range);
+    println!("c2 range: {:?}", account_data.coeff_2_range);
+    println!("c1 range: {:?}", account_data.coeff_1_range);
+    println!("c0 range: {:?}", account_data.coeff_0_range);
+    println!("p1x : {:?}", account_data.p_1_x_range);
+    println!("p1y  {:?}", account_data.p_1_y_range);
+    println!("p2x: {:?}", account_data.p_2_x_range);
+    println!("p2y: {:?}", account_data.p_2_y_range);
+    println!("p3x: {:?}", account_data.p_3_x_range);
+    println!("p3y: {:?}", account_data.p_3_y_range);
+    println!("r: {:?}", account_data.r);
+    println!("proofb: {:?}", account_data.proof_b);
+    println!("currentc2r: {:?}", account_data.current_coeff_2_range);
+    println!("currentc3r: {:?}", account_data.current_coeff_3_range);
+    // assert_eq!(true, false);
     // TODO:compare with miller_output
     let mut ref_f = vec![0; 384];
     parse_f_to_bytes(miller_output, &mut ref_f);
@@ -464,7 +487,7 @@ async fn ml_test_onchain_new() {
         account_data.f_range, ref_f,
         "onchain f result != reference f (hardcoded from lib call)"
     );
-    println!("onchain test success");
+    println!("onchain test success: {:?}", ref_f);
 }
 
 #[tokio::test]

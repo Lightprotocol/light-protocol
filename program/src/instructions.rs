@@ -178,24 +178,24 @@ pub fn try_initialize_tmp_storage_account(
     //     main_account_data.root_hash
     // );
     // msg!("main_account_data.amount {:?}", main_account_data.amount);
-    msg!(
-        "main_account_data.tx_integrity_hash {:?}",
-        main_account_data.tx_integrity_hash
-    );
-    // msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
-    // msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
-    // msg!("commitment_right ); {:?}", commitment_right);
-    // msg!("commitment_left ); {:?}", commitment_left);
-    msg!(
-        "main_account_data.to_address {:?}",
-        main_account_data.to_address
-    );
-    msg!(
-        "main_account_data.ext_amount {:?}",
-        main_account_data.ext_amount
-    );
-    msg!("relayer ); {:?}", relayer);
-    msg!("fee ); {:?}", fee);
+    // msg!(
+    //     "main_account_data.tx_integrity_hash {:?}",
+    //     main_account_data.tx_integrity_hash
+    // );
+    // // msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
+    // // msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
+    // // msg!("commitment_right ); {:?}", commitment_right);
+    // // msg!("commitment_left ); {:?}", commitment_left);
+    // msg!(
+    //     "main_account_data.to_address {:?}",
+    //     main_account_data.to_address
+    // );
+    // msg!(
+    //     "main_account_data.ext_amount {:?}",
+    //     main_account_data.ext_amount
+    // );
+    // msg!("relayer ); {:?}", relayer);
+    // msg!("fee ); {:?}", fee);
     // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
     // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
     // // panic!();
