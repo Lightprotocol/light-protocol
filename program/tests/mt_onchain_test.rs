@@ -33,14 +33,11 @@ use {
 };
 
 #[tokio::test]
-async fn merkle_tree_onchain_test() /*-> io::Result<()>*/
-{
+async fn merkle_tree_onchain_test() {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
 
     let storage_pubkey = Pubkey::new_unique();
-    println!("HashBytes {:?}", storage_pubkey);
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
 
@@ -81,7 +78,7 @@ async fn merkle_tree_onchain_test() /*-> io::Result<()>*/
         &signer_keypair,
         &mut program_context,
     ).await;
-
+    //calculate new merkle tree root by updating the two first leaves
     update_merkle_tree(
         &program_id,
         &merkle_tree_pubkey,
@@ -229,14 +226,7 @@ pub async fn update_merkle_tree(
 ) {
     let mut i = 0;
     for (instruction_id) in 0..237 {
-        let instruction_data: Vec<u8> = [
-            vec![instruction_id, 0u8],
-            vec![1;32],
-            vec![1;32],
-            [i as u8].to_vec(),
-        ]
-        .concat();
-
+        let instruction_data: Vec<u8> =vec![i as u8];
             let mut success = false;
             let mut retries_left = 2;
             while (retries_left > 0 && success != true) {
@@ -265,6 +255,7 @@ pub async fn update_merkle_tree(
                 match res_request {
                     Ok(_) => success = true,
                     Err(e) => {
+                        retries_left -=1;
                         let mut program_context = restart_program(
                             accounts_vector,
                             &program_id,
