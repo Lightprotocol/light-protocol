@@ -776,6 +776,7 @@ mod tests {
     }
 
 	#[test]
+	#[ignore]
     fn merkle_tree_offchain_test () {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for height 18
         let tree_height = 18;
