@@ -32,7 +32,7 @@ use ark_std::{UniformRand, test_rng};
 use solana_program_test::ProgramTestContext;
 use crate::tokio::time::timeout;
 use std::{thread, time};
-
+use std::convert::TryInto;
 
 pub async fn create_and_start_program(
         user_account_pubkey: &Pubkey,
@@ -63,7 +63,7 @@ pub async fn create_and_start_program(
 use light_protocol_core::user_account::state::SIZE_UTXO;
 
 #[tokio::test]
-async fn test_user_account_correct() {
+async fn user_account_onchain_test() {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
 
     let user_account_pubkey = Pubkey::new_unique();
@@ -106,7 +106,7 @@ async fn test_user_account_correct() {
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
-            &[vec![101u8],usize::to_le_bytes(0).to_vec(), vec![1u8;64]].concat(),
+            &[vec![101u8],usize::to_le_bytes(0).to_vec(), vec![1u8;SIZE_UTXO.try_into().unwrap()]].concat(),
             vec![
                 AccountMeta::new(signer_keypair.pubkey(),true),
                 AccountMeta::new(user_account_pubkey, false),

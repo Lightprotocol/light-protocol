@@ -461,8 +461,8 @@ pub mod tests {
         assert_eq!(get_delta_g2_neg_pc_89(), pvk.delta_g2_neg_pc.ell_coeffs[89]);
         assert_eq!(get_delta_g2_neg_pc_90(), pvk.delta_g2_neg_pc.ell_coeffs[90]);
     }
-
     #[test]
+    #[ignore]
     fn miller_loop_offchain() -> Result<()> {
         // First, run the library function, print i_order et cetera.
         // We'll then compare the f value to the result of
