@@ -44,7 +44,11 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         } else if self.current_instruction_index >= MILLER_LOOP_START_INDEX
             && self.current_instruction_index < MILLER_LOOP_END_INDEX
         {
-            self.miller_loop()?;
+            let res = self.miller_loop().unwrap();
+            // if res == ProgramError {
+            //     return Err(ProgramError::IncorrectProgramId);
+            // }
+            msg!("okok: {:?}", res);
             Ok(())
         } else if self.current_instruction_index >= 430 + 466
             && self.current_instruction_index < 801 + 466
@@ -128,6 +132,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             return Ok(());
         } else {
             // main processor after 1st ix (0).
+
+            // if main_account_data.current_instruction_index == 468 {
+            //     msg!()
+            // }
             miller_loop::processor::_process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,

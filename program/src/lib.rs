@@ -116,7 +116,8 @@ pub fn process_instruction(
 
                         Ok(())
                     }
-                    //prepare inputs for proof verification + miller loop and final exponentiation
+                    // Main verification part
+                    //prepare inputs for proof verification + miller loop + final exponentiation
                     else if account_main_data.current_instruction_index < 801 + 466 {
                         let mut groth16_processor = Groth16Processor::new(
                             account_main,

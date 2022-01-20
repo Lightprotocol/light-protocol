@@ -1,5 +1,6 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
+    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
 };
@@ -188,5 +189,6 @@ impl Pack for ML254Bytes {
         *signing_address_dst = *signing_address_dst;
         *unused_constants1_dst = *unused_constants1_dst;
         *is_initialized_dst = [1u8; 1];
+        msg!("packed!");
     }
 }
