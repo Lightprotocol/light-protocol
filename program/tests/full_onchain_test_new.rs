@@ -184,7 +184,7 @@ async fn compute_prepared_inputs(
     signer_pubkey: &solana_program::pubkey::Pubkey,
     signer_keypair: &solana_sdk::signature::Keypair,
     storage_pubkey: &solana_program::pubkey::Pubkey,
-    mut program_context: ProgramTestContext,
+    program_context: &mut ProgramTestContext,
     accounts_vector: &mut std::vec::Vec<(
         &solana_program::pubkey::Pubkey,
         usize,
@@ -222,11 +222,11 @@ async fn compute_prepared_inputs(
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
 
-                    program_context = restart_program(
+                    let mut program_context = restart_program(
                         accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        &mut program_context,
+                        program_context,
                     )
                     .await;
                 }
@@ -237,12 +237,12 @@ async fn compute_prepared_inputs(
 }
 
 async fn compute_miller_output(
-    program_id: solana_program::pubkey::Pubkey,
-    signer_pubkey: solana_program::pubkey::Pubkey,
-    signer_keypair: solana_sdk::signature::Keypair,
-    storage_pubkey: solana_program::pubkey::Pubkey,
-    mut program_context: ProgramTestContext,
-    mut accounts_vector: std::vec::Vec<(
+    program_id: &solana_program::pubkey::Pubkey,
+    signer_pubkey: &solana_program::pubkey::Pubkey,
+    signer_keypair: &solana_sdk::signature::Keypair,
+    storage_pubkey: &solana_program::pubkey::Pubkey,
+    program_context: &mut ProgramTestContext,
+    accounts_vector: &mut std::vec::Vec<(
         &solana_program::pubkey::Pubkey,
         usize,
         std::option::Option<std::vec::Vec<u8>>,
@@ -250,7 +250,7 @@ async fn compute_miller_output(
 ) {
     let storage_account = program_context
         .banks_client
-        .get_account(storage_pubkey)
+        .get_account(*storage_pubkey)
         .await
         .expect("get_account")
         .unwrap();
@@ -265,16 +265,16 @@ async fn compute_miller_output(
         while retries_left > 0 && success != true {
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
-                    program_id,
+                    *program_id,
                     &[vec![1, 1], usize::to_le_bytes(i).to_vec()].concat(),
                     vec![
-                        AccountMeta::new(signer_pubkey, true),
-                        AccountMeta::new(storage_pubkey, false),
+                        AccountMeta::new(*signer_pubkey, true),
+                        AccountMeta::new(*storage_pubkey, false),
                     ],
                 )],
                 Some(&signer_pubkey),
             );
-            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+            transaction.sign(&[signer_keypair], program_context.last_blockhash);
             let res_request = timeout(
                 time::Duration::from_millis(500),
                 program_context
@@ -287,11 +287,11 @@ async fn compute_miller_output(
                 Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    program_context = restart_program(
-                        &mut accounts_vector,
+                    let mut program_context = restart_program(
+                        accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        &mut program_context,
+                        program_context,
                     )
                     .await;
                     // program_context = create_and_start_program(
@@ -311,12 +311,12 @@ async fn compute_miller_output(
 }
 
 async fn compute_final_exponentiation(
-    program_id: solana_program::pubkey::Pubkey,
-    signer_pubkey: solana_program::pubkey::Pubkey,
-    signer_keypair: solana_sdk::signature::Keypair,
-    storage_pubkey: solana_program::pubkey::Pubkey,
-    mut program_context: ProgramTestContext,
-    mut accounts_vector: std::vec::Vec<(
+    program_id: &solana_program::pubkey::Pubkey,
+    signer_pubkey: &solana_program::pubkey::Pubkey,
+    signer_keypair: &solana_sdk::signature::Keypair,
+    storage_pubkey: &solana_program::pubkey::Pubkey,
+    program_context: &mut ProgramTestContext,
+    accounts_vector: &mut std::vec::Vec<(
         &solana_program::pubkey::Pubkey,
         usize,
         std::option::Option<std::vec::Vec<u8>>,
@@ -330,16 +330,16 @@ async fn compute_final_exponentiation(
             println!("success: {}", success);
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
-                    program_id,
+                    *program_id,
                     &[vec![instruction_id, 2u8], usize::to_le_bytes(i).to_vec()].concat(),
                     vec![
-                        AccountMeta::new(signer_pubkey, true),
-                        AccountMeta::new(storage_pubkey, false),
+                        AccountMeta::new(*signer_pubkey, true),
+                        AccountMeta::new(*storage_pubkey, false),
                     ],
                 )],
                 Some(&signer_pubkey),
             );
-            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+            transaction.sign(&[signer_keypair], program_context.last_blockhash);
             let res_request = timeout(
                 time::Duration::from_millis(500),
                 program_context
@@ -362,11 +362,11 @@ async fn compute_final_exponentiation(
                     //     &signer_pubkey,
                     // )
                     // .await;
-                    program_context = restart_program(
-                        &mut accounts_vector,
+                    let mut program_context = restart_program(
+                        accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        &mut program_context,
+                        program_context,
                     )
                     .await;
                 }
@@ -378,11 +378,10 @@ async fn compute_final_exponentiation(
 }
 
 #[tokio::test]
-async fn onchain_verification_should_succeed() {
-    //getting instruction data from file
+async fn deposit_should_succeed() {
+    let ix_data = read_test_data();
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
-    let ix_data = read_test_data();
     let mut accounts_vector = Vec::new();
     //create pubkey for temporary storage account
     let merkle_tree_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
@@ -425,7 +424,13 @@ async fn onchain_verification_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    // Tx that initializes MerkleTree account
+    /*
+     *
+     *
+     * Tx that initializes MerkleTree account
+     *
+     *
+     */
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -522,9 +527,10 @@ async fn onchain_verification_should_succeed() {
         &signer_pubkey,
         &signer_keypair,
         &storage_pubkey,
-        program_context,
+        &mut program_context,
         &mut accounts_vector,
-    );
+    )
+    .await;
 
     /*
      *
@@ -534,13 +540,14 @@ async fn onchain_verification_should_succeed() {
      *
      */
     compute_miller_output(
-        program_id,
-        signer_pubkey,
-        signer_keypair,
-        storage_pubkey,
-        program_context,
-        accounts_vector,
-    );
+        &program_id,
+        &signer_pubkey,
+        &signer_keypair,
+        &storage_pubkey,
+        &mut program_context,
+        &mut accounts_vector,
+    )
+    .await;
 
     /*
      *
@@ -548,15 +555,16 @@ async fn onchain_verification_should_succeed() {
      *
      */
 
-    // Note that if they verificaton is succesful, this will pass. If not, an on-chain check will panic the program
+    // Note that if they verificaton is successful, this will pass. If not, an on-chain check will panic the program
     compute_final_exponentiation(
-        program_id,
-        signer_pubkey,
-        signer_keypair,
-        storage_pubkey,
-        program_context,
-        accounts_vector,
-    );
+        &program_id,
+        &signer_pubkey,
+        &signer_keypair,
+        &storage_pubkey,
+        &mut program_context,
+        &mut accounts_vector,
+    )
+    .await;
 
     // TODO: Add offchain verification here, just to "prove" that the onchain check is legit.
     println!("Onchain Proof Verification success");
