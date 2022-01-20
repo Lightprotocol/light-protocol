@@ -74,11 +74,64 @@ pub async fn create_and_start_program_var(
     program_context
 }
 
+// Should deprecate
+pub async fn create_and_start_program(
+    merkle_tree_init_bytes: Vec<u8>,
+    hash_bytes_init_bytes: Vec<u8>,
+    merkle_tree_pubkey: &Pubkey,
+    storage_account: &Pubkey,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+) -> ProgramTestContext {
+    let mut program_test = ProgramTest::new(
+        "light_protocol_core",
+        *program_id,
+        processor!(process_instruction),
+    );
+    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+
+    if merkle_tree_init_bytes.len() == 16657 {
+        merkle_tree.data = merkle_tree_init_bytes;
+    }
+    program_test.add_account(*merkle_tree_pubkey, merkle_tree);
+    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
+
+    if hash_bytes_init_bytes.len() == 3900 {
+        hash_byte.data = hash_bytes_init_bytes;
+    }
+    program_test.add_account(*storage_account, hash_byte);
+    //let mut two_leaves_pda_byte = Account::new(10000000000, 98, &program_id);
+
+    // if two_leaves_pda_bytes_init_bytes.len() == 98 {
+    //
+    //     two_leaves_pda_byte.data = two_leaves_pda_bytes_init_bytes;
+    // }
+    // program_test.add_account(
+    //     *two_leaves_pda_pubkey,
+    //     two_leaves_pda_byte,
+    // );
+
+    let mut program_context = program_test.start_with_context().await;
+    let mut transaction = solana_sdk::system_transaction::transfer(
+        &program_context.payer,
+        &signer_pubkey,
+        10000000000000,
+        program_context.last_blockhash,
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    let _res_request = program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    program_context
+}
+
 pub async fn restart_program(
     accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
     program_id: &Pubkey,
     signer_pubkey: &Pubkey,
-    mut program_context: ProgramTestContext,
+    program_context: &mut ProgramTestContext,
 ) -> ProgramTestContext {
     for (pubkey, _, current_data) in accounts_vector.iter_mut() {
         let account = program_context
@@ -127,12 +180,12 @@ pub fn get_proof_from_bytes(
 }
 
 async fn compute_prepared_inputs(
-    program_id: solana_program::pubkey::Pubkey,
-    signer_pubkey: solana_program::pubkey::Pubkey,
-    signer_keypair: solana_sdk::signature::Keypair,
-    storage_pubkey: solana_program::pubkey::Pubkey,
+    program_id: &solana_program::pubkey::Pubkey,
+    signer_pubkey: &solana_program::pubkey::Pubkey,
+    signer_keypair: &solana_sdk::signature::Keypair,
+    storage_pubkey: &solana_program::pubkey::Pubkey,
     mut program_context: ProgramTestContext,
-    mut accounts_vector: std::vec::Vec<(
+    accounts_vector: &mut std::vec::Vec<(
         &solana_program::pubkey::Pubkey,
         usize,
         std::option::Option<std::vec::Vec<u8>>,
@@ -145,16 +198,16 @@ async fn compute_prepared_inputs(
         while retries_left > 0 && success != true {
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
-                    program_id,
+                    *program_id,
                     &vec![98, 99, i],
                     vec![
-                        AccountMeta::new(signer_pubkey, true),
-                        AccountMeta::new(storage_pubkey, false),
+                        AccountMeta::new(*signer_pubkey, true),
+                        AccountMeta::new(*storage_pubkey, false),
                     ],
                 )],
                 Some(&signer_pubkey),
             );
-            transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+            transaction.sign(&[&*signer_keypair], program_context.last_blockhash);
             let res_request = timeout(
                 time::Duration::from_millis(500),
                 program_context
@@ -170,10 +223,10 @@ async fn compute_prepared_inputs(
                     retries_left -= 1;
 
                     program_context = restart_program(
-                        &mut accounts_vector,
+                        accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        program_context,
+                        &mut program_context,
                     )
                     .await;
                 }
@@ -238,7 +291,7 @@ async fn compute_miller_output(
                         &mut accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        program_context,
+                        &mut program_context,
                     )
                     .await;
                     // program_context = create_and_start_program(
@@ -313,7 +366,7 @@ async fn compute_final_exponentiation(
                         &mut accounts_vector,
                         &program_id,
                         &signer_pubkey,
-                        program_context,
+                        &mut program_context,
                     )
                     .await;
                 }
@@ -465,12 +518,12 @@ async fn onchain_verification_should_succeed() {
      */
 
     compute_prepared_inputs(
-        program_id,
-        signer_pubkey,
-        signer_keypair,
-        storage_pubkey,
+        &program_id,
+        &signer_pubkey,
+        &signer_keypair,
+        &storage_pubkey,
         program_context,
-        accounts_vector,
+        &mut accounts_vector,
     );
 
     /*
