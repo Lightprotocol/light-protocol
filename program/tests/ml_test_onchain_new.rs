@@ -322,6 +322,7 @@ pub fn get_proof_from_bytes(
 }
 
 #[tokio::test]
+#[ignore]
 async fn ml_test_onchain_new() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
