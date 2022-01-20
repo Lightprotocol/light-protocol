@@ -1,8 +1,5 @@
 use crate::poseidon_merkle_tree::poseidon_round_constants_split;
-use ark_crypto_primitives::{
-    crh::{TwoToOneCRH, CRH},
-    Error,
-};
+use ark_crypto_primitives::Error;
 use ark_ed_on_bn254::Fq;
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
@@ -10,10 +7,10 @@ use ark_ff::{
 };
 use ark_std::Zero;
 use arkworks_gadgets::poseidon::{
-    circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
+    sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
 };
 use arkworks_gadgets::utils;
-use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+use solana_program::{msg, program_error::ProgramError};
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
@@ -230,8 +227,15 @@ mod tests {
     use ark_std::One;
     use ark_std::{test_rng, UniformRand};
     use arkworks_gadgets::utils;
+    use arkworks_gadgets::poseidon::circom::CircomCRH;
+
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
+    };
+
+    use ark_crypto_primitives::{
+        crh::{TwoToOneCRH, CRH},
+        Error,
     };
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;

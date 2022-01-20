@@ -119,7 +119,7 @@ impl Pack for FinalExpBytes {
             quad_range_3_s,
             fp384_range_s,
             y6_range,
-            unused_remainder,
+            _unused_remainder,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 192, 192,
             192, 64, 64, 64, 64, 32, 384, 128
@@ -162,7 +162,7 @@ impl Pack for FinalExpBytes {
         let dst = array_mut_ref![dst, 0, FinalExpBytes::LEN];
 
         let (
-            is_initialized_dst,
+            _is_initialized_dst,
             _found_root_dst,
             found_nullifier_dst,
             _unused_constants_dst,

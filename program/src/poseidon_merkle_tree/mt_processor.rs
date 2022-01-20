@@ -30,7 +30,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         main_account: Option<&'a AccountInfo<'b>>,
         merkle_tree_account: Option<&'a AccountInfo<'b>>,
     ) -> Result<Self, ProgramError> {
-        let mut empty_smt = MerkleTree {
+        let empty_smt = MerkleTree {
             is_initialized: false,
             levels: 1,
             filled_subtrees: vec![vec![0 as u8; 1]; 1],
@@ -108,7 +108,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
                 &mut merkle_tree_account_data,
-            );
+            )?;
 
             MerkleTree::pack_into_slice(
                 &merkle_tree_account_data,
@@ -169,9 +169,9 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
                 &mut self.unpacked_merkle_tree,
-            );
+            )?;
         } else if IX_ORDER[main_account_data.current_instruction_index] == 241 {
-            ///inserting root and creating leave pda accounts
+            //inserting root and creating leave pda accounts
             //the pda account should be created in the same tx, the pda account also functions as escrow account
 
             msg!(
