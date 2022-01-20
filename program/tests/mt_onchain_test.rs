@@ -32,82 +32,6 @@ use {
     std::str::FromStr,
 };
 
-#[derive(Default, Clone)]
-pub struct PoseidonCircomRounds3;
-
-impl Rounds for PoseidonCircomRounds3 {
-    const FULL_ROUNDS: usize = 8;
-    const PARTIAL_ROUNDS: usize = 57;
-    const SBOX: PoseidonSbox = PoseidonSbox::Exponentiation(5);
-    const WIDTH: usize = 3;
-}
-
-pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
-
-pub fn get_poseidon_ref_hash(left_input: &[u8], right_input: &[u8]) -> Vec<u8> {
-    let rounds = get_rounds_poseidon_circom_bn254_x5_3::<Fq>();
-    let mds = get_mds_poseidon_circom_bn254_x5_3::<Fq>();
-    let params = PoseidonParameters::<Fq>::new(rounds, mds);
-    let poseidon_res =
-        <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &left_input, &right_input).unwrap();
-    //assert_eq!(res[0], poseidon_res, "{} != {}", res[0], poseidon_res);
-    println!("Arkworks gadget hash 2 inputs {}", poseidon_res);
-
-    let mut out_bytes = [0u8; 32];
-    <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]);
-    out_bytes.to_vec()
-}
-/*
-pub async fn create_and_start_program(
-    merkle_tree_init_bytes: Vec<u8>,
-    hash_bytes_init_bytes: Vec<u8>,
-    merkle_tree_pubkey: &Pubkey,
-    storage_pubkey: &Pubkey,
-    //two_leaves_pda_pubkey: &Pubkey,
-    program_id: &Pubkey,
-    signer_pubkey: &Pubkey,
-) -> ProgramTestContext {
-    let mut program_test = ProgramTest::new(
-        "light_protocol_core",
-        *program_id,
-        processor!(process_instruction),
-    );
-    let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
-
-    if merkle_tree_init_bytes.len() == 16657 {
-        merkle_tree.data = merkle_tree_init_bytes;
-    }
-    program_test.add_account(*merkle_tree_pubkey, merkle_tree);
-    let mut hash_byte = Account::new(10000000000, 3900, &program_id);
-
-    if hash_bytes_init_bytes.len() == 3900 {
-        hash_byte.data = hash_bytes_init_bytes;
-    }
-    program_test.add_account(*storage_pubkey, hash_byte);
-    let mut two_leaves_pda_byte = Account::new(10000000000, 106, &program_id);
-
-    // if two_leaves_pda_bytes_init_bytes.len() == 98 {
-    //
-    //     two_leaves_pda_byte.data = two_leaves_pda_bytes_init_bytes;
-    // }
-    //program_test.add_account(*two_leaves_pda_pubkey, two_leaves_pda_byte);
-
-    let mut program_context = program_test.start_with_context().await;
-    let mut transaction = solana_sdk::system_transaction::transfer(
-        &program_context.payer,
-        &signer_pubkey,
-        10000000000000,
-        program_context.last_blockhash,
-    );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let res_request = program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
-    program_context
-}
-*/
 #[tokio::test]
 async fn merkle_tree_onchain_test() /*-> io::Result<()>*/
 {
@@ -341,8 +265,6 @@ pub async fn update_merkle_tree(
                 match res_request {
                     Ok(_) => success = true,
                     Err(e) => {
-                        println!("retries_left {}", retries_left);
-                        retries_left -= 1;
                         let mut program_context = restart_program(
                             accounts_vector,
                             &program_id,
