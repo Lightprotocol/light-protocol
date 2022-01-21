@@ -8,13 +8,12 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use serde_json::{Result, Value};
-    use std::fs;
+    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExpBytes;
     use light_protocol_core::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
     use light_protocol_core::groth16_verifier::parsers::*;
-    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExpBytes;
     use light_protocol_core::process_instruction;
+    use serde_json::{Result, Value};
     use solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
@@ -24,6 +23,7 @@ pub mod tests {
         account::Account, msg, signature::Signer, transaction::Transaction,
         transport::TransportError,
     };
+    use std::fs;
 
     pub async fn create_and_start_program_var(
         accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
@@ -62,7 +62,7 @@ pub mod tests {
         program_context
     }
 
-    pub async fn restart_program(
+    pub async fn restart_program_deprecated(
         accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
         program_id: &Pubkey,
         signer_pubkey: &Pubkey,
@@ -79,6 +79,30 @@ pub mod tests {
         }
         // accounts_vector[1].2 = Some(storage_account.data.to_vec());
         let mut program_context_new =
+            create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        program_context_new
+    }
+
+    // We need program restart logic since we're firing 300+ ix and
+    // the program_context seems to melt down every couple of hundred ix.
+    // It basically just picks up the account state where it left off and restarts the client
+    pub async fn restart_program(
+        accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey,
+        program_context: &mut ProgramTestContext,
+    ) -> ProgramTestContext {
+        for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+            let account = program_context
+                .banks_client
+                .get_account(**pubkey)
+                .await
+                .expect("get_account")
+                .unwrap();
+            *current_data = Some(account.data.to_vec());
+        }
+        // accounts_vector[1].2 = Some(storage_account.data.to_vec());
+        let program_context_new =
             create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
         program_context_new
     }
