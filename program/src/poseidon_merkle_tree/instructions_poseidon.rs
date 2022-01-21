@@ -6,9 +6,7 @@ use ark_ff::{
     BigInteger,
 };
 use ark_std::Zero;
-use arkworks_gadgets::poseidon::{
-    sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
-};
+use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
 use solana_program::{msg, program_error::ProgramError};
 use std::ops::{Add, AddAssign, Mul};
@@ -222,12 +220,12 @@ pub fn permute_custom_split(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::poseidon_merkle_tree::mt_state::HashBytes;
+    use crate::poseidon_merkle_tree::state::HashBytes;
     use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
     use ark_std::One;
     use ark_std::{test_rng, UniformRand};
-    use arkworks_gadgets::utils;
     use arkworks_gadgets::poseidon::circom::CircomCRH;
+    use arkworks_gadgets::utils;
 
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,

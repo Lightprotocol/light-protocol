@@ -15,8 +15,8 @@ use light_protocol_core::{
         parsers::*,
         prepare_inputs::state::PiBytes,
     },
-    poseidon_merkle_tree::mt_state::HashBytes,
-    poseidon_merkle_tree::mt_state::MERKLE_TREE_ACC_BYTES,
+    poseidon_merkle_tree::state::HashBytes,
+    poseidon_merkle_tree::state::MERKLE_TREE_ACC_BYTES,
     process_instruction,
 };
 use serde_json::{Result, Value};

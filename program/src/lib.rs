@@ -24,14 +24,14 @@ use solana_program::{
 
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 
-use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
+use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::utils::init_bytes18;
 
 use crate::user_account::instructions::{initialize_user_account, modify_user_account};
 
 entrypoint!(process_instruction);
 
-//use crate::mt_state::MtConfig;
+//use crate::state::MtConfig;
 
 // #[derive(Clone)]
 // struct MtInitConfig;
@@ -53,7 +53,7 @@ pub fn process_instruction(
         let _signer_account = next_account_info(account)?;
         let merkle_tree_storage_acc = next_account_info(account)?;
         //merkle_tree_tmp_account_data.initialize();
-        //mt_state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
+        //state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
         merkle_tree_processor
@@ -128,10 +128,9 @@ pub fn process_instruction(
                     }
                     //merkle tree insertion of new utxos
                     else if account_main_data.current_instruction_index >= 801 + 466 {
-                        //process_instruction_merkle_tree(&_instruction_data, accounts)?;
                         let mut merkle_tree_processor =
                             MerkleTreeProcessor::new(Some(account_main), None)?;
-                        merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
+                        merkle_tree_processor.process_instruction(accounts)?;
                         Ok(())
                     } else {
                         Err(ProgramError::InvalidArgument)
