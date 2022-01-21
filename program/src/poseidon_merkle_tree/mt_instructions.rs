@@ -1,4 +1,4 @@
-use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+use solana_program::{msg, program_error::ProgramError};
 
 use crate::poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree};
 use crate::utils::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;

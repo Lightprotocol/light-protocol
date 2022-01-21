@@ -21,3 +21,4 @@ Client-Js/node_modules/*
 /Client\-Js/package-lock.json
 /program/dist/*.so
 */*.so
+*/.coderrect

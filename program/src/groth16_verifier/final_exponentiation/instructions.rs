@@ -15,8 +15,6 @@ use ark_ff::{
     Field,
 };
 
-use ark_ff::BigInteger256;
-use ark_ff::CubicExtField;
 use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
 
 pub fn verify_result(main_account_data: &FinalExpBytes) -> Result<(), ProgramError> {
