@@ -802,21 +802,6 @@ async fn deposit_should_succeed() {
         &mut accounts_vector,
     )
     .await;
-    let storage_account = program_context
-        .banks_client
-        .get_account(tmp_storage_pda_pubkey)
-        .await
-        .expect("get_account")
-        .unwrap();
-
-    //expected root after one merkle tree height 18 update with specified leaves
-    let expected_root = vec![
-        247, 16, 124, 67, 44, 62, 195, 226, 182, 62, 41, 237, 78, 64, 195, 249, 67, 169, 200, 24,
-        158, 153, 57, 144, 24, 245, 131, 44, 127, 129, 44, 10,
-    ];
-    let storage_account_unpacked = HashBytes::unpack(&storage_account.data).unwrap();
-    assert_eq!(storage_account_unpacked.state[0], expected_root);
-    println!("finished merkle tree calculations");
 
     /*
      *
