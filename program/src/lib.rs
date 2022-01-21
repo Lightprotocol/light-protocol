@@ -112,7 +112,7 @@ pub fn process_instruction(
                             program_id,
                             accounts,
                             account_main_data.current_instruction_index,
-                        );
+                        )?;
 
                         Ok(())
                     }
@@ -131,7 +131,7 @@ pub fn process_instruction(
                         //process_instruction_merkle_tree(&_instruction_data, accounts)?;
                         let mut merkle_tree_processor =
                             MerkleTreeProcessor::new(Some(account_main), None)?;
-                        merkle_tree_processor.process_instruction_merkle_tree(accounts);
+                        merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
                         Ok(())
                     } else {
                         Err(ProgramError::InvalidArgument)

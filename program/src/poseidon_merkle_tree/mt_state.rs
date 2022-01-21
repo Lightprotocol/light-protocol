@@ -100,12 +100,12 @@ impl Pack for MerkleTree {
         let dst = array_mut_ref![dst, 0, MerkleTree::LEN];
 
         let (
-            is_initialized_dst,
-            levels_dst,
+            _is_initialized_dst,
+            _levels_dst,
             filled_subtrees_dst,
             current_root_index_dst,
             next_index_dst,
-            root_history_size_dst,
+            _root_history_size_dst,
             roots_dst,
             current_total_deposits_dst,
             pubkey_locked_dst,
@@ -164,7 +164,7 @@ impl Pack for InitMerkleTreeBytes {
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InitMerkleTreeBytes::LEN];
 
-        let (bytes, left_over) = array_refs![input, 641, 16016];
+        let (bytes, _left_over) = array_refs![input, 641, 16016];
 
         if bytes[0] != 0 {
             msg!("Tree is already initialized");
@@ -180,7 +180,7 @@ impl Pack for InitMerkleTreeBytes {
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, InitMerkleTreeBytes::LEN];
 
-        let (bytes_dst, left_over_dst) = mut_array_refs![dst, 641, 16016];
+        let (bytes_dst, _left_over_dst) = mut_array_refs![dst, 641, 16016];
 
         *bytes_dst = self.bytes.clone().try_into().unwrap();
     }
@@ -216,11 +216,11 @@ impl Pack for HashBytes {
         let input = array_ref![input, 0, HashBytes::LEN];
 
         let (
-            is_initialized,
-            unused_remainder0,
+            _is_initialized,
+            _unused_remainder0,
             current_instruction_index,
             //220
-            unused_remainder1,
+            _unused_remainder1,
             state,
             current_round,
             current_round_index,
@@ -231,8 +231,8 @@ impl Pack for HashBytes {
             current_level,
             leaf_left,
             leaf_right,
-            nullifier_0,
-            nullifier_1,
+            _nullifier_0,
+            _nullifier_1,
         ) = array_refs![input, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut parsed_state = Vec::new();
@@ -260,11 +260,11 @@ impl Pack for HashBytes {
         let dst = array_mut_ref![dst, 0, HashBytes::LEN];
 
         let (
-            is_initialized_dst,
-            unused_remainder0_dst,
+            _is_initialized_dst,
+            _unused_remainder0_dst,
             current_instruction_index_dst,
             //220
-            unused_remainder1_dst,
+            _unused_remainder1_dst,
             state_dst,
             current_round_dst,
             current_round_index_dst,

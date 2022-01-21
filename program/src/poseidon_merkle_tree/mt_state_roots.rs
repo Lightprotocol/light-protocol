@@ -1,6 +1,5 @@
 use solana_program::{
     account_info::AccountInfo,
-    log::sol_log_compute_units,
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
@@ -107,10 +106,9 @@ pub fn check_root_hash_exists(
         i += 32;
         counter += 1;
         if counter == account_main_data.root_history_size {
-            //msg!("did not find root should panic here but is disabled for testing");
-            panic!("did not find root");
+            msg!("did not find root");
+            //panic!("did not find root");
             return Err(ProgramError::InvalidAccountData);
-            //break;
         }
     }
     Ok(found_root)

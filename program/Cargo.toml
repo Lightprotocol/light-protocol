@@ -6,6 +6,7 @@ edition = "2018"
 
 [features]
 no-entrypoint = []
+test-bpf = []
 
 [profile.test] # fixed
 opt-level = 2
@@ -19,9 +20,6 @@ arrayref = "0.3.6"
 borsh = "0.9.1"
 #getrandom = { version = "0.1.14", features = ["dummy"] }
 getrandom = { version = "0.2.2", features = ["custom"] }
-#spl-math = "0.1.0"
-#bitcoin = "0.27.1"
-#solana-sdk = "1.7.12"
 
 
 #crypto
@@ -45,3 +43,7 @@ ark-serialize = { version = "^0.3.0", default-features = false }
 
 [lib]
 crate-type = ["cdylib", "lib"]
+
+
+[package.metadata.docs.rs]
+targets = ["x86_64-unknown-linux-gnu"]

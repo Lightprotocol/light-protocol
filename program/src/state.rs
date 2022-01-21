@@ -84,7 +84,7 @@ impl Pack for LiBytes {
 
         let (
             //constants
-            is_initialized_dst,
+            _is_initialized_dst,
             found_root_dst,
             found_nullifier_dst,
             executed_withdraw_dst,
