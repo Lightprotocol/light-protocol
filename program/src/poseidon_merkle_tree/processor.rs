@@ -1,10 +1,10 @@
+use crate::poseidon_merkle_tree::instructions::*;
 use crate::poseidon_merkle_tree::instructions_poseidon::{
     permute_instruction_3, permute_instruction_6, permute_instruction_first,
     permute_instruction_last,
 };
-use crate::poseidon_merkle_tree::mt_instructions::*;
-use crate::poseidon_merkle_tree::mt_state;
-use crate::poseidon_merkle_tree::mt_state::{
+use crate::poseidon_merkle_tree::state;
+use crate::poseidon_merkle_tree::state::{
     HashBytes, InitMerkleTreeBytes, MerkleTree, TwoLeavesBytesPda,
 };
 use crate::IX_ORDER;
@@ -76,10 +76,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         Ok(())
     }
 
-    pub fn process_instruction_merkle_tree(
-        &mut self,
-        accounts: &[AccountInfo],
-    ) -> Result<(), ProgramError> {
+    pub fn process_instruction(&mut self, accounts: &[AccountInfo]) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
         let signer = next_account_info(account)?;
         let _main_account = next_account_info(account)?;
@@ -104,7 +101,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 String::from("merkle tree locked by other account"),
             )?;
 
-            _process_instruction_merkle_tree(
+            _process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
                 &mut merkle_tree_account_data,
@@ -165,7 +162,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let merkle_tree_account = next_account_info(account)?;
             merkle_tree_pubkey_check(*merkle_tree_account.key)?;
             //hash instructions do not need the merkle tree
-            _process_instruction_merkle_tree(
+            _process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
                 &mut self.unpacked_merkle_tree,
@@ -215,7 +212,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
             leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey =
-                mt_state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
+                state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
 
             msg!("Lock set at slot {}", merkle_tree_account_data.time_locked);
             msg!("lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
@@ -241,7 +238,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     }
 }
 
-pub fn _process_instruction_merkle_tree(
+pub fn _process_instruction(
     id: u8,
     main_account_data: &mut HashBytes,
     merkle_tree_account_data: &mut MerkleTree,
@@ -284,7 +281,7 @@ pub fn _process_instruction_merkle_tree(
 }
 
 fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
-    if account_pubkey != solana_program::pubkey::Pubkey::new(&mt_state::MERKLE_TREE_ACC_BYTES[..]) {
+    if account_pubkey != solana_program::pubkey::Pubkey::new(&state::MERKLE_TREE_ACC_BYTES[..]) {
         msg!("invalid merkle tree");
         return Err(ProgramError::InvalidAccountData);
     }

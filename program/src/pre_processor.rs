@@ -1,6 +1,6 @@
 use crate::instructions::{check_and_insert_nullifier, create_and_check_account};
-use crate::poseidon_merkle_tree::mt_processor::MerkleTreeProcessor;
-use crate::poseidon_merkle_tree::mt_state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
+use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
+use crate::poseidon_merkle_tree::state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
 use crate::state::LiBytes;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -15,7 +15,6 @@ use ark_ff::bytes::FromBytes;
 use ark_ff::BigInteger;
 use std::convert::{TryFrom, TryInto};
 
-//use crate::process_instruction_merkle_tree;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -104,7 +103,7 @@ pub fn pre_process_instruction(
                 true,              //rent_exempt
             )?;
             msg!("created pda account onchain successfully");
-            merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
+            merkle_tree_processor.process_instruction(accounts)?;
             // calculate ext_amount from pubAmount:
             let ext_amount_from_pub = i64::from_str_radix(&pub_amount.to_string(), 16).unwrap();
 
@@ -137,7 +136,7 @@ pub fn pre_process_instruction(
                 true,   //rent_exempt
             )?;
             msg!("created pda account onchain successfully");
-            merkle_tree_processor.process_instruction_merkle_tree(accounts)?;
+            merkle_tree_processor.process_instruction(accounts)?;
             // calculate ext_amount from pubAmount:
             let field_size: Vec<u8> = vec![
                 1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
