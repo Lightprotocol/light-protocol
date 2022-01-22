@@ -380,8 +380,13 @@ impl Pack for TwoLeavesBytesPda {
 // total space required init data - one root which is included plus 100 roots in history and 2^18 leaves + total nr of deposits
 //1217 - 32 + 100 * 32 + (2**18) * 32 + 8 = 8393001 bytes
 
-//bytes0 of crashed merkletree
+// //bytes0 of crashed merkletree
+// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
+//     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
+//     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
+// ];
+// v1.1.2; light-protocol-core
 pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-    222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
-    158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
+    162, 166, 103, 128, 47, 35, 255, 7, 108, 182, 166, 12, 208, 164, 233, 178, 222, 73, 90, 2, 152,
+    174, 225, 190, 148, 157, 105, 10, 78, 240, 9, 47,
 ];
