@@ -129,7 +129,7 @@ pub fn pre_process_instruction(
                 signer_account,
                 two_leaves_pda,
                 system_program_info,
-                &(*signer_account.key).to_bytes(),
+                &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64, //bytes
                 0u64,   //lamports
