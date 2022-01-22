@@ -282,7 +282,11 @@ pub fn _process_instruction(
 
 fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
     if account_pubkey != solana_program::pubkey::Pubkey::new(&state::MERKLE_TREE_ACC_BYTES[..]) {
-        msg!("invalid merkle tree");
+        msg!(
+            "invalid merkle tree {:?}, {:?}",
+            account_pubkey,
+            solana_program::pubkey::Pubkey::new(&state::MERKLE_TREE_ACC_BYTES[..])
+        );
         return Err(ProgramError::InvalidAccountData);
     }
     Ok(())

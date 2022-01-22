@@ -3,14 +3,20 @@ use solana_program::{
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
-    pubkey::Pubkey
+    pubkey::Pubkey,
 };
 
 use arrayref::{array_ref, array_refs};
 
+// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
+//     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
+//     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
+// ];
+
+// v1.1.2; light-protocol-core
 pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-    222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
-    158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
+    162, 166, 103, 128, 47, 35, 255, 7, 108, 182, 166, 12, 208, 164, 233, 178, 222, 73, 90, 2, 152,
+    174, 225, 190, 148, 157, 105, 10, 78, 240, 9, 47,
 ];
 
 #[derive(Clone, Debug)]
@@ -66,7 +72,7 @@ impl Pack for MerkleTreeRoots {
 pub fn check_root_hash_exists(
     account_main: &AccountInfo,
     root_bytes: &Vec<u8>,
-    program_id: &Pubkey
+    program_id: &Pubkey,
 ) -> Result<u8, ProgramError> {
     let account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main);
@@ -107,8 +113,10 @@ pub fn check_root_hash_exists(
         counter += 1;
         if counter == account_main_data.root_history_size {
             msg!("did not find root");
-            //panic!("did not find root");
-            return Err(ProgramError::InvalidAccountData);
+            // panic!("did not find root");
+            // return Err(ProgramError::InvalidAccountData);
+            found_root = 0;
+            break;
         }
     }
     Ok(found_root)
