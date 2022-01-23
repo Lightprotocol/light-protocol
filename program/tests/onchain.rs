@@ -19,7 +19,7 @@ use light_protocol_core::{
     poseidon_merkle_tree::state::TempStoragePda,
     poseidon_merkle_tree::state::MERKLE_TREE_ACC_BYTES,
     process_instruction,
-    state::LiBytes,
+    state::ChecksAndTransferState,
 };
 
 use serde_json::{Result, Value};
@@ -750,7 +750,7 @@ pub struct LiBytes_test {
     pub changed_constants: [bool; 12],
 }
 fn unpack_li_bytes_for_test(input: &[u8]) -> LiBytes_test{
-    let input = array_ref![input, 0, LiBytes::LEN];
+    let input = array_ref![input, 0, ChecksAndTransferState::LEN];
     let (
         _is_initialized,
         found_root,

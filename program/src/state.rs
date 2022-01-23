@@ -1,6 +1,5 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
-    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
@@ -8,7 +7,7 @@ use solana_program::{
 use std::convert::TryInto;
 
 #[derive(Clone)]
-pub struct LiBytes {
+pub struct ChecksAndTransferState {
     is_initialized: bool,
     pub found_root: u8,
     pub found_nullifier: u8,
@@ -23,20 +22,21 @@ pub struct LiBytes {
     pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, ext_amount, signing_address,
     pub current_instruction_index: usize,
     pub proof_a_b_c_leaves_and_nullifiers: Vec<u8>,
+    // set changed_constants to true to pack specified values other values will not be packed
     pub changed_constants: [bool; 12],
 }
-impl Sealed for LiBytes {}
-impl IsInitialized for LiBytes {
+impl Sealed for ChecksAndTransferState {}
+impl IsInitialized for ChecksAndTransferState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl Pack for LiBytes {
+impl Pack for ChecksAndTransferState {
     const LEN: usize = 3900; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, LiBytes::LEN];
+        let input = array_ref![input, 0, ChecksAndTransferState::LEN];
 
         let (
             _is_initialized,
@@ -56,9 +56,8 @@ impl Pack for LiBytes {
             _unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384]; // 8->32 -- 24+ (old rem: 3296)
-        msg!("unpacked");
 
-        Ok(LiBytes {
+        Ok(ChecksAndTransferState {
             is_initialized: true,
 
             found_root: found_root[0],                     //0 legacy remove
@@ -80,7 +79,7 @@ impl Pack for LiBytes {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, LiBytes::LEN];
+        let dst = array_mut_ref![dst, 0, ChecksAndTransferState::LEN];
 
         let (
             //constants
@@ -106,7 +105,7 @@ impl Pack for LiBytes {
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
                 if i == 0 {
-                    *found_root_dst = [self.found_root; 1]; // TODO: check if removing CLONE() as per clippy has side effects
+                    *found_root_dst = [self.found_root; 1];
                 } else if i == 1 {
                     *found_nullifier_dst = [self.found_nullifier; 1];
                 } else if i == 2 {
@@ -141,7 +140,7 @@ impl Pack for LiBytes {
 }
 
 // Account struct to determine state of the computation
-// and perform basic security checks
+// and perform basic security checks.
 #[derive(Debug, Clone)]
 pub struct InstructionIndex {
     is_initialized: bool,
@@ -181,12 +180,7 @@ impl Pack for InstructionIndex {
         }
     }
 
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, InstructionIndex::LEN];
+    fn pack_into_slice(&self, _dst: &mut [u8]) {
 
-        let (_is_initialized, _unused_remainder0, _current_instruction_index, _unused_remainder1) =
-            mut_array_refs![dst, 1, 211, 8, 3680];
-        //is not meant to be used
-        // *is_initialized = *is_initialized;
     }
 }

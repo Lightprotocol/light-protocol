@@ -8,7 +8,7 @@ use solana_program::{
     pubkey::Pubkey, sysvar::rent::Rent,
 };
 
-use crate::state::LiBytes;
+use crate::state::ChecksAndTransferState;
 use crate::state_check_nullifier::NullifierBytesPda;
 use crate::Groth16Processor;
 use borsh::BorshSerialize;
@@ -218,7 +218,7 @@ pub fn try_initialize_tmp_storage_account(
     );
     //initing temporary storage account with bytes
 
-    let mut main_account_data = LiBytes::unpack(&main_account.data.borrow())?;
+    let mut main_account_data = ChecksAndTransferState::unpack(&main_account.data.borrow())?;
 
     let mut groth16_processor =
         Groth16Processor::new(main_account, main_account_data.current_instruction_index)?;
@@ -303,7 +303,7 @@ pub fn try_initialize_tmp_storage_account(
         main_account_data.changed_constants[i] = true;
     }
     main_account_data.current_instruction_index += 1;
-    LiBytes::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
+    ChecksAndTransferState::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
     msg!("packed successfully");
     Ok(())
 }

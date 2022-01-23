@@ -5,7 +5,7 @@ use crate::instructions::{
 };
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
-use crate::state::LiBytes;
+use crate::state::ChecksAndTransferState;
 use std::convert::{TryFrom, TryInto};
 
 use solana_program::{
@@ -35,7 +35,7 @@ pub fn process_instruction(
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
     let main_account = next_account_info(account)?;
-    let mut account_data = LiBytes::unpack(&main_account.data.borrow())?;
+    let mut account_data = ChecksAndTransferState::unpack(&main_account.data.borrow())?;
 
     // Checks whether passed-in root exists in Merkle tree history array.
     // We do this check as soon as possible to avoid proof transaction invalidation for missing
@@ -193,6 +193,6 @@ pub fn process_instruction(
     }
 
     account_data.current_instruction_index += 1;
-    LiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
+    ChecksAndTransferState::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
     Ok(())
 }
