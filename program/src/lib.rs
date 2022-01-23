@@ -5,7 +5,7 @@ pub mod instructions;
 pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
-pub mod state_check_nullifier;
+pub mod nullifier_state;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
