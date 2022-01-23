@@ -9,7 +9,7 @@ use solana_program::{
 };
 
 use crate::state::ChecksAndTransferState;
-use crate::state_check_nullifier::NullifierBytesPda;
+use crate::nullifier_state::NullifierState;
 use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
@@ -90,6 +90,7 @@ pub fn check_tx_integrity_hash(
     }
     Ok(())
 }
+
 pub fn check_and_insert_nullifier<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
@@ -109,8 +110,8 @@ pub fn check_and_insert_nullifier<'a, 'b>(
         true, //rent_exempt
     )?;
 
-    let nullifier_account_data = NullifierBytesPda::unpack(&nullifier_account.data.borrow())?;
-    NullifierBytesPda::pack_into_slice(
+    let nullifier_account_data = NullifierState::unpack(&nullifier_account.data.borrow())?;
+    NullifierState::pack_into_slice(
         &nullifier_account_data,
         &mut nullifier_account.data.borrow_mut(),
     );
