@@ -43,7 +43,7 @@ pub async fn create_and_start_program(
         *program_id,
         processor!(process_instruction),
     );
-    let mut user_account = Account::new(10000000000, 34 + SIZE_UTXO as usize * 100, &program_id);
+    let mut user_account = Account::new(10000000000, 34 + SIZE_UTXO as usize * 10, &program_id);
 
     program_test.add_account(*user_account_pubkey, user_account);
 
