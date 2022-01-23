@@ -18,6 +18,7 @@ use ark_ff::{
 use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
 
 pub fn verify_result(main_account_data: &FinalExpBytes) -> Result<(), ProgramError> {
+
     let pvk = vec![
         198, 242, 4, 28, 9, 35, 146, 101, 152, 133, 231, 128, 253, 46, 174, 170, 116, 96, 135, 45,
         77, 156, 161, 40, 238, 232, 55, 247, 15, 79, 136, 20, 73, 78, 229, 119, 48, 86, 133, 39,

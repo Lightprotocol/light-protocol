@@ -9,12 +9,13 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-// use spl_math::uint::U256;
+
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::bytes::FromBytes;
 use ark_ff::BigInteger;
 use std::convert::{TryFrom, TryInto};
-
+use ark_ff::fields::FpParameters;
+use ark_ed_on_bn254::FqParameters;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -84,6 +85,7 @@ pub fn pre_process_instruction(
         // }
         msg!("withdrawal amount: {:?}", pub_amount);
 
+
         if ext_amount > 0 {
             if *merkle_tree_account.key
                 != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES)
@@ -91,6 +93,26 @@ pub fn pre_process_instruction(
                 msg!("recipient has to be merkle tree account for deposit");
                 return Err(ProgramError::InvalidInstructionData);
             }
+
+            if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0
+            {
+                msg!("public amount is larger than u64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
+            if pub_amount_fits_i64.is_err() == true
+            {
+                msg!("public amount is larger than i64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            if u64::try_from(ext_amount).unwrap() != pub_amount.0[0]
+            {
+                msg!("ext_amount != pub_amount");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
             create_and_check_account(
                 program_id,
                 signer_account,
@@ -99,15 +121,12 @@ pub fn pre_process_instruction(
                 &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64,            //bytes
-                ext_amount as u64, //lamports
+                u64::try_from(ext_amount).unwrap(), //lamports
                 true,              //rent_exempt
             )?;
             msg!("created pda account onchain successfully");
             merkle_tree_processor.process_instruction(accounts)?;
-            // calculate ext_amount from pubAmount:
-            let ext_amount_from_pub = i64::from_str_radix(&pub_amount.to_string(), 16).unwrap();
 
-            assert_eq!(ext_amount, ext_amount_from_pub, "ext_amount != pub_amount");
             msg!("deposited {}", ext_amount);
             transfer(
                 two_leaves_pda,
@@ -137,29 +156,40 @@ pub fn pre_process_instruction(
             )?;
             msg!("created pda account onchain successfully");
             merkle_tree_processor.process_instruction(accounts)?;
-            // calculate ext_amount from pubAmount:
-            let field_size: Vec<u8> = vec![
-                1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
-                129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
-            ];
-            let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
-            field.sub_noborrow(&pub_amount);
-            // field is the positive value
-            let _ext_amount_from_pub = field.0[0];
 
+            // calculate ext_amount from pubAmount:
+            let mut field = FqParameters::MODULUS;
+            field.sub_noborrow(&pub_amount);
+
+            if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0
+            {
+                msg!("public amount is larger than u64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
+            if pub_amount_fits_i64.is_err() == true
+            {
+                msg!("public amount is larger than i64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            // field is the positive value
+            let ext_amount_from_pub = field.0[0];
+            if u64::try_from(-ext_amount).unwrap()
+                != ext_amount_from_pub
+            {
+                msg!("ext_amount != pub_amount");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             transfer(
                 merkle_tree_account,
                 recipient_account,
-                u64::try_from(-ext_amount).unwrap(),
+                ext_amount_from_pub,
             )?;
         }
-    } else if current_instruction_index == 4 {
-        //state_check_nullifier::check_and_insert_nullifier();
     }
 
     account_data.current_instruction_index += 1;
     LiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
-    msg!("finished successfully");
     Ok(())
 }
 
