@@ -1124,7 +1124,7 @@ async fn deposit_should_succeed() {
 }
 
 #[tokio::test]
-async fn withdraw_should_succeed() {
+async fn withdrawal_should_succeed() {
 
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
     let recipient = Pubkey::from_str("8eAjq2c7mFQsUgQHwQ5JEySZBAnv3fHXY2t3pPbA3c8R").unwrap();
