@@ -714,22 +714,21 @@ async fn deposit_should_succeed() {
 
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
 
-
-    let merkel_tree_account_new = program_context
+    let merkle_tree_account_new = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
         .await
         .expect("get_account")
         .unwrap();
-    // println!("merkle_tree_data: {:?}", merkel_tree_account_new.data);
+    // println!("merkle_tree_data: {:?}", merkle_tree_account_new.data);
     // panic!("");
     println!(
         "root[0]: {:?}",
-        merkel_tree_account_new.data[609..641].to_vec()
+        merkle_tree_account_new.data[609..641].to_vec()
     );
     println!(
         "root[1]: {:?}",
-        merkel_tree_account_new.data[641..673].to_vec()
+        merkle_tree_account_new.data[641..673].to_vec()
     );
     check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
@@ -740,7 +739,7 @@ async fn deposit_should_succeed() {
     ).await;
 
     assert_eq!(
-        merkel_tree_account_new.lamports,
+        merkle_tree_account_new.lamports,
         merkle_tree_pda_before.lamports + 100000000
     );
 
@@ -804,7 +803,7 @@ async fn withdraw_should_succeed() {
 
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
 
-    let merkel_tree_account_new = program_context
+    let merkle_tree_account_new = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
         .await
@@ -813,15 +812,15 @@ async fn withdraw_should_succeed() {
 
     println!(
         "root[0]: {:?}",
-        merkel_tree_account_new.data[609..641].to_vec()
+        merkle_tree_account_new.data[609..641].to_vec()
     );
     println!(
         "root[1]: {:?}",
-        merkel_tree_account_new.data[641..673].to_vec()
+        merkle_tree_account_new.data[641..673].to_vec()
     );
     println!(
         "root[2]: {:?}",
-        merkel_tree_account_new.data[641 + 32..673 + 32].to_vec()
+        merkle_tree_account_new.data[641 + 32..673 + 32].to_vec()
     );
     check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
@@ -842,6 +841,98 @@ async fn withdraw_should_succeed() {
         "withdraw success {} {}",
         receiver_account.lamports, 1000000000,
     );
+}
+
+#[tokio::test]
+async fn double_spend_should_not_succeed() {
+
+    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
+    let recipient = Pubkey::from_str("8eAjq2c7mFQsUgQHwQ5JEySZBAnv3fHXY2t3pPbA3c8R").unwrap();
+
+    // Creates program, accounts, setup.
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
+    let mut accounts_vector = Vec::new();
+    // Creates pubkey for temporary storage account
+    let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, Some(MERKLETREE_WITHDRAW_DATA.to_vec())));
+    // Creates random signer
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+
+    let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) = create_pubkeys_from_ix_data(&ix_withdraw_data, &program_id).await;
+    let mut nullifier_pubkeys = Vec::new();
+    nullifier_pubkeys.push(nf_pubkey0);
+    nullifier_pubkeys.push(nf_pubkey1);
+    //add nullifier_pubkeys to account vector to mimic their invalidation
+    accounts_vector.push((&nullifier_pubkeys[0], 2, Some(vec![1, 0])));
+    accounts_vector.push((&nullifier_pubkeys[1], 2, Some(vec![1, 0])));
+
+    // start program
+    let mut program_context =
+        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+
+    //checks that other nullifiers are initialized already
+    check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
+
+    let merkle_tree_pda_before = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    //withdraw from shielded pool
+    transact(
+        &program_id,
+        &signer_pubkey,
+        &signer_keypair,
+        &tmp_storage_pda_pubkey,
+        &merkle_tree_pda_pubkey,
+        &nullifier_pubkeys,
+        &two_leaves_pda_pubkey,
+        Some(&recipient),
+        ix_withdraw_data.clone(),
+        &mut program_context,
+        &mut accounts_vector,
+        1u8,
+    ).await;
+
+    let merkel_tree_account_after = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    println!(
+        "root[0]: {:?}",
+        merkel_tree_account_after.data[609..641].to_vec()
+    );
+    println!(
+        "root[1]: {:?}",
+        merkel_tree_account_after.data[641..673].to_vec()
+    );
+    println!(
+        "root[2]: {:?}",
+        merkel_tree_account_after.data[641 + 32..673 + 32].to_vec()
+    );
+
+    //assert current root is the same
+    //assert root index did not increase
+
+    //checking that no leaves were inserted
+    let two_leaves_pda_account = program_context
+        .banks_client
+        .get_account(two_leaves_pda_pubkey)
+        .await.unwrap();
+    assert_eq!(two_leaves_pda_account.is_none(), true);
+
+    let receiver_account = program_context
+        .banks_client
+        .get_account(recipient)
+        .await.unwrap();
+    //checking that no amount was withdrawn to the recipient
+    assert_eq!(receiver_account.is_none(), true);
 }
 
 async fn check_nullifier_insert_correct(
@@ -1286,7 +1377,7 @@ async fn compute_miller_output_should_succeed() {
 }
 
 #[tokio::test]
-async fn compute_final_exponentiation_should_succeed() /*-> Result<(), TransportError>*/
+async fn compute_final_exponentiation_should_succeed()
 {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
     let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
@@ -1497,7 +1588,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
     println!("nullifier0_account.data {:?}", nullifier0_account.data);
     assert_eq!(nullifier1_account.data[0], 1);
 
-    let merkel_tree_account_new = program_context
+    let merkle_tree_account_new = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
         .await
@@ -1505,11 +1596,11 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
         .unwrap();
     println!(
         "root[0]: {:?}",
-        merkel_tree_account_new.data[609..641].to_vec()
+        merkle_tree_account_new.data[609..641].to_vec()
     );
     println!(
         "root[1]: {:?}",
-        merkel_tree_account_new.data[641..673].to_vec()
+        merkle_tree_account_new.data[641..673].to_vec()
     );
     let two_leaves_pda_account = program_context
         .banks_client
@@ -1541,11 +1632,11 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
 
     println!(
         "deposit success {} {}",
-        merkel_tree_account_new.lamports,
+        merkle_tree_account_new.lamports,
         merkle_tree_pda_old.lamports + 100000000
     );
     //check whether withdrawal was successful
-    // if merkel_tree_account_new.lamports != merkle_tree_pda_old.lamports + 100000000 {
+    // if merkle_tree_account_new.lamports != merkle_tree_pda_old.lamports + 100000000 {
     //     let receiver_account = program_context
     //         .banks_client
     //         .get_account(receiver_pubkey)

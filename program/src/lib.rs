@@ -1,7 +1,5 @@
-//constants for verifying key and poseidon
 pub mod user_account;
 pub mod utils;
-//merkle tree
 pub mod groth16_verifier;
 pub mod instructions;
 pub mod poseidon_merkle_tree;
@@ -9,9 +7,7 @@ pub mod pre_processor;
 pub mod state;
 pub mod state_check_nullifier;
 
-use crate::instructions::*;
-use crate::pre_processor::pre_process_instruction;
-use crate::state::InstructionIndex;
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     entrypoint,
@@ -22,23 +18,15 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
+use crate::instructions::*;
+use crate::pre_processor::pre_process_instruction;
+use crate::state::InstructionIndex;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
-
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::utils::init_bytes18;
-
 use crate::user_account::instructions::{initialize_user_account, modify_user_account};
 
 entrypoint!(process_instruction);
-
-//use crate::state::MtConfig;
-
-// #[derive(Clone)]
-// struct MtInitConfig;
-//
-// impl MtConfig for MtInitConfig {
-//     const INIT_BYTES: &'static[u8] = &init_bytes18::INIT_BYTES_MERKLE_TREE_18[..];
-// }
 
 // We use current_instruction_index to move through the call order as per [IX_ORDER].
 pub fn process_instruction(
@@ -52,26 +40,28 @@ pub fn process_instruction(
         let account = &mut accounts_mut.iter();
         let _signer_account = next_account_info(account)?;
         let merkle_tree_storage_acc = next_account_info(account)?;
-        //merkle_tree_tmp_account_data.initialize();
-        //state::InitMerkleProcessor::<MtInitConfig>::new(merkle_tree_tmp_account_data, _instruction_data);
+
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
+
     } else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
-        msg!("in: {:?}", _instruction_data);
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
         let signer_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
 
         initialize_user_account(user_account, *signer_account.key)
+
     } else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let accounts_mut = accounts.clone();
         let account = &mut accounts_mut.iter();
         let signer_account = next_account_info(account)?;
         let user_account = next_account_info(account)?;
+
         modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
+
     }
     // transact with shielded pool
     else {
@@ -100,19 +90,13 @@ pub fn process_instruction(
                     if account_main_data.current_instruction_index == 1
                         || account_main_data.current_instruction_index == 1502
                     {
-                        //TODO should check the nullifier and root in the beginning
-                        //check tx data hash
-                        //_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
-                        //require(isKnownRoot(_args.root), "Invalid merkle root");
-                        //_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
-                        msg!("if pre_process_instruction if");
                         pre_process_instruction(
                             program_id,
                             accounts,
                             account_main_data.current_instruction_index,
                         )?;
-
                         Ok(())
+
                     }
                     // Main verification part
                     //prepare inputs for proof verification + miller loop + final exponentiation
@@ -123,6 +107,7 @@ pub fn process_instruction(
                         )?;
                         groth16_processor.process_instruction_groth16_verifier()?;
                         Ok(())
+
                     }
                     //merkle tree insertion of new utxos
                     else if account_main_data.current_instruction_index >= 801 + 466 {
@@ -130,6 +115,7 @@ pub fn process_instruction(
                             MerkleTreeProcessor::new(Some(account_main), None)?;
                         merkle_tree_processor.process_instruction(accounts)?;
                         Ok(())
+
                     } else {
                         Err(ProgramError::InvalidArgument)
                     }
@@ -241,7 +227,6 @@ pub const IX_ORDER: [u8; 1503] = [
     1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1,
     1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    //16,
     //perform last checks and transfer requested amount
     241,
 ];
