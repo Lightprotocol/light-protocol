@@ -10,7 +10,10 @@ use crate::groth16_verifier::{
 // Reads: proof.a, proof.c, proof.b from prepare_inputs account and initializes
 // them as p1 (proof.a), p3 (proof.c) and proof_b (coeff1) in the miller_loop account.
 // Also initializes f.one().
-pub fn move_proofs(account_main_data: &mut MillerLoopState, account_prepare_inputs_data: &PrepareInputsState) {
+pub fn move_proofs(
+    account_main_data: &mut MillerLoopState,
+    account_prepare_inputs_data: &PrepareInputsState,
+) {
     let proof_a = parse_x_group_affine_from_bytes(
         &account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec(),
     );

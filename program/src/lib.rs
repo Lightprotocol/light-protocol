@@ -1,11 +1,11 @@
-pub mod user_account;
-pub mod utils;
 pub mod groth16_verifier;
 pub mod instructions;
+pub mod nullifier_state;
 pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
-pub mod nullifier_state;
+pub mod user_account;
+pub mod utils;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -17,14 +17,12 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::instructions::{
-    create_and_try_initialize_tmp_storage_pda,
-};
-use crate::state::InstructionIndex;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
+use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
-use crate::utils::init_bytes18;
+use crate::state::InstructionIndex;
 use crate::user_account::instructions::{initialize_user_account, modify_user_account};
+use crate::utils::init_bytes18;
 
 entrypoint!(process_instruction);
 
@@ -50,23 +48,19 @@ pub fn process_instruction(
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
-
     }
     // Initialize new onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
         let user_account = next_account_info(account)?;
 
         initialize_user_account(user_account, *signer_account.key)
-
     }
     // Modify onchain user account with arbitrary number of new utxos.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let user_account = next_account_info(account)?;
 
         modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
-
     }
-
     // Transact with shielded pool.
     // This instruction has to be called 1503 times to perform all computation.
     // There are many types of instructions which have to be executed in a specific order.
@@ -83,7 +77,6 @@ pub fn process_instruction(
         // Check whether tmp_storage_pda is initialized, if not try create and initialize.
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
-
             Err(_) => {
                 // Creates a tmp_storage_pda to store state while verifying the zero-knowledge proof and
                 // updating the merkle tree.
@@ -106,9 +99,9 @@ pub fn process_instruction(
                 create_and_try_initialize_tmp_storage_pda(
                     program_id,
                     accounts,
-                    3900u64, // bytes
-                    0_u64,   // lamports
-                    true,    // rent_exempt
+                    3900u64,                 // bytes
+                    0_u64,                   // lamports
+                    true,                    // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
@@ -128,8 +121,7 @@ pub fn process_instruction(
                     // Checks whether root exists in Merkle tree history vec.
                     // Accounts:
                     // 2. `[]` Merkle tree
-                    if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
-                    {
+                    if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK {
                         processor::process_instruction(
                             program_id,
                             accounts,
@@ -150,7 +142,8 @@ pub fn process_instruction(
                     // 6. `[writable]` merkle_tree_pda
                     // 7. `[]` spl_program
                     // 8. `[]` recipient
-                    else if tmp_storage_pda_data.current_instruction_index == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
+                    else if tmp_storage_pda_data.current_instruction_index
+                        == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
                     {
                         processor::process_instruction(
                             program_id,
@@ -158,13 +151,12 @@ pub fn process_instruction(
                             tmp_storage_pda_data.current_instruction_index,
                         )?;
                         Ok(())
-
                     }
                     // Zero-knowledge proof verification.
                     // Accounts:
                     // 2. `[writable]` tmp_storage_pda
-                    else if tmp_storage_pda_data.current_instruction_index > ROOT_CHECK &&
-                        tmp_storage_pda_data.current_instruction_index < VERIFICATION_END_INDEX
+                    else if tmp_storage_pda_data.current_instruction_index > ROOT_CHECK
+                        && tmp_storage_pda_data.current_instruction_index < VERIFICATION_END_INDEX
                     {
                         let mut groth16_processor = Groth16Processor::new(
                             tmp_storage_pda,
@@ -172,18 +164,18 @@ pub fn process_instruction(
                         )?;
                         groth16_processor.process_instruction_groth16_verifier()?;
                         Ok(())
-
                     }
                     //merkle tree insertion of new utxos
                     // Accounts:
                     // 2. `[writable]` tmp_storage_pda
                     // 3. `[]` merkle_tree_pda
-                    else if tmp_storage_pda_data.current_instruction_index >= VERIFICATION_END_INDEX {
+                    else if tmp_storage_pda_data.current_instruction_index
+                        >= VERIFICATION_END_INDEX
+                    {
                         let mut merkle_tree_processor =
                             MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
                         merkle_tree_processor.process_instruction(accounts)?;
                         Ok(())
-
                     } else {
                         Err(ProgramError::InvalidArgument)
                     }

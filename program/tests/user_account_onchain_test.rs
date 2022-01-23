@@ -20,7 +20,7 @@ use std::convert::TryInto;
 use std::{thread, time};
 use {
     light_protocol_core::{
-        poseidon_merkle_tree::state::{TempStoragePda, MerkleTree, MERKLE_TREE_ACC_BYTES},
+        poseidon_merkle_tree::state::{MerkleTree, TempStoragePda, MERKLE_TREE_ACC_BYTES},
         process_instruction,
         utils::init_bytes18,
     },

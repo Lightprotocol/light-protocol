@@ -4,16 +4,19 @@ use ark_ff::PrimeField;
 use solana_program::program::invoke_signed;
 use solana_program::system_instruction;
 use solana_program::{
-    account_info::{AccountInfo, next_account_info}, msg, program_error::ProgramError, program_pack::Pack,
-    pubkey::Pubkey, sysvar::rent::Rent,
+    account_info::{next_account_info, AccountInfo},
+    msg,
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::rent::Rent,
 };
 
-use crate::state::ChecksAndTransferState;
 use crate::nullifier_state::NullifierState;
+use crate::state::ChecksAndTransferState;
 use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
-
 
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
     if _from
@@ -192,8 +195,10 @@ pub fn try_initialize_tmp_storage_pda(
 
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
-    let mut groth16_processor =
-        Groth16Processor::new(tmp_storage_pda, tmp_storage_pda_data.current_instruction_index)?;
+    let mut groth16_processor = Groth16Processor::new(
+        tmp_storage_pda,
+        tmp_storage_pda_data.current_instruction_index,
+    )?;
     groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
     tmp_storage_pda_data.signing_address = signing_address.to_bytes().to_vec();
@@ -209,7 +214,7 @@ pub fn try_initialize_tmp_storage_pda(
 
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[224..480].to_vec(), // proof
-        commitment_right.to_vec(), // TODO left right
+        commitment_right.to_vec(),            // TODO left right
         commitment_left.to_vec(),
         input_nullifier_0.to_vec(),
         input_nullifier_1.to_vec(),
@@ -231,7 +236,10 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda_data.changed_constants[i] = true;
     }
     tmp_storage_pda_data.current_instruction_index += 1;
-    ChecksAndTransferState::pack_into_slice(&tmp_storage_pda_data, &mut tmp_storage_pda.data.borrow_mut());
+    ChecksAndTransferState::pack_into_slice(
+        &tmp_storage_pda_data,
+        &mut tmp_storage_pda.data.borrow_mut(),
+    );
     msg!("packed successfully");
     Ok(())
 }
