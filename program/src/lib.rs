@@ -17,7 +17,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::instructions::*;
+use crate::instructions::{create_and_try_initialize_tmp_storage_account};
 use crate::pre_processor::pre_process_instruction;
 use crate::state::InstructionIndex;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
@@ -27,17 +27,22 @@ use crate::user_account::instructions::{initialize_user_account, modify_user_acc
 
 entrypoint!(process_instruction);
 
-// We use current_instruction_index to move through the call order as per [IX_ORDER].
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
 ) -> ProgramResult {
-    // initialize new merkle tree account
+    let accounts_mut = accounts.clone();
+    let account = &mut accounts_mut.iter();
+    let signer_account = next_account_info(account)?;
+    if !signer_account.is_signer {
+        msg!("signer account needs to be passed in first place");
+        return Err(ProgramError::IllegalOwner);
+    }
+    //TODO: replace if else with enum
+
+    // Initialize new merkle tree account.
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
-        let accounts_mut = accounts.clone();
-        let account = &mut accounts_mut.iter();
-        let _signer_account = next_account_info(account)?;
         let merkle_tree_storage_acc = next_account_info(account)?;
 
         let mut merkle_tree_processor =
@@ -45,84 +50,45 @@ pub fn process_instruction(
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
 
-    } else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
-        let accounts_mut = accounts.clone();
-        let account = &mut accounts_mut.iter();
-        let signer_account = next_account_info(account)?;
+    }
+    // Initialize new onchain user account.
+    else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
         let user_account = next_account_info(account)?;
 
         initialize_user_account(user_account, *signer_account.key)
 
-    } else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
-        let accounts_mut = accounts.clone();
-        let account = &mut accounts_mut.iter();
-        let signer_account = next_account_info(account)?;
+    }
+    // Modify onchain user account with arbitrary number of new utxos.
+    else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let user_account = next_account_info(account)?;
 
         modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
 
     }
-    // transact with shielded pool
+
+    // Transact with shielded pool.
+    // This instruction has to be called 1503 times to perform all computation.
+    // There are many types of instructions which have to be executed in a specific order.
+    // The instruction order is hardcode in IX_ORDER.
+    // After every instruction the program increments an internal counter (current_instruction_index).
+    // The current_instruction_index is stored in a temporary storage pda on-chain.
     else {
-        let accounts_mut = accounts.clone();
-        let account = &mut accounts_mut.iter();
-        let signer_account = next_account_info(account)?;
-        let account_main = next_account_info(account)?;
-        //unpack helper struct to determine in which computational step the contract is in
-        //if the account is not initialized, try to initialize, fails if data is not provided or
-        //account is of the wrong size
-        let account_main_data = InstructionIndex::unpack(&account_main.data.borrow());
+        // 1. `[writable]` tmp_storage_pda stores intermediate state.
+        let tmp_storage_pda = next_account_info(account)?;
 
-        match account_main_data {
-            Ok(account_main_data) => {
-                //msg!("account_main_data.current_instruction_index {}", account_main_data.current_instruction_index);
-                // do signer check etc before starting a compute instruction
-                if account_main_data.signer_pubkey != *signer_account.key {
-                    msg!("wrong signer");
-                    Err(ProgramError::IllegalOwner)
-                } else {
-                    msg!(
-                        "current ix index: {}",
-                        account_main_data.current_instruction_index
-                    );
+        // Unpack the current_instruction_index.
+        let tmp_storage_pda_data = InstructionIndex::unpack(&tmp_storage_pda.data.borrow());
 
-                    if account_main_data.current_instruction_index == 1
-                        || account_main_data.current_instruction_index == 1502
-                    {
-                        pre_process_instruction(
-                            program_id,
-                            accounts,
-                            account_main_data.current_instruction_index,
-                        )?;
-                        Ok(())
+        // Check whether tmp_storage_pda is initialized, if not try create and initialize.
+        // First instruction will always create and initialize a new tmp_storage_pda.
+        match tmp_storage_pda_data {
 
-                    }
-                    // Main verification part
-                    //prepare inputs for proof verification + miller loop + final exponentiation
-                    else if account_main_data.current_instruction_index < 801 + 466 {
-                        let mut groth16_processor = Groth16Processor::new(
-                            account_main,
-                            account_main_data.current_instruction_index,
-                        )?;
-                        groth16_processor.process_instruction_groth16_verifier()?;
-                        Ok(())
-
-                    }
-                    //merkle tree insertion of new utxos
-                    else if account_main_data.current_instruction_index >= 801 + 466 {
-                        let mut merkle_tree_processor =
-                            MerkleTreeProcessor::new(Some(account_main), None)?;
-                        merkle_tree_processor.process_instruction(accounts)?;
-                        Ok(())
-
-                    } else {
-                        Err(ProgramError::InvalidArgument)
-                    }
-                }
-            }
-            //Try to initialize the account if it's is not initialized yet
             Err(_) => {
-                //initialize temporary storage account for shielded pool deposit, transfer or withdraw
+                // Creates a tmp_storage_pda to store state while verifying the zero-knowledge proof and
+                // updating the merkle tree.
+                // All data used during computation is passed in as instruction_data with this instruction.
+                // No subsequent instructions read instruction_data.
+                // instruction_data: []
                 create_and_try_initialize_tmp_storage_account(
                     program_id,
                     accounts,
@@ -132,36 +98,74 @@ pub fn process_instruction(
                     &_instruction_data[9..],
                 )
             }
+
+            Ok(tmp_storage_pda_data) => {
+                // Check signer before starting a compute instruction.
+                if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
+                    msg!("wrong signer");
+                    Err(ProgramError::IllegalOwner)
+                } else {
+                    msg!(
+                        "current ix index: {}",
+                        tmp_storage_pda_data.current_instruction_index
+                    );
+                    // TODO: replace if else with enum for better readibility
+                    // Checks whether root exists in Merkle tree history vec.
+                    // Accounts:
+                    // 2.
+                    //
+                    if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
+                    {
+                        pre_process_instruction(
+                            program_id,
+                            accounts,
+                            tmp_storage_pda_data.current_instruction_index,
+                        )?;
+                        Ok(())
+                    }
+                    //
+                    else if tmp_storage_pda_data.current_instruction_index == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
+                    {
+                        pre_process_instruction(
+                            program_id,
+                            accounts,
+                            tmp_storage_pda_data.current_instruction_index,
+                        )?;
+                        Ok(())
+
+                    }
+                    // Main verification part
+                    //prepare inputs for proof verification + miller loop + final exponentiation
+
+                    else if tmp_storage_pda_data.current_instruction_index < 1267 {
+                        let mut groth16_processor = Groth16Processor::new(
+                            tmp_storage_pda,
+                            tmp_storage_pda_data.current_instruction_index,
+                        )?;
+                        groth16_processor.process_instruction_groth16_verifier()?;
+                        Ok(())
+
+                    }
+                    //merkle tree insertion of new utxos
+                    else if tmp_storage_pda_data.current_instruction_index >= 1267 {
+                        let mut merkle_tree_processor =
+                            MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+                        merkle_tree_processor.process_instruction(accounts)?;
+                        Ok(())
+
+                    } else {
+                        Err(ProgramError::InvalidArgument)
+                    }
+                }
+            }
         }
     }
 }
 
-fn create_and_try_initialize_tmp_storage_account(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    number_storage_bytes: u64,
-    lamports: u64,
-    rent_exempt: bool,
-    _instruction_data: &[u8],
-) -> Result<(), ProgramError> {
-    let accounts_mut = accounts.clone();
-    let account = &mut accounts_mut.iter();
-    let signer_account = next_account_info(account)?;
-    let account_main = next_account_info(account)?;
-    let system_program_info = next_account_info(account)?;
-    create_and_check_account(
-        program_id,
-        signer_account,
-        account_main,
-        system_program_info,
-        &_instruction_data[96..128],
-        &b"storage"[..],
-        number_storage_bytes, //bytes
-        lamports,             //lamports
-        rent_exempt,          //rent_exempt
-    )?;
-    try_initialize_tmp_storage_account(account_main, _instruction_data, signer_account.key)
-}
+const ROOT_CHECK: usize = 1;
+const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1502;
+
+
 
 //instruction order
 pub const IX_ORDER: [u8; 1503] = [

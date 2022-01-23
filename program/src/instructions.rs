@@ -4,7 +4,7 @@ use ark_ff::PrimeField;
 use solana_program::program::invoke_signed;
 use solana_program::system_instruction;
 use solana_program::{
-    account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
+    account_info::{AccountInfo, next_account_info}, msg, program_error::ProgramError, program_pack::Pack,
     pubkey::Pubkey, sysvar::rent::Rent,
 };
 
@@ -13,6 +13,33 @@ use crate::state_check_nullifier::NullifierBytesPda;
 use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
+
+pub fn create_and_try_initialize_tmp_storage_account(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    number_storage_bytes: u64,
+    lamports: u64,
+    rent_exempt: bool,
+    _instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let accounts_mut = accounts.clone();
+    let account = &mut accounts_mut.iter();
+    let signer_account = next_account_info(account)?;
+    let account_main = next_account_info(account)?;
+    let system_program_info = next_account_info(account)?;
+    create_and_check_account(
+        program_id,
+        signer_account,
+        account_main,
+        system_program_info,
+        &_instruction_data[96..128],
+        &b"storage"[..],
+        number_storage_bytes, //bytes
+        lamports,             //lamports
+        rent_exempt,          //rent_exempt
+    )?;
+    try_initialize_tmp_storage_account(account_main, _instruction_data, signer_account.key)
+}
 
 pub fn check_tx_integrity_hash(
     recipient: Vec<u8>,
