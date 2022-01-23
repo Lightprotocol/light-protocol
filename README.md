@@ -1,5 +1,5 @@
 # Light Protocol
-
+peace
 ## Notes:
 
 - All code we modified is in this repository.
@@ -29,7 +29,7 @@
 
 Light cash is the first implementation using light protocol to provide privacy. A SDK for light protocol will follow soon to enable privacy not only for one application but the entire Solana ecosystem.
 
-The vision for light protocol is embedded privacy in any blockchain application. For instance imagine wallets and dexes with a button to send a private transaction. We want to equip developers with the tools to achieve privacy. 
+The vision for light protocol is embedded privacy in any blockchain application. For instance imagine wallets and dexes with a button to send a private transaction. We want to equip developers with the tools to achieve privacy.
 
 Privacy is achieved with zero-knowledge proofs which verify that the owner of recipient address B has deposited tokens to our pool from another address A before.
 
@@ -87,10 +87,10 @@ Public inputs for the ZKP verification are prepared in the Prepare_Inputs progra
 program_prep_inputs
 
   Steps:
-  
+
     - Check merkle root exists. A struct tailored to making the roots available is used to parse the merkle tree account.
     lib.rs -> pre_processor_prep_inputs.rs -> state_merkle_tree_roots.rs
-    
+
     - Prepare inputs
     lib.rs -> pre_processor_prep_inputs.rs -> processor_prepare_inputs.rs -> instructions_prepare_inputs.rs
 
@@ -98,31 +98,31 @@ program_prep_inputs
 program
 
   Steps:
-  
+
       - transfer state from prepared input account to miller loop account
-      
+
       - Calculate miller loop
-      
+
       lib.rs -> pre_processor_miller_loop.rs -> processor.rs -> instructions.rs -> hard_coded_verifying_key_\*.rs
-      
+
       - Caculate final exponentiation
-      
+
       lib.rs -> processor_part2.rs -> instructions (inverse.rs, mul_assign.rs, utils.rs)
-      
+
       - check nullifier does not exist yet
-      
+
       lib.rs -> processor_part2.rs -> state_check_nullifier.rs
-      
+
       - check proof verification was sucessful (check result with hardcoded verifyingkey)
-      
+
       - send withdrawal amount
-  
+
   Accounts:
-  
+
   - Merkle tree account (to check root exists, nullifier does not exists, insert nullifier)
-  
+
   - Prepare inputs account for temporary storage
-  
+
   - Miller loop and final exponentiation use the same account for temporary storage
 
 ## Security Checks
@@ -131,13 +131,13 @@ program
 
 - [x]  tree is initialized (assert in unpack, doesn t crash but doesn t do anything if not inited)
 - [x]  user deposited the right amount into the tree account
-    
+
     user transfers deposit to tmp account
-    
+
     program transfers amount from tmp account to merkletree account which only works if the amount is right
-    
+
     check owner of merkletree account
-    
+
 - [x]  check signer probably not necessary if both leaf hash submission and transfer occur in the same tx
 - [x]  tree account address is hardcoded in program
 - [ ]  init hash_bytes_correctly
