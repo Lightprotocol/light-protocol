@@ -198,7 +198,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             insert_last_double(&mut merkle_tree_account_data, &mut main_account_data)?;
 
             //check leaves account is rent exempt
-            let rent = Rent::free();
+            let rent = Rent::default();
             if !rent.is_exempt(**leaf_pda.lamports.borrow(), 106) {
                 msg!("leaves account is not rent exempt");
                 return Err(ProgramError::InvalidAccountData);

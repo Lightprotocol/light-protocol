@@ -10,7 +10,7 @@ pub fn initialize_user_account(
     pubkey_signer: Pubkey,
 ) -> Result<(), ProgramError> {
     //check for rent exemption
-    let rent = Rent::free();
+    let rent = Rent::default();
     if rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) != true {
         msg!("user account is not rentexempt");
         return Err(ProgramError::InvalidInstructionData);
