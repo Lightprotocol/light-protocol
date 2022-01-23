@@ -20,7 +20,7 @@ pub fn _process_instruction(
     if id == 0 {
         //init and conjugate
         account_struct.f1_r_range_s = account_struct.f_f2_range_s.clone();
-        //account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+        //Zero out y6_range for proof data was stored in this range for miller loop. 
         let zeros = vec![0u8; 384];
         account_struct.y6_range = zeros.clone();
         conjugate_wrapper(&mut account_struct.f1_r_range_s);

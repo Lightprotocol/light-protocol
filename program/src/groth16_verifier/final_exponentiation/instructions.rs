@@ -15,7 +15,7 @@ use ark_ff::{
     Field,
 };
 
-use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+use solana_program::{msg, program_error::ProgramError};
 
 pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(), ProgramError> {
     let pvk = vec![
@@ -49,7 +49,6 @@ pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(),
 }
 //conjugate should work onyl wrapper
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
-    msg!("conjugate_wrapper: ------------------------------------------");
     let mut f = parse_f_from_bytes(_range);
     f.conjugate();
     parse_f_to_bytes(f, _range);
@@ -156,13 +155,9 @@ pub fn mul_assign_4_2(
     //let mut f = parse_f_from_bytes(&account[..], range_f);
     let mut f_c1 = parse_cubic_from_bytes_sub(&_f1_r_range, _f1_r_cubic_1_range); //30000
     let other_cs = parse_cubic_from_bytes_sub(&_store_cubic_range, SOLO_CUBIC_0_RANGE); //60000
-    //if these logs are removed a stackoverflow might occur in the overall program
-    sol_log_compute_units();
     f_c1 *= other_cs;
-    sol_log_compute_units();
     //87075
     parse_cubic_to_bytes_sub(f_c1, _f1_r_range, _f1_r_cubic_1_range);
-    sol_log_compute_units();
 
     //195000
 }
@@ -432,39 +427,7 @@ mod tests {
             assert_eq!(reference_f, parse_f_from_bytes(&account));
         }
     }
-    /*
-    #[test]
-    fn frobenius_map_test_fails() {
-        //generating input
-        for i in 1..4 {
-            let mut rng = test_rng();
-            let mut reference_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
 
-            let mut actual_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(&mut rng);
-            //simulating the onchain account
-            let mut account = vec![0u8;384];
-            parse_f_to_bytes(actual_f, &mut account);
-            if i == 1 {
-                custom_frobenius_map_1_1(&mut account);
-                custom_frobenius_map_1_2(&mut account);
-
-            } else if i == 2 {
-                custom_frobenius_map_2_1(&mut account);
-                custom_frobenius_map_2_2(&mut account);
-
-            } else {
-                custom_frobenius_map_3_1(&mut account);
-                custom_frobenius_map_3_2(&mut account);
-
-            }
-
-            //generating reference value for comparison
-            reference_f.frobenius_map(i);
-            assert!(reference_f != parse_f_from_bytes(&account));
-        }
-
-    }
-    */
     #[test]
     fn custom_cyclotomic_square_test_correct() {
         //generating input
@@ -862,7 +825,6 @@ mod tests {
         //19
         //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
         account_struct.y1_range_s = account_struct.f1_r_range_s.clone();
-        //println!(" {:?}", parse_f_from_bytes(&account_struct.y1_range_s));
         for i in 1..63 {
             //20
             if i == 1 {
@@ -1001,7 +963,6 @@ mod tests {
         //19
         //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
         account_struct.y1_range_s = account_struct.f1_r_range_s.clone();
-        //println!(" {:?}", parse_f_from_bytes(&account_struct.y1_range_s));
         for i in 1..63 {
             //20
             if i == 1 {
@@ -1101,8 +1062,6 @@ mod tests {
 
         //will always conjugate
         if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-            //println!("conjugate");
-            //f.conjugate();
             conjugate_wrapper(&mut account_struct.y1_range_s);
         }
 
@@ -1111,6 +1070,6 @@ mod tests {
             reference_f != parse_f_from_bytes(&account_struct.y1_range_s),
             "f exp_by_neg_x failed"
         );
-        //println!("success");
+
     }
 }
