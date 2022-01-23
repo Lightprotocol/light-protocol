@@ -24,8 +24,7 @@ impl Pack for NullifierState {
         let input = array_ref![input, 0, NullifierState::LEN];
 
         let (is_initialized, _account_type) = array_refs![input, 1, 1];
-        //check that account was not initialized before
-        // assert_eq!(is_initialized[0], 0);
+
         if is_initialized[0] != 0 {
             msg!("nullifier already spent");
             panic!();

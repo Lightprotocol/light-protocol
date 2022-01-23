@@ -8,7 +8,7 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExpBytes;
+    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
     use light_protocol_core::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
     use light_protocol_core::groth16_verifier::parsers::*;

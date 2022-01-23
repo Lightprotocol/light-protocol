@@ -498,7 +498,7 @@ pub mod tests {
 
         let mock_account = [0; 3900];
         // test assumes that unpack is working
-        let mut account_data = ML254Bytes::unpack(&mock_account).unwrap();
+        let mut account_data = MillerLoopState::unpack(&mock_account).unwrap();
 
         // p2: handled in preprocessor: (prepared_inputs) -- ix 0
         // would be reading g_ic ...
