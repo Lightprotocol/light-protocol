@@ -1,5 +1,5 @@
 # Light Protocol
-peace
+
 ## Notes:
 
 - All code we modified is in this repository.
