@@ -27,7 +27,7 @@ mod tests {
 	use std::convert::TryInto;
 
 	use light_protocol_core::poseidon_merkle_tree::state::{
-		HashBytes, MerkleTree as MerkleTreeOnchain,
+		TempStoragePda, MerkleTree as MerkleTreeOnchain,
 	};
 
 	use ark_std::One;
@@ -838,7 +838,7 @@ mod tests {
 		let mut filled_leaves = Vec::new();
 		let mut j = 0;
 		for i in 0..10 {
-			let mut hash_tmp_account = HashBytes {
+			let mut hash_tmp_account = TempStoragePda {
 				is_initialized: true,
 				state: vec![vec![0u8; 32]; 3],
 				current_round: 0,

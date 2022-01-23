@@ -188,7 +188,7 @@ impl Pack for InitMerkleTreeBytes {
 
 // Account structs for merkle tree:
 #[derive(Debug)]
-pub struct HashBytes {
+pub struct TempStoragePda {
     pub is_initialized: bool,
     pub state: Vec<Vec<u8>>,
     pub current_round: usize,
@@ -203,17 +203,17 @@ pub struct HashBytes {
     pub current_instruction_index: usize,
 }
 
-impl Sealed for HashBytes {}
-impl IsInitialized for HashBytes {
+impl Sealed for TempStoragePda {}
+impl IsInitialized for TempStoragePda {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl Pack for HashBytes {
+impl Pack for TempStoragePda {
     const LEN: usize = 3900; //297;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, HashBytes::LEN];
+        let input = array_ref![input, 0, TempStoragePda::LEN];
 
         let (
             _is_initialized,
@@ -240,7 +240,7 @@ impl Pack for HashBytes {
             parsed_state.push(i.to_vec());
         }
 
-        Ok(HashBytes {
+        Ok(TempStoragePda {
             is_initialized: true,
             state: parsed_state.to_vec(),
             current_round: usize::from_le_bytes(*current_round),
@@ -257,7 +257,7 @@ impl Pack for HashBytes {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, HashBytes::LEN];
+        let dst = array_mut_ref![dst, 0, TempStoragePda::LEN];
 
         let (
             _is_initialized_dst,

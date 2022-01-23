@@ -61,9 +61,9 @@ impl Pack for LiBytes {
         Ok(LiBytes {
             is_initialized: true,
 
-            found_root: found_root[0],                     //0
-            found_nullifier: found_nullifier[0],           //1
-            executed_withdraw: executed_withdraw[0],       //2
+            found_root: found_root[0],                     //0 legacy remove
+            found_nullifier: found_nullifier[0],           //1 legacy remove
+            executed_withdraw: executed_withdraw[0],       //2 legacy remove
             signing_address: signing_address.to_vec(),     //3
             relayer_refund: relayer_refund.to_vec(),       //4
             to_address: to_address.to_vec(),               //5
@@ -137,7 +137,6 @@ impl Pack for LiBytes {
             }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        // *is_initialized_dst = *is_initialized_dst;
     }
 }
 
@@ -159,7 +158,7 @@ impl IsInitialized for InstructionIndex {
 }
 
 impl Pack for InstructionIndex {
-    const LEN: usize = 3900; //3772;
+    const LEN: usize = 3900;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InstructionIndex::LEN];
 

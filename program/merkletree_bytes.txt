@@ -1,0 +1,2170 @@
+Running: cargo-build-bpf --manifest-path /home/ananas/test_light/light-protocol-onchain/program/Cargo.toml --bpf-out-dir /home/ananas/test_light/light-protocol-onchain/program/target/deploy
+BPF SDK: /home/ananas/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf
+Running: rustup toolchain list -v
+Running: cargo +bpf build --target bpfel-unknown-unknown --release
+Running: /home/ananas/.local/share/solana/install/releases/1.7.12/solana-release/bin/sdk/bpf/dependencies/bpf-tools/llvm/bin/llvm-readelf --dyn-symbols /home/ananas/test_light/light-protocol-onchain/program/target/deploy/light_protocol_core.so
+
+To deploy this program:
+  $ solana program deploy /home/ananas/test_light/light-protocol-onchain/program/target/deploy/light_protocol_core.so
+The program address will default to this keypair (override with --program-id):
+  /home/ananas/test_light/light-protocol-onchain/program/target/deploy/light_protocol_core-keypair.json
+Running: /home/ananas/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/cargo test --manifest-path /home/ananas/test_light/light-protocol-onchain/program/Cargo.toml --features test-bpf deposit_should_succeed -- --nocapture
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 21 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 3 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 2 filtered out; finished in 0.00s
+
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+
+running 1 test
+reading file: "./tests/test_data/deposit_0_1_sol.txt"
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 231, 174, 226, 37, 211, 160, 187, 178, 149, 82, 17, 60, 110, 116, 28, 61, 58, 145, 58, 71, 25, 42, 67, 46, 189, 214, 248, 234, 182, 251, 238, 34, 0, 225, 245, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 5, 79, 191, 68, 231, 130, 54, 168, 60, 248, 47, 244, 141, 167, 222, 198, 96, 50, 170, 17, 40, 13, 1, 245, 115, 142, 214, 90, 99, 229, 187, 22, 35, 230, 120, 2, 114, 246, 216, 250, 209, 195, 29, 129, 130, 191, 7, 255, 75, 99, 149, 194, 151, 154, 231, 199, 77, 242, 147, 76, 55, 156, 3, 7, 238, 89, 107, 194, 174, 99, 162, 158, 255, 166, 14, 150, 176, 47, 23, 36, 14, 66, 17, 203, 144, 172, 28, 197, 236, 26, 226, 162, 165, 108, 56, 43, 147, 159, 104, 121, 19, 209, 122, 249, 156, 168, 50, 65, 14, 223, 24, 12, 255, 183, 48, 207, 104, 81, 58, 199, 20, 108, 9, 51, 79, 9, 236, 11, 9, 243, 38, 189, 116, 198, 251, 243, 95, 60, 155, 106, 107, 252, 24, 69, 226, 114, 35, 177, 29, 223, 179, 74, 133, 99, 93, 106, 141, 251, 189, 3, 0, 1, 80, 99, 99, 232, 32, 23, 137, 238, 197, 63, 162, 18, 180, 170, 154, 254, 255, 103, 152, 150, 133, 67, 91, 37, 157, 119, 162, 249, 126, 35, 229, 10, 250, 167, 177, 25, 239, 35, 100, 163, 14, 163, 95, 129, 124, 196, 190, 130, 232, 176, 247, 235, 209, 154, 4, 67, 57, 117, 194, 115, 115, 6, 71, 246, 71, 67, 105, 105, 36, 10, 172, 37, 161, 165, 186, 218, 126, 98, 13, 66, 50, 133, 63, 226, 77, 185, 254, 20, 49, 124, 23, 184, 20, 46, 251, 113, 130, 168, 36, 85, 156, 16, 255, 160, 87, 124, 46, 157, 83, 80, 147, 18, 18, 91, 55, 219, 170, 180, 151, 149, 193, 50, 116, 129, 220, 38, 97, 213, 133, 62, 239, 246, 37, 107, 79, 57, 127, 203, 239, 121, 243, 232, 172, 93, 54, 170, 137, 122, 29, 61, 165, 148, 246, 74, 192, 135, 217, 10, 233, 67, 27, 151, 5, 51, 149, 79, 161, 123, 2, 66, 47, 197, 177, 0, 198, 230, 7, 38, 67, 168, 54, 239, 215, 120, 130, 14, 223, 190, 128, 47, 104, 165, 128, 184, 236, 97, 220, 46, 220, 55, 129, 54, 66, 115, 181, 128, 88, 64, 194, 63, 193, 118, 144, 122, 225, 221, 18, 146, 56, 34, 123, 46, 187, 78, 17, 73, 240, 78, 97, 63, 170, 76, 150, 20, 114, 67, 12, 31, 206, 20, 244, 14, 210, 255, 6, 190, 121, 217, 179, 102, 85, 3, 163, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 225, 245, 5, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+added account BwvDX6fSnQbLuSTcDmVTGQw3Z5SMjohfx2ueLtA8SrmU
+blockhash: Some(301)
+blockhash: Some(301)
+initializing merkle tree success
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(301)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(300)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(299)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(298)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(297)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(296)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(295)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(294)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(293)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(292)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(291)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(290)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(289)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(288)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(287)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(286)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(285)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(284)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(283)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(282)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(281)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(280)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(279)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(278)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(277)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(276)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(275)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(274)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(273)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(272)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(271)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(270)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(269)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(268)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(267)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(266)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(265)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(264)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(263)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(262)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(261)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(260)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(259)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(258)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(257)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(256)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(255)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(254)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(253)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(252)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(251)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(250)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(249)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(248)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(247)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(246)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(245)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(244)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(243)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(242)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(241)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(240)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(239)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(238)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(237)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(236)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(235)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(234)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(233)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(232)
+blockhash: Some(231)
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(231)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(230)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(229)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(228)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(227)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(226)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(225)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(224)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(223)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(222)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(221)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(220)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(219)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(218)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(217)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(216)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(215)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(214)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(213)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(212)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(211)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(210)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(209)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(208)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(207)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(206)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(205)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(204)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(203)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(202)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+success: false
+blockhash: Some(201)
+Onchain Proof Verification success
+blockhash: Some(200)
+Instruction index 0
+blockhash: Some(200)
+Instruction index 1
+blockhash: Some(200)
+Instruction index 2
+blockhash: Some(200)
+Instruction index 3
+blockhash: Some(200)
+Instruction index 4
+blockhash: Some(200)
+Instruction index 5
+blockhash: Some(200)
+Instruction index 6
+blockhash: Some(200)
+Instruction index 7
+blockhash: Some(200)
+Instruction index 8
+blockhash: Some(200)
+Instruction index 9
+blockhash: Some(199)
+Instruction index 10
+blockhash: Some(199)
+Instruction index 11
+blockhash: Some(199)
+Instruction index 12
+blockhash: Some(199)
+Instruction index 13
+blockhash: Some(199)
+Instruction index 14
+blockhash: Some(199)
+Instruction index 15
+blockhash: Some(199)
+Instruction index 16
+blockhash: Some(199)
+Instruction index 17
+blockhash: Some(199)
+Instruction index 18
+blockhash: Some(199)
+Instruction index 19
+blockhash: Some(199)
+Instruction index 20
+blockhash: Some(199)
+Instruction index 21
+blockhash: Some(198)
+Instruction index 22
+blockhash: Some(198)
+Instruction index 23
+blockhash: Some(198)
+Instruction index 24
+blockhash: Some(198)
+Instruction index 25
+blockhash: Some(198)
+Instruction index 26
+blockhash: Some(198)
+Instruction index 27
+blockhash: Some(198)
+Instruction index 28
+blockhash: Some(198)
+Instruction index 29
+blockhash: Some(198)
+Instruction index 30
+blockhash: Some(198)
+Instruction index 31
+blockhash: Some(197)
+Instruction index 32
+blockhash: Some(197)
+Instruction index 33
+blockhash: Some(197)
+Instruction index 34
+blockhash: Some(197)
+Instruction index 35
+blockhash: Some(197)
+Instruction index 36
+blockhash: Some(197)
+Instruction index 37
+blockhash: Some(197)
+Instruction index 38
+blockhash: Some(197)
+Instruction index 39
+blockhash: Some(197)
+Instruction index 40
+blockhash: Some(197)
+Instruction index 41
+blockhash: Some(197)
+Instruction index 42
+blockhash: Some(196)
+Instruction index 43
+blockhash: Some(196)
+Instruction index 44
+blockhash: Some(196)
+Instruction index 45
+blockhash: Some(196)
+Instruction index 46
+blockhash: Some(196)
+Instruction index 47
+blockhash: Some(196)
+Instruction index 48
+blockhash: Some(196)
+Instruction index 49
+blockhash: Some(196)
+Instruction index 50
+blockhash: Some(196)
+Instruction index 51
+blockhash: Some(196)
+Instruction index 52
+blockhash: Some(195)
+Instruction index 53
+blockhash: Some(195)
+Instruction index 54
+blockhash: Some(195)
+Instruction index 55
+blockhash: Some(195)
+Instruction index 56
+blockhash: Some(195)
+Instruction index 57
+blockhash: Some(195)
+Instruction index 58
+blockhash: Some(195)
+Instruction index 59
+blockhash: Some(195)
+Instruction index 60
+blockhash: Some(195)
+Instruction index 61
+blockhash: Some(195)
+Instruction index 62
+blockhash: Some(194)
+Instruction index 63
+blockhash: Some(194)
+Instruction index 64
+blockhash: Some(194)
+Instruction index 65
+blockhash: Some(194)
+Instruction index 66
+blockhash: Some(194)
+Instruction index 67
+blockhash: Some(194)
+Instruction index 68
+blockhash: Some(194)
+Instruction index 69
+blockhash: Some(194)
+Instruction index 70
+blockhash: Some(194)
+Instruction index 71
+blockhash: Some(194)
+Instruction index 72
+blockhash: Some(194)
+Instruction index 73
+blockhash: Some(193)
+Instruction index 74
+blockhash: Some(193)
+Instruction index 75
+blockhash: Some(193)
+Instruction index 76
+blockhash: Some(193)
+Instruction index 77
+blockhash: Some(193)
+Instruction index 78
+blockhash: Some(193)
+Instruction index 79
+blockhash: Some(193)
+Instruction index 80
+blockhash: Some(193)
+Instruction index 81
+blockhash: Some(193)
+Instruction index 82
+blockhash: Some(193)
+Instruction index 83
+blockhash: Some(193)
+Instruction index 84
+blockhash: Some(193)
+Instruction index 85
+blockhash: Some(192)
+Instruction index 86
+blockhash: Some(192)
+Instruction index 87
+blockhash: Some(192)
+Instruction index 88
+blockhash: Some(192)
+Instruction index 89
+blockhash: Some(192)
+Instruction index 90
+blockhash: Some(192)
+Instruction index 91
+blockhash: Some(192)
+Instruction index 92
+blockhash: Some(192)
+Instruction index 93
+blockhash: Some(192)
+Instruction index 94
+blockhash: Some(192)
+Instruction index 95
+blockhash: Some(192)
+Instruction index 96
+blockhash: Some(191)
+Instruction index 97
+blockhash: Some(191)
+Instruction index 98
+blockhash: Some(191)
+Instruction index 99
+blockhash: Some(191)
+Instruction index 100
+blockhash: Some(191)
+Instruction index 101
+blockhash: Some(191)
+Instruction index 102
+blockhash: Some(191)
+Instruction index 103
+blockhash: Some(191)
+Instruction index 104
+blockhash: Some(191)
+Instruction index 105
+blockhash: Some(191)
+Instruction index 106
+blockhash: Some(191)
+Instruction index 107
+blockhash: Some(191)
+Instruction index 108
+blockhash: Some(190)
+Instruction index 109
+blockhash: Some(190)
+Instruction index 110
+blockhash: Some(190)
+Instruction index 111
+blockhash: Some(190)
+Instruction index 112
+blockhash: Some(190)
+Instruction index 113
+blockhash: Some(190)
+Instruction index 114
+blockhash: Some(190)
+Instruction index 115
+blockhash: Some(190)
+Instruction index 116
+blockhash: Some(190)
+Instruction index 117
+blockhash: Some(190)
+Instruction index 118
+blockhash: Some(189)
+Instruction index 119
+blockhash: Some(189)
+Instruction index 120
+blockhash: Some(189)
+Instruction index 121
+blockhash: Some(189)
+Instruction index 122
+blockhash: Some(189)
+Instruction index 123
+blockhash: Some(189)
+Instruction index 124
+blockhash: Some(189)
+Instruction index 125
+blockhash: Some(189)
+Instruction index 126
+blockhash: Some(189)
+Instruction index 127
+blockhash: Some(189)
+Instruction index 128
+blockhash: Some(189)
+Instruction index 129
+blockhash: Some(188)
+Instruction index 130
+blockhash: Some(188)
+Instruction index 131
+blockhash: Some(188)
+Instruction index 132
+blockhash: Some(188)
+Instruction index 133
+blockhash: Some(188)
+Instruction index 134
+blockhash: Some(188)
+Instruction index 135
+blockhash: Some(188)
+Instruction index 136
+blockhash: Some(188)
+Instruction index 137
+blockhash: Some(188)
+Instruction index 138
+blockhash: Some(188)
+Instruction index 139
+blockhash: Some(188)
+Instruction index 140
+blockhash: Some(187)
+Instruction index 141
+blockhash: Some(187)
+Instruction index 142
+blockhash: Some(187)
+Instruction index 143
+blockhash: Some(187)
+Instruction index 144
+blockhash: Some(187)
+Instruction index 145
+blockhash: Some(187)
+Instruction index 146
+blockhash: Some(187)
+Instruction index 147
+blockhash: Some(187)
+Instruction index 148
+blockhash: Some(187)
+Instruction index 149
+blockhash: Some(187)
+Instruction index 150
+blockhash: Some(186)
+Instruction index 151
+blockhash: Some(186)
+Instruction index 152
+blockhash: Some(186)
+Instruction index 153
+blockhash: Some(186)
+Instruction index 154
+blockhash: Some(186)
+Instruction index 155
+blockhash: Some(186)
+Instruction index 156
+blockhash: Some(186)
+Instruction index 157
+blockhash: Some(186)
+Instruction index 158
+blockhash: Some(186)
+Instruction index 159
+blockhash: Some(186)
+Instruction index 160
+blockhash: Some(186)
+Instruction index 161
+blockhash: Some(185)
+Instruction index 162
+blockhash: Some(185)
+Instruction index 163
+blockhash: Some(185)
+Instruction index 164
+blockhash: Some(185)
+Instruction index 165
+blockhash: Some(185)
+Instruction index 166
+blockhash: Some(185)
+Instruction index 167
+blockhash: Some(185)
+Instruction index 168
+blockhash: Some(185)
+Instruction index 169
+blockhash: Some(185)
+Instruction index 170
+blockhash: Some(185)
+Instruction index 171
+blockhash: Some(184)
+Instruction index 172
+blockhash: Some(184)
+Instruction index 173
+blockhash: Some(184)
+Instruction index 174
+blockhash: Some(184)
+Instruction index 175
+blockhash: Some(184)
+Instruction index 176
+blockhash: Some(184)
+Instruction index 177
+blockhash: Some(184)
+Instruction index 178
+blockhash: Some(184)
+Instruction index 179
+blockhash: Some(184)
+Instruction index 180
+blockhash: Some(184)
+Instruction index 181
+blockhash: Some(183)
+Instruction index 182
+blockhash: Some(183)
+Instruction index 183
+blockhash: Some(183)
+Instruction index 184
+blockhash: Some(183)
+Instruction index 185
+blockhash: Some(183)
+Instruction index 186
+blockhash: Some(183)
+Instruction index 187
+blockhash: Some(183)
+Instruction index 188
+blockhash: Some(183)
+Instruction index 189
+blockhash: Some(183)
+Instruction index 190
+blockhash: Some(183)
+Instruction index 191
+blockhash: Some(183)
+Instruction index 192
+blockhash: Some(182)
+Instruction index 193
+blockhash: Some(182)
+Instruction index 194
+blockhash: Some(182)
+Instruction index 195
+blockhash: Some(182)
+Instruction index 196
+blockhash: Some(182)
+Instruction index 197
+blockhash: Some(182)
+Instruction index 198
+blockhash: Some(182)
+Instruction index 199
+blockhash: Some(182)
+Instruction index 200
+blockhash: Some(182)
+Instruction index 201
+blockhash: Some(182)
+Instruction index 202
+blockhash: Some(182)
+Instruction index 203
+blockhash: Some(181)
+Instruction index 204
+blockhash: Some(181)
+Instruction index 205
+blockhash: Some(181)
+Instruction index 206
+blockhash: Some(181)
+Instruction index 207
+blockhash: Some(181)
+Instruction index 208
+blockhash: Some(181)
+Instruction index 209
+blockhash: Some(181)
+Instruction index 210
+blockhash: Some(181)
+Instruction index 211
+blockhash: Some(181)
+Instruction index 212
+blockhash: Some(181)
+Instruction index 213
+blockhash: Some(181)
+Instruction index 214
+blockhash: Some(180)
+Instruction index 215
+blockhash: Some(180)
+Instruction index 216
+blockhash: Some(180)
+Instruction index 217
+blockhash: Some(180)
+Instruction index 218
+blockhash: Some(180)
+Instruction index 219
+blockhash: Some(180)
+Instruction index 220
+blockhash: Some(180)
+Instruction index 221
+blockhash: Some(180)
+Instruction index 222
+blockhash: Some(180)
+Instruction index 223
+blockhash: Some(180)
+Instruction index 224
+blockhash: Some(180)
+Instruction index 225
+blockhash: Some(180)
+Instruction index 226
+blockhash: Some(179)
+Instruction index 227
+blockhash: Some(179)
+Instruction index 228
+blockhash: Some(179)
+Instruction index 229
+blockhash: Some(179)
+Instruction index 230
+blockhash: Some(179)
+Instruction index 231
+blockhash: Some(179)
+Instruction index 232
+blockhash: Some(179)
+Instruction index 233
+blockhash: Some(179)
+Instruction index 234
+blockhash: Some(179)
+Instruction index 235
+blockhash: Some(179)
+Instruction index 236
+blockhash: Some(178)
+nullifier0_account.data [1, 3]
+nullifier0_account.data [1, 3]
+merkle_tree_data: [1, 18, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32, 153, 251, 215, 254, 241, 174, 194, 111, 137, 131, 8, 204, 165, 97, 199, 88, 252, 57, 167, 75, 56, 199, 125, 72, 178, 0, 238, 28, 3, 149, 34, 46, 215, 240, 166, 146, 83, 191, 252, 56, 98, 162, 181, 204, 144, 218, 33, 15, 49, 76, 104, 225, 169, 53, 123, 188, 105, 95, 23, 142, 224, 56, 228, 32, 89, 95, 20, 31, 6, 205, 139, 50, 188, 130, 233, 62, 71, 5, 212, 0, 170, 124, 201, 32, 189, 136, 241, 74, 246, 115, 26, 42, 40, 39, 68, 5, 36, 3, 241, 215, 60, 25, 54, 203, 207, 31, 10, 3, 159, 176, 127, 66, 139, 221, 52, 77, 231, 230, 207, 242, 67, 252, 203, 163, 125, 102, 117, 6, 124, 81, 141, 50, 252, 86, 24, 250, 185, 74, 127, 28, 255, 41, 129, 32, 22, 123, 253, 214, 89, 70, 33, 83, 4, 240, 30, 53, 42, 175, 163, 37, 129, 217, 177, 175, 14, 140, 68, 17, 239, 126, 213, 35, 7, 31, 152, 233, 129, 227, 24, 144, 153, 135, 14, 2, 93, 37, 48, 180, 139, 78, 200, 11, 82, 252, 35, 175, 62, 130, 212, 95, 235, 126, 62, 64, 82, 121, 220, 101, 234, 189, 44, 62, 221, 172, 146, 117, 131, 78, 79, 203, 179, 30, 92, 15, 154, 97, 192, 254, 5, 227, 1, 144, 129, 155, 109, 215, 168, 0, 150, 78, 170, 145, 244, 54, 252, 69, 216, 179, 20, 148, 136, 229, 25, 176, 210, 11, 53, 8, 140, 134, 107, 162, 238, 211, 66, 151, 178, 234, 14, 53, 74, 141, 52, 228, 108, 57, 88, 142, 126, 104, 210, 79, 74, 190, 176, 240, 196, 5, 2, 227, 166, 31, 105, 153, 181, 77, 103, 17, 105, 193, 215, 219, 56, 1, 127, 48, 80, 199, 212, 133, 137, 26, 246, 227, 67, 38, 197, 201, 155, 32, 91, 146, 255, 128, 174, 144, 255, 165, 135, 151, 239, 114, 136, 199, 29, 127, 128, 104, 103, 53, 55, 132, 45, 120, 255, 16, 156, 52, 218, 155, 205, 47, 103, 174, 68, 75, 40, 238, 101, 194, 219, 78, 78, 94, 226, 103, 163, 190, 189, 62, 249, 76, 198, 150, 0, 26, 117, 17, 36, 148, 132, 54, 97, 31, 34, 65, 75, 60, 65, 150, 181, 171, 244, 99, 130, 63, 149, 225, 243, 30, 94, 21, 13, 182, 217, 202, 11, 14, 208, 117, 110, 76, 186, 45, 90, 40, 113, 238, 137, 12, 112, 30, 41, 34, 104, 1, 250, 68, 113, 91, 155, 244, 132, 227, 98, 21, 84, 88, 88, 217, 133, 207, 216, 129, 1, 183, 31, 25, 138, 66, 83, 89, 42, 71, 214, 249, 161, 131, 198, 126, 12, 166, 168, 40, 199, 204, 123, 208, 57, 116, 8, 155, 49, 19, 42, 5, 160, 183, 248, 43, 13, 28, 54, 131, 229, 186, 130, 153, 56, 180, 203, 38, 114, 174, 35, 132, 98, 222, 29, 241, 225, 108, 21, 136, 202, 23, 47, 246, 2, 197, 206, 38, 229, 83, 219, 13, 193, 189, 0, 46, 185, 11, 15, 253, 215, 51, 50, 33, 67, 185, 26, 17, 241, 247, 87, 209, 122, 70, 176, 199, 138, 146, 239, 29, 1, 0, 0, 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 0, 0, 244, 1, 0, 0, 0, 0, 0, 0, 231, 174, 226, 37, 211, 160, 187, 178, 149, 82, 17, 60, 110, 116, 28, 61, 58, 145, 58, 71, 25, 42, 67, 46, 189, 214, 248, 234, 182, 251, 238, 34, 76, 213, 41, 169, 44, 227, 36, 224, 250, 56, 63, 34, 92, 253, 58, 250, 227, 236, 9, 73, 241, 220, 255, 34, 242, 128, 113, 164, 35, 249, 66, 9, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+test deposit_should_succeed ... FAILED
+
+failures:
+
+failures:
+    deposit_should_succeed
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 7 filtered out; finished in 9.32s
+
