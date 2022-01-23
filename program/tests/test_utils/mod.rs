@@ -252,8 +252,11 @@ pub mod tests {
         })
     }
 
-    pub fn read_test_data() -> Vec<u8> {
-        let ix_data_file = fs::read_to_string("./tests/test_data/deposit_0_1_sol.txt")
+    pub fn read_test_data(file_name: std::string::String) -> Vec<u8> {
+        let mut path = std::string::String::from("./tests/test_data/");
+        path.push_str(&file_name);
+        println!("reading file: {:?}", path);
+        let ix_data_file = fs::read_to_string(path)
             .expect("Something went wrong reading the file");
         let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
         let mut ix_data = Vec::new();

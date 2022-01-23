@@ -20,7 +20,7 @@ use std::convert::TryInto;
 use std::{thread, time};
 use {
     light_protocol_core::{
-        poseidon_merkle_tree::state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
+        poseidon_merkle_tree::state::{TempStoragePda, MerkleTree, MERKLE_TREE_ACC_BYTES},
         process_instruction,
         utils::init_bytes18,
     },
@@ -43,7 +43,7 @@ pub async fn create_and_start_program(
         *program_id,
         processor!(process_instruction),
     );
-    let mut user_account = Account::new(10000000000, 34 + SIZE_UTXO as usize * 100, &program_id);
+    let mut user_account = Account::new(10000000000, 34 + SIZE_UTXO as usize * 10, &program_id);
 
     program_test.add_account(*user_account_pubkey, user_account);
 
