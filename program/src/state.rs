@@ -180,7 +180,5 @@ impl Pack for InstructionIndex {
         }
     }
 
-    fn pack_into_slice(&self, _dst: &mut [u8]) {
-
-    }
+    fn pack_into_slice(&self, _dst: &mut [u8]) {}
 }

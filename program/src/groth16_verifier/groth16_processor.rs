@@ -68,7 +68,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         // TODO: remove 40 from instruction array then remove this
         if account_data.current_instruction_index == 0 {
             account_data.current_instruction_index += 1;
-            PrepareInputsState::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
+            PrepareInputsState::pack_into_slice(
+                &account_data,
+                &mut self.main_account.data.borrow_mut(),
+            );
             return Ok(());
         }
 
@@ -80,7 +83,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         );
 
         account_data.current_instruction_index += 1;
-        PrepareInputsState::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
+        PrepareInputsState::pack_into_slice(
+            &account_data,
+            &mut self.main_account.data.borrow_mut(),
+        );
         Ok(())
     }
 
@@ -108,7 +114,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         let mut main_account_data = MillerLoopState::unpack(&self.main_account.data.borrow())?;
         // First ix (0): Parses g_ic_affine(proof.b) and more from prepared_inputs state to miller_loop state.
         if IX_ORDER[main_account_data.current_instruction_index] == 0 {
-            let account_prepare_inputs_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
+            let account_prepare_inputs_data =
+                PrepareInputsState::unpack(&self.main_account.data.borrow())?;
             let g_ic_affine =
                 parse_x_group_affine_from_bytes(&account_prepare_inputs_data.x_1_range); // 10k
             let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
@@ -151,7 +158,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     }
 
     fn final_exponentiation(&mut self) -> Result<(), ProgramError> {
-        let mut main_account_data = FinalExponentiationState::unpack(&self.main_account.data.borrow())?;
+        let mut main_account_data =
+            FinalExponentiationState::unpack(&self.main_account.data.borrow())?;
         final_exponentiation::processor::_process_instruction(
             &mut main_account_data,
             IX_ORDER[self.current_instruction_index],
@@ -255,7 +263,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         for i in indices.iter() {
             main_account_data.changed_variables[*i] = true;
         }
-        PrepareInputsState::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
+        PrepareInputsState::pack_into_slice(
+            &main_account_data,
+            &mut self.main_account.data.borrow_mut(),
+        );
         Ok(())
     }
 }

@@ -5,7 +5,7 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
 };
 use crate::poseidon_merkle_tree::state;
 use crate::poseidon_merkle_tree::state::{
-    TempStoragePda, InitMerkleTreeBytes, MerkleTree, TwoLeavesBytesPda,
+    InitMerkleTreeBytes, MerkleTree, TempStoragePda, TwoLeavesBytesPda,
 };
 use crate::IX_ORDER;
 use solana_program::{
@@ -80,7 +80,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         let account = &mut accounts.iter();
         let signer = next_account_info(account)?;
         let _main_account = next_account_info(account)?;
-        let mut main_account_data = TempStoragePda::unpack(&self.main_account.unwrap().data.borrow())?;
+        let mut main_account_data =
+            TempStoragePda::unpack(&self.main_account.unwrap().data.borrow())?;
         msg!(
             "main_account_data.current_instruction_index {}",
             main_account_data.current_instruction_index

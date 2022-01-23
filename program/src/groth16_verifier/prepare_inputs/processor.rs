@@ -1,4 +1,6 @@
-use crate::groth16_verifier::prepare_inputs::{instructions::*, ranges::*, state::PrepareInputsState};
+use crate::groth16_verifier::prepare_inputs::{
+    instructions::*, ranges::*, state::PrepareInputsState,
+};
 use solana_program::msg;
 
 pub fn _process_instruction(

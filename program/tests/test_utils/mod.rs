@@ -256,8 +256,7 @@ pub mod tests {
         let mut path = std::string::String::from("./tests/test_data/");
         path.push_str(&file_name);
         println!("reading file: {:?}", path);
-        let ix_data_file = fs::read_to_string(path)
-            .expect("Something went wrong reading the file");
+        let ix_data_file = fs::read_to_string(path).expect("Something went wrong reading the file");
         let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
         let mut ix_data = Vec::new();
         for i in ix_data_json["bytes"][0].as_str().unwrap().split(',') {
