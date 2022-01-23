@@ -1,3 +1,4 @@
+use std::convert::TryInto;
 use crate::test_utils::tests::{
     create_and_start_program_var, get_proof_from_bytes, get_public_inputs_from_bytes,
     get_vk_from_file, read_test_data, restart_program,
@@ -15,7 +16,7 @@ use light_protocol_core::{
         parsers::*,
         prepare_inputs::state::PiBytes,
     },
-    poseidon_merkle_tree::state::HashBytes,
+    poseidon_merkle_tree::state::TempStoragePda,
     poseidon_merkle_tree::state::MERKLE_TREE_ACC_BYTES,
     process_instruction,
 };
@@ -636,6 +637,8 @@ fn pvk_should_match() {
     assert_eq!(get_delta_g2_neg_pc_90(), pvk.delta_g2_neg_pc.ell_coeffs[90]);
 }
 
+
+
 #[tokio::test]
 async fn deposit_should_succeed() {
     let ix_data = read_test_data();
@@ -648,6 +651,13 @@ async fn deposit_should_succeed() {
     // Creates random signer
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
+    let recipient = Pubkey::from_str("8eAjq2c7mFQsUgQHwQ5JEySZBAnv3fHXY2t3pPbA3c8R").unwrap();
+
+    let (two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) = create_pubkeys_from_ix_data(&ix_data, &program_id).await;
+    let mut nullifier_pubkeys = Vec::new();
+    nullifier_pubkeys.push(nf_pubkey0);
+    nullifier_pubkeys.push(nf_pubkey1);
+
 
     // start program
     let mut program_context =
@@ -810,25 +820,7 @@ async fn deposit_should_succeed() {
      *
      *
      */
-    // Creates pubkeys for all the PDAs we'll use
-    let two_leaves_pda_pubkey =
-        Pubkey::find_program_address(&[&ix_data[105..137], &b"leaves"[..]], &program_id).0;
 
-    let mut nullifier_pubkeys = Vec::new();
-    let pubkey_from_seed =
-        Pubkey::find_program_address(&[&ix_data[96 + 9..128 + 9], &b"nf"[..]], &program_id);
-    nullifier_pubkeys.push(pubkey_from_seed.0);
-
-    let pubkey_from_seed =
-        Pubkey::find_program_address(&[&ix_data[128 + 9..160 + 9], &b"nf"[..]], &program_id);
-    nullifier_pubkeys.push(pubkey_from_seed.0);
-
-    let _storage_account = program_context
-        .banks_client
-        .get_account(tmp_storage_pda_pubkey)
-        .await
-        .expect("get_account")
-        .unwrap();
     let merkle_tree_pda_old = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
@@ -860,7 +852,7 @@ async fn deposit_should_succeed() {
                     Pubkey::from_str("11111111111111111111111111111111").unwrap(),
                     false,
                 ),
-                AccountMeta::new(merkle_tree_pda_pubkey, false),
+                AccountMeta::new(recipient, false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -875,22 +867,8 @@ async fn deposit_should_succeed() {
     )
     .await;
 
-    let nullifier0_account = program_context
-        .banks_client
-        .get_account(nullifier_pubkeys[0])
-        .await
-        .expect("get_account")
-        .unwrap();
-    let nullifier1_account = program_context
-        .banks_client
-        .get_account(nullifier_pubkeys[1])
-        .await
-        .expect("get_account")
-        .unwrap();
-    println!("nullifier0_account.data {:?}", nullifier0_account.data);
-    assert_eq!(nullifier0_account.data[0], 1);
-    println!("nullifier0_account.data {:?}", nullifier0_account.data);
-    assert_eq!(nullifier1_account.data[0], 1);
+    check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
+
 
     let merkel_tree_account_new = program_context
         .banks_client
@@ -906,34 +884,18 @@ async fn deposit_should_succeed() {
         "root[1]: {:?}",
         merkel_tree_account_new.data[641..673].to_vec()
     );
-    let two_leaves_pda_account = program_context
-        .banks_client
-        .get_account(two_leaves_pda_pubkey)
-        .await
-        .expect("get_account")
-        .unwrap();
-    println!(
-        "two_leaves_pda_account.data: {:?}",
-        two_leaves_pda_account.data
-    );
-    //account was initialized correctly
-    assert_eq!(1, two_leaves_pda_account.data[0]);
-    //account type is correct
-    assert_eq!(4, two_leaves_pda_account.data[1]);
+    check_leaves_insert_correct(
+        &two_leaves_pda_pubkey,
+        &ix_data[192 + 9..224 + 9],//left leaf todo change order
+        &ix_data[160 + 9..192 + 9],//right leaf
+        0,
+        &mut program_context
+    ).await;
 
-    //saved left leaf correctly
-    // assert_eq!(
-    //     public_inputs_bytes[160..192],
-    //     two_leaves_pda_account.data[2..34]
-    // );
-    // //saved right leaf correctly
-    // assert_eq!(
-    //     public_inputs_bytes[192..224],
-    //     two_leaves_pda_account.data[34..66]
-    // );
-    //saved merkle tree pubkey in which leaves were insorted
-    assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[74..106]);
-
+    // check_transfer_success(
+    //
+    //
+    // ).await;
     println!(
         "deposit success {} {}",
         merkel_tree_account_new.lamports,
@@ -953,6 +915,80 @@ async fn deposit_should_succeed() {
         );
     }
 }
+
+
+async fn check_nullifier_insert_correct(
+    nullifier_pubkeys: &Vec<Pubkey>,
+    program_context: &mut ProgramTestContext
+) {
+    let nullifier0_account = program_context
+        .banks_client
+        .get_account(nullifier_pubkeys[0])
+        .await
+        .expect("get_account")
+        .unwrap();
+    let nullifier1_account = program_context
+        .banks_client
+        .get_account(nullifier_pubkeys[1])
+        .await
+        .expect("get_account")
+        .unwrap();
+    println!("nullifier0_account.data {:?}", nullifier0_account.data);
+    assert_eq!(nullifier0_account.data[0], 1);
+    println!("nullifier0_account.data {:?}", nullifier0_account.data);
+    assert_eq!(nullifier1_account.data[0], 1);
+
+}
+
+async fn check_leaves_insert_correct(
+    two_leaves_pda_pubkey: &Pubkey,
+    left_leaf: &[u8],
+    right_leaf: &[u8],
+    expected_index: usize,
+    program_context: &mut ProgramTestContext
+) {
+    let two_leaves_pda_account = program_context
+        .banks_client
+        .get_account(*two_leaves_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    println!(
+        "two_leaves_pda_account.data: {:?}",
+        two_leaves_pda_account.data
+    );
+    //account was initialized correctly
+    assert_eq!(1, two_leaves_pda_account.data[0]);
+    //account type is correct
+    assert_eq!(4, two_leaves_pda_account.data[1]);
+    //expected index
+    //assert_eq!(expected_index, usize::from_le_bytes(two_leaves_pda_account.data[2..11].try_into().unwrap()));
+    //saved left leaf correctly
+    assert_eq!(
+        *left_leaf,
+        two_leaves_pda_account.data[42..74]
+    );
+    //saved right leaf correctly
+    assert_eq!(
+        *right_leaf,
+        two_leaves_pda_account.data[10..42]
+    );
+    //saved merkle tree pubkey in which leaves were insorted
+    assert_eq!(MERKLE_TREE_ACC_BYTES, two_leaves_pda_account.data[74..106]);
+}
+async fn create_pubkeys_from_ix_data(ix_data: &Vec<u8>, program_id: &Pubkey) -> (Pubkey, Pubkey, Pubkey){
+    // Creates pubkeys for all the PDAs we'll use
+    let two_leaves_pda_pubkey =
+        Pubkey::find_program_address(&[&ix_data[105..137], &b"leaves"[..]], program_id).0;
+
+    let nf_pubkey0 =
+        Pubkey::find_program_address(&[&ix_data[105..137], &b"nf"[..]], program_id).0;
+
+    let nf_pubkey1 =
+        Pubkey::find_program_address(&[&ix_data[137..169], &b"nf"[..]], program_id).0;
+    (two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1)
+}
+
 
 #[tokio::test]
 async fn compute_prepared_inputs_should_succeed() {
@@ -1252,6 +1288,6 @@ async fn merkle_tree_root_check_should_succeed() {
         247, 16, 124, 67, 44, 62, 195, 226, 182, 62, 41, 237, 78, 64, 195, 249, 67, 169, 200, 24,
         158, 153, 57, 144, 24, 245, 131, 44, 127, 129, 44, 10,
     ];
-    let storage_account_unpacked = HashBytes::unpack(&storage_account.data).unwrap();
+    let storage_account_unpacked = TempStoragePda::unpack(&storage_account.data).unwrap();
     assert_eq!(storage_account_unpacked.state[0], expected_root);
 }

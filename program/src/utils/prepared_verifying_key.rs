@@ -4,20 +4,20 @@ use ark_ff::QuadExtField;
 
 pub fn get_alpha_g1_0() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10802560400167329898,4427831596641847289, 8446202072820133997, 125567519208212759])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11751420931253826222,8710609348661928048, 4579119150976691833, 2516190483927819264])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6395671874356304218,7442367705146823054, 15233428457291645462, 875023476512628524])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14555270887283425686,1422345715839805534, 12284638019070615609, 406803177789034317])), false 
 	)
 }
 
 pub fn get_beta_g2_0() -> ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13957427368410267022,6101563348155213896, 15595705088219937741, 2977830004324324263])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7792285146718175302,14431480397106960593, 8891978072743389075, 172671505553152981])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1908919010654538595,14236075201559531865, 3691261556633759387, 3181789518742718036])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10353321052689391367,2214908233606902394, 18270478741466760724, 309265333770134993])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([383450373217395126,3227181728795496973, 4495371084454688693, 522152305940961108])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18054170617781614761,18267147348858885998, 3733588098824404793, 644943871665481251])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11817568029857600503,1345620474978798134, 17042686217557036156, 104499137409438257])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10979309571565419044,268767246026620089, 2670276847661099355, 1486146747370705440])) 
 		),
 		false
 	)
@@ -40,12 +40,12 @@ pub fn get_gamma_g2_0() -> ark_ec::models::bn::g2::G2Affine::<ark_bn254::Paramet
 pub fn get_delta_g2_0() -> ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2230018614732996203,4816166062302509891, 6985138768017785972, 1965244750779376408])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10036116687961783745,6719835143815648439, 10578165907174441763, 1723822096419494877])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2795842264290440823,1895503996442934635, 7756996947166884284, 184786504383518664])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15457929352821742981,582457700367396190, 5094765477833743962, 3126971115040175784])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([258562452960205554,336930387013674631, 8585034722585991985, 3165887118114759475])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8166518649785466642,1983488906777032420, 14277287222950976866, 1966563496553132551])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16393952835042798559,2947381289577402084, 2622727280121326567, 111086390409439035])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2283194526230936196,8177175980162966613, 12599027446356325198, 2999842362348319157])) 
 		),
 		false
 	)
@@ -53,57 +53,57 @@ pub fn get_delta_g2_0() -> ark_ec::models::bn::g2::G2Affine::<ark_bn254::Paramet
 
 pub fn get_gamma_abc_g1_0() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1066727571854014131,12441028284001198887, 13384027390696184766, 2208197633686406652])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9330012877489461198,17502195030746717405, 14803056417701887008, 322308098704544156])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13081017878897802539,5979854018328592979, 5825414802195772079, 715786218627197019])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([952075138646667651,305150188488596381, 6124826606402692569, 846040814660875257])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_1() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15096305088613038041,15450916936429664742, 7012240460884899246, 92513671536051841])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10862194231830853264,11056503687343061069, 12290720852439755401, 459342416520978194])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15464542939769637116,13410505352636679396, 13712745987517311844, 2405898043312666510])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7870426887869995625,18247892369022602128, 4891053940453780125, 1906329627705230336])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_2() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15641644508138297079,9041321002551705920, 15800807934332706761, 2656166353491503414])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16268602035483486825,10972259957439130024, 9623762579438884381, 2012664647234000075])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([327863002279785962,10387491314280138458, 760645206984727278, 2311151250430612333])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13641118278430439450,6594642968493701090, 13110393668375955248, 1820752043945847384])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_3() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8692429926662127593,10935535300992320083, 9787298698866778316, 1975884577793139361])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10120282717069195739,2924651772574208664, 16355418730909155077, 1971857561760981895])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14335020879993211582,4220414470887910468, 4784213620159309701, 992670808827559562])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1616900019110652933,1576740889278658015, 11619453633770566784, 1450337227856716876])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_4() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10144044385156409655,610303884894678897, 9223997014402146128, 509492180233071587])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10996773709255984240,13514726858264744480, 4671917309208571268, 1887003877686392772])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6697526441154327948,14985724309526751469, 12255586883344175791, 123098659422302930])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8775027759219604963,10278563296417761292, 16525420935135170967, 235144879573722249])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_5() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16437579820482701014,7600137282207214753, 15411185132147219912, 3201153759406335437])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2017090504016175258,7162404748314854399, 11499298508078865969, 2757817966897549870])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([948158590055907696,2222750227037742358, 15116493774376575611, 1008365303707512812])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4256923413174412143,17042515474025024631, 15407609955846961185, 1219598505989113381])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_6() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14057919031671944666,14203845255446805835, 9015258206618143795, 964845734187903972])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5791413923656349836,17403608054330843338, 2071208950826848467, 1879590606605722516])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18113924876508678963,10971803437916389522, 10791661095263525936, 2936877018143358955])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10584264141143211669,13205796276135912855, 17459128109714812748, 1442375479935552475])), false 
 	)
 }
 
 pub fn get_gamma_abc_g1_7() -> ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters> { 
  	ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1881165474423442217,4233378363008024081, 5658078745662843270, 3270044658850523312])), 
-		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8269266514865638031,15906990907728944814, 12488463804295023706, 2788653403667020252])), false 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4709507039546048362,18108342636272905494, 10161859358459192509, 599883615826793512])), 
+		ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16119224575173165950,3633520027129908410, 1042769587501782011, 3382579211241079631])), false 
 	)
 }
 
@@ -1565,1456 +1565,1456 @@ pub fn get_gamma_g2_neg_pc_90() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ar
 
 pub fn get_delta_g2_neg_pc_0() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14631252108350306461,8203480703259017856, 3888877493897289220, 2844775969426548285])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12000420428291277021,11496597742785733435, 15273382494627258982, 446128726303294437])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14341161596376045502,5894762579154804169, 5245454560242653134, 222172780818878070])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([233772181182216129,5437227815848050205, 11916862941437955647, 2512686457893667649])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11678103582966451863,8016069214257533790, 9768162986972698766, 1034983434672964834])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17221547546422010397,14089453717079341670, 15167745250981482361, 2067008011610073807])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17974038999183991139,7991773612563452846, 7369446040937470725, 643013610355983856])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8931668419685785025,10351281944586144139, 14344872892963365858, 3285578256282243617])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17582329613473998042,13223203271519480260, 18235058756574975296, 1247122477364887015])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14942249620531812496,5896926345524142678, 13609817181157103195, 381381230988494926])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2715958056140845027,3349814174903584560, 17112807554182606584, 1134651105210534999])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16064141433400403551,12779413678465965845, 9978420196026496735, 1534008967179517623])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_1() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3612910817356811193,14995061587700135220, 16267940004579387715, 1817979552883336130])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11308183436300381440,14101714653785140260, 8423599999941378164, 3349622651709249796])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5509548300098920427,3181484130768045297, 15247265894179665734, 3481238464286369065])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7258159113255561207,15324995707223314476, 12989213629992338963, 2332661270265327462])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([576211075138731879,7582834671613083873, 17183702691373460336, 1865895113421886488])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2376073478383032480,8381943640488993051, 3572028920571421082, 2241760093089234551])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5279844438076765283,17990501568046375383, 4205295508148911761, 527930967407795978])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([892697809067168237,4561515514831125425, 15258527065474765059, 3246149503228025455])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6630771398796167945,14169322314527617684, 1447095082658078528, 787568610005823348])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2343027941947731307,4556801575058874856, 1406205701301952020, 3076386312553788633])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3108994539352334673,8423044397757324384, 15559013282636980807, 3231503944532685641])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6261403571636823319,2065663387747680495, 3369444419405255489, 2114015281715886774])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_2() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18030042637304288567,2516686799632119913, 8092632598173832260, 2907807480879373237])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14815049023852400109,8953238178097045675, 2531653261194920670, 1277702080360070851])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14611080511923805014,9386490071283524228, 6015785756833800922, 578852452791182283])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6136274641316012773,15251373585822748848, 14790917131219219578, 2192476332382658905])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6524508311441251172,13929005196451006739, 3996787417794767844, 454731711162445305])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4453156919473692449,3792717582602802646, 7123820410671693312, 2537358745747395989])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([418107868074445241,17174709087548798299, 15354725006180282440, 951000093997622543])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11172137234020445342,2110180171629591285, 4972760624676692296, 2313350567760616715])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8267676629564807572,16516811996963184300, 15675418030464798586, 2808670842562665468])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([773213943591673862,5692063772711831473, 1307483000680616020, 2337939985497136518])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6289413734298796283,2921918807754202203, 4268949692579616335, 193100688756063437])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18307989528423290969,10273158667091834808, 10696865547687865596, 1864078682175817564])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_3() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5847050115358698693,3637247392313121025, 16900113447737775091, 3170183321651785212])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16161032499936009400,17854403348773562683, 13303002954457849484, 942262832469876823])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13138664815582736950,3841987477232419076, 5552641688143128391, 1768491934734024982])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2957053244846465947,14972227832494403357, 9655858399164434334, 1090134677249263147])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15885041212085227398,15517480464597028140, 7535211865581757127, 1234768082359336243])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5443910887202136760,4728828620352170508, 578836146553728628, 1256001215687798010])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1271581310163613827,4952422424049335139, 5298751594453798235, 2359361121629909713])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9574333742664323431,272187488839703577, 2739146699154573742, 248469239998656915])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8154536071946288780,9917548778840914275, 7967561630935427813, 3301035472428677512])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5619303576956086025,10064973846208685512, 14332668438041693903, 2377474674890139176])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12356535516086766408,4314120633484544102, 7874971360208052988, 3353266295255120856])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10936415650528600771,4907523557810564026, 14681468740683701873, 3196797814965889411])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_4() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17707508853734216782,2409354991718747381, 4078437004062965377, 2311558643459476994])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14921398932679994685,16999403597455362321, 13527894255428203719, 2115999181850078550])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4370591737491306806,11566661587376567164, 5570438092096126744, 477680951391231704])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5529634441478798767,3881917619587952062, 5655208379596206655, 1213002022791535855])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9537743338471032683,7035554502925021282, 1647232243439068734, 1477719629417746378])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([948693852424705557,1964180981986337137, 2855768542568617718, 3466215919152694117])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17643852971169021744,12468707990069303161, 13759506149668194288, 2759458550384449314])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16901444420440294780,15782051451037145412, 16351208565918744304, 1924441754767049714])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10115475657254114003,7473115584598936384, 10445550037670707667, 2519334836220924998])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9329141180035093386,15329962550492958507, 5509456101988505213, 2710820035159028065])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14622068395001000190,10759712108642773186, 5252022418256846870, 2810222453696054066])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6247076893004890567,17736496039249420357, 3344917988997711808, 708126050757204464])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_5() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8535480655141316906,6731399451106734924, 17527760263624445486, 298861936320757272])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2768573690003823825,5181731216194273094, 10508209808590014857, 1386722701575243323])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15282228408171048171,5124870807690504094, 15332470183926601235, 16571252284997728])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13544869188058977821,9731100525541001609, 9606874141811916156, 3283374047339810876])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3763161516078441338,9852449246792138460, 14582744187527714465, 1147283021070833910])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17625430231895419492,8895867072741112497, 14730147280476037099, 17970797548303428])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14949535381132280413,8511394953373336765, 3542896091456427650, 3479735043558756658])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5636916422351222709,4835702045678637953, 14881616283246525742, 842881987171372361])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7739283745092899962,10512797568641404807, 1502538880475803782, 1443328007679724921])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6792758506840880564,3441375162234418793, 4001480427634203983, 2487733805662466547])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16274768463761414642,5651012680516197487, 17346996622292980720, 1974588966608182870])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9829222542070833694,1008353130320273625, 5644527340147990719, 942902196720587280])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_6() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17357355358302829812,5144945249926656104, 1092882828157637812, 558382059691031862])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3602660165178229524,16252440418906061643, 5005187902237588098, 1372839734811202210])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8957496028244544485,14598600969184152012, 12837331663653700419, 2937948498156673081])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15426738619962268878,15718843933021454633, 17791976033443360198, 1429120281346748924])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2752262875311629737,2487066043934985103, 14318701497021492648, 3259571521189568964])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2480888024818344746,10767856469426303529, 4004706784280622841, 1259383333531262761])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16903883984188090302,8140132367743351580, 6511360785329877492, 2642007234678978968])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8975177569794016824,18312113221873134777, 4677999366339136126, 885577065367647504])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10849756438960658179,8811954544139683331, 18228950850416168960, 2680067083612449732])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10896844886761931640,11558265989102742819, 15844233361106968380, 122907086135042636])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18285960281626674681,8839255615266213550, 1908851446952203565, 1674856575820080108])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([980869788562486545,8071803483324123878, 3774767389536165053, 1972789690298939526])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_7() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7907075668926218928,11411058995299238904, 11524596531288756632, 2059645661477596863])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4549370680204318637,17752113529994505205, 15713636183528647552, 1443876291504969886])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17457546594683002786,8993614324054141400, 14596004528420400983, 3280822230291827006])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13388385942111257095,9722354581281792738, 12292506053748700611, 1901531539359479668])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7470657116950367921,2318743308131424267, 5881585915328235002, 727570937564228253])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7448137669174742406,15308378256384570686, 4887267989979079158, 1552849900913726512])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13045872017651582755,6600880264028621874, 7400222789379445284, 1560959709308286463])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1508449274019025594,5151015651123116567, 8141325123325350224, 1943305015129512534])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17918427665023828285,18037832510355850052, 11515431117059310953, 1473915476922102764])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1497856233033100807,515680367827496949, 3439155555293467302, 3446652339553536297])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3881152167240075328,10468806991275960855, 4833201164672308870, 2261845501704044888])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16755443257180241809,9976866254703754501, 107281735593384826, 1104884557799841248])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_8() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15839037892922674359,6845251608008069754, 15817560877728534622, 2694876105171571354])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9930572464385417461,16227694469594594113, 16698782566995229325, 1935089759758506979])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2213956025063762048,8193944738355756380, 4319555912801111634, 757745423119402514])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14508405564612545240,16583054211995845149, 12188122231701191125, 1646022046501940230])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7046010050008351555,1763562302759257265, 10008868872638283711, 791337509726818271])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18109878606876696688,4664876393492168533, 7019078391075431359, 2756223280411799160])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6796067627190905519,17874313419952111493, 17567868059911899375, 2974306462529005391])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11413972502593519894,2221489207671341675, 11676846353786148795, 3009403929056291932])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7998153388518657597,16933041591072774578, 357692035522329562, 2098886379659771589])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11605761739028175576,13217855528705192570, 10364695951848186277, 675116890122902451])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9948547352335457688,9145043022083081017, 17169782426807985486, 2805218170735201582])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10291113644477415723,14282037894840330879, 4399105929703146758, 2421216894708904116])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_9() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9945407357859895541,16815273827176847060, 18246178794352909357, 746703226000125137])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7838214127094234835,18116385119916873363, 14588549035420838641, 1664931691396577176])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10560316511197858556,6767678991888937531, 8019359775753737340, 2855464178837772402])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([946342647932251067,2186020930495366610, 7003209502383447046, 2413023980251940026])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7442457229473269967,15028763530504714582, 18396765842752804586, 3350879812730794961])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5218829890410918161,17487822011489561622, 7825817325714597786, 864410238537653618])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10943774554478674690,13915752419547891803, 11726545889899822585, 443578483942348584])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13940885341246864576,11719448233543287833, 7998090508070118767, 1498431443812195110])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2292900736817135910,10149386616698974545, 632734746154783681, 2690972996203017325])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12026485972600482183,12218488362960113225, 8270709325335779841, 2491263547873092704])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6522215050980131829,11440318900294421064, 8708926270148404648, 3285634608818474671])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17524058794029341134,10966371829136491702, 3722721041862440484, 1503670113585978685])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_10() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2260698664581258483,14548260675922708650, 6395877682152137130, 1665834012726073870])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3680799541486575672,15986151987930862293, 2829387773245891927, 288047200844996409])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4560762466741347202,10648870179630098415, 10721825452962523396, 2553768955734876590])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10913648674479894688,16642425928871367069, 15724287144861590359, 1321738606776765921])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14411639029513231594,269007757790937136, 17338485476545832140, 214517866131134911])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9272365159485668221,12361056910572987688, 11339674445211700225, 3091526821264410557])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8260127569346877318,3950208471604164267, 2054108817721185023, 1723615684246607772])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6964544778784692967,16797847852261378877, 15344045951474305828, 1560065501742929202])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10112474220544349873,1967022390101425900, 12259330884478209315, 903108451378557508])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2668760940372403655,14378090001848951431, 9849376156731800022, 2087179509886415066])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16685593616080517526,13778252412041911606, 16693815034391130357, 2937133165578598713])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7411004975325128961,3740463073871591975, 4383084148257776241, 1090414761792553806])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_11() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7659356784077808053,11533806858261097774, 2975012816036755510, 2237287839778523050])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13735824467793973065,6273825156692536031, 12812380793668576214, 2622822821304335078])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5418183557475789791,12828820132392234820, 3248020743094388897, 3297955897067613258])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16089739259483907303,15982467588937252595, 14701937795891051564, 1021950688967868872])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9155799757144263013,8238960102853176939, 3705982458754620015, 116217456675381118])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16523183163420607426,15213195793064237822, 12856898061561019313, 2534734523235167680])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9853319878795926530,3088566035799832489, 2608034142983315, 1258013615708607031])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18097684182296841906,11705001741332022582, 16918636586313137268, 2872933412418933996])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1118363442409191366,1512160401562770102, 17466405408005280573, 2943007206819621190])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([266579242385016722,5317621724935433977, 13856771430495799201, 2885699488611557975])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([652414829728872444,16425812928807632862, 9618100182398216650, 135387072041413188])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5019513322847860150,17116344103871624691, 8384709290830728610, 659025422889498282])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_12() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4749160792596909287,7901768001425702645, 10557459141651627705, 2140385925992348343])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15477989047045609661,6456615610011693684, 14780868447142673695, 236025390792526490])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6794794630910549199,17167804850809841013, 11219466035565014731, 1009968339966197002])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([789707884503238136,6368618744673491542, 8577707535239277638, 553599786111590473])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1478524933466760386,10809030574087298115, 8506045731707743004, 3221607125713816867])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([129736263699793707,4597379669318295074, 11313315416093992923, 885610609663063670])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2836922723740023812,14601940022517576742, 3304821103600530243, 3426598476483165074])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3641267767809003516,14550659232092107957, 3842221080594562470, 234860644950864793])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3396844126537774388,15154548225244771354, 10160788299834390033, 1930318365819283603])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9888118372297519621,12529711879140080877, 15650155321294487257, 241185781603815176])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11261205215387463329,4223766812940680495, 16091865649043217929, 1812206989563280374])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14207864133362634947,8363807528627985876, 4230739853973732609, 2015236937363559287])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_13() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4324742802683880874,17602557016502532318, 6683893840279194700, 768152887390339482])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3598310115214331837,4284083482117136598, 8280463537389100246, 2217114463929775102])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4232399230937262321,273945279593763928, 11863595094425324106, 579669636397758786])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13309520962210798331,4396463613619013481, 18272294889390827608, 392794554583793698])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1324770530355377192,11282916279459081208, 7451328679343209506, 1642167524381777110])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7451714777185412468,16375762419516120620, 13219419040235365883, 1984244295999786739])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4428143326777332453,4622437663253733297, 16251861282756880958, 1697654917530674555])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6683547807231086511,2599405914467253078, 9503227070046156417, 207783505889180159])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1678726917412427052,16681691301830811427, 12212311599187224914, 2788097775450328999])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2581012450297507583,10222133311161623128, 799282123690971231, 2596140266053363343])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3603053851606382891,4553530849874619583, 1293469066775091743, 619093314414967711])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7490471473509676831,12883463005350172595, 10718954026092726879, 1901312917431188321])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_14() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17467116737658134753,2962194606754979469, 17562249865046423660, 1558582433047439185])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12485279394115028284,3093857286048308381, 7668875693926280991, 2896918336711051822])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4119989198300580906,397605298988119435, 14939049554842410383, 1362403645916644155])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4959965351189186078,4866961381904014029, 17401235882020362223, 882320474359175833])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13684202291829132745,11955797385007293688, 18116746553950579338, 2358096294419607240])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11041963097654625501,5773205162823380177, 18322427216244822419, 2719537810844851382])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4737181116858537087,4765254463139571040, 10568502797308286926, 582908476436142418])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3205671185412169333,344627029657410373, 7536275034459964461, 1977612022732618599])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7696029290109932072,8727119041609287685, 7520859639868985773, 1912557522158310588])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7942651865690727844,4225587886154400746, 15594960042116442440, 2884253335520974473])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4157270109941362291,17171944149661253016, 3588628958671770069, 126878367639473379])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5597012510723363196,10332456634507628326, 7669242161442315923, 1131572068320081405])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_15() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13771253454421949046,4372329653008845027, 13490096643465732411, 3283088325524048106])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([780051434056683279,7003474700794809006, 3081067483400157499, 2531493385778591460])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17754306044801861683,13811469115029928203, 12690532357336448273, 94246986997559586])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1592984011536233356,11311621544944329289, 16757580525766238651, 2566640548912205946])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11095742197760796149,15352693975838897542, 5465781615550555465, 534195878933171634])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16217998554843648632,4147202279263617944, 10849469570892518166, 413171043929178686])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5194570903644943649,1167942648421390256, 849706796719271200, 2975291766060192822])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14474156029031062314,1128570293748791557, 7693836299446285145, 384293857020344020])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5429455519941622455,2260030212451794498, 934222187830417519, 1542780013171370335])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12311737490816567187,4204185684525652797, 5402785428767514681, 421863487067260537])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6425635930152096864,15367901649369055878, 4300678908562743308, 2102592819608190929])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17303581656471029975,6178858892391761295, 1974584085805767970, 1416705731702164045])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_16() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4674641429450364934,1782314234706967495, 10182562054480322302, 2700484470331142055])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17149179863271908199,13009890682673618951, 14410858168681441670, 1297980889991541792])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14936955610421618329,871217084244213746, 14946319916557369313, 250731501221926058])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([394718900435716649,14099881758719085509, 6473284471962993073, 3251279793397917984])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10055146465118948691,13501106283483168874, 2930870977440231787, 1850508168175141205])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15734139381180524721,1654321953347781755, 5140918166909739446, 2805435461073096545])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1326416965051399699,4047515493830466871, 9507370743572523984, 3325781478136585774])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6930034428629109845,16695620158938364133, 9120827727265492211, 498329959066373871])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6711152975053078941,15474625194775268261, 9828331908874558975, 507515009127940965])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6233386289315440175,929199566310030341, 4070771682149273330, 950108595634307904])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16843351938210038580,4837946362266294214, 9995787880465086294, 3368895493849710315])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2819527356581231213,6638463752658497964, 15156920792176512826, 780424129188351758])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_17() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8687533107582977389,11157379580203897316, 17164930678835406942, 445331002843835063])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12694717277725370688,16575054188839352824, 1364381946756106630, 783155829683560551])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3192139194585261975,5191000860383407312, 428656294932183789, 2787090266673067855])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9725075620642905180,3597338929312452414, 7476226292588950057, 328368627259892504])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7547848914997326548,921762229277869740, 16698825710494424255, 825979163766532712])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15054323333728335493,3187727339680134638, 3459000851940121250, 2803197912290513009])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9657401161791557085,528436342767380461, 13748685449359700813, 195381619310188007])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4165017612223452745,6077648954026546719, 8405361161796565157, 316270214440742313])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1330975527379074847,1867711366497367523, 15134235907135449639, 1859402484424351907])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16793739962088395611,2759875421771830060, 8093204454538317878, 768067231958304895])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13685411274888187506,16834136690605136971, 13564330337344061427, 1392537708756400831])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16900321306159320096,6082856598333492716, 17692621624919723621, 796943987850026800])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_18() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17101690817414942904,18115181117169256069, 11807000760856960126, 2827618776231711802])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8570150613949432060,16376385786124759719, 1413449817394694131, 1615238984385104739])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1903928009323494370,1629343048797731086, 9573350389189343884, 2022842485513236122])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7213376134154417562,5013726246383951537, 10938426118452236498, 2146772929132535458])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13653155821748986010,13190176790511453760, 18299196884509063367, 2538910935053464205])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14321624773628405468,12623492480281889549, 14563545512873150095, 2429079590505515360])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12718532696378682011,15829996704708569434, 6029683176111919559, 879374172227208739])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2296377269877333154,5935314651790980820, 8432918168006252239, 1031621985552802266])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2702858545940882397,8766940920735106273, 13658182330043259186, 955540619263867492])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15363330278651887733,16253727388259053097, 17087744214461623812, 2881834931961438406])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9278337165284342206,14982288540586730182, 15018389711077717965, 18507080406041574])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16607837166023800116,10983895135352408297, 14858109922396346241, 78444527141129726])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_19() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5238576504548492339,13569744493088737366, 4425920705234366575, 1830167624928101358])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15395358067611193149,16991750855702635746, 1104608559804993067, 882627299019218634])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15512159013261281006,3429341583678045692, 4301708123809093318, 84710882061981023])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8359609388072365015,1654659912303746411, 4703014870564640847, 1267936544572131369])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12273409135836699808,12330950377775584762, 9483146745299702571, 1530069412664789134])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2681490981107688748,8496457591887494829, 11312641574440021008, 2564536085731753069])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5093055410917270894,18164688735049488579, 7174249326265750722, 1040909618284618064])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15898496835973724323,5455818687686458480, 3482691758534082030, 2074505288719978331])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15582312485022177762,1242310029392200598, 14708207126984001905, 1015045372719682891])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([479454282847671702,8645289395697181912, 5656864897288939811, 1611246671104519401])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5873868778849140587,15645371500260442519, 12176984191544977505, 775809815348332544])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5713380098755274447,8937851913018556677, 6898495969331370142, 3097901253739633885])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_20() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13270338237339924267,2432333242422626037, 6764965595774905854, 525164810766887736])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16615185634026131173,3746083490363747152, 4119252458877094499, 3453172701987797579])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9758162494335621070,14116034774482892902, 15625296013276587584, 1587484740805831019])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4862315258716814323,11825024047771221162, 10809304008657308132, 2679894139076607303])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3314280391267778690,1140100331474692052, 14640096144099548254, 1117517913331461360])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11445429292133050135,8390297022869040813, 12606574786097393216, 2996544168424426592])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15512519343828343330,16358670773486115544, 1729507115855613949, 1092483027112118729])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12807539951723817177,11381296324572140572, 4957406403806017485, 2443366389230981407])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16591018523678575575,18020975724682530455, 479543402509529841, 1353561245736833998])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13477844187568837439,17542531435638815044, 4910560491646963780, 2383364951501640434])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2038169722473385253,80040796925000742, 10982359214798148804, 3006774366214953652])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17469157521776550129,719626220079999495, 12147148602854886625, 762570196158802579])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_21() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9425260494631648991,12543157831408083214, 6210078458092491313, 2047348905687436846])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11941492372928643992,17980568730669234918, 12673159690586288692, 2869932410465208584])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7268868298092156944,5386995568223959514, 17143020008031988584, 891779254272610001])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5535975753047221888,533625948881569252, 13159051156098275748, 1368022712523487332])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11805461519855996676,3659075228876078372, 3503057885411584932, 3075365451547165116])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1759422301121024472,13022531159753570072, 10689810033900546704, 2094083329480684569])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18359353689069815720,2972284266756642703, 17523849228038157818, 3033058186549584001])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11756960295350793555,2190718068100300133, 1307093494430400660, 1362085255072651096])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17823109643049523704,14477140441704947151, 16722876910166673300, 1353305876004310894])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11251011742927422634,13797167773626476541, 6092779821531260756, 682114135993464378])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4420628605046982500,6743128858484850999, 15948860351081070197, 164877867279488310])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15031845218263543481,3259111628318404013, 10762467131633640733, 406241885684971820])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_22() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3775184335726030243,10268861628115199886, 8706975839184966490, 2438776358104632205])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([487909026553749089,16055656004556544283, 7838440044961328948, 202745492506594528])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1971410702725619577,5758250410187703711, 16482706601202787548, 1089339583638756390])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13437324923339592625,7712273994602306415, 31564964800788005, 1381811984577096850])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18091049138865381733,14796690530740098493, 5504417798397029533, 1091067233161557430])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13013522770067998252,5824480758700520687, 988499486725541000, 2590494095488203117])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5897275933014326926,10062930960528770116, 714935428508179753, 1605403845344056813])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([346580444598005407,5013273747576345038, 11579937286616086406, 1355361693118679044])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7138372299195772490,13380183770288934550, 13210057632571680287, 1120204429641002189])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1066696263533859803,4405520000113722673, 15909853645533168814, 2421270274220513841])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6828619497711813398,12649056606532708883, 11682223450785442598, 841780263516961160])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6205981752505251558,5627588218584907543, 11594186548394195650, 1739134442376282732])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_23() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16579871912455282766,13667052762180540085, 10248776272898010406, 1472397065396912070])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9110187717655578824,8917702343809265968, 14494220151333566192, 2987330196043648150])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9449728572708285270,18376749124182066936, 2035883413100098465, 3471215317105171897])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11541922955540399278,9305927317088572491, 17791830240714540251, 3046718335176719139])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1353388341767340474,2072153925617039038, 8405072096232500354, 443867344754938364])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4920326628026994625,1521686167171209052, 16478883870533995407, 108672977134191488])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2558849775410523625,11976167108599283058, 7593838833789891558, 2798323723286796830])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4237206835781216063,2797382925127412289, 1668242953868191653, 223045299770263199])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11992931654830474630,15556447223158749379, 7128420329750610775, 1470802427742585053])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4918738520878446389,6637405872658072248, 11400593656285885232, 1386823885356426690])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6807061401929861409,3836101397027168896, 2270148606511797250, 3474403703105538837])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8420591533985111771,17967639346498547993, 6195469929707720913, 1370416334721957311])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_24() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7430549504838691390,18192179645183749088, 11742310497759315455, 1004478350785273390])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2782507847476585205,518026636718131935, 17763293222521936548, 823197396778279855])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14427202859878561154,2130400129972668273, 16663679561785543174, 2156531975656502583])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17564045277934933817,3064348578004823664, 13685425451024364968, 2798024434335551599])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8382434936813517171,10675205106706586279, 6498905741231283371, 2288116924714018990])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6918730156100146135,2590566195401079223, 3732882810323968667, 17766894922427727])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([762981144066544691,12413212879071235936, 4490213910989608400, 2839032939267995038])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13300759831771270974,3190398031262338414, 3709523462824197053, 3047130944860355025])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16759305814250543252,1433933912444543642, 8860504768030314485, 39424136076780217])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10006964533727421002,11487044809092799896, 10700074899820560422, 2271175300835428947])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17406619193778530401,17126143565160478928, 4168740336166748308, 2726053784748192922])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3284490204576602127,9031828085799644314, 9465283660165328342, 2980296673106326474])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_25() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4272275979458605855,3719004736571034085, 5283912549760980014, 1653528320437157769])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9093637444557780592,15617309684849202256, 6491059365724728586, 3210824504514442765])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13576720334010478085,6895237787875705652, 13217230446653937648, 2953110801606495412])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11610034210110773962,7136905888192615043, 14229931542283255538, 1652316045855932431])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8001115053955837840,3661456640728388116, 10092750485646300593, 3223943296946283221])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15489357921379981567,16757488858936204024, 4830881066407528129, 662554535225096084])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5145292147363286779,180334245611657397, 6249959050527327223, 332791145202162213])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7423051415980805225,13808091056195133551, 17262695961842646820, 2331528638053206246])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8392154586548130582,18022771931539618850, 3555459866948045235, 254280900213107527])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6962148263949206055,17029287761709530817, 3356313480743501818, 1653141656167723987])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16672768386519373238,10049946103152320114, 9676948843226648533, 452903856640312846])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3551081806113733226,1067598013504997445, 8113786179491512035, 1014778287317384664])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_26() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16786282327014074858,4216840433020921920, 12905925123283457557, 3260165313885615356])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13742649460400515817,14431289800316519106, 17348154828536986172, 2630157310753640929])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16323985048019808350,6025443033618040178, 16786315148791210840, 1925410219398249039])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1945410753794462930,13317293441510259676, 18150229148220641283, 388785318326110065])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6695672662344060440,3195955743122731602, 2429885277560673635, 2548412854032608759])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2218128652554015342,4964256662881911003, 3060007509241814379, 42970251407342802])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6791363067133690056,1867832332573009086, 4832925584591612199, 2318229615897818449])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10412308479878224798,13804769201883497548, 6504241806657967584, 230704710443844233])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3568510921578759449,16102730717266414644, 2076347379152083619, 162967492118794271])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8290577809316681554,13852208608456445626, 7207720561625933517, 1155057704458521728])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10311444426145359302,3683618707068893191, 16795202403114732080, 645612600585757256])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14613902194060534190,438451375291936255, 693621921005938412, 616669782473076965])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_27() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4877287086772820855,4939461123237901222, 3175467933626788763, 2156487211202258977])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2656621092674354300,15450778467665615896, 18393431673079856902, 1394241678905927443])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4583988437082085315,1765446433911214053, 14562955934400926183, 3424114876096163925])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17594609546838389033,12361949208336740632, 9788336497573107345, 826066505059990248])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14553974652719878168,7499172670186433719, 11488770927092659971, 274501861702100950])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3522966207942254459,17790695358159403349, 16131715198145289353, 3451820803595789768])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14465618868807709381,5244960365812747730, 16128198698354227788, 1508775289839765057])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2624891856309594293,5890520231231348202, 17110343480409785063, 1412935424221733481])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12233195836751259304,8650220966870678344, 13625879338702161814, 32400558056429538])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18119821053986617081,12836668868803352117, 722215331888219295, 1311573676637045551])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15158938921305002591,6838244301388607731, 8709222656696599374, 265129173140399124])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7559105085338976103,11243803433793176152, 6224004354883189909, 3265264898157598752])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_28() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4536371612829441387,18167056602364044269, 17606531019091696454, 2144728179033268137])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8995316515296774642,8164417025358240014, 16866713073442236004, 1284009590614934708])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7948867415665914744,17166433830741961548, 7100668184286691752, 317261521781824521])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10979169594456077141,10267475655261668160, 8291752986056046191, 2207038577076351517])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5007380702462376308,2717153154101984315, 7894536097315245871, 2025591017538241981])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13925746626874380860,7476985988618865877, 7196849397418736980, 3059753842755984896])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5267412641282190406,9329901219783354598, 13409383471386707634, 1211242088382784640])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8100166776758950894,126161170468808543, 5906903715625792650, 782806811024878426])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5748971594887906745,11274350115200103783, 14394582410788126769, 2786458870137114320])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13196632088873723237,8222146827445959456, 712637615416654057, 644118266373596760])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15462459961064155926,14988754319299119742, 8764796389335429005, 2708985341280893442])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5771937279791845615,17476303904795628278, 15153357264580475565, 910344298792181247])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_29() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7965285715133958495,17079142206624875102, 7133000081442112536, 1532875861227881781])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1215993684601409929,10577589993382108947, 12998617812172598245, 2809795153868516409])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10450553065320070433,4568678427798071300, 14680279767608064502, 463962013393164281])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17600214192449005783,17851025105501759740, 8134907636038834159, 561336732936326011])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9371422923607131121,10430156056535134162, 16078669151912593155, 1179054010550630508])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8899064082663998287,9196489923561025068, 15286931289091001540, 810877617348354025])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2755451914254598938,1060442221871958008, 7099730168805413281, 3435208630661663250])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18173183923319074115,11374745922151117215, 10827662318929438458, 92865515646712958])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2999578503991958778,9105437269810790473, 16654781499816882954, 1021810569551212034])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6284549018294116578,17171141556066672692, 10815306206834605150, 225976863999044692])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17952643659935569038,5881471819381150649, 1115536179340792702, 1118672374975623743])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9414201372082238277,13243183352090779182, 1161987279433072349, 1820820770647474600])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_30() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18275078107546919438,17259004499882537644, 8055513133227553574, 2887575280268958523])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13225690647966618903,10485550165377989187, 12060107325146727270, 2802616764656980857])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17313850356343021935,3434211712207809840, 17631677726994884148, 666488528655546777])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9819822124312572176,15254228437240305657, 8179876400677154176, 3369298233874634446])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12553023905965798663,16856880473661584621, 4603886629627308007, 1260301930216028089])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12759566779383361183,5879963232135629277, 4389655742870267766, 2951242330736994944])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14645090567343350599,5145293646346313457, 15667222227439022, 1147561517776234604])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9500619475864268326,5375014985631624581, 208176899228245953, 198173176966823026])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4805316845326452226,15549879907488219693, 2748558519540688483, 270556304116560161])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9202018620322260730,5743469192756575698, 6370540404149883687, 1884191189054489542])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9221216074000252967,7547193793186048712, 1635207585873365705, 2369018125192838794])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9098860609438156000,2289829168907044416, 9835930309259502086, 2654589633572786147])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_31() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1965744783601545108,8519194184239411257, 14920999296794267527, 1061442746676176800])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5755095094625201985,17981223463803300407, 2715979444955373209, 445121758505731588])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11885424035933766828,9933012369466901950, 10770288704816965974, 907375053671688890])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14043073073434498835,8586842183081297302, 12334603759666925827, 3110030381553002301])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9975392504859966100,4528815079807080833, 17683840286959269783, 1124301200936891583])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12877934223849788996,1483966859871349871, 18296121996679504614, 2944791574046475753])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15778759795899361313,3478295290470972600, 15667020029525773492, 1727420806828689597])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7398781139198999103,10579542326429679984, 4538729240789796105, 1383741349509760403])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5521117708168761751,3886255903908424130, 4221871280528073829, 192597837467693225])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9533438861542075606,11337766222073302233, 8603704744460762088, 2308130479891615521])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1483807587608031609,11526948793976618517, 1228290509265236720, 1392382130895355064])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3756456449496263664,3042755305651419450, 4664904017535309272, 1229587940978085699])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_32() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9127127297733976020,16172661129682131386, 14987095076192205145, 849601678518761575])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7922333719398678921,5159772289657963877, 15384659818728346334, 1252657335665007016])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4382520299098615159,18088365090142785741, 16059750707491600202, 1687875352218330284])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16112612422732200961,3100384277092154243, 6899307179306861744, 270263107367669585])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16001915281102333981,5057727671627379082, 15858317345897571518, 3292119177024346299])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6452904913273388604,14984602450754041017, 17913745750469240679, 2968554790078166307])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1900658267504144599,17886010266696465840, 11438841693894370400, 1791790800710512916])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10724157563050880852,7952463719642223313, 11977511658780567988, 361967180975374159])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([397849741945792209,17909386817979393874, 5927596327759867578, 2691390715548625515])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6931362051444205975,1665162105766036303, 15782557776159686426, 1997420091766158048])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([386974571059456214,18372466107860745945, 11185732686621282484, 25608075588895188])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4875790767609643866,14513643723323989442, 14047697075902756072, 1437543301910001491])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_33() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15861539264094778008,13159684766793959853, 9446683529448825752, 898918435304309591])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15663769798035424746,7884210583380565259, 11130054708396950441, 408902401639935375])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13530915400478310983,4253572125508050838, 2971994068272489797, 2367822101739384520])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16021054026609012497,14004498504330030849, 13372919675522885981, 3294374707886058886])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7802405724802843755,6434962270681824672, 8513672443901111886, 3471349193876270978])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11515272998916637854,2620837284943215751, 4803103847054113153, 829923129885020480])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([668148838415564339,15913247190499098877, 10687434721680491758, 1031677702704595988])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1862205293111328390,15605937252887735449, 13308883041717434527, 1702524198916243824])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([429663099935328535,13547220512511096343, 8442360954379435875, 2120406608072554873])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15611631805674971364,2709891120160713159, 2012346116559972467, 3160782895604167285])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([886307529921096152,12596718365151255104, 5242191872331271349, 3456502714543599935])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10709234766124141259,3284402214301907104, 1550061793923494970, 2095444801756743855])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_34() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3819504484088508491,16364655006330801419, 14371502653384427244, 3158935850947299545])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4364374077290555295,9960346724395956570, 13737365596354094623, 2183178634511481045])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17845949523508914373,6227691680700206235, 15000053116819229246, 2846399627165061101])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1042692586680651005,361538664394135937, 26099644418857687, 3298583897324979500])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5507838069916331855,4324417249968007124, 8289609284057814791, 1258955027016666386])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18008986303543771738,8505576554720674102, 14599172116620678494, 2341776787181695223])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10059645036634933643,1834168137484191742, 18434435045931066924, 2350144429325095708])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4217276909482207124,2422881294276106630, 11262636878658526560, 363676745770567951])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3580452335387014513,10979932493958869716, 6258530298846009374, 2696255115712164364])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4097949756031772425,14040185060084287881, 11780319761490688361, 2717268145937606682])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15946142205436926358,4926842331595679044, 1213801617162988510, 1264875414510423940])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6694323573702574183,5124342637403053008, 17361415969457940776, 1498484371308562739])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_35() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10290578917791655416,1741926456338088913, 9138259700885133945, 1264257080156282058])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5803434631555762022,229407647237523353, 6111974471023345080, 2784885823218707663])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1101048439178737123,11927325252621354794, 8995087854937795899, 1657310918276092017])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11180313823062715649,13482324267530987738, 7134390685793744314, 1812456992774306994])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9650520010477221396,15303317704201830084, 4833327034600992504, 1508743936788130448])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10181531788914354176,15517076372839040424, 2976509160942027047, 2349227261662365913])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13820211720143186343,4493760932594037641, 9426713824455177588, 515809058274034586])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9920899605206767407,16761889482509776964, 6199094360650940936, 3296007994093222966])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8746331965996236587,316182562753968814, 11852761350295948614, 1449304217339749644])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6057435729666248114,6519708073755513302, 2042026743397642859, 287788015319414778])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10527926464521375390,6448214260792779418, 7774692947959909350, 101860269617379376])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8337687974767258381,11689997108174641030, 3561987523534274156, 1035003168263298812])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_36() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5902941089074343759,2980213158688756668, 7291898390704312673, 2538894975137000527])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([478726087934854706,5876855093600094557, 10666002873851772995, 3132925974631415352])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4825260206338416576,6801378444057421734, 11877862133766487377, 1687937010429562779])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14893256430897919757,16127192203979576052, 15496543261841776643, 1902445273292069037])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2121550450419404445,5987889763410724127, 18196954007751738092, 618253228184482840])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4051077117020040351,869153733765848846, 15247879762790207251, 2969216043479516156])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8677859715898936669,1966272331690499398, 6450671106593626597, 314762754053221661])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10518850844804287459,8554965497765490430, 13138338079892559314, 598086383259827922])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12545668870467933462,9996011898278412170, 4903156819683450613, 326673650875809076])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5710488480341631732,17865292248644429247, 3006378986043752957, 3189602244296471226])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8708848925061425752,4392728668671599523, 9318973497611118420, 2958053615451490501])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([672227996854098060,6762255526985462561, 8012242903352027992, 1971482339735651487])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_37() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5293873799129840402,1043789393342712268, 5023819467505025130, 3013498498475335136])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10108860247184424566,11940783280121150159, 7836568725351756728, 3139264591955809765])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16742732270493672421,6462369513493438016, 17612045754045736514, 3243408292147913091])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4510357691155795171,12475313537658290390, 1262669005188215238, 1509919040973497624])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6548968291335470211,124496487970899219, 2685672962136590385, 3305283886289479047])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8366650822595340727,9782566143807906637, 3617760048926118828, 252113771081657275])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12333683461261238269,9426420374056292940, 5563333062652148927, 1169543760241639891])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4809812835441091039,11221292607427688733, 3339485584556078106, 3365248144643559042])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15771736370832419977,11534694787134192867, 6136140057594617867, 2035970390419566387])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16042456951134024957,3446118036033287982, 8010641970789919637, 2443515396318547784])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2608506645318135397,1674430509478896786, 7864969965622387258, 69708050986860037])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2464975745863648604,8970678759463919242, 984048935420687480, 1263137576865615292])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_38() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3977873480332502710,16699290043296547975, 14911634284622609530, 343917938446097960])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9458646841722698233,6017670783013612573, 17751734424124872293, 1887333379519634479])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5673946019138271374,4153112625116469363, 4242166058821772788, 1010565222841329216])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1542054439928329875,2850513863668610074, 14807349783859742530, 2222822896623526765])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5288937219526263045,7713822688434553337, 17722376342119500598, 1714186968213546743])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7978712335660646419,10842094746951655403, 452646066315069155, 3305241883357566752])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1055261615317687018,13156401892575717394, 10147018908608172009, 1566007535656763509])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([344615151946816106,17635337287837930567, 11729207091761940531, 3478652722088483962])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9450096657475285654,16664459400762365857, 1002029222492997321, 1626335224899595532])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16826770018122032320,3283068113256843230, 13338813553865624797, 1533019063912260770])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3216532752515001268,5272174628811344948, 16534768269872805099, 753219241663628699])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13830760950708452271,11989418086304992135, 16786470169883152768, 1932590879584069847])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_39() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1642048571513915537,1323156418835581005, 4941278048615956329, 944177372244220026])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3007976773772562478,2424657596983033780, 2975802775208601346, 1630182535949330050])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12003303986944440217,12604167989195097450, 16432474340411252868, 2677674274448099843])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9335312774782394544,1874455159791381256, 6890794314130897232, 1223447056448310631])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1754248683648433617,11616886664463961055, 13177183675666048757, 2137165440167455236])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17935734731318019758,17769878536127203969, 2950802465589499876, 3183328463665006019])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16850539831717110973,11722582007168978342, 6126384566712159352, 368203979001824068])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2720324936418026949,5888316243110174961, 14265110291295467107, 96040705153772093])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13947139569544582258,6841396392749252470, 15003985434745551798, 825143628429210091])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7530562837807810880,16124177939506206068, 13935982814819742738, 683765440008515560])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17023906609352868279,2303583264987545940, 4224793758212586677, 1935176698314879582])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5941948345168913066,17936811366873135704, 10054608806658177569, 295547581904407056])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_40() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2286276484988642897,16258429974199545495, 14044646801604564022, 2555370650793412462])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11065881892307195499,17239161327008669051, 10117566779300395139, 3193027968127502950])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11664494201438200262,5587742952924076336, 4879157057137570349, 7289216692730497])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5047865332597816354,9368608531370243776, 2538924223602732750, 1569662175948108112])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18179506429115127328,7471312019872153660, 10212309161346832628, 1787132679658588531])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7999408565751939658,8396657341694847911, 3903511312848375051, 2083324866239529972])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([238858652776058322,16150938557506299849, 6422910904606806616, 1958037353311251177])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3257169208422332950,3101662074671092940, 2587763982965448986, 44631004943401966])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17399086971505622889,2921585319909741800, 8580897363012280158, 1867330038862329396])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3594880006577463775,6766400523249087427, 7157092386399797260, 107932077508997984])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4441802370443198838,8310434281254039021, 16636132420173780060, 3411503998178140325])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15675005390760936618,10373691354607994199, 10012811008317086560, 1832783172933706868])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_41() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16835780258210346369,8312075508176888848, 6632076705781773629, 788501903927783005])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14922243790483258523,1864751153031777290, 6628810789894995900, 1965135679306646644])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([60662610634881212,15658764839184397109, 15987807772079033220, 2053045723709636338])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3048768240911070939,14955036261135913423, 7563442753013368116, 1917910253813807199])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11345130697318847732,17065117900159223011, 7641807320691863119, 3470219482391544306])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16890303576455058513,17949551959817727604, 15853736041666321389, 2478333765806292322])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([541382106736012965,431088692220278503, 14567858044716650288, 2983264816362395660])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15966803663155542593,365479404585703893, 7840831244731374681, 2210829256630179276])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1980309633406277172,4002231095764697280, 2947744100524615742, 2800230451274390250])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18395765998511887215,11012581015091477293, 13161996951418058995, 1189534847289259203])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1356804389731070330,8553203088665248094, 8407290419110707911, 1279303969489535769])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3924106807472228805,16029121592068925414, 11918828681295886287, 3175366320024772917])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_42() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([331558633831954124,16279297590787904750, 7117297020041155672, 2141245055803048198])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15671506182462003242,12032635318905203610, 6663360623857009940, 2285618947749624410])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8376943299938002749,4896562140342391120, 1885148321160201085, 2148849343919002785])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18110914987665237685,13564411993686488289, 1953489703271863341, 2499677445338553026])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10299269739380875653,13424943419691995521, 18411249890633858376, 1708730581008398665])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3373025613625586155,11696575666541682932, 853977576327547948, 522448117044808683])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15720661824273163652,3916452567522523698, 370029651423353495, 1651337081793284759])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4093845323449319648,10157876707267899889, 16523350809051820387, 3335086172474644760])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16351824443115672431,1138867682783504771, 8236269581869072824, 1283017433784719252])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12868721510388289767,12801673815585307440, 8089956267688322896, 2102876468276826038])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9531485963024243683,15239298771097287119, 5862848321033951157, 883396086505249434])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9710872196619158854,10799150112109424577, 235795545420472630, 572422124010677511])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_43() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10616694366865720839,4428173365440723396, 10672215843888791151, 2274562247020991573])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4441692659240484149,1973478806000183071, 6027935060606481984, 2809719320564294994])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7569372868992018039,55946188671217347, 1889893931355253016, 874124733832615287])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1714037268218975954,11438486221542495192, 2716042857971420644, 2733306203350589364])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14954525876098837778,14790642254487252093, 18065318959351251956, 2195597625250813914])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12328503061566388841,6245469272102904511, 1787627287583647626, 2774585724236006442])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1732065097484866077,4052856592025440777, 6043487287027245716, 6270296297808346])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10531558173591146457,1125406242106883808, 11501648761872752957, 321196793998398810])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11938826730583676505,15399819644777322229, 957995978855803699, 674025096331520388])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4973341880099968371,1681315934565462508, 10040551858842760193, 326410317506670809])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15812612282768987541,79922533366313483, 75813860867869728, 813981693473105620])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12554152242437851615,10928598725550514617, 4876291308207135894, 2504359076899091241])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_44() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1096216198538343049,17277007505222377153, 2277613635925063389, 2712586873827809768])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5642427436440579058,3876632697030657188, 8108295779289738516, 203662470882829537])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3194151859560377321,18141454896485898589, 13280681068456738754, 58246880686732903])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7739628253681412067,13775739333274369636, 11016248544698889326, 2912631531500597459])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13540114990911189308,16845111135088461192, 736872506501311668, 1288957236624550872])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5981282952131986121,12442706503874807622, 14303283968192777942, 2630117798742083245])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9066484844732704184,12403084477849825866, 14302793796963175498, 2715306486529124022])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16186737054280919147,4746469111104406645, 15278292070057620477, 1316507216108061252])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16436336580577102950,10175744781336600617, 4941998317365404803, 2495177432406276115])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13594754604463109369,451735056658197036, 11071313934488845767, 1449231019102279601])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14493817658120034019,10409977545513887454, 554110661232929043, 189070721799099355])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([23843002728921747,13762218144533701840, 17179888742255292509, 1941235329619238049])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_45() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17496918147753282686,1496141978525009388, 199472598671738030, 3061177075559786091])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10084980072803565654,7329325945233990498, 17644730612380221152, 514973361955584768])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9507476525806360660,7025888600542814158, 1809949783326154848, 516263921555749904])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13316083955930812637,496852009974324216, 10411100182279964523, 806888742689311818])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10294194766242682260,17971198094676147803, 8988840253817377535, 727811514977672322])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11683312167831229300,16794605036372880660, 14870866445813359835, 15186104806502721])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9531341171179202497,4690629875409773365, 2448272779795076128, 445542382308482729])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14958379458199061410,8417846073981791523, 11224275712899124518, 89086869768607483])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13239399210283796234,2862078965960299748, 13725854196429729988, 503913994915701468])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2744395900322447889,7628629910938572115, 13985206682797267864, 314782240378036003])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2444033747424828562,6678200673511126723, 9817504889093549315, 1245776194098939773])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4670763907088366919,17758762434872946123, 10003507224031793780, 1385821933853827262])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_46() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13196019140230266347,16616541137995901480, 8065732180567333572, 1798992218193123808])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2930045519104717535,219977813221616537, 10607837391197711014, 1796559221486981257])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15968582013993682984,2173415041414816108, 5204416559003621808, 3168568347561719872])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6257091442278848079,12078240710791128113, 17738926759398032567, 2897540662155471371])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16965769981594137161,4689408922730149802, 9335217917796268917, 1085279966229450515])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14068807599632934508,15103639383845956690, 7327183000686969058, 3062036553290635781])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15289162597602202644,12692043343008422056, 1063423372200811605, 3041218502561291563])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8514486196874904811,6354430394592347325, 12811770127488380559, 2914731046641363906])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17777975632826642097,6165477816128393137, 3820833767285583828, 2475726396100270857])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16493357675870313224,17740542817607755041, 3867574678318460441, 250284145421201912])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5754749212330800155,7223284294080898223, 16475147126132732476, 3248232915944126729])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18095947890617511317,14806631832997858843, 2023241633356925420, 2210482383731759481])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_47() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17454427590095517611,5605107691638440044, 16503936519526034902, 247762625775303799])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15919077861818826621,11808221327392752815, 17601357310688758929, 1392585370396525050])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2127746327786271021,9612575552546451466, 16911478106514418847, 1598190196561889874])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2553960968079378493,10894739034628453295, 8445530504760853242, 367627883892576986])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3901464431207748728,2154798489473740385, 17196716852697647360, 581021861318929261])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([278610426783713533,15675025896900250313, 4286275864531797417, 466875320399742270])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4956014945711289841,2794853999453266966, 4883975097327605557, 2868151605123228168])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6427979619418010932,16959737279446431478, 1105806374540020948, 2360007617866052252])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3001346743157133065,11304217375283959478, 1742278297723371414, 3152191295369894750])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2663001507035127183,14171465720445110098, 15285738302465225552, 1753864443128757929])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6949104892712743255,16716667028271897059, 7335849938726648327, 621372826126673025])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2675656168294152260,13949160421103688927, 11551353183404757590, 231907094521594374])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_48() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10706966681278427041,11761559705158756439, 9652025725658744831, 2466501492657985868])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16854418537712219621,8389943602109292569, 11333296736240370740, 532634541863391383])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16253128144295430346,13950996204523863917, 3076851412516988994, 1673802698724981452])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9098028010077014580,2788725501947838088, 13455143024053607742, 3332291798031242325])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17614291390782214716,8409077678746119358, 48196308793229441, 2013748936253018356])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6358685409495095210,17142642434087902339, 28997665759973704, 2139819707380563560])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([701588978832034635,1179088259954906290, 6237707586696625959, 1819142268786125295])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12903625469516721282,12789314611018181816, 13467133297396388907, 1423341051816136249])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4423741970423684576,14479716052695440116, 15695532818980396303, 535664792772512480])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18419286796470066780,11839070851029886632, 4177612866099811662, 777000035626294719])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12741041238599850115,2343607584687470484, 11907494651336077601, 350185171173093668])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3577621216466744854,1211050013910150047, 3023676614812469118, 3155844093930869161])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_49() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4727968930493466881,7418967508030713411, 16564078502008537200, 2924342084682300462])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15864470849437486435,12460878797817467903, 4932277332099072537, 1102669622934907993])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13729272988915997024,11959823695203163884, 3410112114652176263, 2454622736191541873])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3045301730460856363,129137107427236908, 8414938548717025042, 2864037315448600761])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6321322925812963432,47007879310646229, 8805500137206583358, 524441455951062302])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12983925497221976904,4229559375074370653, 1850035157478081863, 221849244481397807])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16376170180371889021,7996410424563884633, 12561080597220091199, 873149807881015367])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16041490511119967164,11439799309823834931, 8290666758946785457, 2759031246730879865])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14858105529150016237,2051914762407353692, 11101318165824126957, 2759341131918463416])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11719544956609922933,9978385196678702373, 4999299037557413320, 157556529568080337])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1008461629803149598,13607635935812995246, 13135417098948330898, 327415381730762384])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7897961056897469901,14795025592467183781, 14931498309914704253, 827739667752686245])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_50() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9818266814887680622,12958757838748673900, 1189513031146628952, 2230981373165041760])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15140556164109645175,7204863104836697025, 7540963776304673564, 710048138971973244])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8098947097078656376,7489977525759314985, 11382598141140238504, 2489650402160796499])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12129603627906947045,17184270324564106616, 10857680635867721834, 742279255185999307])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8735214601890402018,12630502866508941611, 5123086664092058879, 3017648117307528595])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9780279287604570593,1861895347367054158, 3536219783841812755, 1205947698083919349])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([334257319032090523,12399289234800721671, 5097901519728226052, 896619920849069383])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2182420903648296519,7980332995910084550, 15838322794097867174, 616129639599997474])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8507867470874878832,564248279600967936, 4361355090330779470, 2624310498457126326])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([702852832446581513,16877048761820136017, 15571540799864560094, 261251849366982628])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16312355878213281177,12413024007006519495, 4261474747465574567, 3342208166468433102])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13333433826488418240,468483911144888034, 13663428224637905474, 1409664571632010242])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_51() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17184259984580790065,347934259421690621, 233011436993962185, 170878513933027183])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14593707730700448086,6512772460115472379, 7845595424493991479, 1715090328267418959])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15510598698394183762,4071131618056430489, 4058694245810731935, 2479721974567774635])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13614727245047219873,4485175498404154698, 13722123283822940504, 3078473359836419359])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13816233043649553875,3438504537147473509, 11913674291265263477, 1167522649591728614])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10425407157313419956,16195128235820262391, 14253937999548037165, 2482083501203193925])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9841101078117526302,14058118331469012053, 4521185128587146868, 1673553861831881830])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9887296666913788064,1116000388284607256, 6149678779789819446, 1980646224178991499])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11562589162160093368,865899255460842783, 11490480819969084523, 2828045249899551547])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([103510343437759545,5122592784873494826, 8075134996661574221, 2855061481131794527])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7317798425795393961,3817428889289250076, 7184676141155817740, 2374653738269871063])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([336376723955198094,9270266739688178314, 1609210574029240646, 3239201286090007254])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_52() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3838135964519270291,4764443701836271218, 11470397317492882444, 1157639125737301416])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4187281954831186618,12398735489973186799, 9309672840191997869, 1647752199535785274])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5212632926043159360,2379444503570431056, 18018787702269554008, 3160193691176978100])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1334927224417195213,8727242594498046123, 13791403500191710152, 405042984010265134])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6284483009737965592,12483997968509236179, 845659810256554450, 2895867243751704032])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14938808205821137038,167872831094018422, 456002428865227996, 336122612336845409])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16784434261690297583,5399869758793892338, 18353992966480854764, 2930877002055363901])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6168075890142514737,16183425216927715899, 7202099757585550001, 2198653798865584331])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([961395572838653694,18012129316910801497, 2723406800604446481, 2406126803018199148])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13153226916794815187,15775432034753947865, 4633853352893539016, 2268556331886209770])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16579720986066225407,9329656290441058592, 7125186608091555106, 1130002320021820200])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15251604310291536185,2882562767785322292, 9841458872152545927, 865817232541321969])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_53() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14658560901992272042,6226064950556592341, 17246756083690562015, 3343492585525801169])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6698562456404075869,15226271505587459618, 16373231284494131712, 1299590931087808153])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2808710867030303172,8869854121234430258, 10128928586378147534, 2398267640516842403])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13841831145831259687,10865908028565022926, 2169776344227768443, 858518883181802694])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([366990310477079793,4953161657587899628, 6461591013769318015, 2535469478916399606])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14564474586839386472,4367362029010583348, 17822795371331552575, 111385016173046561])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11804661144811815715,5223070023628316977, 3682675212116870408, 2781398324620177359])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7979482080676151593,7533666953277505279, 3510062813657027043, 2665977957694187850])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16116367088362688195,16631286116725932775, 5358389583589270334, 567896372087379078])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15990460143813255060,2451136005143900228, 1462287540185845451, 2808359928830683037])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8119716347321225556,123222392487727688, 15135279669105026274, 1055551913739381920])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18089754436006910774,13056697375614243127, 11961762177680681540, 3078656987899121520])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_54() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9764162276785401652,3258863141872455049, 15049656731871710505, 1973703040444455185])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15456806113099831629,13089590749499716031, 152390385725982706, 2495757727589311630])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([294462372352726223,5263720507999421651, 1980277246440072159, 1269480161122348283])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5030611906758042572,9102980774606033669, 12658808889488961609, 3076247767905662544])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15354540791380046088,6251782272086483585, 18065021001143320916, 2817220500295836551])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7386696690803099833,2917511568818362831, 18196457795189105061, 1176580811960639130])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10090853928960880344,11885615234853755960, 5178851380433300030, 1298264992602980737])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1560503141873143219,11743127930349725067, 11782657577241830133, 2994524725744834730])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14968817182989336554,3907095760584897585, 3859264605669596073, 1577151035773576844])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10710277361873147495,16567137906029287372, 13149195320764534600, 2040855142784863622])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1644428165091079211,4886358070978753086, 10300720391170996816, 1671192436459919033])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10034696238905307937,12813475714406313786, 2796807579632596606, 2900716817252786457])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_55() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3012557873831942115,8862622321179115513, 13438188033033101152, 319698322551877172])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15957772820658177627,17898161097559726414, 11512190321647315700, 1296086440361631052])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13240593249822471203,7297412312543750028, 12283169257361715677, 423192182389462558])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7485372119966677436,1995572044405634112, 10489423583037291314, 1504708168999981450])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1248662647031124461,5522728054156231182, 11265804686570613551, 3122058209164870999])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9218637510147766670,2564619054238868534, 3956891085400325039, 914777118208075383])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13702596025329534021,4693632495496912113, 3988386419474832634, 2623726136424614989])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7553898412766040280,9323896252188069777, 10742294910817828088, 466974496650343562])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8828778080364011494,6683395095834480294, 14986138208205865949, 1597661673157483605])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2038601324103755240,5745590517678701160, 1173948732869403851, 1791712269148429679])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10315320813829878298,5831421074596625597, 9231201889191749141, 490494866783279951])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12575154167380001455,1192259058203258891, 11712763157236833848, 1447601513155716471])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_56() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([401292700389815394,15698137813832159814, 2382085132053859721, 3347619628924325702])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14194568129316699287,2130864452828124858, 5919655517432127083, 3471903008307988427])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5799572451915008674,492325225212319707, 5336804324912468662, 2426179958075977133])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17081678578675039027,6406093390116289862, 8945113978387516013, 2374803883907035278])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15737586034462839397,14655043014362798757, 11170658557512470591, 2933857535317237511])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8807246528598188438,14024663933483691727, 14828844034516530301, 3423881229435064556])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3808559321476630138,10176537850731434728, 3097867074597851764, 2962331216863277615])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15556994690565393319,15332001390657684457, 5603448362349552200, 1753540288172732373])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3156299521751155402,17882782050501753279, 17921404878930908635, 963100584997896305])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7041852183602172424,6961496497417145091, 11485850339302772065, 682777144095551626])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13493897997638818836,16964349422750512130, 4272171288799794225, 3233214769205812225])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7971668999570687336,12900909968279116095, 2443563852887953120, 3087641737810669951])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_57() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12503449468046385980,1306620803081825837, 7990524377696280409, 2124469826008809088])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3834472849872594150,6930021728458131762, 5753398271764195482, 2696439661646213907])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5662316433972774979,14200390388618283200, 12919233386616551177, 1648041521172765076])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16295048921931450896,667081309994116578, 15789686041684891854, 2974594051709038059])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6063109797661964189,1356197103139578746, 10798670942021053328, 2418896484890899576])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11417911816242672461,11870106983462516553, 3246507625939561208, 2685837460238674211])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6105664004567533408,15745682472337468936, 9568798873977680757, 324665108175858960])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12785439414240430958,16301926865352402320, 15477203312250995102, 2968010733592263147])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11095958587142202595,8254159927697567833, 8704046402250036682, 1506480113327510061])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16792201955886068646,16713211317709889117, 962676767895847963, 339443610496148240])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([237766318333773902,3064328134149721578, 15507502284556490759, 183162016903916022])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13117739543388171267,1103866766072884603, 2979117450137383624, 1804802690002653808])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_58() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1043153034857546597,11651075265010742997, 4437214465708679754, 2470223265676486080])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7344023555758646777,15987275856664100561, 5686579984813288938, 1348159692585702430])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18142790834626377852,7478020981403918527, 10235062276959252708, 2576084494271104348])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3364805388894461861,15950635099378873406, 16973636040210924625, 2304743346997837611])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16213110713240159602,8128187456490203392, 7683559636905641295, 2385963607967657559])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13263661038218402748,10175519210249757352, 2477039877116426524, 1448187515822250611])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18147051049912831117,12495344195700730026, 9479569577223538999, 173504644105336020])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15751622160010044633,11780402155000896832, 13606630451298975938, 249618818080592965])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17578228983873910432,17086328694189885679, 8145422088125818066, 1904705474159399372])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9378697021893577787,10604723568237626379, 1002073187913498505, 3156804838987374798])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13553777722176886630,1546636418151760485, 2361802616872632521, 2275167843604663985])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1093234916825030199,5100723531216385603, 2469034732231309654, 507118706071009800])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_59() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6911909076113888409,10766953812262870391, 1095687407694453514, 3337480391330577813])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9776673974344948599,784254186536614914, 13534708332697664272, 2092522578825453325])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1307191055388154833,1737485019882968357, 6280821055867064922, 2113401769335440235])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9356910268008538427,960975339016316192, 14164123169346607564, 3120787671629426976])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11779666996991097418,9614633499590159043, 10734994278186497770, 3206786385070411402])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([585503782022634295,7319964381224402842, 7303784232754351608, 11040208987622542])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7827800844247852909,506426198100943007, 6605257003856559587, 2098716344461808512])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11906613049604200582,3896498639038946319, 11645302274280937472, 1141121274537961945])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3479946677569641640,7479618578424045940, 13645542416101587356, 1664274598440493320])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8227818948632430233,18272100610536202392, 12504630277934148170, 671711940673581092])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6838638455760086965,6022563620022975902, 7494634698535677419, 1707660189230777784])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8164137447549270334,1089847080650878998, 14785025048218541551, 3219988802644331186])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_60() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16377342602797175402,5887408968015468220, 13872913694064505095, 2175208062595378289])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6767018068377901089,3454126684320906273, 17089570988301465705, 1680545804873529066])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4705614788350440089,13604840688516037931, 12852116026850027948, 3149152432150023434])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5231853232095595026,5996759043087175332, 11704519332044937224, 844038753072525968])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4815298211769180303,3109034195583884877, 17355186372301261681, 663058300843791813])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([929097049931795760,1268634976005166139, 6283666071963105232, 2759853663400231232])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3733675712571785557,17432960022717704359, 4557688684884078587, 38616197274025328])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10742100622244629146,16613763994249513993, 16992281782212612711, 536251980546672681])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11665541773961169538,12359718613418761215, 16771322638473814597, 3381381229416742287])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1818898064419710888,6614942074074548377, 10062534390082888112, 2979768651252059735])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15714524927185426441,1018464222973969610, 11972480179019860562, 2862301246406212330])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10313648758070967725,5232800827751657623, 1025767298901809511, 2550347321276132429])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_61() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4556512468643841149,13174485291737969151, 14505930984929111543, 2054875745703624246])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6319221426246439544,11581607425246769458, 6303295983543594862, 2609124013812872552])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9875050898494213487,14147365625290632146, 18189963924978061786, 368630939457559025])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5437896895920863775,15105351347234147211, 14011201532948948241, 3176594381029698120])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11111454516982028732,10685202286559354517, 5983059382285986266, 3322427119116258859])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16875203732306030950,8588072881284423680, 11679840781330806683, 2699272163884859689])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([158104825642067928,9704397703317506383, 13040313725969544803, 3131729054592160094])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13564312918393256783,11223260005076378950, 15319105673489478377, 1510379420569988696])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6200412104961471645,9386947396573426843, 8338690087547342671, 1079196667592163891])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14733561720955715029,8783553905629724148, 12735248511150075516, 1983333335389049234])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4441078278289923762,13289589292477629695, 15089923586974730514, 1699049506303853300])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8658477142421329917,8256635396411944774, 9682090028953333111, 1302040760137096664])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_62() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10926110562080751590,13695330723526617034, 4787015972189603469, 1481969534841158446])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8752186164121801774,84867776772877895, 11626455351077794561, 363867967908360567])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5091780685747523363,16236088601465701729, 17789835999069709940, 2918823137868826900])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4414516980357368637,1653099688997909847, 16901463820446030226, 2633204909737785356])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11268952397879569044,4409710664870054007, 13198429269440574421, 2292249510233183980])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2535132790307300936,10336180936454539642, 13896402906338427200, 3183917317654165236])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14909339491870147562,9399417399859339250, 3983201963678627586, 1352642148081724670])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7282763297962322097,11539996785825206037, 1809211207825033708, 2854837107658314046])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([179299963088879273,11723192443846049050, 16950695389532707715, 2998688332972066230])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6847188452291573196,30062914769667799, 2834309197259827585, 2764929447375581230])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13156067686357970376,1010231375069174299, 5410980318355786857, 1133669765347864510])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2254700652655234811,3468538183322217549, 955267630840438857, 3338950718421202314])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_63() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2142421604214690670,2998859302289551117, 4976861107138457723, 465922095011273984])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8669417569979986435,7709394508504348960, 969571946354428851, 1147415717234176568])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10841905780805447180,13082325188947640009, 724647252735038982, 1651594973689879532])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16729223895020847583,8667331144776307525, 10054554317672496003, 427747139381508981])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3681005682897125593,7456173809461700, 14083415586976635379, 101634801129658753])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13622725397282741000,18154309822036784241, 10409271307329997683, 1756953116505024305])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9318128406576992776,9618623429665276232, 6299246179715141384, 104582079782177256])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15523519603595153413,9567536077591226979, 13392278928037146454, 2260690530700125257])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1130446032848885753,13066254331609761606, 16469816105791070745, 2092129587900511687])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9795872142795090160,7898796713237299059, 2472032153330124262, 1317710115536503057])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7703844119287350159,12764568684624407406, 6384867947849286799, 106169929388452644])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11875537754882019328,12488305448834875881, 7768771617584129442, 2785898682866734720])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_64() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4126745965653853857,1783374307811828363, 18417997148578741909, 1971927271458927357])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16515013834362056679,11098943256202503317, 987042167926384958, 306408027315471610])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5470570590763435398,14190156918673524942, 2351892837553676313, 37904708641752248])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([185615856902764790,17809218021263051992, 9308007246533262778, 2541354337476217288])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11664099594281981332,3932640419535175316, 212196725269560534, 986535478372523164])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4453124658834884187,18930194340558755, 17818412198367887504, 159239242363974153])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5740877909535423636,15602514601936647515, 16097228495700563808, 2082441281620749760])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([38382456864659265,15835628017305829042, 16015716503024829347, 1138944336540929100])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15633315163539998105,2491317537858664699, 2762971259357588548, 928281645202382336])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10134361470402345427,11475226708328051811, 13928737135402303908, 391659789877202545])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8293420630437024052,906012460451927877, 7274872336199602261, 3200969234168092076])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8748212146551957112,5559855786371989681, 13352696152914145855, 3129624666344510392])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_65() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14940514488037453054,7688305972091993570, 15851627055715386337, 1799012645464975708])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1210002506876269172,11600039562111311275, 16986638305510448502, 3325956330570683654])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7642190826557514597,15128072202846291674, 312701483786938196, 1995466523814052632])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15515658890416108948,2430028407315426328, 13688701539976401455, 2915932649915959631])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9320110929968871791,7159234776493663826, 6056634440071672650, 3335574731875489369])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8691394102149358303,5470373984601671412, 8326347114568012477, 1903585304562512712])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2117793091989471250,12699524521748805413, 10354762470186356287, 1367903296316092403])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15811677817140497024,9218661936316890410, 8176752950087952002, 2188149952228266552])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8901991485881500937,16323434252300378853, 18433184794030331326, 224540595662988861])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17419821222538212122,14620517711379040416, 13348914451580718620, 2249257911100639877])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6853825268030494089,17725582287569734656, 12809163531870209039, 1185493924767644680])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9724219627773628407,1246037428343881660, 7425969241946733832, 1798170100753080146])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_66() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([172475847887272106,15620211103010920188, 11368783803174217131, 1818495068889416901])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([337090278061067904,9257307957901683197, 11297265224384330574, 1130228583361241014])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15614991125482597258,11866565439582589957, 13681388995414241420, 2703465490739963505])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5472760648162679826,14531492225581390895, 8396518331255584757, 1964277925157063179])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5097543017767741222,16223331294429315702, 2395847902081452724, 2743923758814314064])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8871322002296578967,10758405044089381610, 6165898155970529579, 2896533013272096130])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11500177725778870994,12862927444902103272, 4646868658059774345, 2652868903864281945])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11197570228924627335,530932008198019968, 12727493203354501745, 1423728392348551295])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10309011567436318699,6423354979071555478, 13130614652886095613, 1318635944767364753])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8441720805511572015,3254903974081251676, 13669387418687579232, 3389234141662860989])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13724469258520893400,8910433804829848284, 4231502682917588927, 3456363073517798607])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8802080000273080138,13582415180319078882, 17653930134767541496, 1864350331342528119])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_67() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7412683607522961825,14006515145228807621, 13928065514850217436, 3207282629278047334])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12895769427097397096,16681436888917886193, 9693484276076638290, 1696167671096747794])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15680679940005148327,3888736873538967197, 9421039815790874713, 2121944406998788210])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11206477140986273649,12214236693624752254, 7498348593946086873, 2229460636863364730])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1871917212490076754,14791552523697032045, 5687071219005459270, 1517029311710534212])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6992970760461476809,18395198966103917598, 16469371679292454971, 1576608417624308908])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9063428873011788410,767965555148757901, 1210876366570336240, 1457486060071973977])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5188596231586115827,15349162908340362506, 13285211891784399694, 2981428787749028849])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2769152634419224642,10818280646366361267, 10277047298281651628, 2697200591323347700])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10222313256380061359,9248244670523234235, 4846181705678000673, 1665342746800958187])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14478284353504280121,9202911653362750232, 4441208075005186443, 848476252625796736])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4081272803710612083,7527873396178681521, 14021061423193813090, 35231693692507416])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_68() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11887096097189815595,8026581009765840224, 5737031141907586657, 2708561989314937768])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16569355153919454922,15751871329380972306, 1275877449886087067, 2303327107003400945])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9569941619389283107,8934045265434880661, 16245487018879008005, 3023548121048096772])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3738828867106955207,1120764103913669360, 1308477742891105908, 812154553524576491])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13537219286988921974,5185203329994824784, 13043904763616188242, 3100374552579098553])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([563005552015239793,6592941869465819939, 3852024248264272421, 2406239530514325429])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14842583117989608660,9815231105019588588, 6572410462077196636, 2813869036738696925])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16515310894827043561,11078041681291696150, 1467019934200945330, 1999575666153004512])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4544987014374590716,5948174794655621220, 3155780405101328422, 2301593672803774600])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([990801396095580146,5738765630554159360, 1624722394628523798, 601110948445052243])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9698557253356796353,13190508605372086479, 9288140043068527826, 1254800391426062079])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4316683671687271458,17784355010220526832, 9021651512699539158, 279755140228338072])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_69() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2464162719228617047,9050727105007649857, 11224929047237451944, 1843134127468486830])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8207195715477219759,3535265398588313143, 15186373054291991703, 552854027347991489])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13428955462840332812,7340336291477892878, 2702984821509468917, 123663588175887586])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8518681763761454385,4062377525643115438, 16532470403615280461, 1005063823654620452])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4591701035955701060,10203334165143404220, 13831876858124173850, 597766812159744053])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16001870564582376926,11960584197198053233, 9859554483165949923, 811724089857420425])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12676364525844579209,1625136867696572446, 1057552460580684184, 3424414878238859904])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([853961806553620827,4584467533039179846, 4325937633199594646, 2103028363333485202])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9941743600525113553,13224043622583743682, 1680593331378813350, 141995415203939652])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8364408972613007732,13654476501767706065, 16363261677391558526, 3082034180152118262])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6881933419389679650,972297595092834515, 10550741278460985601, 2350615909017432697])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18334948005738804968,5110631709861264002, 4637186569844438345, 299867697171891404])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_70() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10786172532089965544,17197189942661605485, 229878003143007984, 226263492698303455])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2406698464316140152,4810839589352939722, 197241458462094451, 3100388825464452792])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2150487965559582880,10722455534017385496, 8966837525662829457, 1278956537171042346])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7423553117089653422,3106841967723596827, 1183567717161037259, 2013142632965960040])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6585438397786710069,12718918836959120054, 6189769253020735560, 776507144322690833])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8185737717877727357,9629189767725089213, 16549651474342908088, 1463553421434811987])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1967924351416796917,15041842255838744656, 330947254412132450, 570707966264592325])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9618400682245984849,11620055666428110543, 7007973568719416017, 2398461523678724828])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17485873010393239183,17566254299065375853, 11093049160111011792, 1606939323322483708])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1274539220996483879,16439204209188735120, 9800599061950658191, 2563945520277413322])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13425750275578713040,14350150751289892668, 4557143972211096182, 2393031648549502541])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4070592702902425674,15138864133076685436, 6810837985080266369, 1337632381203763538])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_71() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2346714202066291486,3207754480326260194, 16975665259759092000, 2090105442606223504])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10162275465450217746,8813338245280596673, 3089000816763950959, 2064565835480819895])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11129288092075796769,6707931745535362705, 12801966098762845824, 2775606312078011439])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2586953307543252666,783032907751182325, 12481497654239544975, 1951603378486173770])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8495452752662294042,18098514174221907626, 16057759062604505516, 2311185325476633384])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6759628915856818635,4750985237304138555, 3068391364092126778, 2746395514304327967])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10958120437763340160,4593409507438644265, 2590895375468322772, 192955333757931064])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4614508163741796002,18222146532083983976, 14695817233609267596, 979776186714921640])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8006039343453382679,4180027064983073137, 8300251638145888451, 74041454942552672])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16713914060915331524,17242437080468950239, 7574696559873558769, 1679858588834232828])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7922740146943727359,2693251839353557938, 16519543304651722770, 2417394690391226576])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13493879814205324997,10244723029475476809, 14404949462842389317, 1690470349653280052])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_72() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14524382565146033254,10281959046068340793, 5861848345234619740, 2417090280422382161])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11708535420866694357,9016996886075561450, 16950360641326341328, 770601317258099842])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8257450303070028388,3727668651624517930, 13273852051368320727, 3262774587864148962])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2322975268750382201,16343495863627332645, 3750473546052456135, 503434737325941611])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4650343130317023291,13722859776059841099, 14813260302070842727, 693774527593618038])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3177146292337295766,7328284421983539569, 4402687369592639558, 2715155436923800420])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2317096163856653983,9665426620122704681, 18310109264019730660, 2694106539543886833])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6214976002924404428,4621559698305790002, 1164825654188524033, 2855049932777603806])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2520824780995847623,14663407873905636939, 3372192891290572250, 1240329133405549480])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4972666941305359272,11600630150308068142, 582147906790547239, 1237991907304430228])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7585400266594869426,13726154031475097414, 15175231601467217043, 778794154419632520])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9703954554156027226,15293026638306935869, 510055217799364587, 1089575674316848628])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_73() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3356841205662439857,11817509741740834444, 11176815830633218955, 703587581860581359])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([610318584190961841,5128251347161693745, 7727171894295288111, 153709127855601760])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14434298153452920065,997828537290524470, 16558817216250831828, 3433601083195901973])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2450296677331436216,3439245026730142161, 15895834633564376279, 2654660821756286822])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18331369357893699136,2759306160270692422, 13468781799059691328, 2421360669062513835])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1933923029525669121,1032062646849761300, 16333715515891196572, 1955646709678117604])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11295374342263728895,16277972433993242170, 956286266101177748, 2436221099695800598])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([671037080753221309,1460396606019727602, 5761655931651148471, 3017009687017902610])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4586663787479450441,8632883211191961345, 6141153471593413231, 579199217154750287])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([775156664748181514,15181717753538269301, 15210388976705710055, 1146381198256225197])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17519091205481055976,3845290315776411633, 14002167512060573958, 3192619322838605521])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15118841883526529286,8775069536067184062, 15527317128659548390, 2144969790273149785])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_74() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2033550854376695378,7587907370276313146, 17755127431845529875, 85089924254726093])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9994528862285910292,11099246557416392009, 14927932045086109338, 1329626832549823847])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14373629761456288132,323452708626626318, 8153717303022652966, 573864481491426857])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1614831269921957012,435533330042422184, 9654542741046473991, 164831531612544795])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([208589188391847158,11761487061751220089, 10748510218598392838, 2534050945825788519])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5342663019298184106,81629380192935030, 5180326024013340247, 2986738247736300471])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10728939146760911839,5811823233576966517, 16037219852257425507, 609462013525295831])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4996025113901905134,10530172561872303880, 714996221826549891, 1664896733699941611])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9387644756852604856,3771004004760087221, 17800917353279371073, 3429721171153089444])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6610246110738768331,4582740349448744414, 6468215950519099871, 131568204566230226])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10834624815267669361,13462051903978740737, 14127059015651983858, 597965099620744137])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2397766443754223178,10121339040943231833, 5393032778502241234, 2337659306603448676])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_75() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5256173784630589084,6647660920095572252, 1312072484927315355, 854780455116797212])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8953600835170780663,2773258884281564335, 13665100602127635010, 403284915740226677])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16932790721536315631,12821696455340143280, 10397123840522725525, 2009278735685649017])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12606626516056788592,4108673578623555420, 11093007702843559867, 3134105007923978336])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3009570850381675225,3708717964605528046, 3045417872596567175, 85209451173465498])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16402969106779466553,7372353737863236845, 11367295722537976761, 736638019574224233])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18427380859506365708,1104965085391543571, 7756860462291306565, 3067747101510412806])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17004621133301561296,7183232559955282458, 13885511302883058245, 3398659501298928998])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8123550208512296389,7324698492713626779, 13592010230668141672, 1436190037219863477])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17099818330032951145,15959413728482738801, 12729355339160847804, 2885419828653836666])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15513677691265764920,2439608674237256243, 15265370838210571121, 3418149319019206303])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9992008420111873106,9446386351478067078, 4541372426681985538, 1147504317192868142])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_76() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8661041889708442979,7575407849639897693, 9059256600647745980, 2188872321824398020])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2156174852590255786,10013996440115606332, 10296048010179821634, 3066313295455155496])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4609322106461656675,6690723515279071690, 17991135860578930208, 760659984354128180])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2582317090686613417,3243354389645242660, 7344522682146053129, 2796061218828215474])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12433295851328783930,10071376464610042000, 18115002189858143941, 3436086085026540001])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6114147187698004355,13570189873489087853, 4923006950152668018, 449398401435605434])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12177944329022269186,14409252625842510674, 11422136103142102848, 1402643843253742785])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9478381081907099586,7786777132956883650, 12817473336736735787, 807672185470974579])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4675744249074247588,12380808881488631132, 12839138695041001823, 1377514496484168658])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14408034264352963655,8059834261149210074, 13881868486416435541, 113240787965416451])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14161210742059923110,10156731599537670620, 16464295275593178964, 3292187877790225615])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6738679261782316956,9562202797492280921, 8232974744016148926, 1672303152695803670])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_77() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5109265921808477908,13292334906679905478, 13558340560034172389, 1477274147700333613])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13554708950187554437,7309216853783630526, 16104862878040061426, 3135707878405973801])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12920828727575523881,11945819995754419680, 581415192652834293, 192313874917375119])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1760446763824823134,7063391922954715253, 10981034373335738426, 913931553482547326])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17220756732687911174,3099178533813178724, 7980206270351882492, 3467262238594447080])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15301393981077708225,4517730843097722612, 5215457477299472712, 154709874339877511])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([248262477234626206,3098292592454664098, 12313648169866194919, 2793678162227299852])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16889481244227913914,12380822541726108010, 18224756368615573411, 2100497869109679261])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11626811204747895098,735304637677405196, 3360786477130454648, 141766116419486351])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17130270706751014925,11558683137802217968, 9446178508477065864, 2975289109698617337])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18058799938910008983,9110998172925236534, 5502582537286889897, 3452175846832989290])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3107719153046209671,11638145607267170160, 7652311597635313121, 535013139729186756])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_78() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10907224060160543151,13709416154976348388, 2086255074016870282, 2062540824286047935])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11284737963057987831,16734578451186506067, 9197504276455860581, 1397280878556689751])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14964174581370162623,1186110770372899307, 14943591763560117433, 2440923303517286593])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8207602730559312201,1643272504888599377, 18036758254399052567, 738816963467604392])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7999481607422010721,13914045520054544619, 15567436174126256402, 1179544700240641481])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9196416475034021687,773158749659185028, 16338517405232099686, 2998810981589126912])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2928781363790210312,16815540836582095785, 14829581169494618092, 2627491092414313027])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17617620573849693180,13088326910527481129, 1970903932189984874, 3379557505337996898])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7216191852498046655,8618940074417650241, 16010240451553763912, 1061194592807095057])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13301829432147972416,7616355942368019813, 3007759312560317981, 330608735171482550])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6147263725515907325,5426477224178154509, 10735180113415782571, 854133296593012694])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17726596367171218601,3415199580499609995, 13549027663913217170, 766538569508982707])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_79() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16567184008621128889,16350936527689219522, 3180911708219195825, 715308030451699407])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17892161118065929068,4951619638057115495, 349323437779052671, 1330093298881202600])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8978633528487487347,10973997531673481526, 13257406452446135136, 1216255165050299909])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6860946242941082142,4843234879890294162, 12293518670472478979, 2685914646992275685])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1532738002576788785,14406245129898878723, 3116066205867908478, 1817246142645665715])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14512954838825395412,14870331888562171878, 9022475040585498308, 1741119306229835328])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2999756350378595052,861558176136978148, 14829325331697993509, 3281191694396198391])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9778859881372165644,10406118792536704698, 5435431381451326563, 1200242157202727794])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3227900551988319170,15294283249764415624, 4298493333870063078, 2096133942168634218])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8230872590323728167,3541498053135857312, 4621750507524893445, 955531405268148819])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2285367325423137074,8022652315155827400, 9941103897712344053, 1867180309699246231])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5833058159203343876,6383799817670126481, 1201634304883733563, 2973757196139008077])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_80() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10796980848924482507,17537237776508009779, 985091849560642338, 1407881876112215689])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9086365652634990272,15362573657216482080, 10950011524839040170, 22213423814530085])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14892034424153290220,16946188910341640030, 7930034235992470143, 1105395310913739673])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16532399116922426892,13551848446342748283, 12050747271537368861, 734345071935804936])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7566133183696148077,16278767908941637251, 11283018279893781576, 3023356980240838084])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10596824022036955322,4830121821128099025, 1728153959892153918, 2520923020317605456])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5594671061052871190,9482334456116404333, 16264288085950247186, 1326237640298935260])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15163043302307960551,13373175346845931663, 17462600383434163821, 956357512513507961])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12523175696385821799,2445149148749713750, 13556524819191950535, 257772922265463500])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10736122936555993087,11587179669324982947, 10244024435896100014, 2790295126712780417])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11223759258990895447,2902569245574421069, 965603888987147585, 3052226370815532881])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([156034092096523245,8826939944802961527, 16733757769910763643, 2192148940465742113])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_81() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5215410332419333757,11056702444807943435, 8645672499281477077, 388080829511605090])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1384253489006281588,12477641460924641990, 10667515096209949243, 930197010865386415])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13110524776202145911,11474437910866371335, 167683614173800606, 727355160850194558])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10042592712718886854,2549114426979564647, 4605404778183084249, 1790998557157640813])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([35432772149860794,1794498253973097432, 12072287207415246368, 2316691174598425440])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13981978932084951611,13186034255616783168, 11201576194159255879, 2599087422987331991])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3452239199092111973,10597303762322159764, 9839557647523208123, 1506329741448837953])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3295444752716816348,9135782556210693012, 11209291906352269655, 1679786569206969209])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6945764407658418293,90376660789624742, 1383101905222014108, 3266053143897245504])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10437518080772050981,8918781674824311698, 16605788450964369687, 1712649669227004606])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16047143398489435160,5962297690997233983, 10004532628320283308, 1288772353691003605])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([901053318699255015,1402137840717995949, 5394897779865142960, 1986892790999546529])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_82() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13552186940030496890,10329390403222498846, 8879588078244478765, 3303968505541812878])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6102763960093097326,9978756435798435428, 6771723152306752273, 778932018225639372])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12379842962101902197,10915561733519804161, 12405536867020901813, 1584107471505881512])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12885392261409438570,1275936610151403899, 12834206405057055014, 2129444426451995068])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12276438050665687894,13745485439580221898, 16210616014669550250, 2819369894288414560])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([360264755871250817,5788546764790172830, 17623315976956819313, 68584737840268532])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([18387730431806947363,2102123249559779529, 7459978096520641365, 1252810400169045847])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8543157443257431477,15807671166910346917, 10927179736880211592, 2928769696912685934])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15739988999396446565,14468930480295201015, 10122792962281014056, 1199306869979296778])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([684169720228973283,16870249443738243419, 2306386897282606775, 3029708867596336145])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([252996083041934406,16107744310580866499, 9507020634377223751, 2746356444018488555])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16841423498448721050,13125759474063846274, 4548429610884781273, 2355444179036725693])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_83() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2186485303369283546,7280118104449904524, 12384304036728966294, 2764539158428751051])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17266259935345881436,14064785326328324772, 12153225318016645587, 233774966404889103])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5312631234298100030,11716941937432886463, 2491825612013374843, 824697631863411142])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4246619989074962573,5835365590113873875, 18082252337964039807, 2479287896999071962])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2276870203175539287,14799451709172495786, 7935659348861709860, 2910752512019147545])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3975295007837850038,12181493594891742836, 18190596815932008851, 1838279263403482619])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11915097981082640188,13806129048446359280, 12396134515278894255, 1571393665683447951])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17084731106590922697,10653334343195577125, 293215667882182658, 2877815251701441629])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1160101475549119111,11521374481206405945, 3928077358995278133, 868972643021669246])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1914868531131005710,10601854459657037080, 13720748004724435818, 3361191087912895491])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4656006837148601494,1945836953550288944, 2512542808871021900, 1406227923112978799])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10824513256009271707,12888985876601652453, 4667882996647128220, 948650613078293082])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_84() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12966794593736657683,16386224996549664252, 544009871925978900, 730205432229011019])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7423331041304864730,16296139356989813496, 9768398152901762216, 1508390963679330473])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2567636064893810212,2120133376049152991, 9066572176518332913, 2060594707245808101])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12262004912741666586,8679330636705983337, 16114857433321806765, 399142303437148341])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17583180690183759866,8585883291411889094, 10527354851567345643, 3437607522527377819])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([726347899833262243,9907632214582505055, 9834662516332362547, 2368570709434893809])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8199206254834995870,16014196654615515547, 6777414222060902748, 287093113465125493])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16282091064387786803,13015009873951037773, 14418304853902105376, 1131283577347523421])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7980638141179390634,8950410160133097911, 40484218525279384, 3341708589149304179])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9070114294241877310,3829810314156865840, 2464887728185028462, 1036037757641882559])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8943824775840845299,1790694678257699433, 12923856712122216913, 1474039196694405791])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8667176011090119291,6649658854358069771, 7847152941206437380, 2807317224096673196])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_85() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8889674157577900187,5891048967816692966, 5852829986171996961, 1540567430789897417])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4139839482961588105,16523450607632557355, 7447103599477759061, 1171327884580678825])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14750275757509745864,10755695589598693564, 16494003185620296494, 2471720295821557522])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13667666276727080171,4416993090555506872, 9387683063425188330, 1776958724976388910])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15863696646466366371,5926059331362354307, 12856122842380635277, 1507778370669715508])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5569495897714864080,12544525527206501674, 9865848104386377874, 3304635008152551585])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11174054300258045463,12454273042204412077, 10688235244532991623, 2935978738029767979])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15666663511233925534,277484480223750722, 2388502715421011153, 450244619558118938])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13280361826827247437,3734702863490660214, 889337731180342529, 1191788745046598526])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([5099044988089989881,11122014325713494530, 3617506134459083616, 611053499651829698])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4684279901362212516,11205760746035417220, 6938863243161950862, 2069147255032706510])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17430656801384773759,4398661035117611121, 13798455144861788596, 1569022895003767198])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_86() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10973819471769502434,13038122664537831147, 17134038028452606615, 2237840042197845591])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([319208828941902920,9964389687002494390, 9713240749260313687, 3280509707194980176])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1323576690374388979,18151566564489169892, 3535049841255529028, 706216706285682408])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2118035749218095373,1905470041006084568, 13513526848872444103, 1883110930250308756])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7853935443885362142,5226581705143408934, 16008565482823371259, 3055638656884645532])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17375893047665980242,15289470096713902400, 1704499149125667177, 2383523615844322793])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2300443829524376440,2517245980843103887, 2854034725925395015, 1977472205004814992])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14091012087586211135,9518274012656288985, 16774749715608220537, 1946083299754333884])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9519823624703906583,11264766051649784614, 2683639185923876747, 1430858984208383631])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9310665407181006387,4683789740518508176, 5983487021851136817, 3422980797499148051])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14148478403870052634,15206113949386969497, 12543053763242500680, 3272956378099086281])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3428140735820425433,5712942626179535869, 6155562605319067451, 1629357995773168674])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_87() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17336806070465554680,6246775486149491495, 13798017656271998996, 1058753142417862580])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6753293160166774925,6754555294717144963, 13742396438520830102, 380367052922719699])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8208884621949897177,7555957922753680555, 13023827390874810976, 2889390190721899306])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([299000396904163862,3867351235667446992, 9266103063757127170, 2157474462661326293])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3728841595390064400,16039924345275524869, 11587836443853573013, 1981178845999714977])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9187984416100433786,8590223448638841393, 15209075101147543192, 3017560519676652907])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([17786179704898184671,5933684878971116373, 1390689255945799305, 2170292431801824886])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12323787773425319616,14582698123153247030, 6086767041618124506, 1209146097099209326])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7404187167042779702,14814040847070332476, 5268992941362027213, 2695067758385729458])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9201779902976972698,630335261673223372, 17130702211148714260, 1292187462430561268])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10314692057133230520,2554023937628881502, 5478197838948946497, 1287793488992878909])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2557784279034143705,8547390946507051859, 6477594919919947832, 1894616331827675355])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_88() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14630414725158001006,7201317797454043669, 6860908640046953012, 1758931419424731220])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11186217627916455943,7777400033880286538, 13468168643527873600, 2998130922708424970])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([13425876809351905290,11738959873724558653, 15410256298521573811, 3260398944556145089])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16374025260220492308,17670626361161275475, 4692167100556444983, 2894155745041782997])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15596858293904815301,2113489233408504921, 17621151947782708461, 2400199983733803353])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12495468233359515911,14637644587916852175, 11255882376145929212, 1695687810129110745])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([15995431544145117069,11225509666610668943, 1708605869402677335, 1518406290253792515])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6989645637553289909,9481545702582754972, 8895714862808608705, 2144021714653961521])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10445274465043138014,15137003609057380286, 5989555625970610255, 2451427197654001524])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([3549803729594970291,3534110387692813294, 4153992510751671903, 627913596620628654])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14767509891797308640,6799065049312583282, 5538902604438257248, 334697376498695344])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([6735600457912134420,434929994718433406, 14140552276741118194, 1518979087721777281])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_89() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10152346606261505893,3997862671209579170, 13297275513599344443, 1619269130035991162])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([148261015467437493,3916198592443285217, 2092320724970524594, 2730311380272114140])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1612457146301554209,11147714134374141064, 9031296231498803236, 360726622843347276])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11884421434877509676,873682257198103666, 11753911566336892434, 2492963132775097851])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16363433147231760279,2851186654125280943, 11093437060048489434, 1475042961720634584])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12410058108520258691,13934832991465729710, 2948129524328662246, 822930649519990850])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([492612028337379958,2583551071993685596, 13761471185056567422, 1051359626425232069])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([11631465522362623510,6694027535960402896, 2300432935430145851, 2775133187767911653])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([14566358793659435912,8424697832426779547, 421589436424071396, 997074661763186473])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([16807647539883908257,3251410262334303079, 15877480827278026260, 449333962222125999])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4322555386982339744,1507888651163549575, 17123512513965322170, 2227472495995274711])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8399296790818619369,8569066378949900379, 12053360414718486896, 2623680133006086555])) 
  		)
  	)
 }
 
 pub fn get_delta_g2_neg_pc_90() -> (QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>, QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>) { 
  	(QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7725232336075410110,386261743744234915, 14004297471430729759, 227969992698078821])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([925257862533934857,6198227026513085697, 14688366703760385084, 672580636309939912])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([2009483888294858663,11317137219685997412, 14750423886585175811, 100356646364177841])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8923692095407831574,13485564776938283142, 14682809119710647766, 2258879033980229699])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([1248333817815811210,184421247833454410, 14026610481668524417, 1564897888602868581])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([12694029562138204021,1854773440381278166, 12123347380772286087, 290882149765631688])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4521097552376757443,18040048504141656427, 9114856189151282088, 561024827325637966])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([7375130300304749998,12324356134752573784, 3567088708414507239, 2251460961962716545])) 
 		),
 		QuadExtField::<ark_ff::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>>::new(
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([4724427033012344122,11565606083441365664, 12436624487716971895, 1521297118747667134])), 
-			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([9817857618600946699,8000884632303657729, 4867751041028580747, 946579022421160124])) 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([10885334821250115786,16793934523551144152, 1337247719422478815, 508908536463948872])), 
+			ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([8708792952964737790,12756425184800319449, 6337504365365344500, 1915983856791476133])) 
  		)
  	)
 }

@@ -17,13 +17,9 @@ pub fn initialize_user_account(
     }
 
     //initialize
-    msg!("here1");
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
-    msg!("here2");
     user_account_data.owner_pubkey = pubkey_signer.clone();
-    msg!("here3");
     UserAccount::pack_into_slice(&user_account_data, &mut account.data.borrow_mut());
-    msg!("here4");
     Ok(())
 }
 
