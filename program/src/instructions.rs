@@ -14,29 +14,7 @@ use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
 
-//performs the following security checks:
-//signer is consistent over all tx of a pool tx
-//the correct merkle tree is called
-//instruction data is empty
-//there are no more and no less than the required accounts
-//attached to the tx, the accounts have the appropiate length
-/*
-pub fn security_checks(
-        signer_pubkey: &Pubkey,
-        signer_pubkey_passed_in: &Pubkey,
-        instruction_data_len: usize
-    ) -> Result<(), ProgramError> {
-    if *signer_pubkey != *signer_pubkey_passed_in {
-        msg!("*signer_pubkey {:?} != *signer_pubkey_passed_in {:?}", *signer_pubkey, *signer_pubkey_passed_in);
-        return Err(ProgramError::IllegalOwner);
-    }
-    if instruction_data_len >= 9 {
-        msg!("instruction_data_len: {}", instruction_data_len);
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    Ok(())
-}
-*/
+
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
     if _from
         .try_borrow_mut_lamports()
@@ -44,10 +22,10 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
         .checked_sub(amount)
         .is_none()
     {
-        msg!("invalid withdrawal amount");
+        msg!("Invalid amount.");
         return Err(ProgramError::InvalidArgument);
     }
-    **_from.try_borrow_mut_lamports().unwrap() -= amount; //1000000000; // 1 SOL
+    **_from.try_borrow_mut_lamports().unwrap() -= amount;
 
     if _to
         .try_borrow_mut_lamports()
@@ -55,12 +33,12 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
         .checked_add(amount)
         .is_none()
     {
-        msg!("invalid withdrawal amount");
+        msg!("Invalid amount.");
         return Err(ProgramError::InvalidArgument);
     }
     **_to.try_borrow_mut_lamports().unwrap() += amount;
     msg!(
-        "transferred of {} Lamp from {:?} to {:?}",
+        "Transferred of {} Lamp from {:?} to {:?}",
         amount,
         _from.key,
         _to.key
@@ -92,7 +70,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         lamports,             //lamports
         rent_exempt,          //rent_exempt
     )?;
-    try_initialize_tmp_storage_account(account_main, _instruction_data, signer_account.key)
+    try_initialize_tmp_storage_pda(account_main, _instruction_data, signer_account.key)
 }
 
 pub fn check_tx_integrity_hash(
@@ -142,27 +120,26 @@ pub fn check_and_insert_nullifier<'a, 'b>(
 pub fn create_and_check_account<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
-    derived_account: &'a AccountInfo<'b>,
+    passed_in_pda: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
     _instruction_data: &[u8],
-    domain_sep_seed: &[u8],
+    domain_separation_seed: &[u8],
     number_storage_bytes: u64,
     lamports: u64,
     rent_exempt: bool,
 ) -> Result<(), ProgramError> {
     msg!(
-        "domain_sep_seed: {:?}",
-        &[&_instruction_data, &domain_sep_seed]
+        "domain_separation_seed: {:?}",
+        &[&_instruction_data, &domain_separation_seed]
     );
     let derived_pubkey =
-        Pubkey::find_program_address(&[_instruction_data, domain_sep_seed], program_id); // TODO: clippy. check if [..] rm has sideeffects
+        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id); // TODO: clippy. check if [..] rm has sideeffects
 
-    if derived_pubkey.0 != *derived_account.key {
-        msg!("passed inaccount is wrong");
-        msg!(" pubkey.0 {:?}", derived_pubkey.0);
-        msg!("passed in account {:?}", *derived_account.key);
-        msg!("ixdata SEED  {:?}", _instruction_data);
-        // panic!();
+    if derived_pubkey.0 != *passed_in_pda.key {
+        msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+        msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+        msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
+        msg!("Instruction data seed  {:?}", _instruction_data);
         return Err(ProgramError::InvalidInstructionData);
     }
     let rent = Rent::default();
@@ -170,64 +147,58 @@ pub fn create_and_check_account<'a, 'b>(
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
     }
-    //msg!("number_storage_bytes {}", lamports + rent.minimum_balance(number_storage_bytes.try_into().unwrap()));
+    // TODO: if not rent_exempt apply min rent, currently every account is rent_exempt on devnet
     invoke_signed(
         &system_instruction::create_account(
             signer_account.key,
-            derived_account.key,
-            // 1e7 as u64,
-            //lamports, // TODO: adapt
-            account_lamports,     //.max(1),
-            number_storage_bytes, //.try_into().unwrap(),
+            passed_in_pda.key,
+            account_lamports,
+            number_storage_bytes,
             program_id,
         ),
         &[
             signer_account.clone(),
-            derived_account.clone(),
+            passed_in_pda.clone(),
             system_program.clone(),
         ],
-        // A slice of seed slices, each seed slice being the set
-        // of seeds used to generate one of the PDAs required by the
-        // callee program, the final seed being a single-element slice
-        // containing the `u8` bump seed.
         &[&[
             _instruction_data,
-            domain_sep_seed, // Almighty clippy. check if rm [..] has sideffects
+            domain_separation_seed,
             &[derived_pubkey.1],
         ]],
     )?;
 
-    //check for rent exemption
+    // Check for rent exemption
     if rent_exempt {
-        if !rent.is_exempt(**derived_account.lamports.borrow(), 2) {
-            msg!("account is not rent exempt");
+        if !rent.is_exempt(**passed_in_pda.lamports.borrow(), 2) {
+            msg!("Account is not rent exempt.");
             return Err(ProgramError::InvalidInstructionData);
         }
     }
     Ok(())
 }
 
-pub fn try_initialize_tmp_storage_account(
-    main_account: &AccountInfo,
+pub fn try_initialize_tmp_storage_pda(
+    tmp_storage_pda: &AccountInfo,
     _instruction_data: &[u8],
     signing_address: &Pubkey,
 ) -> Result<(), ProgramError> {
     msg!(
-        "initing hash bytes account {}",
-        main_account.data.borrow().len()
+        "Initing tmp_storage_pda {}",
+        tmp_storage_pda.data.borrow().len()
     );
-    //initing temporary storage account with bytes
+    // Initializing temporary storage pda with instruction data.
 
-    let mut main_account_data = ChecksAndTransferState::unpack(&main_account.data.borrow())?;
+    let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
     let mut groth16_processor =
-        Groth16Processor::new(main_account, main_account_data.current_instruction_index)?;
+        Groth16Processor::new(tmp_storage_pda, tmp_storage_pda_data.current_instruction_index)?;
     groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
-    main_account_data.signing_address = signing_address.to_bytes().to_vec();
-    main_account_data.root_hash = _instruction_data[0..32].to_vec();
-    main_account_data.amount = _instruction_data[32..64].to_vec();
-    main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec();
+    tmp_storage_pda_data.signing_address = signing_address.to_bytes().to_vec();
+    tmp_storage_pda_data.root_hash = _instruction_data[0..32].to_vec();
+    tmp_storage_pda_data.amount = _instruction_data[32..64].to_vec();
+    tmp_storage_pda_data.tx_integrity_hash = _instruction_data[64..96].to_vec();
 
     let input_nullifier_0 = _instruction_data[96..128].to_vec();
     let input_nullifier_1 = &_instruction_data[128..160];
@@ -235,75 +206,55 @@ pub fn try_initialize_tmp_storage_account(
     let commitment_right = &_instruction_data[160..192];
     let commitment_left = &_instruction_data[192..224];
 
-    main_account_data.proof_a_b_c_leaves_and_nullifiers = [
+    tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[224..480].to_vec(), // proof
-        commitment_right.to_vec(), //TODO left right
+        commitment_right.to_vec(), // TODO left right
         commitment_left.to_vec(),
         input_nullifier_0.to_vec(),
         input_nullifier_1.to_vec(),
     ]
     .concat();
-    main_account_data.to_address = _instruction_data[480..512].to_vec(); // ..688
-    main_account_data.ext_amount = _instruction_data[512..520].to_vec();
+    tmp_storage_pda_data.to_address = _instruction_data[480..512].to_vec();
+    tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
     let fee = _instruction_data[552..560].to_vec();
-    // let encrypted_output_0 = _instruction_data[560..796].to_vec().clone(); // 16
-    // let encrypted_output_1 = _instruction_data[796..1032].to_vec().clone();
-
-    // msg!(
-    //     "main_account_data.signing_address {:?}",
-    //     main_account_data.signing_address
-    // );
-    // msg!(
-    //     "main_account_data.root_hash {:?}",
-    //     main_account_data.root_hash
-    // );
-    // msg!("main_account_data.amount {:?}", main_account_data.amount);
-    // msg!(
-    //     "main_account_data.tx_integrity_hash {:?}",
-    //     main_account_data.tx_integrity_hash
-    // );
-    // // msg!("input_nullifier_0 ); {:?}", input_nullifier_0);
-    // // msg!("input_nullifier_1 ); {:?}", input_nullifier_1);
-    // // msg!("commitment_right ); {:?}", commitment_right);
-    // // msg!("commitment_left ); {:?}", commitment_left);
-    // msg!(
-    //     "main_account_data.to_address {:?}",
-    //     main_account_data.to_address
-    // );
-    // msg!(
-    //     "main_account_data.ext_amount {:?}",
-    //     main_account_data.ext_amount
-    // );
-    // msg!("relayer ); {:?}", relayer);
-    // msg!("fee ); {:?}", fee);
-    // msg!("encrypted_output_0 ); {:?}", encrypted_output_0);
-    // msg!("encrypted_output_1 ); {:?}", encrypted_output_1);
-    // // panic!();
-
-    //main_account_data.changed_constants[11] = true;
 
     check_tx_integrity_hash(
-        // vec![1u8, 32],   // recipient
-        main_account_data.to_address.to_vec(),
-        // vec![1u8, 8],    // ext_amount
-        main_account_data.ext_amount.to_vec(),
-        // vec![1u8, 32],   // relayer
+        tmp_storage_pda_data.to_address.to_vec(),
+        tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
-        //vec![1u8, 8],    // fee
         fee.to_vec(),
-        // vec![1u8, 32],   // o0
-        // encrypted_output_0.to_vec(),
-        // // vec![1u8, 32],   // o1
-        // encrypted_output_1.to_vec(),
-        &main_account_data.tx_integrity_hash,
+        &tmp_storage_pda_data.tx_integrity_hash,
     )?;
-    // panic!();
     for i in 0..12 {
-        main_account_data.changed_constants[i] = true;
+        tmp_storage_pda_data.changed_constants[i] = true;
     }
-    main_account_data.current_instruction_index += 1;
-    ChecksAndTransferState::pack_into_slice(&main_account_data, &mut main_account.data.borrow_mut());
+    tmp_storage_pda_data.current_instruction_index += 1;
+    ChecksAndTransferState::pack_into_slice(&tmp_storage_pda_data, &mut tmp_storage_pda.data.borrow_mut());
     msg!("packed successfully");
     Ok(())
 }
+
+//performs the following security checks:
+//signer is consistent over all tx of a pool tx
+//the correct merkle tree is called
+//instruction data is empty
+//there are no more and no less than the required accounts
+//attached to the tx, the accounts have the appropiate length
+/*
+pub fn security_checks(
+        signer_pubkey: &Pubkey,
+        signer_pubkey_passed_in: &Pubkey,
+        instruction_data_len: usize
+    ) -> Result<(), ProgramError> {
+    if *signer_pubkey != *signer_pubkey_passed_in {
+        msg!("*signer_pubkey {:?} != *signer_pubkey_passed_in {:?}", *signer_pubkey, *signer_pubkey_passed_in);
+        return Err(ProgramError::IllegalOwner);
+    }
+    if instruction_data_len >= 9 {
+        msg!("instruction_data_len: {}", instruction_data_len);
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    Ok(())
+}
+*/
