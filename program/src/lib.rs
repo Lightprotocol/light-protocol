@@ -3,7 +3,7 @@ pub mod utils;
 pub mod groth16_verifier;
 pub mod instructions;
 pub mod poseidon_merkle_tree;
-pub mod pre_processor;
+pub mod processor;
 pub mod state;
 pub mod state_check_nullifier;
 
@@ -127,7 +127,7 @@ pub fn process_instruction(
                     // 2. `[]` Merkle tree
                     if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
                     {
-                        pre_processor::pre_process_instruction(
+                        processor::process_instruction(
                             program_id,
                             accounts,
                             tmp_storage_pda_data.current_instruction_index,
@@ -149,7 +149,7 @@ pub fn process_instruction(
                     // 8. `[]` recipient
                     else if tmp_storage_pda_data.current_instruction_index == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
                     {
-                        pre_processor::pre_process_instruction(
+                        processor::process_instruction(
                             program_id,
                             accounts,
                             tmp_storage_pda_data.current_instruction_index,
@@ -157,11 +157,12 @@ pub fn process_instruction(
                         Ok(())
 
                     }
-                    // Main verification part
-                    //prepare inputs for proof verification + miller loop + final exponentiation
+                    // Zero-knowledge proof verification.
                     // Accounts:
                     // 2. `[writable]` tmp_storage_pda
-                    else if tmp_storage_pda_data.current_instruction_index < 1267 {
+                    else if tmp_storage_pda_data.current_instruction_index > ROOT_CHECK &&
+                        tmp_storage_pda_data.current_instruction_index < VERIFICATION_END_INDEX
+                    {
                         let mut groth16_processor = Groth16Processor::new(
                             tmp_storage_pda,
                             tmp_storage_pda_data.current_instruction_index,
@@ -171,7 +172,10 @@ pub fn process_instruction(
 
                     }
                     //merkle tree insertion of new utxos
-                    else if tmp_storage_pda_data.current_instruction_index >= 1267 {
+                    // Accounts:
+                    // 2. `[writable]` tmp_storage_pda
+                    // 3. `[]` merkle_tree_pda
+                    else if tmp_storage_pda_data.current_instruction_index >= VERIFICATION_END_INDEX {
                         let mut merkle_tree_processor =
                             MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
                         merkle_tree_processor.process_instruction(accounts)?;
@@ -188,9 +192,7 @@ pub fn process_instruction(
 
 const ROOT_CHECK: usize = 1;
 const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1502;
-
-
-
+const VERIFICATION_END_INDEX: usize = 1267;
 //instruction order
 pub const IX_ORDER: [u8; 1503] = [
     //init data happens before this array starts

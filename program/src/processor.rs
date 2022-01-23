@@ -22,12 +22,12 @@ use ark_ed_on_bn254::FqParameters;
 //_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
 //check tx data hash
 //deposit and withdraw logic
-pub fn pre_process_instruction(
+pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     current_instruction_index: usize,
 ) -> Result<(), ProgramError> {
-    msg!("entered pre_process_instruction");
+    msg!("entered process_instruction");
 
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
