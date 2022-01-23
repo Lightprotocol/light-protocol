@@ -600,10 +600,11 @@ async fn transact(
      *
      *
      */
+    let empty_vec = Vec::<u8>::new();
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             *program_id,
-            &ix_data[8..20].to_vec(), //random
+            &empty_vec, //random
             vec![
                 AccountMeta::new(*signer_pubkey, true),
                 AccountMeta::new(*tmp_storage_pda_pubkey, false),

@@ -1,7 +1,13 @@
-use crate::instructions::{check_and_insert_nullifier, create_and_check_account};
+use crate::instructions::{
+    check_and_insert_nullifier,
+    create_and_check_account,
+    transfer
+};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
 use crate::state::LiBytes;
+use std::convert::{TryFrom, TryInto};
+
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
@@ -10,18 +16,15 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::bytes::FromBytes;
-use ark_ff::BigInteger;
-use std::convert::{TryFrom, TryInto};
-use ark_ff::fields::FpParameters;
+use ark_ff::{
+    biginteger::BigInteger256,
+    bytes::FromBytes,
+    BigInteger,
+    fields::FpParameters
+};
 use ark_ed_on_bn254::FqParameters;
-//pre processor for light protocol logic
-//merkle root checks
-//nullifier checks
-//_args.publicAmount == calculatePublicAmount(_extData.ext_amount, _extData.fee)
-//check tx data hash
-//deposit and withdraw logic
+
+// Processor for deposit and withdraw logic.
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -34,76 +37,74 @@ pub fn process_instruction(
     let main_account = next_account_info(account)?;
     let mut account_data = LiBytes::unpack(&main_account.data.borrow())?;
 
+    // Checks whether passed-in root exists in Merkle tree history array.
+    // We do this check as soon as possible to avoid proof transaction invalidation for missing
+    // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
     if current_instruction_index == 1 {
-        let merkle_tree_account = next_account_info(account)?;
-        msg!("merkletree acc key: {:?}", *merkle_tree_account.key);
+        let merkle_tree_pda = next_account_info(account)?;
+        msg!("Passed-in merkle_tree_pda pubkey: {:?}", *merkle_tree_pda.key);
         msg!(
-            "merkletree key to check: {:?}",
+            "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
             solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
         );
         account_data.found_root =
-            check_root_hash_exists(merkle_tree_account, &account_data.root_hash, &program_id)?;
+            check_root_hash_exists(merkle_tree_pda, &account_data.root_hash, &program_id)?;
     }
-    //nullifier checks
-    //deposit and withdraw logic
+    // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
+    // and executes transaction, deposit or withdrawal.
     else if current_instruction_index == 1502 {
         let two_leaves_pda = next_account_info(account)?;
-        let nullifier0 = next_account_info(account)?;
-        let nullifier1 = next_account_info(account)?;
-        let merkle_tree_account = next_account_info(account)?;
-        let system_program_info = next_account_info(account)?;
-        msg!("starting nullifier check");
+        let nullifier0_pda = next_account_info(account)?;
+        let nullifier1_pda = next_account_info(account)?;
+        let merkle_tree_pda = next_account_info(account)?;
+        let system_program_account = next_account_info(account)?;
+
+        msg!("Starting nullifier check.");
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             signer_account,
-            nullifier0,
-            system_program_info,
+            nullifier0_pda,
+            system_program_account,
             &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
         )?;
-        msg!("nullifier0 inserted {}", account_data.found_nullifier);
+        msg!("nullifier0_pda inserted {}", account_data.found_nullifier);
 
         account_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             signer_account,
-            nullifier1,
-            system_program_info,
+            nullifier1_pda,
+            system_program_account,
             &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
-        msg!("nullifier1 inserted {}", account_data.found_nullifier);
+        msg!("nullifier1_pda inserted {}", account_data.found_nullifier);
 
-        msg!("inserting new merkle root");
+        msg!("Inserting new merkle root.");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
-        msg!("creating pda account onchain");
 
+        // ext_amount includes the substracted fees
+        //TODO implement fees
         let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
+        // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
 
-        //check not necessary since withdrawing pub_amount later
-        // if ext_amount as u64 != pub_amount.0 {
-        //     msg!("external and public amount need to match");
-        //     return Err(ProgramError::InvalidInstructionData);
-        // }
-        msg!("withdrawal amount: {:?}", pub_amount);
-
-
         if ext_amount > 0 {
-            if *merkle_tree_account.key
+            if *merkle_tree_pda.key
                 != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES)
             {
-                msg!("recipient has to be merkle tree account for deposit");
+                msg!("Recipient has to be merkle tree account for deposit.");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
             if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0
             {
-                msg!("public amount is larger than u64");
+                msg!("Public amount is larger than u64.");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
             let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
             if pub_amount_fits_i64.is_err() == true
             {
-                msg!("public amount is larger than i64");
+                msg!("Public amount is larger than i64.");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
@@ -113,24 +114,24 @@ pub fn process_instruction(
                 return Err(ProgramError::InvalidInstructionData);
             }
 
+            msg!("Creating two_leaves_pda.");
             create_and_check_account(
                 program_id,
                 signer_account,
                 two_leaves_pda,
-                system_program_info,
+                system_program_account,
                 &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64,            //bytes
                 u64::try_from(ext_amount).unwrap(), //lamports
                 true,              //rent_exempt
             )?;
-            msg!("created pda account onchain successfully");
-            merkle_tree_processor.process_instruction(accounts)?;
+            msg!("Created two_leaves_pda successfully.");
 
-            msg!("deposited {}", ext_amount);
+            msg!("Deposited {}", ext_amount);
             transfer(
                 two_leaves_pda,
-                merkle_tree_account,
+                merkle_tree_pda,
                 u64::try_from(ext_amount).unwrap(),
             )?;
         } else if ext_amount <= 0 {
@@ -139,23 +140,23 @@ pub fn process_instruction(
             if *recipient_account.key
                 != solana_program::pubkey::Pubkey::new(&account_data.to_address)
             {
-                msg!("recipient has to be address specified in tx integrity hash");
+                msg!("Recipient has to be address specified in tx integrity hash.");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
+            msg!("Creating two_leaves_pda.");
             create_and_check_account(
                 program_id,
                 signer_account,
                 two_leaves_pda,
-                system_program_info,
+                system_program_account,
                 &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64, //bytes
                 0u64,   //lamports
                 true,   //rent_exempt
             )?;
-            msg!("created pda account onchain successfully");
-            merkle_tree_processor.process_instruction(accounts)?;
+            msg!("Created two_leaves_pda successfully.");
 
             // calculate ext_amount from pubAmount:
             let mut field = FqParameters::MODULUS;
@@ -163,13 +164,13 @@ pub fn process_instruction(
 
             if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0
             {
-                msg!("public amount is larger than u64");
+                msg!("Public amount is larger than u64.");
                 return Err(ProgramError::InvalidInstructionData);
             }
             let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
-            if pub_amount_fits_i64.is_err() == true
+            if pub_amount_fits_i64.is_err()
             {
-                msg!("public amount is larger than i64");
+                msg!("Public amount is larger than i64.");
                 return Err(ProgramError::InvalidInstructionData);
             }
             // field is the positive value
@@ -181,63 +182,17 @@ pub fn process_instruction(
                 return Err(ProgramError::InvalidInstructionData);
             }
             transfer(
-                merkle_tree_account,
+                merkle_tree_pda,
                 recipient_account,
                 ext_amount_from_pub,
             )?;
         }
+
+        //insert Merkle root
+        merkle_tree_processor.process_instruction(accounts)?;
     }
 
     account_data.current_instruction_index += 1;
     LiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
-    Ok(())
-}
-
-//performs the following security checks:
-//signer is consistent over all tx of a pool tx
-//the correct merkle tree is called
-//instruction data is empty
-//there are no more and no less than the required accounts
-//attached to the tx, the accounts have the appropiate length
-pub fn li_security_checks(accounts: &[AccountInfo]) -> Result<(), ProgramError> {
-    let account = &mut accounts.iter();
-    let _signer_account = next_account_info(account)?;
-
-    let _main_account = next_account_info(account)?;
-    // assert_eq!(
-    //     *signer_account.key,
-    //     solana_program::pubkey::Pubkey::new(&main_account.data.signing_address)
-    // );
-    Ok(())
-}
-
-pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
-    if _from
-        .try_borrow_mut_lamports()
-        .unwrap()
-        .checked_sub(amount)
-        .is_none()
-    {
-        msg!("invalid withdrawal amount");
-        return Err(ProgramError::InvalidArgument);
-    }
-    **_from.try_borrow_mut_lamports().unwrap() -= amount; //1000000000; // 1 SOL
-
-    if _to
-        .try_borrow_mut_lamports()
-        .unwrap()
-        .checked_add(amount)
-        .is_none()
-    {
-        msg!("invalid withdrawal amount");
-        return Err(ProgramError::InvalidArgument);
-    }
-    **_to.try_borrow_mut_lamports().unwrap() += amount;
-    msg!(
-        "transferred of {} Lamp from {:?} to {:?}",
-        amount,
-        _from.key,
-        _to.key
-    );
     Ok(())
 }
