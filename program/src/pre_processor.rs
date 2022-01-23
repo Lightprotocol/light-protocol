@@ -14,7 +14,8 @@ use ark_ff::biginteger::BigInteger256;
 use ark_ff::bytes::FromBytes;
 use ark_ff::BigInteger;
 use std::convert::{TryFrom, TryInto};
-
+use ark_ff::fields::FpParameters;
+use ark_ed_on_bn254::FqParameters;
 //pre processor for light protocol logic
 //merkle root checks
 //nullifier checks
@@ -95,7 +96,14 @@ pub fn pre_process_instruction(
 
             if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0
             {
-                msg!("public amount is too high");
+                msg!("public amount is larger than u64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+
+            let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
+            if pub_amount_fits_i64.is_err() == true
+            {
+                msg!("public amount is larger than i64");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
@@ -148,17 +156,20 @@ pub fn pre_process_instruction(
             )?;
             msg!("created pda account onchain successfully");
             merkle_tree_processor.process_instruction(accounts)?;
+
             // calculate ext_amount from pubAmount:
-            let field_size: Vec<u8> = vec![
-                1, 0, 0, 240, 147, 245, 225, 67, 145, 112, 185, 121, 72, 232, 51, 40, 93, 88, 129,
-                129, 182, 69, 80, 184, 41, 160, 49, 225, 114, 78, 100, 48,
-            ];
-            let mut field = <BigInteger256 as FromBytes>::read(&field_size[..]).unwrap();
+            let mut field = FqParameters::MODULUS;
             field.sub_noborrow(&pub_amount);
 
             if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0
             {
-                msg!("public amount is too high");
+                msg!("public amount is larger than u64");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            let pub_amount_fits_i64 =i64::try_from(pub_amount.0[0]);
+            if pub_amount_fits_i64.is_err() == true
+            {
+                msg!("public amount is larger than i64");
                 return Err(ProgramError::InvalidInstructionData);
             }
             // field is the positive value
@@ -175,13 +186,10 @@ pub fn pre_process_instruction(
                 ext_amount_from_pub,
             )?;
         }
-    } else if current_instruction_index == 4 {
-        //state_check_nullifier::check_and_insert_nullifier();
     }
 
     account_data.current_instruction_index += 1;
     LiBytes::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
-    msg!("finished successfully");
     Ok(())
 }
 
