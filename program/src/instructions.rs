@@ -14,6 +14,60 @@ use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
 
+//performs the following security checks:
+//signer is consistent over all tx of a pool tx
+//the correct merkle tree is called
+//instruction data is empty
+//there are no more and no less than the required accounts
+//attached to the tx, the accounts have the appropiate length
+/*
+pub fn security_checks(
+        signer_pubkey: &Pubkey,
+        signer_pubkey_passed_in: &Pubkey,
+        instruction_data_len: usize
+    ) -> Result<(), ProgramError> {
+    if *signer_pubkey != *signer_pubkey_passed_in {
+        msg!("*signer_pubkey {:?} != *signer_pubkey_passed_in {:?}", *signer_pubkey, *signer_pubkey_passed_in);
+        return Err(ProgramError::IllegalOwner);
+    }
+    if instruction_data_len >= 9 {
+        msg!("instruction_data_len: {}", instruction_data_len);
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    Ok(())
+}
+*/
+pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
+    if _from
+        .try_borrow_mut_lamports()
+        .unwrap()
+        .checked_sub(amount)
+        .is_none()
+    {
+        msg!("invalid withdrawal amount");
+        return Err(ProgramError::InvalidArgument);
+    }
+    **_from.try_borrow_mut_lamports().unwrap() -= amount; //1000000000; // 1 SOL
+
+    if _to
+        .try_borrow_mut_lamports()
+        .unwrap()
+        .checked_add(amount)
+        .is_none()
+    {
+        msg!("invalid withdrawal amount");
+        return Err(ProgramError::InvalidArgument);
+    }
+    **_to.try_borrow_mut_lamports().unwrap() += amount;
+    msg!(
+        "transferred of {} Lamp from {:?} to {:?}",
+        amount,
+        _from.key,
+        _to.key
+    );
+    Ok(())
+}
+
 pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
     accounts: &[AccountInfo],

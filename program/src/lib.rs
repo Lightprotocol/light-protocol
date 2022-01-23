@@ -17,7 +17,9 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::instructions::{create_and_try_initialize_tmp_storage_pda};
+use crate::instructions::{
+    create_and_try_initialize_tmp_storage_pda,
+};
 use crate::state::InstructionIndex;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
@@ -113,9 +115,10 @@ pub fn process_instruction(
 
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
+                //TODO enforce exact instruction data length
                 if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
                     msg!("wrong signer");
-                    Err(ProgramError::IllegalOwner)
+                    return Err(ProgramError::IllegalOwner);
                 } else {
                     msg!(
                         "current ix index: {}",
