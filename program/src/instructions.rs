@@ -14,7 +14,7 @@ use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
 
-pub fn create_and_try_initialize_tmp_storage_account(
+pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     number_storage_bytes: u64,
@@ -170,9 +170,9 @@ pub fn try_initialize_tmp_storage_account(
         Groth16Processor::new(main_account, main_account_data.current_instruction_index)?;
     groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
-    main_account_data.signing_address = signing_address.to_bytes().to_vec(); // TODO: check if rm clone() has sideeffects
+    main_account_data.signing_address = signing_address.to_bytes().to_vec();
     main_account_data.root_hash = _instruction_data[0..32].to_vec();
-    main_account_data.amount = _instruction_data[32..64].to_vec(); // pubAmount (32bytes)
+    main_account_data.amount = _instruction_data[32..64].to_vec();
     main_account_data.tx_integrity_hash = _instruction_data[64..96].to_vec();
 
     let input_nullifier_0 = _instruction_data[96..128].to_vec();
@@ -182,8 +182,8 @@ pub fn try_initialize_tmp_storage_account(
     let commitment_left = &_instruction_data[192..224];
 
     main_account_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[224..480].to_vec(),
-        commitment_right.to_vec(),
+        _instruction_data[224..480].to_vec(), // proof
+        commitment_right.to_vec(), //TODO left right
         commitment_left.to_vec(),
         input_nullifier_0.to_vec(),
         input_nullifier_1.to_vec(),
