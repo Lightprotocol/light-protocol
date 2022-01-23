@@ -30,12 +30,12 @@ pub fn process_instruction(
     accounts: &[AccountInfo],
     current_instruction_index: usize,
 ) -> Result<(), ProgramError> {
-    msg!("entered process_instruction");
+    msg!("Entered process_instruction");
 
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
-    let main_account = next_account_info(account)?;
-    let mut account_data = ChecksAndTransferState::unpack(&main_account.data.borrow())?;
+    let tmp_storage_pda = next_account_info(account)?;
+    let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
     // Checks whether passed-in root exists in Merkle tree history array.
     // We do this check as soon as possible to avoid proof transaction invalidation for missing
@@ -47,8 +47,8 @@ pub fn process_instruction(
             "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
             solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
         );
-        account_data.found_root =
-            check_root_hash_exists(merkle_tree_pda, &account_data.root_hash, &program_id)?;
+        tmp_storage_pda_data.found_root =
+            check_root_hash_exists(merkle_tree_pda, &tmp_storage_pda_data.root_hash, &program_id)?;
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // and executes transaction, deposit or withdrawal.
@@ -60,32 +60,32 @@ pub fn process_instruction(
         let system_program_account = next_account_info(account)?;
 
         msg!("Starting nullifier check.");
-        account_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier0_pda,
             system_program_account,
-            &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+            &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
         )?;
-        msg!("nullifier0_pda inserted {}", account_data.found_nullifier);
+        msg!("nullifier0_pda inserted {}", tmp_storage_pda_data.found_nullifier);
 
-        account_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier1_pda,
             system_program_account,
-            &account_data.proof_a_b_c_leaves_and_nullifiers[352..384],
+            &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[352..384],
         )?;
-        msg!("nullifier1_pda inserted {}", account_data.found_nullifier);
+        msg!("nullifier1_pda inserted {}", tmp_storage_pda_data.found_nullifier);
 
         msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(main_account), None)?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
 
         // ext_amount includes the substracted fees
         //TODO implement fees
-        let ext_amount = i64::from_le_bytes(account_data.ext_amount.clone().try_into().unwrap());
+        let ext_amount = i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         // pub_amount is the public amount included in public inputs for proof verification
-        let pub_amount = <BigInteger256 as FromBytes>::read(&account_data.amount[..]).unwrap();
+        let pub_amount = <BigInteger256 as FromBytes>::read(&tmp_storage_pda_data.amount[..]).unwrap();
 
         if ext_amount > 0 {
             if *merkle_tree_pda.key
@@ -120,7 +120,7 @@ pub fn process_instruction(
                 signer_account,
                 two_leaves_pda,
                 system_program_account,
-                &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+                &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64,            //bytes
                 u64::try_from(ext_amount).unwrap(), //lamports
@@ -138,7 +138,7 @@ pub fn process_instruction(
             let recipient_account = next_account_info(account)?;
 
             if *recipient_account.key
-                != solana_program::pubkey::Pubkey::new(&account_data.to_address)
+                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
             {
                 msg!("Recipient has to be address specified in tx integrity hash.");
                 return Err(ProgramError::InvalidInstructionData);
@@ -150,7 +150,7 @@ pub fn process_instruction(
                 signer_account,
                 two_leaves_pda,
                 system_program_account,
-                &account_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+                &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64, //bytes
                 0u64,   //lamports
@@ -192,7 +192,7 @@ pub fn process_instruction(
         merkle_tree_processor.process_instruction(accounts)?;
     }
 
-    account_data.current_instruction_index += 1;
-    ChecksAndTransferState::pack_into_slice(&account_data, &mut main_account.data.borrow_mut());
+    tmp_storage_pda_data.current_instruction_index += 1;
+    ChecksAndTransferState::pack_into_slice(&tmp_storage_pda_data, &mut tmp_storage_pda.data.borrow_mut());
     Ok(())
 }
