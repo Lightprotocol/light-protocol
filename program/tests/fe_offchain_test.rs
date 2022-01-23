@@ -22,7 +22,7 @@ pub mod tests {
 	use ark_ec::ProjectiveCurve;
 	use ark_ff::Field;
 	use light_protocol_core::groth16_verifier::final_exponentiation::{
-		instructions::*, processor::_process_instruction, ranges::*, state::FinalExpBytes,
+		instructions::*, processor::_process_instruction, ranges::*, state::FinalExponentiationState,
 	};
 	use light_protocol_core::groth16_verifier::parsers::*;
 	use light_protocol_core::utils::prepared_verifying_key::*;
@@ -595,8 +595,8 @@ pub mod tests {
 			* ------------------------- init -------------------------
 			*instruction 0
 			*/
-		let mut account_struct = FinalExpBytes::new();
-		let mut account_struct1 = FinalExpBytes::new();
+		let mut account_struct = FinalExponentiationState::new();
+		let mut account_struct1 = FinalExponentiationState::new();
 
 		// f1 = r.conjugate() = f^(p^6)
 		let mut f1 = *f;
@@ -1991,12 +1991,12 @@ pub mod tests {
 	fn final_exponentiation_test_processor(
 		f: &<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
 	) -> Option<<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
-		let mut account_struct = FinalExpBytes::new();
+		let mut account_struct = FinalExponentiationState::new();
 
 		parse_f_to_bytes(*f, &mut account_struct.f_f2_range_s);
 		account_struct.changed_variables[F_F2_RANGE_ITER] = true;
 		let mut account_onchain_slice = [0u8; 3900];
-		<FinalExpBytes as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
+		<FinalExponentiationState as Pack>::pack_into_slice(&account_struct, &mut account_onchain_slice);
 		let path = "tests/fe_onchain_init_bytes.rs";
 		let mut output = File::create(path).ok()?;
 		write!(
@@ -2011,12 +2011,12 @@ pub mod tests {
 
 		for i in INSTRUCTION_ORDER_CONST {
 			let mut account_struct_tmp =
-				<FinalExpBytes as Pack>::unpack(&account_onchain_slice).unwrap();
+				<FinalExponentiationState as Pack>::unpack(&account_onchain_slice).unwrap();
 			println!("processor iter : {}", i);
 			_process_instruction(&mut account_struct_tmp, i);
 			account_struct.y1_range_s = account_struct_tmp.y1_range_s.clone();
 
-			<FinalExpBytes as Pack>::pack_into_slice(
+			<FinalExponentiationState as Pack>::pack_into_slice(
 				&account_struct_tmp,
 				&mut account_onchain_slice,
 			);

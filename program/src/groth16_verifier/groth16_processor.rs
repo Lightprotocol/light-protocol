@@ -7,12 +7,12 @@ use solana_program::{
 // Light
 use crate::groth16_verifier::{
     final_exponentiation,
-    final_exponentiation::{instructions::verify_result, state::FinalExpBytes},
+    final_exponentiation::{instructions::verify_result, state::FinalExponentiationState},
     miller_loop,
     miller_loop::{ranges::*, state::*},
     parsers::*,
     prepare_inputs,
-    prepare_inputs::{processor::CURRENT_INDEX_ARRAY, ranges::*, state::PiBytes},
+    prepare_inputs::{processor::CURRENT_INDEX_ARRAY, ranges::*, state::PrepareInputsState},
 };
 use crate::IX_ORDER;
 
@@ -64,11 +64,11 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     // Implements prepare_inputs as per: https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#20-36
     // in a way that can be executed by the solana runtime.
     fn prepare_inputs(&mut self) -> Result<(), ProgramError> {
-        let mut account_data = PiBytes::unpack(&self.main_account.data.borrow())?;
+        let mut account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
         // TODO: remove 40 from instruction array then remove this
         if account_data.current_instruction_index == 0 {
             account_data.current_instruction_index += 1;
-            PiBytes::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
+            PrepareInputsState::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
             return Ok(());
         }
 
@@ -80,7 +80,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         );
 
         account_data.current_instruction_index += 1;
-        PiBytes::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
+        PrepareInputsState::pack_into_slice(&account_data, &mut self.main_account.data.borrow_mut());
         Ok(())
     }
 
@@ -105,10 +105,10 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         // _instruction_data: &[u8],
         // accounts: &[AccountInfo],
     ) -> Result<(), ProgramError> {
-        let mut main_account_data = ML254Bytes::unpack(&self.main_account.data.borrow())?;
+        let mut main_account_data = MillerLoopState::unpack(&self.main_account.data.borrow())?;
         // First ix (0): Parses g_ic_affine(proof.b) and more from prepared_inputs state to miller_loop state.
         if IX_ORDER[main_account_data.current_instruction_index] == 0 {
-            let account_prepare_inputs_data = PiBytes::unpack(&self.main_account.data.borrow())?;
+            let account_prepare_inputs_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
             let g_ic_affine =
                 parse_x_group_affine_from_bytes(&account_prepare_inputs_data.x_1_range); // 10k
             let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
@@ -125,7 +125,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             // Partial pack to save compute budget.
             main_account_data.changed_variables[P_2_Y_RANGE_INDEX] = true;
             main_account_data.changed_variables[P_2_X_RANGE_INDEX] = true;
-            ML254Bytes::pack_into_slice(
+            MillerLoopState::pack_into_slice(
                 &main_account_data,
                 &mut self.main_account.data.borrow_mut(),
             );
@@ -142,7 +142,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             );
             main_account_data.current_instruction_index += 1;
 
-            ML254Bytes::pack_into_slice(
+            MillerLoopState::pack_into_slice(
                 &main_account_data,
                 &mut self.main_account.data.borrow_mut(),
             );
@@ -151,7 +151,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     }
 
     fn final_exponentiation(&mut self) -> Result<(), ProgramError> {
-        let mut main_account_data = FinalExpBytes::unpack(&self.main_account.data.borrow())?;
+        let mut main_account_data = FinalExponentiationState::unpack(&self.main_account.data.borrow())?;
         final_exponentiation::processor::_process_instruction(
             &mut main_account_data,
             IX_ORDER[self.current_instruction_index],
@@ -161,7 +161,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             verify_result(&main_account_data)?;
         }
         main_account_data.current_instruction_index += 1;
-        FinalExpBytes::pack_into_slice(
+        FinalExponentiationState::pack_into_slice(
             &main_account_data,
             &mut self.main_account.data.borrow_mut(),
         );
@@ -169,7 +169,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     }
 
     pub fn try_initialize(&mut self, _instruction_data: &[u8]) -> Result<(), ProgramError> {
-        let mut main_account_data = PiBytes::unpack(&self.main_account.data.borrow())?;
+        let mut main_account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
 
         // let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
         msg!(
@@ -255,7 +255,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         for i in indices.iter() {
             main_account_data.changed_variables[*i] = true;
         }
-        PiBytes::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
+        PrepareInputsState::pack_into_slice(&main_account_data, &mut self.main_account.data.borrow_mut());
         Ok(())
     }
 }

@@ -81,7 +81,7 @@ fn pi_254_test_with_7_inputs() {
     // ix_order_array
     // for each ix call processor. If applicable with extra instruction_data
     // let mut current_index = 99;
-    let mut account_data = PiBytes::unpack(&mock_account).unwrap();
+    let mut account_data = PrepareInputsState::unpack(&mock_account).unwrap();
     // replicate 1809 rpc calls
     for index in 0..465 {
         // 0..1809 @ last

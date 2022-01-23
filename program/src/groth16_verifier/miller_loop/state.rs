@@ -8,7 +8,7 @@ use std::convert::TryInto;
 
 // Implements partial pack to save compute budget.
 #[derive(Clone)]
-pub struct ML254Bytes {
+pub struct MillerLoopState {
     pub is_initialized: bool,
     pub signing_address: Vec<u8>, // is relayer address
     pub current_instruction_index: usize,
@@ -29,18 +29,18 @@ pub struct ML254Bytes {
     pub current_coeff_3_range: Vec<u8>,
     pub changed_variables: [bool; 14],
 }
-impl Sealed for ML254Bytes {}
-impl IsInitialized for ML254Bytes {
+impl Sealed for MillerLoopState {}
+impl IsInitialized for MillerLoopState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl Pack for ML254Bytes {
+impl Pack for MillerLoopState {
     const LEN: usize = 3900; // 1728;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, ML254Bytes::LEN];
+        let input = array_ref![input, 0, MillerLoopState::LEN];
 
         let (
             _is_initialized,
@@ -66,7 +66,7 @@ impl Pack for ML254Bytes {
         ) = array_refs![
             input, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
         ];
-        Ok(ML254Bytes {
+        Ok(MillerLoopState {
             is_initialized: true,
             signing_address: signing_address.to_vec(),
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
@@ -92,7 +92,7 @@ impl Pack for ML254Bytes {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, ML254Bytes::LEN];
+        let dst = array_mut_ref![dst, 0, MillerLoopState::LEN];
 
         let (
             is_initialized_dst,

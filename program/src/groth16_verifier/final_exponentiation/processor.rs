@@ -8,13 +8,13 @@ use crate::groth16_verifier::final_exponentiation::{
         mul_assign_3_4_5,
     },
     ranges::*,
-    state::FinalExpBytes,
+    state::FinalExponentiationState,
 };
 
 use solana_program::program_error::ProgramError;
 
 pub fn _process_instruction(
-    account_struct: &mut FinalExpBytes,
+    account_struct: &mut FinalExponentiationState,
     id: u8,
 ) -> Result<(), ProgramError> {
     if id == 0 {

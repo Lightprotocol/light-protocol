@@ -7,7 +7,7 @@ use solana_program::{
 use std::convert::TryInto;
 
 #[derive(Clone)]
-pub struct PiBytes {
+pub struct PrepareInputsState {
     is_initialized: bool,
     pub found_root: u8,
     pub found_nullifier: u8,
@@ -20,10 +20,7 @@ pub struct PiBytes {
     pub root_hash: Vec<u8>,
     pub data_hash: Vec<u8>,         // is commit hash until changed
     pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, amount, signing_address,
-    //root does not have to be saved for it is looked for immediately when added
-    //adding 32 + 8 + 32 + 8 + 32 + 32 + 32 = 176
-    //total added 3 + 176 = 179
-    //memory variables
+
     pub i_1_range: Vec<u8>,
     pub x_1_range: Vec<u8>,
     pub i_2_range: Vec<u8>,
@@ -32,7 +29,6 @@ pub struct PiBytes {
     pub x_3_range: Vec<u8>,
     pub i_4_range: Vec<u8>,
     pub x_4_range: Vec<u8>,
-    // added 6 new ranges
     pub i_5_range: Vec<u8>,
     pub x_5_range: Vec<u8>,
     pub i_6_range: Vec<u8>,
@@ -53,17 +49,17 @@ pub struct PiBytes {
     pub changed_variables: [bool; 20],
     pub changed_constants: [bool; 12],
 }
-impl Sealed for PiBytes {}
-impl IsInitialized for PiBytes {
+impl Sealed for PrepareInputsState {}
+impl IsInitialized for PrepareInputsState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
-impl Pack for PiBytes {
+impl Pack for PrepareInputsState {
     const LEN: usize = 3900; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, PiBytes::LEN];
+        let input = array_ref![input, 0, PrepareInputsState::LEN];
 
         let (
             _is_initialized,
@@ -109,7 +105,7 @@ impl Pack for PiBytes {
             384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
         ];
 
-        Ok(PiBytes {
+        Ok(PrepareInputsState {
             is_initialized: true,
 
             found_root: found_root[0],                     //0
@@ -152,7 +148,7 @@ impl Pack for PiBytes {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, PiBytes::LEN];
+        let dst = array_mut_ref![dst, 0, PrepareInputsState::LEN];
 
         let (
             //constants

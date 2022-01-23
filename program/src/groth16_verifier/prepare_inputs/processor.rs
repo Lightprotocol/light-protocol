@@ -1,9 +1,9 @@
-use crate::groth16_verifier::prepare_inputs::{instructions::*, ranges::*, state::PiBytes};
+use crate::groth16_verifier::prepare_inputs::{instructions::*, ranges::*, state::PrepareInputsState};
 use solana_program::msg;
 
 pub fn _process_instruction(
     id: u8,
-    account: &mut PiBytes,
+    account: &mut PrepareInputsState,
     //public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>],
     current_index: usize,
 ) {

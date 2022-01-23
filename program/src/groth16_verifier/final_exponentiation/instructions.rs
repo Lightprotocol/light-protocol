@@ -1,5 +1,5 @@
 use crate::groth16_verifier::{
-    final_exponentiation::{ranges::*, state::FinalExpBytes},
+    final_exponentiation::{ranges::*, state::FinalExponentiationState},
     parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
@@ -17,7 +17,7 @@ use ark_ff::{
 
 use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
 
-pub fn verify_result(main_account_data: &FinalExpBytes) -> Result<(), ProgramError> {
+pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(), ProgramError> {
 
     let pvk = vec![
         198, 242, 4, 28, 9, 35, 146, 101, 152, 133, 231, 128, 253, 46, 174, 170, 116, 96, 135, 45,
@@ -532,7 +532,7 @@ mod tests {
         mul_assign_4_2, mul_assign_5,
     };
 
-    use crate::groth16_verifier::final_exponentiation::state::FinalExpBytes;
+    use crate::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
 
     use crate::groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_f_from_bytes, parse_f_to_bytes, parse_quad_from_bytes,
@@ -713,7 +713,7 @@ mod tests {
                 &mut rng,
             );
         let mut actual_f = reference_f.clone();
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range_s);
 
@@ -815,7 +815,7 @@ mod tests {
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range_s);
 
@@ -903,7 +903,7 @@ mod tests {
             );
 
         let mut actual_f = reference_f.clone();
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
         parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range_s);
@@ -945,7 +945,7 @@ mod tests {
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
         parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range_s);
@@ -990,7 +990,7 @@ mod tests {
             );
         let mut actual_f = reference_f.clone();
 
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
         parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
         let mut y1 =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
@@ -1129,7 +1129,7 @@ mod tests {
                 &mut rng,
             );
 
-        let mut account_struct = FinalExpBytes::new();
+        let mut account_struct = FinalExponentiationState::new();
         parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
         let mut y1 =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();

@@ -9,7 +9,7 @@ use std::convert::TryInto;
 
 // Account struct for verify Part 2:
 #[derive(Debug, Clone)]
-pub struct FinalExpBytes {
+pub struct FinalExponentiationState {
     is_initialized: bool,
     pub found_nullifier: u8,
     pub signing_address: Vec<u8>,
@@ -41,16 +41,16 @@ pub struct FinalExpBytes {
 
     pub changed_variables: [bool; 16],
 }
-impl Sealed for FinalExpBytes {}
-impl IsInitialized for FinalExpBytes {
+impl Sealed for FinalExponentiationState {}
+impl IsInitialized for FinalExponentiationState {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl FinalExpBytes {
-    pub fn new() -> FinalExpBytes {
-        FinalExpBytes {
+impl FinalExponentiationState {
+    pub fn new() -> FinalExponentiationState {
+        FinalExponentiationState {
             is_initialized: true,
             found_nullifier: 0,
             signing_address: vec![0],
@@ -84,10 +84,10 @@ impl FinalExpBytes {
     }
 }
 
-impl Pack for FinalExpBytes {
+impl Pack for FinalExponentiationState {
     const LEN: usize = 3900;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, FinalExpBytes::LEN];
+        let input = array_ref![input, 0, FinalExponentiationState::LEN];
 
         let (
             _is_initialized,
@@ -125,7 +125,7 @@ impl Pack for FinalExpBytes {
             192, 64, 64, 64, 64, 32, 384, 128
         ];
 
-        Ok(FinalExpBytes {
+        Ok(FinalExponentiationState {
             is_initialized: true,
             found_nullifier: found_nullifier[0],
             signing_address: signing_address.to_vec(),
@@ -159,7 +159,7 @@ impl Pack for FinalExpBytes {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, FinalExpBytes::LEN];
+        let dst = array_mut_ref![dst, 0, FinalExponentiationState::LEN];
 
         let (
             _is_initialized_dst,

@@ -776,7 +776,7 @@ mod tests {
         ell_instruction_d, ell_instruction_d_c2, ell_instruction_d_c3, square_in_place_instruction,
     };
 
-    use crate::groth16_verifier::miller_loop::state::ML254Bytes;
+    use crate::groth16_verifier::miller_loop::state::MillerLoopState;
     use crate::groth16_verifier::parsers::{
         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,

@@ -11,10 +11,10 @@ use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
 use light_protocol_core::utils::{init_bytes18, prepared_verifying_key::*};
 use light_protocol_core::{
     groth16_verifier::{
-        final_exponentiation::state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},
+        final_exponentiation::state::{FinalExponentiationState, INSTRUCTION_ORDER_VERIFIER_PART_2},
         miller_loop::state::*,
         parsers::*,
-        prepare_inputs::state::PiBytes,
+        prepare_inputs::state::PrepareInputsState,
     },
     poseidon_merkle_tree::state::TempStoragePda,
     poseidon_merkle_tree::state::MERKLE_TREE_ACC_BYTES,
@@ -125,7 +125,7 @@ async fn compute_miller_output(
         .await
         .expect("get_account")
         .unwrap();
-    let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
+    let account_data = MillerLoopState::unpack(&storage_account.data.clone()).unwrap();
 
     // Executes 1973 following ix.
     let mut i = 8888usize;
@@ -1421,7 +1421,7 @@ async fn compute_prepared_inputs_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    let account_data = PiBytes::unpack(&storage_account.data.clone()).unwrap();
+    let account_data = PrepareInputsState::unpack(&storage_account.data.clone()).unwrap();
     assert_eq!(
         account_data.x_1_range, prepared_inputs_ref,
         "onchain pi result != reference pi.into:affine()"
@@ -1472,7 +1472,7 @@ async fn compute_miller_output_should_succeed() {
         .await
         .expect("get_account")
         .unwrap();
-    let account_data = ML254Bytes::unpack(&storage_account.data.clone()).unwrap();
+    let account_data = MillerLoopState::unpack(&storage_account.data.clone()).unwrap();
 
     let miller_output_ref = get_ref_value("miller_output");
     assert_eq!(
@@ -1524,7 +1524,7 @@ async fn compute_final_exponentiation_should_succeed()
         .expect("get_account")
         .unwrap();
 
-    let unpacked_data = FinalExpBytes::unpack(&storage_account.data).unwrap();
+    let unpacked_data = FinalExponentiationState::unpack(&storage_account.data).unwrap();
 
     assert_eq!(f_ref, unpacked_data.y1_range_s);
 
