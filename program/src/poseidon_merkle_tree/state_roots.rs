@@ -113,10 +113,10 @@ pub fn check_root_hash_exists(
         counter += 1;
         if counter == account_main_data.root_history_size {
             msg!("did not find root");
-            // panic!("did not find root");
-            // return Err(ProgramError::InvalidAccountData);
-            found_root = 0;
-            break;
+            //panic!("did not find root");
+            return Err(ProgramError::InvalidAccountData);
+            // found_root = 0;
+            // break;
         }
     }
     Ok(found_root)
