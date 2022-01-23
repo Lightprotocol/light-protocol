@@ -17,8 +17,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::instructions::{create_and_try_initialize_tmp_storage_account};
-use crate::pre_processor::pre_process_instruction;
+use crate::instructions::{create_and_try_initialize_tmp_storage_pda};
 use crate::state::InstructionIndex;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
@@ -34,13 +33,13 @@ pub fn process_instruction(
 ) -> ProgramResult {
     let accounts_mut = accounts.clone();
     let account = &mut accounts_mut.iter();
+    // 0. `[]` signer
     let signer_account = next_account_info(account)?;
     if !signer_account.is_signer {
         msg!("signer account needs to be passed in first place");
         return Err(ProgramError::IllegalOwner);
     }
     //TODO: replace if else with enum
-
     // Initialize new merkle tree account.
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let merkle_tree_storage_acc = next_account_info(account)?;
@@ -88,14 +87,27 @@ pub fn process_instruction(
                 // updating the merkle tree.
                 // All data used during computation is passed in as instruction_data with this instruction.
                 // No subsequent instructions read instruction_data.
-                // instruction_data: []
-                create_and_try_initialize_tmp_storage_account(
+                // instruction_data:
+                //    [ root,
+                //      public amount,
+                //      external data hash,
+                //      nullifier0,
+                //      nullifier1,
+                //      leaf_right,
+                //      leaf_left,
+                //      proof,
+                //      recipient,
+                //      ext_amount,
+                //      relayer,
+                //      fee]
+
+                create_and_try_initialize_tmp_storage_pda(
                     program_id,
                     accounts,
-                    3900u64, //bytes
-                    0_u64,   //lamports
-                    true,    //rent_exempt
-                    &_instruction_data[9..],
+                    3900u64, // bytes
+                    0_u64,   // lamports
+                    true,    // rent_exempt
+                    &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
 
@@ -112,21 +124,32 @@ pub fn process_instruction(
                     // TODO: replace if else with enum for better readibility
                     // Checks whether root exists in Merkle tree history vec.
                     // Accounts:
-                    // 2.
-                    //
+                    // 2. `[]` Merkle tree
                     if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
                     {
-                        pre_process_instruction(
+                        pre_processor::pre_process_instruction(
                             program_id,
                             accounts,
                             tmp_storage_pda_data.current_instruction_index,
                         )?;
                         Ok(())
                     }
-                    //
+                    // Inserts leaves, inserts nullifier, updates Merkle tree root and transfers
+                    // funds to the recipient.
+                    // For deposits the recipient is the merkle_tree_pda. For withdrawals the passed
+                    // in recipient account receives the funds.
+                    // This instruction will never be reached if proof verification fails.
+                    // Accounts:
+                    // 2. `[writable]` tmp_storage_pda
+                    // 3. `[writable]` two_leaves_pda
+                    // 4. `[writable]` nullifier0_pda
+                    // 5. `[writable]` nullifier1_pda
+                    // 6. `[writable]` merkle_tree_pda
+                    // 7. `[]` spl_program
+                    // 8. `[]` recipient
                     else if tmp_storage_pda_data.current_instruction_index == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
                     {
-                        pre_process_instruction(
+                        pre_processor::pre_process_instruction(
                             program_id,
                             accounts,
                             tmp_storage_pda_data.current_instruction_index,
@@ -136,7 +159,8 @@ pub fn process_instruction(
                     }
                     // Main verification part
                     //prepare inputs for proof verification + miller loop + final exponentiation
-
+                    // Accounts:
+                    // 2. `[writable]` tmp_storage_pda
                     else if tmp_storage_pda_data.current_instruction_index < 1267 {
                         let mut groth16_processor = Groth16Processor::new(
                             tmp_storage_pda,
