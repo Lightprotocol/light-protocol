@@ -274,8 +274,10 @@ impl Pack for PrepareInputsState {
             }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        *is_initialized_dst = [1u8; 1];
-        // *unused_remainder_dst = *unused_remainder_dst;
+        //TODO: remove, rn crashes if removed
+        if self.is_initialized {
+            *is_initialized_dst = [1u8; 1];
+        }
 
     }
 }
