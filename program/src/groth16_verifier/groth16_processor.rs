@@ -57,8 +57,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             // }
             msg!("okok: {:?}", res);
             Ok(())
-        } else if self.current_instruction_index >= 430 + 465
-            && self.current_instruction_index < 801 + 465
+        } else if self.current_instruction_index >= FINAL_EXPONENTIATION_START_INDEX
+            && self.current_instruction_index < FINAL_EXPONENTIATION_END_INDEX
         {
             self.final_exponentiation()?;
             Ok(())

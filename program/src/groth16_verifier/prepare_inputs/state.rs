@@ -1,6 +1,5 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
-    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
 };
@@ -100,9 +99,9 @@ impl Pack for PrepareInputsState {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,
             2432,
-            384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
+            384
         ];
 
         Ok(PrepareInputsState {
@@ -187,15 +186,13 @@ impl Pack for PrepareInputsState {
             g_ic_x_range_dst,
             g_ic_y_range_dst,
             g_ic_z_range_dst,
-            unused_remainder_dst,
+            _unused_remainder_dst,
             proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, //  48, 48, 48, 48, 48, 48, replaced
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,
             2432,
-            384 // 3792 was without the last 6 change down  // 3952 {128 less (1-4) and 288 more (5-7)}
-                 //dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 96, 32, 96, 32, 96, 32, 96, 48,
-                 //  48, 48, 48, 48, 48, 3952
+            384
         ];
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {
@@ -240,49 +237,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 19 {
                     *g_ic_z_range_dst = self.g_ic_z_range.clone().try_into().unwrap();
                 }
-            } else {
-                if i == 0 {
-                    *i_1_range_dst = *i_1_range_dst;
-                } else if i == 1 {
-                    *x_1_range_dst = *x_1_range_dst;
-                } else if i == 2 {
-                    *i_2_range_dst = *i_2_range_dst;
-                } else if i == 3 {
-                    *x_2_range_dst = *x_2_range_dst;
-                } else if i == 4 {
-                    *i_3_range_dst = *i_3_range_dst;
-                } else if i == 5 {
-                    *x_3_range_dst = *x_3_range_dst;
-                } else if i == 6 {
-                    *i_4_range_dst = *i_4_range_dst;
-                } else if i == 7 {
-                    *x_4_range_dst = *x_4_range_dst;
-                } else if i == 8 {
-                    *i_5_range_dst = *i_5_range_dst;
-                } else if i == 9 {
-                    *x_5_range_dst = *x_5_range_dst;
-                } else if i == 10 {
-                    *i_6_range_dst = *i_6_range_dst;
-                } else if i == 11 {
-                    *x_6_range_dst = *x_6_range_dst;
-                } else if i == 12 {
-                    *i_7_range_dst = *i_7_range_dst;
-                } else if i == 13 {
-                    *x_7_range_dst = *x_7_range_dst;
-                } else if i == 14 {
-                    *res_x_range_dst = *res_x_range_dst;
-                } else if i == 15 {
-                    *res_y_range_dst = *res_y_range_dst;
-                } else if i == 16 {
-                    *res_z_range_dst = *res_z_range_dst;
-                } else if i == 17 {
-                    *g_ic_x_range_dst = *g_ic_x_range_dst;
-                } else if i == 18 {
-                    *g_ic_y_range_dst = *g_ic_y_range_dst;
-                } else if i == 19 {
-                    *g_ic_z_range_dst = *g_ic_z_range_dst;
-                }
-            };
+            }
         }
 
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
@@ -316,35 +271,11 @@ impl Pack for PrepareInputsState {
                         .try_into()
                         .unwrap();
                 }
-            } else {
-                if i == 0 {
-                    *found_root_dst = *found_root_dst;
-                } else if i == 1 {
-                    *found_nullifier_dst = *found_nullifier_dst;
-                } else if i == 2 {
-                    *executed_withdraw_dst = *executed_withdraw_dst;
-                } else if i == 3 {
-                    *signing_address_dst = *signing_address_dst;
-                } else if i == 4 {
-                    *relayer_refund_dst = *relayer_refund_dst;
-                } else if i == 5 {
-                    *to_address_dst = *to_address_dst;
-                } else if i == 6 {
-                    *amount_dst = *amount_dst;
-                } else if i == 7 {
-                    *nullifier_hash_dst = *nullifier_hash_dst;
-                } else if i == 8 {
-                    *root_hash_dst = *root_hash_dst;
-                } else if i == 9 {
-                    *data_hash_dst = *data_hash_dst;
-                } else if i == 10 {
-                    *tx_integrity_hash_dst = *tx_integrity_hash_dst;
-                }
-            };
+            }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
         *is_initialized_dst = [1u8; 1];
-        *unused_remainder_dst = *unused_remainder_dst;
-        msg!("packed");
+        // *unused_remainder_dst = *unused_remainder_dst;
+
     }
 }
