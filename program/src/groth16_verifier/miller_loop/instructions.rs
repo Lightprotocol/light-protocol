@@ -30,10 +30,6 @@ pub fn doubling_step(
     coeff_1_range: &mut Vec<u8>,
     coeff_2_range: &mut Vec<u8>,
 ) {
-    // msg!("rBytes: {:?}", r_bytes);
-    // msg!("c0: {:?}", coeff_0_range);
-    // msg!("c1: {:?}", coeff_1_range);
-    // msg!("c2: {:?}", coeff_2_range);
 
     // step 0
     let mut r = parse_r_from_bytes(&r_bytes);
@@ -63,13 +59,8 @@ pub fn doubling_step(
     r.y = g.square() - &(e_square.double() + &e_square);
     // msg!("rY: {:?}", r);
     r.z = b * &h;
-    // DONT TOUCH. very fragile.
-    // Solana runtime has a compiler? bug where if we dont put these msg!
-    // here, it calculates different values for
-    // msg!("rZ: {:?}", r);
-    msg!("_r: {:?}", r);
+
     parse_r_to_bytes(r, r_bytes);
-    // msg!("rBytes AFTER: {:?}", r_bytes);
 
     // step 2
     let j_d = j.double() + &j;
