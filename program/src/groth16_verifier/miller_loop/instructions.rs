@@ -6,7 +6,6 @@ use ark_ec::{
     SWModelParameters,
 };
 use ark_ff::{
-    biginteger::BigInteger256,
     fields::{
         models::{
             fp6_3over2::Fp6, quadratic_extension::QuadExtField,
@@ -15,15 +14,15 @@ use ark_ff::{
         Field, Fp2,
     },
     fp12_2over3over2::Fp12Parameters,
-    Fp256, One,
+    One, Zero
 };
 use solana_program::msg;
 
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];
-
-// All instructions are as per the bn256 implemenation of arkworks
-// TODO: add link?
+use ark_ff::fields::models::fp2::Fp2Parameters;
+// All instructions are as per the bn254 implemenation of arkworks
+// https://docs.rs/ark-ec/0.3.0/src/ark_ec/models/bn/g2.rs.html#139-166
 pub fn doubling_step(
     r_bytes: &mut Vec<u8>,
     coeff_0_range: &mut Vec<u8>,
@@ -33,12 +32,14 @@ pub fn doubling_step(
 
     // step 0
     let mut r = parse_r_from_bytes(&r_bytes);
-    let two_inv = Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        9781510331150239090,
-        15059239858463337189,
-        10331104244869713732,
-        2249375503248834476,
-    ]));
+    // TODO: Check compute cost, if enough buffer remove.
+    // let two_inv = Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
+    //     9781510331150239090,
+    //     15059239858463337189,
+    //     10331104244869713732,
+    //     2249375503248834476,
+    // ]));
+    let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one().double().inverse().unwrap();
     let mut a = r.x * &r.y;
     a.mul_assign_by_fp(&two_inv);
     let b = r.y.square();
@@ -48,7 +49,6 @@ pub fn doubling_step(
     let f = e.double() + &e;
     let j = r.x.square();
     r.x = a * &(b - &f);
-    // msg!("rX: {:?}", r);
 
     // step 1
     let mut g = b + &f;
@@ -57,7 +57,6 @@ pub fn doubling_step(
     let i = e - &b;
     let e_square = e.square();
     r.y = g.square() - &(e_square.double() + &e_square);
-    // msg!("rY: {:?}", r);
     r.z = b * &h;
 
     parse_r_to_bytes(r, r_bytes);
@@ -80,6 +79,7 @@ pub fn doubling_step(
     };
 }
 
+// https://docs.rs/ark-ec/0.3.0/src/ark_ec/models/bn/g2.rs.html#168-191
 pub fn addition_step<B: BnParameters>(
     coeff_0_range: &mut Vec<u8>,
     coeff_1_range: &mut Vec<u8>,
@@ -90,34 +90,10 @@ pub fn addition_step<B: BnParameters>(
 ) {
     let mut q = parse_proof_b_from_bytes(proof_bytes);
 
-    let twist_mul_by_q_x = QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            13075984984163199792,
-            3782902503040509012,
-            8791150885551868305,
-            1825854335138010348,
-        ])),
-        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            7963664994991228759,
-            12257807996192067905,
-            13179524609921305146,
-            2767831111890561987,
-        ])),
-    );
-    let twist_mul_by_q_y = QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            16482010305593259561,
-            13488546290961988299,
-            3578621962720924518,
-            2681173117283399901,
-        ])),
-        ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-            11661927080404088775,
-            553939530661941723,
-            7860678177968807019,
-            3208568454732775116,
-        ])),
-    );
+
+    let twist_mul_by_q_x = ark_bn254::Parameters::TWIST_MUL_BY_Q_X;
+
+    let twist_mul_by_q_y = ark_bn254::Parameters::TWIST_MUL_BY_Q_Y;
 
     if computation_flag == "normal" {
     } else if computation_flag == "negq" {
@@ -260,18 +236,9 @@ pub fn ell_instruction_d_c2(
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     ) = (
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
     );
     // Reads from hardcoded verifying key.
     if id == 0 {
@@ -515,18 +482,9 @@ pub fn ell_instruction_d_c3(
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     ) = (
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-            ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([0, 0, 0, 0])),
-        ),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
     );
     // Reads from hardcoded verifying key.
     if id == 0 {
