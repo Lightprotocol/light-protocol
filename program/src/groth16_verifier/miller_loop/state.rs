@@ -1,6 +1,5 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
-    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
 };
@@ -95,10 +94,10 @@ impl Pack for MillerLoopState {
         let dst = array_mut_ref![dst, 0, MillerLoopState::LEN];
 
         let (
-            is_initialized_dst,
-            unused_constants0_dst,
-            signing_address_dst,
-            unused_constants1_dst,
+            _is_initialized_dst,
+            _unused_constants0_dst,
+            _signing_address_dst,
+            _unused_constants1_dst,
             current_instruction_index_dst,
             f_range_dst,
             coeff_2_range_dst,
