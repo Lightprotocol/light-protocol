@@ -6,10 +6,8 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 use std::convert::TryInto;
-pub trait MtConfig: Clone {
-    /// The size of the permutation, in field elements.
-    const INIT_BYTES: &'static [u8];
-}
+
+
 #[allow(unused_variables)]
 #[derive(Debug)]
 pub struct MerkleTree {
@@ -52,10 +50,10 @@ impl Pack for MerkleTree {
             pubkey_locked,
             time_locked,
         ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
-        //assert_eq!(1, is_initialized[0], "Account is not initialized");
+
         if 1u8 != is_initialized[0] {
             msg!("merkle tree account is not initialized");
-            panic!();
+            return ProgramError::UninitializedAccount;
         }
 
         let mut tmp_subtree_vec = vec![vec![0u8; 32]; 18];
