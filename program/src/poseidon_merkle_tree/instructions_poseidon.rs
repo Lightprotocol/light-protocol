@@ -34,7 +34,6 @@ pub fn permute_instruction_first(
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(0);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let params = PoseidonParameters::<Fq>::new(rounds, mds);
-    msg!("left: {:?}, right: {:?}", left_input, right_input);
     //parsing poseidon inputs to Fq elements
     let mut state_new = prepare_inputs(&params, &left_input, &right_input).unwrap();
 
@@ -127,7 +126,6 @@ pub fn permute_instruction_last(
         state_new.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
     state_new = permute_custom_split(&params, state_new, *current_round, 4).unwrap();
-    //msg!("Hash: {:?}", state_new[0]);
 
     //reset round and index for next hash
     *current_round = 0;
@@ -145,7 +143,7 @@ pub fn prepare_inputs(
     _parameters: &PoseidonParameters<Fq>,
     left_input: &[u8],
     right_input: &[u8],
-) -> Result<Vec<Fq>, Error> /*-> Result<Self::Output, Error> */ {
+) -> Result<Vec<Fq>, Error> {
     //modified from arkworks_gadgets
 
     const INPUT_SIZE_BITS: usize =
@@ -183,13 +181,10 @@ pub fn permute_custom_split(
     nr_iterations: usize,
 ) -> Result<Vec<Fq>, PoseidonError> {
     //modified from arkworks_gadgets
-
-    //let nr = P::FULL_ROUNDS + P::PARTIAL_ROUNDS;
     let nr_end = nr_start + nr_iterations;
-    //println!("state: {:?}", state);
+
     for r in nr_start..nr_end {
         state.iter_mut().enumerate().for_each(|(i, a)| {
-            //println!("index: {} len {}", ((r - nr_start) * PoseidonCircomRounds3::WIDTH + i), params.round_keys.len());
             let c = params.round_keys[((r - nr_start) * PoseidonCircomRounds3::WIDTH + i)];
             a.add_assign(c);
         });

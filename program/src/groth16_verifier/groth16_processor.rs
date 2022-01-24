@@ -51,11 +51,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         } else if self.current_instruction_index >= MILLER_LOOP_START_INDEX
             && self.current_instruction_index < MILLER_LOOP_END_INDEX
         {
-            let res = self.miller_loop().unwrap();
-            // if res == ProgramError {
-            //     return Err(ProgramError::IncorrectProgramId);
-            // }
-            msg!("okok: {:?}", res);
+            let res = self.miller_loop()?;
             Ok(())
         } else if self.current_instruction_index >= FINAL_EXPONENTIATION_START_INDEX
             && self.current_instruction_index < FINAL_EXPONENTIATION_END_INDEX

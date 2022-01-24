@@ -224,7 +224,6 @@ impl Pack for FinalExponentiationState {
         }
 
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        // *is_initialized_dst = *is_initialized_dst; // TODO clippy?
     }
 }
 
