@@ -2,9 +2,9 @@ use crate::groth16_verifier::parsers::*;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{
-    biginteger::BigInteger256,
     fields::{Field, PrimeField},
     BitIteratorBE, Fp256,
+    One
 };
 // use ark_relations::r1cs::SynthesisError; // currently commented out, should implement manual error.
 use ark_std::Zero;
@@ -51,6 +51,7 @@ pub fn init_pairs_instruction(
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() { // 693
          // TODO: add manual error throw.
          // Err(SynthesisError::MalformedVerifyingKey);
+         panic!("MalformedVerifyingKey");
     }
 
     // inits g_ic into range.
@@ -85,12 +86,6 @@ pub fn init_pairs_instruction(
     parse_x_group_affine_to_bytes(x_vec[5], x_6_range); // 6k
     parse_x_group_affine_to_bytes(x_vec[6], x_7_range); // 6k
 
-    // check proper parsing
-    // let a = parse_fp256_ed_from_bytes(i_1_range);
-    // assert_eq!(a, i_vec[0]);
-    // let b = parse_x_group_affine_from_bytes(x_1_range);
-    // assert_eq!(b, x_vec[0]);
-    // assert_eq!(b, pvk_vk_gamma_abc_g1[1]); // groupAffine vs G1Affine
 }
 
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
@@ -158,14 +153,7 @@ pub fn maths_instruction(
                     // cost: 0
                 } else if res.is_zero() {
                     // cost: 162
-                    // This is always the same value for the same curve.
-                    let p_basefield_one: Fp256<ark_bn254::FqParameters> =
-                        Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-                            15230403791020821917,
-                            754611498739239741,
-                            7381016538464732716,
-                            1011752739694698287,
-                        ])); // Cost: 31
+                    let p_basefield_one = Fp256::<ark_bn254::FqParameters>::one();
                     res.x = x.x;
                     res.y = x.y;
                     res.z = p_basefield_one;

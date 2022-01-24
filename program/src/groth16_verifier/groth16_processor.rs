@@ -72,16 +72,6 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     // in a way that can be executed by the solana runtime.
     fn prepare_inputs(&mut self) -> Result<(), ProgramError> {
         let mut account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
-        // TODO: remove 40 from instruction array then remove this
-        /*
-        if account_data.current_instruction_index == 0 {
-            account_data.current_instruction_index += 1;
-            PrepareInputsState::pack_into_slice(
-                &account_data,
-                &mut self.main_account.data.borrow_mut(),
-            );
-            return Ok(());
-        }*/
 
         let current_instruction_index = account_data.current_instruction_index;
         prepare_inputs::processor::_process_instruction(
@@ -100,24 +90,27 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
 
     // Implements miller_loop as per: https://docs.rs/ark-ec/latest/src/ark_ec/models/bn/mod.rs.html#85-148
     // in a way that it can be executed by the solana runtime.
-    // In contrast to the ark_ec implementation, we need to create G1,G2 pairs onchain as well.
+    // We need to create G1,G2 pairs onchain.
     // The structure of those pairs is as follows:
     // (G1,G2) --> (p1,coeff1) --> (proof.a, proof.b)
     // (G1,G2) --> (p2,coeff2) --> (prepare_inputs(public_inputs), pvk.gamma_g2_neg_pc)
     // (G1,G2) --> (p3,coeff3) --> (proof.c), pvk.delta_g2_neg_pc)
-    // with pvk.. being hardcoded values that are read from utils/prepared_verifying_key.rs
     // and a single G2 look like this:
     // G2 --> (coeff0, coeff1,...coeff90)
     // coeff0 --> (c.0,c.1,c.3)
+    // proof.b must be transformed into a G2. This transformation is performed in separate parts,
+    // every part (coeff) is computed when it is used, to minimize memory use.
+    // (transformation nstruction ids "doubling_step" (ix 7) or "addition_step" (ix 8 or 9 or 10 or 11))
+    // All coeffs in pvk.gamma_g2_neg_pc and pvk.delta_g2_neg_pc are hardcoded in this program,
+    // and are obtained with getter functions from utils/prepared_verifying_key.rs
+    //
     // If you look closely at
     // the actual miller_loop implementation here: https://docs.rs/ark-ec/latest/src/ark_ec/models/bn/mod.rs.html#97-148
     // You find that it loop through each (G1,G2) pair serially and
     // with each loop it takes the same G1 value + the next G2 value out of 91 total coeff triples per (G1,G2) pair.
     // It then takes those values and calls the "ell" computation: https://docs.rs/ark-ec/latest/src/ark_ec/models/bn/mod.rs.html#57-74
     fn miller_loop(
-        &mut self,
-        // _instruction_data: &[u8],
-        // accounts: &[AccountInfo],
+        &mut self
     ) -> Result<(), ProgramError> {
         let mut main_account_data = MillerLoopState::unpack(&self.main_account.data.borrow())?;
         // First ix (0): Parses g_ic_affine(proof.b) and more from prepared_inputs state to miller_loop state.
@@ -148,9 +141,6 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         } else {
             // main processor after 1st ix (0).
 
-            // if main_account_data.current_instruction_index == 468 {
-            //     msg!()
-            // }
             miller_loop::processor::_process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
@@ -187,11 +177,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     pub fn try_initialize(&mut self, _instruction_data: &[u8]) -> Result<(), ProgramError> {
         let mut main_account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
 
-        // let mut public_inputs: Vec<Fp256<ark_bn254::FrParameters>> = vec![];
-        msg!(
-            "_instruction_data: {:?}",
-            _instruction_data[0..100].to_vec()
-        );
+        //TODO: add unpack struct for _instruction_data
         // get public_inputs from _instruction_data.
         //root
         let input1 =
@@ -202,11 +188,9 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&_instruction_data[32..64])
                 .unwrap();
         //external data hash
-        //let input3 = Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([0,0,0,0]));
         let input3 =
             <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&_instruction_data[64..96])
                 .unwrap();
-
         //inputNullifier0
         let input4 =
             <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&_instruction_data[96..128])
@@ -228,6 +212,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         let public_inputs: Vec<Fp256<ark_bn254::FrParameters>> =
             vec![input1, input2, input3, input4, input5, input6, input7];
 
+        // Initialize prepare inputs
         prepare_inputs::instructions::init_pairs_instruction(
             &public_inputs,
             &mut main_account_data.i_1_range,
@@ -248,7 +233,6 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             &mut main_account_data.g_ic_y_range,
             &mut main_account_data.g_ic_z_range,
         );
-        msg!("len _instruction_data{}", _instruction_data.len());
         let indices: [usize; 17] = [
             I_1_RANGE_INDEX,
             X_1_RANGE_INDEX,
