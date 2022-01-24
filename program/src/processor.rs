@@ -49,7 +49,7 @@ pub fn process_instruction(
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // and executes transaction, deposit or withdrawal.
-    else if current_instruction_index == 1502 {
+    else if current_instruction_index == 1501 {
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0_pda = next_account_info(account)?;
         let nullifier1_pda = next_account_info(account)?;

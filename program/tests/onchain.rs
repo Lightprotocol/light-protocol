@@ -65,7 +65,7 @@ async fn compute_prepared_inputs(
     // we must make sure we're not having the exact same ix_data/ix in the same block.
     // Since the runtime dedupes any exactly equivalent ix within the same block.
     let mut i = 0usize;
-    for id in 0..464usize {
+    for id in 0..463usize {
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {
@@ -416,7 +416,7 @@ pub fn get_mock_state(
         }
         // ...The account state (current instruction index,...) must match the
         // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
-        let current_index = 466 as usize;
+        let current_index = 465 as usize;
         for (index, i) in current_index.to_le_bytes().iter().enumerate() {
             account_state[index + 212] = *i;
         }
@@ -434,7 +434,7 @@ pub fn get_mock_state(
         // set is_initialized:true
         account_state[0] = 1;
         // set current index
-        let current_index = 896 as usize;
+        let current_index = 895 as usize;
         for (index, i) in current_index.to_le_bytes().iter().enumerate() {
             account_state[index + 212] = *i;
         }
@@ -808,7 +808,7 @@ async fn check_temp_storage_account_state_correct(
         unpack_li_bytes_for_test(&temp_storage_account.data.clone());
     assert_eq!(
         unpacked_temp_storage_account.current_instruction_index,
-        1503
+        1502
     );
 
     if merkle_account_data_after.is_some() {
