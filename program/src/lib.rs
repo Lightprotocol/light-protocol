@@ -186,14 +186,14 @@ pub fn process_instruction(
 }
 
 const ROOT_CHECK: usize = 1;
-const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1502;
-const VERIFICATION_END_INDEX: usize = 1267;
+const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1501;
+const VERIFICATION_END_INDEX: usize = 1266;
 //instruction order
-pub const IX_ORDER: [u8; 1503] = [
+pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts
     //check root
     1, //prepare inputs for verification
-    40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+    /*40, */41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 46, 41, 43, 43, 43, 43,
     43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,

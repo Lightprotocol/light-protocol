@@ -222,8 +222,8 @@ pub fn _process_instruction(
 // That's because we're accessing different i,x ranges. If you look
 // at the actual calls inside /processor.rs you'll see the minor differences between those.
 
-pub const IX_ORDER_ARRAY: [u8; 465] = [
-    40, 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+pub const IX_ORDER_ARRAY: [u8; 464] = [
+    41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 46, 41, 43, 43, 43, 43,
     43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,
@@ -259,8 +259,8 @@ pub const IX_ORDER_ARRAY: [u8; 465] = [
 // For every maths_instruction (one of 42,43,44,45,56,57,58) we count 0..256 -> current_instruction.
 // Other instructions ignore current_index (see @processor) as they don't need it.
 
-pub const CURRENT_INDEX_ARRAY: [u8; 465] = [
-    40, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84,
+pub const CURRENT_INDEX_ARRAY: [u8; 464] = [
+    41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84,
     88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152, 156, 160,
     164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236,
     240, 244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64,

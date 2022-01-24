@@ -25,3 +25,5 @@ pub const NAF_VEC: [i64; 63] = [
     0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, -1, 0, 0,
     0, 1,
 ];
+pub const FINAL_EXPONENTIATION_START_INDEX: usize = 894;
+pub const FINAL_EXPONENTIATION_END_INDEX: usize = 1265;

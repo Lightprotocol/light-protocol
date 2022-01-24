@@ -7,7 +7,14 @@ use solana_program::{
 // Light
 use crate::groth16_verifier::{
     final_exponentiation,
-    final_exponentiation::{instructions::verify_result, state::FinalExponentiationState},
+    final_exponentiation::{
+        instructions::verify_result,
+        state::FinalExponentiationState,
+        ranges::{
+            FINAL_EXPONENTIATION_START_INDEX,
+            FINAL_EXPONENTIATION_END_INDEX
+            }
+        },
     miller_loop,
     miller_loop::{ranges::*, state::*},
     parsers::*,
@@ -50,8 +57,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             // }
             msg!("okok: {:?}", res);
             Ok(())
-        } else if self.current_instruction_index >= 430 + 466
-            && self.current_instruction_index < 801 + 466
+        } else if self.current_instruction_index >= 430 + 465
+            && self.current_instruction_index < 801 + 465
         {
             self.final_exponentiation()?;
             Ok(())
@@ -66,6 +73,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     fn prepare_inputs(&mut self) -> Result<(), ProgramError> {
         let mut account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
         // TODO: remove 40 from instruction array then remove this
+        /*
         if account_data.current_instruction_index == 0 {
             account_data.current_instruction_index += 1;
             PrepareInputsState::pack_into_slice(
@@ -73,7 +81,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
                 &mut self.main_account.data.borrow_mut(),
             );
             return Ok(());
-        }
+        }*/
 
         let current_instruction_index = account_data.current_instruction_index;
         prepare_inputs::processor::_process_instruction(
