@@ -601,32 +601,32 @@ pub mod tests {
 
         // f1 = r.conjugate() = f^(p^6)
         let mut f1 = *f;
-        parse_f_to_bytes(*f, &mut account_struct.f1_r_range_s);
-        parse_f_to_bytes(*f, &mut account_struct1.f_f2_range_s);
+        parse_f_to_bytes(*f, &mut account_struct.f1_r_range);
+        parse_f_to_bytes(*f, &mut account_struct1.f_f2_range);
 
         assert_eq!(
             f1,
-            parse_f_from_bytes(&account_struct.f1_r_range_s),
+            parse_f_from_bytes(&account_struct.f1_r_range),
             "0 failed"
         );
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 0);
 
         let reference_f = f.clone();
-        account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
+        account_struct.f_f2_range = account_struct.f1_r_range.clone();
         /*
         	* ------------------------- conjugate -------------------------
         	*instruction 0
         	*/
         f1.conjugate();
-        conjugate_wrapper(&mut account_struct.f1_r_range_s);
+        conjugate_wrapper(&mut account_struct.f1_r_range);
         instruction_order.push(0);
         assert_eq!(
             f1,
-            parse_f_from_bytes(&account_struct.f1_r_range_s),
+            parse_f_from_bytes(&account_struct.f1_r_range),
             "1 failed"
         );
 
@@ -636,136 +636,136 @@ pub mod tests {
         	* instruction 1
         	*/
         instruction_order.push(1);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 1);
         custom_f_inverse_1(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_1,
         );
 
         //instruction 2 ---------------------------------------------
         instruction_order.push(2);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 2);
 
         custom_f_inverse_2(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
         );
 
         //instruction 3 ---------------------------------------------
         instruction_order.push(3);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 3);
 
         custom_cubic_inverse_1(
-            &account_struct.cubic_range_0_s,
-            &mut account_struct.quad_range_0_s,
-            &mut account_struct.quad_range_1_s,
-            &mut account_struct.quad_range_2_s,
-            &mut account_struct.quad_range_3_s,
+            &account_struct.cubic_range_0,
+            &mut account_struct.quad_range_0,
+            &mut account_struct.quad_range_1,
+            &mut account_struct.quad_range_2,
+            &mut account_struct.quad_range_3,
         );
 
         //instruction 4 ---------------------------------------------
         instruction_order.push(4);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 4);
 
         //quad inverse is part of cubic Inverse
         custom_quadratic_fp256_inverse_1(
-            &account_struct.quad_range_3_s,
-            &mut account_struct.fp384_range_s,
+            &account_struct.quad_range_3,
+            &mut account_struct.fp256_range,
         );
 
         //instruction 5 ---------------------------------------------
         instruction_order.push(5);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 5);
 
         custom_quadratic_fp256_inverse_2(
-            &mut account_struct.quad_range_3_s,
-            &account_struct.fp384_range_s,
+            &mut account_struct.quad_range_3,
+            &account_struct.fp256_range,
         );
 
         //instruction 6 ---------------------------------------------
         instruction_order.push(6);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 6);
 
         custom_cubic_inverse_2(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.quad_range_0_s,
-            &account_struct.quad_range_1_s,
-            &account_struct.quad_range_2_s,
-            &account_struct.quad_range_3_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.quad_range_0,
+            &account_struct.quad_range_1,
+            &account_struct.quad_range_2,
+            &account_struct.quad_range_3,
         );
 
         //instruction 7 ---------------------------------------------
         instruction_order.push(7);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 7);
 
         custom_f_inverse_3(
-            &mut account_struct.cubic_range_1_s,
-            &account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_1,
+            &account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //instruction 8 ---------------------------------------------
         instruction_order.push(8);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 8);
 
         custom_f_inverse_4(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //instruction 9 ---------------------------------------------
         instruction_order.push(9);
-        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
         _process_instruction(&mut account_struct1, 9);
 
         custom_f_inverse_5(
-            &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
-            &mut account_struct.f_f2_range_s,
+            &account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
+            &mut account_struct.f_f2_range,
         );
 
         assert_eq!(
             reference_f.inverse().unwrap(),
-            parse_f_from_bytes(&account_struct.f_f2_range_s),
+            parse_f_from_bytes(&account_struct.f_f2_range),
             "f inverse failed"
         );
-        assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s));
+        assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range));
 
         f.inverse().map(|mut f2| {
             /*
@@ -781,41 +781,41 @@ pub mod tests {
 
             let mut r = f1 * &f2;
 
-            assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range_s));
-            assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range_s));
+            assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range));
+            assert_eq!(f1, parse_f_from_bytes(&account_struct.f1_r_range));
             //instruction 10 ---------------------------------------------
             instruction_order.push(10);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 10);
 
-            mul_assign_1_2(
-                &account_struct.f1_r_range_s,
-                &account_struct.f_f2_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.f1_r_range,
+                &account_struct.f_f2_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 11 ---------------------------------------------
             instruction_order.push(11);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 11);
 
-            mul_assign_3_4_5(
-                &account_struct.f_f2_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.f1_r_range_s,
+            mul_assign_2(
+                &account_struct.f_f2_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.f1_r_range,
             );
 
             assert_eq!(
                 r,
-                parse_f_from_bytes(&account_struct.f1_r_range_s),
+                parse_f_from_bytes(&account_struct.f1_r_range),
                 "f mulassign failed"
             );
 
@@ -831,14 +831,14 @@ pub mod tests {
             f2 = r;
             //instruction 12 ---------------------------------------------
             instruction_order.push(12);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 12);
 
-            account_struct.f_f2_range_s = account_struct.f1_r_range_s.clone();
-            assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range_s));
+            account_struct.f_f2_range = account_struct.f1_r_range.clone();
+            assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range));
 
             /*
             	*
@@ -853,15 +853,15 @@ pub mod tests {
 
             //instruction 13 ---------------------------------------------
             instruction_order.push(13);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 13);
 
-            custom_frobenius_map_2(&mut account_struct.f1_r_range_s);
+            custom_frobenius_map_2(&mut account_struct.f1_r_range);
 
-            assert_eq!(r, parse_f_from_bytes(&account_struct.f1_r_range_s));
+            assert_eq!(r, parse_f_from_bytes(&account_struct.f1_r_range));
 
             /*
             	*
@@ -877,37 +877,37 @@ pub mod tests {
             //f2 last used here
             //instruction 10 ---------------------------------------------
             instruction_order.push(10);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 10);
 
-            mul_assign_1_2(
-                &account_struct.f1_r_range_s,
-                &account_struct.f_f2_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.f1_r_range,
+                &account_struct.f_f2_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 11 ---------------------------------------------
             instruction_order.push(11);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 11);
 
-            mul_assign_3_4_5(
-                &account_struct.f_f2_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.f1_r_range_s,
+            mul_assign_2(
+                &account_struct.f_f2_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.f1_r_range,
             );
 
             assert_eq!(
                 r,
-                parse_f_from_bytes(&account_struct.f1_r_range_s),
+                parse_f_from_bytes(&account_struct.f1_r_range),
                 "f mulassign failed"
             );
 
@@ -935,90 +935,90 @@ pub mod tests {
             //init
             //instruction 14 ---------------------------------------------
             instruction_order.push(14);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 14);
 
-            account_struct.i_range_s = account_struct.f1_r_range_s.clone();
-            conjugate_wrapper(&mut account_struct.i_range_s);
-            account_struct.y0_range_s = account_struct.f1_r_range_s.clone();
+            account_struct.i_range = account_struct.f1_r_range.clone();
+            conjugate_wrapper(&mut account_struct.i_range);
+            account_struct.y0_range = account_struct.f1_r_range.clone();
 
             for i in 1..63 {
                 if i == 1 {
-                    assert_eq!(account_struct.y0_range_s, account_struct.f1_r_range_s);
+                    assert_eq!(account_struct.y0_range, account_struct.f1_r_range);
                 }
                 println!("i {}", i);
                 //cyclotomic_exp
                 //instruction 15 ---------------------------------------------
                 instruction_order.push(15);
-                assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                 _process_instruction(&mut account_struct1, 15);
 
-                custom_cyclotomic_square_in_place(&mut account_struct.y0_range_s);
+                custom_cyclotomic_square_in_place(&mut account_struct.y0_range);
 
                 if NAF_VEC[i] != 0 {
                     if NAF_VEC[i] > 0 {
                         //println!("if i {}", i);
                         //instruction 16 ---------------------------------------------
                         instruction_order.push(16);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 16);
-                        mul_assign_1_2(
-                            &account_struct.y0_range_s,
-                            &account_struct.f1_r_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                        mul_assign_1(
+                            &account_struct.y0_range,
+                            &account_struct.f1_r_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 17 ---------------------------------------------
                         instruction_order.push(17);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 17);
 
-                        mul_assign_3_4_5(
-                            &account_struct.f1_r_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
-                            &mut account_struct.y0_range_s,
+                        mul_assign_2(
+                            &account_struct.f1_r_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
+                            &mut account_struct.y0_range,
                         );
                     } else {
                         //instruction 18 ---------------------------------------------
                         instruction_order.push(18);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 18);
-                        mul_assign_1_2(
-                            &account_struct.y0_range_s,
-                            &account_struct.i_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                        mul_assign_1(
+                            &account_struct.y0_range,
+                            &account_struct.i_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 19 ---------------------------------------------
                         instruction_order.push(19);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 19);
-                        mul_assign_3_4_5(
-                            &account_struct.i_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
-                            &mut account_struct.y0_range_s,
+                        mul_assign_2(
+                            &account_struct.i_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
+                            &mut account_struct.y0_range,
                         );
                     }
                 }
@@ -1026,16 +1026,16 @@ pub mod tests {
 
             //instruction 20 ---------------------------------------------
             instruction_order.push(20);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 20);
 
-            conjugate_wrapper(&mut account_struct.y0_range_s);
+            conjugate_wrapper(&mut account_struct.y0_range);
             assert_eq!(
                 y0,
-                parse_f_from_bytes(&account_struct.y0_range_s),
+                parse_f_from_bytes(&account_struct.y0_range),
                 "exp_by_neg_x(r) "
             );
 
@@ -1048,10 +1048,10 @@ pub mod tests {
             	*/
 
             let y1 = y0.cyclotomic_square();
-            custom_cyclotomic_square(&account_struct.y0_range_s, &mut account_struct.y1_range_s);
+            custom_cyclotomic_square(&account_struct.y0_range, &mut account_struct.y1_range);
             assert_eq!(
                 y1,
-                parse_f_from_bytes(&account_struct.y1_range_s),
+                parse_f_from_bytes(&account_struct.y1_range),
                 "exp_by_neg_x(r) "
             );
             //y0 last used
@@ -1065,19 +1065,19 @@ pub mod tests {
             	*/
 
             let y2 = y1.cyclotomic_square();
-            //y2 is stored in y0_range_s
+            //y2 is stored in y0_range
             //instruction 21 ---------------------------------------------
             instruction_order.push(21);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 21);
 
-            custom_cyclotomic_square(&account_struct.y1_range_s, &mut account_struct.y0_range_s);
+            custom_cyclotomic_square(&account_struct.y1_range, &mut account_struct.y0_range);
             assert_eq!(
                 y2,
-                parse_f_from_bytes(&account_struct.y0_range_s),
+                parse_f_from_bytes(&account_struct.y0_range),
                 "exp_by_neg_x(r) "
             );
 
@@ -1090,39 +1090,39 @@ pub mod tests {
             	*/
 
             let mut y3 = y2 * &y1;
-            //y3 is stored in y0_range_s
+            //y3 is stored in y0_range
 
             //instruction 22 ---------------------------------------------
             instruction_order.push(22);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 22);
-            mul_assign_1_2(
-                &account_struct.y0_range_s,
-                &account_struct.y1_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.y0_range,
+                &account_struct.y1_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 23 ---------------------------------------------
             instruction_order.push(23);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 23);
-            mul_assign_3_4_5(
-                &account_struct.y1_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y0_range_s,
+            mul_assign_2(
+                &account_struct.y1_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y0_range,
             );
 
             assert_eq!(
                 y3,
-                parse_f_from_bytes(&account_struct.y0_range_s),
+                parse_f_from_bytes(&account_struct.y0_range),
                 "mulassign "
             );
 
@@ -1135,87 +1135,87 @@ pub mod tests {
             	*/
 
             let y4 = exp_by_neg_x(y3);
-            //y4 is stored in y2_range_s
+            //y4 is stored in y2_range
 
             //init
             //instruction 24 ---------------------------------------------
             instruction_order.push(24);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 24);
-            account_struct.i_range_s = account_struct.y0_range_s.clone();
-            conjugate_wrapper(&mut account_struct.i_range_s);
-            account_struct.y2_range_s = account_struct.y0_range_s.clone();
+            account_struct.i_range = account_struct.y0_range.clone();
+            conjugate_wrapper(&mut account_struct.i_range);
+            account_struct.y2_range = account_struct.y0_range.clone();
 
             for i in 1..63 {
                 //cyclotomic_exp
                 //instruction 25 ---------------------------------------------
                 instruction_order.push(25);
-                assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                 _process_instruction(&mut account_struct1, 25);
-                custom_cyclotomic_square_in_place(&mut account_struct.y2_range_s);
+                custom_cyclotomic_square_in_place(&mut account_struct.y2_range);
 
                 if NAF_VEC[i] != 0 {
                     if NAF_VEC[i] > 0 {
                         //instruction 26 ---------------------------------------------
                         instruction_order.push(26);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 26);
-                        mul_assign_1_2(
-                            &account_struct.y2_range_s,
-                            &account_struct.y0_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                        mul_assign_1(
+                            &account_struct.y2_range,
+                            &account_struct.y0_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 27 ---------------------------------------------
                         instruction_order.push(27);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 27);
-                        mul_assign_3_4_5(
-                            &account_struct.y0_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
-                            &mut account_struct.y2_range_s,
+                        mul_assign_2(
+                            &account_struct.y0_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
+                            &mut account_struct.y2_range,
                         );
                     } else {
                         //instruction 28 ---------------------------------------------
                         instruction_order.push(28);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 28);
-                        mul_assign_1_2(
-                            &account_struct.y2_range_s,
-                            &account_struct.i_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                        mul_assign_1(
+                            &account_struct.y2_range,
+                            &account_struct.i_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 29 ---------------------------------------------
                         instruction_order.push(29);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 29);
-                        mul_assign_3_4_5(
-                            &account_struct.i_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
-                            &mut account_struct.y2_range_s,
+                        mul_assign_2(
+                            &account_struct.i_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
+                            &mut account_struct.y2_range,
                         );
                     }
                 }
@@ -1223,16 +1223,16 @@ pub mod tests {
 
             //instruction 30 ---------------------------------------------
             instruction_order.push(30);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 30);
-            conjugate_wrapper(&mut account_struct.y2_range_s);
+            conjugate_wrapper(&mut account_struct.y2_range);
 
             assert_eq!(
                 y4,
-                parse_f_from_bytes(&account_struct.y2_range_s),
+                parse_f_from_bytes(&account_struct.y2_range),
                 "exp_by_neg_x(r) "
             );
 
@@ -1242,7 +1242,7 @@ pub mod tests {
             	* ------------------------- y4.cyclotomic_square() -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	f2 not used anymore
+            	* f_f2_range: 	f2 not used anymore
             	* y0_range:  		y3
             	* y1_range:			y1
             	* y2_range:			y4
@@ -1250,11 +1250,11 @@ pub mod tests {
             	*/
 
             let y5 = y4.cyclotomic_square();
-            //y5 is stored in f_f2_range_s
-            custom_cyclotomic_square(&account_struct.y2_range_s, &mut account_struct.f_f2_range_s);
+            //y5 is stored in f_f2_range
+            custom_cyclotomic_square(&account_struct.y2_range, &mut account_struct.f_f2_range);
             assert_eq!(
                 y5,
-                parse_f_from_bytes(&account_struct.f_f2_range_s),
+                parse_f_from_bytes(&account_struct.f_f2_range),
                 "cyclotomic_square "
             );
 
@@ -1264,7 +1264,7 @@ pub mod tests {
             	* ------------------------- y4 = exp_by_neg_x(y3) -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	y5 			//y5 last used here
+            	* f_f2_range: 	y5 			//y5 last used here
             	* y0_range:  		y3
             	* y1_range:			y1
             	* y2_range:			y4
@@ -1277,24 +1277,24 @@ pub mod tests {
             //init
             //instruction 31 ---------------------------------------------
             instruction_order.push(31);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 31);
-            account_struct.i_range_s = account_struct.f_f2_range_s.clone();
+            account_struct.i_range = account_struct.f_f2_range.clone();
 
-            conjugate_wrapper(&mut account_struct.i_range_s);
+            conjugate_wrapper(&mut account_struct.i_range);
 
-            account_struct.y6_range = account_struct.f_f2_range_s.clone();
+            account_struct.y6_range = account_struct.f_f2_range.clone();
 
             for i in 1..63 {
                 //cyclotomic_exp
                 //instruction 32 ---------------------------------------------
                 instruction_order.push(32);
-                assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                 _process_instruction(&mut account_struct1, 32);
                 custom_cyclotomic_square_in_place(&mut account_struct.y6_range);
@@ -1303,57 +1303,57 @@ pub mod tests {
                     if NAF_VEC[i] > 0 {
                         //instruction 33 ---------------------------------------------
                         instruction_order.push(33);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 33);
-                        mul_assign_1_2(
+                        mul_assign_1(
                             &account_struct.y6_range,
-                            &account_struct.f_f2_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                            &account_struct.f_f2_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 34 ---------------------------------------------
                         instruction_order.push(34);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 34);
-                        mul_assign_3_4_5(
-                            &account_struct.f_f2_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
+                        mul_assign_2(
+                            &account_struct.f_f2_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
                             &mut account_struct.y6_range,
                         );
                     } else {
                         //instruction 35 ---------------------------------------------
                         instruction_order.push(35);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 35);
-                        mul_assign_1_2(
+                        mul_assign_1(
                             &account_struct.y6_range,
-                            &account_struct.i_range_s,
-                            &mut account_struct.cubic_range_0_s,
-                            &mut account_struct.cubic_range_1_s,
+                            &account_struct.i_range,
+                            &mut account_struct.cubic_range_0,
+                            &mut account_struct.cubic_range_1,
                         );
 
                         //instruction 36 ---------------------------------------------
                         instruction_order.push(36);
-                        assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-                        assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-                        assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+                        assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+                        assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+                        assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
                         _process_instruction(&mut account_struct1, 36);
-                        mul_assign_3_4_5(
-                            &account_struct.i_range_s,
-                            &account_struct.cubic_range_0_s,
-                            &account_struct.cubic_range_1_s,
+                        mul_assign_2(
+                            &account_struct.i_range,
+                            &account_struct.cubic_range_0,
+                            &account_struct.cubic_range_1,
                             &mut account_struct.y6_range,
                         );
                     }
@@ -1361,9 +1361,9 @@ pub mod tests {
             }
             //instruction 37 ---------------------------------------------
             instruction_order.push(37);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 37);
 
@@ -1383,7 +1383,7 @@ pub mod tests {
             	* ------------------------- conjugate_wrapper -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y3
             	* y1_range:			y1
             	* y2_range:			y4
@@ -1392,7 +1392,7 @@ pub mod tests {
             	*/
 
             y3.conjugate();
-            conjugate_wrapper(&mut account_struct.y0_range_s);
+            conjugate_wrapper(&mut account_struct.y0_range);
 
             y6.conjugate();
 
@@ -1404,7 +1404,7 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y3
             	* y1_range:			y1
             	* y2_range:			y4
@@ -1416,29 +1416,29 @@ pub mod tests {
 
             //instruction 38 ---------------------------------------------
             instruction_order.push(38);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 38);
-            mul_assign_1_2(
+            mul_assign_1(
                 &account_struct.y6_range,
-                &account_struct.y2_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &account_struct.y2_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 39 ---------------------------------------------
             instruction_order.push(39);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 39);
-            mul_assign_3_4_5(
-                &account_struct.y2_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
+            mul_assign_2(
+                &account_struct.y2_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
                 &mut account_struct.y6_range,
             );
 
@@ -1454,7 +1454,7 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y3 last used
             	* y1_range:			y1
             	* y2_range:			y4
@@ -1465,29 +1465,29 @@ pub mod tests {
 
             //instruction 40 ---------------------------------------------
             instruction_order.push(40);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 40);
-            mul_assign_1_2(
+            mul_assign_1(
                 &account_struct.y6_range,
-                &account_struct.y0_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &account_struct.y0_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 41 ---------------------------------------------
             instruction_order.push(41);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 41);
-            mul_assign_3_4_5(
-                &account_struct.y0_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
+            mul_assign_2(
+                &account_struct.y0_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
                 &mut account_struct.y6_range,
             );
 
@@ -1503,7 +1503,7 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		free
             	* y1_range:			y1		last used
             	* y2_range:			y4
@@ -1514,35 +1514,35 @@ pub mod tests {
 
             //instruction 42 ---------------------------------------------
             instruction_order.push(42);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 42);
-            mul_assign_1_2(
-                &account_struct.y1_range_s,
+            mul_assign_1(
+                &account_struct.y1_range,
                 &account_struct.y6_range,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 43 ---------------------------------------------
             instruction_order.push(43);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 43);
-            mul_assign_3_4_5(
+            mul_assign_2(
                 &account_struct.y6_range,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y1_range_s,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y1_range,
             );
 
             assert_eq!(
                 y9,
-                parse_f_from_bytes(&account_struct.y1_range_s),
+                parse_f_from_bytes(&account_struct.y1_range),
                 "mulassign "
             );
 
@@ -1552,46 +1552,46 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		free
             	* y1_range:			y9
             	* y2_range:			y4 last used
             	* y6_range:			y8
             	*/
             let y10 = y8 * &y4;
-            // stored in y2_range_s
+            // stored in y2_range
 
             //instruction 44 ---------------------------------------------
             instruction_order.push(44);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 44);
-            mul_assign_1_2(
-                &account_struct.y2_range_s,
+            mul_assign_1(
+                &account_struct.y2_range,
                 &account_struct.y6_range,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 45 ---------------------------------------------
             instruction_order.push(45);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 45);
-            mul_assign_3_4_5(
+            mul_assign_2(
                 &account_struct.y6_range,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y2_range_s,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y2_range,
             );
 
             assert_eq!(
                 y10,
-                parse_f_from_bytes(&account_struct.y2_range_s),
+                parse_f_from_bytes(&account_struct.y2_range),
                 "mulassign "
             );
 
@@ -1601,46 +1601,46 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		free
             	* y1_range:			y9
             	* y2_range:			y10  last used
             	* y6_range:			y8
             	*/
             let y11 = y10 * &r;
-            // stored in y2_range_s
+            // stored in y2_range
 
             //instruction 46 ---------------------------------------------
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 46);
             instruction_order.push(46);
-            mul_assign_1_2(
-                &account_struct.y2_range_s,
-                &account_struct.f1_r_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.y2_range,
+                &account_struct.f1_r_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 47 ---------------------------------------------
             instruction_order.push(47);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 47);
-            mul_assign_3_4_5(
-                &account_struct.f1_r_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y2_range_s,
+            mul_assign_2(
+                &account_struct.f1_r_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y2_range,
             );
 
             assert_eq!(
                 y11,
-                parse_f_from_bytes(&account_struct.y2_range_s),
+                parse_f_from_bytes(&account_struct.y2_range),
                 "mulassign "
             );
 
@@ -1650,7 +1650,7 @@ pub mod tests {
             	* ------------------------- assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		free
             	* y1_range:			y9
             	* y2_range:			y11
@@ -1661,21 +1661,21 @@ pub mod tests {
 
             //instruction 48 ---------------------------------------------
             instruction_order.push(48);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 48);
 
-            //assert_eq!(y12,  parse_f_from_bytes(&account_struct.y0_range_s));
-            account_struct.y0_range_s = account_struct.y1_range_s.clone();
+            //assert_eq!(y12,  parse_f_from_bytes(&account_struct.y0_range));
+            account_struct.y0_range = account_struct.y1_range.clone();
             /*
             	*
             	*
             	* ------------------------- frobenius_map(1) -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9
             	* y2_range:			y11
@@ -1683,9 +1683,9 @@ pub mod tests {
             	*/
             y12.frobenius_map(1);
 
-            custom_frobenius_map_1(&mut account_struct.y0_range_s);
+            custom_frobenius_map_1(&mut account_struct.y0_range);
 
-            assert_eq!(y12, parse_f_from_bytes(&account_struct.y0_range_s));
+            assert_eq!(y12, parse_f_from_bytes(&account_struct.y0_range));
 
             /*
             	*
@@ -1693,46 +1693,46 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9
             	* y2_range:			y11 last used
             	* y6_range:			y8
             	*/
             let y13 = y12 * &y11;
-            //y13 stored in y2_range_s
+            //y13 stored in y2_range
 
             //instruction 49 ---------------------------------------------
             instruction_order.push(49);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 49);
-            mul_assign_1_2(
-                &account_struct.y2_range_s,
-                &account_struct.y0_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.y2_range,
+                &account_struct.y0_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 50 ---------------------------------------------
             instruction_order.push(50);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 50);
-            mul_assign_3_4_5(
-                &account_struct.y0_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y2_range_s,
+            mul_assign_2(
+                &account_struct.y0_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y2_range,
             );
 
             assert_eq!(
                 y13,
-                parse_f_from_bytes(&account_struct.y2_range_s),
+                parse_f_from_bytes(&account_struct.y2_range),
                 "mulassign "
             );
 
@@ -1742,7 +1742,7 @@ pub mod tests {
             	* ------------------------- frobenius_map(2) -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9
             	* y2_range:			y13
@@ -1752,9 +1752,9 @@ pub mod tests {
 
             //instruction 51 ---------------------------------------------
             instruction_order.push(51);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 51);
             custom_frobenius_map_2(&mut account_struct.y6_range);
@@ -1767,7 +1767,7 @@ pub mod tests {
             	* ------------------------- mulassign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9
             	* y2_range:			y13
@@ -1780,29 +1780,29 @@ pub mod tests {
 
             //instruction 38 ---------------------------------------------
             instruction_order.push(38);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 38);
-            mul_assign_1_2(
+            mul_assign_1(
                 &account_struct.y6_range,
-                &account_struct.y2_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &account_struct.y2_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 39 ---------------------------------------------
             instruction_order.push(39);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 39);
-            mul_assign_3_4_5(
-                &account_struct.y2_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
+            mul_assign_2(
+                &account_struct.y2_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
                 &mut account_struct.y6_range,
             );
 
@@ -1818,7 +1818,7 @@ pub mod tests {
             	* ------------------------- conjugate -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9
             	* y2_range:			y13
@@ -1827,13 +1827,13 @@ pub mod tests {
 
             //instruction 52 ---------------------------------------------
             instruction_order.push(52);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 52);
             r.conjugate();
-            conjugate_wrapper(&mut account_struct.f1_r_range_s);
+            conjugate_wrapper(&mut account_struct.f1_r_range);
 
             /*
             	*
@@ -1841,7 +1841,7 @@ pub mod tests {
             	* ------------------------- mul_assign -------------------------
             	*
             	* r_range: 			r		last used
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y9		last used
             	* y2_range:			y13
@@ -1853,35 +1853,35 @@ pub mod tests {
 
             //instruction 53 ---------------------------------------------
             instruction_order.push(53);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 53);
-            mul_assign_1_2(
-                &account_struct.y1_range_s,
-                &account_struct.f1_r_range_s,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+            mul_assign_1(
+                &account_struct.y1_range,
+                &account_struct.f1_r_range,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 54 ---------------------------------------------
             instruction_order.push(54);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 54);
-            mul_assign_3_4_5(
-                &account_struct.f1_r_range_s,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y1_range_s,
+            mul_assign_2(
+                &account_struct.f1_r_range,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y1_range,
             );
 
             assert_eq!(
                 y15,
-                parse_f_from_bytes(&account_struct.y1_range_s),
+                parse_f_from_bytes(&account_struct.y1_range),
                 "mulassign "
             );
 
@@ -1891,7 +1891,7 @@ pub mod tests {
             	* ------------------------- frobenius_map(3) -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y15
             	* y2_range:			y13
@@ -1902,14 +1902,14 @@ pub mod tests {
 
             //instruction 55 ---------------------------------------------
             instruction_order.push(55);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 55);
-            custom_frobenius_map_3(&mut account_struct.y1_range_s);
+            custom_frobenius_map_3(&mut account_struct.y1_range);
 
-            assert_eq!(y15, parse_f_from_bytes(&account_struct.y1_range_s));
+            assert_eq!(y15, parse_f_from_bytes(&account_struct.y1_range));
 
             /*
             	*
@@ -1917,7 +1917,7 @@ pub mod tests {
             	* ------------------------- mulassign -------------------------
             	*
             	* r_range: 			r
-            	* f_f2_range_s: 	free
+            	* f_f2_range: 	free
             	* y0_range:  		y12
             	* y1_range:			y15
             	* y2_range:			y13
@@ -1929,35 +1929,35 @@ pub mod tests {
 
             //instruction 42 ---------------------------------------------
             instruction_order.push(42);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 42);
-            mul_assign_1_2(
-                &account_struct.y1_range_s,
+            mul_assign_1(
+                &account_struct.y1_range,
                 &account_struct.y6_range,
-                &mut account_struct.cubic_range_0_s,
-                &mut account_struct.cubic_range_1_s,
+                &mut account_struct.cubic_range_0,
+                &mut account_struct.cubic_range_1,
             );
 
             //instruction 43 ---------------------------------------------
             instruction_order.push(43);
-            assert_eq!(account_struct1.y0_range_s, account_struct.y0_range_s);
-            assert_eq!(account_struct1.y1_range_s, account_struct.y1_range_s);
-            assert_eq!(account_struct1.y2_range_s, account_struct.y2_range_s);
+            assert_eq!(account_struct1.y0_range, account_struct.y0_range);
+            assert_eq!(account_struct1.y1_range, account_struct.y1_range);
+            assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
             _process_instruction(&mut account_struct1, 43);
-            mul_assign_3_4_5(
+            mul_assign_2(
                 &account_struct.y6_range,
-                &account_struct.cubic_range_0_s,
-                &account_struct.cubic_range_1_s,
-                &mut account_struct.y1_range_s,
+                &account_struct.cubic_range_0,
+                &account_struct.cubic_range_1,
+                &mut account_struct.y1_range,
             );
 
             assert_eq!(
                 y16,
-                parse_f_from_bytes(&account_struct.y1_range_s),
+                parse_f_from_bytes(&account_struct.y1_range),
                 "mulassign "
             );
             println!(
@@ -1994,7 +1994,7 @@ pub mod tests {
     ) -> Option<<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk> {
         let mut account_struct = FinalExponentiationState::new();
 
-        parse_f_to_bytes(*f, &mut account_struct.f_f2_range_s);
+        parse_f_to_bytes(*f, &mut account_struct.f_f2_range);
         account_struct.changed_variables[F_F2_RANGE_ITER] = true;
         let mut account_onchain_slice = [0u8; 3900];
         <FinalExponentiationState as Pack>::pack_into_slice(
@@ -2018,17 +2018,17 @@ pub mod tests {
                 <FinalExponentiationState as Pack>::unpack(&account_onchain_slice).unwrap();
             println!("processor iter : {}", i);
             _process_instruction(&mut account_struct_tmp, i);
-            account_struct.y1_range_s = account_struct_tmp.y1_range_s.clone();
+            account_struct.y1_range = account_struct_tmp.y1_range.clone();
 
             <FinalExponentiationState as Pack>::pack_into_slice(
                 &account_struct_tmp,
                 &mut account_onchain_slice,
             );
-            assert_eq!(account_struct.y1_range_s, account_struct_tmp.y1_range_s);
+            assert_eq!(account_struct.y1_range, account_struct_tmp.y1_range);
         }
-        println!("result in bytes: {:?}", account_struct.y1_range_s);
+        println!("result in bytes: {:?}", account_struct.y1_range);
         verify_result(&account_struct);
-        Some(parse_f_from_bytes(&account_struct.y1_range_s))
+        Some(parse_f_from_bytes(&account_struct.y1_range))
     }
     use ark_ec::bn::BnParameters;
     use ark_ff::Fp12;

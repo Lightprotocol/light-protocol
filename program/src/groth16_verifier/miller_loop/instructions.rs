@@ -714,10 +714,6 @@ pub fn ell_instruction_d_c3(
     parse_f_to_bytes(f, f_range); // cost: 15k
 }
 
-// Note that we're not implementing a conjugate ix here
-// (as compared to the bls ix implementations) since
-// a) f.conjugate is never called with current curve parameters.
-// b) that can change if parameters change.
 
 #[cfg(test)]
 mod tests {

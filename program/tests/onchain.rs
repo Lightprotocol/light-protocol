@@ -1548,12 +1548,12 @@ async fn compute_final_exponentiation_should_succeed() {
 
     let unpacked_data = FinalExponentiationState::unpack(&storage_account.data).unwrap();
 
-    assert_eq!(f_ref, unpacked_data.y1_range_s);
+    assert_eq!(f_ref, unpacked_data.y1_range);
 
     // // checking pvk ref
     // let mut pvk_ref = vec![0u8; 384];
     // parse_f_to_bytes(pvk.alpha_g1_beta_g2, &mut pvk_ref);
-    // assert_eq!(pvk_ref, unpacked_data.y1_range_s);
+    // assert_eq!(pvk_ref, unpacked_data.y1_range);
 }
 
 #[tokio::test]

@@ -41,7 +41,7 @@ pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(),
         27, 15, 163, 156, 8,
     ];
 
-    if pvk != main_account_data.y1_range_s {
+    if pvk != main_account_data.y1_range {
         msg!("verification failed");
         return Err(ProgramError::InvalidAccountData);
     }
@@ -56,41 +56,7 @@ pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
 
 //multiplication
 
-//85282
 pub fn mul_assign_1(
-    _cubic: &Vec<u8>,
-    _cubic_0_range: [usize; 2],
-    _cubic_other: &Vec<u8>,
-    _range_other_c0: [usize; 2],
-    _store_cubic: &mut Vec<u8>,
-    _store_cubic_range: [usize; 2],
-) {
-    let f_c0 = parse_cubic_from_bytes_sub(&_cubic, _cubic_0_range); //30000
-    let other_c0 = parse_cubic_from_bytes_sub(&_cubic_other, _range_other_c0); //30000
-
-    let v0 = f_c0 * &other_c0; //   cost 86548
-    parse_cubic_to_bytes_sub(v0, _store_cubic, _store_cubic_range); //15000
-                                                                    //total 162000
-}
-
-//84953
-pub fn mul_assign_2(
-    _cubic: &Vec<u8>,
-    _cubic_1_range: [usize; 2],
-    _cubic_other: &Vec<u8>,
-    range_other_c1: [usize; 2],
-    _store_cubic: &mut Vec<u8>,
-    _store_cubic_range: [usize; 2],
-) {
-    let f_c1 = parse_cubic_from_bytes_sub(&_cubic, _cubic_1_range); //30000
-    let other_c1 = parse_cubic_from_bytes_sub(&_cubic_other, range_other_c1); //30000
-
-    let v1 = f_c1 * &other_c1; //86827
-    parse_cubic_to_bytes_sub(v1, _store_cubic, _store_cubic_range); //15000
-                                                                    //total 193000
-}
-
-pub fn mul_assign_1_2(
     _f_range: &Vec<u8>,
     _other: &Vec<u8>,
     _store_cubic0: &mut Vec<u8>,
@@ -106,16 +72,7 @@ pub fn mul_assign_1_2(
     parse_cubic_to_bytes_sub(v1, _store_cubic1, SOLO_CUBIC_0_RANGE);
 }
 
-//52545 - 15 = 37
-pub fn mul_assign_3(_f_range: &mut Vec<u8>) {
-
-    let mut f = parse_f_from_bytes(&_f_range); //60000
-    f.c1 += &f.c0; //<1000
-    parse_f_to_bytes(f, _f_range); //30000
-                                   //total 93000
-}
-
-pub fn mul_assign_3_4_5(
+pub fn mul_assign_2(
     _f_range_other: &Vec<u8>,
     _cubic_range_0: &Vec<u8>,
     _cubic_range_1: &Vec<u8>,
@@ -135,52 +92,6 @@ pub fn mul_assign_3_4_5(
     f.c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>  as QuadExtParameters>::add_and_mul_base_field_by_nonresidue(&v0, &v1); //1000
 
     parse_f_to_bytes(f, _f_range);
-}
-//45031 - 8k = 37
-pub fn mul_assign_4_1(_f_range_other: &Vec<u8>, _store_cubic_range: &mut Vec<u8>) {
-
-    let other = parse_f_from_bytes(&_f_range_other); //60000
-    let tmp = &(other.c0 + &other.c1); //87075
-    parse_cubic_to_bytes_sub(*tmp, _store_cubic_range, SOLO_CUBIC_0_RANGE); //15000
-                                                                            //195000
-}
-
-//85164 - 27 - 8  = 50
-pub fn mul_assign_4_2(
-    _f1_r_range: &mut Vec<u8>,
-    _f1_r_cubic_1_range: [usize; 2],
-    _store_cubic_range: &Vec<u8>,
-) {
-
-    //let mut f = parse_f_from_bytes(&account[..], range_f);
-    let mut f_c1 = parse_cubic_from_bytes_sub(&_f1_r_range, _f1_r_cubic_1_range); //30000
-    let other_cs = parse_cubic_from_bytes_sub(&_store_cubic_range, SOLO_CUBIC_0_RANGE); //60000
-    f_c1 *= other_cs;
-    //87075
-    parse_cubic_to_bytes_sub(f_c1, _f1_r_range, _f1_r_cubic_1_range);
-
-    //195000
-}
-
-//81001 - 27
-pub fn mul_assign_5(_f1_r_range: &mut Vec<u8>, _cubic_range_0: &Vec<u8>, _cubic_range_1: &Vec<u8>) {
-
-    //--------------- additional split -------------------------
-    let mut f = parse_f_from_bytes(&_f1_r_range); //60000
-    let v0 = parse_cubic_from_bytes_sub(&_cubic_range_0, SOLO_CUBIC_0_RANGE); //30000
-    let v1 = parse_cubic_from_bytes_sub(&_cubic_range_1, SOLO_CUBIC_0_RANGE); //30000
-                                                                              //////msg!"5");
-    f.c1 -= &v0; //<1000
-                 //
-                 //////msg!"6");
-    f.c1 -= &v1; //<1000
-                 //
-                 //println!("multi assign: {:?}", f);
-                 //////msg!"7");
-    f.c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper::<ark_bn254::Fq12Parameters>  as QuadExtParameters>::add_and_mul_base_field_by_nonresidue(&v0, &v1); //1000
-
-    parse_f_to_bytes(f, _f1_r_range); //30000
-                                      //153000
 }
 
 pub fn custom_frobenius_map_1(account: &mut Vec<u8>) {
@@ -381,9 +292,8 @@ mod tests {
         custom_cyclotomic_square, custom_cyclotomic_square_in_place, custom_f_inverse_1,
         custom_f_inverse_2, custom_f_inverse_3, custom_f_inverse_4, custom_f_inverse_5,
         custom_frobenius_map_1, custom_frobenius_map_2, custom_frobenius_map_3,
-        custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2, mul_assign_1,
-        mul_assign_1_2, mul_assign_2, mul_assign_3, mul_assign_3_4_5, mul_assign_4_1,
-        mul_assign_4_2, mul_assign_5,
+        custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2,
+        mul_assign_1, mul_assign_2,
     };
 
     use crate::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
@@ -537,91 +447,91 @@ mod tests {
         let mut actual_f = reference_f.clone();
         let mut account_struct = FinalExponentiationState::new();
 
-        parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range);
 
         //1 ---------------------------------------------
         custom_f_inverse_1(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_1,
         );
 
         //2 ---------------------------------------------
         custom_f_inverse_2(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
         );
-        let cubic = parse_cubic_from_bytes_sub(&account_struct.cubic_range_0_s, SOLO_CUBIC_0_RANGE);
+        let cubic = parse_cubic_from_bytes_sub(&account_struct.cubic_range_0, SOLO_CUBIC_0_RANGE);
 
         //3 ---------------------------------------------
         custom_cubic_inverse_1(
-            &account_struct.cubic_range_0_s,
-            &mut account_struct.quad_range_0_s,
-            &mut account_struct.quad_range_1_s,
-            &mut account_struct.quad_range_2_s,
-            &mut account_struct.quad_range_3_s,
+            &account_struct.cubic_range_0,
+            &mut account_struct.quad_range_0,
+            &mut account_struct.quad_range_1,
+            &mut account_struct.quad_range_2,
+            &mut account_struct.quad_range_3,
         );
 
         //quad works
-        let quad = parse_quad_from_bytes(&account_struct.quad_range_3_s);
+        let quad = parse_quad_from_bytes(&account_struct.quad_range_3);
 
         //4 ---------------------------------------------
         //quad inverse is part of cubic Inverse
         custom_quadratic_fp256_inverse_1(
-            &account_struct.quad_range_3_s,
-            &mut account_struct.fp384_range_s,
+            &account_struct.quad_range_3,
+            &mut account_struct.fp256_range,
         );
 
         //5 ---------------------------------------------
         custom_quadratic_fp256_inverse_2(
-            &mut account_struct.quad_range_3_s,
-            &account_struct.fp384_range_s,
+            &mut account_struct.quad_range_3,
+            &account_struct.fp256_range,
         );
 
         assert_eq!(
             quad.inverse().unwrap(),
-            parse_quad_from_bytes(&account_struct.quad_range_3_s),
+            parse_quad_from_bytes(&account_struct.quad_range_3),
             "quad inverse failed"
         );
 
         //6 ---------------------------------------------
         custom_cubic_inverse_2(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.quad_range_0_s,
-            &account_struct.quad_range_1_s,
-            &account_struct.quad_range_2_s,
-            &account_struct.quad_range_3_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.quad_range_0,
+            &account_struct.quad_range_1,
+            &account_struct.quad_range_2,
+            &account_struct.quad_range_3,
         );
         assert_eq!(
             cubic.inverse().unwrap(),
-            parse_cubic_from_bytes_sub(&account_struct.cubic_range_0_s, SOLO_CUBIC_0_RANGE),
+            parse_cubic_from_bytes_sub(&account_struct.cubic_range_0, SOLO_CUBIC_0_RANGE),
             "cubic inverse failed"
         );
 
         //7 ---------------------------------------------
         custom_f_inverse_3(
-            &mut account_struct.cubic_range_1_s,
-            &account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_1,
+            &account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //8 ---------------------------------------------
         custom_f_inverse_4(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //9 ---------------------------------------------
         custom_f_inverse_5(
-            &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
-            &mut account_struct.f_f2_range_s,
+            &account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
+            &mut account_struct.f_f2_range,
         );
         //reference_f;
         //println!("{:?}", reference_f);
         assert_eq!(
             reference_f.inverse().unwrap(),
-            parse_f_from_bytes(&account_struct.f_f2_range_s),
+            parse_f_from_bytes(&account_struct.f_f2_range),
             "f inverse failed"
         );
     }
@@ -639,75 +549,75 @@ mod tests {
             );
         let mut account_struct = FinalExponentiationState::new();
 
-        parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range);
 
         //1 ---------------------------------------------
         custom_f_inverse_1(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_1,
         );
 
         //2 ---------------------------------------------
         custom_f_inverse_2(
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
         );
 
         //3 ---------------------------------------------
         custom_cubic_inverse_1(
-            &account_struct.cubic_range_0_s,
-            &mut account_struct.quad_range_0_s,
-            &mut account_struct.quad_range_1_s,
-            &mut account_struct.quad_range_2_s,
-            &mut account_struct.quad_range_3_s,
+            &account_struct.cubic_range_0,
+            &mut account_struct.quad_range_0,
+            &mut account_struct.quad_range_1,
+            &mut account_struct.quad_range_2,
+            &mut account_struct.quad_range_3,
         );
 
         //4 ---------------------------------------------
         //quad inverse is part of cubic Inverse
         custom_quadratic_fp256_inverse_1(
-            &account_struct.quad_range_3_s,
-            &mut account_struct.fp384_range_s,
+            &account_struct.quad_range_3,
+            &mut account_struct.fp256_range,
         );
 
         //5 ---------------------------------------------
         custom_quadratic_fp256_inverse_2(
-            &mut account_struct.quad_range_3_s,
-            &account_struct.fp384_range_s,
+            &mut account_struct.quad_range_3,
+            &account_struct.fp256_range,
         );
 
         //6 ---------------------------------------------
         custom_cubic_inverse_2(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.quad_range_0_s,
-            &account_struct.quad_range_1_s,
-            &account_struct.quad_range_2_s,
-            &account_struct.quad_range_3_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.quad_range_0,
+            &account_struct.quad_range_1,
+            &account_struct.quad_range_2,
+            &account_struct.quad_range_3,
         );
 
         //7 ---------------------------------------------
         custom_f_inverse_3(
-            &mut account_struct.cubic_range_1_s,
-            &account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_1,
+            &account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //8 ---------------------------------------------
         custom_f_inverse_4(
-            &mut account_struct.cubic_range_0_s,
-            &account_struct.f_f2_range_s,
+            &mut account_struct.cubic_range_0,
+            &account_struct.f_f2_range,
         );
 
         //9 ---------------------------------------------
         custom_f_inverse_5(
-            &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
-            &mut account_struct.f_f2_range_s,
+            &account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
+            &mut account_struct.f_f2_range,
         );
         //reference_f;
         //println!("{:?}", reference_f);
         assert!(
-            reference_f.inverse().unwrap() != parse_f_from_bytes(&account_struct.f_f2_range_s),
+            reference_f.inverse().unwrap() != parse_f_from_bytes(&account_struct.f_f2_range),
             "f inverse failed"
         );
     }
@@ -727,26 +637,26 @@ mod tests {
         let mut actual_f = reference_f.clone();
         let mut account_struct = FinalExponentiationState::new();
 
-        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
-        parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
+        parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range);
 
-        mul_assign_1_2(
-            &account_struct.f1_r_range_s,
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_0_s,
-            &mut account_struct.cubic_range_1_s,
+        mul_assign_1(
+            &account_struct.f1_r_range,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_0,
+            &mut account_struct.cubic_range_1,
         );
 
-        mul_assign_3_4_5(
-            &account_struct.f_f2_range_s,
-            &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
-            &mut account_struct.f1_r_range_s,
+        mul_assign_2(
+            &account_struct.f_f2_range,
+            &account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
+            &mut account_struct.f1_r_range,
         );
         reference_f *= mul_f;
         assert_eq!(
             reference_f,
-            parse_f_from_bytes(&account_struct.f1_r_range_s),
+            parse_f_from_bytes(&account_struct.f1_r_range),
             "f mulassign failed"
         );
     }
@@ -769,25 +679,25 @@ mod tests {
             );
         let mut account_struct = FinalExponentiationState::new();
 
-        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
-        parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
+        parse_f_to_bytes(mul_f, &mut account_struct.f_f2_range);
 
-        mul_assign_1_2(
-            &account_struct.f1_r_range_s,
-            &account_struct.f_f2_range_s,
-            &mut account_struct.cubic_range_0_s,
-            &mut account_struct.cubic_range_1_s,
+        mul_assign_1(
+            &account_struct.f1_r_range,
+            &account_struct.f_f2_range,
+            &mut account_struct.cubic_range_0,
+            &mut account_struct.cubic_range_1,
         );
 
-        mul_assign_3_4_5(
-            &account_struct.f_f2_range_s,
-            &account_struct.cubic_range_0_s,
-            &account_struct.cubic_range_1_s,
-            &mut account_struct.f1_r_range_s,
+        mul_assign_2(
+            &account_struct.f_f2_range,
+            &account_struct.cubic_range_0,
+            &account_struct.cubic_range_1,
+            &mut account_struct.f1_r_range,
         );
         reference_f *= mul_f;
         assert!(
-            reference_f != parse_f_from_bytes(&account_struct.f1_r_range_s),
+            reference_f != parse_f_from_bytes(&account_struct.f1_r_range),
             "f mulassign failed"
         );
     }
@@ -802,7 +712,7 @@ mod tests {
         }
         f
     }
-
+/*  TODO: adjust to condensed mul_assign instructions
     #[test]
     fn exp_by_neg_x_test_correct() {
         let mut rng = test_rng();
@@ -813,28 +723,28 @@ mod tests {
         let mut actual_f = reference_f.clone();
 
         let mut account_struct = FinalExponentiationState::new();
-        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
         let mut y1 =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-        parse_f_to_bytes(y1, &mut account_struct.y1_range_s);
+        parse_f_to_bytes(y1, &mut account_struct.y1_range);
 
-        account_struct.i_range_s = account_struct.f1_r_range_s.clone();
+        account_struct.i_range = account_struct.f1_r_range.clone();
 
         //18
-        conjugate_wrapper(&mut account_struct.i_range_s);
+        conjugate_wrapper(&mut account_struct.i_range);
         //19
         //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
-        account_struct.y1_range_s = account_struct.f1_r_range_s.clone();
+        account_struct.y1_range = account_struct.f1_r_range.clone();
         for i in 1..63 {
             //20
             if i == 1 {
-                assert_eq!(account_struct.y1_range_s, account_struct.f1_r_range_s);
+                assert_eq!(account_struct.y1_range, account_struct.f1_r_range);
             }
 
             //cyclotomic_exp
             if i != 0 {
                 //println!("i {}", i);
-                custom_cyclotomic_square_in_place(&mut account_struct.y1_range_s);
+                custom_cyclotomic_square_in_place(&mut account_struct.y1_range);
             }
 
             if NAF_VEC[i] != 0 {
@@ -842,81 +752,81 @@ mod tests {
                     //println!("if i {}", i);
                     //23
                     mul_assign_1(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_0_RANGE,
-                        &account_struct.f1_r_range_s,
+                        &account_struct.f1_r_range,
                         F_CUBIC_0_RANGE,
-                        &mut account_struct.cubic_range_0_s,
+                        &mut account_struct.cubic_range_0,
                         SOLO_CUBIC_0_RANGE,
                     );
 
                     //24
                     mul_assign_2(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.f1_r_range_s,
+                        &account_struct.f1_r_range,
                         F_CUBIC_1_RANGE,
-                        &mut account_struct.cubic_range_1_s,
+                        &mut account_struct.cubic_range_1,
                         SOLO_CUBIC_0_RANGE,
                     );
 
                     //25
-                    mul_assign_3(&mut account_struct.y1_range_s);
+                    mul_assign_3(&mut account_struct.y1_range);
 
                     //26
                     mul_assign_4_1(
-                        &account_struct.f1_r_range_s,
-                        &mut account_struct.cubic_range_2_s,
+                        &account_struct.f1_r_range,
+                        &mut account_struct.cubic_range_2,
                     );
                     mul_assign_4_2(
-                        &mut account_struct.y1_range_s,
+                        &mut account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.cubic_range_2_s,
+                        &account_struct.cubic_range_2,
                     );
 
                     //27
                     mul_assign_5(
-                        &mut account_struct.y1_range_s,
-                        &account_struct.cubic_range_0_s,
-                        &account_struct.cubic_range_1_s,
+                        &mut account_struct.y1_range,
+                        &account_struct.cubic_range_0,
+                        &account_struct.cubic_range_1,
                     );
                 } else {
                     //println!("else i {}", i);
                     //28
                     mul_assign_1(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_0_RANGE,
-                        &account_struct.i_range_s,
+                        &account_struct.i_range,
                         F_CUBIC_0_RANGE,
-                        &mut account_struct.cubic_range_0_s,
+                        &mut account_struct.cubic_range_0,
                         SOLO_CUBIC_0_RANGE,
                     );
                     //29
                     mul_assign_2(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.i_range_s,
+                        &account_struct.i_range,
                         F_CUBIC_1_RANGE,
-                        &mut account_struct.cubic_range_1_s,
+                        &mut account_struct.cubic_range_1,
                         SOLO_CUBIC_0_RANGE,
                     );
                     //30
-                    mul_assign_3(&mut account_struct.y1_range_s);
+                    mul_assign_3(&mut account_struct.y1_range);
                     //31
                     mul_assign_4_1(
-                        &account_struct.i_range_s,
-                        &mut account_struct.cubic_range_2_s,
+                        &account_struct.i_range,
+                        &mut account_struct.cubic_range_2,
                     );
                     mul_assign_4_2(
-                        &mut account_struct.y1_range_s,
+                        &mut account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.cubic_range_2_s,
+                        &account_struct.cubic_range_2,
                     );
                     //32
                     mul_assign_5(
-                        &mut account_struct.y1_range_s,
-                        &account_struct.cubic_range_0_s,
-                        &account_struct.cubic_range_1_s,
+                        &mut account_struct.y1_range,
+                        &account_struct.cubic_range_0,
+                        &account_struct.cubic_range_1,
                     );
                 }
             }
@@ -926,13 +836,13 @@ mod tests {
         if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
             //println!("conjugate");
             //f.conjugate();
-            conjugate_wrapper(&mut account_struct.y1_range_s);
+            conjugate_wrapper(&mut account_struct.y1_range);
         }
 
         let reference_f = exp_by_neg_x(reference_f);
         assert_eq!(
             reference_f,
-            parse_f_from_bytes(&account_struct.y1_range_s),
+            parse_f_from_bytes(&account_struct.y1_range),
             "f exp_by_neg_x failed"
         );
         //println!("success");
@@ -951,28 +861,28 @@ mod tests {
             );
 
         let mut account_struct = FinalExponentiationState::new();
-        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range_s);
+        parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
         let mut y1 =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-        parse_f_to_bytes(y1, &mut account_struct.y1_range_s);
+        parse_f_to_bytes(y1, &mut account_struct.y1_range);
 
-        account_struct.i_range_s = account_struct.f1_r_range_s.clone();
+        account_struct.i_range = account_struct.f1_r_range.clone();
 
         //18
-        conjugate_wrapper(&mut account_struct.i_range_s);
+        conjugate_wrapper(&mut account_struct.i_range);
         //19
         //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
-        account_struct.y1_range_s = account_struct.f1_r_range_s.clone();
+        account_struct.y1_range = account_struct.f1_r_range.clone();
         for i in 1..63 {
             //20
             if i == 1 {
-                assert_eq!(account_struct.y1_range_s, account_struct.f1_r_range_s);
+                assert_eq!(account_struct.y1_range, account_struct.f1_r_range);
             }
 
             //cyclotomic_exp
             if i != 0 {
                 //println!("i {}", i);
-                custom_cyclotomic_square_in_place(&mut account_struct.y1_range_s);
+                custom_cyclotomic_square_in_place(&mut account_struct.y1_range);
             }
 
             if NAF_VEC[i] != 0 {
@@ -980,81 +890,81 @@ mod tests {
                     //println!("if i {}", i);
                     //23
                     mul_assign_1(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_0_RANGE,
-                        &account_struct.f1_r_range_s,
+                        &account_struct.f1_r_range,
                         F_CUBIC_0_RANGE,
-                        &mut account_struct.cubic_range_0_s,
+                        &mut account_struct.cubic_range_0,
                         SOLO_CUBIC_0_RANGE,
                     );
 
                     //24
                     mul_assign_2(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.f1_r_range_s,
+                        &account_struct.f1_r_range,
                         F_CUBIC_1_RANGE,
-                        &mut account_struct.cubic_range_1_s,
+                        &mut account_struct.cubic_range_1,
                         SOLO_CUBIC_0_RANGE,
                     );
 
                     //25
-                    mul_assign_3(&mut account_struct.y1_range_s);
+                    mul_assign_3(&mut account_struct.y1_range);
 
                     //26
                     mul_assign_4_1(
-                        &account_struct.f1_r_range_s,
-                        &mut account_struct.cubic_range_2_s,
+                        &account_struct.f1_r_range,
+                        &mut account_struct.cubic_range_2,
                     );
                     mul_assign_4_2(
-                        &mut account_struct.y1_range_s,
+                        &mut account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.cubic_range_2_s,
+                        &account_struct.cubic_range_2,
                     );
 
                     //27
                     mul_assign_5(
-                        &mut account_struct.y1_range_s,
-                        &account_struct.cubic_range_0_s,
-                        &account_struct.cubic_range_1_s,
+                        &mut account_struct.y1_range,
+                        &account_struct.cubic_range_0,
+                        &account_struct.cubic_range_1,
                     );
                 } else {
                     //println!("else i {}", i);
                     //28
                     mul_assign_1(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_0_RANGE,
-                        &account_struct.i_range_s,
+                        &account_struct.i_range,
                         F_CUBIC_0_RANGE,
-                        &mut account_struct.cubic_range_0_s,
+                        &mut account_struct.cubic_range_0,
                         SOLO_CUBIC_0_RANGE,
                     );
                     //29
                     mul_assign_2(
-                        &account_struct.y1_range_s,
+                        &account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.i_range_s,
+                        &account_struct.i_range,
                         F_CUBIC_1_RANGE,
-                        &mut account_struct.cubic_range_1_s,
+                        &mut account_struct.cubic_range_1,
                         SOLO_CUBIC_0_RANGE,
                     );
                     //30
-                    mul_assign_3(&mut account_struct.y1_range_s);
+                    mul_assign_3(&mut account_struct.y1_range);
                     //31
                     mul_assign_4_1(
-                        &account_struct.i_range_s,
-                        &mut account_struct.cubic_range_2_s,
+                        &account_struct.i_range,
+                        &mut account_struct.cubic_range_2,
                     );
                     mul_assign_4_2(
-                        &mut account_struct.y1_range_s,
+                        &mut account_struct.y1_range,
                         F_CUBIC_1_RANGE,
-                        &account_struct.cubic_range_2_s,
+                        &account_struct.cubic_range_2,
                     );
                     //32
                     mul_assign_5(
-                        &mut account_struct.y1_range_s,
-                        &account_struct.cubic_range_0_s,
-                        &account_struct.cubic_range_1_s,
+                        &mut account_struct.y1_range,
+                        &account_struct.cubic_range_0,
+                        &account_struct.cubic_range_1,
                     );
                 }
             }
@@ -1062,14 +972,15 @@ mod tests {
 
         //will always conjugate
         if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-            conjugate_wrapper(&mut account_struct.y1_range_s);
+            conjugate_wrapper(&mut account_struct.y1_range);
         }
 
         let reference_f = exp_by_neg_x(reference_f);
         assert!(
-            reference_f != parse_f_from_bytes(&account_struct.y1_range_s),
+            reference_f != parse_f_from_bytes(&account_struct.y1_range),
             "f exp_by_neg_x failed"
         );
 
     }
+*/
 }
