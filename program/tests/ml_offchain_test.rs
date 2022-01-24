@@ -20,7 +20,7 @@ pub mod tests {
 
     use ark_ec::{AffineCurve, ProjectiveCurve};
 
-    use light_protocol_core::{
+    use light_protocol_program::{
         groth16_verifier::{
             miller_loop::{processor::*, state::*},
             parsers::*,

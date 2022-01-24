@@ -8,11 +8,11 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use light_protocol_core::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
-    use light_protocol_core::groth16_verifier::parsers::parse_f_to_bytes;
-    use light_protocol_core::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
-    use light_protocol_core::groth16_verifier::parsers::*;
-    use light_protocol_core::process_instruction;
+    use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
+    use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
+    use light_protocol_program::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
+    use light_protocol_program::groth16_verifier::parsers::*;
+    use light_protocol_program::process_instruction;
     use serde_json::{Result, Value};
     use solana_program::{
         instruction::{AccountMeta, Instruction},
@@ -31,7 +31,7 @@ pub mod tests {
         signer_pubkey: &Pubkey,
     ) -> ProgramTestContext {
         let mut program_test = ProgramTest::new(
-            "light_protocol_core",
+            "light_protocol_program",
             *program_id,
             processor!(process_instruction),
         );

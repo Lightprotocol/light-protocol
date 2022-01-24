@@ -19,8 +19,7 @@ use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
 use std::{thread, time};
 use {
-    light_protocol_core::{
-        poseidon_merkle_tree::state::{MerkleTree, TempStoragePda, MERKLE_TREE_ACC_BYTES},
+    light_protocol_program::{
         process_instruction,
         utils::init_bytes18,
     },
@@ -39,7 +38,7 @@ pub async fn create_and_start_program(
     signer_pubkey: &Pubkey,
 ) -> ProgramTestContext {
     let mut program_test = ProgramTest::new(
-        "light_protocol_core",
+        "light_protocol_program",
         *program_id,
         processor!(process_instruction),
     );
@@ -62,7 +61,7 @@ pub async fn create_and_start_program(
 
     program_context
 }
-use light_protocol_core::user_account::state::SIZE_UTXO;
+use light_protocol_program::user_account::state::SIZE_UTXO;
 
 #[tokio::test]
 async fn user_account_onchain_test() {

@@ -23,17 +23,17 @@ mod tests {
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
     };
-    use light_protocol_core::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
+    use light_protocol_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
     use std::convert::TryInto;
 
-    use light_protocol_core::poseidon_merkle_tree::state::{
-        MerkleTree as MerkleTreeOnchain, TempStoragePda,
+    use light_protocol_program::poseidon_merkle_tree::state::{
+        MerkleTree as MerkleTreeOnchain, TmpStoragePda,
     };
 
     use ark_std::One;
 
-    use light_protocol_core::poseidon_merkle_tree::{instructions, processor};
-    use light_protocol_core::utils::init_bytes18;
+    use light_protocol_program::poseidon_merkle_tree::{instructions, processor};
+    use light_protocol_program::utils::init_bytes18;
 
     use std::fs::File;
     use std::io::Error as ioError;
@@ -838,7 +838,7 @@ mod tests {
         let mut filled_leaves = Vec::new();
         let mut j = 0;
         for i in 0..10 {
-            let mut hash_tmp_account = TempStoragePda {
+            let mut hash_tmp_account = TmpStoragePda {
                 is_initialized: true,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,

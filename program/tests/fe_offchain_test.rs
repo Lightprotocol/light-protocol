@@ -21,12 +21,12 @@ pub mod tests {
     use ark_ec;
     use ark_ec::ProjectiveCurve;
     use ark_ff::Field;
-    use light_protocol_core::groth16_verifier::final_exponentiation::{
+    use light_protocol_program::groth16_verifier::final_exponentiation::{
         instructions::*, processor::_process_instruction, ranges::*,
         state::FinalExponentiationState,
     };
-    use light_protocol_core::groth16_verifier::parsers::*;
-    use light_protocol_core::utils::prepared_verifying_key::*;
+    use light_protocol_program::groth16_verifier::parsers::*;
+    use light_protocol_program::utils::prepared_verifying_key::*;
     use solana_program::program_pack::Pack;
     use std::fs::File;
 
