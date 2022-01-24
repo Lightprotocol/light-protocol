@@ -152,43 +152,9 @@ impl Pack for MillerLoopState {
                     *current_coeff_3_range_dst =
                         self.current_coeff_3_range.clone().try_into().unwrap();
                 }
-            } else {
-                if i == 0 {
-                    *f_range_dst = *f_range_dst;
-                } else if i == 1 {
-                    *coeff_2_range_dst = *coeff_2_range_dst;
-                } else if i == 2 {
-                    *coeff_1_range_dst = *coeff_1_range_dst;
-                } else if i == 3 {
-                    *coeff_0_range_dst = *coeff_0_range_dst;
-                } else if i == 4 {
-                    *p_1_x_range_dst = *p_1_x_range_dst;
-                } else if i == 5 {
-                    *p_1_y_range_dst = *p_1_y_range_dst;
-                } else if i == 6 {
-                    *p_2_x_range_dst = *p_2_x_range_dst;
-                } else if i == 7 {
-                    *p_2_y_range_dst = *p_2_y_range_dst;
-                } else if i == 8 {
-                    *p_3_x_range_dst = *p_3_x_range_dst;
-                } else if i == 9 {
-                    *p_3_y_range_dst = *p_3_y_range_dst;
-                } else if i == 10 {
-                    *r_dst = *r_dst;
-                } else if i == 11 {
-                    *proof_b_dst = *proof_b_dst;
-                } else if i == 12 {
-                    *current_coeff_2_range_dst = *current_coeff_2_range_dst;
-                } else if i == 13 {
-                    *current_coeff_3_range_dst = *current_coeff_3_range_dst;
-                }
-            };
+            }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-        *unused_constants0_dst = *unused_constants0_dst;
-        *signing_address_dst = *signing_address_dst;
-        *unused_constants1_dst = *unused_constants1_dst;
-        *is_initialized_dst = [1u8; 1];
-        msg!("packed!");
+
     }
 }
