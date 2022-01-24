@@ -8,7 +8,7 @@ use ark_ff::{
 use ark_std::Zero;
 use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
-use solana_program::{msg, program_error::ProgramError};
+use solana_program::program_error::ProgramError;
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
@@ -215,7 +215,7 @@ pub fn permute_custom_split(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::poseidon_merkle_tree::state::TempStoragePda;
+    use crate::poseidon_merkle_tree::state::TmpStoragePda;
     use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
     use ark_std::One;
     use ark_std::{test_rng, UniformRand};
@@ -236,7 +236,7 @@ mod tests {
     const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 12] = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3];
 
     //defining processor function for testing
-    pub fn processor_poseidon(id: u8, account_struct: &mut TempStoragePda) {
+    pub fn processor_poseidon(id: u8, account_struct: &mut TmpStoragePda) {
         if id == 0 {
             permute_instruction_first(
                 &mut account_struct.state,
@@ -292,7 +292,7 @@ mod tests {
             <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]);
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = TempStoragePda {
+            let mut account_struct = TmpStoragePda {
                 is_initialized: true,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
@@ -347,7 +347,7 @@ mod tests {
                 .to_bytes_le();
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = TempStoragePda {
+            let mut account_struct = TmpStoragePda {
                 is_initialized: true,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,

@@ -53,7 +53,7 @@ impl Pack for MerkleTree {
 
         if 1u8 != is_initialized[0] {
             msg!("merkle tree account is not initialized");
-            return ProgramError::UninitializedAccount;
+            return Err(ProgramError::UninitializedAccount);
         }
 
         let mut tmp_subtree_vec = vec![vec![0u8; 32]; 18];
@@ -186,7 +186,7 @@ impl Pack for InitMerkleTreeBytes {
 
 // Account structs for merkle tree:
 #[derive(Debug)]
-pub struct TempStoragePda {
+pub struct TmpStoragePda {
     pub is_initialized: bool,
     pub state: Vec<Vec<u8>>,
     pub current_round: usize,
@@ -201,17 +201,17 @@ pub struct TempStoragePda {
     pub current_instruction_index: usize,
 }
 
-impl Sealed for TempStoragePda {}
-impl IsInitialized for TempStoragePda {
+impl Sealed for TmpStoragePda {}
+impl IsInitialized for TmpStoragePda {
     fn is_initialized(&self) -> bool {
         self.is_initialized
     }
 }
 
-impl Pack for TempStoragePda {
+impl Pack for TmpStoragePda {
     const LEN: usize = 3900; //297;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, TempStoragePda::LEN];
+        let input = array_ref![input, 0, TmpStoragePda::LEN];
 
         let (
             _is_initialized,
@@ -238,7 +238,7 @@ impl Pack for TempStoragePda {
             parsed_state.push(i.to_vec());
         }
 
-        Ok(TempStoragePda {
+        Ok(TmpStoragePda {
             is_initialized: true,
             state: parsed_state.to_vec(),
             current_round: usize::from_le_bytes(*current_round),
@@ -255,7 +255,7 @@ impl Pack for TempStoragePda {
     }
 
     fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, TempStoragePda::LEN];
+        let dst = array_mut_ref![dst, 0, TmpStoragePda::LEN];
 
         let (
             _is_initialized_dst,

@@ -13,7 +13,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 
-use light_protocol_core::{
+use light_protocol_program::{
     groth16_verifier::{
         parsers::*,
         prepare_inputs,

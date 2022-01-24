@@ -5,7 +5,7 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
 };
 use crate::poseidon_merkle_tree::state;
 use crate::poseidon_merkle_tree::state::{
-    InitMerkleTreeBytes, MerkleTree, TempStoragePda, TwoLeavesBytesPda,
+    InitMerkleTreeBytes, MerkleTree, TmpStoragePda, TwoLeavesBytesPda,
 };
 use crate::IX_ORDER;
 use solana_program::{
@@ -81,7 +81,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         let signer = next_account_info(account)?;
         let _main_account = next_account_info(account)?;
         let mut main_account_data =
-            TempStoragePda::unpack(&self.main_account.unwrap().data.borrow())?;
+            TmpStoragePda::unpack(&self.main_account.unwrap().data.borrow())?;
         msg!(
             "main_account_data.current_instruction_index {}",
             main_account_data.current_instruction_index
@@ -230,7 +230,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
         }
         main_account_data.current_instruction_index += 1;
-        TempStoragePda::pack_into_slice(
+        TmpStoragePda::pack_into_slice(
             &main_account_data,
             &mut self.main_account.unwrap().data.borrow_mut(),
         );
@@ -241,7 +241,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
 pub fn _process_instruction(
     id: u8,
-    main_account_data: &mut TempStoragePda,
+    main_account_data: &mut TmpStoragePda,
     merkle_tree_account_data: &mut MerkleTree,
 ) -> Result<(), ProgramError> {
     msg!("executing instruction {}", id);
