@@ -10,8 +10,11 @@ use crate::groth16_verifier::final_exponentiation::{
     ranges::*,
     state::FinalExponentiationState,
 };
-
 use solana_program::program_error::ProgramError;
+
+// processes instructions to compute final exponentiation analogue to
+// https://docs.rs/ark-ec/0.3.0/src/ark_ec/models/bn/mod.rs.html#151-211
+// for a detailed test see tests/fe_offchain_test.rs
 
 pub fn _process_instruction(
     account_struct: &mut FinalExponentiationState,
@@ -422,7 +425,6 @@ pub fn _process_instruction(
         custom_frobenius_map_3(&mut account_struct.y1_range);
         account_struct.changed_variables[Y1_RANGE_ITER] = true;
     } else if id == 121 {
-        //let mut actual_f = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
         mul_assign_1(
             &account_struct.f1_r_range,
@@ -441,9 +443,5 @@ pub fn _process_instruction(
         );
         account_struct.changed_variables[F2_R_RANGE_ITER] = true;
     }
-    // msg!(
-    //     "processor wants to modify {:?}",
-    //     account_struct.changed_variables
-    // );
     Ok(())
 }

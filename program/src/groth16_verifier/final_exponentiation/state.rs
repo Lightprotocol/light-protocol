@@ -1,13 +1,10 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     program_error::ProgramError,
-    // msg,
-    // log::sol_log_compute_units,
     program_pack::{IsInitialized, Pack, Sealed},
 };
 use std::convert::TryInto;
 
-// Account struct for verify Part 2:
 #[derive(Debug, Clone)]
 pub struct FinalExponentiationState {
     is_initialized: bool,
