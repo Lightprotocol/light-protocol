@@ -6,57 +6,11 @@ use solana_program::msg;
 pub fn _process_instruction(
     id: u8,
     account: &mut PrepareInputsState,
-    //public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>],
     current_index: usize,
 ) {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
     msg!("instruction: {:?}", id);
-    /*
-    if id == 40 {
-        init_pairs_instruction(
-            &public_inputs,
-            &mut account.i_1_range,
-            &mut account.x_1_range,
-            &mut account.i_2_range,
-            &mut account.x_2_range,
-            &mut account.i_3_range,
-            &mut account.x_3_range,
-            &mut account.i_4_range,
-            &mut account.x_4_range,
-            &mut account.i_5_range,
-            &mut account.x_5_range,
-            &mut account.i_6_range,
-            &mut account.x_6_range,
-            &mut account.i_7_range,
-            &mut account.x_7_range,
-            &mut account.g_ic_x_range,
-            &mut account.g_ic_y_range,
-            &mut account.g_ic_z_range,
-        );
 
-        let indices: [usize; 17] = [
-            I_1_RANGE_INDEX,
-            X_1_RANGE_INDEX,
-            I_2_RANGE_INDEX,
-            X_2_RANGE_INDEX,
-            I_3_RANGE_INDEX,
-            X_3_RANGE_INDEX,
-            I_4_RANGE_INDEX,
-            X_4_RANGE_INDEX,
-            I_5_RANGE_INDEX,
-            X_5_RANGE_INDEX,
-            I_6_RANGE_INDEX,
-            X_6_RANGE_INDEX,
-            I_7_RANGE_INDEX,
-            X_7_RANGE_INDEX,
-            G_IC_X_RANGE_INDEX,
-            G_IC_Y_RANGE_INDEX,
-            G_IC_Z_RANGE_INDEX,
-        ];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
-    } else */
     if id == 41 {
         init_res_instruction(
             &mut account.res_x_range,
