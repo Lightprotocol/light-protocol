@@ -1831,6 +1831,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
      *
      *
      */
+
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
@@ -1861,13 +1862,14 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
      *
      *
      */
+
     let empty_vec = Vec::<u8>::new();
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
-            &empty_vec, //random
+            &[1], //random
             vec![
-                AccountMeta::new(signer_pubkey, true),
+                AccountMeta::new(signer_pubkey, false),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(merkle_tree_pda_pubkey, false),
                 AccountMeta::new(program_context.payer.pubkey(), true),
@@ -1880,9 +1882,8 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
         .banks_client
         .process_transaction(transaction)
         .await
-        .unwrap();
+        .expect_err("Signer in last place is not allowed.");
 }
-
 
 #[tokio::test]
 async fn submit_proof_with_wrong_signer_should_not_succeed() {
@@ -1994,11 +1995,9 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
             program_id,
             &ix_data[8..20].to_vec(), //random
             vec![
-                AccountMeta::new(signer_pubkey, false),
+                AccountMeta::new(program_context.payer.pubkey(), false),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(merkle_tree_pda_pubkey, false),
-                AccountMeta::new(program_context.payer.pubkey(), true),
-
             ],
         )],
         Some(&program_context.payer.pubkey()),
@@ -2008,7 +2007,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
         .banks_client
         .process_transaction(transaction)
         .await
-        .expect_err("Signer in last place is not allowed.");
+        .expect_err("This signer is not allowed.");
 }
 
 #[tokio::test]
