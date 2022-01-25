@@ -12,6 +12,7 @@ use arkworks_gadgets::poseidon::{
 use arkworks_gadgets::utils::{
     get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
 };
+use light_protocol_program::user_account::state::{SIZE_UTXO, UTXO_CAPACITY};
 use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestContext;
 use solana_program_test::ProgramTestError;
@@ -19,10 +20,7 @@ use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
 use std::{thread, time};
 use {
-    light_protocol_program::{
-        process_instruction,
-        utils::init_bytes18,
-    },
+    light_protocol_program::{process_instruction, utils::init_bytes18},
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
@@ -42,7 +40,11 @@ pub async fn create_and_start_program(
         *program_id,
         processor!(process_instruction),
     );
-    let mut user_account = Account::new(10000000000, 34 + SIZE_UTXO as usize * 10, &program_id);
+    let mut user_account = Account::new(
+        10000000000,
+        34 + SIZE_UTXO as usize * UTXO_CAPACITY,
+        &program_id,
+    );
 
     program_test.add_account(*user_account_pubkey, user_account);
 
@@ -61,7 +63,6 @@ pub async fn create_and_start_program(
 
     program_context
 }
-use light_protocol_program::user_account::state::SIZE_UTXO;
 
 #[tokio::test]
 async fn user_account_onchain_test() {
