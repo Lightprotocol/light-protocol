@@ -1,19 +1,14 @@
 use crate::poseidon_merkle_tree::poseidon_round_constants_split;
-use ark_crypto_primitives::{
-    crh::{TwoToOneCRH, CRH},
-    Error,
-};
+use ark_crypto_primitives::Error;
 use ark_ed_on_bn254::Fq;
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
     BigInteger,
 };
 use ark_std::Zero;
-use arkworks_gadgets::poseidon::{
-    circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
-};
+use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
-use solana_program::{log::sol_log_compute_units, msg, program_error::ProgramError};
+use solana_program::program_error::ProgramError;
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
@@ -39,7 +34,6 @@ pub fn permute_instruction_first(
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(0);
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let params = PoseidonParameters::<Fq>::new(rounds, mds);
-    msg!("left: {:?}, right: {:?}", left_input, right_input);
     //parsing poseidon inputs to Fq elements
     let mut state_new = prepare_inputs(&params, &left_input, &right_input).unwrap();
 
@@ -132,7 +126,6 @@ pub fn permute_instruction_last(
         state_new.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
     state_new = permute_custom_split(&params, state_new, *current_round, 4).unwrap();
-    //msg!("Hash: {:?}", state_new[0]);
 
     //reset round and index for next hash
     *current_round = 0;
@@ -147,16 +140,15 @@ pub fn permute_instruction_last(
 
 //foundational functions for instructions
 pub fn prepare_inputs(
-    parameters: &PoseidonParameters<Fq>,
+    _parameters: &PoseidonParameters<Fq>,
     left_input: &[u8],
     right_input: &[u8],
-) -> Result<Vec<Fq>, Error> /*-> Result<Self::Output, Error> */ {
+) -> Result<Vec<Fq>, Error> {
     //modified from arkworks_gadgets
 
     const INPUT_SIZE_BITS: usize =
         ark_ff::biginteger::BigInteger256::NUM_LIMBS * 8 * PoseidonCircomRounds3::WIDTH * 8;
     const LEFT_INPUT_SIZE_BITS: usize = INPUT_SIZE_BITS / 2;
-    const RIGHT_INPUT_SIZE_BITS: usize = INPUT_SIZE_BITS / 2;
     assert_eq!(left_input.len(), right_input.len());
     assert!(left_input.len() * 8 <= LEFT_INPUT_SIZE_BITS);
     let chained: Vec<_> = left_input
@@ -189,13 +181,10 @@ pub fn permute_custom_split(
     nr_iterations: usize,
 ) -> Result<Vec<Fq>, PoseidonError> {
     //modified from arkworks_gadgets
-
-    //let nr = P::FULL_ROUNDS + P::PARTIAL_ROUNDS;
     let nr_end = nr_start + nr_iterations;
-    //println!("state: {:?}", state);
+
     for r in nr_start..nr_end {
         state.iter_mut().enumerate().for_each(|(i, a)| {
-            //println!("index: {} len {}", ((r - nr_start) * PoseidonCircomRounds3::WIDTH + i), params.round_keys.len());
             let c = params.round_keys[((r - nr_start) * PoseidonCircomRounds3::WIDTH + i)];
             a.add_assign(c);
         });
@@ -226,13 +215,20 @@ pub fn permute_custom_split(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::poseidon_merkle_tree::mt_state::HashBytes;
+    use crate::poseidon_merkle_tree::state::TmpStoragePda;
     use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
     use ark_std::One;
     use ark_std::{test_rng, UniformRand};
+    use arkworks_gadgets::poseidon::circom::CircomCRH;
     use arkworks_gadgets::utils;
+
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
+    };
+
+    use ark_crypto_primitives::{
+        crh::{TwoToOneCRH, CRH},
+        Error,
     };
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
@@ -240,7 +236,7 @@ mod tests {
     const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 12] = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3];
 
     //defining processor function for testing
-    pub fn processor_poseidon(id: u8, account_struct: &mut HashBytes) {
+    pub fn processor_poseidon(id: u8, account_struct: &mut TmpStoragePda) {
         if id == 0 {
             permute_instruction_first(
                 &mut account_struct.state,
@@ -296,7 +292,7 @@ mod tests {
             <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]);
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = HashBytes {
+            let mut account_struct = TmpStoragePda {
                 is_initialized: true,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
@@ -351,7 +347,7 @@ mod tests {
                 .to_bytes_le();
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = HashBytes {
+            let mut account_struct = TmpStoragePda {
                 is_initialized: true,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,

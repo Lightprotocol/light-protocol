@@ -1,13 +1,12 @@
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
-    msg,
-    //msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
 
-pub const SIZE_UTXO: u64 = 256;
+pub const SIZE_UTXO: u64 = 216; // stringify old: 408; // without privatekey: 256
+pub const UTXO_CAPACITY: usize = 100; // amount of utxos that can be stored in the user account at once
 
 #[derive(Debug, Clone)]
 pub struct UserAccount {
@@ -28,12 +27,12 @@ impl IsInitialized for UserAccount {
 }
 
 impl Pack for UserAccount {
-    const LEN: usize = 34 + SIZE_UTXO as usize * 100;
+    const LEN: usize = 34 + SIZE_UTXO as usize * UTXO_CAPACITY;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, UserAccount::LEN];
 
         let (is_initialized, account_type, owner_pubkey, enc_utxos) =
-            array_refs![input, 1, 1, 32, SIZE_UTXO as usize * 100];
+            array_refs![input, 1, 1, 32, SIZE_UTXO as usize * UTXO_CAPACITY];
 
         if is_initialized[0] == 0 {
             Ok(UserAccount {
@@ -59,7 +58,7 @@ impl Pack for UserAccount {
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, UserAccount::LEN];
         let (dst_is_initialized, dst_account_type, dst_owner_pubkey, dst_enc_utxos) =
-            mut_array_refs![dst, 1, 1, 32, SIZE_UTXO as usize * 100];
+            mut_array_refs![dst, 1, 1, 32, SIZE_UTXO as usize * UTXO_CAPACITY];
         // msg!("dst_enc_utxos : {:?}", dst_enc_utxos);
 
         if self.mode_init {
@@ -74,7 +73,6 @@ impl Pack for UserAccount {
                     .enumerate()
                 {
                     *x = self.enc_utxos[i + modifying_index * SIZE_UTXO as usize];
-                    // msg!("i,x {:?} -- {:?}", i, x);
                 }
             }
         }

@@ -1,5 +1,5 @@
 /program/target
-/program/dist/Testing_Hardcoded_Params_devnet_new.so
+/program/dist/light_protocol_program.so
 /program/node_modules
 /program/test-ledger
 /program/run.sh
@@ -21,3 +21,4 @@ Client-Js/node_modules/*
 /Client\-Js/package-lock.json
 /program/dist/*.so
 */*.so
+*/.coderrect
