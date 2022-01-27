@@ -11,13 +11,13 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar::rent::Rent,
 };
-
+use std::str::FromStr;
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
 use crate::Groth16Processor;
 use borsh::BorshSerialize;
 use std::convert::TryInto;
-
+/*
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
     if _from
         .try_borrow_mut_lamports()
@@ -47,7 +47,51 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
         _to.key
     );
     Ok(())
+}*/
+pub fn token_transfer<'a, 'b>(
+        //program_id: &Pubkey,
+        //signer: &Pubkey,
+        token_program: &'b AccountInfo<'a>,
+        source: &'b AccountInfo<'a>,
+        destination: &'b AccountInfo<'a>,
+        authority: &'b AccountInfo<'a>,
+        seed: &[u8],
+        bump_seed: &[u8],
+        amount: u64,
+    ) -> Result<(), ProgramError> {
+    msg!("transfer here0");
+    let native = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
+    assert_eq!(*token_program.key, native);
+    //let swap_bytes = swap.to_bytes();
+    msg!("transfer here1");
+    //let seed = [1u8;32];
+    let authority_signature_seeds = [&seed[..], &bump_seed[..]];
+    msg!("authority_signature_seeds {:?}", authority_signature_seeds);
+
+    // let check_pubkey = Pubkey::find_program_address(&[&signer.to_bytes()[..]], &program_id);
+    // msg!("check_pubkey {:?}", check_pubkey);
+    // msg!("transfer here2");
+
+    let signers = &[&authority_signature_seeds[..]];
+    msg!("transfer here3");
+
+    let ix = spl_token::instruction::transfer(
+        token_program.key,
+        source.key,
+        destination.key,
+        authority.key,
+        &[],
+        amount,
+    )?;
+    msg!("transfer here4");
+    invoke_signed(
+            &ix,
+            &[source.clone(), destination.clone(), authority.clone(), token_program.clone()],
+            signers,
+    )?;
+    Ok(())
 }
+
 
 pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
