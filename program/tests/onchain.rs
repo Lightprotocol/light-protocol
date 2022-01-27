@@ -1,6 +1,7 @@
 use crate::test_utils::tests::{
-    create_and_start_program_var, get_proof_from_bytes, get_public_inputs_from_bytes,
-    get_vk_from_file, read_test_data, restart_program
+    get_proof_from_bytes, get_public_inputs_from_bytes,
+    get_vk_from_file, read_test_data, restart_program_token,
+    create_and_start_program_var_token
 };
 use crate::tokio::time::timeout;
 use ark_ec::ProjectiveCurve;
@@ -50,7 +51,6 @@ use solana_sdk::account::WritableAccount;
 use solana_program::program_pack::Pack;
 use solana_sdk::stake_history::Epoch;
 
-const ACCOUNT_RENT_EXEMPTION : u64 = 1000000000000u64;
 
 mod test_utils;
 
@@ -100,8 +100,9 @@ async fn compute_prepared_inputs(
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
 
-                    let mut program_context = restart_program(
+                    let mut program_context = restart_program_token(
                         accounts_vector,
+                        None,
                         &program_id,
                         &signer_pubkey,
                         program_context,
@@ -164,8 +165,9 @@ async fn compute_miller_output(
                 Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    let mut program_context = restart_program(
+                    let mut program_context = restart_program_token(
                         accounts_vector,
+                        None,
                         &program_id,
                         &signer_pubkey,
                         program_context,
@@ -221,8 +223,9 @@ async fn compute_final_exponentiation(
                 Err(_e) => {
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
-                    let mut program_context = restart_program(
+                    let mut program_context = restart_program_token(
                         accounts_vector,
+                        None,
                         &program_id,
                         &signer_pubkey,
                         program_context,
@@ -329,8 +332,9 @@ pub async fn update_merkle_tree(
                 Ok(_) => success = true,
                 Err(e) => {
                     retries_left -= 1;
-                    let mut program_context = restart_program(
+                    let mut program_context = restart_program_token(
                         accounts_vector,
+                        None,
                         &program_id,
                         &signer_keypair.pubkey(),
                         program_context,
@@ -548,91 +552,6 @@ async fn create_pubkeys_from_ix_data(
     )
 }
 
-pub fn add_token_account(
-    program_test: &mut ProgramTest,
-    mint: Pubkey,
-    owner: Pubkey,
-    balance: u64,
-) -> Pubkey {
-    let token_account_keypair = Keypair::new();
-    add_token_account_with_address(
-        program_test,
-        token_account_keypair.pubkey(),
-        mint,
-        owner,
-        balance,
-    );
-    token_account_keypair.pubkey()
-}
-
-fn add_token_account_with_address(
-    program_test: &mut ProgramTest,
-    token_address: Pubkey,
-    mint: Pubkey,
-    owner: Pubkey,
-    balance: u64,
-) {
-    let mut token_account_data = vec![0u8; spl_token::state::Account::LEN];
-    let token_account_state = spl_token::state::Account {
-        mint,
-        owner,
-        amount: balance,
-        state: spl_token::state::AccountState::Initialized,
-        ..spl_token::state::Account::default()
-    };
-    Pack::pack(token_account_state, &mut token_account_data).unwrap();
-    let token_account = Account::create(
-        ACCOUNT_RENT_EXEMPTION,
-        token_account_data,
-        spl_token::id(),
-        false,
-        Epoch::default(),
-    );
-    program_test.add_account(token_address, token_account);
-}
-
-    pub async fn create_and_start_program_var_with_tokens(
-        accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
-        token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
-        program_id: &Pubkey,
-        signer_pubkey: &Pubkey,
-    ) -> ProgramTestContext {
-        let mut program_test = ProgramTest::new(
-            "light_protocol_program",
-            *program_id,
-            processor!(process_instruction),
-        );
-        for (pubkey, size, data) in accounts.iter() {
-            let mut account = Account::new(10000000000, *size, &program_id);
-            match data {
-                Some(d) => (account.data = d.clone()),
-                None => (),
-            }
-            program_test.add_account(**pubkey, account);
-            println!("added account {:?}", **pubkey);
-        }
-        let mint = Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap();
-
-        for (pubkey, authority, amount) in token_accounts.unwrap() {
-            add_token_account_with_address(&mut program_test, **pubkey, mint, **authority, *amount);
-        }
-
-        let mut program_context = program_test.start_with_context().await;
-        //transfer an arbitrary high amount to signer keypair to have a consistent payer
-        let mut transaction = solana_sdk::system_transaction::transfer(
-            &program_context.payer,
-            &signer_pubkey,
-            10000000000000,
-            program_context.last_blockhash,
-        );
-        transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-        let res_request = program_context
-            .banks_client
-            .process_transaction(transaction)
-            .await;
-
-        program_context
-    }
 
 
 async fn transact(
@@ -862,17 +781,6 @@ pub async fn last_tx (
            token_accounts[1].2
        ).unwrap();
        ix_vec.push(approve_instruction);
-       // //signers
-       // //temp acc
-       // let two_leaves_pda = next_account_info(account)?;
-       // let nullifier0_pda = next_account_info(account)?;
-       // let nullifier1_pda = next_account_info(account)?;
-       // let merkle_tree_pda = next_account_info(account)?;
-       // let merkle_tree_pda_token = next_account_info(account)?;
-       // let user_pda_token_pubkey = next_account_info(account)?;
-       // let system_program_account = next_account_info(account)?;
-       // let token_program_account = next_account_info(account)?;
-       // merkle tree token acc is the authority seed, should probably be checked
        ix_vec.push(
            Instruction::new_with_bincode(
            *program_id,
@@ -938,44 +846,6 @@ pub async fn last_tx (
 
    return program_context;
 }
-pub async fn restart_program_token(
-    accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
-    token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
-    program_id: &Pubkey,
-    signer_pubkey: &Pubkey,
-    program_context: &mut ProgramTestContext
-) -> ProgramTestContext {
-    for (pubkey, _, current_data) in accounts_vector.iter_mut() {
-        let account = program_context
-            .banks_client
-            .get_account(**pubkey)
-            .await
-            .expect("get_account")
-            .unwrap();
-        *current_data = Some(account.data.to_vec());
-    }
-    /*
-    let mut token_accounts1 = Some(Vec::new());
-
-    if token_accounts.is_some() {
-        token_accounts1 = token_accounts.unwrap();
-        for (pubkey, _, amount) in token_accounts.iter_mut() {
-            let account = program_context
-                .banks_client
-                .get_account(**pubkey)
-                .await
-                .expect("get_account")
-                .unwrap();
-            let account_data = spl_token::state::Account::unpack(&account.data).unwrap();
-            *amount = account_data.amount;
-        }
-        let mut token_accounts = Some(token_accounts);
-
-    }*/
-    let mut program_context_new = create_and_start_program_var_with_tokens(&accounts_vector, token_accounts, &program_id, &signer_pubkey).await;
-
-    program_context_new
-}
 
 async fn check_tmp_storage_account_state_correct(
     tmp_storage_pda_pubkey: &Pubkey,
@@ -1000,7 +870,6 @@ async fn check_tmp_storage_account_state_correct(
     if merkle_account_data_after.is_some() {
         let merkle_tree_pda_after =
             MerkleTree::unpack(&merkle_account_data_after.unwrap()).unwrap();
-        assert_eq!(unpacked_tmp_storage_account.root_hash, merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32) + 609..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641].to_vec());
         assert_eq!(merkle_tree_pda_after.pubkey_locked, vec![0u8; 32]);
         if merkle_account_data_before.is_some() {
             let merkle_tree_account_before =
@@ -1017,11 +886,13 @@ async fn check_tmp_storage_account_state_correct(
             println!(
                 "root[{}]: {:?}",
                 merkle_tree_pda_after.current_root_index,
-                merkle_account_data_after.unwrap()[(merkle_tree_pda_after.current_root_index * 32)
+                merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32)
                     + 609
-                    ..(merkle_tree_pda_after.current_root_index * 32) + 641]
+                    ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641]
                     .to_vec()
             );
+            assert_eq!(unpacked_tmp_storage_account.root_hash, merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32) + 609..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641].to_vec());
+
         }
     }
 }
@@ -1221,29 +1092,56 @@ fn pvk_should_match() {
     assert_eq!(get_delta_g2_neg_pc_89(), pvk.delta_g2_neg_pc.ell_coeffs[89]);
     assert_eq!(get_delta_g2_neg_pc_90(), pvk.delta_g2_neg_pc.ell_coeffs[90]);
 }
-/*
+
 #[tokio::test]
 async fn deposit_should_succeed() {
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_withdraw_data = read_test_data(std::string::String::from("deposit_0_1_sol.txt"));
+    let amount: u64 =  i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap()).try_into().unwrap();
+    println!("amount: {:?}", amount);
+
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let mut accounts_vector = Vec::new();
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES);
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((
+        &merkle_tree_pda_pubkey,
+        16657,
+        None,
+    ));
     // Creates random signer
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
 
     let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
-        create_pubkeys_from_ix_data(&ix_data, &program_id).await;
+        create_pubkeys_from_ix_data(&ix_withdraw_data, &program_id).await;
     let mut nullifier_pubkeys = Vec::new();
     nullifier_pubkeys.push(nf_pubkey0);
     nullifier_pubkeys.push(nf_pubkey1);
 
+    //is hardcoded onchain
+    let authority_seed = [7u8;32];
+    let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], &program_id);
+
+    let (merkle_tree_pda_token_pubkey, bumpSeed_merkle_tree) = Pubkey::find_program_address(
+       &[&merkle_tree_pda_pubkey.to_bytes()[..]],
+       &program_id
+    );
+    let user_pda_token_pubkey =  Keypair::new().pubkey();
+    let mut token_accounts = Vec::new();
+    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, 0));
+    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, amount));
+
+
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
+    let _merkle_tree_pda = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
 
     /*
      *
@@ -1267,50 +1165,36 @@ async fn deposit_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    //deposit into shielded pool
-    transact(
+    //deposit shielded pool
+    let mut program_context = transact(
         &program_id,
         &signer_pubkey,
         &signer_keypair,
         &tmp_storage_pda_pubkey,
+        &user_pda_token_pubkey,
         &merkle_tree_pda_pubkey,
+        &merkle_tree_pda_token_pubkey,
+        &expected_authority_pubkey,
         &nullifier_pubkeys,
         &two_leaves_pda_pubkey,
         None,
-        ix_data.clone(),
+        ix_withdraw_data.clone(),
         &mut program_context,
         &mut accounts_vector,
-        0u8,
+        &mut token_accounts,
+        1u8,
     )
-    .await;
+    .await.unwrap();
 
-    let merkle_tree_pda_after = program_context
-        .banks_client
-        .get_account(merkle_tree_pda_pubkey)
-        .await
-        .expect("get_account")
-        .unwrap();
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
 
-    check_leaves_insert_correct(
-        &two_leaves_pda_pubkey,
-        &ix_data[192 + 9..224 + 9], //left leaf todo change order
-        &ix_data[160 + 9..192 + 9], //right leaf
-        0,
-        &mut program_context,
-    )
-    .await;
     let merkle_tree_pda_after = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
         .await
         .expect("get_account")
         .unwrap();
-    //checking deposit amount
-    assert_eq!(
-        merkle_tree_pda_after.lamports,
-        merkle_tree_pda_before.lamports + 100000000
-    );
+
     check_tmp_storage_account_state_correct(
         &tmp_storage_pda_pubkey,
         Some(&merkle_tree_pda_before.data),
@@ -1318,8 +1202,37 @@ async fn deposit_should_succeed() {
         &mut program_context,
     )
     .await;
+
+    check_leaves_insert_correct(
+        &two_leaves_pda_pubkey,
+        &ix_withdraw_data[192 + 9..224 + 9], //left leaf todo change order
+        &ix_withdraw_data[160 + 9..192 + 9], //right leaf
+        0,
+        &mut program_context,
+    )
+    .await;
+
+    let user_pda_token_account = program_context.banks_client
+        .get_account(user_pda_token_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    let user_pda_token_account_data = spl_token::state::Account::unpack(&user_pda_token_account.data).unwrap();
+    println!("\nuser_pda_token: {:?} \n", user_pda_token_pubkey);
+
+    println!("user_pda_token_account_data: {:?}", user_pda_token_account_data);
+    assert_eq!(user_pda_token_account_data.amount, 0);
+
+    println!("\n merkle_tree_pda_token_pubkey: {:?} \n", merkle_tree_pda_token_pubkey);
+    let merkle_tree_pda_token_account = program_context.banks_client
+            .get_account(merkle_tree_pda_token_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    let merkle_tree_pda_token_account_data = spl_token::state::Account::unpack(&merkle_tree_pda_token_account.data).unwrap();
+
+    println!("merkle_tree_pda_token_account_data: {:?}", merkle_tree_pda_token_account_data);
+    assert_eq!(merkle_tree_pda_token_account_data.amount, amount);
+
 }
-*/
 #[tokio::test]
 async fn withdrawal_should_succeed() {
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
@@ -1363,7 +1276,7 @@ async fn withdrawal_should_succeed() {
 
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
     let _merkle_tree_pda = program_context
         .banks_client
         .get_account(merkle_tree_pda_pubkey)
@@ -1477,7 +1390,7 @@ async fn double_spend_should_not_succeed() {
 
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     //checks that other nullifiers are initialized already
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
@@ -1572,7 +1485,7 @@ async fn compute_prepared_inputs_should_succeed() {
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     // Initialize MerkleTree account
     initialize_merkle_tree(
@@ -1688,7 +1601,7 @@ async fn compute_miller_output_should_succeed() {
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state)));
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     /*
      *
@@ -1736,7 +1649,7 @@ async fn compute_final_exponentiation_should_succeed() {
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state.clone())));
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector,None, &program_id, &signer_pubkey).await;
 
     let init_data = program_context
         .banks_client
@@ -1814,7 +1727,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
 
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
@@ -2068,7 +1981,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
 
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
@@ -2198,7 +2111,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
 
     // start program
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
@@ -2320,7 +2233,7 @@ async fn merkle_tree_insert_should_succeed() {
     accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state.clone())));
 
     let mut program_context =
-        create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
+        create_and_start_program_var_token(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
     //initialize MerkleTree account
     initialize_merkle_tree(
