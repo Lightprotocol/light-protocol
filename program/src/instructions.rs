@@ -74,6 +74,7 @@ pub fn token_transfer<'a, 'b>(
 
     let signers = &[&authority_signature_seeds[..]];
     msg!("transfer here3");
+    msg!("transferring {} from {:?} to {:?}", amount, source.key, destination.key);
 
     let ix = spl_token::instruction::transfer(
         token_program.key,
@@ -83,7 +84,7 @@ pub fn token_transfer<'a, 'b>(
         &[],
         amount,
     )?;
-    msg!("transfer here4");
+    msg!("successful");
     invoke_signed(
             &ix,
             &[source.clone(), destination.clone(), authority.clone(), token_program.clone()],
