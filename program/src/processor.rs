@@ -161,12 +161,12 @@ pub fn process_instruction(
             //     msg!("Recipient has to be address specified in tx integrity hash.");
             //     return Err(ProgramError::InvalidInstructionData);
             // }
-            if *user_pda_token.key
-                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-            {
-                msg!("Recipient has to be address specified in tx integrity hash.");
-                return Err(ProgramError::InvalidInstructionData);
-            }
+            // if *user_pda_token.key
+            //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+            // {
+            //     msg!("Recipient has to be address specified in tx integrity hash.");
+            //     return Err(ProgramError::InvalidInstructionData);
+            // }
             msg!("Creating two_leaves_pda.");
             create_and_check_account(
                 program_id,
@@ -200,6 +200,7 @@ pub fn process_instruction(
                 msg!("ext_amount != pub_amount");
                 return Err(ProgramError::InvalidInstructionData);
             }
+
             token_transfer(
                 token_program_account,
                 merkle_tree_pda_token,
@@ -209,7 +210,7 @@ pub fn process_instruction(
                 &authority,
                 &authority_seed[..],
                 &[authority_bump_seed],
-                u64::try_from(ext_amount).unwrap(),
+                ext_amount_from_pub,
             )?;
         }
 
