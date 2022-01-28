@@ -564,6 +564,7 @@ async fn transact(
     expected_authority_pubkey: &Pubkey,
     nullifier_pubkeys: &Vec<Pubkey>,
     two_leaves_pda_pubkey: &Pubkey,
+    relayer_pda_token_pubkey_option: Option<&Pubkey>,
     receiver_pubkey_option: Option<&Pubkey>,
     ix_data: Vec<u8>,
     program_context: &mut ProgramTestContext,
@@ -727,6 +728,7 @@ async fn transact(
          program_context,
          accounts_vector,
          token_accounts,
+         relayer_pda_token_pubkey_option,
          receiver_pubkey_option
      )
      .await;
@@ -748,6 +750,7 @@ pub async fn last_tx (
     program_context: &mut ProgramTestContext,
     accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
     token_accounts: &mut Vec<(&Pubkey, &Pubkey, u64)>,
+    relayer_pda_token_pubkey_option: Option<&Pubkey>,
     receiver_pubkey_option: Option<&Pubkey>,
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
@@ -797,7 +800,7 @@ pub async fn last_tx (
                AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
                AccountMeta::new_readonly(spl_token::id(), false),
-               //AccountMeta::new(receiver_pubkey, false),
+               AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
            ]
            )
        );
@@ -822,6 +825,7 @@ pub async fn last_tx (
            AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
            AccountMeta::new(receiver_pubkey, false),
+           AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
        ]
            )
        );
@@ -1127,9 +1131,12 @@ async fn deposit_should_succeed() {
        &program_id
     );
     let user_pda_token_pubkey =  Keypair::new().pubkey();
+    let relayer_pda_token_pubkey =  Keypair::new().pubkey();
+
     let mut token_accounts = Vec::new();
     token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, 0));
-    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, amount));
+    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, amount ));
+    token_accounts.push((&relayer_pda_token_pubkey, &merkle_tree_pda_pubkey, 0));
 
 
     // start program
@@ -1176,6 +1183,7 @@ async fn deposit_should_succeed() {
         &expected_authority_pubkey,
         &nullifier_pubkeys,
         &two_leaves_pda_pubkey,
+        Some(&relayer_pda_token_pubkey),
         None,
         ix_withdraw_data.clone(),
         &mut program_context,
@@ -1231,6 +1239,14 @@ async fn deposit_should_succeed() {
     println!("merkle_tree_pda_token_account_data: {:?}", merkle_tree_pda_token_account_data);
     assert_eq!(merkle_tree_pda_token_account_data.amount, amount);
 
+    let relayer_pda_token_account = program_context.banks_client
+            .get_account(relayer_pda_token_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    let relayer_pda_token_account_data = spl_token::state::Account::unpack(&relayer_pda_token_account.data).unwrap();
+    println!("relayer test disabled");
+    //assert_eq!(relayer_pda_token_account_data.amount, 1);
+
 }
 
 #[tokio::test]
@@ -1269,9 +1285,14 @@ async fn withdrawal_should_succeed() {
        &program_id
     );
     let user_pda_token_pubkey =  Keypair::new().pubkey();
+    let random_user_owner_pubkey =  Keypair::new().pubkey();
+
+    let relayer_pda_token_pubkey =  Keypair::new().pubkey();
+
     let mut token_accounts = Vec::new();
-    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, amount));
-    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, 0));
+    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, amount ));
+    token_accounts.push((&user_pda_token_pubkey, &random_user_owner_pubkey, 0));
+    token_accounts.push((&relayer_pda_token_pubkey, &signer_pubkey, 0));
 
 
     // start program
@@ -1303,6 +1324,7 @@ async fn withdrawal_should_succeed() {
         &expected_authority_pubkey,
         &nullifier_pubkeys,
         &two_leaves_pda_pubkey,
+        Some(&relayer_pda_token_pubkey),
         Some(&recipient),
         ix_withdraw_data.clone(),
         &mut program_context,
@@ -1357,6 +1379,15 @@ async fn withdrawal_should_succeed() {
 
     println!("merkle_tree_pda_token_account_data: {:?}", merkle_tree_pda_token_account_data);
     assert_eq!(merkle_tree_pda_token_account_data.amount, 0);
+
+    let relayer_pda_token_account = program_context.banks_client
+            .get_account(relayer_pda_token_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    let relayer_pda_token_account_data = spl_token::state::Account::unpack(&relayer_pda_token_account.data).unwrap();
+    println!("relayer test disabled");
+
+    //assert_eq!(relayer_pda_token_account_data.amount, 1);
 
 }
 
@@ -1433,6 +1464,7 @@ async fn double_spend_should_not_succeed() {
         &expected_authority_pubkey,
         &nullifier_pubkeys,
         &two_leaves_pda_pubkey,
+        None,
         Some(&recipient),
         ix_withdraw_data.clone(),
         &mut program_context,
@@ -1470,6 +1502,8 @@ async fn double_spend_should_not_succeed() {
         .unwrap();
     //checking that no amount was withdrawn to the recipient
     assert_eq!(receiver_account.is_none(), true);
+
+
 }
 
 #[tokio::test]
