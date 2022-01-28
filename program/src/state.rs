@@ -13,7 +13,7 @@ pub struct ChecksAndTransferState {
     pub found_nullifier: u8,
     pub executed_withdraw: u8,
     pub signing_address: Vec<u8>, // is relayer address
-    pub relayer_refund: Vec<u8>,
+    pub relayer_fees: Vec<u8>,
     pub to_address: Vec<u8>,
     pub ext_amount: Vec<u8>,
     pub amount: Vec<u8>,
@@ -44,7 +44,7 @@ impl Pack for ChecksAndTransferState {
             found_nullifier,
             executed_withdraw,
             signing_address, // is relayer address
-            relayer_refund,
+            relayer_fees,
             to_address,
             ext_amount,
             amount,
@@ -64,7 +64,7 @@ impl Pack for ChecksAndTransferState {
             found_nullifier: found_nullifier[0],           //1 legacy remove
             executed_withdraw: executed_withdraw[0],       //2 legacy remove
             signing_address: signing_address.to_vec(),     //3
-            relayer_refund: relayer_refund.to_vec(),       //4
+            relayer_fees: relayer_fees.to_vec(),       //4
             to_address: to_address.to_vec(),               //5
             ext_amount: ext_amount.to_vec(),               //6
             amount: amount.to_vec(),                       //7
@@ -88,7 +88,7 @@ impl Pack for ChecksAndTransferState {
             found_nullifier_dst,
             executed_withdraw_dst,
             signing_address_dst, // is relayer address
-            relayer_refund_dst,
+            relayer_fees_dst,
             to_address_dst,
             ext_amount_dst,
             amount_dst,
@@ -113,7 +113,7 @@ impl Pack for ChecksAndTransferState {
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
-                    *relayer_refund_dst = self.relayer_refund.clone().try_into().unwrap();
+                    *relayer_fees_dst = self.relayer_fees.clone().try_into().unwrap();
                 } else if i == 5 {
                     *to_address_dst = self.to_address.clone().try_into().unwrap();
                 } else if i == 6 {

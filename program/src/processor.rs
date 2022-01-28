@@ -96,13 +96,17 @@ pub fn process_instruction(
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
 
-        // ext_amount includes the substracted fees
-        //TODO implement fees
+        // ext_amount includes the substracted relayer_fees
+        //TODO implement relayer_fees
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
+        let relayer_fees =
+            u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.clone().try_into().unwrap());
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount =
             <BigInteger256 as FromBytes>::read(&tmp_storage_pda_data.amount[..]).unwrap();
+
+
 
         if ext_amount > 0 {
             if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
@@ -120,9 +124,10 @@ pub fn process_instruction(
                 msg!("Public amount is larger than i64.");
                 return Err(ProgramError::InvalidInstructionData);
             }
-
-            if u64::try_from(ext_amount).unwrap() != pub_amount.0[0] {
-                msg!("ext_amount != pub_amount");
+            let ext_amount_from_pub = pub_amount.0[0] - relayer_fees;
+            //check amount
+            if  ext_amount_from_pub != ext_amount.try_into().unwrap() {
+                msg!("Invalid external amount (relayer_fees)");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
@@ -135,7 +140,7 @@ pub fn process_instruction(
                 &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
                 &b"leaves"[..],
                 106u64,                             //bytes
-                u64::try_from(ext_amount).unwrap(), //lamports
+                ext_amount_from_pub,                //lamports
                 true,                               //rent_exempt
             )?;
             msg!("Created two_leaves_pda successfully.");
@@ -152,21 +157,43 @@ pub fn process_instruction(
                 &[authority_bump_seed],
                 u64::try_from(ext_amount).unwrap(),
             )?;
+
+
+            if relayer_fees > 0 {
+                if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
+                    msg!("wrong relayer");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                let relayer_fees = 1;
+
+                let relayer_pda_token = next_account_info(account)?;
+
+                token_transfer(
+                    token_program_account,
+                    user_pda_token,
+                    //destination,
+                    relayer_pda_token,
+                    &authority,
+                    &authority_seed[..],
+                    &[authority_bump_seed],
+                    relayer_fees,
+                )?;
+            }
         } else if ext_amount < 0 {
-            // let recipient_account = next_account_info(account)?;
-            //
-            // if *recipient_account.key
-            //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-            // {
-            //     msg!("Recipient has to be address specified in tx integrity hash.");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
-            // if *user_pda_token.key
-            //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-            // {
-            //     msg!("Recipient has to be address specified in tx integrity hash.");
-            //     return Err(ProgramError::InvalidInstructionData);
-            // }
+            let recipient_account = next_account_info(account)?;
+
+            if *recipient_account.key
+                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+            {
+                msg!("Recipient has to be address specified in tx integrity hash.");
+                return Err(ProgramError::InvalidInstructionData);
+            }
+            if *user_pda_token.key
+                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+            {
+                msg!("Recipient has to be address specified in tx integrity hash.");
+                return Err(ProgramError::InvalidInstructionData);
+            }
             msg!("Creating two_leaves_pda.");
             create_and_check_account(
                 program_id,
@@ -195,9 +222,11 @@ pub fn process_instruction(
                 return Err(ProgramError::InvalidInstructionData);
             }
             // field is the positive value
-            let ext_amount_from_pub = field.0[0];
-            if u64::try_from(-ext_amount).unwrap() != ext_amount_from_pub {
-                msg!("ext_amount != pub_amount");
+            let ext_amount_from_pub = field.0[0] - relayer_fees;
+
+            //check amount
+            if  ext_amount_from_pub != (-ext_amount).try_into().unwrap() {
+                msg!("Invalid external amount (relayer_fees)");
                 return Err(ProgramError::InvalidInstructionData);
             }
 
@@ -212,10 +241,31 @@ pub fn process_instruction(
                 &[authority_bump_seed],
                 ext_amount_from_pub,
             )?;
+
+            if relayer_fees > 0 {
+                if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
+                    msg!("wrong relayer");
+                    return Err(ProgramError::InvalidArgument);
+                }
+                let relayer_pda_token = next_account_info(account)?;
+
+                token_transfer(
+                    token_program_account,
+                    merkle_tree_pda_token,
+                    //destination,
+                    relayer_pda_token,
+                    &authority,
+                    &authority_seed[..],
+                    &[authority_bump_seed],
+                    relayer_fees,
+                )?;
+            }
+
         }
 
         //insert Merkle root
         merkle_tree_processor.process_instruction(accounts)?;
+
     }
 
     tmp_storage_pda_data.current_instruction_index += 1;
