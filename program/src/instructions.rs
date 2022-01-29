@@ -338,6 +338,8 @@ pub fn try_initialize_tmp_storage_pda(
     let relayer = _instruction_data[520..552].to_vec();
     let fee = _instruction_data[552..560].to_vec();
     tmp_storage_pda_data.relayer_fees = fee.clone();
+    msg!("tmp_storage_pda_data.relayer_fees {:?}", tmp_storage_pda_data.relayer_fees);
+
     msg!("tmp_storage_pda_data.relayer_fees {}", u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.try_into().unwrap()));
     panic!("");
     check_tx_integrity_hash(
