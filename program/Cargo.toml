@@ -4,6 +4,12 @@ version = "0.1.0"
 authors = ["ananas-block <flow23@protonmail.com>", "swen <swen.schaeferjohann@code.berlin>"]
 edition = "2018"
 
+[patch.crates-io]
+ark-ff = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0" }
+ark-bn254 = {git = "https://github.com/Lightprotocol/curves", branch="release-0.3.0"}
+ark-ec = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0"}
+ark-serialize = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0"}
+
 [features]
 no-entrypoint = []
 test-bpf = []
