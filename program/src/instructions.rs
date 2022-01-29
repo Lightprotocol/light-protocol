@@ -338,7 +338,7 @@ pub fn try_initialize_tmp_storage_pda(
     let relayer = _instruction_data[520..552].to_vec();
 
     //check that relayer in integrity hash is == signer
-    if *signing_address != Pubkey::new(relayer) {
+    if *signing_address != Pubkey::new(&relayer) {
         msg!("specified relayer is not signer");
         return Err(ProgramError::InvalidAccountData);
     }
