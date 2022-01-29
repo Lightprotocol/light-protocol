@@ -11,7 +11,7 @@
 /Client\-Js/src/webassembly.js
 Client-Js/node_modules/*
 /Client\-Js/webassembly/target
-/dist
+
 /target
 /test-ledger
 /program_prep_inputs/target
@@ -19,6 +19,6 @@ Client-Js/node_modules/*
 /test_scripts/*.txt
 /Client\-Js/.env
 /Client\-Js/package-lock.json
-/program/dist/*.so
 */*.so
 */.coderrect
+/program/dist/
