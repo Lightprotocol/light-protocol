@@ -83,7 +83,7 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
         //let ext_amount_from_pub = pub_amount.0[0] + relayer_fees;
         //check amount
         if  pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
-            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees,-ext_amount);
+            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, ext_amount);
             return Err(ProgramError::InvalidInstructionData);
         }
         return Ok((pub_amount.0[0], 0));
