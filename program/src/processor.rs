@@ -98,8 +98,9 @@ pub fn process_instruction(
         let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
+        msg!("ext_amount != tmp_storage_pda_data.relayer_fees {} != {}", ext_amount, relayer_fees);
 
-        if ext_amount != 0 {
+        if ext_amount != relayer_fees.try_into().unwrap() {
             let user_pda_token = next_account_info(account)?;
 
 
@@ -169,6 +170,7 @@ pub fn process_instruction(
         }
 
         if relayer_fees > 0 {
+            msg!("paying relayre : {}", relayer_fees);
             if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
                 msg!("wrong relayer");
                 return Err(ProgramError::InvalidArgument);
