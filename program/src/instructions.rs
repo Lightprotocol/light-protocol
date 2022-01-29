@@ -80,13 +80,13 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        let ext_amount_from_pub = pub_amount.0[0] - relayer_fees;
+        //let ext_amount_from_pub = pub_amount.0[0] + relayer_fees;
         //check amount
-        if  ext_amount_from_pub != ext_amount.try_into().unwrap() {
-            msg!("Invalid external amount (relayer_fees) {} != {}",ext_amount_from_pub, (ext_amount).try_into().unwrap());
+        if  pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
+            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, <u64 as TryFrom<i64>>::try_from(-ext_amount).unwrap());
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((ext_amount_from_pub, 0));
+        return Ok((pub_amount.0[0], 0));
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -102,14 +102,12 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             return Err(ProgramError::InvalidInstructionData);
         }
         // field is the positive value
-        let ext_amount_from_pub = field.0[0] - relayer_fees;
-
         //check amount
-        if  ext_amount_from_pub != (-ext_amount).try_into().unwrap() {
-            msg!("Invalid external amount (relayer_fees) {} != {}",ext_amount_from_pub, (-ext_amount).try_into().unwrap());
+        if  field.0[0] + relayer_fees != (-ext_amount).try_into().unwrap() {
+            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, <u64 as TryFrom<i64>>::try_from(-ext_amount).unwrap());
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((ext_amount_from_pub, 0));
+        return Ok((field.0[0], 0));
     } else if ext_amount == 0 {
         return Ok((ext_amount.try_into().unwrap(), 0));
     } else {

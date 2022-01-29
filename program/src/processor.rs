@@ -64,7 +64,7 @@ pub fn process_instruction(
             msg!("Invalid passed-in authority.");
             return Err(ProgramError::InvalidArgument);
         }
-        
+
         if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
             msg!("Recipient has to be merkle tree account for deposit.");
             return Err(ProgramError::InvalidInstructionData);
@@ -99,7 +99,7 @@ pub fn process_instruction(
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
 
 
-        let (ext_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
+        let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
 
@@ -111,7 +111,7 @@ pub fn process_instruction(
 
                 msg!("Created two_leaves_pda successfully.");
 
-                msg!("Deposited {}", ext_amount_checked);
+                msg!("Deposited {}", pub_amount_checked);
                 token_transfer(
                     token_program_account,
                     user_pda_token,
@@ -121,7 +121,7 @@ pub fn process_instruction(
                     &authority,
                     &authority_seed[..],
                     &[authority_bump_seed],
-                    ext_amount_checked,
+                    pub_amount_checked,
                 )?;
 
             } else if ext_amount < 0 {
@@ -165,7 +165,7 @@ pub fn process_instruction(
                     &authority,
                     &authority_seed[..],
                     &[authority_bump_seed],
-                    ext_amount_checked,
+                    pub_amount_checked,
                 )?;
 
 
