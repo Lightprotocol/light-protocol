@@ -337,7 +337,7 @@ pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
     let fee = _instruction_data[552..560].to_vec();
-
+    tmp_storage_pda_data.relayer_fees = fee.clone();
     check_tx_integrity_hash(
         tmp_storage_pda_data.to_address.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
