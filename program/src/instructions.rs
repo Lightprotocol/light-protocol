@@ -336,6 +336,13 @@ pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda_data.to_address = _instruction_data[480..512].to_vec();
     tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
+
+    //check that relayer in integrity hash is == signer
+    if *signing_address != Pubkey::new(relayer) {
+        msg!("specified relayer is not signer");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     let fee = _instruction_data[552..560].to_vec();
     tmp_storage_pda_data.relayer_fees = fee.clone();
     // msg!("tmp_storage_pda_data.relayer_fees {:?}", tmp_storage_pda_data.relayer_fees);
