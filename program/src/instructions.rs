@@ -83,7 +83,7 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
         //let ext_amount_from_pub = pub_amount.0[0] + relayer_fees;
         //check amount
         if  pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
-            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, <u64 as TryFrom<i64>>::try_from(-ext_amount).unwrap());
+            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees,-ext_amount);
             return Err(ProgramError::InvalidInstructionData);
         }
         return Ok((pub_amount.0[0], 0));
@@ -91,6 +91,7 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
         field.sub_noborrow(&pub_amount);
+        // field.0[0] is the positive value
 
         if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0 {
             msg!("Public amount is larger than u64.");
@@ -101,10 +102,9 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             msg!("Public amount is larger than i64.");
             return Err(ProgramError::InvalidInstructionData);
         }
-        // field is the positive value
         //check amount
         if  field.0[0] + relayer_fees != (-ext_amount).try_into().unwrap() {
-            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, <u64 as TryFrom<i64>>::try_from(-ext_amount).unwrap());
+            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, -ext_amount);
             return Err(ProgramError::InvalidInstructionData);
         }
         return Ok((field.0[0], 0));

@@ -95,10 +95,6 @@ pub fn process_instruction(
             tmp_storage_pda_data.found_nullifier
         );
 
-        msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
-
-
         let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
@@ -190,6 +186,11 @@ pub fn process_instruction(
                 relayer_fees,
             )?;
         }
+
+        msg!("Inserting new merkle root.");
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+
+
         msg!("Creating two_leaves_pda.");
         create_and_check_account(
             program_id,
