@@ -286,6 +286,7 @@ pub async fn update_merkle_tree(
     accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
 ) {
     let mut i = 0;
+
     for instruction_id in 0..237 {
         //checking merkle tree lock
         if instruction_id != 0 {
@@ -796,10 +797,10 @@ pub async fn last_tx (
                AccountMeta::new(nullifier_pubkeys[1], false),
                AccountMeta::new(*merkle_tree_pda_pubkey, false),
                AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-               AccountMeta::new(*user_pda_token_pubkey, false),
-               AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
                AccountMeta::new_readonly(spl_token::id(), false),
+               AccountMeta::new(*user_pda_token_pubkey, false),
+               AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
            ]
            )
@@ -820,10 +821,10 @@ pub async fn last_tx (
            AccountMeta::new(nullifier_pubkeys[1], false),
            AccountMeta::new(*merkle_tree_pda_pubkey, false),
            AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-           AccountMeta::new(*user_pda_token_pubkey, false),
-           AccountMeta::new(*expected_authority_pubkey, false),
            AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
+           AccountMeta::new(*user_pda_token_pubkey, false),
+           AccountMeta::new(*expected_authority_pubkey, false),
            AccountMeta::new(receiver_pubkey, false),
            AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
        ]

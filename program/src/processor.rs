@@ -57,10 +57,16 @@ pub fn process_instruction(
         let nullifier1_pda = next_account_info(account)?;
         let merkle_tree_pda = next_account_info(account)?;
         let merkle_tree_pda_token = next_account_info(account)?;
-        let user_pda_token = next_account_info(account)?;
-        let authority = next_account_info(account)?;
         let system_program_account = next_account_info(account)?;
         let token_program_account = next_account_info(account)?;
+        let ext_amount =
+            i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
+        let user_pda_token = next_account_info(account)?;
+        let authority = next_account_info(account)?;
+    if ext_amount != 0 {
+
+        }
+
         let authority_seed = [7u8;32];
         let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], program_id);
 
@@ -98,8 +104,6 @@ pub fn process_instruction(
 
         // ext_amount includes the substracted relayer_fees
         //TODO implement relayer_fees
-        let ext_amount =
-            i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         let relayer_fees =
             u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.clone().try_into().unwrap());
         // pub_amount is the public amount included in public inputs for proof verification
@@ -158,27 +162,6 @@ pub fn process_instruction(
                 u64::try_from(ext_amount).unwrap(),
             )?;
 
-
-            if relayer_fees > 0 {
-                if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
-                    msg!("wrong relayer");
-                    return Err(ProgramError::InvalidArgument);
-                }
-                let relayer_fees = 1;
-
-                let relayer_pda_token = next_account_info(account)?;
-
-                token_transfer(
-                    token_program_account,
-                    user_pda_token,
-                    //destination,
-                    relayer_pda_token,
-                    &authority,
-                    &authority_seed[..],
-                    &[authority_bump_seed],
-                    relayer_fees,
-                )?;
-            }
         } else if ext_amount < 0 {
             let recipient_account = next_account_info(account)?;
 
