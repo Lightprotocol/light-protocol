@@ -799,8 +799,8 @@ pub async fn last_tx (
                AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
                AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
                AccountMeta::new_readonly(spl_token::id(), false),
-               AccountMeta::new(*user_pda_token_pubkey, false),
                AccountMeta::new(*expected_authority_pubkey, false),
+               AccountMeta::new(*user_pda_token_pubkey, false),
                AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
            ]
            )
@@ -823,9 +823,8 @@ pub async fn last_tx (
            AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
            AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
-           AccountMeta::new(*user_pda_token_pubkey, false),
            AccountMeta::new(*expected_authority_pubkey, false),
-           AccountMeta::new(receiver_pubkey, false),
+           AccountMeta::new(*user_pda_token_pubkey, false),
            AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
        ]
            )

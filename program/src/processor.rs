@@ -56,17 +56,7 @@ pub fn process_instruction(
         let merkle_tree_pda_token = next_account_info(account)?;
         let system_program_account = next_account_info(account)?;
         let token_program_account = next_account_info(account)?;
-
-        let user_pda_token = next_account_info(account)?;
         let authority = next_account_info(account)?;
-        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
-            msg!("Recipient has to be merkle tree account for deposit.");
-            return Err(ProgramError::InvalidInstructionData);
-        }
-        let (ext_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
-        let ext_amount =
-            i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-
         let authority_seed = [7u8;32];
         let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], program_id);
 
@@ -74,6 +64,12 @@ pub fn process_instruction(
             msg!("Invalid passed-in authority.");
             return Err(ProgramError::InvalidArgument);
         }
+        
+        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES) {
+            msg!("Recipient has to be merkle tree account for deposit.");
+            return Err(ProgramError::InvalidInstructionData);
+        }
+
         msg!("Starting nullifier check.");
         tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
             program_id,
@@ -103,65 +99,77 @@ pub fn process_instruction(
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
 
 
-        if ext_amount > 0 {
+        let (ext_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
+        let ext_amount =
+            i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
 
-            msg!("Created two_leaves_pda successfully.");
+        if ext_amount != 0 {
+            let user_pda_token = next_account_info(account)?;
 
-            msg!("Deposited {}", ext_amount_checked);
-            token_transfer(
-                token_program_account,
-                user_pda_token,
-                //two_leaves_pda
-                //destination,
-                merkle_tree_pda_token,
-                &authority,
-                &authority_seed[..],
-                &[authority_bump_seed],
-                ext_amount_checked,
-            )?;
 
-        } else if ext_amount < 0 {
-            let recipient_account = next_account_info(account)?;
+            if ext_amount > 0 {
 
-            if *recipient_account.key
-                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-            {
-                msg!("Recipient has to be address specified in tx integrity hash.");
-                return Err(ProgramError::InvalidInstructionData);
+                msg!("Created two_leaves_pda successfully.");
+
+                msg!("Deposited {}", ext_amount_checked);
+                token_transfer(
+                    token_program_account,
+                    user_pda_token,
+                    //two_leaves_pda
+                    //destination,
+                    merkle_tree_pda_token,
+                    &authority,
+                    &authority_seed[..],
+                    &[authority_bump_seed],
+                    ext_amount_checked,
+                )?;
+
+            } else if ext_amount < 0 {
+                // let recipient_account = next_account_info(account)?;
+                //
+                // if *recipient_account.key
+                //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+                // {
+                //     msg!("Recipient has to be address specified in tx integrity hash.");
+                //     return Err(ProgramError::InvalidInstructionData);
+                // }
+                let user_pda_token = next_account_info(account)?;
+                let authority = next_account_info(account)?;
+
+                if *user_pda_token.key
+                    != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+                {
+                    msg!("Recipient has to be address specified in tx integrity hash.");
+                    return Err(ProgramError::InvalidInstructionData);
+                }
+                msg!("Creating two_leaves_pda.");
+                create_and_check_account(
+                    program_id,
+                    signer_account,
+                    two_leaves_pda,
+                    system_program_account,
+                    &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
+                    &b"leaves"[..],
+                    106u64, //bytes
+                    0u64,   //lamports
+                    true,   //rent_exempt
+                )?;
+                msg!("Created two_leaves_pda successfully.");
+
+                token_transfer(
+                    token_program_account,
+                    merkle_tree_pda_token,
+                    //two_leaves_pda
+                    //destination,
+                    user_pda_token,
+                    &authority,
+                    &authority_seed[..],
+                    &[authority_bump_seed],
+                    ext_amount_checked,
+                )?;
+
+
             }
-            if *user_pda_token.key
-                != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-            {
-                msg!("Recipient has to be address specified in tx integrity hash.");
-                return Err(ProgramError::InvalidInstructionData);
-            }
-            msg!("Creating two_leaves_pda.");
-            create_and_check_account(
-                program_id,
-                signer_account,
-                two_leaves_pda,
-                system_program_account,
-                &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
-                &b"leaves"[..],
-                106u64, //bytes
-                0u64,   //lamports
-                true,   //rent_exempt
-            )?;
-            msg!("Created two_leaves_pda successfully.");
-
-            token_transfer(
-                token_program_account,
-                merkle_tree_pda_token,
-                //two_leaves_pda
-                //destination,
-                user_pda_token,
-                &authority,
-                &authority_seed[..],
-                &[authority_bump_seed],
-                ext_amount_checked,
-            )?;
-
-
         }
 
         if relayer_fees > 0 {
