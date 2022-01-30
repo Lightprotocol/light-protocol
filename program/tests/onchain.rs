@@ -734,7 +734,8 @@ async fn transact(
          receiver_pubkey_option
      )
      .await;
-
+     println!("user_pda_token_pubkey {:?}", user_pda_token_pubkey);
+     println!("relayer_pda_token_pubkey_option: {:?}", relayer_pda_token_pubkey_option.unwrap());
 
     Ok(program_context)
 }
@@ -769,6 +770,7 @@ pub async fn last_tx (
 
 
    let mut receiver_pubkey: Pubkey;
+   println!("user_pda_token_pubkey: {:?}", user_pda_token_pubkey);
 
    println!("receiver_pubkey_option: {:?}", receiver_pubkey_option);
    let mut ix_vec = Vec::new();
@@ -802,7 +804,6 @@ pub async fn last_tx (
                AccountMeta::new_readonly(spl_token::id(), false),
                AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(*user_pda_token_pubkey, false),
-               AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
            ]
            )
        );
@@ -1278,7 +1279,7 @@ async fn withdrawal_should_succeed() {
     nullifier_pubkeys.push(nf_pubkey1);
 
     //is hardcoded onchain
-    let authority_seed = [7u8;32];
+    let authority_seed = program_id.to_bytes();
     let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], &program_id);
 
     let (merkle_tree_pda_token_pubkey, bumpSeed_merkle_tree) = Pubkey::find_program_address(
