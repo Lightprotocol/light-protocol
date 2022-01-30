@@ -13,7 +13,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
 };
-use std::convert::{TryInto, TryFrom};
+use std::convert::{TryFrom, TryInto};
 
 // Processor for deposit and withdraw logic.
 pub fn process_instruction(
@@ -39,7 +39,13 @@ pub fn process_instruction(
         );
         msg!(
             "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
-            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0)
+            solana_program::pubkey::Pubkey::new(
+                &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
+                    tmp_storage_pda_data.merkle_tree_index
+                )
+                .unwrap()]
+                .0
+            )
         );
         tmp_storage_pda_data.found_root = check_root_hash_exists(
             merkle_tree_pda,
@@ -64,23 +70,59 @@ pub fn process_instruction(
         //changed seet to bytes of program_id
         let authority_seed = program_id.to_bytes();
 
-        let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], program_id);
+        let (expected_authority_pubkey, authority_bump_seed) =
+            Pubkey::find_program_address(&[&authority_seed], program_id);
 
         if expected_authority_pubkey != *authority.key {
             msg!("Invalid passed-in authority.");
             return Err(ProgramError::InvalidArgument);
         }
 
-        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0) {
-            msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0));
+        if *merkle_tree_pda.key
+            != solana_program::pubkey::Pubkey::new(
+                &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
+                    tmp_storage_pda_data.merkle_tree_index,
+                )
+                .unwrap()]
+                .0,
+            )
+        {
+            msg!(
+                "Passed-in Merkle tree account is invalid. {:?} != {:?}",
+                *merkle_tree_pda.key,
+                solana_program::pubkey::Pubkey::new(
+                    &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
+                        tmp_storage_pda_data.merkle_tree_index
+                    )
+                    .unwrap()]
+                    .0
+                )
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
-        /*
-        if *merkle_tree_pda_token.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].1) {
-            msg!("Passed-in Merkle tree token account is invalid. {:?} != {:?}", *merkle_tree_pda_token.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].1));
+
+        if *merkle_tree_pda_token.key
+            != solana_program::pubkey::Pubkey::new(
+                &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
+                    tmp_storage_pda_data.merkle_tree_index,
+                )
+                .unwrap()]
+                .1,
+            )
+        {
+            msg!(
+                "Passed-in Merkle tree token account is invalid. {:?} != {:?}",
+                *merkle_tree_pda_token.key,
+                solana_program::pubkey::Pubkey::new(
+                    &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
+                        tmp_storage_pda_data.merkle_tree_index
+                    )
+                    .unwrap()]
+                    .1
+                )
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
-        */
 
         msg!("Starting nullifier check.");
         tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
@@ -109,7 +151,11 @@ pub fn process_instruction(
         let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-        msg!("ext_amount != tmp_storage_pda_data.relayer_fees {} != {}", ext_amount, relayer_fees);
+        msg!(
+            "ext_amount != tmp_storage_pda_data.relayer_fees {} != {}",
+            ext_amount,
+            relayer_fees
+        );
 
         if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             let user_pda_token = next_account_info(account)?;
@@ -130,14 +176,12 @@ pub fn process_instruction(
                     pub_amount_checked,
                 )?;
             } else if ext_amount < 0 {
-
-                /*
                 if *user_pda_token.key
                     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
                 {
                     msg!("Recipient has to be address specified in tx integrity hash.");
                     return Err(ProgramError::InvalidInstructionData);
-                }*/
+                }
 
                 token_transfer(
                     token_program_account,
@@ -154,7 +198,6 @@ pub fn process_instruction(
         }
 
         if relayer_fees > 0 {
-            msg!("paying relayer : {}", relayer_fees);
             if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
                 msg!("wrong relayer");
                 return Err(ProgramError::InvalidArgument);

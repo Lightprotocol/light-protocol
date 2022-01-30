@@ -3,6 +3,7 @@ use ark_ff::PrimeField;
 
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
+use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::Groth16Processor;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
@@ -19,7 +20,6 @@ use solana_program::{
 };
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 /*
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
     if _from
@@ -140,7 +140,6 @@ pub fn token_transfer<'a, 'b>(
     let native = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
     assert_eq!(*token_program.key, native);
     //let swap_bytes = swap.to_bytes();
-    msg!("transfer here1");
     //let seed = [1u8;32];
     let authority_signature_seeds = [&seed[..], &bump_seed[..]];
     msg!("authority_signature_seeds {:?}", authority_signature_seeds);
@@ -150,7 +149,6 @@ pub fn token_transfer<'a, 'b>(
     // msg!("transfer here2");
 
     let signers = &[&authority_signature_seeds[..]];
-    msg!("transfer here3");
     msg!(
         "transferring {} from {:?} to {:?}",
         amount,
@@ -166,7 +164,6 @@ pub fn token_transfer<'a, 'b>(
         &[],
         amount,
     )?;
-    msg!("successful");
     invoke_signed(
         &ix,
         &[
@@ -213,7 +210,7 @@ pub fn check_tx_integrity_hash(
     relayer: Vec<u8>,
     fee: Vec<u8>,
     tx_integrity_hash: Vec<u8>, // Vec<u8> TODO: CLIPPY
-    merkle_tree_pda_pubkey: Vec<u8>
+    merkle_tree_pda_pubkey: Vec<u8>,
 ) -> Result<(), ProgramError> {
     let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey].concat();
 
@@ -264,10 +261,10 @@ pub fn create_and_check_account<'a, 'b>(
     lamports: u64,
     rent_exempt: bool,
 ) -> Result<(), ProgramError> {
-    msg!(
-        "domain_separation_seed: {:?}",
-        &[&_instruction_data, &domain_separation_seed]
-    );
+    // msg!(
+    //     "domain_separation_seed: {:?}",
+    //     &[&_instruction_data, &domain_separation_seed]
+    // );
     let derived_pubkey =
         Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id); // TODO: clippy. check if [..] rm has sideeffects
 
@@ -366,10 +363,14 @@ pub fn try_initialize_tmp_storage_pda(
     let fee = _instruction_data[552..560].to_vec();
     tmp_storage_pda_data.relayer_fees = fee.clone();
 
-
     let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
-    tmp_storage_pda_data.merkle_tree_index  = _instruction_data[592];
-    if merkle_tree_pda_pubkey != MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0.to_vec() {
+    tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];
+    if merkle_tree_pda_pubkey
+        != MERKLE_TREE_ACC_BYTES_ARRAY
+            [<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]
+        .0
+        .to_vec()
+    {
         msg!("Merkle tree in tx integrity hash not whitelisted or wrong ID.");
         return Err(ProgramError::InvalidAccountData);
     }
