@@ -1392,7 +1392,6 @@ async fn withdrawal_should_succeed() {
     //assert_eq!(relayer_pda_token_account_data.amount, 1);
 
 }
-
 #[tokio::test]
 async fn double_spend_should_not_succeed() {
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
@@ -1424,7 +1423,7 @@ async fn double_spend_should_not_succeed() {
     accounts_vector.push((&nullifier_pubkeys[1], 2, Some(vec![1, 0])));
 
     //is hardcoded onchain
-    let authority_seed = [7u8;32];
+    let authority_seed = program_id.to_bytes();
     let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], &program_id);
 
     let (merkle_tree_pda_token_pubkey, bumpSeed_merkle_tree) = Pubkey::find_program_address(
@@ -1432,9 +1431,15 @@ async fn double_spend_should_not_succeed() {
        &program_id
     );
     let user_pda_token_pubkey =  Keypair::new().pubkey();
+    let random_user_owner_pubkey =  Keypair::new().pubkey();
+
+    let relayer_pda_token_pubkey =  Keypair::new().pubkey();
+
     let mut token_accounts = Vec::new();
-    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, amount));
-    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, 0));
+    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, amount ));
+    token_accounts.push((&user_pda_token_pubkey, &random_user_owner_pubkey, 0));
+    token_accounts.push((&relayer_pda_token_pubkey, &signer_pubkey, 0));
+
 
 
     // start program
@@ -1466,7 +1471,7 @@ async fn double_spend_should_not_succeed() {
         &expected_authority_pubkey,
         &nullifier_pubkeys,
         &two_leaves_pda_pubkey,
-        None,
+        Some(&relayer_pda_token_pubkey),
         Some(&recipient),
         ix_withdraw_data.clone(),
         &mut program_context,
@@ -1504,7 +1509,6 @@ async fn double_spend_should_not_succeed() {
         .unwrap();
     //checking that no amount was withdrawn to the recipient
     assert_eq!(receiver_account.is_none(), true);
-
 
 }
 
