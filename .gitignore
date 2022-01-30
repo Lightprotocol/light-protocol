@@ -1,5 +1,5 @@
 /program/target
-/program/dist/light_protocol_program.so
+/program/dist/program/light_protocol_program.so
 /program/node_modules
 /program/test-ledger
 /program/run.sh

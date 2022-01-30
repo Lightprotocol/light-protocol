@@ -596,7 +596,7 @@ async fn transact(
                 AccountMeta::new(*signer_pubkey, true),
                 AccountMeta::new(*tmp_storage_pda_pubkey, false),
                 AccountMeta::new(
-                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    solana_program::system_program::id(),
                     false,
                 ),
             ],
@@ -800,7 +800,7 @@ pub async fn last_tx (
                AccountMeta::new(nullifier_pubkeys[1], false),
                AccountMeta::new(*merkle_tree_pda_pubkey, false),
                AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-               AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
+               AccountMeta::new(solana_program::system_program::id(), false),
                AccountMeta::new_readonly(spl_token::id(), false),
                AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(*user_pda_token_pubkey, false),
@@ -823,7 +823,7 @@ pub async fn last_tx (
            AccountMeta::new(nullifier_pubkeys[1], false),
            AccountMeta::new(*merkle_tree_pda_pubkey, false),
            AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-           AccountMeta::new(Pubkey::from_str("11111111111111111111111111111111").unwrap(), false),
+           AccountMeta::new(solana_program::system_program::id(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
            AccountMeta::new(*expected_authority_pubkey, false),
            AccountMeta::new(*user_pda_token_pubkey, false),
@@ -1561,7 +1561,7 @@ async fn compute_prepared_inputs_should_succeed() {
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(
-                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    solana_program::system_program::id(),
                     false,
                 ),
             ],
@@ -1821,7 +1821,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(
-                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    solana_program::system_program::id(),
                     false,
                 ),
             ],
@@ -1947,7 +1947,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(
-                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    solana_program::system_program::id(),
                     false,
                 ),
             ],
@@ -2076,7 +2076,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(
-                    Pubkey::from_str("11111111111111111111111111111111").unwrap(),
+                    solana_program::system_program::id(),
                     false,
                 ),
             ],
