@@ -7,22 +7,7 @@ use solana_program::{
 };
 
 use arrayref::{array_ref, array_refs};
-
-// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-//     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
-//     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
-// ];
-
-// v1.1.2; light-protocol-core (live on devnet)
-// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-// 162, 166, 103, 128, 47, 35, 255, 7, 108, 182, 166, 12, 208, 164, 233, 178, 222, 73, 90, 2, 152,
-// 174, 225, 190, 148, 157, 105, 10, 78, 240, 9, 47,
-// ];
-// TESTING
-pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-    22, 28, 110, 146, 42, 27, 34, 184, 101, 139, 125, 221, 133, 177, 67, 27, 34, 121, 168, 48, 31,
-    96, 171, 88, 251, 244, 154, 176, 94, 213, 156, 140,
-];
+use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 
 #[derive(Clone, Debug)]
 pub struct MerkleTreeRoots {
@@ -78,15 +63,16 @@ pub fn check_root_hash_exists(
     account_main: &AccountInfo,
     root_bytes: &Vec<u8>,
     program_id: &Pubkey,
+    merkle_tree_index: u8
 ) -> Result<u8, ProgramError> {
     let account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
     msg!("merkletree acc key: {:?}", *account_main);
     msg!(
         "merkletree acc key to check: {:?}",
-        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..])
+        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
     );
 
-    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES[..]) {
+    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0) {
         msg!("merkle tree account pubkey is incorrect");
         return Err(ProgramError::IllegalOwner);
     }

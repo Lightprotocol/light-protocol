@@ -19,7 +19,7 @@ use solana_program::{
 };
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-
+use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 /*
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
     if _from
@@ -212,9 +212,10 @@ pub fn check_tx_integrity_hash(
     ext_amount: Vec<u8>,
     relayer: Vec<u8>,
     fee: Vec<u8>,
-    tx_integrity_hash: &[u8], // Vec<u8> TODO: CLIPPY
+    tx_integrity_hash: Vec<u8>, // Vec<u8> TODO: CLIPPY
+    merkle_tree_pda_pubkey: Vec<u8>
 ) -> Result<(), ProgramError> {
-    let input = [recipient, ext_amount, relayer, fee].concat();
+    let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey].concat();
 
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
 
@@ -330,6 +331,7 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda,
         tmp_storage_pda_data.current_instruction_index,
     )?;
+    // store zero knowledge proof bytes
     groth16_processor.try_initialize(&_instruction_data[0..224])?;
 
     tmp_storage_pda_data.signing_address = signing_address.to_bytes().to_vec();
@@ -363,17 +365,28 @@ pub fn try_initialize_tmp_storage_pda(
 
     let fee = _instruction_data[552..560].to_vec();
     tmp_storage_pda_data.relayer_fees = fee.clone();
+
+
+    let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
+    tmp_storage_pda_data.merkle_tree_index  = _instruction_data[592];
+    if merkle_tree_pda_pubkey != MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0.to_vec() {
+        msg!("Merkle tree in tx integrity hash not whitelisted or wrong ID.");
+        return Err(ProgramError::InvalidAccountData);
+    }
+
     // msg!("tmp_storage_pda_data.relayer_fees {:?}", tmp_storage_pda_data.relayer_fees);
     //
     // msg!("tmp_storage_pda_data.relayer_fees {}", u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.try_into().unwrap()));
     // panic!("");
+    /*
     check_tx_integrity_hash(
         tmp_storage_pda_data.to_address.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
         fee.to_vec(),
-        &tmp_storage_pda_data.tx_integrity_hash,
-    )?;
+        tmp_storage_pda_data.tx_integrity_hash.to_vec(),
+        merkle_tree_pda_pubkey,
+    )?;*/
     for i in 0..12 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }
@@ -385,27 +398,3 @@ pub fn try_initialize_tmp_storage_pda(
     msg!("packed successfully");
     Ok(())
 }
-
-//performs the following security checks:
-//signer is consistent over all tx of a pool tx
-//the correct merkle tree is called
-//instruction data is empty
-//there are no more and no less than the required accounts
-//attached to the tx, the accounts have the appropiate length
-/*
-pub fn security_checks(
-        signer_pubkey: &Pubkey,
-        signer_pubkey_passed_in: &Pubkey,
-        instruction_data_len: usize
-    ) -> Result<(), ProgramError> {
-    if *signer_pubkey != *signer_pubkey_passed_in {
-        msg!("*signer_pubkey {:?} != *signer_pubkey_passed_in {:?}", *signer_pubkey, *signer_pubkey_passed_in);
-        return Err(ProgramError::IllegalOwner);
-    }
-    if instruction_data_len >= 9 {
-        msg!("instruction_data_len: {}", instruction_data_len);
-        return Err(ProgramError::InvalidInstructionData);
-    }
-    Ok(())
-}
-*/
