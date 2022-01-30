@@ -69,8 +69,8 @@ pub fn process_instruction(
             return Err(ProgramError::InvalidArgument);
         }
 
-        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[tmp_storage_pda_data.merkle_tree_index.try_into().unwrap()]) {
-            msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[tmp_storage_pda_data.merkle_tree_index.try_into().unwrap()]));
+        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]) {
+            msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]));
             return Err(ProgramError::InvalidInstructionData);
         }
 
@@ -104,7 +104,7 @@ pub fn process_instruction(
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         msg!("ext_amount != tmp_storage_pda_data.relayer_fees {} != {}", ext_amount, relayer_fees);
 
-        if ext_amount != relayer_fees.try_from().unwrap() {
+        if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount).unwrap() {
             let user_pda_token = next_account_info(account)?;
 
 
