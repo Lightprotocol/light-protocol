@@ -5,7 +5,6 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
 };
 use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 
-use crate::poseidon_merkle_tree::state;
 use crate::poseidon_merkle_tree::state::{
     InitMerkleTreeBytes, MerkleTree, TmpStoragePda, TwoLeavesBytesPda,
 };
@@ -20,7 +19,7 @@ use solana_program::{
     sysvar::rent::Rent,
     sysvar::Sysvar,
 };
-use std::convert::{TryInto, TryFrom};
+use std::convert::TryFrom;
 
 pub struct MerkleTreeProcessor<'a, 'b> {
     merkle_tree_account: Option<&'a AccountInfo<'b>>,

@@ -8,7 +8,6 @@ use solana_program::{
 
 use arrayref::{array_ref, array_refs};
 use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
-use std::convert::TryInto;
 
 #[derive(Clone, Debug)]
 pub struct MerkleTreeRoots {
