@@ -1,4 +1,6 @@
-use crate::instructions::{check_and_insert_nullifier, create_and_check_account, token_transfer, check_external_amount};
+use crate::instructions::{
+    check_and_insert_nullifier, check_external_amount, create_and_check_account, token_transfer,
+};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::{check_root_hash_exists, MERKLE_TREE_ACC_BYTES};
 use crate::state::ChecksAndTransferState;
@@ -57,8 +59,9 @@ pub fn process_instruction(
         let system_program_account = next_account_info(account)?;
         let token_program_account = next_account_info(account)?;
         let authority = next_account_info(account)?;
-        let authority_seed = [7u8;32];
-        let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], program_id);
+        let authority_seed = [7u8; 32];
+        let (expected_authority_pubkey, authority_bump_seed) =
+            Pubkey::find_program_address(&[&authority_seed], program_id);
 
         if expected_authority_pubkey != *authority.key {
             msg!("Invalid passed-in authority.");
@@ -69,7 +72,6 @@ pub fn process_instruction(
             msg!("Recipient has to be merkle tree account for deposit.");
             return Err(ProgramError::InvalidInstructionData);
         }
-
         msg!("Starting nullifier check.");
         tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
             program_id,
@@ -94,18 +96,18 @@ pub fn process_instruction(
             "nullifier1_pda inserted {}",
             tmp_storage_pda_data.found_nullifier
         );
-
         let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-        msg!("ext_amount != tmp_storage_pda_data.relayer_fees {} != {}", ext_amount, relayer_fees);
-
+        msg!(
+            "ext_amount != tmp_storage_pda_data.relayer_fees {} != {}",
+            ext_amount,
+            relayer_fees
+        );
         if ext_amount != relayer_fees.try_into().unwrap() {
             let user_pda_token = next_account_info(account)?;
 
-
             if ext_amount > 0 {
-
                 msg!("Created two_leaves_pda successfully.");
 
                 msg!("Deposited {}", pub_amount_checked);
@@ -120,38 +122,13 @@ pub fn process_instruction(
                     &[authority_bump_seed],
                     pub_amount_checked,
                 )?;
-
             } else if ext_amount < 0 {
-                // let recipient_account = next_account_info(account)?;
-                //
-                // if *recipient_account.key
-                //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-                // {
-                //     msg!("Recipient has to be address specified in tx integrity hash.");
-                //     return Err(ProgramError::InvalidInstructionData);
-                // }
-                let user_pda_token = next_account_info(account)?;
-                let authority = next_account_info(account)?;
-
                 if *user_pda_token.key
                     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
                 {
                     msg!("Recipient has to be address specified in tx integrity hash.");
                     return Err(ProgramError::InvalidInstructionData);
                 }
-                msg!("Creating two_leaves_pda.");
-                create_and_check_account(
-                    program_id,
-                    signer_account,
-                    two_leaves_pda,
-                    system_program_account,
-                    &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
-                    &b"leaves"[..],
-                    106u64, //bytes
-                    0u64,   //lamports
-                    true,   //rent_exempt
-                )?;
-                msg!("Created two_leaves_pda successfully.");
 
                 token_transfer(
                     token_program_account,
@@ -164,8 +141,6 @@ pub fn process_instruction(
                     &[authority_bump_seed],
                     pub_amount_checked,
                 )?;
-
-
             }
         }
 
@@ -192,7 +167,6 @@ pub fn process_instruction(
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
 
-
         msg!("Creating two_leaves_pda.");
         create_and_check_account(
             program_id,
@@ -201,13 +175,12 @@ pub fn process_instruction(
             system_program_account,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
             &b"leaves"[..],
-            106u64,                             //bytes
-            0,                                  //lamports
-            true,                               //rent_exempt
+            106u64, //bytes
+            0,      //lamports
+            true,   //rent_exempt
         )?;
         //insert Merkle root
         merkle_tree_processor.process_instruction(accounts)?;
-
     }
 
     tmp_storage_pda_data.current_instruction_index += 1;

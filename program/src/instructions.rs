@@ -1,6 +1,12 @@
 use ark_ed_on_bn254::Fq;
 use ark_ff::PrimeField;
 
+use crate::nullifier_state::NullifierState;
+use crate::state::ChecksAndTransferState;
+use crate::Groth16Processor;
+use ark_ed_on_bn254::FqParameters;
+use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
+use borsh::BorshSerialize;
 use solana_program::program::invoke_signed;
 use solana_program::system_instruction;
 use solana_program::{
@@ -11,14 +17,8 @@ use solana_program::{
     pubkey::Pubkey,
     sysvar::rent::Rent,
 };
+use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-use crate::nullifier_state::NullifierState;
-use crate::state::ChecksAndTransferState;
-use crate::Groth16Processor;
-use borsh::BorshSerialize;
-use std::convert::{TryInto, TryFrom};
-use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
-use ark_ed_on_bn254::FqParameters;
 
 /*
 pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
@@ -52,20 +52,21 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
     Ok(())
 }*/
 
-pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> Result<(u64, u64), ProgramError> {
-
-
-
+pub fn check_external_amount(
+    tmp_storage_pda_data: &ChecksAndTransferState,
+) -> Result<(u64, u64), ProgramError> {
     let ext_amount =
         i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
     // ext_amount includes the substracted relayer_fees
-    let relayer_fees =
-        u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.clone().try_into().unwrap());
+    let relayer_fees = u64::from_le_bytes(
+        tmp_storage_pda_data
+            .relayer_fees
+            .clone()
+            .try_into()
+            .unwrap(),
+    );
     // pub_amount is the public amount included in public inputs for proof verification
-    let pub_amount =
-        <BigInteger256 as FromBytes>::read(&tmp_storage_pda_data.amount[..]).unwrap();
-
-
+    let pub_amount = <BigInteger256 as FromBytes>::read(&tmp_storage_pda_data.amount[..]).unwrap();
 
     if ext_amount > 0 {
         if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0 {
@@ -82,11 +83,15 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
 
         //let ext_amount_from_pub = pub_amount.0[0] + relayer_fees;
         //check amount
-        if  pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
-            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, ext_amount);
+        if pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
+            msg!(
+                " deposit Invalid external amount (relayer_fees) {} != {}",
+                pub_amount.0[0] + relayer_fees,
+                ext_amount
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((pub_amount.0[0], 0));
+        return Ok((ext_amount.try_into().unwrap(), relayer_fees));
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -103,31 +108,34 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             return Err(ProgramError::InvalidInstructionData);
         }
         //check amount
-        if  field.0[0] + relayer_fees != (-ext_amount).try_into().unwrap() {
-            msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, -ext_amount);
+        if field.0[0] != u64::try_from(-ext_amount).unwrap() + relayer_fees {
+            msg!(
+                " withdrawal Invalid external amount (relayer_fees) {} != {}",
+                pub_amount.0[0],
+                relayer_fees + u64::try_from(-ext_amount).unwrap()
+            );
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((field.0[0], 0));
+        return Ok(((-ext_amount).try_into().unwrap(), relayer_fees));
     } else if ext_amount == 0 {
-        return Ok((ext_amount.try_into().unwrap(), 0));
+        return Ok((ext_amount.try_into().unwrap(), relayer_fees));
     } else {
         msg!("Invalid state checking external amount");
         return Err(ProgramError::InvalidInstructionData);
     }
-
 }
 
 pub fn token_transfer<'a, 'b>(
-        //program_id: &Pubkey,
-        //signer: &Pubkey,
-        token_program: &'b AccountInfo<'a>,
-        source: &'b AccountInfo<'a>,
-        destination: &'b AccountInfo<'a>,
-        authority: &'b AccountInfo<'a>,
-        seed: &[u8],
-        bump_seed: &[u8],
-        amount: u64,
-    ) -> Result<(), ProgramError> {
+    //program_id: &Pubkey,
+    //signer: &Pubkey,
+    token_program: &'b AccountInfo<'a>,
+    source: &'b AccountInfo<'a>,
+    destination: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    seed: &[u8],
+    bump_seed: &[u8],
+    amount: u64,
+) -> Result<(), ProgramError> {
     msg!("transfer here0");
     let native = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
     assert_eq!(*token_program.key, native);
@@ -143,7 +151,12 @@ pub fn token_transfer<'a, 'b>(
 
     let signers = &[&authority_signature_seeds[..]];
     msg!("transfer here3");
-    msg!("transferring {} from {:?} to {:?}", amount, source.key, destination.key);
+    msg!(
+        "transferring {} from {:?} to {:?}",
+        amount,
+        source.key,
+        destination.key
+    );
 
     let ix = spl_token::instruction::transfer(
         token_program.key,
@@ -155,9 +168,14 @@ pub fn token_transfer<'a, 'b>(
     )?;
     msg!("successful");
     invoke_signed(
-            &ix,
-            &[source.clone(), destination.clone(), authority.clone(), token_program.clone()],
-            signers,
+        &ix,
+        &[
+            source.clone(),
+            destination.clone(),
+            authority.clone(),
+            token_program.clone(),
+        ],
+        signers,
     )?;
     Ok(())
 }
@@ -338,7 +356,7 @@ pub fn try_initialize_tmp_storage_pda(
     let relayer = _instruction_data[520..552].to_vec();
 
     //check that relayer in integrity hash is == signer
-    if *signing_address != Pubkey::new(&relayer) {
+    if relayer != vec![0u8; 32] && *signing_address != Pubkey::new(&relayer) {
         msg!("specified relayer is not signer");
         return Err(ProgramError::InvalidAccountData);
     }
