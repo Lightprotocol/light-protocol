@@ -130,7 +130,6 @@ pub fn maths_instruction(
 
     // Merging 4 full rounds into one ix to utilize the max compute budget.
     let mut index_in = current_index;
-
     for m in 0..4 {
         // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
         if index_in < skipped {

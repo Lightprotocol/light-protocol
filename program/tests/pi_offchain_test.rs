@@ -25,7 +25,7 @@ mod fe_offchain_test;
 use crate::fe_offchain_test::tests::get_pvk_from_bytes_254;
 
 #[test]
-#[ignore]
+
 fn pi_254_test_with_7_inputs() {
     // 7 inputs á 32 bytes. For bn254 curve. Skip the first two bytes.
     // TODO: add random input testing
@@ -83,7 +83,7 @@ fn pi_254_test_with_7_inputs() {
     // let mut current_index = 99;
     let mut account_data = PrepareInputsState::unpack(&mock_account).unwrap();
     // replicate 1809 rpc calls
-    for index in 0..465 {
+    for index in 0..464 {
         // 0..1809 @ last
         println!("c ixorderarr: {}", IX_ORDER_ARRAY[index]);
         println!("index: {:?}", index);

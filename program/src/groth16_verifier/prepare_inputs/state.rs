@@ -12,7 +12,7 @@ pub struct PrepareInputsState {
     pub found_nullifier: u8,
     pub executed_withdraw: u8,
     pub signing_address: Vec<u8>, // is relayer address
-    pub relayer_refund: Vec<u8>,
+    pub relayer_fees: Vec<u8>,
     pub to_address: Vec<u8>,
     pub amount: Vec<u8>,
     pub nullifier_hash: Vec<u8>,
@@ -66,7 +66,7 @@ impl Pack for PrepareInputsState {
             found_nullifier,
             executed_withdraw,
             signing_address, // is relayer address
-            relayer_refund,
+            relayer_fees,
             to_address,
             amount,
             nullifier_hash,
@@ -111,7 +111,7 @@ impl Pack for PrepareInputsState {
             found_nullifier: found_nullifier[0],           //1
             executed_withdraw: executed_withdraw[0],       //2
             signing_address: signing_address.to_vec(),     //3
-            relayer_refund: relayer_refund.to_vec(),       //4
+            relayer_fees: relayer_fees.to_vec(),       //4
             to_address: to_address.to_vec(),               //5
             amount: amount.to_vec(),                       //6
             nullifier_hash: nullifier_hash.to_vec(),       //7
@@ -156,7 +156,7 @@ impl Pack for PrepareInputsState {
             found_nullifier_dst,
             executed_withdraw_dst,
             signing_address_dst, // is relayer address
-            relayer_refund_dst,
+            relayer_fees_dst,
             to_address_dst,
             amount_dst,
             nullifier_hash_dst,
@@ -251,7 +251,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
-                    *relayer_refund_dst = self.relayer_refund.clone().try_into().unwrap();
+                    *relayer_fees_dst = self.relayer_fees.clone().try_into().unwrap();
                 } else if i == 5 {
                     *to_address_dst = self.to_address.clone().try_into().unwrap();
                 } else if i == 6 {

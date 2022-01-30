@@ -24,88 +24,15 @@ pub mod tests {
         transport::TransportError,
     };
     use std::fs;
+    use solana_program_test::ProgramTestContext;
+    use solana_program_test::ProgramTest;
+    use solana_sdk::stake_history::Epoch;
+    use solana_sdk::account::WritableAccount;
+    use solana_program::program_pack::Pack;
+    use std::str::FromStr;
+    const ACCOUNT_RENT_EXEMPTION : u64 = 1000000000000u64;
+    use solana_sdk::signer::keypair::Keypair;
 
-    pub async fn create_and_start_program_var(
-        accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
-        program_id: &Pubkey,
-        signer_pubkey: &Pubkey,
-    ) -> ProgramTestContext {
-        let mut program_test = ProgramTest::new(
-            "light_protocol_program",
-            *program_id,
-            processor!(process_instruction),
-        );
-        for (pubkey, size, data) in accounts.iter() {
-            let mut account = Account::new(10000000000, *size, &program_id);
-            match data {
-                Some(d) => (account.data = d.clone()),
-                None => (),
-            }
-            program_test.add_account(**pubkey, account);
-            println!("added account {:?}", **pubkey);
-        }
-
-        let mut program_context = program_test.start_with_context().await;
-        //transfer an arbitrary high amount to signer keypair to have a consistent payer
-        let mut transaction = solana_sdk::system_transaction::transfer(
-            &program_context.payer,
-            &signer_pubkey,
-            10000000000000,
-            program_context.last_blockhash,
-        );
-        transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-        let res_request = program_context
-            .banks_client
-            .process_transaction(transaction)
-            .await;
-
-        program_context
-    }
-
-    pub async fn restart_program_deprecated(
-        accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
-        program_id: &Pubkey,
-        signer_pubkey: &Pubkey,
-        mut program_context: ProgramTestContext,
-    ) -> ProgramTestContext {
-        for (pubkey, _, current_data) in accounts_vector.iter_mut() {
-            let account = program_context
-                .banks_client
-                .get_account(**pubkey)
-                .await
-                .expect("get_account")
-                .unwrap();
-            *current_data = Some(account.data.to_vec());
-        }
-        // accounts_vector[1].2 = Some(storage_account.data.to_vec());
-        let mut program_context_new =
-            create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
-        program_context_new
-    }
-
-    // We need program restart logic since we're firing 300+ ix and
-    // the program_context seems to melt down every couple of hundred ix.
-    // It basically just picks up the account state where it left off and restarts the client
-    pub async fn restart_program(
-        accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
-        program_id: &Pubkey,
-        signer_pubkey: &Pubkey,
-        program_context: &mut ProgramTestContext,
-    ) -> ProgramTestContext {
-        for (pubkey, _, current_data) in accounts_vector.iter_mut() {
-            let account = program_context
-                .banks_client
-                .get_account(**pubkey)
-                .await
-                .expect("get_account")
-                .unwrap();
-            *current_data = Some(account.data.to_vec());
-        }
-        // accounts_vector[1].2 = Some(storage_account.data.to_vec());
-        let program_context_new =
-            create_and_start_program_var(&accounts_vector, &program_id, &signer_pubkey).await;
-        program_context_new
-    }
 
     pub fn get_proof_from_bytes(
         proof_bytes: &Vec<u8>,
@@ -269,4 +196,119 @@ pub mod tests {
         println!("{:?}", ix_data);
         ix_data
     }
+
+    pub fn add_token_account(
+        program_test: &mut ProgramTest,
+        mint: Pubkey,
+        owner: Pubkey,
+        balance: u64,
+    ) -> Pubkey {
+        let token_account_keypair = Keypair::new();
+        add_token_account_with_address(
+            program_test,
+            token_account_keypair.pubkey(),
+            mint,
+            owner,
+            balance,
+        );
+        token_account_keypair.pubkey()
+    }
+
+    fn add_token_account_with_address(
+        program_test: &mut ProgramTest,
+        token_address: Pubkey,
+        mint: Pubkey,
+        owner: Pubkey,
+        balance: u64,
+    ) {
+        let mut token_account_data = vec![0u8; spl_token::state::Account::LEN];
+        let token_account_state = spl_token::state::Account {
+            mint,
+            owner,
+            amount: balance,
+            state: spl_token::state::AccountState::Initialized,
+            ..spl_token::state::Account::default()
+        };
+        Pack::pack(token_account_state, &mut token_account_data).unwrap();
+        let token_account = Account::create(
+            ACCOUNT_RENT_EXEMPTION,
+            token_account_data,
+            spl_token::id(),
+            false,
+            Epoch::default(),
+        );
+        program_test.add_account(token_address, token_account);
+    }
+
+    pub async fn create_and_start_program_var(
+        accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+        token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey,
+    ) -> ProgramTestContext {
+        let mut program_test = ProgramTest::new(
+            "light_protocol_program",
+            *program_id,
+            processor!(process_instruction),
+        );
+        for (pubkey, size, data) in accounts.iter() {
+            let mut account = Account::new(10000000000, *size, &program_id);
+            match data {
+                Some(d) => (account.data = d.clone()),
+                None => (),
+            }
+            program_test.add_account(**pubkey, account);
+            println!("added account {:?}", **pubkey);
+        }
+
+        if token_accounts.is_some() {
+            let mint = Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap();
+
+            for (pubkey, authority, amount) in token_accounts.unwrap() {
+                add_token_account_with_address(&mut program_test, **pubkey, mint, **authority, *amount);
+            }
+        }
+
+
+        let mut program_context = program_test.start_with_context().await;
+        //transfer an arbitrary high amount to signer keypair to have a consistent payer
+        let mut transaction = solana_sdk::system_transaction::transfer(
+            &program_context.payer,
+            &signer_pubkey,
+            10000000000000,
+            program_context.last_blockhash,
+        );
+        transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+        let res_request = program_context
+            .banks_client
+            .process_transaction(transaction)
+            .await;
+
+        program_context
+    }
+
+    // We need program restart logic since we're firing 300+ ix and
+    // the program_context seems to melt down every couple of hundred ix.
+    // It basically just picks up the account state where it left off and restarts the client
+    pub async fn restart_program(
+        accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
+        token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
+        program_id: &Pubkey,
+        signer_pubkey: &Pubkey,
+        program_context: &mut ProgramTestContext
+    ) -> ProgramTestContext {
+        for (pubkey, _, current_data) in accounts_vector.iter_mut() {
+            let account = program_context
+                .banks_client
+                .get_account(**pubkey)
+                .await
+                .expect("get_account")
+                .unwrap();
+            *current_data = Some(account.data.to_vec());
+        }
+        let mut program_context_new = create_and_start_program_var(&accounts_vector, token_accounts, &program_id, &signer_pubkey).await;
+
+        program_context_new
+    }
+
 }
