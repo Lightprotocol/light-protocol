@@ -10,7 +10,7 @@ pub struct PrepareInputsState {
     is_initialized: bool,
     pub found_root: u8,
     pub found_nullifier: u8,
-    pub executed_withdraw: u8,
+    pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_fees: Vec<u8>,
     pub to_address: Vec<u8>,
@@ -64,7 +64,7 @@ impl Pack for PrepareInputsState {
             _is_initialized,
             found_root,
             found_nullifier,
-            executed_withdraw,
+            merkle_tree_index,
             signing_address, // is relayer address
             relayer_fees,
             to_address,
@@ -109,7 +109,7 @@ impl Pack for PrepareInputsState {
 
             found_root: found_root[0],                     //0
             found_nullifier: found_nullifier[0],           //1
-            executed_withdraw: executed_withdraw[0],       //2
+            merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),       //4
             to_address: to_address.to_vec(),               //5
@@ -154,7 +154,7 @@ impl Pack for PrepareInputsState {
             is_initialized_dst,
             found_root_dst,
             found_nullifier_dst,
-            executed_withdraw_dst,
+            merkle_tree_index_dst,
             signing_address_dst, // is relayer address
             relayer_fees_dst,
             to_address_dst,
@@ -247,7 +247,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 1 {
                     *found_nullifier_dst = [self.found_nullifier.clone(); 1];
                 } else if i == 2 {
-                    *executed_withdraw_dst = [self.executed_withdraw.clone(); 1];
+                    *merkle_tree_index_dst = [self.merkle_tree_index.clone(); 1];
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
