@@ -73,6 +73,12 @@ pub fn process_instruction(
             msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0));
             return Err(ProgramError::InvalidInstructionData);
         }
+        /*
+        if *merkle_tree_pda_token.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].1) {
+            msg!("Passed-in Merkle tree token account is invalid. {:?} != {:?}", *merkle_tree_pda_token.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].1));
+            return Err(ProgramError::InvalidInstructionData);
+        }
+        */
 
         msg!("Starting nullifier check.");
         tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
@@ -104,7 +110,7 @@ pub fn process_instruction(
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         msg!("ext_amount != tmp_storage_pda_data.relayer_fees {} != {}", ext_amount, relayer_fees);
 
-        if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount).unwrap() {
+        if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             let user_pda_token = next_account_info(account)?;
 
 
@@ -126,36 +132,14 @@ pub fn process_instruction(
                 )?;
 
             } else if ext_amount < 0 {
-                // let recipient_account = next_account_info(account)?;
-                //
-                // if *recipient_account.key
-                //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
-                // {
-                //     msg!("Recipient has to be address specified in tx integrity hash.");
-                //     return Err(ProgramError::InvalidInstructionData);
-                // }
-                let user_pda_token = next_account_info(account)?;
-                let authority = next_account_info(account)?;
 
+                /*
                 if *user_pda_token.key
                     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
                 {
                     msg!("Recipient has to be address specified in tx integrity hash.");
                     return Err(ProgramError::InvalidInstructionData);
-                }
-                msg!("Creating two_leaves_pda.");
-                create_and_check_account(
-                    program_id,
-                    signer_account,
-                    two_leaves_pda,
-                    system_program_account,
-                    &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers[320..352],
-                    &b"leaves"[..],
-                    106u64, //bytes
-                    0u64,   //lamports
-                    true,   //rent_exempt
-                )?;
-                msg!("Created two_leaves_pda successfully.");
+                }*/
 
                 token_transfer(
                     token_program_account,
@@ -174,7 +158,7 @@ pub fn process_instruction(
         }
 
         if relayer_fees > 0 {
-            msg!("paying relayre : {}", relayer_fees);
+            msg!("paying relayer : {}", relayer_fees);
             if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
                 msg!("wrong relayer");
                 return Err(ProgramError::InvalidArgument);

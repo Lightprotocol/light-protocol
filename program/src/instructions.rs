@@ -86,7 +86,7 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, ext_amount);
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((pub_amount.0[0], 0));
+        return Ok((pub_amount.0[0], relayer_fees));
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -107,9 +107,9 @@ pub fn check_external_amount(tmp_storage_pda_data: &ChecksAndTransferState) -> R
             msg!(" withdrawal Invalid external amount (relayer_fees) {} != {}", pub_amount.0[0] + relayer_fees, -ext_amount);
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((field.0[0], 0));
+        return Ok((field.0[0], relayer_fees));
     } else if ext_amount == 0 {
-        return Ok((ext_amount.try_into().unwrap(), 0));
+        return Ok((ext_amount.try_into().unwrap(), relayer_fees));
     } else {
         msg!("Invalid state checking external amount");
         return Err(ProgramError::InvalidInstructionData);
