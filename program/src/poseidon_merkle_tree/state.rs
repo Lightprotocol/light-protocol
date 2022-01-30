@@ -186,7 +186,7 @@ impl Pack for InitMerkleTreeBytes {
 // Account structs for merkle tree:
 #[derive(Debug)]
 pub struct TmpStoragePda {
-    is_initialized: bool,
+    pub is_initialized: bool,
     pub merkle_tree_index: u8,
     pub state: Vec<Vec<u8>>,
     pub current_round: usize,

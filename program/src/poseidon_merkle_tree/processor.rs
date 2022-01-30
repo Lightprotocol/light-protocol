@@ -215,7 +215,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
             leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey =
-                MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(main_account_data.merkle_tree_index).unwrap()].to_vec().clone();
+                MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(main_account_data.merkle_tree_index).unwrap()].0.to_vec().clone();
 
             msg!("Lock set at slot {}", merkle_tree_account_data.time_locked);
             msg!("lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
@@ -284,11 +284,11 @@ pub fn _process_instruction(
 }
 
 fn merkle_tree_pubkey_check(account_pubkey: Pubkey, merkle_tree_index: u8) -> Result<(), ProgramError> {
-    if account_pubkey != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()]) {
+    if account_pubkey != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()].0) {
         msg!(
             "invalid merkle tree {:?}, {:?}",
             account_pubkey,
-            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()])
+            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()].0)
         );
         return Err(ProgramError::InvalidAccountData);
     }

@@ -37,7 +37,7 @@ pub fn process_instruction(
         );
         msg!(
             "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
-            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()])
+            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0)
         );
         tmp_storage_pda_data.found_root = check_root_hash_exists(
             merkle_tree_pda,
@@ -69,8 +69,8 @@ pub fn process_instruction(
             return Err(ProgramError::InvalidArgument);
         }
 
-        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]) {
-            msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]));
+        if *merkle_tree_pda.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0) {
+            msg!("Passed-in Merkle tree account is invalid. {:?} != {:?}", *merkle_tree_pda.key, solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0));
             return Err(ProgramError::InvalidInstructionData);
         }
 

@@ -69,10 +69,10 @@ pub fn check_root_hash_exists(
     msg!("merkletree acc key: {:?}", *account_main);
     msg!(
         "merkletree acc key to check: {:?}",
-        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize])
+        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
     );
 
-    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize]) {
+    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0) {
         msg!("merkle tree account pubkey is incorrect");
         return Err(ProgramError::IllegalOwner);
     }
