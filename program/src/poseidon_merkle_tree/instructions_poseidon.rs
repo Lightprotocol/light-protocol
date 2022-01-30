@@ -294,6 +294,7 @@ mod tests {
             //initing struct which similates onchain account for instructions
             let mut account_struct = TmpStoragePda {
                 is_initialized: true,
+                merkle_tree_index: 0,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
                 current_round_index: 0,
@@ -349,6 +350,7 @@ mod tests {
             //initing struct which similates onchain account for instructions
             let mut account_struct = TmpStoragePda {
                 is_initialized: true,
+                merkle_tree_index: 0u8,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
                 current_round_index: 0,

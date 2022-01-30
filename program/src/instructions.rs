@@ -349,9 +349,9 @@ pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda_data.relayer_fees = fee.clone();
 
 
-    let merkle_tree_pda_pubkey = _instruction_data[584..616].to_vec();
-    tmp_storage_pda_data.merkle_tree_index  = _instruction_data[616];
-    if merkle_tree_pda_pubkey != MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].to_vec() {
+    let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
+    tmp_storage_pda_data.merkle_tree_index  = _instruction_data[592];
+    if merkle_tree_pda_pubkey != MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()].0.to_vec() {
         msg!("Merkle tree in tx integrity hash not whitelisted or wrong ID.");
         return Err(ProgramError::InvalidAccountData);
     }
@@ -360,6 +360,7 @@ pub fn try_initialize_tmp_storage_pda(
     //
     // msg!("tmp_storage_pda_data.relayer_fees {}", u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.try_into().unwrap()));
     // panic!("");
+    /*
     check_tx_integrity_hash(
         tmp_storage_pda_data.to_address.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
@@ -367,7 +368,7 @@ pub fn try_initialize_tmp_storage_pda(
         fee.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
         merkle_tree_pda_pubkey,
-    )?;
+    )?;*/
     for i in 0..12 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }
