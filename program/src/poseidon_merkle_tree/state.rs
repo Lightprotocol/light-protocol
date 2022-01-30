@@ -186,7 +186,8 @@ impl Pack for InitMerkleTreeBytes {
 // Account structs for merkle tree:
 #[derive(Debug)]
 pub struct TmpStoragePda {
-    pub is_initialized: bool,
+    is_initialized: bool,
+    pub merkle_tree_index: u8,
     pub state: Vec<Vec<u8>>,
     pub current_round: usize,
     pub current_round_index: usize,
@@ -215,6 +216,8 @@ impl Pack for TmpStoragePda {
         let (
             _is_initialized,
             _unused_remainder0,
+            merkle_tree_index,
+            _unused_remainder0_1,
             current_instruction_index,
             //220
             _unused_remainder1,
@@ -230,7 +233,7 @@ impl Pack for TmpStoragePda {
             leaf_right,
             _nullifier_0,
             _nullifier_1,
-        ) = array_refs![input, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
+        ) = array_refs![input, 1, 2, 1, 208, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -239,6 +242,7 @@ impl Pack for TmpStoragePda {
 
         Ok(TmpStoragePda {
             is_initialized: true,
+            merkle_tree_index: merkle_tree_index[0],
             state: parsed_state.to_vec(),
             current_round: usize::from_le_bytes(*current_round),
             current_round_index: usize::from_le_bytes(*current_round_index),
@@ -372,24 +376,3 @@ impl Pack for TwoLeavesBytesPda {
         msg!("packed inserted_leaves");
     }
 }
-
-//1217 byte init data for height 18
-// total space required init data - one root which is included plus 100 roots in history and 2^18 leaves + total nr of deposits
-//1217 - 32 + 100 * 32 + (2**18) * 32 + 8 = 8393001 bytes
-
-// //bytes0 of crashed merkletree
-// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-//     222, 66, 10, 195, 58, 162, 229, 40, 247, 92, 17, 93, 85, 233, 85, 138, 197, 136, 2, 65, 208,
-//     158, 38, 39, 155, 208, 117, 251, 244, 33, 72, 213,
-// ];
-// v1.1.2; light-protocol-core (live on devnet)
-// pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-// 162, 166, 103, 128, 47, 35, 255, 7, 108, 182, 166, 12, 208, 164, 233, 178, 222, 73, 90, 2, 152,
-// 174, 225, 190, 148, 157, 105, 10, 78, 240, 9, 47,
-// ];
-//
-// v1.1.3; light-protocol-program; test with spl
-pub const MERKLE_TREE_ACC_BYTES: [u8; 32] = [
-    22, 28, 110, 146, 42, 27, 34, 184, 101, 139, 125, 221, 133, 177, 67, 27, 34, 121, 168, 48, 31,
-    96, 171, 88, 251, 244, 154, 176, 94, 213, 156, 140,
-];
