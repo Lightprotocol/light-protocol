@@ -8,6 +8,8 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
+    use light_protocol_program::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+
     use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
     use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_program::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
@@ -193,6 +195,13 @@ pub mod tests {
                 Err(_e) => (),
             }
         }
+        println!("Appending merkle tree bytes and merkle tree index");
+        for i in 0..32 {
+            ix_data.push(MERKLE_TREE_ACC_BYTES_ARRAY[0].0[i]);
+        }
+        //pushing merkle tree index
+        ix_data.push(0);
+
         println!("{:?}", ix_data);
         ix_data
     }

@@ -3,7 +3,8 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
     permute_instruction_3, permute_instruction_6, permute_instruction_first,
     permute_instruction_last,
 };
-use crate::poseidon_merkle_tree::state;
+use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+
 use crate::poseidon_merkle_tree::state::{
     InitMerkleTreeBytes, MerkleTree, TmpStoragePda, TwoLeavesBytesPda,
 };
@@ -18,6 +19,7 @@ use solana_program::{
     sysvar::rent::Rent,
     sysvar::Sysvar,
 };
+use std::convert::TryFrom;
 
 pub struct MerkleTreeProcessor<'a, 'b> {
     merkle_tree_account: Option<&'a AccountInfo<'b>>,
@@ -95,7 +97,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let mut merkle_tree_account_data =
                 MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
 
-            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            merkle_tree_pubkey_check(*merkle_tree_account.key, main_account_data.merkle_tree_index)?;
             pubkey_check(
                 *signer.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
@@ -150,7 +152,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
             }
 
-            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            merkle_tree_pubkey_check(*merkle_tree_account.key, main_account_data.merkle_tree_index)?;
             MerkleTree::pack_into_slice(
                 &merkle_tree_account_data,
                 &mut merkle_tree_account.data.borrow_mut(),
@@ -161,7 +163,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             || IX_ORDER[main_account_data.current_instruction_index] == 3
         {
             let merkle_tree_account = next_account_info(account)?;
-            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            merkle_tree_pubkey_check(*merkle_tree_account.key, main_account_data.merkle_tree_index)?;
             //hash instructions do not need the merkle tree
             _process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
@@ -193,7 +195,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 String::from("merkle tree locked by other account"),
             )?;
             //checking merkle tree pubkey for consistency
-            merkle_tree_pubkey_check(*merkle_tree_account.key)?;
+            merkle_tree_pubkey_check(*merkle_tree_account.key, main_account_data.merkle_tree_index)?;
 
             //insert root into merkle tree
             insert_last_double(&mut merkle_tree_account_data, &mut main_account_data)?;
@@ -213,7 +215,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
             leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey =
-                state::MERKLE_TREE_ACC_BYTES.to_vec().clone();
+                MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(main_account_data.merkle_tree_index).unwrap()].0.to_vec().clone();
 
             msg!("Lock set at slot {}", merkle_tree_account_data.time_locked);
             msg!("lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
@@ -281,12 +283,12 @@ pub fn _process_instruction(
     Ok(())
 }
 
-fn merkle_tree_pubkey_check(account_pubkey: Pubkey) -> Result<(), ProgramError> {
-    if account_pubkey != solana_program::pubkey::Pubkey::new(&state::MERKLE_TREE_ACC_BYTES[..]) {
+fn merkle_tree_pubkey_check(account_pubkey: Pubkey, merkle_tree_index: u8) -> Result<(), ProgramError> {
+    if account_pubkey != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()].0) {
         msg!(
             "invalid merkle tree {:?}, {:?}",
             account_pubkey,
-            solana_program::pubkey::Pubkey::new(&state::MERKLE_TREE_ACC_BYTES[..])
+            solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()].0)
         );
         return Err(ProgramError::InvalidAccountData);
     }
