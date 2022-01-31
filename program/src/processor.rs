@@ -16,6 +16,7 @@ use solana_program::{
 use std::convert::{TryFrom, TryInto};
 
 // Processor for deposit and withdraw logic.
+#[allow(clippy::comparison_chain)]
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
