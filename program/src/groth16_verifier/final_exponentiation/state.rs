@@ -45,6 +45,7 @@ impl IsInitialized for FinalExponentiationState {
     }
 }
 
+#[allow(clippy::new_without_default)]
 impl FinalExponentiationState {
     pub fn new() -> FinalExponentiationState {
         FinalExponentiationState {

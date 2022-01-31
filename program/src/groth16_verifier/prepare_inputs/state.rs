@@ -99,9 +99,7 @@ impl Pack for PrepareInputsState {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,
-            2432,
-            384
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384
         ];
 
         Ok(PrepareInputsState {
@@ -111,7 +109,7 @@ impl Pack for PrepareInputsState {
             found_nullifier: found_nullifier[0],           //1
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
-            relayer_fees: relayer_fees.to_vec(),       //4
+            relayer_fees: relayer_fees.to_vec(),           //4
             to_address: to_address.to_vec(),               //5
             amount: amount.to_vec(),                       //6
             nullifier_hash: nullifier_hash.to_vec(),       //7
@@ -190,9 +188,7 @@ impl Pack for PrepareInputsState {
             proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32,
-            2432,
-            384
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384
         ];
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {
@@ -243,11 +239,11 @@ impl Pack for PrepareInputsState {
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
                 if i == 0 {
-                    *found_root_dst = [self.found_root.clone(); 1];
+                    *found_root_dst = [self.found_root; 1];
                 } else if i == 1 {
-                    *found_nullifier_dst = [self.found_nullifier.clone(); 1];
+                    *found_nullifier_dst = [self.found_nullifier; 1];
                 } else if i == 2 {
-                    *merkle_tree_index_dst = [self.merkle_tree_index.clone(); 1];
+                    *merkle_tree_index_dst = [self.merkle_tree_index; 1];
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
@@ -278,6 +274,5 @@ impl Pack for PrepareInputsState {
         if self.is_initialized {
             *is_initialized_dst = [1u8; 1];
         }
-
     }
 }

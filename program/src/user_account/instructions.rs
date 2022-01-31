@@ -11,14 +11,14 @@ pub fn initialize_user_account(
 ) -> Result<(), ProgramError> {
     //check for rent exemption
     let rent = Rent::default();
-    if rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) != true {
+    if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("user account is not rentexempt");
         return Err(ProgramError::InvalidInstructionData);
     }
 
     //initialize
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
-    user_account_data.owner_pubkey = pubkey_signer.clone();
+    user_account_data.owner_pubkey = pubkey_signer;
     UserAccount::pack_into_slice(&user_account_data, &mut account.data.borrow_mut());
     Ok(())
 }

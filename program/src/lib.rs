@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity, clippy::ptr_arg, clippy::too_many_arguments)]
+
 pub mod groth16_verifier;
 pub mod instructions;
 pub mod nullifier_state;
@@ -26,6 +28,7 @@ use crate::utils::init_bytes18;
 
 entrypoint!(process_instruction);
 
+#[allow(clippy::clone_double_ref)]
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -111,24 +114,17 @@ pub fn process_instruction(
                 //TODO enforce exact instruction data length
                 if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
                     msg!("wrong signer");
-                    return Err(ProgramError::IllegalOwner);
+                    Err(ProgramError::IllegalOwner)
                 } else {
                     msg!(
                         "current ix index: {}",
                         tmp_storage_pda_data.current_instruction_index
                     );
-                    // TODO: replace if else with enum for better readibility
+                    // *ROOT_CHECK:*
                     // Checks whether root exists in Merkle tree history vec.
                     // Accounts:
                     // 2. `[]` Merkle tree
-                    if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK {
-                        processor::process_instruction(
-                            program_id,
-                            accounts,
-                            tmp_storage_pda_data.current_instruction_index,
-                        )?;
-                        Ok(())
-                    }
+                    // *INSERT_LEAVES_NULLIFIER_AND_TRANSFER:*
                     // Inserts leaves, inserts nullifier, updates Merkle tree root and transfers
                     // funds to the recipient.
                     // For deposits the recipient is the merkle_tree_pda. For withdrawals the passed
@@ -142,8 +138,9 @@ pub fn process_instruction(
                     // 6. `[writable]` merkle_tree_pda
                     // 7. `[]` spl_program
                     // 8. `[]` recipient
-                    else if tmp_storage_pda_data.current_instruction_index
-                        == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
+                    if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
+                        || tmp_storage_pda_data.current_instruction_index
+                            == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
                     {
                         processor::process_instruction(
                             program_id,
@@ -193,26 +190,26 @@ pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts
     //check root
     1, //prepare inputs for verification
-    /*40, */41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
+    /*40, */ 41, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
     42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42,
-    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 46, 41, 43, 43, 43, 43,
+    42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 42, 46, 41, 43,
     43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,
     43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43,
-    43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 46, 41, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
+    43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 43, 46, 41, 44, 44, 44, 44, 44, 44, 44,
     44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
     44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44, 44,
-    44, 44, 44, 44, 44, 44, 46, 41, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
+    44, 44, 44, 44, 44, 44, 44, 44, 44, 46, 41, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
     45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45, 45,
-    46, 41, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
+    45, 45, 45, 46, 41, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
     56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56,
-    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 46, 41, 57, 57, 57, 57,
+    56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 56, 46, 41, 57,
     57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
     57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57,
-    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 46, 41, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
+    57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 57, 46, 41, 58, 58, 58, 58, 58, 58, 58,
     58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
     58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58, 58,
-    58, 58, 58, 58, 58, 58, 46, 47, 48, //miller loop
+    58, 58, 58, 58, 58, 58, 58, 58, 58, 46, 47, 48, //miller loop
     0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
     4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
     4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,

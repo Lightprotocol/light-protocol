@@ -51,7 +51,7 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
     );
     Ok(())
 }*/
-
+#[allow(clippy::comparison_chain)]
 pub fn check_external_amount(
     tmp_storage_pda_data: &ChecksAndTransferState,
 ) -> Result<(u64, u64), ProgramError> {
@@ -76,7 +76,7 @@ pub fn check_external_amount(
 
         let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
 
-        if pub_amount_fits_i64.is_err() == true {
+        if pub_amount_fits_i64.is_err() {
             msg!("Public amount is larger than i64.");
             return Err(ProgramError::InvalidInstructionData);
         }
@@ -91,7 +91,7 @@ pub fn check_external_amount(
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok((ext_amount.try_into().unwrap(), relayer_fees));
+        Ok((ext_amount.try_into().unwrap(), relayer_fees))
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -116,12 +116,12 @@ pub fn check_external_amount(
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        return Ok(((-ext_amount).try_into().unwrap(), relayer_fees));
+        Ok(((-ext_amount).try_into().unwrap(), relayer_fees))
     } else if ext_amount == 0 {
-        return Ok((ext_amount.try_into().unwrap(), relayer_fees));
+        Ok((ext_amount.try_into().unwrap(), relayer_fees))
     } else {
         msg!("Invalid state checking external amount");
-        return Err(ProgramError::InvalidInstructionData);
+        Err(ProgramError::InvalidInstructionData)
     }
 }
 
@@ -139,14 +139,8 @@ pub fn token_transfer<'a, 'b>(
     msg!("transfer here0");
     let native = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
     assert_eq!(*token_program.key, native);
-    //let swap_bytes = swap.to_bytes();
-    //let seed = [1u8;32];
-    let authority_signature_seeds = [&seed[..], &bump_seed[..]];
+    let authority_signature_seeds = [seed, bump_seed];
     msg!("authority_signature_seeds {:?}", authority_signature_seeds);
-
-    // let check_pubkey = Pubkey::find_program_address(&[&signer.to_bytes()[..]], &program_id);
-    // msg!("check_pubkey {:?}", check_pubkey);
-    // msg!("transfer here2");
 
     let signers = &[&authority_signature_seeds[..]];
     msg!(
@@ -177,6 +171,7 @@ pub fn token_transfer<'a, 'b>(
     Ok(())
 }
 
+#[allow(clippy::clone_double_ref)]
 pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -302,11 +297,9 @@ pub fn create_and_check_account<'a, 'b>(
     )?;
 
     // Check for rent exemption
-    if rent_exempt {
-        if !rent.is_exempt(**passed_in_pda.lamports.borrow(), 2) {
-            msg!("Account is not rent exempt.");
-            return Err(ProgramError::InvalidInstructionData);
-        }
+    if rent_exempt && !rent.is_exempt(**passed_in_pda.lamports.borrow(), 2) {
+        msg!("Account is not rent exempt.");
+        return Err(ProgramError::InvalidInstructionData);
     }
     Ok(())
 }
@@ -361,7 +354,7 @@ pub fn try_initialize_tmp_storage_pda(
     }
 
     let fee = _instruction_data[552..560].to_vec();
-    tmp_storage_pda_data.relayer_fees = fee.clone();
+    tmp_storage_pda_data.relayer_fees = fee;
 
     let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
     tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];

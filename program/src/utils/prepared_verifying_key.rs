@@ -1,6 +1,5 @@
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::QuadExtField;
-
 pub fn get_alpha_g1_0() -> ark_ec::models::bn::g1::G1Affine<ark_bn254::Parameters> {
     ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
         ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([

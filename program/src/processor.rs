@@ -16,6 +16,7 @@ use solana_program::{
 use std::convert::{TryFrom, TryInto};
 
 // Processor for deposit and withdraw logic.
+#[allow(clippy::comparison_chain)]
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
@@ -50,7 +51,7 @@ pub fn process_instruction(
         tmp_storage_pda_data.found_root = check_root_hash_exists(
             merkle_tree_pda,
             &tmp_storage_pda_data.root_hash,
-            &program_id,
+            program_id,
             tmp_storage_pda_data.merkle_tree_index,
         )?;
     }
@@ -170,7 +171,7 @@ pub fn process_instruction(
                     //two_leaves_pda
                     //destination,
                     merkle_tree_pda_token,
-                    &authority,
+                    authority,
                     &authority_seed[..],
                     &[authority_bump_seed],
                     pub_amount_checked,
@@ -189,7 +190,7 @@ pub fn process_instruction(
                     //two_leaves_pda
                     //destination,
                     user_pda_token,
-                    &authority,
+                    authority,
                     &authority_seed[..],
                     &[authority_bump_seed],
                     pub_amount_checked,
@@ -209,7 +210,7 @@ pub fn process_instruction(
                 merkle_tree_pda_token,
                 //destination,
                 relayer_pda_token,
-                &authority,
+                authority,
                 &authority_seed[..],
                 &[authority_bump_seed],
                 relayer_fees,
