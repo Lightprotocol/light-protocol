@@ -25,7 +25,7 @@ pub fn _process_instruction(
         account_struct.f1_r_range = account_struct.f_f2_range.clone();
         //Zero out y6_range for proof data was stored in this range for miller loop.
         let zeros = vec![0u8; 384];
-        account_struct.y6_range = zeros.clone();
+        account_struct.y6_range = zeros;
         conjugate_wrapper(&mut account_struct.f1_r_range);
         account_struct.changed_variables[F2_R_RANGE_ITER] = true;
         account_struct.changed_variables[F_F2_RANGE_ITER] = true;
@@ -425,7 +425,6 @@ pub fn _process_instruction(
         custom_frobenius_map_3(&mut account_struct.y1_range);
         account_struct.changed_variables[Y1_RANGE_ITER] = true;
     } else if id == 121 {
-
         mul_assign_1(
             &account_struct.f1_r_range,
             &account_struct.f_f2_range,

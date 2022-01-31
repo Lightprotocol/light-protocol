@@ -35,7 +35,7 @@ pub fn permute_instruction_first(
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let params = PoseidonParameters::<Fq>::new(rounds, mds);
     //parsing poseidon inputs to Fq elements
-    let mut state_new = prepare_inputs(&params, &left_input, &right_input).unwrap();
+    let mut state_new = prepare_inputs(&params, left_input, right_input).unwrap();
 
     //performing the first 4 full round permutations
     state_new = permute_custom_split(&params, state_new, *current_round, 4).unwrap();
