@@ -14,7 +14,7 @@ use ark_ff::{
         Field, Fp2,
     },
     fp12_2over3over2::Fp12Parameters,
-    One, Zero
+    One, Zero,
 };
 use solana_program::msg;
 
@@ -29,9 +29,8 @@ pub fn doubling_step(
     coeff_1_range: &mut Vec<u8>,
     coeff_2_range: &mut Vec<u8>,
 ) {
-
     // step 0
-    let mut r = parse_r_from_bytes(&r_bytes);
+    let mut r = parse_r_from_bytes(r_bytes);
     // TODO: Check compute cost, if enough buffer remove.
     // let two_inv = Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
     //     9781510331150239090,
@@ -39,30 +38,33 @@ pub fn doubling_step(
     //     10331104244869713732,
     //     2249375503248834476,
     // ]));
-    let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one().double().inverse().unwrap();
-    let mut a = r.x * &r.y;
+    let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
+        .double()
+        .inverse()
+        .unwrap();
+    let mut a = r.x * r.y;
     a.mul_assign_by_fp(&two_inv);
     let b = r.y.square();
     let c = r.z.square();
     let e = <ark_bn254::Parameters as ark_ec::models::bn::BnParameters>::G2Parameters::COEFF_B
-        * &(c.double() + &c);
-    let f = e.double() + &e;
+        * (c.double() + c);
+    let f = e.double() + e;
     let j = r.x.square();
-    r.x = a * &(b - &f);
+    r.x = a * (b - f);
 
     // step 1
-    let mut g = b + &f;
+    let mut g = b + f;
     g.mul_assign_by_fp(&two_inv);
-    let h = (r.y + &r.z).square() - &(b + &c);
-    let i = e - &b;
+    let h = (r.y + r.z).square() - (b + c);
+    let i = e - b;
     let e_square = e.square();
-    r.y = g.square() - &(e_square.double() + &e_square);
-    r.z = b * &h;
+    r.y = g.square() - (e_square.double() + e_square);
+    r.z = b * h;
 
     parse_r_to_bytes(r, r_bytes);
 
     // step 2
-    let j_d = j.double() + &j;
+    let j_d = j.double() + j;
     let h = -h;
 
     match ark_bn254::Parameters::TWIST_TYPE {
@@ -89,7 +91,6 @@ pub fn addition_step<B: BnParameters>(
     computation_flag: &str,
 ) {
     let mut q = parse_proof_b_from_bytes(proof_bytes);
-
 
     let twist_mul_by_q_x = ark_bn254::Parameters::TWIST_MUL_BY_Q_X;
 
@@ -120,23 +121,23 @@ pub fn addition_step<B: BnParameters>(
     // homogeneous projective coordinates.
     let mut r = parse_r_from_bytes(r_bytes);
 
-    let theta = r.y - &(q.y * &r.z);
-    let lambda = r.x - &(q.x * &r.z);
+    let theta = r.y - (q.y * r.z);
+    let lambda = r.x - (q.x * r.z);
     let c = theta.square();
     let d = lambda.square();
-    let e = lambda * &d;
-    let f = r.z * &c;
-    let g = r.x * &d;
-    let h = e + &f - &g.double();
+    let e = lambda * d;
+    let f = r.z * c;
+    let g = r.x * d;
+    let h = e + f - g.double();
 
     // step 1
-    r.x = lambda * &h;
-    r.y = theta * &(g - &h) - &(e * &r.y);
+    r.x = lambda * h;
+    r.y = theta * (g - h) - (e * r.y);
     r.z *= &e;
     parse_r_to_bytes(r, r_bytes);
 
     // step 2
-    let j = theta * &q.x - &(lambda * &q.y);
+    let j = theta * q.x - (lambda * q.y);
 
     match B::TWIST_TYPE {
         TwistType::M => (
@@ -166,11 +167,11 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) {
 pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
     let f = parse_f_from_bytes(f_range); // cost: 30k
 
-    let mut v0 = f.c0 - &f.c1; // cost: <1k
+    let mut v0 = f.c0 - f.c1; // cost: <1k
     let v3 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
         ark_bn254::Fq12Parameters,
         > as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0, &f.c1); // cost: 1k
-    let v2 = f.c0 * &f.c1; // cost: 70k
+    let v2 = f.c0 * f.c1; // cost: 70k
     v0 *= &v3; // cost: 86k
     let c1 = v2.double(); // cost: <1k
     let c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
@@ -190,9 +191,9 @@ pub fn ell_instruction_d(
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
 ) {
-    let coeff_2 = parse_quad_from_bytes(&coeff_2_range); //
-    let mut coeff_1 = parse_quad_from_bytes(&coeff_1_range); // this the same
-    let mut coeff_0 = parse_quad_from_bytes(&coeff_0_range); //
+    let coeff_2 = parse_quad_from_bytes(coeff_2_range); //
+    let mut coeff_1 = parse_quad_from_bytes(coeff_1_range); // this the same
+    let mut coeff_0 = parse_quad_from_bytes(coeff_0_range); //
     let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
     let p_x = parse_fp256_from_bytes(p_x_range); //
 
@@ -212,13 +213,13 @@ pub fn ell_instruction_d(
 
     // D4
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
-    let mut e = c0 + &c1;
+    let mut e = c0 + c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
 
     // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-    f.c1 = e - &(a + &b); // cost: -
+    f.c1 = e - (a + b); // cost: -
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
     parse_f_to_bytes(f, f_range); // cost: 15k
 }
@@ -456,14 +457,14 @@ pub fn ell_instruction_d_c2(
 
     // D4
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
-    let mut e = c0 + &c1;
+    let mut e = c0 + c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
 
     // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
-    f.c1 = e - &(a + &b); // cost: -
+    f.c1 = e - (a + b); // cost: -
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
 
     parse_f_to_bytes(f, f_range); // cost: 15k
@@ -701,19 +702,18 @@ pub fn ell_instruction_d_c3(
 
     // D4
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
-    let mut e = c0 + &c1;
+    let mut e = c0 + c1;
     e.mul_by_01(&c00, &coeff_2); // cost: 36k
 
     // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
-    f.c1 = e - &(a + &b); // cost: -
+    f.c1 = e - (a + b); // cost: -
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
 
     parse_f_to_bytes(f, f_range); // cost: 15k
 }
-
 
 #[cfg(test)]
 mod tests {

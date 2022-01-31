@@ -73,8 +73,7 @@ pub fn insert_1_inner_loop(
         tmp_storage_account.left = tmp_storage_account.current_level_hash.clone();
         tmp_storage_account.right = ZERO_BYTES_MERKLE_TREE_18
             [tmp_storage_account.current_level * 32..(tmp_storage_account.current_level * 32 + 32)]
-            .to_vec()
-            .clone();
+            .to_vec();
         merkle_tree_account.filled_subtrees[tmp_storage_account.current_level] =
             tmp_storage_account.current_level_hash.clone();
     } else {

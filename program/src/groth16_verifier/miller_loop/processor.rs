@@ -29,15 +29,13 @@ pub fn move_proofs(
     parse_fp256_to_bytes(p_1.0.y, &mut account_main_data.p_1_y_range);
     parse_fp256_to_bytes(p_3.0.x, &mut account_main_data.p_3_x_range);
     parse_fp256_to_bytes(p_3.0.y, &mut account_main_data.p_3_y_range);
-    account_main_data.proof_b = account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers
-        [64..192]
-        .to_vec()
-        .clone();
+    account_main_data.proof_b =
+        account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[64..192].to_vec();
 
     let mut f_arr: Vec<u8> = vec![0; 384];
     f_arr[0] = 1;
 
-    let f = parse_f_from_bytes(&mut f_arr);
+    let f = parse_f_from_bytes(&f_arr);
     parse_f_to_bytes(f, &mut account_main_data.f_range);
 
     account_main_data.changed_variables[PROOF_B_INDEX] = true;
@@ -49,15 +47,7 @@ pub fn move_proofs(
 }
 
 pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
-    if id == 0 {
-        // First instruction of miller_loop.
-        // Reads gic_affine from prepared_inputs account.
-        // Deprecated: Moved into groth16_processor.rs > move_proofs
-    } else if id == 1 {
-        // Deprecated: Moved into groth16_processor.rs > move_proofs
-        // Inits proof_a and proof_c into the account (p1,p3).
-        // Also inits f.
-    } else if id == 2 {
+    if id == 2 {
         // Turns proof.b into type G2HomProjective and stores in r_range.
         // Called once at the beginning.
         init_coeffs1(&mut account_main.r, &mut account_main.proof_b);
