@@ -196,11 +196,11 @@ pub mod tests {
             }
         }
         println!("Appending merkle tree bytes and merkle tree index");
-        for i in 0..32 {
-            ix_data.push(MERKLE_TREE_ACC_BYTES_ARRAY[0].0[i]);
-        }
-        //pushing merkle tree index
-        ix_data.push(0);
+        // for i in 0..32 {
+        //     ix_data.push(MERKLE_TREE_ACC_BYTES_ARRAY[0].0[i]);
+        // }
+        // //pushing merkle tree index
+        // ix_data.push(0);
 
         println!("{:?}", ix_data);
         ix_data
