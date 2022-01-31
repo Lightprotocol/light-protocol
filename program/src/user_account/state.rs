@@ -5,7 +5,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub const SIZE_UTXO: u64 = 216; // stringify old: 408; // without privatekey: 256
+pub const SIZE_UTXO: usize = 216; // stringify old: 408; // without privatekey: 256
 pub const UTXO_CAPACITY: usize = 100; // amount of utxos that can be stored in the user account at once
 
 #[derive(Debug, Clone)]
@@ -26,13 +26,14 @@ impl IsInitialized for UserAccount {
     }
 }
 
+#[allow(clippy::ptr_offset_with_cast)]
 impl Pack for UserAccount {
-    const LEN: usize = 34 + SIZE_UTXO as usize * UTXO_CAPACITY;
+    const LEN: usize = 34 + SIZE_UTXO * UTXO_CAPACITY;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, UserAccount::LEN];
 
         let (is_initialized, account_type, owner_pubkey, enc_utxos) =
-            array_refs![input, 1, 1, 32, SIZE_UTXO as usize * UTXO_CAPACITY];
+            array_refs![input, 1, 1, 32, SIZE_UTXO * UTXO_CAPACITY];
 
         if is_initialized[0] == 0 {
             Ok(UserAccount {
@@ -58,21 +59,21 @@ impl Pack for UserAccount {
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, UserAccount::LEN];
         let (dst_is_initialized, dst_account_type, dst_owner_pubkey, dst_enc_utxos) =
-            mut_array_refs![dst, 1, 1, 32, SIZE_UTXO as usize * UTXO_CAPACITY];
+            mut_array_refs![dst, 1, 1, 32, SIZE_UTXO * UTXO_CAPACITY];
         // msg!("dst_enc_utxos : {:?}", dst_enc_utxos);
 
         if self.mode_init {
             dst_is_initialized[0] = 1;
             dst_account_type[0] = 10;
-            *dst_owner_pubkey = self.owner_pubkey.to_bytes().clone();
+            *dst_owner_pubkey = self.owner_pubkey.to_bytes();
         } else {
             for modifying_index in self.modified_ranges.iter() {
-                for (i, x) in dst_enc_utxos[modifying_index * SIZE_UTXO as usize
-                    ..modifying_index * SIZE_UTXO as usize + SIZE_UTXO as usize]
+                for (i, x) in dst_enc_utxos
+                    [modifying_index * SIZE_UTXO..modifying_index * SIZE_UTXO + SIZE_UTXO]
                     .iter_mut()
                     .enumerate()
                 {
-                    *x = self.enc_utxos[i + modifying_index * SIZE_UTXO as usize];
+                    *x = self.enc_utxos[i + modifying_index * SIZE_UTXO];
                 }
             }
         }

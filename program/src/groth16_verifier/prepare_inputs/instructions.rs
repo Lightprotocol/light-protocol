@@ -3,8 +3,7 @@ use crate::utils::prepared_verifying_key::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{
     fields::{Field, PrimeField},
-    BitIteratorBE, Fp256,
-    One
+    BitIteratorBE, Fp256, One,
 };
 // use ark_relations::r1cs::SynthesisError; // currently commented out, should implement manual error.
 use ark_std::Zero;
@@ -48,10 +47,11 @@ pub fn init_pairs_instruction(
         get_gamma_abc_g1_6(),
         get_gamma_abc_g1_7(),
     ];
-    if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() { // 693
-         // TODO: add manual error throw.
-         // Err(SynthesisError::MalformedVerifyingKey);
-         panic!("MalformedVerifyingKey");
+    if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
+        // 693
+        // TODO: add manual error throw.
+        // Err(SynthesisError::MalformedVerifyingKey);
+        panic!("MalformedVerifyingKey");
     }
 
     // inits g_ic into range.
@@ -85,7 +85,6 @@ pub fn init_pairs_instruction(
     parse_x_group_affine_to_bytes(x_vec[4], x_5_range); // 6k
     parse_x_group_affine_to_bytes(x_vec[5], x_6_range); // 6k
     parse_x_group_affine_to_bytes(x_vec[6], x_7_range); // 6k
-
 }
 
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
@@ -124,7 +123,7 @@ pub fn maths_instruction(
     // First constructs all bits of current i,x pair.
     // Must skip leading zeroes. those are random based on the inputs (i).
     let a = i.into_repr(); // 1037
-    let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a.into()); // 58
+    let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a); // 58
     let bits_without_leading_zeroes: Vec<bool> = bits.skip_while(|b| !b).collect();
     let skipped = 256 - bits_without_leading_zeroes.len();
 
@@ -160,9 +159,9 @@ pub fn maths_instruction(
                     // Z1Z1 = Z1^2
                     let z1z1 = res.z.square();
                     // U2 = X2*Z1Z1
-                    let u2 = x.x * &z1z1;
+                    let u2 = x.x * z1z1;
                     // S2 = Y2*Z1*Z1Z1
-                    let s2 = (x.y * &res.z) * &z1z1;
+                    let s2 = (x.y * res.z) * z1z1;
                     // cost: 16709
 
                     if res.x == u2 && res.y == s2 {
@@ -175,18 +174,18 @@ pub fn maths_instruction(
 
                         // If we're adding -a and a together, self.z becomes zero as H becomes zero.
                         // H = U2-X1
-                        let h = u2 - &res.x;
+                        let h = u2 - res.x;
                         // HH = H^2
                         let hh = h.square();
                         // I = 4*HH
                         let mut i = hh;
                         i.double_in_place().double_in_place();
                         // J = H*I
-                        let mut j = h * &i;
+                        let mut j = h * i;
                         // r = 2*(S2-Y1)
-                        let r = (s2 - &res.y).double();
+                        let r = (s2 - res.y).double();
                         // V = X1*I
-                        let v = res.x * &i;
+                        let v = res.x * i;
                         // X3 = r^2 - J - 2*V
                         res.x = r.square();
                         res.x -= &j;
@@ -195,7 +194,7 @@ pub fn maths_instruction(
                         // Y3 = r*(V-X3)-2*Y1*J
                         j *= &res.y; // J = 2*Y1*J
                         j.double_in_place();
-                        res.y = v - &res.x;
+                        res.y = v - res.x;
                         res.y *= &r;
                         res.y -= &j;
                         // Z3 = (Z1+H)^2-Z1Z1-HH
@@ -242,16 +241,16 @@ pub fn maths_g_ic_instruction(
         let z2z2 = res.z.square();
 
         // U1 = X1*Z2Z2
-        let u1 = g_ic.x * &z2z2;
+        let u1 = g_ic.x * z2z2;
 
         // U2 = X2*Z1Z1
-        let u2 = res.x * &z1z1;
+        let u2 = res.x * z1z1;
 
         // S1 = Y1*Z2*Z2Z2
-        let s1 = g_ic.y * &res.z * &z2z2;
+        let s1 = g_ic.y * res.z * z2z2;
 
         // S2 = Y2*Z1*Z1Z1
-        let s2 = res.y * &g_ic.z * &z1z1;
+        let s2 = res.y * g_ic.z * z1z1;
 
         if u1 == u2 && s1 == s2 {
             // The two points are equal, so we double.
@@ -260,28 +259,28 @@ pub fn maths_g_ic_instruction(
             // If we're adding -a and a together, self.z becomes zero as H becomes zero.
 
             // H = U2-U1
-            let h = u2 - &u1;
+            let h = u2 - u1;
 
             // I = (2*H)^2
             let i = (h.double()).square();
 
             // J = H*I
-            let j = h * &i;
+            let j = h * i;
 
             // r = 2*(S2-S1)
-            let r = (s2 - &s1).double();
+            let r = (s2 - s1).double();
 
             // V = U1*I
-            let v = u1 * &i;
+            let v = u1 * i;
 
             // X3 = r^2 - J - 2*V
-            g_ic.x = r.square() - &j - &(v.double());
+            g_ic.x = r.square() - j - (v.double());
 
             // Y3 = r*(V - X3) - 2*S1*J
-            g_ic.y = r * &(v - &g_ic.x) - &*(s1 * &j).double_in_place();
+            g_ic.y = r * (v - g_ic.x) - *(s1 * j).double_in_place();
 
             // Z3 = ((Z1+Z2)^2 - Z1Z1 - Z2Z2)*H
-            g_ic.z = ((g_ic.z + &res.z).square() - &z1z1 - &z2z2) * &h;
+            g_ic.z = ((g_ic.z + res.z).square() - z1z1 - z2z2) * h;
         }
     }
     // res will be created anew with new loop, + new i,x will be used with index
@@ -299,7 +298,7 @@ pub fn g_ic_into_affine_1(
     g_ic_z_range: &mut Vec<u8>,
 ) {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
-        parse_group_projective_from_bytes_254(&g_ic_x_range, &g_ic_y_range, &g_ic_z_range); // 15k
+        parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
     let g_ic_with_zinv: ark_ec::short_weierstrass_jacobian::GroupProjective<
         ark_bn254::g1::Parameters,
@@ -314,11 +313,11 @@ pub fn g_ic_into_affine_2(
     x_1_range: &mut Vec<u8>,
 ) {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
-        parse_group_projective_from_bytes_254(&g_ic_x_range, &g_ic_y_range, &g_ic_z_range); // 15k
+        parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
 
     let zinv_squared = ark_ff::Field::square(&g_ic.z);
-    let x = g_ic.x * &zinv_squared;
-    let y = g_ic.y * &(zinv_squared * &g_ic.z);
+    let x = g_ic.x * zinv_squared;
+    let y = g_ic.y * (zinv_squared * g_ic.z);
 
     let g_ic_affine: ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupAffine::new(x, y, false);

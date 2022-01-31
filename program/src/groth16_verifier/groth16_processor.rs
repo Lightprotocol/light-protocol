@@ -9,12 +9,9 @@ use crate::groth16_verifier::{
     final_exponentiation,
     final_exponentiation::{
         instructions::verify_result,
+        ranges::{FINAL_EXPONENTIATION_END_INDEX, FINAL_EXPONENTIATION_START_INDEX},
         state::FinalExponentiationState,
-        ranges::{
-            FINAL_EXPONENTIATION_START_INDEX,
-            FINAL_EXPONENTIATION_END_INDEX
-            }
-        },
+    },
     miller_loop,
     miller_loop::{ranges::*, state::*},
     parsers::*,
@@ -33,8 +30,8 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         current_instruction_index: usize,
     ) -> Result<Self, ProgramError> {
         Ok(Groth16Processor {
-            main_account: main_account,
-            current_instruction_index: current_instruction_index,
+            main_account,
+            current_instruction_index,
         })
     }
     // The groth16 verifier verifies proofs for the Groth16 zkSNARK construction that's used by Light Protocol.
@@ -105,9 +102,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     // You find that it loop through each (G1,G2) pair serially and
     // with each loop it takes the same G1 value + the next G2 value out of 91 total coeff triples per (G1,G2) pair.
     // It then takes those values and calls the "ell" computation: https://docs.rs/ark-ec/latest/src/ark_ec/models/bn/mod.rs.html#57-74
-    fn miller_loop(
-        &mut self
-    ) -> Result<(), ProgramError> {
+    fn miller_loop(&mut self) -> Result<(), ProgramError> {
         let mut main_account_data = MillerLoopState::unpack(&self.main_account.data.borrow())?;
         // First ix (0): Parses g_ic_affine(proof.b) and more from prepared_inputs state to miller_loop state.
         if IX_ORDER[main_account_data.current_instruction_index] == 0 {
@@ -133,7 +128,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
                 &main_account_data,
                 &mut self.main_account.data.borrow_mut(),
             );
-            return Ok(());
+            Ok(())
         } else {
             // main processor after 1st ix (0).
 

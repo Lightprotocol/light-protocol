@@ -79,7 +79,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 548447162317232852,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 1 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -191,7 +191,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 1637766217708134366,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 2 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -303,7 +303,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 883592843458373219,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 3 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -415,7 +415,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 188295862788215142,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 4 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -527,7 +527,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 1300704030102100822,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 5 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -639,7 +639,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 2805112086378339507,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 6 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -751,7 +751,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 3084018464626681660,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 7 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -863,7 +863,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 3139810032045668080,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 8 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -975,7 +975,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 706927110467693638,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 9 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -1087,7 +1087,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 846117560755338537,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 10 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -1145,7 +1145,7 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 1438663377964398024,
             ])),
         ];
-        return constant;
+        constant
     } else if index == 11 {
         let constant = vec![
             Fp256::<ark_ed_on_bn254::FqParameters>::new(BigInteger256::new([
@@ -1221,9 +1221,9 @@ pub fn get_rounds_poseidon_circom_bn254_x5_3_split(
                 1021894107085760768,
             ])),
         ];
-        return constant;
+        constant
     } else {
-        return vec![Fq::zero()];
+        vec![Fq::zero()]
     }
 }
 
