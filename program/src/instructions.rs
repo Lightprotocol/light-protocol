@@ -346,7 +346,8 @@ pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda_data.to_address = _instruction_data[480..512].to_vec();
     tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
-
+    msg!("Pubkey::new(&relayer): {:?}", Pubkey::new(&relayer));
+    //panic!("");
     //check that relayer in integrity hash is == signer
     if relayer != vec![0u8; 32] && *signing_address != Pubkey::new(&relayer) {
         msg!("specified relayer is not signer");
@@ -372,15 +373,15 @@ pub fn try_initialize_tmp_storage_pda(
     //
     // msg!("tmp_storage_pda_data.relayer_fees {}", u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.try_into().unwrap()));
     // panic!("");
-    /*
+
     check_tx_integrity_hash(
         tmp_storage_pda_data.to_address.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
-        fee.to_vec(),
+        tmp_storage_pda_data.relayer_fees.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
         merkle_tree_pda_pubkey,
-    )?;*/
+    )?;
     for i in 0..12 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }

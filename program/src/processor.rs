@@ -113,14 +113,13 @@ pub fn process_instruction(
         {
             msg!(
                 "Passed-in Merkle tree token account is invalid. {:?} != {:?}",
-                *merkle_tree_pda_token.key,
-                solana_program::pubkey::Pubkey::new(
+                merkle_tree_pda_token.key.to_bytes(),
+
                     &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
                         tmp_storage_pda_data.merkle_tree_index
                     )
                     .unwrap()]
                     .1
-                )
             );
             return Err(ProgramError::InvalidInstructionData);
         }
