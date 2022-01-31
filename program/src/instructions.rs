@@ -51,7 +51,7 @@ pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(
     );
     Ok(())
 }*/
-
+#[allow(clippy::comparison_chain)]
 pub fn check_external_amount(
     tmp_storage_pda_data: &ChecksAndTransferState,
 ) -> Result<(u64, u64), ProgramError> {
