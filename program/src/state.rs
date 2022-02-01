@@ -18,12 +18,11 @@ pub struct ChecksAndTransferState {
     pub ext_amount: Vec<u8>,
     pub amount: Vec<u8>,
     pub root_hash: Vec<u8>,
-    pub data_hash: Vec<u8>,         // is commit hash until changed
     pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from recipient, ext_amount, signing_address,
     pub current_instruction_index: usize,
     pub proof_a_b_c_leaves_and_nullifiers: Vec<u8>,
     // set changed_constants to true to pack specified values other values will not be packed
-    pub changed_constants: [bool; 12],
+    pub changed_constants: [bool; 11],
 }
 impl Sealed for ChecksAndTransferState {}
 impl IsInitialized for ChecksAndTransferState {
@@ -49,7 +48,7 @@ impl Pack for ChecksAndTransferState {
             ext_amount,
             amount,
             root_hash,
-            data_hash, // is commit hash until changed
+            _unused, // is commit hash until changed
             tx_integrity_hash,
             current_instruction_index,
             //220
@@ -64,17 +63,16 @@ impl Pack for ChecksAndTransferState {
             found_nullifier: found_nullifier[0],           //1 legacy remove
             merkle_tree_index: merkle_tree_index[0],       //2 legacy remove
             signing_address: signing_address.to_vec(),     //3
-            relayer_fees: relayer_fees.to_vec(),       //4
-            recipient: recipient.to_vec(),               //5
+            relayer_fees: relayer_fees.to_vec(),           //4
+            recipient: recipient.to_vec(),                 //5
             ext_amount: ext_amount.to_vec(),               //6
             amount: amount.to_vec(),                       //7
             root_hash: root_hash.to_vec(),                 //8
-            data_hash: data_hash.to_vec(),                 //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
             proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(), //11
 
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-            changed_constants: [false; 12],
+            changed_constants: [false; 11],
         })
     }
 
@@ -93,7 +91,7 @@ impl Pack for ChecksAndTransferState {
             ext_amount_dst,
             amount_dst,
             root_hash_dst,
-            data_hash_dst,
+            _unused_dst,
             tx_integrity_hash_dst,
             //variables
             current_instruction_index_dst,
@@ -123,10 +121,8 @@ impl Pack for ChecksAndTransferState {
                 } else if i == 8 {
                     *root_hash_dst = self.root_hash.clone().try_into().unwrap();
                 } else if i == 9 {
-                    *data_hash_dst = self.data_hash.clone().try_into().unwrap();
-                } else if i == 10 {
                     *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
-                } else if i == 11 {
+                } else if i == 10 {
                     *proof_a_b_c_leaves_and_nullifiers_dst = self
                         .proof_a_b_c_leaves_and_nullifiers
                         .clone()

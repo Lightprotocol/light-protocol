@@ -17,7 +17,7 @@ pub struct PrepareInputsState {
     pub amount: Vec<u8>,
     pub nullifier_hash: Vec<u8>,
     pub root_hash: Vec<u8>,
-    pub data_hash: Vec<u8>,         // is commit hash until changed
+    pub unused: Vec<u8>,            // is commit hash until changed
     pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from recipient, amount, signing_address,
 
     pub i_1_range: Vec<u8>,
@@ -71,7 +71,7 @@ impl Pack for PrepareInputsState {
             amount,
             nullifier_hash,
             root_hash,
-            data_hash, // is commit hash until changed
+            unused, // is commit hash until changed
             tx_integrity_hash,
             current_instruction_index,
             i_1_range, // 32b
@@ -110,11 +110,11 @@ impl Pack for PrepareInputsState {
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),           //4
-            recipient: recipient.to_vec(),               //5
+            recipient: recipient.to_vec(),                 //5
             amount: amount.to_vec(),                       //6
             nullifier_hash: nullifier_hash.to_vec(),       //7
             root_hash: root_hash.to_vec(),                 //8
-            data_hash: data_hash.to_vec(),                 //9
+            unused: unused.to_vec(),                       //9
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
             proof_a_b_c_leaves_and_nullifiers: proof_a_b_c_leaves_and_nullifiers.to_vec(), //11
 
@@ -159,7 +159,7 @@ impl Pack for PrepareInputsState {
             amount_dst,
             nullifier_hash_dst,
             root_hash_dst,
-            data_hash_dst,
+            unused_dst,
             tx_integrity_hash_dst,
             //variables
             current_instruction_index_dst,
@@ -257,7 +257,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 8 {
                     *root_hash_dst = self.root_hash.clone().try_into().unwrap();
                 } else if i == 9 {
-                    *data_hash_dst = self.data_hash.clone().try_into().unwrap();
+                    *unused_dst = self.unused.clone().try_into().unwrap();
                 } else if i == 10 {
                     *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
                 } else if i == 11 {
