@@ -177,7 +177,7 @@ pub fn process_instruction(
                 )?;
             } else if ext_amount < 0 {
                 if *user_pda_token.key
-                    != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.to_address)
+                    != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.recipient)
                 {
                     msg!("Recipient has to be address specified in tx integrity hash.");
                     return Err(ProgramError::InvalidInstructionData);

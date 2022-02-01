@@ -14,12 +14,12 @@ pub struct ChecksAndTransferState {
     pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_fees: Vec<u8>,
-    pub to_address: Vec<u8>,
+    pub recipient: Vec<u8>,
     pub ext_amount: Vec<u8>,
     pub amount: Vec<u8>,
     pub root_hash: Vec<u8>,
     pub data_hash: Vec<u8>,         // is commit hash until changed
-    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, ext_amount, signing_address,
+    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from recipient, ext_amount, signing_address,
     pub current_instruction_index: usize,
     pub proof_a_b_c_leaves_and_nullifiers: Vec<u8>,
     // set changed_constants to true to pack specified values other values will not be packed
@@ -45,7 +45,7 @@ impl Pack for ChecksAndTransferState {
             merkle_tree_index,
             signing_address, // is relayer address
             relayer_fees,
-            to_address,
+            recipient,
             ext_amount,
             amount,
             root_hash,
@@ -65,7 +65,7 @@ impl Pack for ChecksAndTransferState {
             merkle_tree_index: merkle_tree_index[0],       //2 legacy remove
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),       //4
-            to_address: to_address.to_vec(),               //5
+            recipient: recipient.to_vec(),               //5
             ext_amount: ext_amount.to_vec(),               //6
             amount: amount.to_vec(),                       //7
             root_hash: root_hash.to_vec(),                 //8
@@ -89,7 +89,7 @@ impl Pack for ChecksAndTransferState {
             merkle_tree_index_dst,
             signing_address_dst, // is relayer address
             relayer_fees_dst,
-            to_address_dst,
+            recipient_dst,
             ext_amount_dst,
             amount_dst,
             root_hash_dst,
@@ -115,7 +115,7 @@ impl Pack for ChecksAndTransferState {
                 } else if i == 4 {
                     *relayer_fees_dst = self.relayer_fees.clone().try_into().unwrap();
                 } else if i == 5 {
-                    *to_address_dst = self.to_address.clone().try_into().unwrap();
+                    *recipient_dst = self.recipient.clone().try_into().unwrap();
                 } else if i == 6 {
                     *ext_amount_dst = self.ext_amount.clone().try_into().unwrap();
                 } else if i == 7 {
