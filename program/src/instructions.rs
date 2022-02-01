@@ -343,7 +343,7 @@ pub fn try_initialize_tmp_storage_pda(
         input_nullifier_1.to_vec(),
     ]
     .concat();
-    tmp_storage_pda_data.to_address = _instruction_data[480..512].to_vec();
+    tmp_storage_pda_data.recipient = _instruction_data[480..512].to_vec();
     tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
     msg!("Pubkey::new(&relayer): {:?}", Pubkey::new(&relayer));
@@ -375,7 +375,7 @@ pub fn try_initialize_tmp_storage_pda(
     // panic!("");
 
     check_tx_integrity_hash(
-        tmp_storage_pda_data.to_address.to_vec(),
+        tmp_storage_pda_data.recipient.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
         tmp_storage_pda_data.relayer_fees.to_vec(),

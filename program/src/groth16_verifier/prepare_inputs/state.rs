@@ -13,12 +13,12 @@ pub struct PrepareInputsState {
     pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_fees: Vec<u8>,
-    pub to_address: Vec<u8>,
+    pub recipient: Vec<u8>,
     pub amount: Vec<u8>,
     pub nullifier_hash: Vec<u8>,
     pub root_hash: Vec<u8>,
     pub data_hash: Vec<u8>,         // is commit hash until changed
-    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from to_address, amount, signing_address,
+    pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from recipient, amount, signing_address,
 
     pub i_1_range: Vec<u8>,
     pub x_1_range: Vec<u8>,
@@ -67,7 +67,7 @@ impl Pack for PrepareInputsState {
             merkle_tree_index,
             signing_address, // is relayer address
             relayer_fees,
-            to_address,
+            recipient,
             amount,
             nullifier_hash,
             root_hash,
@@ -110,7 +110,7 @@ impl Pack for PrepareInputsState {
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),           //4
-            to_address: to_address.to_vec(),               //5
+            recipient: recipient.to_vec(),               //5
             amount: amount.to_vec(),                       //6
             nullifier_hash: nullifier_hash.to_vec(),       //7
             root_hash: root_hash.to_vec(),                 //8
@@ -155,7 +155,7 @@ impl Pack for PrepareInputsState {
             merkle_tree_index_dst,
             signing_address_dst, // is relayer address
             relayer_fees_dst,
-            to_address_dst,
+            recipient_dst,
             amount_dst,
             nullifier_hash_dst,
             root_hash_dst,
@@ -249,7 +249,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 4 {
                     *relayer_fees_dst = self.relayer_fees.clone().try_into().unwrap();
                 } else if i == 5 {
-                    *to_address_dst = self.to_address.clone().try_into().unwrap();
+                    *recipient_dst = self.recipient.clone().try_into().unwrap();
                 } else if i == 6 {
                     *amount_dst = self.amount.clone().try_into().unwrap();
                 } else if i == 7 {
