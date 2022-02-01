@@ -382,7 +382,7 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
         merkle_tree_pda_pubkey,
     )?;
-    for i in 0..12 {
+    for i in 0..11 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }
     tmp_storage_pda_data.current_instruction_index += 1;

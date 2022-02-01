@@ -42,7 +42,6 @@ pub fn process_instruction(
         msg!("signer account needs to be passed in first place");
         return Err(ProgramError::IllegalOwner);
     }
-    //TODO: replace if else with enum
     // Initialize new merkle tree account.
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let merkle_tree_storage_acc = next_account_info(account)?;
@@ -66,8 +65,8 @@ pub fn process_instruction(
     }
     // Transact with shielded pool.
     // This instruction has to be called 1503 times to perform all computation.
-    // There are many types of instructions which have to be executed in a specific order.
-    // The instruction order is hardcode in IX_ORDER.
+    // There are different instructions which have to be executed in a specific order.
+    // The instruction order is hardcoded in IX_ORDER.
     // After every instruction the program increments an internal counter (current_instruction_index).
     // The current_instruction_index is stored in a temporary storage pda on-chain.
     else {
@@ -111,7 +110,7 @@ pub fn process_instruction(
 
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
-                //TODO enforce exact instruction data length
+                // TODO: enforce exact instruction data length
                 if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
                     msg!("wrong signer");
                     Err(ProgramError::IllegalOwner)
