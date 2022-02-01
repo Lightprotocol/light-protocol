@@ -20,44 +20,14 @@ use solana_program::{
 };
 use std::convert::{TryFrom, TryInto};
 use std::str::FromStr;
-/*
-pub fn transfer(_from: &AccountInfo, _to: &AccountInfo, amount: u64) -> Result<(), ProgramError> {
-    if _from
-        .try_borrow_mut_lamports()
-        .unwrap()
-        .checked_sub(amount)
-        .is_none()
-    {
-        msg!("Invalid amount.");
-        return Err(ProgramError::InvalidArgument);
-    }
-    **_from.try_borrow_mut_lamports().unwrap() -= amount;
 
-    if _to
-        .try_borrow_mut_lamports()
-        .unwrap()
-        .checked_add(amount)
-        .is_none()
-    {
-        msg!("Invalid amount.");
-        return Err(ProgramError::InvalidArgument);
-    }
-    **_to.try_borrow_mut_lamports().unwrap() += amount;
-    msg!(
-        "Transferred of {} Lamp from {:?} to {:?}",
-        amount,
-        _from.key,
-        _to.key
-    );
-    Ok(())
-}*/
 #[allow(clippy::comparison_chain)]
 pub fn check_external_amount(
     tmp_storage_pda_data: &ChecksAndTransferState,
 ) -> Result<(u64, u64), ProgramError> {
     let ext_amount =
         i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-    // ext_amount includes the substracted relayer_fees
+    // ext_amount includes relayer_fees
     let relayer_fees = u64::from_le_bytes(
         tmp_storage_pda_data
             .relayer_fees
@@ -81,11 +51,10 @@ pub fn check_external_amount(
             return Err(ProgramError::InvalidInstructionData);
         }
 
-        //let ext_amount_from_pub = pub_amount.0[0] + relayer_fees;
         //check amount
-        if pub_amount.0[0] + relayer_fees != ext_amount.try_into().unwrap() {
+        if pub_amount.0[0].checked_add(relayer_fees).unwrap() != ext_amount.try_into().unwrap() {
             msg!(
-                " deposit Invalid external amount (relayer_fees) {} != {}",
+                "Deposit invalid external amount (relayer_fees) {} != {}",
                 pub_amount.0[0] + relayer_fees,
                 ext_amount
             );
@@ -96,8 +65,8 @@ pub fn check_external_amount(
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
         field.sub_noborrow(&pub_amount);
-        // field.0[0] is the positive value
 
+        // field.0[0] is the positive value
         if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0 {
             msg!("Public amount is larger than u64.");
             return Err(ProgramError::InvalidInstructionData);
@@ -107,10 +76,15 @@ pub fn check_external_amount(
             msg!("Public amount is larger than i64.");
             return Err(ProgramError::InvalidInstructionData);
         }
-        //check amount
-        if field.0[0] != u64::try_from(-ext_amount).unwrap() + relayer_fees {
+
+        if field.0[0]
+            != u64::try_from(-ext_amount)
+                .unwrap()
+                .checked_add(relayer_fees)
+                .unwrap()
+        {
             msg!(
-                " withdrawal Invalid external amount (relayer_fees) {} != {}",
+                "Withdrawal invalid external amount: {} != {}",
                 pub_amount.0[0],
                 relayer_fees + u64::try_from(-ext_amount).unwrap()
             );
@@ -120,14 +94,12 @@ pub fn check_external_amount(
     } else if ext_amount == 0 {
         Ok((ext_amount.try_into().unwrap(), relayer_fees))
     } else {
-        msg!("Invalid state checking external amount");
+        msg!("Invalid state checking external amount.");
         Err(ProgramError::InvalidInstructionData)
     }
 }
 
 pub fn token_transfer<'a, 'b>(
-    //program_id: &Pubkey,
-    //signer: &Pubkey,
     token_program: &'b AccountInfo<'a>,
     source: &'b AccountInfo<'a>,
     destination: &'b AccountInfo<'a>,
@@ -136,15 +108,11 @@ pub fn token_transfer<'a, 'b>(
     bump_seed: &[u8],
     amount: u64,
 ) -> Result<(), ProgramError> {
-    msg!("transfer here0");
-    let native = Pubkey::from_str("TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA").unwrap();
-    assert_eq!(*token_program.key, native);
     let authority_signature_seeds = [seed, bump_seed];
-    msg!("authority_signature_seeds {:?}", authority_signature_seeds);
 
     let signers = &[&authority_signature_seeds[..]];
     msg!(
-        "transferring {} from {:?} to {:?}",
+        "Transferring {} from {:?} to {:?}",
         amount,
         source.key,
         destination.key
@@ -185,7 +153,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     let signer_account = next_account_info(account)?;
     let account_main = next_account_info(account)?;
     let system_program_info = next_account_info(account)?;
-    create_and_check_account(
+    create_and_check_pda(
         program_id,
         signer_account,
         account_main,
@@ -204,7 +172,7 @@ pub fn check_tx_integrity_hash(
     ext_amount: Vec<u8>,
     relayer: Vec<u8>,
     fee: Vec<u8>,
-    tx_integrity_hash: Vec<u8>, // Vec<u8> TODO: CLIPPY
+    tx_integrity_hash: Vec<u8>,
     merkle_tree_pda_pubkey: Vec<u8>,
 ) -> Result<(), ProgramError> {
     let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey].concat();
@@ -212,7 +180,7 @@ pub fn check_tx_integrity_hash(
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
 
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
-        msg!("tx_integrity_hash verification failed");
+        msg!("tx_integrity_hash verification failed.");
         return Err(ProgramError::InvalidInstructionData);
     }
     Ok(())
@@ -225,18 +193,18 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     system_program: &'a AccountInfo<'b>,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
-    create_and_check_account(
+    create_and_check_pda(
         program_id,
         signer_account,
         nullifier_account,
         system_program,
         _instruction_data,
         &b"nf"[..],
-        2u64, //bytes
-        0u64, //904800u64,  //lamports
+        2u64, //nullifier pda length
+        0u64, //lamports
         true, //rent_exempt
     )?;
-
+    // Initializing nullifier pda.
     let nullifier_account_data = NullifierState::unpack(&nullifier_account.data.borrow())?;
     NullifierState::pack_into_slice(
         &nullifier_account_data,
@@ -245,7 +213,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     Ok(1u8)
 }
 
-pub fn create_and_check_account<'a, 'b>(
+pub fn create_and_check_pda<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
     passed_in_pda: &'a AccountInfo<'b>,
@@ -256,12 +224,8 @@ pub fn create_and_check_account<'a, 'b>(
     lamports: u64,
     rent_exempt: bool,
 ) -> Result<(), ProgramError> {
-    // msg!(
-    //     "domain_separation_seed: {:?}",
-    //     &[&_instruction_data, &domain_separation_seed]
-    // );
     let derived_pubkey =
-        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id); // TODO: clippy. check if [..] rm has sideeffects
+        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id);
 
     if derived_pubkey.0 != *passed_in_pda.key {
         msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
@@ -297,12 +261,22 @@ pub fn create_and_check_account<'a, 'b>(
     )?;
 
     // Check for rent exemption
-    if rent_exempt && !rent.is_exempt(**passed_in_pda.lamports.borrow(), 2) {
-        msg!("Account is not rent exempt.");
+    if rent_exempt
+        && !rent.is_exempt(
+            **passed_in_pda.lamports.borrow(),
+            number_storage_bytes.try_into().unwrap(),
+        )
+    {
+        msg!("Account is not rent-exempt.");
         return Err(ProgramError::InvalidInstructionData);
     }
     Ok(())
 }
+
+pub const PREPARED_INPUTS_RANGE_START: usize = 0;
+pub const PREPARED_INPUTS_RANGE_END: usize = 224;
+pub const PROOF_A_B_C_RANGE_START: usize = 224;
+pub const PROOF_A_B_C_RANGE_END: usize = 480;
 
 pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda: &AccountInfo,
@@ -310,7 +284,7 @@ pub fn try_initialize_tmp_storage_pda(
     signing_address: &Pubkey,
 ) -> Result<(), ProgramError> {
     msg!(
-        "Initing tmp_storage_pda {}",
+        "Initializing tmp_storage_pda: {}",
         tmp_storage_pda.data.borrow().len()
     );
     // Initializing temporary storage pda with instruction data.
@@ -321,8 +295,10 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda,
         tmp_storage_pda_data.current_instruction_index,
     )?;
-    // store zero knowledge proof bytes
-    groth16_processor.try_initialize(&_instruction_data[0..224])?;
+    // store zero knowledge prepared inputs bytes
+    groth16_processor.try_initialize(
+        &_instruction_data[PREPARED_INPUTS_RANGE_START..PREPARED_INPUTS_RANGE_END],
+    )?;
 
     tmp_storage_pda_data.signing_address = signing_address.to_bytes().to_vec();
     tmp_storage_pda_data.root_hash = _instruction_data[0..32].to_vec();
@@ -332,13 +308,13 @@ pub fn try_initialize_tmp_storage_pda(
     let input_nullifier_0 = _instruction_data[96..128].to_vec();
     let input_nullifier_1 = &_instruction_data[128..160];
 
-    let commitment_right = &_instruction_data[160..192];
-    let commitment_left = &_instruction_data[192..224];
+    let leaf_right = &_instruction_data[160..192];
+    let leaf_left = &_instruction_data[192..224];
 
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[224..480].to_vec(), // proof
-        commitment_right.to_vec(),            // TODO left right
-        commitment_left.to_vec(),
+        _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
+        leaf_right.to_vec(),
+        leaf_left.to_vec(),
         input_nullifier_0.to_vec(),
         input_nullifier_1.to_vec(),
     ]
@@ -346,11 +322,10 @@ pub fn try_initialize_tmp_storage_pda(
     tmp_storage_pda_data.recipient = _instruction_data[480..512].to_vec();
     tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
     let relayer = _instruction_data[520..552].to_vec();
-    msg!("Pubkey::new(&relayer): {:?}", Pubkey::new(&relayer));
-    //panic!("");
-    //check that relayer in integrity hash is == signer
+
+    // Check that relayer in integrity hash == signer.
     if relayer != vec![0u8; 32] && *signing_address != Pubkey::new(&relayer) {
-        msg!("specified relayer is not signer");
+        msg!("Specified relayer is not signer.");
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -369,11 +344,6 @@ pub fn try_initialize_tmp_storage_pda(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // msg!("tmp_storage_pda_data.relayer_fees {:?}", tmp_storage_pda_data.relayer_fees);
-    //
-    // msg!("tmp_storage_pda_data.relayer_fees {}", u64::from_le_bytes(tmp_storage_pda_data.relayer_fees.try_into().unwrap()));
-    // panic!("");
-
     check_tx_integrity_hash(
         tmp_storage_pda_data.recipient.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
@@ -390,6 +360,5 @@ pub fn try_initialize_tmp_storage_pda(
         &tmp_storage_pda_data,
         &mut tmp_storage_pda.data.borrow_mut(),
     );
-    msg!("packed successfully");
     Ok(())
 }
