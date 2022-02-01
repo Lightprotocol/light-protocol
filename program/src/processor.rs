@@ -32,20 +32,6 @@ pub fn process_instruction(
     // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
     if current_instruction_index == 1 {
         let merkle_tree_pda = next_account_info(account)?;
-        msg!(
-            "Passed-in merkle_tree_pda pubkey: {:?}",
-            *merkle_tree_pda.key
-        );
-        msg!(
-            "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
-            solana_program::pubkey::Pubkey::new(
-                &MERKLE_TREE_ACC_BYTES_ARRAY[<usize as TryFrom<u8>>::try_from(
-                    tmp_storage_pda_data.merkle_tree_index
-                )
-                .unwrap()]
-                .0
-            )
-        );
         tmp_storage_pda_data.found_root = check_root_hash_exists(
             merkle_tree_pda,
             &tmp_storage_pda_data.root_hash,
