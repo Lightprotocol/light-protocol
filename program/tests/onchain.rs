@@ -59,6 +59,7 @@ use solana_sdk::account::WritableAccount;
 use solana_program::program_pack::Pack;
 use solana_sdk::stake_history::Epoch;
 
+const PRIVATE_KEY : [u8; 64]=[17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
 
 mod test_utils;
 
@@ -1144,9 +1145,8 @@ async fn deposit_should_succeed() {
         None,
     ));
     //private key is hardcoded to have a deterministic signer as relayer
-    let private_key = vec![17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
     // Creates random signer
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&private_key).unwrap();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
     // assign relayer key to signer otherwise it fails relayer check
     for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
@@ -1330,9 +1330,8 @@ async fn internal_transfer_should_succeed() {
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT.to_vec()),
     ));
     //private key is hardcoded to have a deterministic signer as relayer
-    let private_key = vec![17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
     // Creates random signer
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&private_key).unwrap();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
     // assign relayer key to signer otherwise it fails relayer check
     for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
@@ -1501,9 +1500,7 @@ async fn withdrawal_should_succeed() {
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER.to_vec()),
     ));
 
-    let private_key = vec![17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
-    // Creates random signer
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&private_key).unwrap();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
@@ -1647,9 +1644,7 @@ async fn double_spend_should_not_succeed() {
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER.to_vec()),
     ));
 
-    let private_key = vec![17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
-    // Creates random signer
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&private_key).unwrap();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
@@ -1762,7 +1757,7 @@ async fn compute_prepared_inputs_should_succeed() {
     // let tmp_storage_pda_pubkey = Pubkey::new_unique();
 
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
     // start program the program with the exact account state.
     // ...The account state (current instruction index,...) must match the
@@ -1879,7 +1874,7 @@ async fn compute_miller_output_should_succeed() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     // let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
     // start program the program with the exact account state.
     // ...The account state (current instruction index,...) must match the
@@ -1935,7 +1930,7 @@ async fn compute_final_exponentiation_should_succeed() {
     //create pubkey for tmporary storage account
     let tmp_storage_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
     let f_ref = get_ref_value("final_exponentiation");
     let account_state = get_mock_state("final_exponentiation", &signer_keypair);
@@ -1998,8 +1993,8 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
-    // Creates random signer
-    let signer_keypair = Keypair::new();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let tmp_storage_pda_pubkey =
@@ -2123,8 +2118,8 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
-    // Creates random signer
-    let signer_keypair = Keypair::new();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let tmp_storage_pda_pubkey =
@@ -2253,8 +2248,8 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
-    // Creates random signer
-    let signer_keypair = Keypair::new();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let tmp_storage_pda_pubkey =
@@ -2365,7 +2360,8 @@ async fn merkle_tree_insert_should_succeed() {
 
     let tmp_storage_pda_pubkey = Pubkey::new_unique();
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let mut account_state = vec![0u8; 3900];
@@ -2432,4 +2428,56 @@ async fn merkle_tree_insert_should_succeed() {
     ];
     let storage_account_unpacked = TmpStoragePda::unpack(&storage_account.data).unwrap();
     assert_eq!(storage_account_unpacked.state[0], expected_root);
+}
+
+
+#[tokio::test]
+async fn merkle_tree_init_with_wrong_signer_should_not_succeed() {
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+
+    let tmp_storage_pda_pubkey = Pubkey::new_unique();
+    let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+
+    let mut account_state = vec![0u8; 3900];
+        let mut accounts_vector = Vec::new();
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+
+    let mut program_context =
+        create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
+
+    //initialize MerkleTree account
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![240u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(merkle_tree_pda_pubkey, false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .expect_err("Signer is not program authority.");
+
+    let merkle_tree_data = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    assert_eq!(
+        [0u8;641],
+        merkle_tree_data.data[0..641]
+    );
+    //println!("initializing merkle tree success");
+
 }
