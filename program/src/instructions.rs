@@ -19,7 +19,6 @@ use solana_program::{
     sysvar::rent::Rent,
 };
 use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
 
 #[allow(clippy::comparison_chain)]
 pub fn check_external_amount(
