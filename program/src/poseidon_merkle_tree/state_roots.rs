@@ -6,8 +6,13 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use arrayref::{array_ref, array_refs};
 use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use arrayref::{array_ref, array_refs};
+use std::convert::TryFrom;
+
+// max roots that can be checked within one ix memory budget.
+const ROOT_HISTORY_SIZE: u64 = 593;
+const ROOT_HASH_SIZE: usize = 32;
 
 #[derive(Clone, Debug)]
 pub struct MerkleTreeRoots {
@@ -60,54 +65,58 @@ impl Pack for MerkleTreeRoots {
 }
 
 pub fn check_root_hash_exists(
-    account_main: &AccountInfo,
+    merkle_tree_pda: &AccountInfo,
     root_bytes: &Vec<u8>,
     program_id: &Pubkey,
-    merkle_tree_index: u8
+    merkle_tree_index: u8,
 ) -> Result<u8, ProgramError> {
-    let account_main_data = MerkleTreeRoots::unpack(&account_main.data.borrow()).unwrap();
-    msg!("merkletree acc key: {:?}", *account_main);
+    let merkle_tree_pda_data = MerkleTreeRoots::unpack(&merkle_tree_pda.data.borrow()).unwrap();
+    msg!("Passed-in merkle_tree_pda pubkey: {:?}", *merkle_tree_pda);
     msg!(
-        "merkletree acc key to check: {:?}",
-        solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
+        "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
+        solana_program::pubkey::Pubkey::new(
+            &MERKLE_TREE_ACC_BYTES_ARRAY
+                [<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()]
+            .0
+        )
     );
 
-    if *account_main.key != solana_program::pubkey::Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0) {
-        msg!("merkle tree account pubkey is incorrect");
+    if *merkle_tree_pda.key
+        != solana_program::pubkey::Pubkey::new(
+            &MERKLE_TREE_ACC_BYTES_ARRAY
+                [<usize as TryFrom<u8>>::try_from(merkle_tree_index).unwrap()]
+            .0,
+        )
+    {
+        msg!("Merkle tree account pubkey is incorrect.");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    if *merkle_tree_pda.owner != *program_id {
+        msg!("Merkle tree account owner is incorrect.");
         return Err(ProgramError::IllegalOwner);
     }
 
-    if *account_main.owner != *program_id {
-        msg!("merkle tree account owner is incorrect");
-        return Err(ProgramError::IllegalOwner);
-    }
-
-    if account_main_data.root_history_size > 593 {
-        msg!("root history size too large");
+    if merkle_tree_pda_data.root_history_size > ROOT_HISTORY_SIZE {
+        msg!("Root history size too large.");
         return Err(ProgramError::InvalidAccountData);
     }
-    msg!("looking for root {:?}", *root_bytes);
+    msg!("Looking for root: {:?}", *root_bytes);
     let found_root;
     let mut i = 0;
     let mut counter = 0;
     loop {
-        if account_main_data.roots[i..i + 32] == *root_bytes {
-            msg!("found root hash index {}", counter);
+        if merkle_tree_pda_data.roots[i..i + ROOT_HASH_SIZE] == *root_bytes {
+            msg!("Found root hash index: {}", counter);
             found_root = 1u8;
             break;
         }
 
-        if counter % 10 == 0 {
-            msg!("{}", counter);
-        }
-        i += 32;
+        i += ROOT_HASH_SIZE;
         counter += 1;
-        if counter == account_main_data.root_history_size {
-            msg!("did not find root");
-            //panic!("did not find root");
+        if counter == merkle_tree_pda_data.root_history_size {
+            msg!("Did not find root.");
             return Err(ProgramError::InvalidAccountData);
-            // found_root = 0;
-            // break;
         }
     }
     Ok(found_root)
