@@ -12,7 +12,7 @@ pub fn initialize_user_account(
     //check for rent exemption
     let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
-        msg!("user account is not rentexempt");
+        msg!("Insufficient balance to initialize rent exempt user account.");
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -30,10 +30,18 @@ pub fn modify_user_account(
 ) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
 
+
     if user_account_data.owner_pubkey != signer {
         msg!("wrong signer");
         return Err(ProgramError::InvalidArgument);
     }
+
+    let rent = Rent::default();
+    if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
+        msg!("User account is not rent exempt, thus not active.");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
     for y in data.chunks(8 + SIZE_UTXO as usize) {
         //first 8 bytes are index
         let modifying_index = usize::from_be_bytes(y[0..8].try_into().unwrap());
@@ -50,5 +58,31 @@ pub fn modify_user_account(
     }
 
     UserAccount::pack_into_slice(&user_account_data, &mut account.data.borrow_mut());
+    Ok(())
+}
+
+pub fn close_user_account(
+    account: &AccountInfo,
+    signer: &AccountInfo,
+) -> Result<(), ProgramError> {
+    let user_account_data = UserAccount::unpack(&account.data.borrow())?;
+
+    if user_account_data.owner_pubkey != *signer.key {
+        msg!("Wrong signer");
+        return Err(ProgramError::InvalidArgument);
+    }
+
+    //check for rent exemption
+    let rent = Rent::default();
+    if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
+        msg!("User account is not active.");
+        return Err(ProgramError::InvalidInstructionData);
+    }
+    //close account by draining lamports
+    let dest_starting_lamports = signer.lamports();
+    **signer.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(account.lamports())
+        .ok_or(ProgramError::InvalidAccountData)?;
+    **account.lamports.borrow_mut() = 0;
     Ok(())
 }
