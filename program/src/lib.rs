@@ -53,7 +53,7 @@ pub fn process_instruction(
     // Initialize new merkle tree account.
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let merkle_tree_storage_acc = next_account_info(account)?;
-        //check signer is program authority
+        // Check whether signer is merkle_tree_init_authority.
         if *signer_account.key != Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY) {
             msg!("Signer is not program authority.");
             return Err(ProgramError::IllegalOwner);
@@ -73,8 +73,9 @@ pub fn process_instruction(
     // Modify onchain user account with arbitrary number of new utxos.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let user_account = next_account_info(account)?;
-
-        modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        modify_user_account(user_account, *signer_account.key, *rent, &_instruction_data[9..])
     }
     // Close onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {

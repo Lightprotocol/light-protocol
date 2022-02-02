@@ -17,6 +17,8 @@ use ark_ff::Fp256;
 use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
 use light_protocol_program::utils::{config, prepared_verifying_key::*};
 use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
+use std::fs::File;
+use std::io::Write;
 
 use light_protocol_program::{
     groth16_verifier::{
@@ -362,7 +364,7 @@ pub async fn update_merkle_tree(
 
 pub fn get_ref_value(mode: &str) -> Vec<u8> {
     let bytes;
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
     let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
     let pvk_unprepped = get_vk_from_file().unwrap();
     let pvk = prepare_verifying_key(&pvk_unprepped);
@@ -413,7 +415,7 @@ pub fn get_mock_state(
 ) -> Vec<u8> {
     // start program the program with the exact account state that it would have at the start of the computation.
     let mock_bytes;
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
     let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
     let proof_bytes = ix_data[233..489].to_vec(); // 256 length
 
@@ -1135,7 +1137,7 @@ fn pvk_should_match() {
 
 #[tokio::test]
 async fn deposit_should_succeed() {
-    let mut ix_withdraw_data = read_test_data(std::string::String::from("deposit_0_1_sol.txt"));
+    let mut ix_withdraw_data = read_test_data(std::string::String::from("deposit.txt"));
     println!("ix_withdraw_data[521..529]: {:?}", ix_withdraw_data[521..529].to_vec());
     let amount: u64 =  i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap()).try_into().unwrap();
     println!("amount: {:?}", amount);
@@ -1313,8 +1315,7 @@ async fn deposit_should_succeed() {
     ).unwrap();
 
 }
-use std::fs::File;
-use std::io::Write;
+
 #[tokio::test]
 async fn internal_transfer_should_succeed() {
     let mut ix_withdraw_data = read_test_data(std::string::String::from("internal_transfer.txt"));
@@ -1489,7 +1490,7 @@ async fn internal_transfer_should_succeed() {
 }
 #[tokio::test]
 async fn withdrawal_should_succeed() {
-    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
+    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
     let recipient = Pubkey::new(&ix_withdraw_data[489..521]);
     let amount: u64 =  (-i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap())).try_into().unwrap();
     println!("amount: {:?}", amount);
@@ -1633,7 +1634,7 @@ async fn withdrawal_should_succeed() {
 
 #[tokio::test]
 async fn double_spend_should_not_succeed() {
-    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
+    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
     let recipient = Pubkey::from_str("8r4HLLzJkv4WCG5LiAcR4yb5S3uY3X7sqSaQxnDxQ36y").unwrap();
     let amount: u64 =  (-i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap())).try_into().unwrap();
     println!("amount: {:?}", amount);
@@ -1756,6 +1757,188 @@ async fn double_spend_should_not_succeed() {
 }
 
 #[tokio::test]
+#[should_panic]
+async fn deposit_with_wrong_proof_should_not_succeed() {
+    let mut ix_withdraw_data = read_test_data(std::string::String::from("deposit_with_wrong_proof.txt"));
+    println!("ix_withdraw_data[521..529]: {:?}", ix_withdraw_data[521..529].to_vec());
+    let amount: u64 =  i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap()).try_into().unwrap();
+    println!("amount: {:?}", amount);
+    assert_eq!(ix_withdraw_data.len(), 602);
+    // Creates program, accounts, setup.
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
+    let mut accounts_vector = Vec::new();
+    // Creates pubkey for tmporary storage account
+    let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
+    accounts_vector.push((
+        &merkle_tree_pda_pubkey,
+        16658,
+        None,
+    ));
+    //private key is hardcoded to have a deterministic signer as relayer
+    // Creates random signer
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
+    let signer_pubkey = signer_keypair.pubkey();
+    // assign relayer key to signer otherwise it fails relayer check
+    for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
+        *elem = signer_pubkey.to_bytes()[i];
+
+    }
+
+    let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
+        create_pubkeys_from_ix_data(&ix_withdraw_data, &program_id).await;
+    let mut nullifier_pubkeys = Vec::new();
+    nullifier_pubkeys.push(nf_pubkey0);
+    nullifier_pubkeys.push(nf_pubkey1);
+
+    //is hardcoded onchain
+    let authority_seed = program_id.to_bytes();
+    let (expected_authority_pubkey, authority_bump_seed) = Pubkey::find_program_address(&[&authority_seed], &program_id);
+
+    // let (merkle_tree_pda_token_pubkey, bumpSeed_merkle_tree) = Pubkey::find_program_address(
+    //    &[&merkle_tree_pda_pubkey.to_bytes()[..]],
+    //    &program_id
+    // );
+    let merkle_tree_pda_token_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY
+        [ix_withdraw_data[601] as usize]
+    .1);
+    let user_pda_token_pubkey =  Keypair::new().pubkey();
+    let relayer_pda_token_pubkey =  Keypair::new().pubkey();
+
+    let mut token_accounts = Vec::new();
+    token_accounts.push((&merkle_tree_pda_token_pubkey, &expected_authority_pubkey, 0));
+    token_accounts.push((&user_pda_token_pubkey, &signer_pubkey, amount ));
+    token_accounts.push((&relayer_pda_token_pubkey, &merkle_tree_pda_pubkey, 0));
+
+
+    // start program
+    let mut program_context =
+        create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
+    let _merkle_tree_pda = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    /*
+     *
+     *
+     * Tx that initializes MerkleTree account
+     *
+     *
+     */
+    initialize_merkle_tree(
+        &program_id,
+        &merkle_tree_pda_pubkey,
+        &signer_keypair,
+        &mut program_context,
+    )
+    .await;
+
+    let merkle_tree_pda_before = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    //deposit shielded pool
+    let mut program_context = transact(
+        &program_id,
+        &signer_pubkey,
+        &signer_keypair,
+        &tmp_storage_pda_pubkey,
+        &user_pda_token_pubkey,
+        &merkle_tree_pda_pubkey,
+        &merkle_tree_pda_token_pubkey,
+        &expected_authority_pubkey,
+        &nullifier_pubkeys,
+        &two_leaves_pda_pubkey,
+        None,
+        None,
+        ix_withdraw_data.clone(),
+        &mut program_context,
+        &mut accounts_vector,
+        &mut token_accounts,
+        1u8,
+    )
+    .await.unwrap();
+    /*
+    check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
+
+    let merkle_tree_pda_after = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    check_tmp_storage_account_state_correct(
+        &tmp_storage_pda_pubkey,
+        Some(&merkle_tree_pda_before.data),
+        Some(&merkle_tree_pda_after.data),
+        &mut program_context,
+    )
+    .await;
+
+    check_leaves_insert_correct(
+        &two_leaves_pda_pubkey,
+        &ix_withdraw_data[192 + 9..224 + 9], //left leaf todo change order
+        &ix_withdraw_data[160 + 9..192 + 9], //right leaf
+        0,
+        &mut program_context,
+    )
+    .await;
+
+    let user_pda_token_account = program_context.banks_client
+        .get_account(user_pda_token_pubkey)
+        .await
+        .expect("get_account").unwrap();
+    let user_pda_token_account_data = spl_token::state::Account::unpack(&user_pda_token_account.data).unwrap();
+    println!("\nuser_pda_token: {:?} \n", user_pda_token_pubkey);
+
+    println!("user_pda_token_account_data: {:?}", user_pda_token_account_data);
+    assert_eq!(user_pda_token_account_data.amount, 0);
+
+    println!("\n merkle_tree_pda_token_pubkey: {:?} \n", merkle_tree_pda_token_pubkey);
+    let merkle_tree_pda_token_account = program_context.banks_client
+            .get_account(merkle_tree_pda_token_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    let merkle_tree_pda_token_account_data = spl_token::state::Account::unpack(&merkle_tree_pda_token_account.data).unwrap();
+
+    println!("merkle_tree_pda_token_account_data: {:?}", merkle_tree_pda_token_account_data);
+    assert_eq!(merkle_tree_pda_token_account_data.amount, amount);
+
+    let relayer_pda_token_account = program_context.banks_client
+            .get_account(relayer_pda_token_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    let relayer_pda_token_account_data = spl_token::state::Account::unpack(&relayer_pda_token_account.data).unwrap();
+
+    let merkle_tree_account_data = program_context.banks_client
+            .get_account(merkle_tree_pda_pubkey)
+            .await
+            .expect("get_account").unwrap();
+    //println!("merkle_tree_account_data: {:?}", merkle_tree_account_data.data);
+    let path = "tests/merkle_tree_account_data_after_deposit.rs";
+    let mut output = File::create(path).ok().unwrap();
+    write!(
+        output,
+        "{}",
+        format!(
+            "#[cfg(test)]
+            pub mod merkle_tree_account_data_after_deposit {{
+                pub const MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT : [u8;{}] = {:?};
+            }}",
+            merkle_tree_account_data.data.len(),
+            merkle_tree_account_data.data
+        )
+    ).unwrap();
+    */
+}
+
+#[tokio::test]
 async fn compute_prepared_inputs_should_succeed() {
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
@@ -1769,7 +1952,7 @@ async fn compute_prepared_inputs_should_succeed() {
     // ...The account state (current instruction index,...) must match the
     // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
     // read proof, public inputs from test file, prepare_inputs
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
     let tmp_storage_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
     // Pick the data we need from the test file. 9.. bc of input structure
@@ -1886,7 +2069,7 @@ async fn compute_miller_output_should_succeed() {
     // ...The account state (current instruction index,...) must match the
     // state we'd have at the exact instruction we're starting the test at (ix 466 for millerloop)
     // read proof, public inputs from test file, prepare_inputs
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
     //create pubkey for tmporary storage account
     let tmp_storage_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
@@ -1932,7 +2115,7 @@ async fn compute_miller_output_should_succeed() {
 #[tokio::test]
 async fn compute_final_exponentiation_should_succeed() {
     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
-    let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
     //create pubkey for tmporary storage account
     let tmp_storage_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
@@ -1982,7 +2165,7 @@ async fn compute_final_exponentiation_should_succeed() {
 
 #[tokio::test]
 async fn submit_proof_with_wrong_root_should_not_succeed() {
-    let mut ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let mut ix_data = read_test_data(String::from("deposit.txt"));
 
     //generate random value
     let mut rng = test_rng();
@@ -2108,7 +2291,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
 
 #[tokio::test]
 async fn signer_acc_not_in_first_place_should_not_succeed() {
-    let mut ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let mut ix_data = read_test_data(String::from("deposit.txt"));
 
     //generate random value
     let mut rng = test_rng();
@@ -2237,7 +2420,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
 
 #[tokio::test]
 async fn submit_proof_with_wrong_signer_should_not_succeed() {
-    let mut ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+    let mut ix_data = read_test_data(String::from("deposit.txt"));
 
     //generate random value
     let mut rng = test_rng();

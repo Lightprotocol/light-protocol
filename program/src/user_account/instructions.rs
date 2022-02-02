@@ -30,6 +30,7 @@ pub fn initialize_user_account(
 pub fn modify_user_account(
     account: &AccountInfo,
     signer: Pubkey,
+    rent: Rent,
     data: &[u8],
 ) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
@@ -39,10 +40,9 @@ pub fn modify_user_account(
         msg!("wrong signer");
         return Err(ProgramError::InvalidArgument);
     }
-
-    let rent = Rent::default();
+    //check for rent exemption
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
-        msg!("User account is not rent exempt, thus not active.");
+        msg!("User account is not active.");
         return Err(ProgramError::AccountNotRentExempt);
     }
 

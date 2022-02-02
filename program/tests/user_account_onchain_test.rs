@@ -129,6 +129,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),

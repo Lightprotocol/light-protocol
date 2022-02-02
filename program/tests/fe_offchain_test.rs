@@ -170,92 +170,6 @@ pub mod tests {
         })
     }
 
-    fn get_proof_from_bytes_254(
-    ) -> Result<ark_groth16::data_structures::Proof<ark_ec::models::bn::Bn<ark_bn254::Parameters>>>
-    {
-        let contents = fs::read_to_string("./tests/test_data/proof_bytes_254.txt")
-            .expect("Something went wrong reading the file");
-        let v: Value = serde_json::from_str(&contents)?;
-
-        let mut a_g1_bigints = Vec::new();
-        for i in 0..2 {
-            let mut bytes: Vec<u8> = Vec::new();
-            for i in v["pi_a"][i].as_str().unwrap().split(',') {
-                bytes.push((*i).parse::<u8>().unwrap());
-            }
-            a_g1_bigints
-                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
-        }
-        let a_g1 = ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-            a_g1_bigints[0],
-            a_g1_bigints[1],
-            false,
-        );
-
-        let mut b_g2_bigints = Vec::new();
-        for i in 0..2 {
-            for j in 0..2 {
-                let mut bytes: Vec<u8> = Vec::new();
-                for z in v["pi_b"][i][j].as_str().unwrap().split(',') {
-                    bytes.push((*z).parse::<u8>().unwrap());
-                }
-                b_g2_bigints
-                    .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
-            }
-        }
-        let b_g2 = ark_ec::models::bn::g2::G2Affine::<ark_bn254::Parameters>::new(
-            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-                b_g2_bigints[0],
-                b_g2_bigints[1],
-            ),
-            QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-                b_g2_bigints[2],
-                b_g2_bigints[3],
-            ),
-            false,
-        );
-
-        let mut c_g1_bigints = Vec::new();
-        for i in 0..2 {
-            let mut bytes: Vec<u8> = Vec::new();
-            for i in v["pi_c"][i].as_str().unwrap().split(',') {
-                bytes.push((*i).parse::<u8>().unwrap());
-            }
-            c_g1_bigints
-                .push(<Fp256<ark_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap());
-        }
-        let c_g1 = ark_ec::models::bn::g1::G1Affine::<ark_bn254::Parameters>::new(
-            c_g1_bigints[0],
-            c_g1_bigints[1],
-            false,
-        );
-
-        Ok(
-            ark_groth16::data_structures::Proof::<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
-                a: a_g1,
-                b: b_g2,
-                c: c_g1,
-            },
-        )
-    }
-
-    pub fn get_public_inputs_from_bytes_254() -> Result<Vec<Fp256<ark_ed_on_bn254::FqParameters>>> {
-        let contents = fs::read_to_string("./tests/test_data/public_inputs_254_bytes.txt")
-            .expect("Something went wrong reading the file");
-        let v: Value = serde_json::from_str(&contents)?;
-
-        let mut res = Vec::new();
-        for i in 0..7 {
-            let mut bytes: Vec<u8> = Vec::new();
-            for i in v[i].as_str().unwrap().split(',') {
-                bytes.push((*i).parse::<u8>().unwrap());
-            }
-            res.push(<Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&bytes[..]).unwrap())
-        }
-
-        Ok(res)
-    }
-
     #[test]
     fn hardcoded_verifyingkey_test() {
         let pvk_unprepped = get_pvk_from_bytes_254().unwrap();
@@ -456,12 +370,23 @@ pub mod tests {
     fn verification_test() -> Result<()> {
         let pvk_unprepped = get_pvk_from_bytes_254()?;
         let pvk = prepare_verifying_key(&pvk_unprepped);
-        let proof = get_proof_from_bytes_254()?;
+        let mut ix_data = read_test_data(String::from("deposit.txt"));
+        ix_data = ix_data[9..].to_vec();
+        let proof_a = parse_x_group_affine_from_bytes(&ix_data[224..288].to_vec());
+        let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].to_vec());
+        let proof_c = parse_x_group_affine_from_bytes(&ix_data[416..480].to_vec());
+        let mut public_inputs = Vec::new();
+        for input in ix_data[..224].chunks(32) {
+            public_inputs.push(<Fr as FromBytes>::read(&*input).unwrap());
+        }
+        let proof = ark_groth16::data_structures::Proof::<ark_ec::models::bn::Bn<ark_bn254::Parameters>> {
+            a: proof_a,
+            b: proof_b,
+            c: proof_c,
+        };
+        let res = verify_proof(&pvk, &proof, &public_inputs[..]);
 
-        let public_inputs = get_public_inputs_from_bytes_254()?;
-
-        let _res = verify_proof(&pvk, &proof, &public_inputs[..]);
-
+        assert!(res.unwrap());
         Ok(())
     }
     pub fn read_test_data(file_name: std::string::String) -> Vec<u8> {
@@ -495,7 +420,7 @@ pub mod tests {
         let pvk_unprepped = get_pvk_from_bytes_254()?;
         let pvk = prepare_verifying_key(&pvk_unprepped);
 
-        let mut ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+        let mut ix_data = read_test_data(String::from("deposit.txt"));
         ix_data = ix_data[9..].to_vec();
         let proof_a = parse_x_group_affine_from_bytes(&ix_data[224..288].to_vec());
         let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].to_vec());
@@ -1933,6 +1858,8 @@ pub mod tests {
         parse_f_to_bytes(*f, &mut account_struct.f_f2_range);
         account_struct.changed_variables[F_F2_RANGE_ITER] = true;
         let mut account_onchain_slice = [0u8; 3900];
+        //in
+        account_onchain_slice[1] = 1;
         <FinalExponentiationState as Pack>::pack_into_slice(
             &account_struct,
             &mut account_onchain_slice,
