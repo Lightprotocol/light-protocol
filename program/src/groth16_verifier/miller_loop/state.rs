@@ -2,8 +2,10 @@ use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
+    msg
 };
 use std::convert::TryInto;
+use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
 
 // Implements partial pack to save compute budget.
 #[derive(Clone)]
@@ -43,6 +45,7 @@ impl Pack for MillerLoopState {
 
         let (
             _is_initialized,
+            account_type,
             _unused_constants0,
             signing_address,
             _unused_constants1,
@@ -63,8 +66,12 @@ impl Pack for MillerLoopState {
             current_coeff_3_range,
             _unused_remainder,
         ) = array_refs![
-            input, 1, 3, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
+            input, 1, 1, 2, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
         ];
+        if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
+            msg!("Wrong account type.");
+            return Err(ProgramError::InvalidArgument);
+        }
         Ok(MillerLoopState {
             is_initialized: true,
             signing_address: signing_address.to_vec(),

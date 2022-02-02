@@ -1,5 +1,5 @@
-pub const INIT_BYTES_MERKLE_TREE_18: [u8; 641] = [
-    1, 18, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214,
+pub const INIT_BYTES_MERKLE_TREE_18: [u8; 642] = [
+    1, 2, 18, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214,
     220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32, 227, 42, 164,
     149, 188, 70, 170, 8, 197, 44, 134, 162, 211, 186, 50, 238, 97, 71, 25, 130, 77, 70, 37, 128,
     172, 154, 54, 111, 93, 193, 105, 27, 25, 241, 255, 33, 65, 214, 48, 229, 38, 116, 134, 103, 44,
@@ -90,3 +90,9 @@ pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
     [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
 
 pub const PROGRAM_AUTHORITY: [u8; 32] = [2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81];
+
+pub const TMP_STORAGE_ACCOUNT_TYPE: u8 =    1;
+pub const MERKLE_TREE_ACCOUNT_TYPE: u8 =    2;
+pub const LEAVES_PDA_ACCOUNT_TYPE: u8 =     3;
+pub const NULLIFIER_ACCOUNT_TYPE: u8 =      4;
+pub const USER_ACCOUNT_TYPE: u8 =           5;

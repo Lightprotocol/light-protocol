@@ -6,6 +6,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
 };
 use std::convert::TryInto;
+use crate::config::MERKLE_TREE_ACCOUNT_TYPE;
 
 #[allow(unused_variables)]
 #[derive(Debug)]
@@ -31,12 +32,13 @@ impl IsInitialized for MerkleTree {
 }
 impl Pack for MerkleTree {
     //height 18
-    const LEN: usize = 16657;
+    const LEN: usize = 16658;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, MerkleTree::LEN];
 
         let (
             is_initialized,
+            account_type,
             levels,
             filled_subtrees,
             current_root_index,
@@ -48,13 +50,16 @@ impl Pack for MerkleTree {
             current_total_deposits,
             pubkey_locked,
             time_locked,
-        ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
+        ) = array_refs![input, 1, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
 
         if 1u8 != is_initialized[0] {
             msg!("merkle tree account is not initialized");
             return Err(ProgramError::UninitializedAccount);
         }
-
+        if account_type[0] != MERKLE_TREE_ACCOUNT_TYPE {
+            msg!("Account is not of type Merkle tree.");
+            return Err(ProgramError::InvalidAccountData);
+        }
         let mut tmp_subtree_vec = vec![vec![0u8; 32]; 18];
 
         for (i, bytes) in filled_subtrees.chunks(32).enumerate() {
@@ -98,6 +103,7 @@ impl Pack for MerkleTree {
 
         let (
             _is_initialized_dst,
+            _account_type_dst,
             _levels_dst,
             filled_subtrees_dst,
             current_root_index_dst,
@@ -107,7 +113,7 @@ impl Pack for MerkleTree {
             current_total_deposits_dst,
             pubkey_locked_dst,
             time_locked_dst,
-        ) = mut_array_refs![dst, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
+        ) = mut_array_refs![dst, 1, 1, 8, 576, 8, 8, 8, 16000, 8, 32, 8];
 
         // could change this to insert only the changed subtree if one is changed
         let mut i = 0;
@@ -156,12 +162,12 @@ impl IsInitialized for InitMerkleTreeBytes {
     }
 }
 impl Pack for InitMerkleTreeBytes {
-    const LEN: usize = 16657;
+    const LEN: usize = 16658;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InitMerkleTreeBytes::LEN];
 
-        let (bytes, _left_over) = array_refs![input, 641, 16016];
+        let (bytes, _left_over) = array_refs![input, 642, 16016];
 
         if bytes[0] != 0 {
             msg!("Tree is already initialized");
@@ -177,7 +183,7 @@ impl Pack for InitMerkleTreeBytes {
     fn pack_into_slice(&self, dst: &mut [u8]) {
         let dst = array_mut_ref![dst, 0, InitMerkleTreeBytes::LEN];
 
-        let (bytes_dst, _left_over_dst) = mut_array_refs![dst, 641, 16016];
+        let (bytes_dst, _left_over_dst) = mut_array_refs![dst, 642, 16016];
 
         *bytes_dst = self.bytes.clone().try_into().unwrap();
     }

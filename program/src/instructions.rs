@@ -3,7 +3,10 @@ use ark_ff::PrimeField;
 
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
-use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::{
+    MERKLE_TREE_ACC_BYTES_ARRAY,
+    TMP_STORAGE_ACCOUNT_TYPE,
+};
 use crate::Groth16Processor;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
@@ -288,6 +291,7 @@ pub fn try_initialize_tmp_storage_pda(
     );
     // Initializing temporary storage pda with instruction data.
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
+    tmp_storage_pda_data.account_type = TMP_STORAGE_ACCOUNT_TYPE;
 
     let mut groth16_processor = Groth16Processor::new(
         tmp_storage_pda,
@@ -359,5 +363,6 @@ pub fn try_initialize_tmp_storage_pda(
         &tmp_storage_pda_data,
         &mut tmp_storage_pda.data.borrow_mut(),
     );
+    msg!("packed init.");
     Ok(())
 }

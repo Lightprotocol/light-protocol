@@ -41,6 +41,8 @@ pub fn process_instruction(
             program_id,
             tmp_storage_pda_data.merkle_tree_index,
         )?;
+        tmp_storage_pda_data.changed_constants[1] = true;
+
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // and executes transaction, deposit or withdrawal.
@@ -60,6 +62,11 @@ pub fn process_instruction(
 
         if expected_authority_pubkey != *authority.key {
             msg!("Invalid passed-in authority.");
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if tmp_storage_pda_data.found_root != 1u8 {
+            msg!("Root was not found. {}", tmp_storage_pda_data.found_root);
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -108,7 +115,7 @@ pub fn process_instruction(
         }
 
         msg!("Starting nullifier check.");
-        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.account_type = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier0_pda,
@@ -118,10 +125,10 @@ pub fn process_instruction(
         )?;
         msg!(
             "nullifier0_pda inserted: {}",
-            tmp_storage_pda_data.found_nullifier
+            tmp_storage_pda_data.account_type
         );
 
-        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.account_type = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier1_pda,
@@ -131,7 +138,7 @@ pub fn process_instruction(
         )?;
         msg!(
             "nullifier1_pda inserted: {}",
-            tmp_storage_pda_data.found_nullifier
+            tmp_storage_pda_data.account_type
         );
         let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =

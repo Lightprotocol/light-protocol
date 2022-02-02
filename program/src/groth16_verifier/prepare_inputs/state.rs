@@ -2,14 +2,16 @@ use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
+    msg,
 };
 use std::convert::TryInto;
+use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
 
 #[derive(Clone)]
 pub struct PrepareInputsState {
     is_initialized: bool,
     pub found_root: u8,
-    pub found_nullifier: u8,
+    pub account_type: u8,
     pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_fees: Vec<u8>,
@@ -62,8 +64,8 @@ impl Pack for PrepareInputsState {
 
         let (
             _is_initialized,
+            account_type,
             found_root,
-            found_nullifier,
             merkle_tree_index,
             signing_address, // is relayer address
             relayer_fees,
@@ -102,11 +104,15 @@ impl Pack for PrepareInputsState {
             64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384
         ];
 
+        if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
+            msg!("Wrong account type.");
+            return Err(ProgramError::InvalidAccountData);
+        }
         Ok(PrepareInputsState {
             is_initialized: true,
 
             found_root: found_root[0],                     //0
-            found_nullifier: found_nullifier[0],           //1
+            account_type: account_type[0],           //1
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),           //4
@@ -150,8 +156,8 @@ impl Pack for PrepareInputsState {
         let (
             //constants
             is_initialized_dst,
+            _account_type_dst,
             found_root_dst,
-            found_nullifier_dst,
             merkle_tree_index_dst,
             signing_address_dst, // is relayer address
             relayer_fees_dst,
@@ -241,7 +247,7 @@ impl Pack for PrepareInputsState {
                 if i == 0 {
                     *found_root_dst = [self.found_root; 1];
                 } else if i == 1 {
-                    *found_nullifier_dst = [self.found_nullifier; 1];
+                    //*account_type_dst = [self.account_type; 1];
                 } else if i == 2 {
                     *merkle_tree_index_dst = [self.merkle_tree_index; 1];
                 } else if i == 3 {
