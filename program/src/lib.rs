@@ -17,6 +17,8 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    sysvar::rent::Rent,
+    sysvar::Sysvar,
 };
 
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
@@ -69,8 +71,9 @@ pub fn process_instruction(
     // Initialize new onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
         let user_account = next_account_info(account)?;
-
-        initialize_user_account(user_account, *signer_account.key)
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        initialize_user_account(user_account, *signer_account.key, *rent)
     }
     // Modify onchain user account with arbitrary number of new utxos.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
@@ -81,8 +84,9 @@ pub fn process_instruction(
     // Close onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
         let user_account = next_account_info(account)?;
-
-        close_user_account(user_account, signer_account)
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        close_user_account(user_account, signer_account, *rent)
     }
     // Transact with shielded pool.
     // This instruction has to be called 1503 times to perform all computation.

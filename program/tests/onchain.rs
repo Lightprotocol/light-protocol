@@ -42,6 +42,7 @@ use {
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        sysvar,
     },
     solana_program_test::*,
     solana_sdk::{
@@ -604,10 +605,11 @@ async fn transact(
             vec![
                 AccountMeta::new(*signer_pubkey, true),
                 AccountMeta::new(*tmp_storage_pda_pubkey, false),
-                AccountMeta::new(
+                AccountMeta::new_readonly(
                     solana_program::system_program::id(),
                     false,
                 ),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_pubkey),
@@ -807,8 +809,9 @@ pub async fn last_tx (
                AccountMeta::new(nullifier_pubkeys[1], false),
                AccountMeta::new(*merkle_tree_pda_pubkey, false),
                AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-               AccountMeta::new(solana_program::system_program::id(), false),
+               AccountMeta::new_readonly(solana_program::system_program::id(), false),
                AccountMeta::new_readonly(spl_token::id(), false),
+               AccountMeta::new_readonly(sysvar::rent::id(), false),
                AccountMeta::new(*expected_authority_pubkey, false),
                AccountMeta::new(*user_pda_token_pubkey, false),
            ]
@@ -830,8 +833,9 @@ pub async fn last_tx (
            AccountMeta::new(nullifier_pubkeys[1], false),
            AccountMeta::new(*merkle_tree_pda_pubkey, false),
            AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-           AccountMeta::new(solana_program::system_program::id(), false),
+           AccountMeta::new_readonly(solana_program::system_program::id(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
+           AccountMeta::new_readonly(sysvar::rent::id(), false),
            AccountMeta::new(*expected_authority_pubkey, false),
            AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
        ]
@@ -853,8 +857,9 @@ pub async fn last_tx (
            AccountMeta::new(nullifier_pubkeys[1], false),
            AccountMeta::new(*merkle_tree_pda_pubkey, false),
            AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
-           AccountMeta::new(solana_program::system_program::id(), false),
+           AccountMeta::new_readonly(solana_program::system_program::id(), false),
            AccountMeta::new_readonly(spl_token::id(), false),
+           AccountMeta::new_readonly(sysvar::rent::id(), false),
            AccountMeta::new(*expected_authority_pubkey, false),
            AccountMeta::new(*recipient_pubkey_option.unwrap(), false),
            AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),

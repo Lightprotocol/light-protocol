@@ -56,7 +56,7 @@ impl Pack for ChecksAndTransferState {
             //220
             _unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
-        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384]; // 8->32 -- 24+ (old rem: 3296)
+        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
 
 
         if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
@@ -67,9 +67,9 @@ impl Pack for ChecksAndTransferState {
         Ok(ChecksAndTransferState {
             is_initialized: true,
 
-            found_root: found_root[0],                     //0 legacy remove
-            account_type: account_type[0],           //1 legacy remove
-            merkle_tree_index: merkle_tree_index[0],       //2 legacy remove
+            found_root: found_root[0],                     //0
+            account_type: account_type[0],                 //1
+            merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),           //4
             recipient: recipient.to_vec(),                 //5
