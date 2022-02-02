@@ -54,9 +54,9 @@
 //         *program_id,
 //         processor!(process_instruction),
 //     );
-//     let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+//     let mut merkle_tree = Account::new(10000000000, 16658, &program_id);
 
-//     if merkle_tree_init_bytes.len() == 16657 {
+//     if merkle_tree_init_bytes.len() == 16658 {
 //         merkle_tree.data = merkle_tree_init_bytes;
 //     }
 //     program_test.add_account(*merkle_tree_pubkey, merkle_tree);
@@ -98,9 +98,9 @@
 //         *program_id,
 //         processor!(process_instruction),
 //     );
-//     let mut merkle_tree = Account::new(10000000000, 16657, &program_id);
+//     let mut merkle_tree = Account::new(10000000000, 16658, &program_id);
 
-//     if merkle_tree_init_bytes.len() == 16657 {
+//     if merkle_tree_init_bytes.len() == 16658 {
 //         merkle_tree.data = merkle_tree_init_bytes;
 //     }
 

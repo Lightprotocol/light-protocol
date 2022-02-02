@@ -656,6 +656,8 @@ mod tests {
         //print initialize
         print!("{}", 1);
         init_bytes.push(1u8);
+        //add account type
+        init_bytes.push(2u8);
 
         for i in &smt.levels.to_le_bytes() {
             print!(", {}", i);
@@ -811,7 +813,7 @@ mod tests {
         println!("tree_height: {}", tree_height);
         //let zero_value = [1u8, 32];
         let zero_value = vec![1 as u8; 32];
-        let mut account_data_merkle_tree = [0u8; 16657];
+        let mut account_data_merkle_tree = [0u8; 16658];
         //initing merkle tree with init bytes
         for i in 0..config::INIT_BYTES_MERKLE_TREE_18.len() {
             account_data_merkle_tree[i] = config::INIT_BYTES_MERKLE_TREE_18[i];
