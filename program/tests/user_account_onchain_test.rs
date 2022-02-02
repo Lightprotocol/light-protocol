@@ -147,7 +147,38 @@ async fn user_account_onchain_test() {
         .unwrap();
     //println!("user_account_data_modified: {:?}", user_account_data_modified.data[0..200].to_vec());
     assert_eq!(vec![1u8; 64], user_account_data_modified.data[34..98]);
-    println!("modifying user account success");
+
+
+    //close user_account account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![102u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .unwrap();
+    assert!(user_account_data_init.is_none(), "User account should be closed.");
+
+    println!("closing user account success");
+
 }
 
 #[tokio::test]
