@@ -20,6 +20,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::rent::Rent,
+    sysvar::Sysvar,
 };
 use std::convert::{TryFrom, TryInto};
 
@@ -155,11 +156,15 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     let signer_account = next_account_info(account)?;
     let account_main = next_account_info(account)?;
     let system_program_info = next_account_info(account)?;
+    let rent_sysvar_info = next_account_info(account)?;
+    let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
     create_and_check_pda(
         program_id,
         signer_account,
         account_main,
         system_program_info,
+        rent,
         &_instruction_data[96..128],
         &b"storage"[..],
         number_storage_bytes, //bytes
@@ -193,6 +198,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     signer_account: &'a AccountInfo<'b>,
     nullifier_account: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
+    rent: &Rent,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
     create_and_check_pda(
@@ -200,6 +206,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
         signer_account,
         nullifier_account,
         system_program,
+        rent,
         _instruction_data,
         &b"nf"[..],
         2u64, //nullifier pda length
@@ -220,6 +227,7 @@ pub fn create_and_check_pda<'a, 'b>(
     signer_account: &'a AccountInfo<'b>,
     passed_in_pda: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
+    rent: &Rent,
     _instruction_data: &[u8],
     domain_separation_seed: &[u8],
     number_storage_bytes: u64,
@@ -236,12 +244,13 @@ pub fn create_and_check_pda<'a, 'b>(
         msg!("Instruction data seed  {:?}", _instruction_data);
         return Err(ProgramError::InvalidInstructionData);
     }
-    let rent = Rent::default();
+
     let mut account_lamports = lamports;
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
+    } else {
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
     }
-    // TODO: if not rent_exempt apply min rent, currently every account is rent_exempt on devnet
     invoke_signed(
         &system_instruction::create_account(
             signer_account.key,

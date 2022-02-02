@@ -192,6 +192,11 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let _nullifer1 = next_account_info(account)?;
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
+            let _merkle_tree_pda_token = next_account_info(account)?;
+            let _system_program_account = next_account_info(account)?;
+            let _token_program_account = next_account_info(account)?;
+            let rent_sysvar_info = next_account_info(account)?;
+            let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
             //checking if signer locked
             pubkey_check(
@@ -206,7 +211,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             insert_last_double(&mut merkle_tree_pda_data, &mut tmp_storage_pda_data)?;
 
             //check leaves account is rent exempt
-            let rent = Rent::default();
+            //let rent = Rent::default();
             if !rent.is_exempt(
                 **leaf_pda.lamports.borrow(),
                 usize::try_from(TWO_LEAVES_PDA_SIZE).unwrap(),

@@ -1,16 +1,21 @@
 use crate::user_account::state::{UserAccount, SIZE_UTXO};
 use solana_program::{
-    account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
-    pubkey::Pubkey, sysvar::rent::Rent,
+    account_info::AccountInfo,
+    msg,
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
 pub fn initialize_user_account(
     account: &AccountInfo,
     pubkey_signer: Pubkey,
+    rent: Rent,
 ) -> Result<(), ProgramError> {
     //check for rent exemption
-    let rent = Rent::default();
+    //let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("Insufficient balance to initialize rent exempt user account.");
         return Err(ProgramError::InvalidInstructionData);
@@ -64,16 +69,16 @@ pub fn modify_user_account(
 pub fn close_user_account(
     account: &AccountInfo,
     signer: &AccountInfo,
+    rent: Rent,
 ) -> Result<(), ProgramError> {
     let user_account_data = UserAccount::unpack(&account.data.borrow())?;
 
     if user_account_data.owner_pubkey != *signer.key {
-        msg!("Wrong signer");
+        msg!("Wrong signer.");
         return Err(ProgramError::InvalidArgument);
     }
 
     //check for rent exemption
-    let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("User account is not active.");
         return Err(ProgramError::InvalidInstructionData);

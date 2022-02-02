@@ -12,6 +12,7 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    sysvar::{Sysvar, rent::Rent},
 };
 use std::convert::{TryFrom, TryInto};
 
@@ -54,9 +55,11 @@ pub fn process_instruction(
         let merkle_tree_pda_token = next_account_info(account)?;
         let system_program_account = next_account_info(account)?;
         let token_program_account = next_account_info(account)?;
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
         let authority = next_account_info(account)?;
         let authority_seed = program_id.to_bytes();
-
         let (expected_authority_pubkey, authority_bump_seed) =
             Pubkey::find_program_address(&[&authority_seed], program_id);
 
@@ -120,6 +123,7 @@ pub fn process_instruction(
             signer_account,
             nullifier0_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_0_START..NULLIFIER_0_END],
         )?;
@@ -133,6 +137,7 @@ pub fn process_instruction(
             signer_account,
             nullifier1_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_1_START..NULLIFIER_1_END],
         )?;
@@ -207,6 +212,7 @@ pub fn process_instruction(
             signer_account,
             two_leaves_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_0_START..NULLIFIER_0_END],
             &b"leaves"[..],
