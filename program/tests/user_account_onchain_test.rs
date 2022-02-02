@@ -209,6 +209,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -243,6 +244,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),
@@ -279,6 +281,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),
