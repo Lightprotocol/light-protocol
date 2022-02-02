@@ -99,7 +99,7 @@ dependencies = [
 [[package]]
 name = "ark-ec"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "ark-ff",
  "ark-serialize",
@@ -138,7 +138,7 @@ dependencies = [
 [[package]]
 name = "ark-ff"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "ark-ff-asm",
  "ark-ff-macros",
@@ -155,7 +155,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-asm"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "quote",
  "syn",
@@ -164,7 +164,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-macros"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "ark-serialize-derive",
  "ark-std",
@@ -292,7 +292,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize-derive"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#89c67a407384f4492da8c41c02c9eadd48358c93"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -3534,9 +3534,9 @@ dependencies = [
 
 [[package]]
 name = "zeroize"
-version = "1.5.1"
+version = "1.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4062c749be08d90be727e9c5895371c3a0e49b90ba2b9592dc7afda95cc2b719"
+checksum = "7c88870063c39ee00ec285a2f8d6a966e5b6fb2becc4e8dac77ed0d370ed6006"
 dependencies = [
  "zeroize_derive",
 ]
