@@ -8,7 +8,7 @@ use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::poseidon_merkle_tree::state::{
     InitMerkleTreeBytes, MerkleTree, TmpStoragePda, TwoLeavesBytesPda,
 };
-use crate::IX_ORDER;
+use crate::{IX_ORDER, TWO_LEAVES_PDA_SIZE};
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -21,16 +21,29 @@ use solana_program::{
 };
 use std::convert::TryFrom;
 
+const MERKLE_TREE_UPDATE_START: u8 = 14;
+const MERKLE_TREE_UPDATE_LEVEL: u8 = 25;
+
+const LOCK_START: u8 = 34;
+
+// duration measured in slots
+const LOCK_DURATION: u64 = 20;
+const HASH_0: u8 = 0;
+const HASH_1: u8 = 1;
+const HASH_2: u8 = 2;
+const HASH_3: u8 = 3;
+const ROOT_INSERT: u8 = 241;
+
 pub struct MerkleTreeProcessor<'a, 'b> {
-    merkle_tree_account: Option<&'a AccountInfo<'b>>,
-    main_account: Option<&'a AccountInfo<'b>>,
+    merkle_tree_pda: Option<&'a AccountInfo<'b>>,
+    tmp_storage_pda: Option<&'a AccountInfo<'b>>,
     unpacked_merkle_tree: MerkleTree,
 }
 
 impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     pub fn new(
-        main_account: Option<&'a AccountInfo<'b>>,
-        merkle_tree_account: Option<&'a AccountInfo<'b>>,
+        tmp_storage_pda: Option<&'a AccountInfo<'b>>,
+        merkle_tree_pda: Option<&'a AccountInfo<'b>>,
     ) -> Result<Self, ProgramError> {
         let empty_smt = MerkleTree {
             is_initialized: false,
@@ -50,8 +63,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         };
 
         Ok(MerkleTreeProcessor {
-            merkle_tree_account,
-            main_account,
+            merkle_tree_pda,
+            tmp_storage_pda,
             unpacked_merkle_tree: empty_smt,
         })
     }
@@ -62,7 +75,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         init_bytes: &[u8],
     ) -> Result<(), ProgramError> {
         let mut unpacked_init_merkle_tree =
-            InitMerkleTreeBytes::unpack(&self.merkle_tree_account.unwrap().data.borrow())?;
+            InitMerkleTreeBytes::unpack(&self.merkle_tree_pda.unwrap().data.borrow())?;
 
         for i in 0..unpacked_init_merkle_tree.bytes.len() {
             unpacked_init_merkle_tree.bytes[i] = init_bytes[i];
@@ -70,7 +83,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
         InitMerkleTreeBytes::pack_into_slice(
             &unpacked_init_merkle_tree,
-            &mut self.merkle_tree_account.unwrap().data.borrow_mut(),
+            &mut self.merkle_tree_pda.unwrap().data.borrow_mut(),
         );
         if unpacked_init_merkle_tree.bytes[0..init_bytes.len()] != init_bytes[..] {
             msg!("merkle tree init failed");
@@ -82,174 +95,153 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     pub fn process_instruction(&mut self, accounts: &[AccountInfo]) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
         let signer = next_account_info(account)?;
-        let _main_account = next_account_info(account)?;
-        let mut main_account_data =
-            TmpStoragePda::unpack(&self.main_account.unwrap().data.borrow())?;
+        let _tmp_storage_pda = next_account_info(account)?;
+        let mut tmp_storage_pda_data =
+            TmpStoragePda::unpack(&self.tmp_storage_pda.unwrap().data.borrow())?;
         msg!(
-            "main_account_data.current_instruction_index {}",
-            main_account_data.current_instruction_index
+            "tmp_storage_pda_data.current_instruction_index {}",
+            tmp_storage_pda_data.current_instruction_index
         );
 
-        if main_account_data.current_instruction_index < IX_ORDER.len()
-            && (IX_ORDER[main_account_data.current_instruction_index] == 14
-                || IX_ORDER[main_account_data.current_instruction_index] == 25)
+        if tmp_storage_pda_data.current_instruction_index < IX_ORDER.len()
+            && (IX_ORDER[tmp_storage_pda_data.current_instruction_index]
+                == MERKLE_TREE_UPDATE_START
+                || IX_ORDER[tmp_storage_pda_data.current_instruction_index]
+                    == MERKLE_TREE_UPDATE_LEVEL)
         {
-            let merkle_tree_account = next_account_info(account)?;
-            let mut merkle_tree_account_data =
-                MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+            let merkle_tree_pda = next_account_info(account)?;
+            let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
 
-            merkle_tree_pubkey_check(
-                *merkle_tree_account.key,
-                main_account_data.merkle_tree_index,
-            )?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
             pubkey_check(
                 *signer.key,
-                solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
-                String::from("merkle tree locked by other account"),
+                solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+                String::from("Merkle tree locked by another account."),
             )?;
 
             _process_instruction(
-                IX_ORDER[main_account_data.current_instruction_index],
-                &mut main_account_data,
-                &mut merkle_tree_account_data,
+                IX_ORDER[tmp_storage_pda_data.current_instruction_index],
+                &mut tmp_storage_pda_data,
+                &mut merkle_tree_pda_data,
             )?;
 
             MerkleTree::pack_into_slice(
-                &merkle_tree_account_data,
-                &mut merkle_tree_account.data.borrow_mut(),
+                &merkle_tree_pda_data,
+                &mut merkle_tree_pda.data.borrow_mut(),
             );
-        } else if main_account_data.current_instruction_index < IX_ORDER.len()
-            && IX_ORDER[main_account_data.current_instruction_index] == 34
+        } else if tmp_storage_pda_data.current_instruction_index < IX_ORDER.len()
+            && IX_ORDER[tmp_storage_pda_data.current_instruction_index] == LOCK_START
         {
-            //locks and transfers deposit money
-            let merkle_tree_account = next_account_info(account)?;
-            let mut merkle_tree_account_data =
-                MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+            let merkle_tree_pda = next_account_info(account)?;
+            let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
             let current_slot = <Clock as Sysvar>::get()?.slot;
             msg!("Current slot: {:?}", current_slot);
 
-            msg!("locked at slot: {}", merkle_tree_account_data.time_locked);
+            msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
             msg!(
-                "lock ends at slot: {}",
-                merkle_tree_account_data.time_locked + 10 // TODO: change lok back to higher no.
+                "Lock ends at slot: {}",
+                merkle_tree_pda_data.time_locked + LOCK_DURATION
             );
 
             //lock
-            if merkle_tree_account_data.time_locked == 0
-                || merkle_tree_account_data.time_locked + 10 < current_slot
+            if merkle_tree_pda_data.time_locked == 0
+                || merkle_tree_pda_data.time_locked + LOCK_DURATION < current_slot
             {
-                merkle_tree_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
-                msg!("locked at {}", merkle_tree_account_data.time_locked);
-                msg!("locked by: {:?}", merkle_tree_account_data.pubkey_locked);
+                merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
+                merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
                 msg!(
-                    "locked by: {:?}",
-                    solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked)
+                    "Locked by: {:?}",
+                    solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
                 );
-            } else if merkle_tree_account_data.time_locked + 10 > current_slot
-            /*&& solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked[..]) != *signer.key*/
-            {
-                msg!("contract is still locked");
+            } else if merkle_tree_pda_data.time_locked + LOCK_DURATION > current_slot {
+                msg!("Contract is still locked.");
                 return Err(ProgramError::InvalidInstructionData);
             } else {
-                merkle_tree_account_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_account_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
+                merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
             }
 
-            merkle_tree_pubkey_check(
-                *merkle_tree_account.key,
-                main_account_data.merkle_tree_index,
-            )?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
             MerkleTree::pack_into_slice(
-                &merkle_tree_account_data,
-                &mut merkle_tree_account.data.borrow_mut(),
+                &merkle_tree_pda_data,
+                &mut merkle_tree_pda.data.borrow_mut(),
             );
-        } else if IX_ORDER[main_account_data.current_instruction_index] == 0
-            || IX_ORDER[main_account_data.current_instruction_index] == 1
-            || IX_ORDER[main_account_data.current_instruction_index] == 2
-            || IX_ORDER[main_account_data.current_instruction_index] == 3
+        } else if IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_0
+            || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_1
+            || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_2
+            || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_3
         {
-            let merkle_tree_account = next_account_info(account)?;
-            merkle_tree_pubkey_check(
-                *merkle_tree_account.key,
-                main_account_data.merkle_tree_index,
-            )?;
+            let merkle_tree_pda = next_account_info(account)?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
             //hash instructions do not need the merkle tree
             _process_instruction(
-                IX_ORDER[main_account_data.current_instruction_index],
-                &mut main_account_data,
+                IX_ORDER[tmp_storage_pda_data.current_instruction_index],
+                &mut tmp_storage_pda_data,
                 &mut self.unpacked_merkle_tree,
             )?;
-        } else if IX_ORDER[main_account_data.current_instruction_index] == 241 {
+        } else if IX_ORDER[tmp_storage_pda_data.current_instruction_index] == ROOT_INSERT {
             //inserting root and creating leave pda accounts
-            //the pda account should be created in the same tx, the pda account also functions as escrow account
-
             msg!(
-                "instruction: {}",
-                IX_ORDER[main_account_data.current_instruction_index]
+                "Instruction: {}",
+                IX_ORDER[tmp_storage_pda_data.current_instruction_index]
             );
             let leaf_pda = next_account_info(account)?;
-            msg!("here-2");
             let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-            msg!("here-3");
             let _nullifer0 = next_account_info(account)?;
             let _nullifer1 = next_account_info(account)?;
-            let merkle_tree_account = next_account_info(account)?;
-            let mut merkle_tree_account_data =
-                MerkleTree::unpack(&merkle_tree_account.data.borrow())?;
+            let merkle_tree_pda = next_account_info(account)?;
+            let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
 
             //checking if signer locked
             pubkey_check(
                 *signer.key,
-                solana_program::pubkey::Pubkey::new(&merkle_tree_account_data.pubkey_locked),
-                String::from("merkle tree locked by other account"),
+                solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+                String::from("Merkle tree locked by other account."),
             )?;
             //checking merkle tree pubkey for consistency
-            merkle_tree_pubkey_check(
-                *merkle_tree_account.key,
-                main_account_data.merkle_tree_index,
-            )?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
 
             //insert root into merkle tree
-            insert_last_double(&mut merkle_tree_account_data, &mut main_account_data)?;
+            insert_last_double(&mut merkle_tree_pda_data, &mut tmp_storage_pda_data)?;
 
             //check leaves account is rent exempt
             let rent = Rent::default();
-            if !rent.is_exempt(**leaf_pda.lamports.borrow(), 106) {
-                msg!("leaves account is not rent exempt");
+            if !rent.is_exempt(
+                **leaf_pda.lamports.borrow(),
+                usize::try_from(TWO_LEAVES_PDA_SIZE).unwrap(),
+            ) {
+                msg!("Leaves account is not rent-exempt.");
                 return Err(ProgramError::InvalidAccountData);
             }
             //save leaves into pda account
-            leaf_pda_account_data.leaf_left = main_account_data.leaf_left.clone();
-            leaf_pda_account_data.leaf_right = main_account_data.leaf_right.clone();
-            msg!(
-                "here2 main_account_data.current_index {}",
-                main_account_data.current_index.clone()
-            );
-            leaf_pda_account_data.left_leaf_index = merkle_tree_account_data.next_index - 2;
+            leaf_pda_account_data.leaf_left = tmp_storage_pda_data.leaf_left.clone();
+            leaf_pda_account_data.leaf_right = tmp_storage_pda_data.leaf_right.clone();
+            //increased by 2 because we're inserting 2 leaves at once
+            leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey = MERKLE_TREE_ACC_BYTES_ARRAY
-                [<usize as TryFrom<u8>>::try_from(main_account_data.merkle_tree_index).unwrap()]
+                [<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]
             .0
             .to_vec();
 
-            msg!("Lock set at slot {}", merkle_tree_account_data.time_locked);
-            msg!("lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
-            merkle_tree_account_data.time_locked = 0;
-            merkle_tree_account_data.pubkey_locked = vec![0; 32];
+            msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
+            msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
+            merkle_tree_pda_data.time_locked = 0;
+            merkle_tree_pda_data.pubkey_locked = vec![0; 32];
 
             MerkleTree::pack_into_slice(
-                &merkle_tree_account_data,
-                &mut merkle_tree_account.data.borrow_mut(),
+                &merkle_tree_pda_data,
+                &mut merkle_tree_pda.data.borrow_mut(),
             );
             TwoLeavesBytesPda::pack_into_slice(
                 &leaf_pda_account_data,
                 &mut leaf_pda.data.borrow_mut(),
             );
         }
-        main_account_data.current_instruction_index += 1;
+        tmp_storage_pda_data.current_instruction_index += 1;
         TmpStoragePda::pack_into_slice(
-            &main_account_data,
-            &mut self.main_account.unwrap().data.borrow_mut(),
+            &tmp_storage_pda_data,
+            &mut self.tmp_storage_pda.unwrap().data.borrow_mut(),
         );
 
         Ok(())
@@ -258,42 +250,40 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
 pub fn _process_instruction(
     id: u8,
-    main_account_data: &mut TmpStoragePda,
-    merkle_tree_account_data: &mut MerkleTree,
+    tmp_storage_pda_data: &mut TmpStoragePda,
+    merkle_tree_pda_data: &mut MerkleTree,
 ) -> Result<(), ProgramError> {
     msg!("executing instruction {}", id);
-    if id == 0 {
+    if id == HASH_0 {
         permute_instruction_first(
-            &mut main_account_data.state,
-            &mut main_account_data.current_round,
-            &mut main_account_data.current_round_index,
-            &main_account_data.left,
-            &main_account_data.right,
+            &mut tmp_storage_pda_data.state,
+            &mut tmp_storage_pda_data.current_round,
+            &mut tmp_storage_pda_data.current_round_index,
+            &tmp_storage_pda_data.left,
+            &tmp_storage_pda_data.right,
         )?;
-    } else if id == 1 {
+    } else if id == HASH_1 {
         permute_instruction_6(
-            &mut main_account_data.state,
-            &mut main_account_data.current_round,
-            &mut main_account_data.current_round_index,
+            &mut tmp_storage_pda_data.state,
+            &mut tmp_storage_pda_data.current_round,
+            &mut tmp_storage_pda_data.current_round_index,
         )?;
-    } else if id == 2 {
+    } else if id == HASH_2 {
         permute_instruction_3(
-            &mut main_account_data.state,
-            &mut main_account_data.current_round,
-            &mut main_account_data.current_round_index,
+            &mut tmp_storage_pda_data.state,
+            &mut tmp_storage_pda_data.current_round,
+            &mut tmp_storage_pda_data.current_round_index,
         )?;
-    } else if id == 3 {
+    } else if id == HASH_3 {
         permute_instruction_last(
-            &mut main_account_data.state,
-            &mut main_account_data.current_round,
-            &mut main_account_data.current_round_index,
+            &mut tmp_storage_pda_data.state,
+            &mut tmp_storage_pda_data.current_round,
+            &mut tmp_storage_pda_data.current_round_index,
         )?;
-    } else if id == 25 {
-        insert_1_inner_loop(merkle_tree_account_data, main_account_data)?;
-    } else if id == 14 {
-        insert_0_double(merkle_tree_account_data, main_account_data)?;
-    } else if id == 16 {
-        insert_last_double(merkle_tree_account_data, main_account_data)?;
+    } else if id == MERKLE_TREE_UPDATE_LEVEL {
+        insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
+    } else if id == MERKLE_TREE_UPDATE_START {
+        insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data)?;
     }
     Ok(())
 }
