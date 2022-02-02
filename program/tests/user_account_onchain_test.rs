@@ -20,7 +20,7 @@ use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
 use std::{thread, time};
 use {
-    light_protocol_program::{process_instruction, utils::init_bytes18},
+    light_protocol_program::{process_instruction, utils::config},
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,

@@ -3,7 +3,7 @@ use ark_ff::PrimeField;
 
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::Groth16Processor;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};

@@ -1,7 +1,7 @@
 use solana_program::{msg, program_error::ProgramError};
 
 use crate::poseidon_merkle_tree::state::{MerkleTree, TmpStoragePda};
-use crate::utils::init_bytes18::ZERO_BYTES_MERKLE_TREE_18;
+use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 /*
 pub fn insert_0(leaf: &Vec<u8>, merkle_tree_account: &mut MerkleTree, tmp_storage_account:&mut TmpStoragePda) {
     tmp_storage_account.current_index =  merkle_tree_account.next_index;

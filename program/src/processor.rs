@@ -4,7 +4,7 @@ use crate::instructions::{
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::ChecksAndTransferState;
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},

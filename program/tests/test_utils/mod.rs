@@ -8,7 +8,7 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use light_protocol_program::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+    use light_protocol_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
     use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
     use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
