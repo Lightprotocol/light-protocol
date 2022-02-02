@@ -8,33 +8,81 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
+    use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
     use light_protocol_program::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
 
+    use ark_ec::*;
     use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
     use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_program::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
     use light_protocol_program::groth16_verifier::parsers::*;
     use light_protocol_program::process_instruction;
     use serde_json::{Result, Value};
+    use solana_program::program_pack::Pack;
     use solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
     };
+    use solana_program_test::ProgramTest;
+    use solana_program_test::ProgramTestContext;
     use solana_program_test::*;
+    use solana_sdk::account::WritableAccount;
+    use solana_sdk::stake_history::Epoch;
     use solana_sdk::{
         account::Account, msg, signature::Signer, transaction::Transaction,
         transport::TransportError,
     };
     use std::fs;
-    use solana_program_test::ProgramTestContext;
-    use solana_program_test::ProgramTest;
-    use solana_sdk::stake_history::Epoch;
-    use solana_sdk::account::WritableAccount;
-    use solana_program::program_pack::Pack;
     use std::str::FromStr;
-    const ACCOUNT_RENT_EXEMPTION : u64 = 1000000000000u64;
-    use solana_sdk::signer::keypair::Keypair;
 
+    const ACCOUNT_RENT_EXEMPTION: u64 = 1000000000000u64;
+    use solana_sdk::signer::keypair::Keypair;
+    pub fn get_ref_value(mode: &str) -> Vec<u8> {
+        let bytes;
+        let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+        let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
+        let pvk_unprepped = get_vk_from_file().unwrap();
+        let pvk = prepare_verifying_key(&pvk_unprepped);
+        let public_inputs = get_public_inputs_from_bytes(&public_inputs_bytes).unwrap();
+        let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
+        if mode == "prepared_inputs" {
+            // We must convert to affine here since the program converts projective into affine already as the last step of prepare_inputs.
+            // While the native library implementation does the conversion only when the millerloop is called.
+            // The reason we're doing it as part of prepare_inputs is that it takes >1 ix to compute the conversion.
+            let as_affine = (prepared_inputs).into_affine();
+            let mut affine_bytes = vec![0; 64];
+            parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
+            bytes = affine_bytes;
+        } else {
+            let proof_bytes = ix_data[233..489].to_vec(); // 256 length
+            let proof = get_proof_from_bytes(&proof_bytes);
+            let miller_output =
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
+                    [
+                        (proof.a.into(), proof.b.into()),
+                        (
+                            (prepared_inputs).into_affine().into(),
+                            pvk.gamma_g2_neg_pc.clone(),
+                        ),
+                        (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
+                    ]
+                    .iter(),
+                );
+            if mode == "miller_output" {
+                let mut miller_output_bytes = vec![0; 384];
+                parse_f_to_bytes(miller_output, &mut miller_output_bytes);
+                bytes = miller_output_bytes;
+            } else if mode == "final_exponentiation" {
+                let res = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&miller_output).unwrap();
+                let mut res_bytes = vec![0; 384];
+                parse_f_to_bytes(res, &mut res_bytes);
+                bytes = res_bytes;
+            } else {
+                bytes = vec![];
+            }
+        }
+        bytes
+    }
 
     pub fn get_proof_from_bytes(
         proof_bytes: &Vec<u8>,
@@ -274,10 +322,15 @@ pub mod tests {
             let mint = Pubkey::from_str("So11111111111111111111111111111111111111112").unwrap();
 
             for (pubkey, authority, amount) in token_accounts.unwrap() {
-                add_token_account_with_address(&mut program_test, **pubkey, mint, **authority, *amount);
+                add_token_account_with_address(
+                    &mut program_test,
+                    **pubkey,
+                    mint,
+                    **authority,
+                    *amount,
+                );
             }
         }
-
 
         let mut program_context = program_test.start_with_context().await;
         //transfer an arbitrary high amount to signer keypair to have a consistent payer
@@ -304,7 +357,7 @@ pub mod tests {
         token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
         program_id: &Pubkey,
         signer_pubkey: &Pubkey,
-        program_context: &mut ProgramTestContext
+        program_context: &mut ProgramTestContext,
     ) -> ProgramTestContext {
         for (pubkey, _, current_data) in accounts_vector.iter_mut() {
             let account = program_context
@@ -315,9 +368,14 @@ pub mod tests {
                 .unwrap();
             *current_data = Some(account.data.to_vec());
         }
-        let mut program_context_new = create_and_start_program_var(&accounts_vector, token_accounts, &program_id, &signer_pubkey).await;
+        let mut program_context_new = create_and_start_program_var(
+            &accounts_vector,
+            token_accounts,
+            &program_id,
+            &signer_pubkey,
+        )
+        .await;
 
         program_context_new
     }
-
 }

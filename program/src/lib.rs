@@ -24,9 +24,7 @@ use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
 use crate::user_account::instructions::{
-    initialize_user_account,
-    modify_user_account,
-    close_user_account
+    close_user_account, initialize_user_account, modify_user_account,
 };
 use crate::utils::init_bytes18;
 

@@ -11,8 +11,6 @@ use crate::merkle_tree_account_data_after_transaction::merkle_tree_account_data_
 // };
 use crate::tokio::time::timeout;
 use ark_ec::ProjectiveCurve;
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::Fp256;
 use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
 use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
 use light_protocol_program::utils::{init_bytes18, prepared_verifying_key::*};

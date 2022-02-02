@@ -5,7 +5,6 @@ use ark_ff::{
     fields::{Field, PrimeField},
     BitIteratorBE, Fp256, One,
 };
-// use ark_relations::r1cs::SynthesisError; // currently commented out, should implement manual error.
 use ark_std::Zero;
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
@@ -48,9 +47,6 @@ pub fn init_pairs_instruction(
         get_gamma_abc_g1_7(),
     ];
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
-        // 693
-        // TODO: add manual error throw.
-        // Err(SynthesisError::MalformedVerifyingKey);
         panic!("MalformedVerifyingKey");
     }
 
@@ -77,7 +73,7 @@ pub fn init_pairs_instruction(
     parse_fp256_ed_to_bytes(i_vec[5], i_6_range); // 3k
     parse_fp256_ed_to_bytes(i_vec[6], i_7_range); // 3k
 
-    parse_x_group_affine_to_bytes(x_vec[0], x_1_range); // 96bytes 10kr, 3kwr => 6k
+    parse_x_group_affine_to_bytes(x_vec[0], x_1_range);
     parse_x_group_affine_to_bytes(x_vec[1], x_2_range); // 6k
     parse_x_group_affine_to_bytes(x_vec[2], x_3_range); // 6k
     parse_x_group_affine_to_bytes(x_vec[3], x_4_range); // 6k
@@ -105,7 +101,6 @@ pub fn init_res_instruction(
 // Called 256 times for each i,x pair - so 256*7x.
 // Current_index (0..256) is parsed in because we need to
 // replicate the stripping of leading zeroes (which are random because based on the public inputs).
-// TODO: Finish documentation
 pub fn maths_instruction(
     res_x_range: &mut Vec<u8>,
     res_y_range: &mut Vec<u8>,
@@ -299,6 +294,7 @@ pub fn g_ic_into_affine_1(
 ) {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
+    println!("w : {:?}", g_ic);
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
     let g_ic_with_zinv: ark_ec::short_weierstrass_jacobian::GroupProjective<
         ark_bn254::g1::Parameters,
@@ -324,3 +320,89 @@ pub fn g_ic_into_affine_2(
 
     parse_x_group_affine_to_bytes(g_ic_affine, x_1_range); // overwrite x1range w: 5066
 }
+
+// #[cfg(test)]
+// mod tests {
+//     use crate::groth16_verifier::prepare_inputs::instructions::{
+//         maths_g_ic_instruction,maths_instruction
+//     };
+
+//     use crate::groth16_verifier::miller_loop::state::MillerLoopState;
+//     use crate::groth16_verifier::parsers::{
+//         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
+//         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
+//         parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes, parse_r_from_bytes,
+//         parse_r_to_bytes,
+//     };
+//     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
+
+//     use ark_ec::bn::BnParameters;
+//     use ark_ff::fields::models::fp2::Fp2Parameters;
+//     use ark_ff::{Field, Fp12};
+//     use ark_std::{test_rng, One, UniformRand, Zero};
+
+//     #[test]
+//     fn doubling_step_should_succeed() {
+//         let mut rng = test_rng();
+//         for _i in 0..10 {
+//             let reference_coeff_2 =
+//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 );
+//             let reference_coeff_1 =
+//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 );
+//             let reference_coeff_0 =
+//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 );
+//             let mut reference_r =
+//             ark_ec::models::bn::g2::G2HomProjective::<ark_bn254::Parameters> {
+//                 x: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 ),
+//                 y: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 ),
+//                 z: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
+//                     &mut rng,
+//                 ),
+//             };
+
+//             let test_coeff_2 = reference_coeff_2.clone();
+//             let test_coeff_1 = reference_coeff_1.clone();
+//             let test_coeff_0 = reference_coeff_0.clone();
+//             let test_r = reference_r.clone();
+
+//             //simulating the onchain account
+//             let mut account_coeff_2_range = vec![0u8; 64];
+//             let mut account_coeff_1_range = vec![0u8; 64];
+//             let mut account_coeff_0_range = vec![0u8; 64];
+//             let mut account_r_range = vec![0u8; 192];
+
+//             parse_quad_to_bytes(test_coeff_2, &mut account_coeff_2_range);
+//             parse_quad_to_bytes(test_coeff_1, &mut account_coeff_1_range);
+//             parse_quad_to_bytes(test_coeff_0, &mut account_coeff_0_range);
+//             parse_r_to_bytes(test_r, &mut account_r_range);
+
+//             // test instruction, mut accs
+//             doubling_step(
+//                 &mut account_r_range,
+//                 &mut account_coeff_0_range,
+//                 &mut account_coeff_1_range,
+//                 &mut account_coeff_2_range,
+//             );
+//             // reference value
+//             let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
+//                 .double()
+//                 .inverse()
+//                 .unwrap();
+//             ark_ec::models::bn::g2::doubling_step(&mut reference_r, &two_inv);
+
+//             let mut ref_r_range = vec![0u8; 192]; // ell mutates f in the end. So we can just check f.
+//             parse_r_to_bytes(reference_r, &mut ref_r_range);
+//             assert_eq!(ref_r_range, account_r_range);
+//         }
+//     }
+// }
