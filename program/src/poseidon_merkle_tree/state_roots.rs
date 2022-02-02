@@ -12,7 +12,6 @@ use std::convert::TryFrom;
 
 // max roots that can be checked within one ix memory budget.
 const ROOT_HISTORY_SIZE: u64 = 593;
-const ROOT_HASH_SIZE: usize = 32;
 
 #[derive(Clone, Debug)]
 pub struct MerkleTreeRoots {

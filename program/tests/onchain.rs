@@ -1128,7 +1128,7 @@ fn pvk_should_match() {
 
 #[tokio::test]
 async fn deposit_should_succeed() {
-    let ix_withdraw_data = read_test_data(std::string::String::from("deposit_0_1_sol.txt"));
+    let mut ix_withdraw_data = read_test_data(std::string::String::from("deposit_0_1_sol.txt"));
     println!("ix_withdraw_data[521..529]: {:?}", ix_withdraw_data[521..529].to_vec());
     let amount: u64 =  i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap()).try_into().unwrap();
     println!("amount: {:?}", amount);
@@ -1143,9 +1143,16 @@ async fn deposit_should_succeed() {
         16657,
         None,
     ));
+    //private key is hardcoded to have a deterministic signer as relayer
+    let private_key = vec![17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
     // Creates random signer
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&private_key).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
+    // assign relayer key to signer otherwise it fails relayer check
+    for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
+        *elem = signer_pubkey.to_bytes()[i];
+
+    }
 
     let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
         create_pubkeys_from_ix_data(&ix_withdraw_data, &program_id).await;
