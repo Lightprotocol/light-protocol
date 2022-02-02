@@ -288,7 +288,6 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda.data.borrow().len()
     );
     // Initializing temporary storage pda with instruction data.
-
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
     let mut groth16_processor = Groth16Processor::new(

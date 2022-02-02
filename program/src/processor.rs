@@ -15,13 +15,9 @@ use solana_program::{
 };
 use std::convert::{TryFrom, TryInto};
 
-pub const NULLIFIER_0_START: usize = 320;
-pub const NULLIFIER_0_END: usize = 352;
-pub const NULLIFIER_1_START: usize = 352;
-pub const NULLIFIER_1_END: usize = 384;
-
-pub const TWO_LEAVES_PDA_SIZE: u64 = 106;
-
+use crate::{
+    NULLIFIER_0_END, NULLIFIER_0_START, NULLIFIER_1_END, NULLIFIER_1_START, TWO_LEAVES_PDA_SIZE,
+};
 // Processor for deposit and withdraw logic.
 #[allow(clippy::comparison_chain)]
 pub fn process_instruction(

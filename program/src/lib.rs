@@ -184,6 +184,11 @@ pub fn process_instruction(
 const ROOT_CHECK: usize = 1;
 const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1501;
 const VERIFICATION_END_INDEX: usize = 1266;
+pub const NULLIFIER_0_START: usize = 320;
+pub const NULLIFIER_0_END: usize = 352;
+pub const NULLIFIER_1_START: usize = 352;
+pub const NULLIFIER_1_END: usize = 384;
+pub const TWO_LEAVES_PDA_SIZE: u64 = 106;
 //instruction order
 pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts
