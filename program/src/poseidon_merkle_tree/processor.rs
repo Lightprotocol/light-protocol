@@ -3,7 +3,7 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
     permute_instruction_3, permute_instruction_6, permute_instruction_first,
     permute_instruction_last,
 };
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
 use crate::poseidon_merkle_tree::state::{
     InitMerkleTreeBytes, MerkleTree, TmpStoragePda, TwoLeavesBytesPda,

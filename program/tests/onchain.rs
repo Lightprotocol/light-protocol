@@ -15,7 +15,7 @@ use ark_ec::ProjectiveCurve;
 use ark_ff::biginteger::BigInteger256;
 use ark_ff::Fp256;
 use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
-use light_protocol_program::utils::{init_bytes18, prepared_verifying_key::*};
+use light_protocol_program::utils::{config, prepared_verifying_key::*};
 use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
 
 use light_protocol_program::{
@@ -29,7 +29,7 @@ use light_protocol_program::{
     },
     process_instruction,
     state::ChecksAndTransferState,
-    utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY,
+    utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
 };
 
 use std::convert::TryInto;
@@ -280,7 +280,7 @@ pub async fn initialize_merkle_tree(
         .expect("get_account")
         .unwrap();
     assert_eq!(
-        init_bytes18::INIT_BYTES_MERKLE_TREE_18,
+        config::INIT_BYTES_MERKLE_TREE_18,
         merkle_tree_data.data[0..641]
     );
     println!("initializing merkle tree success");

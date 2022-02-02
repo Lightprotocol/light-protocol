@@ -33,7 +33,7 @@ mod tests {
     use ark_std::One;
 
     use light_protocol_program::poseidon_merkle_tree::{instructions, processor};
-    use light_protocol_program::utils::init_bytes18;
+    use light_protocol_program::utils::config;
 
     use std::fs::File;
     use std::io::Error as ioError;
@@ -813,8 +813,8 @@ mod tests {
         let zero_value = vec![1 as u8; 32];
         let mut account_data_merkle_tree = [0u8; 16657];
         //initing merkle tree with init bytes
-        for i in 0..init_bytes18::INIT_BYTES_MERKLE_TREE_18.len() {
-            account_data_merkle_tree[i] = init_bytes18::INIT_BYTES_MERKLE_TREE_18[i];
+        for i in 0..config::INIT_BYTES_MERKLE_TREE_18.len() {
+            account_data_merkle_tree[i] = config::INIT_BYTES_MERKLE_TREE_18[i];
         }
         let mut smt = MerkleTreeOnchain::unpack(&account_data_merkle_tree).unwrap();
         println!(
@@ -823,7 +823,7 @@ mod tests {
             account_data_merkle_tree.len()
         );
         //initialize(&mut smt, tree_height, zero_value.clone());
-        let initial_zero_hash = init_bytes18::ZERO_BYTES_MERKLE_TREE_18[0..32].to_vec();
+        let initial_zero_hash = config::ZERO_BYTES_MERKLE_TREE_18[0..32].to_vec();
         println!("initial_zero_hash: {:?}", initial_zero_hash);
 
         let leaves: Vec<Vec<u8>> =
@@ -879,7 +879,7 @@ mod tests {
             filled_leaves.push(new_leaf_hash_bytes_1.clone());
 
             //assert_eq!(true, false,"will fail because no data is incjected");
-            for i in init_bytes18::INSERT_INSTRUCTION_ORDER_18 {
+            for i in config::INSERT_INSTRUCTION_ORDER_18 {
                 processor::_process_instruction(
                     i,
                     &mut hash_tmp_account,

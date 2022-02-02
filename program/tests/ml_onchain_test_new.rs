@@ -6,7 +6,7 @@
 // use Testing_Hardcoded_Params_devnet_new::{
 //     poseidon_merkle_tree::mt_state::{HashBytes, MerkleTree, MERKLE_TREE_ACC_BYTES},
 //     process_instruction,
-//     utils::init_bytes18,
+//     utils::config,
 //     Groth16_verifier::{
 //         final_exponentiation::fe_ranges::*,
 //         final_exponentiation::fe_state::{FinalExpBytes, INSTRUCTION_ORDER_VERIFIER_PART_2},

@@ -6,7 +6,7 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use arrayref::{array_ref, array_refs};
 use std::convert::TryFrom;
 

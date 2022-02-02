@@ -28,8 +28,8 @@ use crate::user_account::instructions::{
     modify_user_account,
     close_user_account
 };
-use crate::utils::init_bytes18;
-use crate::init_bytes18::PROGRAM_AUTHORITY;
+use crate::utils::config;
+use crate::config::PROGRAM_AUTHORITY;
 
 entrypoint!(process_instruction);
 
@@ -52,14 +52,13 @@ pub fn process_instruction(
         let merkle_tree_storage_acc = next_account_info(account)?;
         //check signer is program authority
         if *signer_account.key != Pubkey::new(&PROGRAM_AUTHORITY) {
-            msg!("signer is not program authority");
-            panic!("");
+            msg!("Signer is not program authority.");
             return Err(ProgramError::IllegalOwner);
         }
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
         merkle_tree_processor
-            .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
+            .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])
     }
     // Initialize new onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
