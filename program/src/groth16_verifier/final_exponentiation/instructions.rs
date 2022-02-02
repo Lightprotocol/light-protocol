@@ -21,6 +21,7 @@ pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(),
 
     if ALPHA_G1_BETA_G2.to_vec() != main_account_data.y1_range {
         msg!("verification failed");
+        panic!("");
         return Err(ProgramError::InvalidAccountData);
     }
     Ok(())

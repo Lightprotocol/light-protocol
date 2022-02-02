@@ -19,7 +19,6 @@ use solana_program::{
     sysvar::rent::Rent,
 };
 use std::convert::{TryFrom, TryInto};
-use std::str::FromStr;
 
 #[allow(clippy::comparison_chain)]
 pub fn check_external_amount(
@@ -323,7 +322,8 @@ pub fn try_initialize_tmp_storage_pda(
     let relayer = _instruction_data[520..552].to_vec();
 
     // Check that relayer in integrity hash == signer.
-    if relayer != vec![0u8; 32] && *signing_address != Pubkey::new(&relayer) {
+    // In case of deposit the depositor is their own relayer
+    if *signing_address != Pubkey::new(&relayer) {
         msg!("Specified relayer is not signer.");
         return Err(ProgramError::InvalidAccountData);
     }
