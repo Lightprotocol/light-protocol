@@ -4,9 +4,9 @@ use crate::test_utils::tests::{
     create_and_start_program_var
 };
 mod merkle_tree_account_data_after_deposit;
-mod merkle_tree_account_data_after_transaction;
+mod merkle_tree_account_data_after_transfer;
 use crate::merkle_tree_account_data_after_deposit::merkle_tree_account_data_after_deposit::MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT;
-use crate::merkle_tree_account_data_after_transaction::merkle_tree_account_data_after_transfer::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
+use crate::merkle_tree_account_data_after_transfer::merkle_tree_account_data_after_transfer::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
 //use crate::merkle_tree_account_data_after_deposit::MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT;
 //use crate::merkle_tree_account_data_after_transaction::merkle_tree_account_data_after_transaction::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
 // };
@@ -1290,11 +1290,28 @@ async fn deposit_should_succeed() {
             .get_account(merkle_tree_pda_pubkey)
             .await
             .expect("get_account").unwrap();
-    println!("merkle_tree_account_data: {:?}", merkle_tree_account_data.data);
+    //println!("merkle_tree_account_data: {:?}", merkle_tree_account_data.data);
+    let path = "tests/merkle_tree_account_data_after_deposit.rs";
+    let mut output = File::create(path).ok().unwrap();
+    write!(
+        output,
+        "{}",
+        format!(
+            "#[cfg(test)]
+            pub mod merkle_tree_account_data_after_deposit {{
+                pub const MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT : [u8;{}] = {:?};
+            }}",
+            merkle_tree_account_data.data.len(),
+            merkle_tree_account_data.data
+        )
+    ).unwrap();
+
 }
+use std::fs::File;
+use std::io::Write;
 #[tokio::test]
-async fn transaction_should_succeed() {
-    let mut ix_withdraw_data = read_test_data(std::string::String::from("transact.txt"));
+async fn internal_transfer_should_succeed() {
+    let mut ix_withdraw_data = read_test_data(std::string::String::from("internal_transfer.txt"));
     let recipient = Pubkey::new(&ix_withdraw_data[489..521].to_vec());
     println!("ix_withdraw_data[521..529]: {:?} ", ix_withdraw_data[521..529].to_vec());
     println!("ix_withdraw_data[529..561]: {:?} ", Pubkey::new(&ix_withdraw_data[529..561].to_vec()));
@@ -1443,19 +1460,32 @@ async fn transaction_should_succeed() {
     let relayer_pda_token_account_data = spl_token::state::Account::unpack(&relayer_pda_token_account.data).unwrap();
 
     assert_eq!(relayer_pda_token_account_data.amount, fees);
-    let merkle_tree_pda_account = program_context.banks_client
+    let merkle_tree_account_data = program_context.banks_client
             .get_account(merkle_tree_pda_pubkey)
             .await
             .expect("get_account").unwrap();
 
-    println!("relayer test disabled {:?}", merkle_tree_pda_account.data);
-
+    //println!("relayer test disabled {:?}", merkle_tree_pda_account.data);
+    let path = "tests/merkle_tree_account_data_after_transfer.rs";
+    let mut output = File::create(path).ok().unwrap();
+    write!(
+        output,
+        "{}",
+        format!(
+            "#[cfg(test)]\n
+            pub mod merkle_tree_account_data_after_transfer {{ \n
+            \t pub const MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER : [u8;{}] = {:?};
+            \n }}",
+            merkle_tree_account_data.data.len(),
+            merkle_tree_account_data.data
+        )
+    ).unwrap();
 
 }
 #[tokio::test]
 async fn withdrawal_should_succeed() {
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw_0_1_sol.txt"));
-    let recipient = Pubkey::from_str("8r4HLLzJkv4WCG5LiAcR4yb5S3uY3X7sqSaQxnDxQ36y").unwrap();
+    let recipient = Pubkey::new(&ix_withdraw_data[489..521]);
     let amount: u64 =  (-i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap())).try_into().unwrap();
     println!("amount: {:?}", amount);
     let fees: u64 =  u64::from_le_bytes(ix_withdraw_data[561..569].try_into().unwrap());

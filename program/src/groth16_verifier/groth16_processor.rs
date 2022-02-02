@@ -154,7 +154,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             IX_ORDER[self.current_instruction_index],
         )?;
 
-        if self.current_instruction_index == 1265 {
+        if self.current_instruction_index == FINAL_EXPONENTIATION_END_INDEX - 1 {
             verify_result(&main_account_data)?;
         }
         main_account_data.current_instruction_index += 1;
