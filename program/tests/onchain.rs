@@ -295,7 +295,7 @@ pub async fn update_merkle_tree(
 ) {
     let mut i = 0;
 
-    for instruction_id in 0..237 {
+    for instruction_id in 0..238 {
         //checking merkle tree lock
         if instruction_id != 0 {
             let merkle_tree_pda_account = program_context

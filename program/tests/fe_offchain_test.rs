@@ -5,7 +5,8 @@ pub mod tests {
 
     use ark_bn254;
     use ark_ed_on_bn254;
-
+    use ark_ff::CubicExtField;
+    use ark_bn254::Fr;
     use ark_std::vec::Vec;
 
     use ark_ff::biginteger::BigInteger256;
@@ -29,7 +30,25 @@ pub mod tests {
     use light_protocol_program::utils::prepared_verifying_key::*;
     use solana_program::program_pack::Pack;
     use std::fs::File;
-
+    pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [
+        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15,
+        16, 17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16,
+        17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15,
+        15, 15, 16, 17, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15,
+        16, 17, 15, 15, 15, 16, 17, 15, 15, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 15, 15, 15,
+        18, 19, 15, 15, 15, 15, 16, 17, 20, 21, 22, 23, 24, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27,
+        25, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 25, 26, 27, 25,
+        25, 26, 27, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 25,
+        26, 27, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 26, 27,
+        25, 25, 25, 26, 27, 25, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 25, 25, 28, 29,
+        25, 25, 25, 25, 26, 27, 30, 31, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 35, 36,
+        32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32,
+        35, 36, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 32, 33, 34, 32, 32, 32,
+        33, 34, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 33, 34,
+        32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 32, 32, 35, 36, 32, 32, 32, 32, 33,
+        34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 38, 39, 52, 53, 54, 55, 42,
+        43,
+    ];
     pub fn get_pvk_from_bytes_254() -> Result<
         ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
     > {
@@ -445,28 +464,58 @@ pub mod tests {
 
         Ok(())
     }
+    pub fn read_test_data(file_name: std::string::String) -> Vec<u8> {
+        let mut path = std::string::String::from("./tests/test_data/");
+        path.push_str(&file_name);
+        println!("reading file: {:?}", path);
+        let ix_data_file = fs::read_to_string(path).expect("Something went wrong reading the file");
+        let ix_data_json: Value = serde_json::from_str(&ix_data_file).unwrap();
+        let mut ix_data = Vec::new();
+        for i in ix_data_json["bytes"][0].as_str().unwrap().split(',') {
+            let j = (*i).parse::<u8>();
+            match j {
+                Ok(x) => (ix_data.push(x)),
+                Err(_e) => (),
+            }
+        }
+        println!("Appending merkle tree bytes and merkle tree index");
+        // for i in 0..32 {
+        //     ix_data.push(MERKLE_TREE_ACC_BYTES_ARRAY[0].0[i]);
+        // }
+        // //pushing merkle tree index
+        // ix_data.push(0);
 
-    use ark_ff::CubicExtField;
+        println!("{:?}", ix_data);
+        ix_data
+    }
+
     #[test]
-    #[ignore]
+    //#[ignore]
     fn fe_test_offchain() -> Result<()> {
         let pvk_unprepped = get_pvk_from_bytes_254()?;
         let pvk = prepare_verifying_key(&pvk_unprepped);
-        let proof = get_proof_from_bytes_254()?;
 
-        let public_inputs = get_public_inputs_from_bytes_254()?;
+        let mut ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+        ix_data = ix_data[9..].to_vec();
+        let proof_a = parse_x_group_affine_from_bytes(&ix_data[224..288].to_vec());
+        let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].to_vec());
+        let proof_c = parse_x_group_affine_from_bytes(&ix_data[416..480].to_vec());
+        let mut public_inputs = Vec::new();
+        for input in ix_data[..224].chunks(32) {
+            public_inputs.push(<Fr as FromBytes>::read(&*input).unwrap());
+        }
 
-        let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
+        let prepared_inputs = prepare_inputs(&pvk, &public_inputs[..]).unwrap();
 
         let miller_output =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
                 [
-                    (proof.a.into(), proof.b.into()),
+                    (proof_a.into(), proof_b.into()),
                     (
                         (prepared_inputs).into_affine().into(),
                         pvk.gamma_g2_neg_pc.clone(),
                     ),
-                    (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
+                    (proof_c.into(), pvk.delta_g2_neg_pc.clone()),
                 ]
                 .iter(),
             );
@@ -479,101 +528,6 @@ pub mod tests {
         assert_eq!(res_origin, res_custom);
         let res_processor = final_exponentiation_test_processor(&f).unwrap();
         assert_eq!(res_origin, res_processor);
-
-        // println!("{:?}", res_origin);
-        //println!("{:?}", pvk.alpha_g1_beta_g2.c0[0]);
-        // let pvk_hard_coded =
-        // 	QuadExtField::<ark_ff::Fp12ParamsWrapper<ark_bn254::Fq12Parameters>>::new(
-        // 		CubicExtField::<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>::new(
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					17214827553771518527,
-        // 					8103811577513533309,
-        // 					5824106868827698446,
-        // 					538393706883776885,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					1747766986087995073,
-        // 					17030008964085198309,
-        // 					14711893862670036801,
-        // 					1251847809326396116,
-        // 				])),
-        // 			),
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					8670468519825929670,
-        // 					6774311001955862070,
-        // 					14503208649103997400,
-        // 					2739832133422703605,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					3403041057055849213,
-        // 					5589831403557161118,
-        // 					11353848742706634430,
-        // 					2079335176187258289,
-        // 				])),
-        // 			),
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					5700889876348332023,
-        // 					5164370052034384707,
-        // 					11026397386690668186,
-        // 					1430638717145074535,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					14585014708672115679,
-        // 					10557724701831733650,
-        // 					11346225797950201897,
-        // 					163817071525994422,
-        // 				])),
-        // 			),
-        // 		),
-        // 		CubicExtField::<ark_ff::Fp6ParamsWrapper<ark_bn254::Fq6Parameters>>::new(
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					184137068633880152,
-        // 					15666126431488555624,
-        // 					15896723566730834541,
-        // 					327734949610890862,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					5217626969957908428,
-        // 					13857069499728575185,
-        // 					16747932664762117536,
-        // 					1511015936345776210,
-        // 				])),
-        // 			),
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					4044920854921985794,
-        // 					16524891583600629150,
-        // 					17295166532143782492,
-        // 					1552849265734776570,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					7380548997166592537,
-        // 					191847233093951225,
-        // 					8211711349787187541,
-        // 					2939180299531928202,
-        // 				])),
-        // 			),
-        // 			QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::new(
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					12782511908424732804,
-        // 					9912157266960376288,
-        // 					15239332730960188312,
-        // 					1839595783782490417,
-        // 				])),
-        // 				ark_ff::Fp256::<ark_bn254::FqParameters>::new(BigInteger256::new([
-        // 					1680073062438571392,
-        // 					2800534229562584231,
-        // 					800746447625002697,
-        // 					1128810302869726976,
-        // 				])),
-        // 			),
-        // 		),
-        // 	);
-        // assert_eq!(pvk_hard_coded, pvk.alpha_g1_beta_g2);
 
         assert_eq!(res_origin, pvk.alpha_g1_beta_g2);
         Ok(())
@@ -1969,25 +1923,7 @@ pub mod tests {
         })
     }
 
-    pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [
-        0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15,
-        16, 17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16,
-        17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15,
-        15, 15, 16, 17, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15,
-        16, 17, 15, 15, 15, 16, 17, 15, 15, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 15, 15, 15,
-        18, 19, 15, 15, 15, 15, 16, 17, 20, 21, 22, 23, 24, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27,
-        25, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 25, 26, 27, 25,
-        25, 26, 27, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 25,
-        26, 27, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 26, 27,
-        25, 25, 25, 26, 27, 25, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 25, 25, 28, 29,
-        25, 25, 25, 25, 26, 27, 30, 31, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 35, 36,
-        32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32,
-        35, 36, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 32, 33, 34, 32, 32, 32,
-        33, 34, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 32, 33, 34,
-        32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 32, 32, 35, 36, 32, 32, 32, 32, 33,
-        34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 51, 38, 39, 52, 53, 54, 55, 42,
-        43,
-    ];
+
 
     fn final_exponentiation_test_processor(
         f: &<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
@@ -2001,17 +1937,18 @@ pub mod tests {
             &account_struct,
             &mut account_onchain_slice,
         );
-        let path = "tests/fe_onchain_init_bytes.rs";
-        let mut output = File::create(path).ok()?;
-        write!(
-            output,
-            "{}",
-            format!(
-                "pub const INIT_BYTES_FINAL_EXP : [u8;{}] = {:?};",
-                account_onchain_slice.len(),
-                account_onchain_slice
-            )
-        );
+        // create data for onchain
+        // let path = "tests/fe_onchain_init_bytes.rs";
+        // let mut output = File::create(path).ok()?;
+        // write!(
+        //     output,
+        //     "{}",
+        //     format!(
+        //         "pub const INIT_BYTES_FINAL_EXP : [u8;{}] = {:?};",
+        //         account_onchain_slice.len(),
+        //         account_onchain_slice
+        //     )
+        // );
 
         for i in INSTRUCTION_ORDER_CONST {
             let mut account_struct_tmp =
