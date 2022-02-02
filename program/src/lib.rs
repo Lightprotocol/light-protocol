@@ -23,7 +23,11 @@ use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
-use crate::user_account::instructions::{initialize_user_account, modify_user_account};
+use crate::user_account::instructions::{
+    initialize_user_account,
+    modify_user_account,
+    close_user_account
+};
 use crate::utils::init_bytes18;
 
 entrypoint!(process_instruction);
@@ -62,6 +66,12 @@ pub fn process_instruction(
         let user_account = next_account_info(account)?;
 
         modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
+    }
+    // Close onchain user account.
+    else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
+        let user_account = next_account_info(account)?;
+
+        close_user_account(user_account, signer_account)
     }
     // Transact with shielded pool.
     // This instruction has to be called 1503 times to perform all computation.
