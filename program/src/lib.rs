@@ -31,6 +31,12 @@ use crate::user_account::instructions::{
 use crate::utils::config;
 use crate::config::PROGRAM_AUTHORITY;
 
+
+
+
+
+//#![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
+
 entrypoint!(process_instruction);
 
 #[allow(clippy::clone_double_ref)]

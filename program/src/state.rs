@@ -3,14 +3,16 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
+    msg,
 };
 use std::convert::TryInto;
+use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
 
 #[derive(Clone)]
 pub struct ChecksAndTransferState {
     is_initialized: bool,
     pub found_root: u8,
-    pub found_nullifier: u8,
+    pub account_type: u8,
     pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
     pub relayer_fees: Vec<u8>,
@@ -39,8 +41,8 @@ impl Pack for ChecksAndTransferState {
 
         let (
             _is_initialized,
+            account_type,
             found_root,
-            found_nullifier,
             merkle_tree_index,
             signing_address, // is relayer address
             relayer_fees,
@@ -56,11 +58,17 @@ impl Pack for ChecksAndTransferState {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384]; // 8->32 -- 24+ (old rem: 3296)
 
+
+        if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
+            msg!("Wrong account type.");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
         Ok(ChecksAndTransferState {
             is_initialized: true,
 
             found_root: found_root[0],                     //0 legacy remove
-            found_nullifier: found_nullifier[0],           //1 legacy remove
+            account_type: account_type[0],           //1 legacy remove
             merkle_tree_index: merkle_tree_index[0],       //2 legacy remove
             signing_address: signing_address.to_vec(),     //3
             relayer_fees: relayer_fees.to_vec(),           //4
@@ -82,8 +90,8 @@ impl Pack for ChecksAndTransferState {
         let (
             //constants
             _is_initialized_dst,
+            account_type_dst,
             found_root_dst,
-            found_nullifier_dst,
             merkle_tree_index_dst,
             signing_address_dst, // is relayer address
             relayer_fees_dst,
@@ -103,9 +111,9 @@ impl Pack for ChecksAndTransferState {
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
                 if i == 0 {
-                    *found_root_dst = [self.found_root; 1];
+                    *account_type_dst = [self.account_type; 1];
                 } else if i == 1 {
-                    *found_nullifier_dst = [self.found_nullifier; 1];
+                    *found_root_dst = [self.found_root; 1];
                 } else if i == 2 {
                     *merkle_tree_index_dst = [self.merkle_tree_index; 1];
                 } else if i == 3 {
@@ -159,15 +167,20 @@ impl Pack for InstructionIndex {
 
         let (
             is_initialized,
+            account_type,
             _unused_remainder0,
             signer_pubkey,
             _unused_remainder1,
             current_instruction_index,
             _unused_remainder2,
-        ) = array_refs![input, 1, 3, 32, 176, 8, 3680];
+        ) = array_refs![input, 1, 1, 2, 32, 176, 8, 3680];
         if is_initialized[0] == 0 {
             Err(ProgramError::InvalidAccountData)
         } else {
+            if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
+                msg!("Wrong account type.");
+                return Err(ProgramError::InvalidAccountData);
+            }
             Ok(InstructionIndex {
                 is_initialized: true,
                 signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),

@@ -21,8 +21,9 @@ use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
 use light_protocol_program::{
     groth16_verifier::{
         final_exponentiation::state::{
-            FinalExponentiationState, INSTRUCTION_ORDER_VERIFIER_PART_2,
+            FinalExponentiationState,
         },
+        final_exponentiation::ranges::INSTRUCTION_ORDER_VERIFIER_PART_2,
         miller_loop::state::*,
         parsers::*,
         prepare_inputs::state::PrepareInputsState,
@@ -281,7 +282,7 @@ pub async fn initialize_merkle_tree(
         .unwrap();
     assert_eq!(
         config::INIT_BYTES_MERKLE_TREE_18,
-        merkle_tree_data.data[0..641]
+        merkle_tree_data.data[0..642]
     );
     println!("initializing merkle tree success");
 }
@@ -915,17 +916,17 @@ async fn check_tmp_storage_account_state_correct(
             assert!(merkle_tree_pda_after.roots != merkle_tree_account_before.roots);
             println!(
                 "root[0]: {:?}",
-                merkle_account_data_after.unwrap()[609..641].to_vec()
+                merkle_account_data_after.unwrap()[609..642].to_vec()
             );
             println!(
                 "root[{}]: {:?}",
                 merkle_tree_pda_after.current_root_index,
                 merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32)
-                    + 609
-                    ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641]
+                    + 610
+                    ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 642]
                     .to_vec()
             );
-            assert_eq!(unpacked_tmp_storage_account.root_hash, merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32) + 609..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641].to_vec());
+            assert_eq!(unpacked_tmp_storage_account.root_hash, merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32) + 610..((merkle_tree_pda_after.current_root_index - 1) * 32) + 642].to_vec());
 
         }
     }
@@ -1141,7 +1142,7 @@ async fn deposit_should_succeed() {
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((
         &merkle_tree_pda_pubkey,
-        16657,
+        16658,
         None,
     ));
     //private key is hardcoded to have a deterministic signer as relayer
@@ -1326,7 +1327,7 @@ async fn internal_transfer_should_succeed() {
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((
         &merkle_tree_pda_pubkey,
-        16657,
+        16658,
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT.to_vec()),
     ));
     //private key is hardcoded to have a deterministic signer as relayer
@@ -1496,7 +1497,7 @@ async fn withdrawal_should_succeed() {
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((
         &merkle_tree_pda_pubkey,
-        16657,
+        16658,
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER.to_vec()),
     ));
 
@@ -1640,7 +1641,7 @@ async fn double_spend_should_not_succeed() {
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
     accounts_vector.push((
         &merkle_tree_pda_pubkey,
-        16657,
+        16658,
         Some(MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER.to_vec()),
     ));
 
@@ -1726,7 +1727,7 @@ async fn double_spend_should_not_succeed() {
         .unwrap();
 
     //assert current root is the same
-    assert_eq!(merkel_tree_pda_after.data[641 + 32..673 + 32], merkle_tree_pda_before.data[641 + 32..673 + 32]);
+    assert_eq!(merkel_tree_pda_after.data[642 + 32..673 + 32], merkle_tree_pda_before.data[642 + 32..673 + 32]);
     //assert root index did not increase
 
     //checking that no leaves were inserted
@@ -1771,7 +1772,7 @@ async fn compute_prepared_inputs_should_succeed() {
     let prepared_inputs_ref = get_ref_value("prepared_inputs");
 
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -1992,7 +1993,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
     let mut accounts_vector = Vec::new();
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
 
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
@@ -2117,7 +2118,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
     let mut accounts_vector = Vec::new();
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
 
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
@@ -2247,7 +2248,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
     let mut accounts_vector = Vec::new();
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
 
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
@@ -2389,7 +2390,7 @@ async fn merkle_tree_insert_should_succeed() {
         account_state[i] = commit[i - 3804];
     }
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
     accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state.clone())));
 
     let mut program_context =
@@ -2443,7 +2444,7 @@ async fn merkle_tree_init_with_wrong_signer_should_not_succeed() {
 
     let mut account_state = vec![0u8; 3900];
         let mut accounts_vector = Vec::new();
-    accounts_vector.push((&merkle_tree_pda_pubkey, 16657, None));
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
 
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
@@ -2460,8 +2461,6 @@ async fn merkle_tree_init_with_wrong_signer_should_not_succeed() {
         )],
         Some(&signer_keypair.pubkey()),
     );
-    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
-
     program_context
         .banks_client
         .process_transaction(transaction)
@@ -2475,8 +2474,8 @@ async fn merkle_tree_init_with_wrong_signer_should_not_succeed() {
         .expect("get_account")
         .unwrap();
     assert_eq!(
-        [0u8;641],
-        merkle_tree_data.data[0..641]
+        [0u8;642],
+        merkle_tree_data.data[0..642]
     );
     //println!("initializing merkle tree success");
 

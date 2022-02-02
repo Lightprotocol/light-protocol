@@ -5,7 +5,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-
+use crate::config::MERKLE_TREE_ACCOUNT_TYPE;
 use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use arrayref::{array_ref, array_refs};
 use std::convert::TryFrom;
@@ -28,13 +28,14 @@ impl IsInitialized for MerkleTreeRoots {
 }
 
 impl Pack for MerkleTreeRoots {
-    const LEN: usize = 16657;
+    const LEN: usize = 16658;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, MerkleTreeRoots::LEN];
 
         let (
             is_initialized,
+            account_type,
             _levels,
             _filled_subtrees,
             _current_root_index,
@@ -44,12 +45,17 @@ impl Pack for MerkleTreeRoots {
             roots,
             //18137
             _unused_remainder,
-        ) = array_refs![input, 1, 8, 576, 8, 8, 8, 16000, 48];
+        ) = array_refs![input, 1, 1, 8, 576, 8, 8, 8, 16000, 48];
 
         if is_initialized[0] != 1u8 {
             msg!("Merkle Tree is not initialized");
             return Err(ProgramError::InvalidAccountData);
         }
+        if account_type[0] != MERKLE_TREE_ACCOUNT_TYPE {
+            msg!("Account is not of type Merkle tree.");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
 
         Ok(MerkleTreeRoots {
             is_initialized: true,
