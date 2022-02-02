@@ -31,14 +31,9 @@ use crate::user_account::instructions::{
     close_user_account
 };
 use crate::utils::config;
-use crate::config::PROGRAM_AUTHORITY;
+use crate::config::MERKLE_TREE_INIT_AUTHORITY;
 
-
-
-
-
-//#![cfg(all(target_arch = "bpf", not(feature = "no-entrypoint")))]
-
+#[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
 
 #[allow(clippy::clone_double_ref)]
@@ -59,7 +54,7 @@ pub fn process_instruction(
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let merkle_tree_storage_acc = next_account_info(account)?;
         //check signer is program authority
-        if *signer_account.key != Pubkey::new(&PROGRAM_AUTHORITY) {
+        if *signer_account.key != Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY) {
             msg!("Signer is not program authority.");
             return Err(ProgramError::IllegalOwner);
         }
@@ -100,11 +95,11 @@ pub fn process_instruction(
 
         // Unpack the current_instruction_index.
         let tmp_storage_pda_data = InstructionIndex::unpack(&tmp_storage_pda.data.borrow());
-
         // Check whether tmp_storage_pda is initialized, if not try create and initialize.
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
-            Err(_) => {
+            Err(ProgramError::InvalidAccountData) => {
+                // will enter here the first iteration because the account does not exist
                 // Creates a tmp_storage_pda to store state while verifying the zero-knowledge proof and
                 // updating the merkle tree.
                 // All data used during computation is passed in as instruction_data with this instruction.
@@ -132,7 +127,9 @@ pub fn process_instruction(
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
-
+            Err(_) => {
+                Err(ProgramError::InvalidInstructionData)
+            }
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
                 // TODO: enforce exact instruction data length

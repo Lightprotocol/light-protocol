@@ -7,6 +7,7 @@ use solana_program::{
 };
 use std::convert::TryInto;
 use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
+use crate::IX_ORDER;
 
 #[derive(Clone)]
 pub struct ChecksAndTransferState {
@@ -174,13 +175,20 @@ impl Pack for InstructionIndex {
             current_instruction_index,
             _unused_remainder2,
         ) = array_refs![input, 1, 1, 2, 32, 176, 8, 3680];
+        msg!("is_initialized[0], {}", is_initialized[0]);
         if is_initialized[0] == 0 {
-            Err(ProgramError::InvalidAccountData)
+            Err(ProgramError::UninitializedAccount)
         } else {
-            if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
+            if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE  {
                 msg!("Wrong account type.");
                 return Err(ProgramError::InvalidAccountData);
             }
+
+            if  IX_ORDER.len() <= usize::from_le_bytes(*current_instruction_index) {
+                msg!("Computation has finished at instruction index {}.", usize::from_le_bytes(*current_instruction_index));
+                return Err(ProgramError::InvalidAccountData);
+            }
+
             Ok(InstructionIndex {
                 is_initialized: true,
                 signer_pubkey: solana_program::pubkey::Pubkey::new(signer_pubkey),
