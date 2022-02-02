@@ -278,8 +278,8 @@ pub fn create_and_check_pda<'a, 'b>(
             number_storage_bytes.try_into().unwrap(),
         )
     {
-        msg!("Account is not rent-exempt.");
-        return Err(ProgramError::InvalidInstructionData);
+        msg!("Account is not rent exempt.");
+        return Err(ProgramError::AccountNotRentExempt);
     }
     Ok(())
 }

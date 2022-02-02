@@ -15,10 +15,9 @@ pub fn initialize_user_account(
     rent: Rent,
 ) -> Result<(), ProgramError> {
     //check for rent exemption
-    //let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("Insufficient balance to initialize rent exempt user account.");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     //initialize
@@ -44,7 +43,7 @@ pub fn modify_user_account(
     let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("User account is not rent exempt, thus not active.");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     for y in data.chunks(8 + SIZE_UTXO as usize) {
@@ -81,7 +80,7 @@ pub fn close_user_account(
     //check for rent exemption
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("User account is not active.");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::AccountNotRentExempt);
     }
     //close account by draining lamports
     let dest_starting_lamports = signer.lamports();
