@@ -12,7 +12,10 @@ use arkworks_gadgets::poseidon::{
 use arkworks_gadgets::utils::{
     get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
 };
-use light_protocol_program::user_account::state::{SIZE_UTXO, UTXO_CAPACITY};
+use light_protocol_program::user_account::state::{
+    SIZE_UTXO,
+    UTXO_CAPACITY
+};
 use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestContext;
 use solana_program_test::ProgramTestError;
@@ -20,10 +23,11 @@ use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
 use std::{thread, time};
 use {
-    light_protocol_program::{process_instruction, utils::init_bytes18},
+    light_protocol_program::{process_instruction, utils::config},
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        sysvar
     },
     solana_program_test::*,
     solana_sdk::{account::Account, msg, signature::Signer, transaction::Transaction},
@@ -85,6 +89,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -127,6 +132,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -158,6 +164,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -205,6 +212,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -239,6 +247,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),
@@ -275,6 +284,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),

@@ -3,7 +3,10 @@ use ark_ff::PrimeField;
 
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::{
+    MERKLE_TREE_ACC_BYTES_ARRAY,
+    TMP_STORAGE_ACCOUNT_TYPE,
+};
 use crate::Groth16Processor;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
@@ -17,6 +20,7 @@ use solana_program::{
     program_pack::Pack,
     pubkey::Pubkey,
     sysvar::rent::Rent,
+    sysvar::Sysvar,
 };
 use std::convert::{TryFrom, TryInto};
 
@@ -26,10 +30,10 @@ pub fn check_external_amount(
 ) -> Result<(u64, u64), ProgramError> {
     let ext_amount =
         i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-    // ext_amount includes relayer_fees
-    let relayer_fees = u64::from_le_bytes(
+    // ext_amount includes relayer_fee
+    let relayer_fee = u64::from_le_bytes(
         tmp_storage_pda_data
-            .relayer_fees
+            .relayer_fee
             .clone()
             .try_into()
             .unwrap(),
@@ -51,15 +55,15 @@ pub fn check_external_amount(
         }
 
         //check amount
-        if pub_amount.0[0].checked_add(relayer_fees).unwrap() != ext_amount.try_into().unwrap() {
+        if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount.try_into().unwrap() {
             msg!(
-                "Deposit invalid external amount (relayer_fees) {} != {}",
-                pub_amount.0[0] + relayer_fees,
+                "Deposit invalid external amount (relayer_fee) {} != {}",
+                pub_amount.0[0] + relayer_fee,
                 ext_amount
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        Ok((ext_amount.try_into().unwrap(), relayer_fees))
+        Ok((ext_amount.try_into().unwrap(), relayer_fee))
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -79,19 +83,19 @@ pub fn check_external_amount(
         if field.0[0]
             != u64::try_from(-ext_amount)
                 .unwrap()
-                .checked_add(relayer_fees)
+                .checked_add(relayer_fee)
                 .unwrap()
         {
             msg!(
                 "Withdrawal invalid external amount: {} != {}",
                 pub_amount.0[0],
-                relayer_fees + u64::try_from(-ext_amount).unwrap()
+                relayer_fee + u64::try_from(-ext_amount).unwrap()
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        Ok(((-ext_amount).try_into().unwrap(), relayer_fees))
+        Ok(((-ext_amount).try_into().unwrap(), relayer_fee))
     } else if ext_amount == 0 {
-        Ok((ext_amount.try_into().unwrap(), relayer_fees))
+        Ok((ext_amount.try_into().unwrap(), relayer_fee))
     } else {
         msg!("Invalid state checking external amount.");
         Err(ProgramError::InvalidInstructionData)
@@ -152,11 +156,15 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     let signer_account = next_account_info(account)?;
     let account_main = next_account_info(account)?;
     let system_program_info = next_account_info(account)?;
+    let rent_sysvar_info = next_account_info(account)?;
+    let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
     create_and_check_pda(
         program_id,
         signer_account,
         account_main,
         system_program_info,
+        rent,
         &_instruction_data[96..128],
         &b"storage"[..],
         number_storage_bytes, //bytes
@@ -190,6 +198,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     signer_account: &'a AccountInfo<'b>,
     nullifier_account: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
+    rent: &Rent,
     _instruction_data: &[u8],
 ) -> Result<u8, ProgramError> {
     create_and_check_pda(
@@ -197,6 +206,7 @@ pub fn check_and_insert_nullifier<'a, 'b>(
         signer_account,
         nullifier_account,
         system_program,
+        rent,
         _instruction_data,
         &b"nf"[..],
         2u64, //nullifier pda length
@@ -217,6 +227,7 @@ pub fn create_and_check_pda<'a, 'b>(
     signer_account: &'a AccountInfo<'b>,
     passed_in_pda: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
+    rent: &Rent,
     _instruction_data: &[u8],
     domain_separation_seed: &[u8],
     number_storage_bytes: u64,
@@ -233,12 +244,13 @@ pub fn create_and_check_pda<'a, 'b>(
         msg!("Instruction data seed  {:?}", _instruction_data);
         return Err(ProgramError::InvalidInstructionData);
     }
-    let rent = Rent::default();
+
     let mut account_lamports = lamports;
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
+    } else {
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
     }
-    // TODO: if not rent_exempt apply min rent, currently every account is rent_exempt on devnet
     invoke_signed(
         &system_instruction::create_account(
             signer_account.key,
@@ -266,8 +278,8 @@ pub fn create_and_check_pda<'a, 'b>(
             number_storage_bytes.try_into().unwrap(),
         )
     {
-        msg!("Account is not rent-exempt.");
-        return Err(ProgramError::InvalidInstructionData);
+        msg!("Account is not rent exempt.");
+        return Err(ProgramError::AccountNotRentExempt);
     }
     Ok(())
 }
@@ -288,6 +300,7 @@ pub fn try_initialize_tmp_storage_pda(
     );
     // Initializing temporary storage pda with instruction data.
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
+    tmp_storage_pda_data.account_type = TMP_STORAGE_ACCOUNT_TYPE;
 
     let mut groth16_processor = Groth16Processor::new(
         tmp_storage_pda,
@@ -322,13 +335,14 @@ pub fn try_initialize_tmp_storage_pda(
     let relayer = _instruction_data[520..552].to_vec();
 
     // Check that relayer in integrity hash == signer.
-    if relayer != vec![0u8; 32] && *signing_address != Pubkey::new(&relayer) {
+    // In case of deposit the depositor is their own relayer
+    if *signing_address != Pubkey::new(&relayer) {
         msg!("Specified relayer is not signer.");
         return Err(ProgramError::InvalidAccountData);
     }
 
     let fee = _instruction_data[552..560].to_vec();
-    tmp_storage_pda_data.relayer_fees = fee;
+    tmp_storage_pda_data.relayer_fee = fee;
 
     let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
     tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];
@@ -346,7 +360,7 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda_data.recipient.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
-        tmp_storage_pda_data.relayer_fees.to_vec(),
+        tmp_storage_pda_data.relayer_fee.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
         merkle_tree_pda_pubkey,
     )?;
@@ -358,5 +372,6 @@ pub fn try_initialize_tmp_storage_pda(
         &tmp_storage_pda_data,
         &mut tmp_storage_pda.data.borrow_mut(),
     );
+    msg!("packed init.");
     Ok(())
 }
