@@ -14,7 +14,7 @@ use solana_program::program_error::ProgramError;
 
 // processes instructions to compute final exponentiation analogue to
 // https://docs.rs/ark-ec/0.3.0/src/ark_ec/models/bn/mod.rs.html#151-211
-// for a detailed test see tests/fe_offchain_test.rs
+// for a detailed test see tests/offchain_final_exponentiation.rs
 
 pub fn _process_instruction(
     account_struct: &mut FinalExponentiationState,
