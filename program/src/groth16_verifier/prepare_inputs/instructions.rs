@@ -6,6 +6,7 @@ use ark_ff::{
     BitIteratorBE, Fp256, One,
 };
 use ark_std::Zero;
+use solana_program::{msg, program_error::ProgramError};
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
 // Creates all i,x pairs once, then stores them in specified ranges.
@@ -13,7 +14,7 @@ use ark_std::Zero;
 // the loop behavior inside the library's implementation:
 // https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#31-33
 pub fn init_pairs_instruction(
-    public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>], // from bytes
+    public_inputs: &[ark_ff::Fp256<ark_ed_on_bn254::FqParameters>],
     i_1_range: &mut Vec<u8>,
     x_1_range: &mut Vec<u8>,
     i_2_range: &mut Vec<u8>,
@@ -31,11 +32,10 @@ pub fn init_pairs_instruction(
     g_ic_x_range: &mut Vec<u8>,
     g_ic_y_range: &mut Vec<u8>,
     g_ic_z_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     // Parses vk_gamma_abc_g1 from hard-coded file.
     // Should have 8 items if 7 public inputs are passed in since [0] will be used to initialize g_ic.
     // Called once.
-    // Inputs from bytes -- cost: 20k
     let pvk_vk_gamma_abc_g1 = vec![
         get_gamma_abc_g1_0(),
         get_gamma_abc_g1_1(),
@@ -47,13 +47,14 @@ pub fn init_pairs_instruction(
         get_gamma_abc_g1_7(),
     ];
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
-        panic!("MalformedVerifyingKey");
+        msg!("Incompatible Verifying Key");
+        return Err(ProgramError::InvalidInstructionData);
     }
 
     // inits g_ic into range.
-    let g_ic = pvk_vk_gamma_abc_g1[0].into_projective(); // 80
+    let g_ic = pvk_vk_gamma_abc_g1[0].into_projective();
 
-    parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range); // 10k
+    parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range);
 
     // Creates and parses i,x pairs into ranges.
     let mut i_vec: Vec<ark_ff::Fp256<ark_ed_on_bn254::FqParameters>> = vec![];
@@ -65,22 +66,23 @@ pub fn init_pairs_instruction(
         x_vec.push(*x);
     }
 
-    parse_fp256_ed_to_bytes(i_vec[0], i_1_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[1], i_2_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[2], i_3_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[3], i_4_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[4], i_5_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[5], i_6_range); // 3k
-    parse_fp256_ed_to_bytes(i_vec[6], i_7_range); // 3k
+    parse_fp256_ed_to_bytes(i_vec[0], i_1_range);
+    parse_fp256_ed_to_bytes(i_vec[1], i_2_range);
+    parse_fp256_ed_to_bytes(i_vec[2], i_3_range);
+    parse_fp256_ed_to_bytes(i_vec[3], i_4_range);
+    parse_fp256_ed_to_bytes(i_vec[4], i_5_range);
+    parse_fp256_ed_to_bytes(i_vec[5], i_6_range);
+    parse_fp256_ed_to_bytes(i_vec[6], i_7_range);
 
     parse_x_group_affine_to_bytes(x_vec[0], x_1_range);
-    parse_x_group_affine_to_bytes(x_vec[1], x_2_range); // 6k
-    parse_x_group_affine_to_bytes(x_vec[2], x_3_range); // 6k
-    parse_x_group_affine_to_bytes(x_vec[3], x_4_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[1], x_2_range);
+    parse_x_group_affine_to_bytes(x_vec[2], x_3_range);
+    parse_x_group_affine_to_bytes(x_vec[3], x_4_range);
 
-    parse_x_group_affine_to_bytes(x_vec[4], x_5_range); // 6k
-    parse_x_group_affine_to_bytes(x_vec[5], x_6_range); // 6k
-    parse_x_group_affine_to_bytes(x_vec[6], x_7_range); // 6k
+    parse_x_group_affine_to_bytes(x_vec[4], x_5_range);
+    parse_x_group_affine_to_bytes(x_vec[5], x_6_range);
+    parse_x_group_affine_to_bytes(x_vec[6], x_7_range);
+    Ok(())
 }
 
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
@@ -114,16 +116,16 @@ pub fn maths_instruction(
     rounds: usize,
 ) {
     // Parses res,x,i from range.
-    let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); //15k
-    let x = parse_x_group_affine_from_bytes(x_range); // 10k
-    let i = parse_fp256_ed_from_bytes(i_range); // 5k
+    let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range);
+    let x = parse_x_group_affine_from_bytes(x_range);
+    let i = parse_fp256_ed_from_bytes(i_range);
 
     // create bit: (current i,x * current index).
     // First constructs all bits of current i,x pair.
     // Must skip leading zeroes. those are random based on the inputs (i).
-    let a = i.into_repr(); // 1037
+    let a = i.into_repr();
 
-    let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a); // 58
+    let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a);
     let bits_without_leading_zeroes: Vec<bool> = bits.skip_while(|b| !b).collect();
     let skipped = 256 - bits_without_leading_zeroes.len();
 
@@ -143,14 +145,12 @@ pub fn maths_instruction(
             // Info: when refering to the library's implementation keep in mind that here:
             // res == self
             // x == other
-            res.double_in_place(); // 252 // 28145 // 28469 // 28411 // 28522 // 28306
+            res.double_in_place();
 
             if current_bit {
-                // For reference to the native implementation: res.add_assign_mixed(&x) ==> same as >
+                // For reference to the native implementation: res.add_assign_mixed(&x) ==> same as ->
                 if x.is_zero() {
-                    // cost: 0
                 } else if res.is_zero() {
-                    // cost: 162
                     let p_basefield_one = Fp256::<ark_bn254::FqParameters>::one();
                     res.x = x.x;
                     res.y = x.y;
@@ -162,16 +162,10 @@ pub fn maths_instruction(
                     let u2 = x.x * z1z1;
                     // S2 = Y2*Z1*Z1Z1
                     let s2 = (x.y * res.z) * z1z1;
-                    // cost: 16709
-
                     if res.x == u2 && res.y == s2 {
-                        // cost: 30k
-
                         // The two points are equal, so we double.
                         res.double_in_place();
                     } else {
-                        // cost: 29894
-
                         // If we're adding -a and a together, self.z becomes zero as H becomes zero.
                         // H = U2-X1
                         let h = u2 - res.x;
@@ -214,7 +208,6 @@ pub fn maths_instruction(
     }
 }
 
-//3
 // Implements: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#634-695
 pub fn maths_g_ic_instruction(
     g_ic_x_range: &mut Vec<u8>,
@@ -321,7 +314,7 @@ pub fn g_ic_into_affine_2(
     let g_ic_affine: ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupAffine::new(x, y, false);
 
-    parse_x_group_affine_to_bytes(g_ic_affine, x_1_range); // overwrite x1range w: 5066
+    parse_x_group_affine_to_bytes(g_ic_affine, x_1_range);
 }
 
 #[cfg(test)]
@@ -613,8 +606,6 @@ mod tests {
                     1,
                 );
             }
-            // reference value
-            // as per
             let res_ref = &reference_x_range.mul(reference_i_range.into_repr());
             assert!(res_ref.x != parse_fp256_from_bytes(&account_res_x_range));
             assert!(res_ref.y != parse_fp256_from_bytes(&account_res_y_range));

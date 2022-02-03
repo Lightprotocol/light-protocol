@@ -284,7 +284,7 @@ mod tests {
     use ark_std::{test_rng, One, UniformRand, Zero};
 
     #[test]
-    fn frobenius_map_test_correct() {
+    fn fe_unit_test_frobenius_map_test_correct() {
         //generating input
         for i in 1..4 {
             let mut rng = test_rng();
@@ -312,7 +312,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_cyclotomic_square_test_correct() {
+    fn fe_unit_test_custom_cyclotomic_square_test_correct() {
         //generating input
 
         let mut rng = test_rng();
@@ -337,7 +337,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_cyclotomic_square_test_fails() {
+    fn fe_unit_test_custom_cyclotomic_square_test_fails() {
         //generating input
         let mut rng = test_rng();
         let mut reference_f =
@@ -361,7 +361,7 @@ mod tests {
     }
 
     #[test]
-    fn conjugate_test_correct() {
+    fn fe_unit_test_conjugate_test_correct() {
         //generating input
 
         let mut rng = test_rng();
@@ -384,7 +384,7 @@ mod tests {
     }
 
     #[test]
-    fn conjugate_test_fails() {
+    fn fe_unit_test_conjugate_test_fails() {
         //generating input
 
         let mut rng = test_rng();
@@ -411,7 +411,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_inverse_test_correct() {
+    fn fe_unit_test_custom_inverse_test_correct() {
         let mut rng = test_rng();
         let mut reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
@@ -510,7 +510,7 @@ mod tests {
     }
 
     #[test]
-    fn custom_inverse_test_fails() {
+    fn fe_unit_test_custom_inverse_test_fails() {
         let mut rng = test_rng();
         let mut reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
@@ -596,7 +596,7 @@ mod tests {
     }
 
     #[test]
-    fn mul_assign_test_correct() {
+    fn fe_unit_test_mul_assign_test_correct() {
         let mut rng = test_rng();
         let mut reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
@@ -635,7 +635,7 @@ mod tests {
     }
 
     #[test]
-    fn mul_assign_test_fails() {
+    fn fe_unit_test_mul_assign_test_fails() {
         let mut rng = test_rng();
         let mut reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(

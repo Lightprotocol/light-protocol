@@ -4,6 +4,7 @@ use solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
+use crate::config::USER_ACCOUNT_TYPE;
 
 pub const SIZE_UTXO: usize = 216; // stringify old: 408; // without privatekey: 256
 pub const UTXO_CAPACITY: usize = 100; // amount of utxos that can be stored in the user account at once
@@ -38,7 +39,7 @@ impl Pack for UserAccount {
         if is_initialized[0] == 0 {
             Ok(UserAccount {
                 is_initialized: true,
-                account_type: account_type[0],
+                account_type: USER_ACCOUNT_TYPE,
                 owner_pubkey: solana_program::pubkey::Pubkey::new(owner_pubkey),
                 modified_ranges: Vec::new(),
                 enc_utxos: enc_utxos.to_vec(),
