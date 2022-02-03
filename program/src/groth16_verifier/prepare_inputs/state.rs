@@ -14,7 +14,7 @@ pub struct PrepareInputsState {
     pub account_type: u8,
     pub merkle_tree_index: u8,
     pub signing_address: Vec<u8>, // is relayer address
-    pub relayer_fees: Vec<u8>,
+    pub relayer_fee: Vec<u8>,
     pub recipient: Vec<u8>,
     pub amount: Vec<u8>,
     pub nullifier_hash: Vec<u8>,
@@ -68,7 +68,7 @@ impl Pack for PrepareInputsState {
             found_root,
             merkle_tree_index,
             signing_address, // is relayer address
-            relayer_fees,
+            relayer_fee,
             recipient,
             amount,
             nullifier_hash,
@@ -115,7 +115,7 @@ impl Pack for PrepareInputsState {
             account_type: account_type[0],           //1
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
-            relayer_fees: relayer_fees.to_vec(),           //4
+            relayer_fee: relayer_fee.to_vec(),           //4
             recipient: recipient.to_vec(),                 //5
             amount: amount.to_vec(),                       //6
             nullifier_hash: nullifier_hash.to_vec(),       //7
@@ -160,7 +160,7 @@ impl Pack for PrepareInputsState {
             found_root_dst,
             merkle_tree_index_dst,
             signing_address_dst, // is relayer address
-            relayer_fees_dst,
+            relayer_fee_dst,
             recipient_dst,
             amount_dst,
             nullifier_hash_dst,
@@ -253,7 +253,7 @@ impl Pack for PrepareInputsState {
                 } else if i == 3 {
                     *signing_address_dst = self.signing_address.clone().try_into().unwrap();
                 } else if i == 4 {
-                    *relayer_fees_dst = self.relayer_fees.clone().try_into().unwrap();
+                    *relayer_fee_dst = self.relayer_fee.clone().try_into().unwrap();
                 } else if i == 5 {
                     *recipient_dst = self.recipient.clone().try_into().unwrap();
                 } else if i == 6 {

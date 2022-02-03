@@ -30,10 +30,10 @@ pub fn check_external_amount(
 ) -> Result<(u64, u64), ProgramError> {
     let ext_amount =
         i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-    // ext_amount includes relayer_fees
-    let relayer_fees = u64::from_le_bytes(
+    // ext_amount includes relayer_fee
+    let relayer_fee = u64::from_le_bytes(
         tmp_storage_pda_data
-            .relayer_fees
+            .relayer_fee
             .clone()
             .try_into()
             .unwrap(),
@@ -55,15 +55,15 @@ pub fn check_external_amount(
         }
 
         //check amount
-        if pub_amount.0[0].checked_add(relayer_fees).unwrap() != ext_amount.try_into().unwrap() {
+        if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount.try_into().unwrap() {
             msg!(
-                "Deposit invalid external amount (relayer_fees) {} != {}",
-                pub_amount.0[0] + relayer_fees,
+                "Deposit invalid external amount (relayer_fee) {} != {}",
+                pub_amount.0[0] + relayer_fee,
                 ext_amount
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        Ok((ext_amount.try_into().unwrap(), relayer_fees))
+        Ok((ext_amount.try_into().unwrap(), relayer_fee))
     } else if ext_amount < 0 {
         // calculate ext_amount from pubAmount:
         let mut field = FqParameters::MODULUS;
@@ -83,19 +83,19 @@ pub fn check_external_amount(
         if field.0[0]
             != u64::try_from(-ext_amount)
                 .unwrap()
-                .checked_add(relayer_fees)
+                .checked_add(relayer_fee)
                 .unwrap()
         {
             msg!(
                 "Withdrawal invalid external amount: {} != {}",
                 pub_amount.0[0],
-                relayer_fees + u64::try_from(-ext_amount).unwrap()
+                relayer_fee + u64::try_from(-ext_amount).unwrap()
             );
             return Err(ProgramError::InvalidInstructionData);
         }
-        Ok(((-ext_amount).try_into().unwrap(), relayer_fees))
+        Ok(((-ext_amount).try_into().unwrap(), relayer_fee))
     } else if ext_amount == 0 {
-        Ok((ext_amount.try_into().unwrap(), relayer_fees))
+        Ok((ext_amount.try_into().unwrap(), relayer_fee))
     } else {
         msg!("Invalid state checking external amount.");
         Err(ProgramError::InvalidInstructionData)
@@ -342,7 +342,7 @@ pub fn try_initialize_tmp_storage_pda(
     }
 
     let fee = _instruction_data[552..560].to_vec();
-    tmp_storage_pda_data.relayer_fees = fee;
+    tmp_storage_pda_data.relayer_fee = fee;
 
     let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
     tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];
@@ -360,7 +360,7 @@ pub fn try_initialize_tmp_storage_pda(
         tmp_storage_pda_data.recipient.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
-        tmp_storage_pda_data.relayer_fees.to_vec(),
+        tmp_storage_pda_data.relayer_fee.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
         merkle_tree_pda_pubkey,
     )?;

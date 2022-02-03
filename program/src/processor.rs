@@ -145,16 +145,16 @@ pub fn process_instruction(
             "nullifier1_pda inserted: {}",
             tmp_storage_pda_data.account_type
         );
-        let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
+        let (pub_amount_checked, relayer_fee) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         msg!(
-            "ext_amount != tmp_storage_pda_data.relayer_fees: {} != {}",
+            "ext_amount != tmp_storage_pda_data.relayer_fee: {} != {}",
             ext_amount,
-            relayer_fees
+            relayer_fee
         );
 
-        if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
+        if relayer_fee != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             let user_pda_token = next_account_info(account)?;
 
             if ext_amount > 0 {
@@ -188,7 +188,7 @@ pub fn process_instruction(
             }
         }
 
-        if relayer_fees > 0 {
+        if relayer_fee > 0 {
             if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
                 msg!("Wrong relayer.");
                 return Err(ProgramError::InvalidArgument);
@@ -202,7 +202,7 @@ pub fn process_instruction(
                 authority,
                 &authority_seed[..],
                 &[authority_bump_seed],
-                relayer_fees,
+                relayer_fee,
             )?;
         }
 
