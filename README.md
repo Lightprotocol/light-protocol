@@ -6,9 +6,34 @@
 - cargo test-bpf deposit_should_succeed
 - cargo test-bpf withdrawal_should_succeed
 
+Run tests selectively test-bpf crashes sometimes if tests run in parallel.
+
+
+## Security Claims
+- data insertion only at the beginning of a transaction
+- relayers cannot tamper with any part of the transaction data
+- Utxos can only be spend once
+
+## Checks Tornado
+- root test covered
+- nullifiers test covered
+- data hash test covered
+- public amount kinda covered by the data hash
+- proof is valid test covered
+
+## Checks Light Protocol
+- every account input has to be checked except the relayer token account, user token account deposit
+  - recipient
+  - merkle tree
+  - signer
+  - user token account withdrawal
+  -
+-
+
+
 ## General Description
 
-The Light Protocol program verifies zkSNARK proofs to enable anonymous transactions on Solana. 
+The Light Protocol program verifies zkSNARK proofs to enable anonymous transactions on Solana.
 
 An SDK will follow soon. Developers will be able to build solana-based programs on top of private transactions.
 If you're a developer interested in using or integrating with the program, reach out to us: [Discord community](https://discord.gg/WDAAaX6je2)  /  [Twitter](https://twitter.com/LightProtocol)
