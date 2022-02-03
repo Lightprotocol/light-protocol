@@ -5,27 +5,20 @@ pub mod tests {
     use crate::test_utils::tests::{get_vk_from_file, read_test_data};
     use ark_bn254;
     use ark_bn254::Fr;
-    use ark_std::vec::Vec;
-
-    use ark_ff::Fp12;
-    use serde_json::{Result, Value};
-    use std::fs;
-
-    use ark_ff::bytes::FromBytes;
-    use ark_ff::Fp256;
-    use ark_ff::QuadExtField;
-    use ark_groth16::prepare_verifying_key;
-    use ark_groth16::{prepare_inputs, verify_proof};
-
     use ark_ec;
     use ark_ec::ProjectiveCurve;
+    use ark_ff::bytes::FromBytes;
     use ark_ff::Field;
+    use ark_ff::Fp12;
+    use ark_groth16::prepare_verifying_key;
+    use ark_groth16::{prepare_inputs, verify_proof};
+    use ark_std::vec::Vec;
     use light_protocol_program::groth16_verifier::final_exponentiation::{
         instructions::*, processor::_process_instruction, ranges::*,
         state::FinalExponentiationState,
     };
     use light_protocol_program::groth16_verifier::parsers::*;
-    use light_protocol_program::utils::prepared_verifying_key::*;
+    use serde_json::Result;
     use solana_program::program_pack::Pack;
     pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15,

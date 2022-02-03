@@ -1,24 +1,6 @@
 /program/target
-/program/dist/program/light_protocol_program.so
-/program/node_modules
-/program/test-ledger
-/program/run.sh
-# /program/Cargo.lock
-
-*/node_modules/*
-/Client\-Js/node_modules/*
-/Client\-Js/src/webassembly_bg.wasm
-/Client\-Js/src/webassembly.js
-Client-Js/node_modules/*
-/Client\-Js/webassembly/target
-
-/target
-/test-ledger
-/program_prep_inputs/target
-/program_prep_inputs/dist/Prepare_Inputs.so
-/test_scripts/*.txt
-/Client\-Js/.env
-/Client\-Js/package-lock.json
-*/*.so
+/program/Cargo.lock
 */.coderrect
 /program/dist/program/*.so
+*/*.so
+*/test-ledger
