@@ -38,12 +38,14 @@ pub struct MerkleTreeProcessor<'a, 'b> {
     merkle_tree_pda: Option<&'a AccountInfo<'b>>,
     tmp_storage_pda: Option<&'a AccountInfo<'b>>,
     unpacked_merkle_tree: MerkleTree,
+    program_id: Pubkey,
 }
 
 impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     pub fn new(
         tmp_storage_pda: Option<&'a AccountInfo<'b>>,
         merkle_tree_pda: Option<&'a AccountInfo<'b>>,
+        program_id: Pubkey,
     ) -> Result<Self, ProgramError> {
         let empty_smt = MerkleTree {
             is_initialized: false,
@@ -66,6 +68,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             merkle_tree_pda,
             tmp_storage_pda,
             unpacked_merkle_tree: empty_smt,
+            program_id
         })
     }
 
@@ -112,7 +115,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
 
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index, *merkle_tree_pda.owner, self.program_id)?;
             pubkey_check(
                 *signer.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
@@ -162,7 +165,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
             }
 
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index, *merkle_tree_pda.owner, self.program_id)?;
             MerkleTree::pack_into_slice(
                 &merkle_tree_pda_data,
                 &mut merkle_tree_pda.data.borrow_mut(),
@@ -173,7 +176,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_3
         {
             let merkle_tree_pda = next_account_info(account)?;
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index,*merkle_tree_pda.owner, self.program_id)?;
             //hash instructions do not need the merkle tree
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index],
@@ -205,7 +208,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 String::from("Merkle tree locked by other account."),
             )?;
             //checking merkle tree pubkey for consistency
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index)?;
+            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index,*merkle_tree_pda.owner, self.program_id)?;
 
             //insert root into merkle tree
             insert_last_double(&mut merkle_tree_pda_data, &mut tmp_storage_pda_data)?;
@@ -296,6 +299,8 @@ pub fn _process_instruction(
 fn merkle_tree_pubkey_check(
     account_pubkey: Pubkey,
     merkle_tree_index: u8,
+    merkle_tree_pda_owner: Pubkey,
+    program_id: Pubkey,
 ) -> Result<(), ProgramError> {
     if account_pubkey
         != solana_program::pubkey::Pubkey::new(
@@ -314,6 +319,10 @@ fn merkle_tree_pubkey_check(
             )
         );
         return Err(ProgramError::InvalidAccountData);
+    }
+    if merkle_tree_pda_owner != program_id {
+        msg!("Invalid merkle tree owner.");
+        return Err(ProgramError::IllegalOwner);
     }
     Ok(())
 }

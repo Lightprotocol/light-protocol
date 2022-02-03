@@ -57,7 +57,7 @@ pub fn process_instruction(
             return Err(ProgramError::IllegalOwner);
         }
         let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
+            MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc), *program_id)?;
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])
     }
@@ -193,7 +193,7 @@ pub fn process_instruction(
                         >= VERIFICATION_END_INDEX
                     {
                         let mut merkle_tree_processor =
-                            MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+                            MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
                         merkle_tree_processor.process_instruction(accounts)?;
                         Ok(())
                     } else {

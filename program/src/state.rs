@@ -180,7 +180,7 @@ impl Pack for InstructionIndex {
             Err(ProgramError::UninitializedAccount)
         } else {
             if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE  {
-                msg!("Wrong account type.");
+                msg!("Wrong account type tmp storage.");
                 return Err(ProgramError::InvalidAccountData);
             }
 

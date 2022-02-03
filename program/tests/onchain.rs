@@ -6,16 +6,12 @@ mod merkle_tree_account_data_after_deposit;
 mod merkle_tree_account_data_after_transfer;
 use crate::merkle_tree_account_data_after_deposit::merkle_tree_account_data_after_deposit::MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT;
 use crate::merkle_tree_account_data_after_transfer::merkle_tree_account_data_after_transfer::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
-//use crate::merkle_tree_account_data_after_deposit::MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT;
-//use crate::merkle_tree_account_data_after_transaction::merkle_tree_account_data_after_transaction::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
-// };
+
 use crate::tokio::time::timeout;
 use ark_ec::ProjectiveCurve;
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::Fp256;
-use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
-use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
+use ark_groth16::{prepare_inputs, prepare_verifying_key};
 use light_protocol_program::utils::{config, prepared_verifying_key::*};
+use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
 use std::fs::File;
 use std::io::Write;
 
@@ -25,17 +21,15 @@ use light_protocol_program::{
         final_exponentiation::state::FinalExponentiationState, miller_loop::state::*, parsers::*,
         prepare_inputs::state::PrepareInputsState,
     },
-    process_instruction,
     state::ChecksAndTransferState,
     utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
     IX_ORDER,
 };
 
-use serde_json::{Result, Value};
-use solana_program::bpf_loader::id;
+use serde_json::Result;
 use solana_program_test::ProgramTestContext;
 use std::convert::TryInto;
-use std::{fs, time};
+use std::time;
 use {
     solana_program::{
         instruction::{AccountMeta, Instruction},
@@ -44,7 +38,7 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{
-        account::Account, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
+        signature::Signer, signer::keypair::Keypair, transaction::Transaction,
     },
     std::str::FromStr,
 };
@@ -53,11 +47,9 @@ use ark_bn254::Fq;
 use ark_ff::BigInteger;
 use ark_ff::PrimeField;
 use ark_std::{test_rng, UniformRand};
-use arrayref::{array_ref, array_refs};
 use light_protocol_program::poseidon_merkle_tree::state::MerkleTree;
 use solana_program::program_pack::Pack;
 use solana_sdk::account::WritableAccount;
-use solana_sdk::stake_history::Epoch;
 
 // is necessary to have a consistent signer and relayer otherwise transactions would get rejected
 const PRIVATE_KEY: [u8; 64] = [
@@ -115,7 +107,7 @@ async fn compute_prepared_inputs(
                     println!("retries_left {}", retries_left);
                     retries_left -= 1;
 
-                    let mut program_context = restart_program(
+                    let program_context = restart_program(
                         accounts_vector,
                         None,
                         &program_id,
@@ -211,7 +203,7 @@ async fn compute_final_exponentiation(
     for instruction_id in INSTRUCTION_ORDER_VERIFIER_PART_2 {
         let mut success = false;
         let mut retries_left = 2;
-        while (retries_left > 0 && success != true) {
+        while retries_left > 0 && success != true {
             println!("success: {}", success);
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
@@ -342,7 +334,7 @@ pub async fn update_merkle_tree(
         let instruction_data: Vec<u8> = vec![0, i as u8];
         let mut success = false;
         let mut retries_left = 2;
-        while (retries_left > 0 && success != true) {
+        while retries_left > 0 && success != true {
             let mut transaction = Transaction::new_with_payer(
                 &[Instruction::new_with_bincode(
                     *program_id,
@@ -1825,8 +1817,8 @@ async fn double_spend_should_not_succeed() {
 
     //assert current root is the same
     assert_eq!(
-        merkel_tree_pda_after.data[641 + 32..673 + 32],
-        merkle_tree_pda_before.data[641 + 32..673 + 32]
+        merkel_tree_pda_after.data[642 + 32..674 + 32],
+        merkle_tree_pda_before.data[642 + 32..674 + 32]
     );
     //assert root index did not increase
 
@@ -2014,6 +2006,7 @@ async fn compute_prepared_inputs_should_succeed() {
                 AccountMeta::new(signer_pubkey, true),
                 AccountMeta::new(tmp_storage_pda_pubkey, false),
                 AccountMeta::new(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_pubkey),
@@ -2876,6 +2869,7 @@ async fn merkle_tree_insert_should_succeed() {
         account_state[i] = x[i - 212];
     }
     account_state[0] = 1;
+    account_state[1] = 1;
     // We need to set the signer since otherwise the signer check fails on-chain
     let signer_pubkey_bytes = signer_keypair.to_bytes();
     for (index, i) in signer_pubkey_bytes[32..].iter().enumerate() {

@@ -216,20 +216,15 @@ pub fn permute_custom_split(
 mod tests {
     use super::*;
     use crate::poseidon_merkle_tree::state::TmpStoragePda;
-    use ark_ff::{BigInteger, Field, Fp256, FpParameters, PrimeField};
-    use ark_std::One;
+    use ark_ff::{BigInteger, Fp256, PrimeField};
     use ark_std::{test_rng, UniformRand};
     use arkworks_gadgets::poseidon::circom::CircomCRH;
-    use arkworks_gadgets::utils;
 
     use arkworks_gadgets::utils::{
-        get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
+        get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3,
     };
 
-    use ark_crypto_primitives::{
-        crh::{TwoToOneCRH, CRH},
-        Error,
-    };
+    use ark_crypto_primitives::crh::TwoToOneCRH;
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
 
@@ -244,7 +239,7 @@ mod tests {
                 &mut account_struct.current_round_index,
                 &account_struct.left,
                 &account_struct.right,
-            );
+            ).unwrap();
         } else if id == 1 {
             permute_instruction_6(
                 &mut account_struct.state,
@@ -256,13 +251,13 @@ mod tests {
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            );
+            ).unwrap();
         } else if id == 3 {
             permute_instruction_last(
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            );
+            ).unwrap();
         }
     }
 
@@ -272,7 +267,7 @@ mod tests {
         let mds = get_mds_poseidon_circom_bn254_x5_3::<Fq>();
         let params = PoseidonParameters::<Fq>::new(rounds, mds);
         //perform the test 1000x
-        for j in 0..1000 {
+        for _j in 0..1000 {
             //generating random test input
             let mut rng = test_rng();
             let left_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng)
@@ -289,7 +284,7 @@ mod tests {
 
             //parsing reference hash to bytes
             let mut out_bytes = [0u8; 32];
-            <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]);
+            <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]).unwrap();
 
             //initing struct which similates onchain account for instructions
             let mut account_struct = TmpStoragePda {
@@ -340,7 +335,7 @@ mod tests {
 
             //parsing reference hash to bytes
             let mut out_bytes = [0u8; 32];
-            <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]);
+            <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]).unwrap();
 
             //generating different random test input for second hash
             let right_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng)
@@ -372,74 +367,4 @@ mod tests {
             assert!(out_bytes.to_vec() != account_struct.state[0]);
         }
     }
-
-    // #[tokio::test]
-    // async fn test_poseidon_hash_onchain() {
-    //     let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
-    //
-    //     let storage_pubkey = Pubkey::new_unique();
-    //     let mut program_test = ProgramTest::new(
-    //         "Testing_Hardcoded_Params",
-    //         program_id,
-    //         processor!(process_instruction),
-    //     );
-    //
-    //     program_test.add_account(
-    //         storage_pubkey,
-    //         Account::new(5000000000, 121, &program_id),
-    //     );
-    //     let (mut banks_client, payer, recent_blockhash) = program_test.start().await;
-    //
-    //     let mut rng = test_rng();
-    //     let left_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
-    //     let right_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng).into_repr().to_bytes_le();
-    //
-    //     for i in 0..12 {
-    //
-    //         let mut transaction = Transaction::new_with_payer(
-    //             &[Instruction::new_with_bincode(
-    //                 program_id,
-    //                 &[left_input.clone(), right_input.clone(), [i as u8].to_vec() ].concat(),
-    //                 vec![
-    //                     AccountMeta::new(payer.pubkey(),true),
-    //                     AccountMeta::new(storage_pubkey, false),
-    //                 ],
-    //             )],
-    //             Some(&payer.pubkey()),
-    //         );
-    //         transaction.sign(&[&payer], recent_blockhash);
-    //
-    //         banks_client.process_transaction(transaction).await.unwrap();
-    //
-    //     }
-    //     let storage_account = banks_client
-    //         .get_account(storage_pubkey)
-    //         .await
-    //         .expect("get_account").unwrap();
-    //     let mut unpacked_data = vec![0u8;121];
-    //
-    //     unpacked_data = storage_account.data.clone();
-    //
-    //     for i in 1..33 {
-    //         print!("{}, ",unpacked_data[i]);
-    //     }
-    //     println!("Len data: {}", storage_account.data.len());
-    //
-    //     let poseidon_hash_ref = get_poseidon_ref_hash(&left_input[..], &right_input[..]);
-    //
-    //     assert_eq!(unpacked_data[1..33], poseidon_hash_ref);
-    //
-    //     //let data = <PoseidonHashMemory as Pack>::unpack_from_slice(&unpacked_data).unwrap();
-    //
-    //     // let storage_account = banks_client
-    //     //     .get_packed_account_data::<PoseidonHashMemory>(storage_pubkey)
-    //     //     .await
-    //     //     .expect("get_packed_account_data");
-    //     //println!("{:?}",unpacked_data[1..33]);
-    //     // let storage_account = banks_client
-    //     //     .get_packed_account_data::<Testing_Hardcoded_Params::PoseidonHashMemory>(storage_pubkey)
-    //     //     .await
-    //     //     .expect("get_packed_account_data");
-    //     // //let data = Testing_Hardcoded_Params::PoseidonHashMemory::unpack(&storage_account.data).unwrap();
-    // }
 }
