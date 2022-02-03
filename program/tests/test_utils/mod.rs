@@ -1,4 +1,5 @@
 #[cfg(test)]
+#[allow(dead_code)]
 pub mod tests {
     use ark_bn254;
     use ark_ed_on_bn254;
