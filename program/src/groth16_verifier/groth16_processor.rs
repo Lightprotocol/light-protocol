@@ -71,7 +71,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             IX_ORDER[current_instruction_index],
             &mut account_data,
             usize::from(CURRENT_INDEX_ARRAY[current_instruction_index - 1]),
-        );
+        )?;
 
         account_data.current_instruction_index += 1;
         PrepareInputsState::pack_into_slice(
@@ -115,7 +115,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             miller_loop::processor::move_proofs(
                 &mut main_account_data,
                 &account_prepare_inputs_data,
-            );
+            )?;
 
             parse_fp256_to_bytes(p2.0.x, &mut main_account_data.p_2_x_range);
             parse_fp256_to_bytes(p2.0.y, &mut main_account_data.p_2_y_range);
@@ -135,7 +135,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
             miller_loop::processor::_process_instruction(
                 IX_ORDER[main_account_data.current_instruction_index],
                 &mut main_account_data,
-            );
+            )?;
             main_account_data.current_instruction_index += 1;
 
             MillerLoopState::pack_into_slice(

@@ -5,6 +5,7 @@ use ark_ec::{
     models::bn::{BnParameters, TwistType},
     SWModelParameters,
 };
+use solana_program::program_error::ProgramError;
 use ark_ff::{
     fields::{
         models::{
@@ -28,7 +29,7 @@ pub fn doubling_step(
     coeff_0_range: &mut Vec<u8>,
     coeff_1_range: &mut Vec<u8>,
     coeff_2_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     // step 0
     let mut r = parse_r_from_bytes(r_bytes);
     let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
@@ -72,6 +73,7 @@ pub fn doubling_step(
             parse_quad_to_bytes(i, coeff_2_range),
         ),
     };
+    Ok(())
 }
 
 // https://docs.rs/ark-ec/0.3.0/src/ark_ec/models/bn/g2.rs.html#168-191
@@ -82,7 +84,7 @@ pub fn addition_step<B: BnParameters>(
     r_bytes: &mut Vec<u8>,
     proof_bytes: &Vec<u8>,
     computation_flag: &str,
-) {
+) -> Result<(), ProgramError> {
     let mut q = parse_proof_b_from_bytes(proof_bytes);
 
     let twist_mul_by_q_x = ark_bn254::Parameters::TWIST_MUL_BY_Q_X;
@@ -144,9 +146,10 @@ pub fn addition_step<B: BnParameters>(
             parse_quad_to_bytes(j, coeff_2_range),
         ),
     };
+    Ok(())
 }
 
-pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) {
+pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) -> Result<(), ProgramError> {
     let proof_b = parse_proof_b_from_bytes(proof_range);
     let r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters> =
         ark_ec::models::bn::g2::G2HomProjective {
@@ -155,9 +158,10 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) {
             z: Fp2::one(),
         };
     parse_r_to_bytes(r, r_range);
+    Ok(())
 }
 
-pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
+pub fn square_in_place_instruction(f_range: &mut Vec<u8>) -> Result<(), ProgramError> {
     let f = parse_f_from_bytes(f_range); // cost: 30k
 
     let mut v0 = f.c0 - f.c1; // cost: <1k
@@ -173,6 +177,7 @@ pub fn square_in_place_instruction(f_range: &mut Vec<u8>) {
     // cost: 2k
     parse_cubic_to_bytes_sub(c0, f_range, C0_SUB_RANGE); // cost: 8k
     parse_cubic_to_bytes_sub(c1, f_range, C1_SUB_RANGE); // cost: 8k
+    Ok(())
 }
 
 pub fn ell_instruction_d(
@@ -183,7 +188,7 @@ pub fn ell_instruction_d(
     coeff_2_range: &Vec<u8>,
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let coeff_2 = parse_quad_from_bytes(coeff_2_range); //
     let mut coeff_1 = parse_quad_from_bytes(coeff_1_range); // this the same
     let mut coeff_0 = parse_quad_from_bytes(coeff_0_range); //
@@ -215,6 +220,7 @@ pub fn ell_instruction_d(
     f.c1 = e - (a + b); // cost: -
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
     parse_f_to_bytes(f, f_range); // cost: 15k
+    Ok(())
 }
 
 pub fn ell_instruction_d_c2(
@@ -222,7 +228,7 @@ pub fn ell_instruction_d_c2(
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
     current_coeff_2_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let id = current_coeff_2_range[0];
 
     let mut coeff: (
@@ -461,15 +467,15 @@ pub fn ell_instruction_d_c2(
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
 
     parse_f_to_bytes(f, f_range); // cost: 15k
+    Ok(())
 }
 
 pub fn ell_instruction_d_c3(
-    // ix: 69
     f_range: &mut Vec<u8>,
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
     current_coeff_3_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let id = current_coeff_3_range[0];
     let mut coeff: (
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -706,6 +712,7 @@ pub fn ell_instruction_d_c3(
     f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
 
     parse_f_to_bytes(f, f_range); // cost: 15k
+    Ok(())
 }
 
 #[cfg(test)]
@@ -774,7 +781,8 @@ mod tests {
                 &mut account_coeff_0_range,
                 &mut account_coeff_1_range,
                 &mut account_coeff_2_range,
-            );
+            )
+            .unwrap();
             // reference value
             let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
                 .double()
@@ -850,7 +858,8 @@ mod tests {
                 &mut account_coeff_0_range,
                 &mut account_coeff_1_range,
                 &mut account_coeff_2_range,
-            );
+            )
+            .unwrap();
             // reference value
             let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
                 .double()
@@ -930,7 +939,8 @@ mod tests {
                 &mut account_r_range,
                 &account_proof_b_range,
                 "normal",
-            );
+            )
+            .unwrap();
 
             // reference value
             ark_ec::models::bn::g2::addition_step(&mut reference_r, &reference_proof_b);
@@ -1019,7 +1029,8 @@ mod tests {
                 &mut account_r_range,
                 &account_proof_b_range,
                 "normal",
-            );
+            )
+            .unwrap();
 
             // reference value
             ark_ec::models::bn::g2::addition_step(&mut reference_r, &reference_proof_b);
@@ -1089,7 +1100,8 @@ mod tests {
                 &mut account_coeff_2_range,
                 &mut account_p_y_range,
                 &mut account_p_x_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1170,7 +1182,8 @@ mod tests {
                 &mut account_coeff_2_range,
                 &mut account_p_y_range,
                 &mut account_p_x_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1231,7 +1244,8 @@ mod tests {
                 &mut account_p_y_range,
                 &mut account_p_x_range,
                 &mut account_current_coeff_2_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1297,7 +1311,8 @@ mod tests {
                 &mut account_p_y_range,
                 &mut account_p_x_range,
                 &mut account_current_coeff_2_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1356,7 +1371,8 @@ mod tests {
                 &mut account_p_y_range,
                 &mut account_p_x_range,
                 &mut account_current_coeff_3_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1419,7 +1435,8 @@ mod tests {
                 &mut account_p_y_range,
                 &mut account_p_x_range,
                 &mut account_current_coeff_2_range,
-            );
+            )
+            .unwrap();
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
@@ -1449,7 +1466,7 @@ mod tests {
 
             parse_f_to_bytes(test_f, &mut account_f_range);
             // test instruction, mut acc
-            square_in_place_instruction(&mut account_f_range);
+            square_in_place_instruction(&mut account_f_range).unwrap();
             // reference value for comparison
             reference_f.square_in_place();
 
@@ -1477,7 +1494,7 @@ mod tests {
 
             parse_f_to_bytes(test_f, &mut account_f_range);
             // test instruction, mut acc
-            square_in_place_instruction(&mut account_f_range);
+            square_in_place_instruction(&mut account_f_range).unwrap();
             // reference value for comparison
             reference_f.square_in_place();
 

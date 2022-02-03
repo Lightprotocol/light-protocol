@@ -2,8 +2,14 @@ use crate::groth16_verifier::prepare_inputs::{
     instructions::*, ranges::*, state::PrepareInputsState,
 };
 use solana_program::msg;
+use solana_program::program_error::ProgramError;
+
 const ROUNDS: usize = 4;
-pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_index: usize) {
+pub fn _process_instruction(
+    id: u8,
+    account: &mut PrepareInputsState,
+    current_index: usize,
+) -> Result<(), ProgramError> {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
     msg!("instruction: {:?}", id);
 
@@ -12,7 +18,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &mut account.res_x_range,
             &mut account.res_y_range,
             &mut account.res_z_range,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -26,7 +32,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_1_range,
             current_index,
             ROUNDS,
-        ); // 1 of 256
+        )?; // 1 of 256
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -40,7 +46,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_2_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -54,7 +60,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_3_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -68,7 +74,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_4_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -81,7 +87,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.res_x_range,
             &account.res_y_range,
             &account.res_z_range,
-        );
+        )?;
         let indices = [G_IC_X_RANGE_INDEX, G_IC_Y_RANGE_INDEX, G_IC_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -91,7 +97,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &mut account.g_ic_x_range,
             &mut account.g_ic_y_range,
             &mut account.g_ic_z_range, // only one changing
-        );
+        )?;
         let indices = [G_IC_X_RANGE_INDEX, G_IC_Y_RANGE_INDEX, G_IC_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -102,7 +108,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.g_ic_y_range,
             &account.g_ic_z_range,
             &mut account.x_1_range,
-        );
+        )?;
         let indices = [X_1_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -116,7 +122,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_5_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -130,7 +136,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_6_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
@@ -144,12 +150,13 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.x_7_range,
             current_index,
             ROUNDS,
-        );
+        )?;
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
             account.changed_variables[*i] = true;
         }
     }
+    Ok(())
 }
 
 // All 1809 instructions will be called in a fixed order. This should provide some safety.
