@@ -6,6 +6,7 @@ use crate::groth16_verifier::{
     parsers::parse_x_group_affine_from_bytes,
     prepare_inputs::state::*,
 };
+use solana_program::program_error::ProgramError;
 
 // Reads: proof.a, proof.c, proof.b from prepare_inputs account and initializes
 // them as p1 (proof.a), p3 (proof.c) and proof_b (coeff1) in the miller_loop account.
@@ -13,7 +14,7 @@ use crate::groth16_verifier::{
 pub fn move_proofs(
     account_main_data: &mut MillerLoopState,
     account_prepare_inputs_data: &PrepareInputsState,
-) {
+) -> Result<(), ProgramError> {
     let proof_a = parse_x_group_affine_from_bytes(
         &account_prepare_inputs_data.proof_a_b_c_leaves_and_nullifiers[..64].to_vec(),
     );
@@ -44,18 +45,22 @@ pub fn move_proofs(
     account_main_data.changed_variables[P_3_Y_RANGE_INDEX] = true;
     account_main_data.changed_variables[P_3_X_RANGE_INDEX] = true;
     account_main_data.changed_variables[F_RANGE_INDEX] = true;
+    Ok(())
 }
 
-pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
+pub fn _process_instruction(
+    id: u8,
+    account_main: &mut MillerLoopState,
+) -> Result<(), ProgramError> {
     if id == 2 {
         // Turns proof.b into type G2HomProjective and stores in r_range.
         // Called once at the beginning.
-        init_coeffs1(&mut account_main.r, &mut account_main.proof_b);
+        init_coeffs1(&mut account_main.r, &mut account_main.proof_b)?;
         // Only changed_variables/ranges will be packed by our custom pack function to save compute budget.
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[PROOF_B_INDEX] = true;
     } else if id == 3 {
-        square_in_place_instruction(&mut account_main.f_range);
+        square_in_place_instruction(&mut account_main.f_range)?;
         account_main.changed_variables[F_RANGE_INDEX] = true;
     }
     // The following three ix calls (4 and 5 and 6) each execute the same ELL loop.
@@ -72,7 +77,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &account_main.coeff_2_range,
             &account_main.p_1_y_range,
             &account_main.p_1_x_range,
-        );
+        )?;
         account_main.changed_variables[F_RANGE_INDEX] = true;
     } else if id == 5 {
         // This ix (5) as well as ix 6 work a little differently than ix 4. That's because here the ell loop derives
@@ -83,7 +88,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &account_main.p_2_y_range,
             &account_main.p_2_x_range,
             &mut account_main.current_coeff_2_range,
-        );
+        )?;
         account_main.changed_variables[F_RANGE_INDEX] = true;
         account_main.changed_variables[CURRENT_COEFF_2_RANGE_INDEX] = true;
     } else if id == 6 {
@@ -93,7 +98,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &account_main.p_3_y_range,
             &account_main.p_3_x_range,
             &mut account_main.current_coeff_3_range,
-        );
+        )?;
         account_main.changed_variables[F_RANGE_INDEX] = true;
         account_main.changed_variables[CURRENT_COEFF_3_RANGE_INDEX] = true;
     } else if id == 7 {
@@ -102,7 +107,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &mut account_main.coeff_0_range,
             &mut account_main.coeff_1_range,
             &mut account_main.coeff_2_range,
-        );
+        )?;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
@@ -119,7 +124,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &mut account_main.r,
             &account_main.proof_b,
             "normal",
-        );
+        )?;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
@@ -132,7 +137,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &mut account_main.r,
             &account_main.proof_b,
             "negq",
-        );
+        )?;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
@@ -145,7 +150,7 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &mut account_main.r,
             &account_main.proof_b,
             "q1",
-        );
+        )?;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
@@ -158,10 +163,11 @@ pub fn _process_instruction(id: u8, account_main: &mut MillerLoopState) {
             &mut account_main.r,
             &account_main.proof_b,
             "q2",
-        );
+        )?;
         account_main.changed_variables[R_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_0_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_1_RANGE_INDEX] = true;
         account_main.changed_variables[COEFF_2_RANGE_INDEX] = true;
     }
+    Ok(())
 }

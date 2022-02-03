@@ -92,11 +92,12 @@ pub fn init_res_instruction(
     res_x_range: &mut Vec<u8>,
     res_y_range: &mut Vec<u8>,
     res_z_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // 88
 
     parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
+    Ok(())
 }
 
 // Represents: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#161-164
@@ -114,7 +115,7 @@ pub fn maths_instruction(
     x_range: &Vec<u8>,
     current_index: usize,
     rounds: usize,
-) {
+) -> Result<(), ProgramError> {
     // Parses res,x,i from range.
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range);
     let x = parse_x_group_affine_from_bytes(x_range);
@@ -206,6 +207,7 @@ pub fn maths_instruction(
         }
         index_in += 1;
     }
+    Ok(())
 }
 
 // Implements: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#634-695
@@ -216,7 +218,7 @@ pub fn maths_g_ic_instruction(
     res_x_range: &Vec<u8>,
     res_y_range: &Vec<u8>,
     res_z_range: &Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let mut g_ic = parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); // 15k
 
@@ -277,7 +279,8 @@ pub fn maths_g_ic_instruction(
         }
     }
     // res will be created anew with new loop, + new i,x will be used with index.
-    parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range)
+    parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range);
+    Ok(())
 }
 
 // There are two ix in total to turn the g_ic from projective into affine.
@@ -288,7 +291,7 @@ pub fn g_ic_into_affine_1(
     g_ic_x_range: &mut Vec<u8>,
     g_ic_y_range: &mut Vec<u8>,
     g_ic_z_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
@@ -296,6 +299,7 @@ pub fn g_ic_into_affine_1(
         ark_bn254::g1::Parameters,
     > = ark_ec::short_weierstrass_jacobian::GroupProjective::new(g_ic.x, g_ic.y, zinv);
     parse_group_projective_to_bytes_254(g_ic_with_zinv, g_ic_x_range, g_ic_y_range, g_ic_z_range);
+    Ok(())
 }
 
 pub fn g_ic_into_affine_2(
@@ -303,7 +307,7 @@ pub fn g_ic_into_affine_2(
     g_ic_y_range: &Vec<u8>,
     g_ic_z_range: &Vec<u8>,
     x_1_range: &mut Vec<u8>,
-) {
+) -> Result<(), ProgramError> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
 
@@ -315,6 +319,7 @@ pub fn g_ic_into_affine_2(
         ark_ec::short_weierstrass_jacobian::GroupAffine::new(x, y, false);
 
     parse_x_group_affine_to_bytes(g_ic_affine, x_1_range);
+    Ok(())
 }
 
 #[cfg(test)]
@@ -353,13 +358,15 @@ mod tests {
                 &mut account_g_ic_x_range,
                 &mut account_g_ic_y_range,
                 &mut account_g_ic_z_range,
-            );
+            )
+            .unwrap();
             g_ic_into_affine_2(
                 &account_g_ic_x_range,
                 &account_g_ic_y_range,
                 &account_g_ic_z_range,
                 &mut account_x_range,
-            );
+            )
+            .unwrap();
             let affine_ref: ark_ec::short_weierstrass_jacobian::GroupAffine<
                 ark_bn254::g1::Parameters,
             > = reference_g_ic.into();
@@ -410,7 +417,8 @@ mod tests {
                 &account_res_x_range,
                 &account_res_y_range,
                 &account_res_z_range,
-            );
+            )
+            .unwrap();
             // reference value
             reference_g_ic.add_assign(&reference_res);
             // ref gic..
@@ -474,7 +482,8 @@ mod tests {
                 &account_res_x_range,
                 &account_res_y_range,
                 &account_res_z_range,
-            );
+            )
+            .unwrap();
             // reference value
             reference_g_ic.add_assign(&reference_res);
             assert!(reference_g_ic.x != parse_fp256_from_bytes(&account_g_ic_x_range));
@@ -536,7 +545,8 @@ mod tests {
                     &account_x_range,
                     current_index,
                     1,
-                );
+                )
+                .unwrap();
             }
             // reference value
             let repr = reference_i_range.into_repr();
@@ -604,7 +614,8 @@ mod tests {
                     &account_x_range,
                     current_index,
                     1,
-                );
+                )
+                .unwrap();
             }
             let res_ref = &reference_x_range.mul(reference_i_range.into_repr());
             assert!(res_ref.x != parse_fp256_from_bytes(&account_res_x_range));
