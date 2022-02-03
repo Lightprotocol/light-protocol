@@ -17,6 +17,8 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    sysvar::rent::Rent,
+    sysvar::Sysvar,
 };
 
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
@@ -28,8 +30,10 @@ use crate::user_account::instructions::{
     modify_user_account,
     close_user_account
 };
-use crate::utils::init_bytes18;
+use crate::utils::config;
+use crate::config::MERKLE_TREE_INIT_AUTHORITY;
 
+#[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
 
 #[allow(clippy::clone_double_ref)]
@@ -49,29 +53,36 @@ pub fn process_instruction(
     // Initialize new merkle tree account.
     if _instruction_data.len() >= 9 && _instruction_data[8] == 240 {
         let merkle_tree_storage_acc = next_account_info(account)?;
-
+        // Check whether signer is merkle_tree_init_authority.
+        if *signer_account.key != Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY) {
+            msg!("Signer is not program authority.");
+            return Err(ProgramError::IllegalOwner);
+        }
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc))?;
         merkle_tree_processor
-            .initialize_new_merkle_tree_from_bytes(&init_bytes18::INIT_BYTES_MERKLE_TREE_18[..])
+            .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])
     }
     // Initialize new onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 100 {
         let user_account = next_account_info(account)?;
-
-        initialize_user_account(user_account, *signer_account.key)
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        initialize_user_account(user_account, *signer_account.key, *rent)
     }
     // Modify onchain user account with arbitrary number of new utxos.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
         let user_account = next_account_info(account)?;
-
-        modify_user_account(user_account, *signer_account.key, &_instruction_data[9..])
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        modify_user_account(user_account, *signer_account.key, *rent, &_instruction_data[9..])
     }
     // Close onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
         let user_account = next_account_info(account)?;
-
-        close_user_account(user_account, signer_account)
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        close_user_account(user_account, signer_account, *rent)
     }
     // Transact with shielded pool.
     // This instruction has to be called 1503 times to perform all computation.
@@ -85,11 +96,11 @@ pub fn process_instruction(
 
         // Unpack the current_instruction_index.
         let tmp_storage_pda_data = InstructionIndex::unpack(&tmp_storage_pda.data.borrow());
-
         // Check whether tmp_storage_pda is initialized, if not try create and initialize.
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
-            Err(_) => {
+            Err(ProgramError::InvalidAccountData) => {
+                // will enter here the first iteration because the account does not exist
                 // Creates a tmp_storage_pda to store state while verifying the zero-knowledge proof and
                 // updating the merkle tree.
                 // All data used during computation is passed in as instruction_data with this instruction.
@@ -117,7 +128,9 @@ pub fn process_instruction(
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
-
+            Err(_) => {
+                Err(ProgramError::InvalidInstructionData)
+            }
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
                 // TODO: enforce exact instruction data length
