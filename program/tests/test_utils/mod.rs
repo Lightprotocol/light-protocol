@@ -10,7 +10,6 @@ pub mod tests {
     use ark_ff::QuadExtField;
     use ark_groth16::{prepare_inputs, prepare_verifying_key};
 
-
     use ark_ec::*;
     use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_program::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
@@ -22,9 +21,9 @@ pub mod tests {
     use solana_program_test::ProgramTest;
     use solana_program_test::ProgramTestContext;
     use solana_program_test::*;
+    use solana_sdk::account::Account;
     use solana_sdk::account::WritableAccount;
     use solana_sdk::stake_history::Epoch;
-    use solana_sdk::account::Account;
     use std::fs;
     use std::str::FromStr;
 
@@ -319,7 +318,8 @@ pub mod tests {
         program_context
             .banks_client
             .process_transaction(transaction)
-            .await.unwrap();
+            .await
+            .unwrap();
 
         program_context
     }

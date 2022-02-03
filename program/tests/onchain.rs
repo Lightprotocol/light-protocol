@@ -1,34 +1,39 @@
-use crate::test_utils::tests::{
-    create_and_start_program_var, get_proof_from_bytes, get_public_inputs_from_bytes,
-    get_vk_from_file, read_test_data, restart_program, get_ref_value
-};
 mod merkle_tree_account_data_after_deposit;
 mod merkle_tree_account_data_after_transfer;
 use crate::merkle_tree_account_data_after_deposit::merkle_tree_account_data_after_deposit::MERKLE_TREE_ACCOUNT_DATA_AFTER_DEPOSIT;
 use crate::merkle_tree_account_data_after_transfer::merkle_tree_account_data_after_transfer::MERKLE_TREE_ACCOUNT_DATA_AFTER_TRANSFER;
-
+use crate::test_utils::tests::{
+    create_and_start_program_var, get_proof_from_bytes, get_public_inputs_from_bytes,
+    get_ref_value, get_vk_from_file, read_test_data, restart_program,
+};
 use crate::tokio::time::timeout;
+use ark_bn254::Fq;
 use ark_ec::ProjectiveCurve;
+use ark_ff::BigInteger;
+use ark_ff::PrimeField;
 use ark_groth16::{prepare_inputs, prepare_verifying_key};
-use light_protocol_program::utils::{config, prepared_verifying_key::*};
+use ark_std::{test_rng, UniformRand};
+use light_protocol_program::poseidon_merkle_tree::state::MerkleTree;
 use light_protocol_program::poseidon_merkle_tree::state::TmpStoragePda;
-use std::fs::File;
-use std::io::Write;
-
+use light_protocol_program::user_account::state::{SIZE_UTXO, UTXO_CAPACITY};
+use light_protocol_program::utils::{config, prepared_verifying_key::*};
 use light_protocol_program::{
     groth16_verifier::{
         final_exponentiation::ranges::INSTRUCTION_ORDER_VERIFIER_PART_2,
         final_exponentiation::state::FinalExponentiationState, miller_loop::state::*, parsers::*,
         prepare_inputs::state::PrepareInputsState,
     },
+    process_instruction,
     state::ChecksAndTransferState,
     utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
     IX_ORDER,
 };
-
 use serde_json::Result;
+use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestContext;
 use std::convert::TryInto;
+use std::fs::File;
+use std::io::Write;
 use std::time;
 use {
     solana_program::{
@@ -38,17 +43,10 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{
-        signature::Signer, signer::keypair::Keypair, transaction::Transaction,
+        account::Account, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
     },
     std::str::FromStr,
 };
-
-use ark_bn254::Fq;
-use ark_ff::BigInteger;
-use ark_ff::PrimeField;
-use ark_std::{test_rng, UniformRand};
-use light_protocol_program::poseidon_merkle_tree::state::MerkleTree;
-use solana_program::program_pack::Pack;
 
 // is necessary to have a consistent signer and relayer otherwise transactions would get rejected
 const PRIVATE_KEY: [u8; 64] = [
@@ -368,54 +366,7 @@ pub async fn update_merkle_tree(
         i += 1;
     }
 }
-/*
-pub fn get_ref_value(mode: &str) -> Vec<u8> {
-    let bytes;
-    let ix_data = read_test_data(String::from("deposit.txt"));
-    let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
-    let pvk_unprepped = get_vk_from_file().unwrap();
-    let pvk = prepare_verifying_key(&pvk_unprepped);
-    let public_inputs = get_public_inputs_from_bytes(&public_inputs_bytes).unwrap();
-    let prepared_inputs = prepare_inputs(&pvk, &public_inputs).unwrap();
-    if mode == "prepared_inputs" {
-        // We must convert to affine here since the program converts projective into affine already as the last step of prepare_inputs.
-        // While the native library implementation does the conversion only when the millerloop is called.
-        // The reason we're doing it as part of prepare_inputs is that it takes >1 ix to compute the conversion.
-        let as_affine = (prepared_inputs).into_affine();
-        let mut affine_bytes = vec![0; 64];
-        parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
-        bytes = affine_bytes;
-    } else {
-        let proof_bytes = ix_data[233..489].to_vec(); // 256 length
-        let proof = get_proof_from_bytes(&proof_bytes);
-        let miller_output =
-            <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
-                [
-                    (proof.a.into(), proof.b.into()),
-                    (
-                        (prepared_inputs).into_affine().into(),
-                        pvk.gamma_g2_neg_pc.clone(),
-                    ),
-                    (proof.c.into(), pvk.delta_g2_neg_pc.clone()),
-                ]
-                .iter(),
-            );
-        if mode == "miller_output" {
-            let mut miller_output_bytes = vec![0; 384];
-            parse_f_to_bytes(miller_output, &mut miller_output_bytes);
-            bytes = miller_output_bytes;
-        } else if mode == "final_exponentiation" {
-            let res = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&miller_output).unwrap();
-            let mut res_bytes = vec![0; 384];
-            parse_f_to_bytes(res, &mut res_bytes);
-            bytes = res_bytes;
-        } else {
-            bytes = vec![];
-        }
-    }
-    bytes
-}
-*/
+
 pub fn get_mock_state(
     mode: &str,
     signer_keypair: &solana_sdk::signer::keypair::Keypair,
@@ -793,7 +744,6 @@ pub async fn last_tx(
     let mut ix_vec = Vec::new();
     //deposit case mint wrapped sol tokens and approve a program owned authority
     if recipient_pubkey_option.is_none() && relayer_pda_token_pubkey_option.is_none() {
-
         let approve_instruction = spl_token::instruction::approve(
             &spl_token::id(),
             &user_pda_token_pubkey,
@@ -2881,4 +2831,276 @@ async fn merkle_tree_init_with_wrong_signer_should_not_succeed() {
         .unwrap();
     assert_eq!([0u8; 642], merkle_tree_data.data[0..642]);
     //println!("initializing merkle tree success");
+}
+
+pub async fn create_and_start_program_user_account_onchain_test(
+    user_account_pubkey: &Pubkey,
+    program_id: &Pubkey,
+    signer_pubkey: &Pubkey,
+) -> ProgramTestContext {
+    let mut program_test = ProgramTest::new(
+        "light_protocol_program",
+        *program_id,
+        processor!(process_instruction),
+    );
+    let user_account = Account::new(
+        10000000000,
+        34 + SIZE_UTXO as usize * UTXO_CAPACITY,
+        &program_id,
+    );
+
+    program_test.add_account(*user_account_pubkey, user_account);
+
+    let mut program_context = program_test.start_with_context().await;
+    let mut transaction = solana_sdk::system_transaction::transfer(
+        &program_context.payer,
+        &signer_pubkey,
+        10000000000000,
+        program_context.last_blockhash,
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+    let _res_request = program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    program_context
+}
+
+#[tokio::test]
+async fn user_account_onchain_test() {
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+
+    let user_account_pubkey = Pubkey::new_unique();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+
+    let mut program_context = create_and_start_program_user_account_onchain_test(
+        &user_account_pubkey,
+        &program_id,
+        &signer_pubkey,
+    )
+    .await;
+
+    //initialize user_account
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![100u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    assert_eq!(1u8, user_account_data_init.data[0]);
+
+    assert_eq!(
+        signer_keypair.pubkey(),
+        Pubkey::new(&user_account_data_init.data[2..34])
+    );
+
+    println!("initializing user account success");
+
+    //modify user_account account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[
+                vec![101u8],
+                usize::to_le_bytes(0).to_vec(),
+                vec![1u8; SIZE_UTXO.try_into().unwrap()],
+            ]
+            .concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_modified = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    //println!("user_account_data_modified: {:?}", user_account_data_modified.data[0..200].to_vec());
+    assert_eq!(vec![1u8; 64], user_account_data_modified.data[34..98]);
+
+    //close user_account account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![102u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .unwrap();
+    assert!(
+        user_account_data_init.is_none(),
+        "User account should be closed."
+    );
+
+    println!("closing user account success");
+}
+
+#[tokio::test]
+async fn test_user_account_checks() {
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
+
+    let user_account_pubkey = Pubkey::new_unique();
+
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
+    let signer_pubkey = signer_keypair.pubkey();
+
+    let mut program_context = create_and_start_program_user_account_onchain_test(
+        &user_account_pubkey,
+        &program_id,
+        &signer_pubkey,
+    )
+    .await;
+
+    //initialize user_account account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![100u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    assert_eq!(1u8, user_account_data_init.data[0]);
+
+    assert_eq!(
+        signer_keypair.pubkey(),
+        Pubkey::new(&user_account_data_init.data[2..34])
+    );
+
+    //try initialize user_account account again
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![100u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+
+    let _res = program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    assert_eq!(1u8, user_account_data_init.data[0]);
+    assert_eq!(
+        signer_keypair.pubkey(),
+        Pubkey::new(&user_account_data_init.data[2..34])
+    );
+
+    //try modifying user_account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![101u8], usize::to_le_bytes(0).to_vec(), vec![1u8; 64]].concat(),
+            vec![
+                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+
+    let _res = program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await;
+
+    let user_account_data_modified = program_context
+        .banks_client
+        .get_account(user_account_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    assert_eq!(vec![0u8; 64], user_account_data_modified.data[34..98]);
+    println!("user account was not modified success");
 }
