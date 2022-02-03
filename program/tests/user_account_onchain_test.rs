@@ -234,11 +234,10 @@ async fn test_user_account_checks() {
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
 
-    program_context
+    let _res = program_context
         .banks_client
         .process_transaction(transaction)
-        .await
-        .unwrap();
+        .await;
 
     let user_account_data_init = program_context
         .banks_client
@@ -271,10 +270,10 @@ async fn test_user_account_checks() {
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
 
-    program_context
+    let _res = program_context
         .banks_client
         .process_transaction(transaction)
-        .await.unwrap();
+        .await;
 
     let user_account_data_modified = program_context
         .banks_client
