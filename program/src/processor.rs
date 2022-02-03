@@ -12,7 +12,7 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
-    sysvar::{Sysvar, rent::Rent},
+    sysvar::{rent::Rent, Sysvar},
 };
 use std::convert::{TryFrom, TryInto};
 
@@ -43,7 +43,6 @@ pub fn process_instruction(
             tmp_storage_pda_data.merkle_tree_index,
         )?;
         tmp_storage_pda_data.changed_constants[1] = true;
-
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // and executes transaction, deposit or withdrawal.
@@ -226,7 +225,8 @@ pub fn process_instruction(
         )?;
 
         msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
+        let mut merkle_tree_processor =
+            MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
         merkle_tree_processor.process_instruction(accounts)?;
     }
 
