@@ -68,7 +68,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             merkle_tree_pda,
             tmp_storage_pda,
             unpacked_merkle_tree: empty_smt,
-            program_id
+            program_id,
         })
     }
 
@@ -115,7 +115,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
 
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index, *merkle_tree_pda.owner, self.program_id)?;
+            merkle_tree_pubkey_check(
+                *merkle_tree_pda.key,
+                tmp_storage_pda_data.merkle_tree_index,
+                *merkle_tree_pda.owner,
+                self.program_id,
+            )?;
             pubkey_check(
                 *signer.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
@@ -165,7 +170,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
             }
 
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index, *merkle_tree_pda.owner, self.program_id)?;
+            merkle_tree_pubkey_check(
+                *merkle_tree_pda.key,
+                tmp_storage_pda_data.merkle_tree_index,
+                *merkle_tree_pda.owner,
+                self.program_id,
+            )?;
             MerkleTree::pack_into_slice(
                 &merkle_tree_pda_data,
                 &mut merkle_tree_pda.data.borrow_mut(),
@@ -176,7 +186,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_3
         {
             let merkle_tree_pda = next_account_info(account)?;
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index,*merkle_tree_pda.owner, self.program_id)?;
+            merkle_tree_pubkey_check(
+                *merkle_tree_pda.key,
+                tmp_storage_pda_data.merkle_tree_index,
+                *merkle_tree_pda.owner,
+                self.program_id,
+            )?;
             //hash instructions do not need the merkle tree
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index],
@@ -208,7 +223,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 String::from("Merkle tree locked by other account."),
             )?;
             //checking merkle tree pubkey for consistency
-            merkle_tree_pubkey_check(*merkle_tree_pda.key, tmp_storage_pda_data.merkle_tree_index,*merkle_tree_pda.owner, self.program_id)?;
+            merkle_tree_pubkey_check(
+                *merkle_tree_pda.key,
+                tmp_storage_pda_data.merkle_tree_index,
+                *merkle_tree_pda.owner,
+                self.program_id,
+            )?;
 
             //insert root into merkle tree
             insert_last_double(&mut merkle_tree_pda_data, &mut tmp_storage_pda_data)?;

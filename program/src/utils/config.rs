@@ -74,27 +74,27 @@ pub const INSERT_INSTRUCTION_ORDER_18: [u8; 235] = [
     1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
 ];
 
-
 //merkle tree account
 const MERKLE_TREE_ACC_BYTES_0: [u8; 32] = [
     22, 28, 110, 146, 42, 27, 34, 184, 101, 139, 125, 221, 133, 177, 67, 27, 34, 121, 168, 48, 31,
     96, 171, 88, 251, 244, 154, 176, 94, 213, 156, 140,
 ];
-const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] =[
-    3,  21, 231,   8, 237, 120,   5, 151,
-   78,  93, 171,  97,  80,   3, 193,   9,
-  196, 102, 248,  30, 105, 248,  62, 215,
-   85, 129, 217, 217,  43, 184, 245, 147
+const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
+    3, 21, 231, 8, 237, 120, 5, 151, 78, 93, 171, 97, 80, 3, 193, 9, 196, 102, 248, 30, 105, 248,
+    62, 215, 85, 129, 217, 217, 43, 184, 245, 147,
 ];
 
 pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
     [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
 
-pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81];
+pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
+    2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,
+    253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
+];
 
 // account bytes
-pub const TMP_STORAGE_ACCOUNT_TYPE: u8 =    1;
-pub const MERKLE_TREE_ACCOUNT_TYPE: u8 =    2;
-pub const LEAVES_PDA_ACCOUNT_TYPE: u8 =     3;
-pub const NULLIFIER_ACCOUNT_TYPE: u8 =      4;
-pub const USER_ACCOUNT_TYPE: u8 =           5;
+pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
+pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
+pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 3;
+pub const NULLIFIER_ACCOUNT_TYPE: u8 = 4;
+pub const USER_ACCOUNT_TYPE: u8 = 5;

@@ -1,13 +1,13 @@
+use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
+use crate::IX_ORDER;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
+    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
-    msg,
 };
 use std::convert::TryInto;
-use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
-use crate::IX_ORDER;
 
 #[derive(Clone)]
 pub struct ChecksAndTransferState {
@@ -59,7 +59,6 @@ impl Pack for ChecksAndTransferState {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384];
 
-
         if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
             msg!("Wrong account type.");
             return Err(ProgramError::InvalidAccountData);
@@ -72,7 +71,7 @@ impl Pack for ChecksAndTransferState {
             account_type: account_type[0],                 //1
             merkle_tree_index: merkle_tree_index[0],       //2
             signing_address: signing_address.to_vec(),     //3
-            relayer_fee: relayer_fee.to_vec(),           //4
+            relayer_fee: relayer_fee.to_vec(),             //4
             recipient: recipient.to_vec(),                 //5
             ext_amount: ext_amount.to_vec(),               //6
             amount: amount.to_vec(),                       //7
@@ -179,13 +178,16 @@ impl Pack for InstructionIndex {
         if is_initialized[0] == 0 {
             Err(ProgramError::UninitializedAccount)
         } else {
-            if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE  {
+            if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
                 msg!("Wrong account type tmp storage.");
                 return Err(ProgramError::InvalidAccountData);
             }
 
-            if  IX_ORDER.len() <= usize::from_le_bytes(*current_instruction_index) {
-                msg!("Computation has finished at instruction index {}.", usize::from_le_bytes(*current_instruction_index));
+            if IX_ORDER.len() <= usize::from_le_bytes(*current_instruction_index) {
+                msg!(
+                    "Computation has finished at instruction index {}.",
+                    usize::from_le_bytes(*current_instruction_index)
+                );
                 return Err(ProgramError::InvalidAccountData);
             }
 

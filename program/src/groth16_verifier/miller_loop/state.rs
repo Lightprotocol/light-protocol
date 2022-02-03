@@ -1,11 +1,11 @@
+use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
+    msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
-    msg
 };
 use std::convert::TryInto;
-use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
 
 // Implements partial pack to save compute budget.
 #[derive(Clone)]
@@ -66,7 +66,8 @@ impl Pack for MillerLoopState {
             current_coeff_3_range,
             _unused_remainder,
         ) = array_refs![
-            input, 1, 1, 2, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1, 2590
+            input, 1, 1, 2, 32, 176, 8, 384, 64, 64, 64, 32, 32, 32, 32, 32, 32, 192, 128, 1, 1,
+            2590
         ];
         if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
             msg!("Wrong account type.");
@@ -161,6 +162,5 @@ impl Pack for MillerLoopState {
             }
         }
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-
     }
 }
