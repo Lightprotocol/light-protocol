@@ -2,7 +2,7 @@ use crate::groth16_verifier::prepare_inputs::{
     instructions::*, ranges::*, state::PrepareInputsState,
 };
 use solana_program::msg;
-
+const ROUNDS: usize = 4;
 pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_index: usize) {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
     msg!("instruction: {:?}", id);
@@ -25,6 +25,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_1_range,
             &account.x_1_range,
             current_index,
+            ROUNDS,
         ); // 1 of 256
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -38,6 +39,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_2_range,
             &account.x_2_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -51,6 +53,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_3_range,
             &account.x_3_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -64,6 +67,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_4_range,
             &account.x_4_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -111,6 +115,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_5_range,
             &account.x_5_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -124,6 +129,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_6_range,
             &account.x_6_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {
@@ -137,6 +143,7 @@ pub fn _process_instruction(id: u8, account: &mut PrepareInputsState, current_in
             &account.i_7_range,
             &account.x_7_range,
             current_index,
+            ROUNDS,
         );
         let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
         for i in indices.iter() {

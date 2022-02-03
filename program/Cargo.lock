@@ -99,7 +99,7 @@ dependencies = [
 [[package]]
 name = "ark-ec"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "ark-ff",
  "ark-serialize",
@@ -138,7 +138,7 @@ dependencies = [
 [[package]]
 name = "ark-ff"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "ark-ff-asm",
  "ark-ff-macros",
@@ -155,7 +155,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-asm"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "quote",
  "syn",
@@ -164,7 +164,7 @@ dependencies = [
 [[package]]
 name = "ark-ff-macros"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -282,7 +282,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "ark-serialize-derive",
  "ark-std",
@@ -292,7 +292,7 @@ dependencies = [
 [[package]]
 name = "ark-serialize-derive"
 version = "0.3.0"
-source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#cf01733dcfd664459dff51c6a3a4864377576e4f"
+source = "git+https://github.com/Lightprotocol/algebra?branch=release-0.3.0#d45d741649114ab36dca7a88d08c044174f6b8b5"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1471,9 +1471,9 @@ checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
 
 [[package]]
 name = "libc"
-version = "0.2.116"
+version = "0.2.117"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "565dbd88872dbe4cc8a46e527f26483c1d1f7afa6b884a3bd6cd893d4f98da74"
+checksum = "e74d72e0f9b65b5b4ca49a346af3976df0f9c61d550727f349ecd559f251a26c"
 
 [[package]]
 name = "libloading"
