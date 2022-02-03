@@ -942,22 +942,6 @@ async fn check_tmp_storage_account_state_correct(
             println!(
                 "root[{}]: {:?}",
                 merkle_tree_pda_after.current_root_index,
-<<<<<<< HEAD
-                merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1)
-                    * 32)
-                    + 609
-                    ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641]
-                    .to_vec()
-            );
-            assert_eq!(
-                unpacked_tmp_storage_account.root_hash,
-                merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1)
-                    * 32)
-                    + 609
-                    ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 641]
-                    .to_vec()
-            );
-=======
                 merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32)
                     + 610
                     ..((merkle_tree_pda_after.current_root_index - 1) * 32) + 642]
@@ -965,7 +949,6 @@ async fn check_tmp_storage_account_state_correct(
             );
             assert_eq!(unpacked_tmp_storage_account.root_hash, merkle_account_data_after.unwrap()[((merkle_tree_pda_after.current_root_index - 1) * 32) + 610..((merkle_tree_pda_after.current_root_index - 1) * 32) + 642].to_vec());
 
->>>>>>> jorrit_pre_audit
         }
     }
 }
