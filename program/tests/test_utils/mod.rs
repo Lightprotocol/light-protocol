@@ -9,7 +9,7 @@ pub mod tests {
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
     use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
-    use light_protocol_program::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+    use light_protocol_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
     use ark_ec::*;
     use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;

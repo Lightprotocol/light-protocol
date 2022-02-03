@@ -4,7 +4,7 @@ use crate::instructions::{
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::ChecksAndTransferState;
-use crate::utils::init_bytes18::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -12,6 +12,7 @@ use solana_program::{
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
+    sysvar::{Sysvar, rent::Rent},
 };
 use std::convert::{TryFrom, TryInto};
 
@@ -41,6 +42,8 @@ pub fn process_instruction(
             program_id,
             tmp_storage_pda_data.merkle_tree_index,
         )?;
+        tmp_storage_pda_data.changed_constants[1] = true;
+
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // and executes transaction, deposit or withdrawal.
@@ -52,14 +55,21 @@ pub fn process_instruction(
         let merkle_tree_pda_token = next_account_info(account)?;
         let system_program_account = next_account_info(account)?;
         let token_program_account = next_account_info(account)?;
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+
         let authority = next_account_info(account)?;
         let authority_seed = program_id.to_bytes();
-
         let (expected_authority_pubkey, authority_bump_seed) =
             Pubkey::find_program_address(&[&authority_seed], program_id);
 
         if expected_authority_pubkey != *authority.key {
             msg!("Invalid passed-in authority.");
+            return Err(ProgramError::InvalidArgument);
+        }
+
+        if tmp_storage_pda_data.found_root != 1u8 {
+            msg!("Root was not found. {}", tmp_storage_pda_data.found_root);
             return Err(ProgramError::InvalidArgument);
         }
 
@@ -108,41 +118,43 @@ pub fn process_instruction(
         }
 
         msg!("Starting nullifier check.");
-        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.account_type = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier0_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_0_START..NULLIFIER_0_END],
         )?;
         msg!(
             "nullifier0_pda inserted: {}",
-            tmp_storage_pda_data.found_nullifier
+            tmp_storage_pda_data.account_type
         );
 
-        tmp_storage_pda_data.found_nullifier = check_and_insert_nullifier(
+        tmp_storage_pda_data.account_type = check_and_insert_nullifier(
             program_id,
             signer_account,
             nullifier1_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_1_START..NULLIFIER_1_END],
         )?;
         msg!(
             "nullifier1_pda inserted: {}",
-            tmp_storage_pda_data.found_nullifier
+            tmp_storage_pda_data.account_type
         );
-        let (pub_amount_checked, relayer_fees) = check_external_amount(&tmp_storage_pda_data)?;
+        let (pub_amount_checked, relayer_fee) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         msg!(
-            "ext_amount != tmp_storage_pda_data.relayer_fees: {} != {}",
+            "ext_amount != tmp_storage_pda_data.relayer_fee: {} != {}",
             ext_amount,
-            relayer_fees
+            relayer_fee
         );
 
-        if relayer_fees != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
+        if relayer_fee != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             let user_pda_token = next_account_info(account)?;
 
             if ext_amount > 0 {
@@ -176,7 +188,7 @@ pub fn process_instruction(
             }
         }
 
-        if relayer_fees > 0 {
+        if relayer_fee > 0 {
             if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
                 msg!("Wrong relayer.");
                 return Err(ProgramError::InvalidArgument);
@@ -190,7 +202,7 @@ pub fn process_instruction(
                 authority,
                 &authority_seed[..],
                 &[authority_bump_seed],
-                relayer_fees,
+                relayer_fee,
             )?;
         }
 
@@ -200,6 +212,7 @@ pub fn process_instruction(
             signer_account,
             two_leaves_pda,
             system_program_account,
+            rent,
             &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
                 [NULLIFIER_0_START..NULLIFIER_0_END],
             &b"leaves"[..],

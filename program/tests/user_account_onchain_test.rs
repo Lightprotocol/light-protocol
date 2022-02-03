@@ -20,10 +20,11 @@ use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
 use std::{thread, time};
 use {
-    light_protocol_program::{process_instruction, utils::init_bytes18},
+    light_protocol_program::{process_instruction, utils::config},
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
+        sysvar,
     },
     solana_program_test::*,
     solana_sdk::{account::Account, msg, signature::Signer, transaction::Transaction},
@@ -85,6 +86,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -127,6 +129,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -148,7 +151,6 @@ async fn user_account_onchain_test() {
     //println!("user_account_data_modified: {:?}", user_account_data_modified.data[0..200].to_vec());
     assert_eq!(vec![1u8; 64], user_account_data_modified.data[34..98]);
 
-
     //close user_account account
 
     let mut transaction = Transaction::new_with_payer(
@@ -158,6 +160,7 @@ async fn user_account_onchain_test() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -175,10 +178,12 @@ async fn user_account_onchain_test() {
         .get_account(user_account_pubkey)
         .await
         .unwrap();
-    assert!(user_account_data_init.is_none(), "User account should be closed.");
+    assert!(
+        user_account_data_init.is_none(),
+        "User account should be closed."
+    );
 
     println!("closing user account success");
-
 }
 
 #[tokio::test]
@@ -205,6 +210,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -239,6 +245,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),
@@ -275,6 +282,7 @@ async fn test_user_account_checks() {
             vec![
                 AccountMeta::new(program_context.payer.pubkey(), true),
                 AccountMeta::new(user_account_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&program_context.payer.pubkey()),

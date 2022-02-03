@@ -1,19 +1,23 @@
 use crate::user_account::state::{UserAccount, SIZE_UTXO};
 use solana_program::{
-    account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
-    pubkey::Pubkey, sysvar::rent::Rent,
+    account_info::AccountInfo,
+    msg,
+    program_error::ProgramError,
+    program_pack::Pack,
+    pubkey::Pubkey,
+    sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
 pub fn initialize_user_account(
     account: &AccountInfo,
     pubkey_signer: Pubkey,
+    rent: Rent,
 ) -> Result<(), ProgramError> {
     //check for rent exemption
-    let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("Insufficient balance to initialize rent exempt user account.");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     //initialize
@@ -26,6 +30,7 @@ pub fn initialize_user_account(
 pub fn modify_user_account(
     account: &AccountInfo,
     signer: Pubkey,
+    rent: Rent,
     data: &[u8],
 ) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
@@ -35,11 +40,10 @@ pub fn modify_user_account(
         msg!("wrong signer");
         return Err(ProgramError::InvalidArgument);
     }
-
-    let rent = Rent::default();
+    //check for rent exemption
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
-        msg!("User account is not rent exempt, thus not active.");
-        return Err(ProgramError::InvalidInstructionData);
+        msg!("User account is not active.");
+        return Err(ProgramError::AccountNotRentExempt);
     }
 
     for y in data.chunks(8 + SIZE_UTXO as usize) {
@@ -64,19 +68,19 @@ pub fn modify_user_account(
 pub fn close_user_account(
     account: &AccountInfo,
     signer: &AccountInfo,
+    rent: Rent,
 ) -> Result<(), ProgramError> {
     let user_account_data = UserAccount::unpack(&account.data.borrow())?;
 
     if user_account_data.owner_pubkey != *signer.key {
-        msg!("Wrong signer");
+        msg!("Wrong signer.");
         return Err(ProgramError::InvalidArgument);
     }
 
     //check for rent exemption
-    let rent = Rent::default();
     if !rent.is_exempt(**account.lamports.borrow(), account.data.borrow().len()) {
         msg!("User account is not active.");
-        return Err(ProgramError::InvalidInstructionData);
+        return Err(ProgramError::AccountNotRentExempt);
     }
     //close account by draining lamports
     let dest_starting_lamports = signer.lamports();
