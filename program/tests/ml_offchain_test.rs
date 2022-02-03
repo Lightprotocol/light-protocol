@@ -2,23 +2,21 @@
 pub mod tests {
     use ark_bn254;
     use ark_ed_on_bn254;
-    use ark_ed_on_bn254::Fq;
     use ark_std::vec::Vec;
 
     use ark_ec;
-    use ark_ff::biginteger::{BigInteger256, BigInteger384};
-    use ark_ff::bytes::{FromBytes, ToBytes};
+    use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
     use ark_groth16::{
-        prepare_inputs, prepare_verifying_key, verify_proof, verify_proof_with_prepared_inputs,
+        prepare_inputs, prepare_verifying_key
     };
     use ark_std::One;
     use serde_json::{Result, Value};
-    use solana_program::{program_error::ProgramError, program_pack::Pack};
+    use solana_program::program_pack::Pack;
     use std::fs;
 
-    use ark_ec::{AffineCurve, ProjectiveCurve};
+    use ark_ec::ProjectiveCurve;
 
     use light_protocol_program::{
         groth16_verifier::{
@@ -30,11 +28,10 @@ pub mod tests {
 
     // For native miller loop implementation
     use ark_bn254::Fq12Parameters;
-    use ark_ff::fields::models::fp6_3over2::{Fp6, Fp6Parameters};
-    use ark_ff::fields::models::quadratic_extension::QuadExtParameters;
+    use ark_ff::fields::models::fp6_3over2::Fp6;
     use ark_ff::fields::{
-        fp12_2over3over2::{Fp12, Fp12Parameters},
-        Field, Fp2,
+        fp12_2over3over2::Fp12Parameters,
+        Field,
     };
     use ark_ff::Fp12ParamsWrapper;
     pub const ML_IX_ORDER: [u8; 430] = [
@@ -99,7 +96,6 @@ pub mod tests {
             ),
             false,
         );
-        for (i, _) in b_g2_bigints.iter().enumerate() {}
 
         let mut delta_g2_bytes = Vec::new();
         for i in 0..2 {
@@ -125,8 +121,6 @@ pub mod tests {
             false,
         );
 
-        for (i, _) in delta_g2_bytes.iter().enumerate() {}
-
         let mut gamma_g2_bytes = Vec::new();
         for i in 0..2 {
             for j in 0..2 {
@@ -149,8 +143,6 @@ pub mod tests {
             ),
             false,
         );
-
-        for (i, _) in gamma_g2_bytes.iter().enumerate() {}
 
         let mut gamma_abc_g1_bigints_bytes = Vec::new();
 
@@ -708,7 +700,7 @@ pub mod tests {
                 // &proof_b_bytes.to_vec(),
                 // &proof_a_bytes.to_vec(),
                 // &proof_c_bytes.to_vec(),
-            );
+            ).unwrap();
             if ML_IX_ORDER[i] == 2 {
                 println!("init state f_range: {:?}", account_data.f_range);
                 println!("init state P1x: {:?}", account_data.p_1_x_range);

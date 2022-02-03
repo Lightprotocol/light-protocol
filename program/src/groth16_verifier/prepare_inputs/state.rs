@@ -19,7 +19,7 @@ pub struct PrepareInputsState {
     pub amount: Vec<u8>,
     pub nullifier_hash: Vec<u8>,
     pub root_hash: Vec<u8>,
-    pub unused: Vec<u8>,            // is commit hash until changed
+    pub unused: Vec<u8>,
     pub tx_integrity_hash: Vec<u8>, // is calculated on-chain from recipient, amount, signing_address,
 
     pub i_1_range: Vec<u8>,

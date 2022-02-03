@@ -8,38 +8,30 @@ pub mod tests {
     use ark_ff::bytes::FromBytes;
     use ark_ff::Fp256;
     use ark_ff::QuadExtField;
-    use ark_groth16::{prepare_inputs, prepare_verifying_key, verify_proof};
-    use light_protocol_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
+    use ark_groth16::{prepare_inputs, prepare_verifying_key};
+
 
     use ark_ec::*;
-    use light_protocol_program::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
     use light_protocol_program::groth16_verifier::parsers::parse_f_to_bytes;
     use light_protocol_program::groth16_verifier::parsers::parse_x_group_affine_from_bytes;
     use light_protocol_program::groth16_verifier::parsers::*;
     use light_protocol_program::process_instruction;
     use serde_json::{Result, Value};
     use solana_program::program_pack::Pack;
-    use solana_program::{
-        instruction::{AccountMeta, Instruction},
-        pubkey::Pubkey,
-    };
+    use solana_program::pubkey::Pubkey;
     use solana_program_test::ProgramTest;
     use solana_program_test::ProgramTestContext;
     use solana_program_test::*;
     use solana_sdk::account::WritableAccount;
     use solana_sdk::stake_history::Epoch;
-    use solana_sdk::{
-        account::Account, msg, signature::Signer, transaction::Transaction,
-        transport::TransportError,
-    };
+    use solana_sdk::account::Account;
     use std::fs;
     use std::str::FromStr;
 
     const ACCOUNT_RENT_EXEMPTION: u64 = 1000000000000u64;
-    use solana_sdk::signer::keypair::Keypair;
     pub fn get_ref_value(mode: &str) -> Vec<u8> {
         let bytes;
-        let ix_data = read_test_data(String::from("deposit_0_1_sol.txt"));
+        let ix_data = read_test_data(String::from("deposit.txt"));
         let public_inputs_bytes = ix_data[9..233].to_vec(); // 224 length
         let pvk_unprepped = get_vk_from_file().unwrap();
         let pvk = prepare_verifying_key(&pvk_unprepped);
@@ -254,23 +246,6 @@ pub mod tests {
         ix_data
     }
 
-    pub fn add_token_account(
-        program_test: &mut ProgramTest,
-        mint: Pubkey,
-        owner: Pubkey,
-        balance: u64,
-    ) -> Pubkey {
-        let token_account_keypair = Keypair::new();
-        add_token_account_with_address(
-            program_test,
-            token_account_keypair.pubkey(),
-            mint,
-            owner,
-            balance,
-        );
-        token_account_keypair.pubkey()
-    }
-
     fn add_token_account_with_address(
         program_test: &mut ProgramTest,
         token_address: Pubkey,
@@ -341,10 +316,10 @@ pub mod tests {
             program_context.last_blockhash,
         );
         transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-        let res_request = program_context
+        program_context
             .banks_client
             .process_transaction(transaction)
-            .await;
+            .await.unwrap();
 
         program_context
     }
@@ -368,7 +343,7 @@ pub mod tests {
                 .unwrap();
             *current_data = Some(account.data.to_vec());
         }
-        let mut program_context_new = create_and_start_program_var(
+        let program_context_new = create_and_start_program_var(
             &accounts_vector,
             token_accounts,
             &program_id,
