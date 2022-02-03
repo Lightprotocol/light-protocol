@@ -1,11 +1,7 @@
 use crate::user_account::state::{UserAccount, SIZE_UTXO};
 use solana_program::{
-    account_info::AccountInfo,
-    msg,
-    program_error::ProgramError,
-    program_pack::Pack,
-    pubkey::Pubkey,
-    sysvar::rent::Rent,
+    account_info::AccountInfo, msg, program_error::ProgramError, program_pack::Pack,
+    pubkey::Pubkey, sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
@@ -34,7 +30,6 @@ pub fn modify_user_account(
     data: &[u8],
 ) -> Result<(), ProgramError> {
     let mut user_account_data = UserAccount::unpack(&account.data.borrow())?;
-
 
     if user_account_data.owner_pubkey != signer {
         msg!("wrong signer");

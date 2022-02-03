@@ -239,25 +239,29 @@ mod tests {
                 &mut account_struct.current_round_index,
                 &account_struct.left,
                 &account_struct.right,
-            ).unwrap();
+            )
+            .unwrap();
         } else if id == 1 {
             permute_instruction_6(
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            ).unwrap();
+            )
+            .unwrap();
         } else if id == 2 {
             permute_instruction_3(
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            ).unwrap();
+            )
+            .unwrap();
         } else if id == 3 {
             permute_instruction_last(
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            ).unwrap();
+            )
+            .unwrap();
         }
     }
 

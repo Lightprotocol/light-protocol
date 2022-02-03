@@ -21,6 +21,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
+use crate::config::MERKLE_TREE_INIT_AUTHORITY;
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
@@ -29,7 +30,6 @@ use crate::user_account::instructions::{
     close_user_account, initialize_user_account, modify_user_account,
 };
 use crate::utils::config;
-use crate::config::MERKLE_TREE_INIT_AUTHORITY;
 
 #[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
@@ -73,7 +73,12 @@ pub fn process_instruction(
         let user_account = next_account_info(account)?;
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
-        modify_user_account(user_account, *signer_account.key, *rent, &_instruction_data[9..])
+        modify_user_account(
+            user_account,
+            *signer_account.key,
+            *rent,
+            &_instruction_data[9..],
+        )
     }
     // Close onchain user account.
     else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
@@ -126,9 +131,7 @@ pub fn process_instruction(
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
-            Err(_) => {
-                Err(ProgramError::InvalidInstructionData)
-            }
+            Err(_) => Err(ProgramError::InvalidInstructionData),
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
                 // TODO: enforce exact instruction data length
@@ -136,7 +139,11 @@ pub fn process_instruction(
                     msg!("Wrong signer.");
                     Err(ProgramError::IllegalOwner)
                 } else if *program_id != *tmp_storage_pda.owner {
-                    msg!("Wrong owner. {:?} != {:?}", *program_id, *tmp_storage_pda.owner );
+                    msg!(
+                        "Wrong owner. {:?} != {:?}",
+                        *program_id,
+                        *tmp_storage_pda.owner
+                    );
                     Err(ProgramError::IllegalOwner)
                 } else {
                     msg!(
@@ -268,24 +275,14 @@ pub const IX_ORDER: [u8; 1502] = [
     36, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32,
     32, 32, 35, 36, 32, 32, 32, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
     51, 38, 39, 52, 53, 54, 55, 42, 43, //merkle tree insertion height 18
-    34, 14, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
+    34, 14, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1,
+    1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1,
+    1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
+    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1,
+    1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1,
+    1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0,
+    1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1,
+    1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
     //perform last checks and transfer requested amount
     241,
 ];

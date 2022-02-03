@@ -842,7 +842,7 @@ mod tests {
         for i in 0..10 {
             let mut hash_tmp_account = TmpStoragePda {
                 is_initialized: true,
-                merkle_tree_index:0u8,
+                merkle_tree_index: 0u8,
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
                 current_round_index: 0,

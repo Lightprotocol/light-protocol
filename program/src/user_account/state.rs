@@ -1,12 +1,12 @@
+use crate::config::USER_ACCOUNT_TYPE;
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
-use crate::config::USER_ACCOUNT_TYPE;
 
-pub const SIZE_UTXO: usize = 216; // stringify old: 408; // without privatekey: 256
+pub const SIZE_UTXO: usize = 216;
 pub const UTXO_CAPACITY: usize = 100; // amount of utxos that can be stored in the user account at once
 
 #[derive(Debug, Clone)]

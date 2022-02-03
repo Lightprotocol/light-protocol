@@ -233,7 +233,6 @@ pub fn custom_quadratic_fp256_inverse_1(_quad_range_3: &Vec<u8>, _fp384_range: &
     //   cost 184974
     let v0 = <ark_ff::fields::models::fp2::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>  as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0.square(), &v1);
     parse_fp256_to_bytes(v0, _fp384_range);
-
 }
 
 #[allow(clippy::option_map_unit_fn)]
