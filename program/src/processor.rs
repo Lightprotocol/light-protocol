@@ -95,6 +95,10 @@ pub fn process_instruction(
             );
             return Err(ProgramError::InvalidInstructionData);
         }
+        if *merkle_tree_pda.owner != *program_id {
+            msg!("Invalid merkle tree owner.");
+            return Err(ProgramError::IllegalOwner);
+        }
 
         if *merkle_tree_pda_token.key
             != solana_program::pubkey::Pubkey::new(
@@ -222,7 +226,7 @@ pub fn process_instruction(
         )?;
 
         msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
         merkle_tree_processor.process_instruction(accounts)?;
     }
 

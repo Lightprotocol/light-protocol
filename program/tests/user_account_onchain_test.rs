@@ -1,33 +1,18 @@
-use crate::tokio::runtime::Runtime;
-use crate::tokio::time::timeout;
-use ark_crypto_primitives::crh::TwoToOneCRH;
-use ark_ed_on_bn254::Fq;
-use ark_ff::bytes::{FromBytes, ToBytes};
-use ark_ff::{BigInteger, Fp256, PrimeField};
-use ark_std::One;
-use ark_std::{test_rng, UniformRand};
-use arkworks_gadgets::poseidon::{
-    circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
+use light_protocol_program::user_account::state::{
+    SIZE_UTXO,
+    UTXO_CAPACITY
 };
-use arkworks_gadgets::utils::{
-    get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
-};
-use light_protocol_program::user_account::state::{SIZE_UTXO, UTXO_CAPACITY};
-use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestContext;
-use solana_program_test::ProgramTestError;
-use solana_sdk::signer::keypair::Keypair;
 use std::convert::TryInto;
-use std::{thread, time};
 use {
-    light_protocol_program::{process_instruction, utils::config},
+    light_protocol_program::process_instruction,
     solana_program::{
         instruction::{AccountMeta, Instruction},
         pubkey::Pubkey,
         sysvar,
     },
     solana_program_test::*,
-    solana_sdk::{account::Account, msg, signature::Signer, transaction::Transaction},
+    solana_sdk::{account::Account, signature::Signer, transaction::Transaction},
     std::str::FromStr,
 };
 
@@ -41,7 +26,7 @@ pub async fn create_and_start_program(
         *program_id,
         processor!(process_instruction),
     );
-    let mut user_account = Account::new(
+    let user_account = Account::new(
         10000000000,
         34 + SIZE_UTXO as usize * UTXO_CAPACITY,
         &program_id,
@@ -57,7 +42,7 @@ pub async fn create_and_start_program(
         program_context.last_blockhash,
     );
     transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let res_request = program_context
+    let _res_request = program_context
         .banks_client
         .process_transaction(transaction)
         .await;
@@ -195,9 +180,6 @@ async fn test_user_account_checks() {
     let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
     let signer_pubkey = signer_keypair.pubkey();
 
-    let other_keypair = solana_sdk::signer::keypair::Keypair::new();
-    let other_pubkey = other_keypair.pubkey();
-
     let mut program_context =
         create_and_start_program(&user_account_pubkey, &program_id, &signer_pubkey).await;
 
@@ -292,7 +274,7 @@ async fn test_user_account_checks() {
     program_context
         .banks_client
         .process_transaction(transaction)
-        .await;
+        .await.unwrap();
 
     let user_account_data_modified = program_context
         .banks_client

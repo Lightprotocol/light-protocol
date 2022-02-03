@@ -1,15 +1,12 @@
 #[cfg(test)]
 pub mod tests {
 
-    use ark_serialize::Write;
-
     use ark_bn254;
-    use ark_ed_on_bn254;
-    use ark_ff::CubicExtField;
     use ark_bn254::Fr;
     use ark_std::vec::Vec;
 
-    use ark_ff::biginteger::BigInteger256;
+    use ark_ff::Fp12;
+
     use serde_json::{Result, Value};
     use std::fs;
 
@@ -29,7 +26,6 @@ pub mod tests {
     use light_protocol_program::groth16_verifier::parsers::*;
     use light_protocol_program::utils::prepared_verifying_key::*;
     use solana_program::program_pack::Pack;
-    use std::fs::File;
     pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [
         0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15,
         16, 17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16,
@@ -492,7 +488,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 0);
+        _process_instruction(&mut account_struct1, 0).unwrap();
 
         let reference_f = f.clone();
         account_struct.f_f2_range = account_struct.f1_r_range.clone();
@@ -519,7 +515,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 1);
+        _process_instruction(&mut account_struct1, 1).unwrap();
         custom_f_inverse_1(
             &account_struct.f_f2_range,
             &mut account_struct.cubic_range_1,
@@ -531,7 +527,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 2);
+        _process_instruction(&mut account_struct1, 2).unwrap();
 
         custom_f_inverse_2(
             &account_struct.f_f2_range,
@@ -545,7 +541,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 3);
+        _process_instruction(&mut account_struct1, 3).unwrap();
 
         custom_cubic_inverse_1(
             &account_struct.cubic_range_0,
@@ -561,7 +557,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 4);
+        _process_instruction(&mut account_struct1, 4).unwrap();
 
         //quad inverse is part of cubic Inverse
         custom_quadratic_fp256_inverse_1(
@@ -575,7 +571,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 5);
+        _process_instruction(&mut account_struct1, 5).unwrap();
 
         custom_quadratic_fp256_inverse_2(
             &mut account_struct.quad_range_3,
@@ -588,7 +584,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 6);
+        _process_instruction(&mut account_struct1, 6).unwrap();
 
         custom_cubic_inverse_2(
             &mut account_struct.cubic_range_0,
@@ -604,7 +600,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 7);
+        _process_instruction(&mut account_struct1, 7).unwrap();
 
         custom_f_inverse_3(
             &mut account_struct.cubic_range_1,
@@ -618,7 +614,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 8);
+        _process_instruction(&mut account_struct1, 8).unwrap();
 
         custom_f_inverse_4(
             &mut account_struct.cubic_range_0,
@@ -631,7 +627,7 @@ pub mod tests {
         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-        _process_instruction(&mut account_struct1, 9);
+        _process_instruction(&mut account_struct1, 9).unwrap();
 
         custom_f_inverse_5(
             &account_struct.cubic_range_0,
@@ -668,7 +664,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 10);
+            _process_instruction(&mut account_struct1, 10).unwrap();
 
             mul_assign_1(
                 &account_struct.f1_r_range,
@@ -683,7 +679,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 11);
+            _process_instruction(&mut account_struct1, 11).unwrap();
 
             mul_assign_2(
                 &account_struct.f_f2_range,
@@ -714,7 +710,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 12);
+            _process_instruction(&mut account_struct1, 12).unwrap();
 
             account_struct.f_f2_range = account_struct.f1_r_range.clone();
             assert_eq!(f2, parse_f_from_bytes(&account_struct.f_f2_range));
@@ -736,7 +732,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 13);
+            _process_instruction(&mut account_struct1, 13).unwrap();
 
             custom_frobenius_map_2(&mut account_struct.f1_r_range);
 
@@ -760,7 +756,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 10);
+            _process_instruction(&mut account_struct1, 10).unwrap();
 
             mul_assign_1(
                 &account_struct.f1_r_range,
@@ -775,7 +771,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 11);
+            _process_instruction(&mut account_struct1, 11).unwrap();
 
             mul_assign_2(
                 &account_struct.f_f2_range,
@@ -818,7 +814,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 14);
+            _process_instruction(&mut account_struct1, 14).unwrap();
 
             account_struct.i_range = account_struct.f1_r_range.clone();
             conjugate_wrapper(&mut account_struct.i_range);
@@ -836,7 +832,7 @@ pub mod tests {
                 assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                 assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                _process_instruction(&mut account_struct1, 15);
+                _process_instruction(&mut account_struct1, 15).unwrap();
 
                 custom_cyclotomic_square_in_place(&mut account_struct.y0_range);
 
@@ -849,7 +845,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 16);
+                        _process_instruction(&mut account_struct1, 16).unwrap();
                         mul_assign_1(
                             &account_struct.y0_range,
                             &account_struct.f1_r_range,
@@ -863,7 +859,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 17);
+                        _process_instruction(&mut account_struct1, 17).unwrap();
 
                         mul_assign_2(
                             &account_struct.f1_r_range,
@@ -878,7 +874,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 18);
+                        _process_instruction(&mut account_struct1, 18).unwrap();
                         mul_assign_1(
                             &account_struct.y0_range,
                             &account_struct.i_range,
@@ -892,7 +888,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 19);
+                        _process_instruction(&mut account_struct1, 19).unwrap();
                         mul_assign_2(
                             &account_struct.i_range,
                             &account_struct.cubic_range_0,
@@ -909,7 +905,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 20);
+            _process_instruction(&mut account_struct1, 20).unwrap();
 
             conjugate_wrapper(&mut account_struct.y0_range);
             assert_eq!(
@@ -951,7 +947,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 21);
+            _process_instruction(&mut account_struct1, 21).unwrap();
 
             custom_cyclotomic_square(&account_struct.y1_range, &mut account_struct.y0_range);
             assert_eq!(
@@ -977,7 +973,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 22);
+            _process_instruction(&mut account_struct1, 22).unwrap();
             mul_assign_1(
                 &account_struct.y0_range,
                 &account_struct.y1_range,
@@ -991,7 +987,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 23);
+            _process_instruction(&mut account_struct1, 23).unwrap();
             mul_assign_2(
                 &account_struct.y1_range,
                 &account_struct.cubic_range_0,
@@ -1023,7 +1019,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 24);
+            _process_instruction(&mut account_struct1, 24).unwrap();
             account_struct.i_range = account_struct.y0_range.clone();
             conjugate_wrapper(&mut account_struct.i_range);
             account_struct.y2_range = account_struct.y0_range.clone();
@@ -1036,7 +1032,7 @@ pub mod tests {
                 assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                 assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                _process_instruction(&mut account_struct1, 25);
+                _process_instruction(&mut account_struct1, 25).unwrap();
                 custom_cyclotomic_square_in_place(&mut account_struct.y2_range);
 
                 if NAF_VEC[i] != 0 {
@@ -1047,7 +1043,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 26);
+                        _process_instruction(&mut account_struct1, 26).unwrap();
                         mul_assign_1(
                             &account_struct.y2_range,
                             &account_struct.y0_range,
@@ -1061,7 +1057,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 27);
+                        _process_instruction(&mut account_struct1, 27).unwrap();
                         mul_assign_2(
                             &account_struct.y0_range,
                             &account_struct.cubic_range_0,
@@ -1075,7 +1071,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 28);
+                        _process_instruction(&mut account_struct1, 28).unwrap();
                         mul_assign_1(
                             &account_struct.y2_range,
                             &account_struct.i_range,
@@ -1089,7 +1085,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 29);
+                        _process_instruction(&mut account_struct1, 29).unwrap();
                         mul_assign_2(
                             &account_struct.i_range,
                             &account_struct.cubic_range_0,
@@ -1106,7 +1102,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 30);
+            _process_instruction(&mut account_struct1, 30).unwrap();
             conjugate_wrapper(&mut account_struct.y2_range);
 
             assert_eq!(
@@ -1160,7 +1156,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 31);
+            _process_instruction(&mut account_struct1, 31).unwrap();
             account_struct.i_range = account_struct.f_f2_range.clone();
 
             conjugate_wrapper(&mut account_struct.i_range);
@@ -1175,7 +1171,7 @@ pub mod tests {
                 assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                 assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                 assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                _process_instruction(&mut account_struct1, 32);
+                _process_instruction(&mut account_struct1, 32).unwrap();
                 custom_cyclotomic_square_in_place(&mut account_struct.y6_range);
 
                 if NAF_VEC[i] != 0 {
@@ -1186,7 +1182,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 33);
+                        _process_instruction(&mut account_struct1, 33).unwrap();
                         mul_assign_1(
                             &account_struct.y6_range,
                             &account_struct.f_f2_range,
@@ -1200,7 +1196,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 34);
+                        _process_instruction(&mut account_struct1, 34).unwrap();
                         mul_assign_2(
                             &account_struct.f_f2_range,
                             &account_struct.cubic_range_0,
@@ -1214,7 +1210,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 35);
+                        _process_instruction(&mut account_struct1, 35).unwrap();
                         mul_assign_1(
                             &account_struct.y6_range,
                             &account_struct.i_range,
@@ -1228,7 +1224,7 @@ pub mod tests {
                         assert_eq!(account_struct1.y1_range, account_struct.y1_range);
                         assert_eq!(account_struct1.y2_range, account_struct.y2_range);
                         assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-                        _process_instruction(&mut account_struct1, 36);
+                        _process_instruction(&mut account_struct1, 36).unwrap();
                         mul_assign_2(
                             &account_struct.i_range,
                             &account_struct.cubic_range_0,
@@ -1244,7 +1240,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 37);
+            _process_instruction(&mut account_struct1, 37).unwrap();
 
             //y6.conjugate();
 
@@ -1299,7 +1295,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 38);
+            _process_instruction(&mut account_struct1, 38).unwrap();
             mul_assign_1(
                 &account_struct.y6_range,
                 &account_struct.y2_range,
@@ -1313,7 +1309,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 39);
+            _process_instruction(&mut account_struct1, 39).unwrap();
             mul_assign_2(
                 &account_struct.y2_range,
                 &account_struct.cubic_range_0,
@@ -1348,7 +1344,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 40);
+            _process_instruction(&mut account_struct1, 40).unwrap();
             mul_assign_1(
                 &account_struct.y6_range,
                 &account_struct.y0_range,
@@ -1362,7 +1358,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 41);
+            _process_instruction(&mut account_struct1, 41).unwrap();
             mul_assign_2(
                 &account_struct.y0_range,
                 &account_struct.cubic_range_0,
@@ -1397,7 +1393,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 42);
+            _process_instruction(&mut account_struct1, 42).unwrap();
             mul_assign_1(
                 &account_struct.y1_range,
                 &account_struct.y6_range,
@@ -1411,7 +1407,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 43);
+            _process_instruction(&mut account_struct1, 43).unwrap();
             mul_assign_2(
                 &account_struct.y6_range,
                 &account_struct.cubic_range_0,
@@ -1446,7 +1442,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 44);
+            _process_instruction(&mut account_struct1, 44).unwrap();
             mul_assign_1(
                 &account_struct.y2_range,
                 &account_struct.y6_range,
@@ -1460,7 +1456,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 45);
+            _process_instruction(&mut account_struct1, 45).unwrap();
             mul_assign_2(
                 &account_struct.y6_range,
                 &account_struct.cubic_range_0,
@@ -1494,7 +1490,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 46);
+            _process_instruction(&mut account_struct1, 46).unwrap();
             instruction_order.push(46);
             mul_assign_1(
                 &account_struct.y2_range,
@@ -1509,7 +1505,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 47);
+            _process_instruction(&mut account_struct1, 47).unwrap();
             mul_assign_2(
                 &account_struct.f1_r_range,
                 &account_struct.cubic_range_0,
@@ -1544,7 +1540,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 48);
+            _process_instruction(&mut account_struct1, 48).unwrap();
 
             //assert_eq!(y12,  parse_f_from_bytes(&account_struct.y0_range));
             account_struct.y0_range = account_struct.y1_range.clone();
@@ -1587,7 +1583,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 49);
+            _process_instruction(&mut account_struct1, 49).unwrap();
             mul_assign_1(
                 &account_struct.y2_range,
                 &account_struct.y0_range,
@@ -1601,7 +1597,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 50);
+            _process_instruction(&mut account_struct1, 50).unwrap();
             mul_assign_2(
                 &account_struct.y0_range,
                 &account_struct.cubic_range_0,
@@ -1635,7 +1631,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 51);
+            _process_instruction(&mut account_struct1, 51).unwrap();
             custom_frobenius_map_2(&mut account_struct.y6_range);
 
             assert_eq!(y8, parse_f_from_bytes(&account_struct.y6_range));
@@ -1663,7 +1659,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 38);
+            _process_instruction(&mut account_struct1, 38).unwrap();
             mul_assign_1(
                 &account_struct.y6_range,
                 &account_struct.y2_range,
@@ -1677,7 +1673,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 39);
+            _process_instruction(&mut account_struct1, 39).unwrap();
             mul_assign_2(
                 &account_struct.y2_range,
                 &account_struct.cubic_range_0,
@@ -1710,7 +1706,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 52);
+            _process_instruction(&mut account_struct1, 52).unwrap();
             r.conjugate();
             conjugate_wrapper(&mut account_struct.f1_r_range);
 
@@ -1736,7 +1732,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 53);
+            _process_instruction(&mut account_struct1, 53).unwrap();
             mul_assign_1(
                 &account_struct.y1_range,
                 &account_struct.f1_r_range,
@@ -1750,7 +1746,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 54);
+            _process_instruction(&mut account_struct1, 54).unwrap();
             mul_assign_2(
                 &account_struct.f1_r_range,
                 &account_struct.cubic_range_0,
@@ -1785,7 +1781,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 55);
+            _process_instruction(&mut account_struct1, 55).unwrap();
             custom_frobenius_map_3(&mut account_struct.y1_range);
 
             assert_eq!(y15, parse_f_from_bytes(&account_struct.y1_range));
@@ -1812,7 +1808,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 42);
+            _process_instruction(&mut account_struct1, 42).unwrap();
             mul_assign_1(
                 &account_struct.y1_range,
                 &account_struct.y6_range,
@@ -1826,7 +1822,7 @@ pub mod tests {
             assert_eq!(account_struct1.y1_range, account_struct.y1_range);
             assert_eq!(account_struct1.y2_range, account_struct.y2_range);
             assert_eq!(account_struct1.y6_range, account_struct.y6_range);
-            _process_instruction(&mut account_struct1, 43);
+            _process_instruction(&mut account_struct1, 43).unwrap();
             mul_assign_2(
                 &account_struct.y6_range,
                 &account_struct.cubic_range_0,
@@ -1881,7 +1877,7 @@ pub mod tests {
             let mut account_struct_tmp =
                 <FinalExponentiationState as Pack>::unpack(&account_onchain_slice).unwrap();
             println!("processor iter : {}", i);
-            _process_instruction(&mut account_struct_tmp, i);
+            _process_instruction(&mut account_struct_tmp, i).unwrap();
             account_struct.y1_range = account_struct_tmp.y1_range.clone();
 
             <FinalExponentiationState as Pack>::pack_into_slice(
@@ -1891,11 +1887,9 @@ pub mod tests {
             assert_eq!(account_struct.y1_range, account_struct_tmp.y1_range);
         }
         println!("result in bytes: {:?}", account_struct.y1_range);
-        verify_result(&account_struct);
+        verify_result(&account_struct).unwrap();
         Some(parse_f_from_bytes(&account_struct.y1_range))
     }
-    use ark_ec::bn::BnParameters;
-    use ark_ff::Fp12;
     pub fn exp_by_neg_x(
         mut f: Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>,
     ) -> Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {

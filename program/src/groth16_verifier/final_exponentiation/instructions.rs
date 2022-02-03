@@ -25,7 +25,7 @@ pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(),
     }
     Ok(())
 }
-//conjugate should work onyl wrapper
+
 pub fn conjugate_wrapper(_range: &mut Vec<u8>) {
     let mut f = parse_f_from_bytes(_range);
     f.conjugate();
@@ -227,17 +227,14 @@ pub fn custom_cubic_inverse_2(
 }
 
 pub fn custom_quadratic_fp256_inverse_1(_quad_range_3: &Vec<u8>, _fp384_range: &mut Vec<u8>) {
-    //if account[quad_range_3[0]..quad_range_3[1]] == [0;(quad_range_3[1] - quad_range_3[0])] {
-    //returns none in arkworks maybe we should add a byte to signal a crash
-    //} else {
-    // Guide to Pairing-based Cryptography, Algorithm 5.19.
     let f = parse_quad_from_bytes(_quad_range_3);
+    // Guide to Pairing-based Cryptography, Algorithm 5.19.
     let v1 = f.c1.square(); //      cost 3659
 
     //   cost 184974
     let v0 = <ark_ff::fields::models::fp2::Fp2ParamsWrapper::<ark_bn254::Fq2Parameters>  as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0.square(), &v1);
     parse_fp256_to_bytes(v0, _fp384_range);
-    //}
+
 }
 
 #[allow(clippy::option_map_unit_fn)]
@@ -262,7 +259,7 @@ pub fn custom_quadratic_fp256_inverse_2(_quad_range_3: &mut Vec<u8>, _fp384_rang
 mod tests {
     use crate::groth16_verifier::final_exponentiation::instructions::{
         conjugate_wrapper, custom_cubic_inverse_1, custom_cubic_inverse_2,
-        custom_cyclotomic_square, custom_cyclotomic_square_in_place, custom_f_inverse_1,
+        custom_cyclotomic_square, custom_f_inverse_1,
         custom_f_inverse_2, custom_f_inverse_3, custom_f_inverse_4, custom_f_inverse_5,
         custom_frobenius_map_1, custom_frobenius_map_2, custom_frobenius_map_3,
         custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2, mul_assign_1,
@@ -275,13 +272,10 @@ mod tests {
         parse_cubic_from_bytes_sub, parse_f_from_bytes, parse_f_to_bytes, parse_quad_from_bytes,
     };
 
-    use crate::groth16_verifier::final_exponentiation::ranges::{
-        F_CUBIC_0_RANGE, F_CUBIC_1_RANGE, NAF_VEC, SOLO_CUBIC_0_RANGE,
-    };
+    use crate::groth16_verifier::final_exponentiation::ranges::SOLO_CUBIC_0_RANGE;
 
-    use ark_ec::bn::BnParameters;
-    use ark_ff::{Field, Fp12};
-    use ark_std::{test_rng, One, UniformRand, Zero};
+    use ark_ff::Field;
+    use ark_std::{test_rng, UniformRand};
 
     #[test]
     fn fe_unit_test_frobenius_map_test_correct() {
@@ -293,7 +287,7 @@ mod tests {
                     &mut rng,
                 );
 
-            let mut actual_f = reference_f.clone();
+            let actual_f = reference_f.clone();
             //simulating the onchain account
             let mut account = vec![0u8; 384];
             parse_f_to_bytes(actual_f, &mut account);
@@ -345,7 +339,7 @@ mod tests {
                 &mut rng,
             );
 
-        let mut actual_f = reference_f.clone();
+        let actual_f = reference_f.clone();
         //simulating the onchain account
         let mut account = vec![0u8; 384];
         parse_f_to_bytes(actual_f, &mut account);
@@ -365,13 +359,13 @@ mod tests {
         //generating input
 
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
 
-            let mut actual_f = reference_f.clone();
+            let actual_f = reference_f.clone();
             //simulating the onchain account
             let mut account = vec![0u8; 384];
             parse_f_to_bytes(actual_f, &mut account);
@@ -388,13 +382,13 @@ mod tests {
         //generating input
 
         let mut rng = test_rng();
-        for i in 0..10 {
+        for _i in 0..10 {
             let mut reference_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
 
-            let mut actual_f =
+            let actual_f =
                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                     &mut rng,
                 );
@@ -413,11 +407,11 @@ mod tests {
     #[test]
     fn fe_unit_test_custom_inverse_test_correct() {
         let mut rng = test_rng();
-        let mut reference_f =
+        let reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut actual_f = reference_f.clone();
+        let actual_f = reference_f.clone();
         let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f_f2_range);
@@ -512,11 +506,11 @@ mod tests {
     #[test]
     fn fe_unit_test_custom_inverse_test_fails() {
         let mut rng = test_rng();
-        let mut reference_f =
+        let reference_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut actual_f =
+        let actual_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
@@ -602,12 +596,12 @@ mod tests {
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut mul_f =
+        let mul_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
 
-        let mut actual_f = reference_f.clone();
+        let actual_f = reference_f.clone();
         let mut account_struct = FinalExponentiationState::new();
 
         parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
@@ -641,12 +635,12 @@ mod tests {
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
-        let mut mul_f =
+        let mul_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
 
-        let mut actual_f =
+        let actual_f =
             <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
                 &mut rng,
             );
@@ -674,7 +668,7 @@ mod tests {
             "f mulassign failed"
         );
     }
-
+    /*
     pub fn exp_by_neg_x(
         mut f: Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>,
     ) -> Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {
@@ -685,275 +679,5 @@ mod tests {
         }
         f
     }
-    /*  TODO: adjust to condensed mul_assign instructions
-        #[test]
-        fn exp_by_neg_x_test_correct() {
-            let mut rng = test_rng();
-            let mut reference_f =
-                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
-                    &mut rng,
-                );
-            let mut actual_f = reference_f.clone();
-
-            let mut account_struct = FinalExponentiationState::new();
-            parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
-            let mut y1 =
-                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-            parse_f_to_bytes(y1, &mut account_struct.y1_range);
-
-            account_struct.i_range = account_struct.f1_r_range.clone();
-
-            //18
-            conjugate_wrapper(&mut account_struct.i_range);
-            //19
-            //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
-            account_struct.y1_range = account_struct.f1_r_range.clone();
-            for i in 1..63 {
-                //20
-                if i == 1 {
-                    assert_eq!(account_struct.y1_range, account_struct.f1_r_range);
-                }
-
-                //cyclotomic_exp
-                if i != 0 {
-                    //println!("i {}", i);
-                    custom_cyclotomic_square_in_place(&mut account_struct.y1_range);
-                }
-
-                if NAF_VEC[i] != 0 {
-                    if NAF_VEC[i] > 0 {
-                        //println!("if i {}", i);
-                        //23
-                        mul_assign_1(
-                            &account_struct.y1_range,
-                            F_CUBIC_0_RANGE,
-                            &account_struct.f1_r_range,
-                            F_CUBIC_0_RANGE,
-                            &mut account_struct.cubic_range_0,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-
-                        //24
-                        mul_assign_2(
-                            &account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.f1_r_range,
-                            F_CUBIC_1_RANGE,
-                            &mut account_struct.cubic_range_1,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-
-                        //25
-                        mul_assign_3(&mut account_struct.y1_range);
-
-                        //26
-                        mul_assign_4_1(
-                            &account_struct.f1_r_range,
-                            &mut account_struct.cubic_range_2,
-                        );
-                        mul_assign_4_2(
-                            &mut account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.cubic_range_2,
-                        );
-
-                        //27
-                        mul_assign_5(
-                            &mut account_struct.y1_range,
-                            &account_struct.cubic_range_0,
-                            &account_struct.cubic_range_1,
-                        );
-                    } else {
-                        //println!("else i {}", i);
-                        //28
-                        mul_assign_1(
-                            &account_struct.y1_range,
-                            F_CUBIC_0_RANGE,
-                            &account_struct.i_range,
-                            F_CUBIC_0_RANGE,
-                            &mut account_struct.cubic_range_0,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-                        //29
-                        mul_assign_2(
-                            &account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.i_range,
-                            F_CUBIC_1_RANGE,
-                            &mut account_struct.cubic_range_1,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-                        //30
-                        mul_assign_3(&mut account_struct.y1_range);
-                        //31
-                        mul_assign_4_1(
-                            &account_struct.i_range,
-                            &mut account_struct.cubic_range_2,
-                        );
-                        mul_assign_4_2(
-                            &mut account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.cubic_range_2,
-                        );
-                        //32
-                        mul_assign_5(
-                            &mut account_struct.y1_range,
-                            &account_struct.cubic_range_0,
-                            &account_struct.cubic_range_1,
-                        );
-                    }
-                }
-            }
-
-            //will always conjugate
-            if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-                //println!("conjugate");
-                //f.conjugate();
-                conjugate_wrapper(&mut account_struct.y1_range);
-            }
-
-            let reference_f = exp_by_neg_x(reference_f);
-            assert_eq!(
-                reference_f,
-                parse_f_from_bytes(&account_struct.y1_range),
-                "f exp_by_neg_x failed"
-            );
-            //println!("success");
-        }
-
-        #[test]
-        fn exp_by_neg_x_test_fails() {
-            let mut rng = test_rng();
-            let mut reference_f =
-                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
-                    &mut rng,
-                );
-            let mut actual_f =
-                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::rand(
-                    &mut rng,
-                );
-
-            let mut account_struct = FinalExponentiationState::new();
-            parse_f_to_bytes(actual_f, &mut account_struct.f1_r_range);
-            let mut y1 =
-                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-            parse_f_to_bytes(y1, &mut account_struct.y1_range);
-
-            account_struct.i_range = account_struct.f1_r_range.clone();
-
-            //18
-            conjugate_wrapper(&mut account_struct.i_range);
-            //19
-            //this instruction is equivalent with the first loop iteration thus the iteration can be omitted
-            account_struct.y1_range = account_struct.f1_r_range.clone();
-            for i in 1..63 {
-                //20
-                if i == 1 {
-                    assert_eq!(account_struct.y1_range, account_struct.f1_r_range);
-                }
-
-                //cyclotomic_exp
-                if i != 0 {
-                    //println!("i {}", i);
-                    custom_cyclotomic_square_in_place(&mut account_struct.y1_range);
-                }
-
-                if NAF_VEC[i] != 0 {
-                    if NAF_VEC[i] > 0 {
-                        //println!("if i {}", i);
-                        //23
-                        mul_assign_1(
-                            &account_struct.y1_range,
-                            F_CUBIC_0_RANGE,
-                            &account_struct.f1_r_range,
-                            F_CUBIC_0_RANGE,
-                            &mut account_struct.cubic_range_0,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-
-                        //24
-                        mul_assign_2(
-                            &account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.f1_r_range,
-                            F_CUBIC_1_RANGE,
-                            &mut account_struct.cubic_range_1,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-
-                        //25
-                        mul_assign_3(&mut account_struct.y1_range);
-
-                        //26
-                        mul_assign_4_1(
-                            &account_struct.f1_r_range,
-                            &mut account_struct.cubic_range_2,
-                        );
-                        mul_assign_4_2(
-                            &mut account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.cubic_range_2,
-                        );
-
-                        //27
-                        mul_assign_5(
-                            &mut account_struct.y1_range,
-                            &account_struct.cubic_range_0,
-                            &account_struct.cubic_range_1,
-                        );
-                    } else {
-                        //println!("else i {}", i);
-                        //28
-                        mul_assign_1(
-                            &account_struct.y1_range,
-                            F_CUBIC_0_RANGE,
-                            &account_struct.i_range,
-                            F_CUBIC_0_RANGE,
-                            &mut account_struct.cubic_range_0,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-                        //29
-                        mul_assign_2(
-                            &account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.i_range,
-                            F_CUBIC_1_RANGE,
-                            &mut account_struct.cubic_range_1,
-                            SOLO_CUBIC_0_RANGE,
-                        );
-                        //30
-                        mul_assign_3(&mut account_struct.y1_range);
-                        //31
-                        mul_assign_4_1(
-                            &account_struct.i_range,
-                            &mut account_struct.cubic_range_2,
-                        );
-                        mul_assign_4_2(
-                            &mut account_struct.y1_range,
-                            F_CUBIC_1_RANGE,
-                            &account_struct.cubic_range_2,
-                        );
-                        //32
-                        mul_assign_5(
-                            &mut account_struct.y1_range,
-                            &account_struct.cubic_range_0,
-                            &account_struct.cubic_range_1,
-                        );
-                    }
-                }
-            }
-
-            //will always conjugate
-            if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-                conjugate_wrapper(&mut account_struct.y1_range);
-            }
-
-            let reference_f = exp_by_neg_x(reference_f);
-            assert!(
-                reference_f != parse_f_from_bytes(&account_struct.y1_range),
-                "f exp_by_neg_x failed"
-            );
-
-        }
     */
 }
