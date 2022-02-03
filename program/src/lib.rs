@@ -55,7 +55,7 @@ pub fn process_instruction(
         let merkle_tree_storage_acc = next_account_info(account)?;
         // Check whether signer is merkle_tree_init_authority.
         if *signer_account.key != Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY) {
-            msg!("Signer is not program authority.");
+            msg!("Signer is not merkle tree init authority.");
             return Err(ProgramError::IllegalOwner);
         }
         let mut merkle_tree_processor =
@@ -135,7 +135,10 @@ pub fn process_instruction(
                 // Check signer before starting a compute instruction.
                 // TODO: enforce exact instruction data length
                 if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
-                    msg!("wrong signer");
+                    msg!("Wrong signer.");
+                    Err(ProgramError::IllegalOwner)
+                } else if *program_id != *tmp_storage_pda.owner {
+                    msg!("Wrong owner. {:?} != {:?}", *program_id, *tmp_storage_pda.owner );
                     Err(ProgramError::IllegalOwner)
                 } else {
                     msg!(
