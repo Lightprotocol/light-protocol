@@ -134,7 +134,6 @@ pub fn process_instruction(
             Err(_) => Err(ProgramError::InvalidInstructionData),
             Ok(tmp_storage_pda_data) => {
                 // Check signer before starting a compute instruction.
-                // TODO: enforce exact instruction data length
                 if tmp_storage_pda_data.signer_pubkey != *signer_account.key {
                     msg!("Wrong signer.");
                     Err(ProgramError::IllegalOwner)
