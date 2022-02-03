@@ -18,7 +18,6 @@ use ark_ff::{
 use solana_program::{msg, program_error::ProgramError};
 
 pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(), ProgramError> {
-
     if ALPHA_G1_BETA_G2.to_vec() != main_account_data.y1_range {
         msg!("verification failed");
         return Err(ProgramError::InvalidAccountData);
