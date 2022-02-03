@@ -9,7 +9,7 @@ use ark_std::Zero;
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
 // Creates all i,x pairs once, then stores them in specified ranges.
-// Other ix can then parse the i,x pair they need. This essentially replicates
+// Other ix can then parse the i,x pair they need. Storing all pairs allows us to replicate
 // the loop behavior inside the library's implementation:
 // https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#31-33
 pub fn init_pairs_instruction(
@@ -84,6 +84,8 @@ pub fn init_pairs_instruction(
 }
 
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
+// Part of the mul() implementation: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#161-164
+// Refer to maths_instruction for details.
 pub fn init_res_instruction(
     res_x_range: &mut Vec<u8>,
     res_y_range: &mut Vec<u8>,
@@ -93,14 +95,15 @@ pub fn init_res_instruction(
         ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // 88
 
     parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
-    //Cost: 10k
 }
 
+// Represents: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#161-164
+// In order to fully match ^ implementation we need to execute init_res_instruction once + maths_instruction 256times. Also refer to the tests.
 // Computes new res values. Gets the current i,x pair.
 // The current i,x pair is already chosen by the processor based on ix_id.
-// Called 256 times for each i,x pair - so 256*7x.
+// Called 256 times for each i,x pair - so 256*7x (7 inputs).
 // Current_index (0..256) is parsed in because we need to
-// replicate the stripping of leading zeroes (which are random because based on the public inputs).
+// replicate the stripping of leading zeroes (which are random becuase they're based on the public inputs).
 pub fn maths_instruction(
     res_x_range: &mut Vec<u8>,
     res_y_range: &mut Vec<u8>,
@@ -108,6 +111,7 @@ pub fn maths_instruction(
     i_range: &Vec<u8>,
     x_range: &Vec<u8>,
     current_index: usize,
+    rounds: usize,
 ) {
     // Parses res,x,i from range.
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); //15k
@@ -118,18 +122,19 @@ pub fn maths_instruction(
     // First constructs all bits of current i,x pair.
     // Must skip leading zeroes. those are random based on the inputs (i).
     let a = i.into_repr(); // 1037
+
     let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a); // 58
     let bits_without_leading_zeroes: Vec<bool> = bits.skip_while(|b| !b).collect();
     let skipped = 256 - bits_without_leading_zeroes.len();
 
-    // Merging 4 full rounds into one ix to utilize the max compute budget.
+    // The current processor merges 4 rounds into one ix to efficiently use the compute budget.
     let mut index_in = current_index;
-    for m in 0..4 {
+    for m in 0..rounds {
         // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
         if index_in < skipped {
             // parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             // Only needed for if m==0 goes into else, which doesnt store the res value, then goes into if at m==1
-            if m == 3 {
+            if m == rounds - 1 {
                 parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             }
         } else {
@@ -201,7 +206,7 @@ pub fn maths_instruction(
                 }
             }
             // if m == max
-            if m == 3 {
+            if m == rounds - 1 {
                 parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             }
         }
@@ -210,6 +215,7 @@ pub fn maths_instruction(
 }
 
 //3
+// Implements: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#634-695
 pub fn maths_g_ic_instruction(
     g_ic_x_range: &mut Vec<u8>,
     g_ic_y_range: &mut Vec<u8>,
@@ -218,7 +224,6 @@ pub fn maths_g_ic_instruction(
     res_y_range: &Vec<u8>,
     res_z_range: &Vec<u8>,
 ) {
-    // parse g_ic
     let mut g_ic = parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); // 15k
 
@@ -278,13 +283,12 @@ pub fn maths_g_ic_instruction(
             g_ic.z = ((g_ic.z + res.z).square() - z1z1 - z2z2) * h;
         }
     }
-    // res will be created anew with new loop, + new i,x will be used with index
-    // cost: 15k
+    // res will be created anew with new loop, + new i,x will be used with index.
     parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range)
 }
 
 // There are two ix in total to turn the g_ic from projective into affine.
-// In the end it's stored in the x_1_range (overwrite).
+// In the end the affine's stored in the x_1_range (overwrite).
 // The verifier then reads the x_1_range to use the g_ic value as P2 for the millerloop.
 // Split up into two ix because of compute budget limits.
 pub fn g_ic_into_affine_1(
@@ -294,7 +298,6 @@ pub fn g_ic_into_affine_1(
 ) {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
-    println!("w : {:?}", g_ic);
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
     let g_ic_with_zinv: ark_ec::short_weierstrass_jacobian::GroupProjective<
         ark_bn254::g1::Parameters,
@@ -321,88 +324,314 @@ pub fn g_ic_into_affine_2(
     parse_x_group_affine_to_bytes(g_ic_affine, x_1_range); // overwrite x1range w: 5066
 }
 
-// #[cfg(test)]
-// mod tests {
-//     use crate::groth16_verifier::prepare_inputs::instructions::{
-//         maths_g_ic_instruction,maths_instruction
-//     };
+#[cfg(test)]
+mod tests {
+    use crate::groth16_verifier::prepare_inputs::instructions::{
+        g_ic_into_affine_1, g_ic_into_affine_2, maths_g_ic_instruction, maths_instruction,
+    };
 
-//     use crate::groth16_verifier::miller_loop::state::MillerLoopState;
-//     use crate::groth16_verifier::parsers::{
-//         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
-//         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
-//         parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes, parse_r_from_bytes,
-//         parse_r_to_bytes,
-//     };
-//     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
+    use crate::groth16_verifier::miller_loop::state::MillerLoopState;
+    use crate::groth16_verifier::parsers::{
+        parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
+        parse_fp256_from_bytes, parse_fp256_to_bytes, parse_group_projective_from_bytes_254,
+        parse_proof_b_from_bytes, parse_proof_b_to_bytes, parse_quad_from_bytes,
+        parse_quad_to_bytes, parse_r_from_bytes, parse_r_to_bytes, parse_x_group_affine_from_bytes,
+        parse_x_group_affine_to_bytes,
+    };
+    use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
+    use ark_ec::bn::BnParameters;
+    use ark_ec::AffineCurve;
+    // use ark_ec::GroupProjective;
+    use std::ops::AddAssign;
 
-//     use ark_ec::bn::BnParameters;
-//     use ark_ff::fields::models::fp2::Fp2Parameters;
-//     use ark_ff::{Field, Fp12};
-//     use ark_std::{test_rng, One, UniformRand, Zero};
+    use ark_ff::fields::models::fp2::Fp2Parameters;
+    use ark_ff::Fp256;
+    use ark_ff::PrimeField;
+    use ark_ff::{Field, Fp12};
 
-//     #[test]
-//     fn doubling_step_should_succeed() {
-//         let mut rng = test_rng();
-//         for _i in 0..10 {
-//             let reference_coeff_2 =
-//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 );
-//             let reference_coeff_1 =
-//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 );
-//             let reference_coeff_0 =
-//                 <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 );
-//             let mut reference_r =
-//             ark_ec::models::bn::g2::G2HomProjective::<ark_bn254::Parameters> {
-//                 x: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 ),
-//                 y: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 ),
-//                 z: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqe::rand(
-//                     &mut rng,
-//                 ),
-//             };
+    use ark_std::{test_rng, One, UniformRand, Zero};
 
-//             let test_coeff_2 = reference_coeff_2.clone();
-//             let test_coeff_1 = reference_coeff_1.clone();
-//             let test_coeff_0 = reference_coeff_0.clone();
-//             let test_r = reference_r.clone();
+    #[test]
+    fn g_ic_into_affine_should_succeed() {
+        let mut rng = test_rng();
+        for _i in 0..10 {
+            let reference_g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
+            let test_g_ic_x = reference_g_ic.x.clone();
+            let test_g_ic_y = reference_g_ic.y.clone();
+            let test_g_ic_z = reference_g_ic.z.clone();
+            let mut account_g_ic_x_range = vec![0u8; 32];
+            let mut account_g_ic_y_range = vec![0u8; 32];
+            let mut account_g_ic_z_range = vec![0u8; 32];
+            let mut account_x_range = vec![0u8; 64];
+            parse_fp256_to_bytes(test_g_ic_x, &mut account_g_ic_x_range);
+            parse_fp256_to_bytes(test_g_ic_y, &mut account_g_ic_y_range);
+            parse_fp256_to_bytes(test_g_ic_z, &mut account_g_ic_z_range);
 
-//             //simulating the onchain account
-//             let mut account_coeff_2_range = vec![0u8; 64];
-//             let mut account_coeff_1_range = vec![0u8; 64];
-//             let mut account_coeff_0_range = vec![0u8; 64];
-//             let mut account_r_range = vec![0u8; 192];
+            g_ic_into_affine_1(
+                &mut account_g_ic_x_range,
+                &mut account_g_ic_y_range,
+                &mut account_g_ic_z_range,
+            );
+            g_ic_into_affine_2(
+                &account_g_ic_x_range,
+                &account_g_ic_y_range,
+                &account_g_ic_z_range,
+                &mut account_x_range,
+            );
+            let affine_ref: ark_ec::short_weierstrass_jacobian::GroupAffine<
+                ark_bn254::g1::Parameters,
+            > = reference_g_ic.into();
+            assert_eq!(
+                affine_ref,
+                parse_x_group_affine_from_bytes(&account_x_range)
+            );
+        }
+    }
 
-//             parse_quad_to_bytes(test_coeff_2, &mut account_coeff_2_range);
-//             parse_quad_to_bytes(test_coeff_1, &mut account_coeff_1_range);
-//             parse_quad_to_bytes(test_coeff_0, &mut account_coeff_0_range);
-//             parse_r_to_bytes(test_r, &mut account_r_range);
+    #[test]
+    fn maths_g_ic_instruction_should_succeed() {
+        let mut rng = test_rng();
+        for _i in 0..10 {
+            let reference_res: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
+            let mut reference_g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
 
-//             // test instruction, mut accs
-//             doubling_step(
-//                 &mut account_r_range,
-//                 &mut account_coeff_0_range,
-//                 &mut account_coeff_1_range,
-//                 &mut account_coeff_2_range,
-//             );
-//             // reference value
-//             let two_inv = <ark_bn254::Fq2Parameters as Fp2Parameters>::Fp::one()
-//                 .double()
-//                 .inverse()
-//                 .unwrap();
-//             ark_ec::models::bn::g2::doubling_step(&mut reference_r, &two_inv);
+            let test_res_x = reference_res.x.clone();
+            let test_res_y = reference_res.y.clone();
+            let test_res_z = reference_res.z.clone();
+            let test_g_ic_x = reference_g_ic.x.clone();
+            let test_g_ic_y = reference_g_ic.y.clone();
+            let test_g_ic_z = reference_g_ic.z.clone();
 
-//             let mut ref_r_range = vec![0u8; 192]; // ell mutates f in the end. So we can just check f.
-//             parse_r_to_bytes(reference_r, &mut ref_r_range);
-//             assert_eq!(ref_r_range, account_r_range);
-//         }
-//     }
-// }
+            //simulating the onchain account
+            let mut account_res_x_range = vec![0u8; 32];
+            let mut account_res_y_range = vec![0u8; 32];
+            let mut account_res_z_range = vec![0u8; 32];
+            let mut account_g_ic_x_range = vec![0u8; 32];
+            let mut account_g_ic_y_range = vec![0u8; 32];
+            let mut account_g_ic_z_range = vec![0u8; 32];
+            parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
+            parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
+            parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
+            parse_fp256_to_bytes(test_g_ic_x, &mut account_g_ic_x_range);
+            parse_fp256_to_bytes(test_g_ic_y, &mut account_g_ic_y_range);
+            parse_fp256_to_bytes(test_g_ic_z, &mut account_g_ic_z_range);
+
+            // test instruction, mut accs
+            maths_g_ic_instruction(
+                &mut account_g_ic_x_range,
+                &mut account_g_ic_y_range,
+                &mut account_g_ic_z_range,
+                &account_res_x_range,
+                &account_res_y_range,
+                &account_res_z_range,
+            );
+            // reference value
+            reference_g_ic.add_assign(&reference_res);
+            // ref gic..
+            assert_eq!(
+                reference_g_ic.x,
+                parse_fp256_from_bytes(&account_g_ic_x_range)
+            );
+            assert_eq!(
+                reference_g_ic.y,
+                parse_fp256_from_bytes(&account_g_ic_y_range)
+            );
+            assert_eq!(
+                reference_g_ic.z,
+                parse_fp256_from_bytes(&account_g_ic_z_range)
+            );
+        }
+    }
+
+    #[test]
+    fn maths_g_ic_instruction_should_fail() {
+        let mut rng = test_rng();
+        for _i in 0..10 {
+            let reference_res: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
+            let mut reference_g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
+
+            let test_res_x = reference_res.x.clone();
+            let test_res_y = reference_res.y.clone();
+            let test_res_z = reference_res.z.clone();
+
+            // fails here
+            let test_g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::rand(&mut rng);
+            let test_g_ic_x = test_g_ic.x.clone();
+            let test_g_ic_y = test_g_ic.y.clone();
+            let test_g_ic_z = test_g_ic.z.clone();
+
+            //simulating the onchain account
+            let mut account_res_x_range = vec![0u8; 32];
+            let mut account_res_y_range = vec![0u8; 32];
+            let mut account_res_z_range = vec![0u8; 32];
+            let mut account_g_ic_x_range = vec![0u8; 32];
+            let mut account_g_ic_y_range = vec![0u8; 32];
+            let mut account_g_ic_z_range = vec![0u8; 32];
+            parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
+            parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
+            parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
+            parse_fp256_to_bytes(test_g_ic_x, &mut account_g_ic_x_range);
+            parse_fp256_to_bytes(test_g_ic_y, &mut account_g_ic_y_range);
+            parse_fp256_to_bytes(test_g_ic_z, &mut account_g_ic_z_range);
+
+            // test instruction, mut accs
+            maths_g_ic_instruction(
+                &mut account_g_ic_x_range,
+                &mut account_g_ic_y_range,
+                &mut account_g_ic_z_range,
+                &account_res_x_range,
+                &account_res_y_range,
+                &account_res_z_range,
+            );
+            // reference value
+            reference_g_ic.add_assign(&reference_res);
+            assert!(reference_g_ic.x != parse_fp256_from_bytes(&account_g_ic_x_range));
+            assert!(reference_g_ic.y != parse_fp256_from_bytes(&account_g_ic_y_range));
+            assert!(reference_g_ic.z != parse_fp256_from_bytes(&account_g_ic_z_range));
+        }
+    }
+    #[test]
+    fn maths_instruction_should_succeed() {
+        let mut rng = test_rng();
+        for _i in 0..10 {
+            let reference_i_range =
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                );
+
+            let reference_x_range = ark_ec::short_weierstrass_jacobian::GroupAffine::<
+                ark_bn254::g1::Parameters,
+            >::new(
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                ),
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                ),
+                false,
+            );
+            // init res as 0 like in mul_bits
+            let reference_res: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::zero();
+
+            let test_res_x = reference_res.x.clone();
+            let test_res_y = reference_res.y.clone();
+            let test_res_z = reference_res.z.clone();
+            let test_i_range = reference_i_range.clone();
+            let test_x_range = reference_x_range.clone();
+
+            //simulating the onchain account
+            let mut account_res_x_range = vec![0u8; 32];
+            let mut account_res_y_range = vec![0u8; 32];
+            let mut account_res_z_range = vec![0u8; 32];
+            let mut account_i_range = vec![0u8; 32];
+            let mut account_x_range = vec![0u8; 64];
+
+            parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
+            parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
+            parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
+            parse_fp256_to_bytes(test_i_range, &mut account_i_range);
+            parse_x_group_affine_to_bytes(test_x_range, &mut account_x_range);
+
+            // test instruction, mut accs
+            for current_index in 0..256 {
+                maths_instruction(
+                    &mut account_res_x_range,
+                    &mut account_res_y_range,
+                    &mut account_res_z_range,
+                    &account_i_range,
+                    &account_x_range,
+                    current_index,
+                    1,
+                );
+            }
+            // reference value
+            let repr = reference_i_range.into_repr();
+            let res_ref = &reference_x_range.mul(repr);
+            assert_eq!(res_ref.x, parse_fp256_from_bytes(&account_res_x_range));
+            assert_eq!(res_ref.y, parse_fp256_from_bytes(&account_res_y_range));
+            assert_eq!(res_ref.z, parse_fp256_from_bytes(&account_res_z_range));
+        }
+    }
+    #[test]
+    fn maths_instruction_should_fail() {
+        let mut rng = test_rng();
+        for _i in 0..10 {
+            let reference_i_range =
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                );
+
+            let reference_x_range = ark_ec::short_weierstrass_jacobian::GroupAffine::<
+                ark_bn254::g1::Parameters,
+            >::new(
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                ),
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                ),
+                false,
+            );
+            // init res as 0 like in mul_bits
+            let reference_res: ark_ec::short_weierstrass_jacobian::GroupProjective<
+                ark_bn254::g1::Parameters,
+            > = ark_ec::short_weierstrass_jacobian::GroupProjective::zero();
+
+            let test_res_x = reference_res.x.clone();
+            let test_res_y = reference_res.y.clone();
+            let test_res_z = reference_res.z.clone();
+            // failing here:
+            let test_i_range =
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fq::rand(
+                    &mut rng,
+                );
+            let test_x_range = reference_x_range.clone();
+
+            //simulating the onchain account
+            let mut account_res_x_range = vec![0u8; 32];
+            let mut account_res_y_range = vec![0u8; 32];
+            let mut account_res_z_range = vec![0u8; 32];
+            let mut account_i_range = vec![0u8; 32];
+            let mut account_x_range = vec![0u8; 64];
+
+            parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
+            parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
+            parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
+            parse_fp256_to_bytes(test_i_range, &mut account_i_range);
+            parse_x_group_affine_to_bytes(test_x_range, &mut account_x_range);
+
+            // test instruction
+            for current_index in 0..256 {
+                maths_instruction(
+                    &mut account_res_x_range,
+                    &mut account_res_y_range,
+                    &mut account_res_z_range,
+                    &account_i_range,
+                    &account_x_range,
+                    current_index,
+                    1,
+                );
+            }
+            // reference value
+            // as per
+            let res_ref = &reference_x_range.mul(reference_i_range.into_repr());
+            assert!(res_ref.x != parse_fp256_from_bytes(&account_res_x_range));
+            assert!(res_ref.y != parse_fp256_from_bytes(&account_res_y_range));
+            assert!(res_ref.z != parse_fp256_from_bytes(&account_res_z_range));
+        }
+    }
+}
