@@ -32,6 +32,7 @@ use light_protocol_program::{
     process_instruction,
     state::ChecksAndTransferState,
     utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
+    IX_ORDER,
 };
 
 use serde_json::{Result, Value};
@@ -300,9 +301,9 @@ pub async fn update_merkle_tree(
 ) {
     let mut i = 0;
     let mut cache_index = 1267;
-    // loop does 238 iterations because 2 fail, probably for test crate reason
+    // loop does 238 iterations because 2 fail, probably for test crate reasons
     // since the result is correct
-    for instruction_id in 0..238 {
+    for instruction_id in 0..236 {
         //checking merkle tree lock
         if instruction_id != 0 {
             let merkle_tree_pda_account = program_context
@@ -326,10 +327,16 @@ pub async fn update_merkle_tree(
             let tmp_storage_pda_account_data =
                 ChecksAndTransferState::unpack(&tmp_storage_pda_account.data.clone()).unwrap();
             println!("cache_index: {}", cache_index);
-            //assert_eq!(tmp_storage_pda_account_data.current_instruction_index, cache_index);
+            println!("IX_ORDER: {}", IX_ORDER[cache_index]);
+
+            assert_eq!(tmp_storage_pda_account_data.current_instruction_index, cache_index);
+            cache_index +=1;
 
         }
-        let instruction_data: Vec<u8> = vec![i as u8];
+        // the 9th byte has to be zero for it is used to enter other instructions,
+        // i.e. user account init, the callindex is added to make the transaction unique,
+        // equal transactions are not executed by test-bpf
+        let instruction_data: Vec<u8> = vec![0, i as u8];
         let mut success = false;
         let mut retries_left = 2;
         while (retries_left > 0 && success != true) {
@@ -345,6 +352,7 @@ pub async fn update_merkle_tree(
                 )],
                 Some(&signer_keypair.pubkey()),
             );
+            println!("transaction: {:?}", transaction);
             transaction.sign(&[signer_keypair], program_context.last_blockhash);
 
             let res_request = timeout(
@@ -354,6 +362,7 @@ pub async fn update_merkle_tree(
                     .process_transaction(transaction),
             )
             .await;
+
 
             match res_request {
                 Ok(_) => success = true,
