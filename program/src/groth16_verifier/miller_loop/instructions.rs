@@ -714,20 +714,14 @@ mod tests {
         addition_step, doubling_step, ell_instruction_d, ell_instruction_d_c2,
         ell_instruction_d_c3, square_in_place_instruction,
     };
-
-    use crate::groth16_verifier::miller_loop::state::MillerLoopState;
     use crate::groth16_verifier::parsers::{
-        parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
-        parse_fp256_from_bytes, parse_fp256_to_bytes, parse_proof_b_from_bytes,
-        parse_proof_b_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes, parse_r_from_bytes,
-        parse_r_to_bytes,
+        parse_f_from_bytes, parse_f_to_bytes, parse_fp256_to_bytes, parse_proof_b_to_bytes,
+        parse_quad_to_bytes, parse_r_to_bytes,
     };
     use crate::utils::prepared_verifying_key::{get_delta_g2_neg_pc_0, get_gamma_g2_neg_pc_0};
-
-    use ark_ec::bn::BnParameters;
     use ark_ff::fields::models::fp2::Fp2Parameters;
-    use ark_ff::{Field, Fp12};
-    use ark_std::{test_rng, One, UniformRand, Zero};
+    use ark_ff::Field;
+    use ark_std::{test_rng, One, UniformRand};
 
     #[test]
     fn doubling_step_should_succeed() {
