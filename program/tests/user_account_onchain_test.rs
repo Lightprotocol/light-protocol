@@ -12,7 +12,10 @@ use arkworks_gadgets::poseidon::{
 use arkworks_gadgets::utils::{
     get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
 };
-use light_protocol_program::user_account::state::{SIZE_UTXO, UTXO_CAPACITY};
+use light_protocol_program::user_account::state::{
+    SIZE_UTXO,
+    UTXO_CAPACITY
+};
 use solana_program::program_pack::Pack;
 use solana_program_test::ProgramTestContext;
 use solana_program_test::ProgramTestError;
