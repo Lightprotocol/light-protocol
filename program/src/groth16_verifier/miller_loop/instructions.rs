@@ -5,7 +5,6 @@ use ark_ec::{
     models::bn::{BnParameters, TwistType},
     SWModelParameters,
 };
-use solana_program::program_error::ProgramError;
 use ark_ff::{
     fields::{
         models::{
@@ -18,6 +17,7 @@ use ark_ff::{
     One, Zero,
 };
 use solana_program::msg;
+use solana_program::program_error::ProgramError;
 
 const C0_SUB_RANGE: [usize; 2] = [0, 192];
 const C1_SUB_RANGE: [usize; 2] = [192, 384];
@@ -162,21 +162,20 @@ pub fn init_coeffs1(r_range: &mut Vec<u8>, proof_range: &mut Vec<u8>) -> Result<
 }
 
 pub fn square_in_place_instruction(f_range: &mut Vec<u8>) -> Result<(), ProgramError> {
-    let f = parse_f_from_bytes(f_range); // cost: 30k
+    let f = parse_f_from_bytes(f_range);
 
-    let mut v0 = f.c0 - f.c1; // cost: <1k
+    let mut v0 = f.c0 - f.c1;
     let v3 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
         ark_bn254::Fq12Parameters,
-        > as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0, &f.c1); // cost: 1k
-    let v2 = f.c0 * f.c1; // cost: 70k
-    v0 *= &v3; // cost: 86k
-    let c1 = v2.double(); // cost: <1k
+        > as QuadExtParameters>::sub_and_mul_base_field_by_nonresidue(&f.c0, &f.c1);
+    let v2 = f.c0 * f.c1;
+    v0 *= &v3;
+    let c1 = v2.double();
     let c0 = <ark_ff::fields::models::fp12_2over3over2::Fp12ParamsWrapper<
         ark_bn254::Fq12Parameters,
     > as QuadExtParameters>::add_and_mul_base_field_by_nonresidue_plus_one(&v0, &v2);
-    // cost: 2k
-    parse_cubic_to_bytes_sub(c0, f_range, C0_SUB_RANGE); // cost: 8k
-    parse_cubic_to_bytes_sub(c1, f_range, C1_SUB_RANGE); // cost: 8k
+    parse_cubic_to_bytes_sub(c0, f_range, C0_SUB_RANGE);
+    parse_cubic_to_bytes_sub(c1, f_range, C1_SUB_RANGE);
     Ok(())
 }
 
@@ -189,37 +188,33 @@ pub fn ell_instruction_d(
     p_y_range: &Vec<u8>,
     p_x_range: &Vec<u8>,
 ) -> Result<(), ProgramError> {
-    let coeff_2 = parse_quad_from_bytes(coeff_2_range); //
-    let mut coeff_1 = parse_quad_from_bytes(coeff_1_range); // this the same
-    let mut coeff_0 = parse_quad_from_bytes(coeff_0_range); //
-    let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
-    let p_x = parse_fp256_from_bytes(p_x_range); //
+    let coeff_2 = parse_quad_from_bytes(coeff_2_range);
+    let mut coeff_1 = parse_quad_from_bytes(coeff_1_range);
+    let mut coeff_0 = parse_quad_from_bytes(coeff_0_range);
+    let p_y = parse_fp256_from_bytes(p_y_range);
+    let p_x = parse_fp256_from_bytes(p_x_range);
 
-    coeff_0.mul_assign_by_fp(&p_y); // 4k
-    coeff_1.mul_assign_by_fp(&p_x); // 4k
+    coeff_0.mul_assign_by_fp(&p_y);
+    coeff_1.mul_assign_by_fp(&p_x);
 
-    // D2
-    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
+    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE);
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
-    // D3
-    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE);
     let mut b = c1;
-    b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
+    b.mul_by_01(&coeff_1, &coeff_2);
 
-    // D4
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + c1;
-    e.mul_by_01(&c00, &coeff_2); // cost: 36k
+    e.mul_by_01(&c00, &coeff_2);
 
-    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-    f.c1 = e - (a + b); // cost: -
-    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
-    parse_f_to_bytes(f, f_range); // cost: 15k
+    f.c1 = e - (a + b);
+    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b);
+    parse_f_to_bytes(f, f_range);
     Ok(())
 }
 
@@ -437,36 +432,33 @@ pub fn ell_instruction_d_c2(
     let coeff_2 = coeff.2;
     let mut coeff_1 = coeff.1;
     let mut coeff_0 = coeff.0;
-    let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
-    let p_x = parse_fp256_from_bytes(p_x_range); //
+    let p_y = parse_fp256_from_bytes(p_y_range);
+    let p_x = parse_fp256_from_bytes(p_x_range);
 
-    coeff_0.mul_assign_by_fp(&p_y); // 4k
-    coeff_1.mul_assign_by_fp(&p_x); // 4k
+    coeff_0.mul_assign_by_fp(&p_y);
+    coeff_1.mul_assign_by_fp(&p_x);
 
-    // D2
-    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
+    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE);
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
-    // D3
-    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
-    let mut b = c1;
-    b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
 
-    // D4
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE);
+    let mut b = c1;
+    b.mul_by_01(&coeff_1, &coeff_2);
+
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + c1;
-    e.mul_by_01(&c00, &coeff_2); // cost: 36k
+    e.mul_by_01(&c00, &coeff_2);
 
-    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
-    f.c1 = e - (a + b); // cost: -
-    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
+    f.c1 = e - (a + b);
+    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b);
 
-    parse_f_to_bytes(f, f_range); // cost: 15k
+    parse_f_to_bytes(f, f_range);
     Ok(())
 }
 
@@ -673,45 +665,39 @@ pub fn ell_instruction_d_c3(
         msg!("ERR: coeff uninitialized value");
     }
     if id == 90 {
-        // set to 0
         current_coeff_3_range[0] = 0;
     } else {
-        // +=1
         current_coeff_3_range[0] += 1;
     }
     let coeff_2 = coeff.2;
     let mut coeff_1 = coeff.1;
     let mut coeff_0 = coeff.0;
-    let p_y = parse_fp256_from_bytes(p_y_range); // this adds like 10k
-    let p_x = parse_fp256_from_bytes(p_x_range); //
+    let p_y = parse_fp256_from_bytes(p_y_range);
+    let p_x = parse_fp256_from_bytes(p_x_range);
 
-    coeff_0.mul_assign_by_fp(&p_y); // 4k
-    coeff_1.mul_assign_by_fp(&p_x); // 4k
+    coeff_0.mul_assign_by_fp(&p_y);
+    coeff_1.mul_assign_by_fp(&p_x);
 
-    // D2
-    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE); // cost: 15k
+    let c0 = parse_cubic_from_bytes_sub(f_range, C0_SUB_RANGE);
     let a0 = c0.c0 * coeff_0;
     let a1 = c0.c1 * coeff_0;
     let a2 = c0.c2 * coeff_0;
     let a = Fp6::new(a0, a1, a2);
-    // D3
-    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE); // cost: 15k
+    let c1 = parse_cubic_from_bytes_sub(f_range, C1_SUB_RANGE);
     let mut b = c1;
-    b.mul_by_01(&coeff_1, &coeff_2); // cost: 33k
+    b.mul_by_01(&coeff_1, &coeff_2);
 
-    // D4
     let c00 = coeff_0 + coeff_1; //c0 = *c0 + c3
     let mut e = c0 + c1;
-    e.mul_by_01(&c00, &coeff_2); // cost: 36k
+    e.mul_by_01(&c00, &coeff_2);
 
-    // D5
     let mut f =
         <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
 
-    f.c1 = e - (a + b); // cost: -
-    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b); // cost: 3k
+    f.c1 = e - (a + b);
+    f.c0 = a + <ark_bn254::fq12::Fq12Parameters as Fp12Parameters>::mul_fp6_by_nonresidue(&b);
 
-    parse_f_to_bytes(f, f_range); // cost: 15k
+    parse_f_to_bytes(f, f_range);
     Ok(())
 }
 
@@ -1105,7 +1091,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
@@ -1187,7 +1173,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
@@ -1249,7 +1235,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
@@ -1316,7 +1302,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
@@ -1376,7 +1362,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
@@ -1440,7 +1426,7 @@ mod tests {
             // reference value for comparison
             <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(
                 &mut reference_f,
-                &(reference_coeff_0, reference_coeff_1, reference_coeff_2), // coeffs: &g2::EllCoeff<Fp2<P::Fp2Params>>,
+                &(reference_coeff_0, reference_coeff_1, reference_coeff_2),
                 &ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
                     reference_p_x,
                     reference_p_y,
