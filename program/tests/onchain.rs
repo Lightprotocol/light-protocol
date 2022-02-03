@@ -63,6 +63,7 @@ use solana_sdk::account::WritableAccount;
 use solana_program::program_pack::Pack;
 use solana_sdk::stake_history::Epoch;
 
+// is necessary to have a consistent signer and relayer otherwise transactions would get rejected
 const PRIVATE_KEY : [u8; 64]=[17,34,231,31,83,147,93,173,61,164,25,0,204,82,234,91,202,187,228,110,146,97,112,131,180,164,96,220,57,207,65,107,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81];
 
 mod test_utils;
@@ -1491,6 +1492,7 @@ async fn internal_transfer_should_succeed() {
     ).unwrap();
 
 }
+
 #[tokio::test]
 async fn withdrawal_should_succeed() {
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
