@@ -18,7 +18,6 @@ use ark_ff::{
 use solana_program::{msg, program_error::ProgramError};
 
 pub fn verify_result(main_account_data: &FinalExponentiationState) -> Result<(), ProgramError> {
-
     if ALPHA_G1_BETA_G2.to_vec() != main_account_data.y1_range {
         msg!("verification failed");
         return Err(ProgramError::InvalidAccountData);
@@ -259,11 +258,10 @@ pub fn custom_quadratic_fp256_inverse_2(_quad_range_3: &mut Vec<u8>, _fp384_rang
 mod tests {
     use crate::groth16_verifier::final_exponentiation::instructions::{
         conjugate_wrapper, custom_cubic_inverse_1, custom_cubic_inverse_2,
-        custom_cyclotomic_square, custom_f_inverse_1,
-        custom_f_inverse_2, custom_f_inverse_3, custom_f_inverse_4, custom_f_inverse_5,
-        custom_frobenius_map_1, custom_frobenius_map_2, custom_frobenius_map_3,
-        custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2, mul_assign_1,
-        mul_assign_2,
+        custom_cyclotomic_square, custom_f_inverse_1, custom_f_inverse_2, custom_f_inverse_3,
+        custom_f_inverse_4, custom_f_inverse_5, custom_frobenius_map_1, custom_frobenius_map_2,
+        custom_frobenius_map_3, custom_quadratic_fp256_inverse_1, custom_quadratic_fp256_inverse_2,
+        mul_assign_1, mul_assign_2,
     };
 
     use crate::groth16_verifier::final_exponentiation::state::FinalExponentiationState;
@@ -315,7 +313,7 @@ mod tests {
                 &mut rng,
             );
 
-        let mut actual_f = reference_f.clone();
+        let actual_f = reference_f.clone();
         //simulating the onchain account
         let mut account = vec![0u8; 384];
         parse_f_to_bytes(actual_f, &mut account);

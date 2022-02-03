@@ -528,7 +528,7 @@ mod tests {
     const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 12] = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3];
 
     #[derive(Debug)]
-    pub struct merkle_tree {
+    pub struct MockSmtMerkleTree {
         pub is_initialized: bool,
         pub levels: usize,
         pub filled_subtrees: Vec<Vec<u8>>,
@@ -540,7 +540,7 @@ mod tests {
         pub leaves: Vec<Vec<u8>>,
     }
 
-    fn initialize(tree: &mut merkle_tree, treelevels: usize, mut zero_value: Vec<u8>) {
+    fn initialize(tree: &mut MockSmtMerkleTree, treelevels: usize, mut zero_value: Vec<u8>) {
         println!("starting to initialize merkle tree");
 
         tree.levels = treelevels;
@@ -621,7 +621,7 @@ mod tests {
             ]
             .to_vec(); //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
 
-            let mut smt = merkle_tree {
+            let mut smt = MockSmtMerkleTree {
                 is_initialized: true,
                 levels: 1,
                 filled_subtrees: vec![vec![0 as u8; 32]; 1],
@@ -644,7 +644,7 @@ mod tests {
         }
     }
 
-    fn print_init_bytes_helper(smt: merkle_tree) -> Result<(), ioError> {
+    fn print_init_bytes_helper(smt: MockSmtMerkleTree) -> Result<(), ioError> {
         let path = format!("src/init_bytes{}.rs", smt.levels);
         let mut output = File::create(path)?;
         let line = println!("{}", "hello");
@@ -781,7 +781,7 @@ mod tests {
         let poseidon_res =
             <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
                 .unwrap();
-        let mut smt = merkle_tree {
+        let mut smt = MockSmtMerkleTree {
             is_initialized: true,
             levels: 1,
             filled_subtrees: vec![vec![0 as u8; 32]; 1],

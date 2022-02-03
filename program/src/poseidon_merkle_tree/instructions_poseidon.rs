@@ -245,7 +245,7 @@ mod tests {
                 &mut account_struct.state,
                 &mut account_struct.current_round,
                 &mut account_struct.current_round_index,
-            );
+            ).unwrap();
         } else if id == 2 {
             permute_instruction_3(
                 &mut account_struct.state,
@@ -318,7 +318,7 @@ mod tests {
         let mds = get_mds_poseidon_circom_bn254_x5_3::<Fq>();
         let params = PoseidonParameters::<Fq>::new(rounds, mds);
         //perform the test 1000x
-        for j in 0..1000 {
+        for _j in 0..1000 {
             //generating random test input
             let mut rng = test_rng();
             let left_input = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng)
