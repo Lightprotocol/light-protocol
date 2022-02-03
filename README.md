@@ -49,11 +49,14 @@ The zero-knowledge proof includes meta data such as the recipient address. In ca
 - Light uses a circuit based on [tornado_pool](https://github.com/tornadocash/tornado-pool/tree/onchain-tree/circuits).
 
 Also note that we're using a fork of arkwork's ark-ec: https://github.com/Lightprotocol/algebra where we've made certain functions/structs public:
+
 ...bls12/g2.rs
-G2HomProjective
-mul_by_char
-doubling_step
-addition_step
+- G2HomProjective
+- mul_by_char
+- doubling_step
+- addition_step
+
 ...models/bn/mod.rs
-ell
+- ell
+
 so we can reuse them mostly in tests.
