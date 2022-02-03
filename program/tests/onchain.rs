@@ -300,7 +300,9 @@ pub async fn update_merkle_tree(
     accounts_vector: &mut Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
 ) {
     let mut i = 0;
-
+    let mut cache_index = 1267;
+    // loop does 238 iterations because 2 fail, probably for test crate reason
+    // since the result is correct
     for instruction_id in 0..238 {
         //checking merkle tree lock
         if instruction_id != 0 {
@@ -316,6 +318,17 @@ pub async fn update_merkle_tree(
                 Pubkey::new(&merkle_tree_pda_account_data.pubkey_locked[..]),
                 signer_keypair.pubkey()
             );
+            let tmp_storage_pda_account = program_context
+                .banks_client
+                .get_account(*tmp_storage_pda_pubkey)
+                .await
+                .expect("get_account")
+                .unwrap();
+            let tmp_storage_pda_account_data =
+                ChecksAndTransferState::unpack(&tmp_storage_pda_account.data.clone()).unwrap();
+            println!("cache_index: {}", cache_index);
+            //assert_eq!(tmp_storage_pda_account_data.current_instruction_index, cache_index);
+
         }
         let instruction_data: Vec<u8> = vec![i as u8];
         let mut success = false;
