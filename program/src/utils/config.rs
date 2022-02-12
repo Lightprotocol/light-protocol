@@ -95,6 +95,6 @@ pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
 // account bytes
 pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
 pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
-pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 3;
-pub const NULLIFIER_ACCOUNT_TYPE: u8 = 4;
+pub const NULLIFIER_ACCOUNT_TYPE: u8 = 3;
+pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 4;
 pub const USER_ACCOUNT_TYPE: u8 = 5;
