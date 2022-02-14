@@ -248,6 +248,7 @@ pub async fn initialize_merkle_tree(
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(*merkle_tree_pda_pubkey, false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false)
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -283,8 +284,7 @@ pub async fn update_merkle_tree(
 ) {
     let mut i = 0;
     let mut cache_index = 1267;
-    // loop does 238 iterations because 2 fail, probably for test crate reasons
-    // since the result is correct
+    
     for instruction_id in 0..236 {
         //checking merkle tree lock
         if instruction_id != 0 {
