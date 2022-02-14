@@ -56,6 +56,16 @@ pub fn process_instruction(
             msg!("Signer is not merkle tree init authority.");
             return Err(ProgramError::IllegalOwner);
         }
+        let rent_sysvar_info = next_account_info(account)?;
+        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        if !rent.is_exempt(
+                **merkle_tree_storage_acc.lamports.borrow(),
+                merkle_tree_storage_acc.data.borrow().len()
+            )
+        {
+            msg!("Account is not rent exempt.");
+            return Err(ProgramError::AccountNotRentExempt);
+        }
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(None, Some(merkle_tree_storage_acc), *program_id)?;
         merkle_tree_processor
@@ -88,7 +98,7 @@ pub fn process_instruction(
         close_user_account(user_account, signer_account, *rent)
     }
     // Transact with shielded pool.
-    // This instruction has to be called 1503 times to perform all computation.
+    // This instruction has to be called 1502 times to perform all computation.
     // There are different instructions which have to be executed in a specific order.
     // The instruction order is hardcoded in IX_ORDER.
     // After every instruction the program increments an internal counter (current_instruction_index).
@@ -103,7 +113,7 @@ pub fn process_instruction(
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
             Err(ProgramError::InvalidAccountData) => {
-                // will enter here the first iteration because the account does not exist
+                // Will enter here the first iteration because the account does not exist.
                 // Creates a tmp_storage_pda to store state while verifying the zero-knowledge proof and
                 // updating the merkle tree.
                 // All data used during computation is passed in as instruction_data with this instruction.
@@ -165,8 +175,14 @@ pub fn process_instruction(
                     // 4. `[writable]` nullifier0_pda
                     // 5. `[writable]` nullifier1_pda
                     // 6. `[writable]` merkle_tree_pda
-                    // 7. `[]` spl_program
-                    // 8. `[]` recipient
+                    // 7. `[writable]` merkle_tree_pda_token
+                    // 8. `[]` spl_program
+                    // 9. `[]` token_program_account
+                    // 10. `[]` rent_sysvar_info
+                    // 11. `[]` authority
+                    // 12. `[writable]` user_pda_token
+                    // 13. `[writable]` relayer_pda_token
+
                     if tmp_storage_pda_data.current_instruction_index == ROOT_CHECK
                         || tmp_storage_pda_data.current_instruction_index
                             == INSERT_LEAVES_NULLIFIER_AND_TRANSFER
