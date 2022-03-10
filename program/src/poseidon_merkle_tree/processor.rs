@@ -122,7 +122,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 self.program_id,
             )?;
             pubkey_check(
-                *signer.key,
+                *_tmp_storage_pda.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
                 String::from("Merkle tree locked by another account."),
             )?;
@@ -156,7 +156,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 || merkle_tree_pda_data.time_locked + LOCK_DURATION < current_slot
             {
                 merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                merkle_tree_pda_data.pubkey_locked = _tmp_storage_pda.key.to_bytes().to_vec();
                 msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
                 msg!(
                     "Locked by: {:?}",
@@ -218,7 +218,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
             //checking if signer locked
             pubkey_check(
-                *signer.key,
+                *_tmp_storage_pda.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
                 String::from("Merkle tree locked by other account."),
             )?;
