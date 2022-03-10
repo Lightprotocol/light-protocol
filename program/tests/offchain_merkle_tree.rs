@@ -610,6 +610,44 @@ mod tests {
     }
 
     #[test]
+    fn merkle_tree_verify_init_bytes_merkle_tree_18() {
+
+        let mut zero_value = vec![1 as u8; 32];
+
+        let rounds = get_rounds_poseidon_circom_bn254_x5_3::<Fq>();
+        let mds = get_mds_poseidon_circom_bn254_x5_3::<Fq>();
+        let params = PoseidonParameters::<Fq>::new(rounds, mds);
+
+        //generating leaf hash from zero value
+        let mut current_level_hash =
+            <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
+                .unwrap();
+        <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+            &current_level_hash,
+            &mut zero_value[..],
+        );
+
+        // looping over init bytes and asserting them with dynamically created poseidon hashes
+        for (level, level_hash) in config::INIT_BYTES_MERKLE_TREE_18[10..(18*32 + 10)].chunks(32).enumerate()  {
+            current_level_hash =
+                <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
+                    .unwrap();
+            <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+                &current_level_hash,
+                &mut zero_value[..],
+            );
+
+            assert_eq!(zero_value, level_hash,
+                "Verification of initbytes failed at level {}", level
+            );
+            assert_eq!(zero_value, config::ZERO_BYTES_MERKLE_TREE_18[level*32..(level+1)*32],
+                "Verification of zero bytes failed at level {}", level
+            );
+
+        }
+    }
+
+    #[test]
     fn merkle_tree_arkworks_fork_vs_tornado_cash_fork_init() {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for heights from 1 to 15
         for i in 1..12 {
