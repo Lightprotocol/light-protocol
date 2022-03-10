@@ -284,7 +284,7 @@ pub async fn update_merkle_tree(
 ) {
     let mut i = 0;
     let mut cache_index = 1267;
-    
+
     for instruction_id in 0..236 {
         //checking merkle tree lock
         if instruction_id != 0 {
@@ -298,7 +298,7 @@ pub async fn update_merkle_tree(
                 MerkleTree::unpack(&merkle_tree_pda_account.data.clone()).unwrap();
             assert_eq!(
                 Pubkey::new(&merkle_tree_pda_account_data.pubkey_locked[..]),
-                signer_keypair.pubkey()
+                *tmp_storage_pda_pubkey
             );
             let tmp_storage_pda_account = program_context
                 .banks_client
