@@ -85,7 +85,7 @@ impl FinalExponentiationState {
 }
 
 impl Pack for FinalExponentiationState {
-    const LEN: usize = 3900 + 432;
+    const LEN: usize = 3900 + 384;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, FinalExponentiationState::LEN];
 
@@ -122,7 +122,7 @@ impl Pack for FinalExponentiationState {
             _unused_remainder,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 192, 192,
-            192, 64, 64, 64, 64, 32, 384, 128 + 432
+            192, 64, 64, 64, 64, 32, 384, 128 + 384
         ];
         if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
             msg!("Wrong account type.");
@@ -188,7 +188,7 @@ impl Pack for FinalExponentiationState {
             _unused_remainder_dst,
         ) = mut_array_refs![
             dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32,
-            384, 128 + 432
+            384, 128 + 384
         ];
 
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {

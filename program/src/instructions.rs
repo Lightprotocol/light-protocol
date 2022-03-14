@@ -316,7 +316,7 @@ pub fn try_initialize_tmp_storage_pda(
     let leaf_right = &_instruction_data[160..192];
     let leaf_left = &_instruction_data[192..224];
 
-    let encrypted_utxos = &_instruction_data[593..1025];
+    let encrypted_utxos = &_instruction_data[593..593+384];
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
         leaf_right.to_vec(),

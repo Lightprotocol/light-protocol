@@ -57,7 +57,7 @@ impl IsInitialized for PrepareInputsState {
     }
 }
 impl Pack for PrepareInputsState {
-    const LEN: usize = 4332; // 1020
+    const LEN: usize = 3900 + 384; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, PrepareInputsState::LEN];
@@ -101,7 +101,7 @@ impl Pack for PrepareInputsState {
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
             input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 816
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384 + 384
         ];
 
         if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
@@ -194,7 +194,7 @@ impl Pack for PrepareInputsState {
             proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![
             dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 816
+            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384 + 384
         ];
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {
