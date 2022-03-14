@@ -892,6 +892,7 @@ mod tests {
                 current_index: 0usize,
                 current_level: 0usize,
                 current_instruction_index: 0usize,
+                encrypted_utxos: vec![0u8; 432],
             };
 
             let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);

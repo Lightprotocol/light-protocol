@@ -387,7 +387,7 @@ pub fn get_mock_state(
         let mut affine_bytes = vec![0; 64];
         parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
         // mock account state after prepare_inputs (instruction index = 466)
-        let mut account_state = vec![0; 3900];
+        let mut account_state = vec![0; 3900 + 432];
         // set is_initialized: true
         account_state[0] = 1;
         // set account_type: tmp account
@@ -413,7 +413,7 @@ pub fn get_mock_state(
         }
         mock_bytes = account_state;
     } else if mode == "final_exponentiation" {
-        let mut account_state = vec![0; 3900];
+        let mut account_state = vec![0; 3900 + 432];
         // set is_initialized:true
         account_state[0] = 1;
         // set account_type: tmp account
@@ -582,7 +582,7 @@ async fn transact(
         .process_transaction(transaction)
         .await
         .unwrap();
-
+    //panic!("only first tx adjusted yet");
     /*
      *
      *
@@ -727,7 +727,7 @@ pub async fn last_tx(
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
     let mut accounts_vector_local = accounts_vector.clone();
-    accounts_vector_local.push((tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector_local.push((tmp_storage_pda_pubkey, 3900 + 432, None));
     let mut program_context = restart_program(
         &mut accounts_vector_local,
         Some(token_accounts),
@@ -1093,7 +1093,8 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    assert_eq!(ix_withdraw_data.len(), 602);
+    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8;432]].concat();
+    assert_eq!(ix_withdraw_data.len(), 1034);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let mut accounts_vector = Vec::new();
@@ -1912,7 +1913,7 @@ async fn compute_prepared_inputs_should_succeed() {
         .process_transaction(transaction)
         .await
         .unwrap();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -1988,7 +1989,7 @@ async fn compute_miller_output_should_succeed() {
 
     let account_state = get_mock_state("miller_output", &signer_keypair);
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state)));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, Some(account_state)));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -2036,7 +2037,7 @@ async fn compute_final_exponentiation_should_succeed() {
     let f_ref = get_ref_value("final_exponentiation");
     let account_state = get_mock_state("final_exponentiation", &signer_keypair);
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state.clone())));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, Some(account_state.clone())));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -2116,7 +2117,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -2227,7 +2228,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -2342,7 +2343,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -2615,7 +2616,7 @@ async fn wrong_merkle_tree_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -2682,7 +2683,7 @@ async fn wrong_integrity_hash_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, None));
 
     /*
      *
@@ -2723,7 +2724,7 @@ async fn merkle_tree_insert_should_succeed() {
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
-    let mut account_state = vec![0u8; 3900];
+    let mut account_state = vec![0u8; 3900 + 432];
     let x = usize::to_le_bytes(801 + 465);
     for i in 212..220 {
         account_state[i] = x[i - 212];
@@ -2750,7 +2751,7 @@ async fn merkle_tree_insert_should_succeed() {
     }
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900, Some(account_state.clone())));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 432, Some(account_state.clone())));
 
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;

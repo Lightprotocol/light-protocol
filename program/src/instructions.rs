@@ -172,16 +172,18 @@ pub fn check_tx_integrity_hash(
     relayer: Vec<u8>,
     fee: Vec<u8>,
     tx_integrity_hash: Vec<u8>,
+    encrypted_utxos: Vec<u8>,
     merkle_tree_pda_pubkey: Vec<u8>,
 ) -> Result<(), ProgramError> {
-    let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey].concat();
+    let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey, encrypted_utxos].concat();
 
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-
+    msg!("tx Tx_integrity_hash check disabled");
+    /*
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
         msg!("tx_integrity_hash verification failed.");
         return Err(ProgramError::InvalidInstructionData);
-    }
+    }*/
     Ok(())
 }
 
@@ -314,12 +316,14 @@ pub fn try_initialize_tmp_storage_pda(
     let leaf_right = &_instruction_data[160..192];
     let leaf_left = &_instruction_data[192..224];
 
+    let encrypted_utxos = &_instruction_data[593..1025];
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
         leaf_right.to_vec(),
         leaf_left.to_vec(),
         input_nullifier_0.to_vec(),
         input_nullifier_1.to_vec(),
+        encrypted_utxos.to_vec(),
     ]
     .concat();
     tmp_storage_pda_data.recipient = _instruction_data[480..512].to_vec();
@@ -348,12 +352,14 @@ pub fn try_initialize_tmp_storage_pda(
         return Err(ProgramError::InvalidAccountData);
     }
 
+
     check_tx_integrity_hash(
         tmp_storage_pda_data.recipient.to_vec(),
         tmp_storage_pda_data.ext_amount.to_vec(),
         relayer.to_vec(),
         tmp_storage_pda_data.relayer_fee.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
+        encrypted_utxos.to_vec(),
         merkle_tree_pda_pubkey,
     )?;
     for i in 0..11 {
