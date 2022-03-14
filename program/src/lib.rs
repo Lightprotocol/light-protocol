@@ -135,7 +135,7 @@ pub fn process_instruction(
                 create_and_try_initialize_tmp_storage_pda(
                     program_id,
                     accounts,
-                    3900u64,                 // bytes
+                    4332u64,                 // bytes
                     0_u64,                   // lamports
                     true,                    // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
@@ -234,7 +234,7 @@ pub const NULLIFIER_0_START: usize = 320;
 pub const NULLIFIER_0_END: usize = 352;
 pub const NULLIFIER_1_START: usize = 352;
 pub const NULLIFIER_1_END: usize = 384;
-pub const TWO_LEAVES_PDA_SIZE: u64 = 106;
+pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + 432;
 //instruction order
 pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts
