@@ -178,7 +178,6 @@ pub fn check_tx_integrity_hash(
     let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey, encrypted_utxos].concat();
 
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    msg!("tx Tx_integrity_hash check disabled");
     
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
         msg!("tx_integrity_hash verification failed.");
