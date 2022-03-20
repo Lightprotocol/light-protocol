@@ -35,7 +35,7 @@ impl IsInitialized for ChecksAndTransferState {
 }
 
 impl Pack for ChecksAndTransferState {
-    const LEN: usize = 3900 + 384;//3900; // 1020
+    const LEN: usize = 3900 + 224;//3900; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, ChecksAndTransferState::LEN];
@@ -57,7 +57,7 @@ impl Pack for ChecksAndTransferState {
             //220
             _unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
-        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384 + 384];
+        ) = array_refs![input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384 + 224];
 
         if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
             msg!("Wrong account type.");
@@ -106,7 +106,7 @@ impl Pack for ChecksAndTransferState {
             //220
             _unused_remainder_dst,
             proof_a_b_c_leaves_and_nullifiers_dst,
-        ) = mut_array_refs![dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384 + 384];
+        ) = mut_array_refs![dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 3296, 384 + 224];
 
         for (i, const_has_changed) in self.changed_constants.iter().enumerate() {
             if *const_has_changed {
@@ -161,7 +161,7 @@ impl IsInitialized for InstructionIndex {
 }
 
 impl Pack for InstructionIndex {
-    const LEN: usize = 3900 + 384;
+    const LEN: usize = 3900 + 224;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, InstructionIndex::LEN];
 
@@ -173,7 +173,7 @@ impl Pack for InstructionIndex {
             _unused_remainder1,
             current_instruction_index,
             _unused_remainder2,
-        ) = array_refs![input, 1, 1, 2, 32, 176, 8, 3680 + 384];
+        ) = array_refs![input, 1, 1, 2, 32, 176, 8, 3680 + 224];
         msg!("is_initialized[0], {}", is_initialized[0]);
         if is_initialized[0] == 0 {
             Err(ProgramError::UninitializedAccount)
