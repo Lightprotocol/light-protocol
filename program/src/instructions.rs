@@ -178,7 +178,8 @@ pub fn check_tx_integrity_hash(
     let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey, encrypted_utxos].concat();
 
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    
+    msg!("hash computed");
+
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
         msg!("tx_integrity_hash verification failed.");
         return Err(ProgramError::InvalidInstructionData);
@@ -315,7 +316,7 @@ pub fn try_initialize_tmp_storage_pda(
     let leaf_right = &_instruction_data[160..192];
     let leaf_left = &_instruction_data[192..224];
 
-    let encrypted_utxos = &_instruction_data[593..593+384];
+    let encrypted_utxos = &_instruction_data[593..593 + 224];
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
         leaf_right.to_vec(),
@@ -341,6 +342,7 @@ pub fn try_initialize_tmp_storage_pda(
 
     let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
     tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];
+
     if merkle_tree_pda_pubkey
         != MERKLE_TREE_ACC_BYTES_ARRAY
             [<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]

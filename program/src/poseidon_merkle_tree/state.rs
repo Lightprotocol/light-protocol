@@ -216,7 +216,7 @@ impl IsInitialized for TmpStoragePda {
 }
 
 impl Pack for TmpStoragePda {
-    const LEN: usize = 3900 + 384; //297;
+    const LEN: usize = 3900 + 224; //297;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TmpStoragePda::LEN];
 
@@ -241,7 +241,7 @@ impl Pack for TmpStoragePda {
             _nullifier_0,
             _nullifier_1,
             encrypted_utxos
-        ) = array_refs![input, 1, 2, 1, 208, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 384];
+        ) = array_refs![input, 1, 2, 1, 208, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 224];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -289,7 +289,7 @@ impl Pack for TmpStoragePda {
             _nullifier_0_dst,
             _nullifier_1_dst,
             _encrypted_utxos_dst,
-        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 384];
+        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 224];
 
         let mut state_tmp = [0u8; 96];
         let mut z = 0;
@@ -337,7 +337,7 @@ impl IsInitialized for TwoLeavesBytesPda {
 }
 
 impl Pack for TwoLeavesBytesPda {
-    const LEN: usize = 106 + 384;
+    const LEN: usize = 106 + 224;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
@@ -349,8 +349,8 @@ impl Pack for TwoLeavesBytesPda {
             _leaf_left,
             _leaf_right,
             _merkle_tree_pubkey,
-            encrypted_utxos,
-        ) = array_refs![input, 1, 1, 8, 32, 32, 32, 384];
+            _encrypted_utxos,
+        ) = array_refs![input, 1, 1, 8, 32, 32, 32, 224];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
@@ -363,7 +363,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right: vec![0u8; 32],
             leaf_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
-            encrypted_utxos: vec![0u8;384],
+            encrypted_utxos: vec![0u8;224],
             left_leaf_index: 0usize,
         })
     }
@@ -378,7 +378,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right_dst,
             merkle_tree_pubkey_dst,
             encrypted_utxos_dst,
-        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, 384];
+        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, 224];
 
         *is_initialized_dst = [1];
         *account_type_dst = [4];

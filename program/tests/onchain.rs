@@ -1093,8 +1093,8 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8;432]].concat();
-    assert_eq!(ix_withdraw_data.len(), 1034);
+    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8;224]].concat();
+    assert_eq!(ix_withdraw_data.len(), 602 + 224);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let mut accounts_vector = Vec::new();
