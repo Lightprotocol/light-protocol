@@ -1534,7 +1534,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "light_protocol_program_v1"
+name = "light_protocol_program"
 version = "0.1.0"
 dependencies = [
  "ark-bn254",

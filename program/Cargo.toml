@@ -1,5 +1,5 @@
 [package]
-name = "light_protocol_program_v1"
+name = "light_protocol_program"
 version = "0.1.0"
 authors = ["ananas-block <flow23@protonmail.com>", "swen <swen.schaeferjohann@code.berlin>"]
 edition = "2018"
