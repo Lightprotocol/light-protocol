@@ -1104,6 +1104,7 @@ async fn deposit_should_succeed() {
     // Creates random signer
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
+    println!("signer_pubkey {:?}", signer_pubkey.to_bytes());
     // assign relayer key to signer otherwise it fails relayer check
     for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
         *elem = signer_pubkey.to_bytes()[i];
