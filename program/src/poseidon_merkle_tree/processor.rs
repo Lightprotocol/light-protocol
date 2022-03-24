@@ -167,7 +167,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 return Err(ProgramError::InvalidInstructionData);
             } else {
                 merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                merkle_tree_pda_data.pubkey_locked = _tmp_storage_pda.key.to_bytes().to_vec();
             }
 
             merkle_tree_pubkey_check(
