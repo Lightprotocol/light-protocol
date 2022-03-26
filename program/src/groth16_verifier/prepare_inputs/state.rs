@@ -1,4 +1,4 @@
-use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
+use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, TMP_STORAGE_ACCOUNT_TYPE};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     msg,
@@ -57,7 +57,7 @@ impl IsInitialized for PrepareInputsState {
     }
 }
 impl Pack for PrepareInputsState {
-    const LEN: usize = 3900 + 224; // 1020
+    const LEN: usize = 3900 + ENCRYPTED_UTXOS_LENGTH; // 1020
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, PrepareInputsState::LEN];
@@ -100,8 +100,42 @@ impl Pack for PrepareInputsState {
             _unused_remainder,
             proof_a_b_c_leaves_and_nullifiers,
         ) = array_refs![
-            input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384 + 224
+            input,
+            1,
+            1,
+            1,
+            1,
+            32,
+            8,
+            32,
+            8,
+            32,
+            32,
+            32,
+            32,
+            8,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            32,
+            32,
+            32,
+            32,
+            32,
+            2432,
+            384 + ENCRYPTED_UTXOS_LENGTH
         ];
 
         if _is_initialized[0] != 0u8 && account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
@@ -193,8 +227,42 @@ impl Pack for PrepareInputsState {
             _unused_remainder_dst,
             proof_a_b_c_leaves_and_nullifiers_dst,
         ) = mut_array_refs![
-            dst, 1, 1, 1, 1, 32, 8, 32, 8, 32, 32, 32, 32, 8, 32, 64, 32, 64, 32, 64, 32, 64, 32,
-            64, 32, 64, 32, 64, 32, 32, 32, 32, 32, 32, 2432, 384 + 224
+            dst,
+            1,
+            1,
+            1,
+            1,
+            32,
+            8,
+            32,
+            8,
+            32,
+            32,
+            32,
+            32,
+            8,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            64,
+            32,
+            32,
+            32,
+            32,
+            32,
+            32,
+            2432,
+            384 + ENCRYPTED_UTXOS_LENGTH
         ];
         for (i, var_has_changed) in self.changed_variables.iter().enumerate() {
             if *var_has_changed {

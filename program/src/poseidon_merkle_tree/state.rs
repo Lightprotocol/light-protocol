@@ -1,4 +1,4 @@
-use crate::config::MERKLE_TREE_ACCOUNT_TYPE;
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACCOUNT_TYPE};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{ByteOrder, LittleEndian};
 use solana_program::{
@@ -205,7 +205,7 @@ pub struct TmpStoragePda {
     pub current_index: usize,
     pub current_level: usize,
     pub current_instruction_index: usize,
-    pub encrypted_utxos: Vec<u8>
+    pub encrypted_utxos: Vec<u8>,
 }
 
 impl Sealed for TmpStoragePda {}
@@ -216,7 +216,7 @@ impl IsInitialized for TmpStoragePda {
 }
 
 impl Pack for TmpStoragePda {
-    const LEN: usize = 3900 + 224; //297;
+    const LEN: usize = 3900 + ENCRYPTED_UTXOS_LENGTH; //297;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TmpStoragePda::LEN];
 
@@ -240,8 +240,29 @@ impl Pack for TmpStoragePda {
             leaf_right,
             _nullifier_0,
             _nullifier_1,
-            encrypted_utxos
-        ) = array_refs![input, 1, 2, 1, 208, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 224];
+            encrypted_utxos,
+        ) = array_refs![
+            input,
+            1,
+            2,
+            1,
+            208,
+            8,
+            3328,
+            96,
+            8,
+            8,
+            32,
+            32,
+            32,
+            8,
+            8,
+            32,
+            32,
+            32,
+            32,
+            ENCRYPTED_UTXOS_LENGTH
+        ];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -289,7 +310,26 @@ impl Pack for TmpStoragePda {
             _nullifier_0_dst,
             _nullifier_1_dst,
             _encrypted_utxos_dst,
-        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32, 224];
+        ) = mut_array_refs![
+            dst,
+            1,
+            211,
+            8,
+            3328,
+            96,
+            8,
+            8,
+            32,
+            32,
+            32,
+            8,
+            8,
+            32,
+            32,
+            32,
+            32,
+            ENCRYPTED_UTXOS_LENGTH
+        ];
 
         let mut state_tmp = [0u8; 96];
         let mut z = 0;
@@ -337,7 +377,7 @@ impl IsInitialized for TwoLeavesBytesPda {
 }
 
 impl Pack for TwoLeavesBytesPda {
-    const LEN: usize = 106 + 224;
+    const LEN: usize = 106 + ENCRYPTED_UTXOS_LENGTH;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
@@ -350,7 +390,7 @@ impl Pack for TwoLeavesBytesPda {
             _leaf_right,
             _merkle_tree_pubkey,
             _encrypted_utxos,
-        ) = array_refs![input, 1, 1, 8, 32, 32, 32, 224];
+        ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
@@ -363,7 +403,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right: vec![0u8; 32],
             leaf_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
-            encrypted_utxos: vec![0u8;224],
+            encrypted_utxos: vec![0u8; ENCRYPTED_UTXOS_LENGTH],
             left_leaf_index: 0usize,
         })
     }
@@ -378,7 +418,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right_dst,
             merkle_tree_pubkey_dst,
             encrypted_utxos_dst,
-        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, 224];
+        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
 
         *is_initialized_dst = [1];
         *account_type_dst = [4];
