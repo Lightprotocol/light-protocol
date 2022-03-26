@@ -25,7 +25,7 @@ use light_protocol_program::{
     },
     process_instruction,
     state::ChecksAndTransferState,
-    utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
+    utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY},
     IX_ORDER,
 };
 use serde_json::Result;
@@ -248,7 +248,7 @@ pub async fn initialize_merkle_tree(
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(*merkle_tree_pda_pubkey, false),
-                AccountMeta::new_readonly(sysvar::rent::id(), false)
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
             ],
         )],
         Some(&signer_keypair.pubkey()),
@@ -1093,8 +1093,8 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8;224]].concat();
-    assert_eq!(ix_withdraw_data.len(), 602 + 224);
+    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; 224]].concat();
+    assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let mut accounts_vector = Vec::new();
@@ -2037,7 +2037,11 @@ async fn compute_final_exponentiation_should_succeed() {
     let f_ref = get_ref_value("final_exponentiation");
     let account_state = get_mock_state("final_exponentiation", &signer_keypair);
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, Some(account_state.clone())));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + 384,
+        Some(account_state.clone()),
+    ));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -2751,7 +2755,11 @@ async fn merkle_tree_insert_should_succeed() {
     }
     let mut accounts_vector = Vec::new();
     accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, Some(account_state.clone())));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + 384,
+        Some(account_state.clone()),
+    ));
 
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;

@@ -21,7 +21,7 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
-use crate::config::MERKLE_TREE_INIT_AUTHORITY;
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
@@ -59,10 +59,9 @@ pub fn process_instruction(
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
         if !rent.is_exempt(
-                **merkle_tree_storage_acc.lamports.borrow(),
-                merkle_tree_storage_acc.data.borrow().len()
-            )
-        {
+            **merkle_tree_storage_acc.lamports.borrow(),
+            merkle_tree_storage_acc.data.borrow().len(),
+        ) {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt);
         }
@@ -135,9 +134,9 @@ pub fn process_instruction(
                 create_and_try_initialize_tmp_storage_pda(
                     program_id,
                     accounts,
-                    3900u64 + 224,                 // bytes
-                    0_u64,                   // lamports
-                    true,                    // rent_exempt
+                    3900u64 + ENCRYPTED_UTXOS_LENGTH as u64, // bytes
+                    0_u64,                                   // lamports
+                    true,                                    // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
@@ -234,7 +233,7 @@ pub const NULLIFIER_0_START: usize = 320;
 pub const NULLIFIER_0_END: usize = 352;
 pub const NULLIFIER_1_START: usize = 352;
 pub const NULLIFIER_1_END: usize = 384;
-pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + 224;
+pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + ENCRYPTED_UTXOS_LENGTH as u64;
 //instruction order
 pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts

@@ -172,10 +172,20 @@ pub fn check_tx_integrity_hash(
     relayer: Vec<u8>,
     fee: Vec<u8>,
     tx_integrity_hash: Vec<u8>,
+    merkle_tree_index: u8,
     encrypted_utxos: Vec<u8>,
     merkle_tree_pda_pubkey: Vec<u8>,
 ) -> Result<(), ProgramError> {
-    let input = [recipient, ext_amount, relayer, fee, merkle_tree_pda_pubkey, encrypted_utxos].concat();
+    let input = [
+        recipient,
+        ext_amount,
+        relayer,
+        fee,
+        merkle_tree_pda_pubkey,
+        vec![merkle_tree_index],
+        encrypted_utxos,
+    ]
+    .concat();
 
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
     msg!("hash computed");
@@ -316,7 +326,7 @@ pub fn try_initialize_tmp_storage_pda(
     let leaf_right = &_instruction_data[160..192];
     let leaf_left = &_instruction_data[192..224];
 
-    let encrypted_utxos = &_instruction_data[593..593 + 224];
+    let encrypted_utxos = &_instruction_data[593..593 + 222];
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
         leaf_right.to_vec(),
@@ -349,10 +359,12 @@ pub fn try_initialize_tmp_storage_pda(
         .0
         .to_vec()
     {
-        msg!("Merkle tree in tx integrity hash not whitelisted or wrong ID.");
+        msg!(
+            "Merkle tree in tx integrity hash not whitelisted or wrong ID. is: {:?}",
+            merkle_tree_pda_pubkey,
+        );
         return Err(ProgramError::InvalidAccountData);
     }
-
 
     check_tx_integrity_hash(
         tmp_storage_pda_data.recipient.to_vec(),
@@ -360,6 +372,7 @@ pub fn try_initialize_tmp_storage_pda(
         relayer.to_vec(),
         tmp_storage_pda_data.relayer_fee.to_vec(),
         tmp_storage_pda_data.tx_integrity_hash.to_vec(),
+        tmp_storage_pda_data.merkle_tree_index,
         encrypted_utxos.to_vec(),
         merkle_tree_pda_pubkey,
     )?;
