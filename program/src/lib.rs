@@ -26,9 +26,7 @@ use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
-use crate::user_account::instructions::{
-    close_user_account, initialize_user_account, modify_user_account,
-};
+use crate::user_account::instructions::initialize_user_account;
 use crate::utils::config;
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -78,24 +76,24 @@ pub fn process_instruction(
         initialize_user_account(user_account, *signer_account.key, *rent)
     }
     // Modify onchain user account with arbitrary number of new utxos.
-    else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
-        let user_account = next_account_info(account)?;
-        let rent_sysvar_info = next_account_info(account)?;
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-        modify_user_account(
-            user_account,
-            *signer_account.key,
-            *rent,
-            &_instruction_data[9..],
-        )
-    }
+    // else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
+    //     let user_account = next_account_info(account)?;
+    //     let rent_sysvar_info = next_account_info(account)?;
+    //     let rent = &Rent::from_account_info(rent_sysvar_info)?;
+    //     modify_user_account(
+    //         user_account,
+    //         *signer_account.key,
+    //         *rent,
+    //         &_instruction_data[9..],
+    //     )
+    // }
     // Close onchain user account.
-    else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
-        let user_account = next_account_info(account)?;
-        let rent_sysvar_info = next_account_info(account)?;
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-        close_user_account(user_account, signer_account, *rent)
-    }
+    // else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
+    //     let user_account = next_account_info(account)?;
+    //     let rent_sysvar_info = next_account_info(account)?;
+    //     let rent = &Rent::from_account_info(rent_sysvar_info)?;
+    //     close_user_account(user_account, signer_account, *rent)
+    // }
     // Transact with shielded pool.
     // This instruction has to be called 1502 times to perform all computation.
     // There are different instructions which have to be executed in a specific order.
@@ -136,7 +134,7 @@ pub fn process_instruction(
                     accounts,
                     3900u64 + ENCRYPTED_UTXOS_LENGTH as u64, // bytes
                     0_u64,                                   // lamports
-                    true,                                    // rent_exempt
+                    false,                                   // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
