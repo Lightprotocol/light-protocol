@@ -6,8 +6,8 @@ use solana_program::{
     pubkey::Pubkey,
 };
 
-pub const SIZE_UTXO: usize = 216;
-pub const UTXO_CAPACITY: usize = 100; // amount of utxos that can be stored in the user account at once
+pub const SIZE_UTXO: usize = 64; // todo: rename to skp+ekp
+pub const UTXO_CAPACITY: usize = 1; // amount of utxos that can be stored in the user account at once
 
 #[derive(Debug, Clone)]
 pub struct UserAccount {
@@ -61,22 +61,25 @@ impl Pack for UserAccount {
         let dst = array_mut_ref![dst, 0, UserAccount::LEN];
         let (dst_is_initialized, dst_account_type, dst_owner_pubkey, dst_enc_utxos) =
             mut_array_refs![dst, 1, 1, 32, SIZE_UTXO * UTXO_CAPACITY];
-        // msg!("dst_enc_utxos : {:?}", dst_enc_utxos);
 
         if self.mode_init {
             dst_is_initialized[0] = 1;
             dst_account_type[0] = 10;
-            *dst_owner_pubkey = self.owner_pubkey.to_bytes();
-        } else {
-            for modifying_index in self.modified_ranges.iter() {
-                for (i, x) in dst_enc_utxos
-                    [modifying_index * SIZE_UTXO..modifying_index * SIZE_UTXO + SIZE_UTXO]
-                    .iter_mut()
-                    .enumerate()
-                {
-                    *x = self.enc_utxos[i + modifying_index * SIZE_UTXO];
-                }
+            for (i, x) in dst_enc_utxos.iter_mut().enumerate() {
+                *x = self.enc_utxos[i]
             }
+            *dst_owner_pubkey = self.owner_pubkey.to_bytes();
         }
+        // else {
+        //     for modifying_index in self.modified_ranges.iter() {
+        //         for (i, x) in dst_enc_utxos
+        //             [modifying_index * SIZE_UTXO..modifying_index * SIZE_UTXO + SIZE_UTXO]
+        //             .iter_mut()
+        //             .enumerate()
+        //         {
+        //             *x = self.enc_utxos[i + modifying_index * SIZE_UTXO];
+        //         }
+        //     }
+        // }
     }
 }

@@ -3,7 +3,9 @@ use ark_ff::PrimeField;
 
 use crate::nullifier_state::NullifierState;
 use crate::state::ChecksAndTransferState;
-use crate::utils::config::{MERKLE_TREE_ACC_BYTES_ARRAY, TMP_STORAGE_ACCOUNT_TYPE};
+use crate::utils::config::{
+    ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, TMP_STORAGE_ACCOUNT_TYPE,
+};
 use crate::Groth16Processor;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
@@ -326,7 +328,7 @@ pub fn try_initialize_tmp_storage_pda(
     let leaf_right = &_instruction_data[160..192];
     let leaf_left = &_instruction_data[192..224];
 
-    let encrypted_utxos = &_instruction_data[593..593 + 222];
+    let encrypted_utxos = &_instruction_data[593..593 + ENCRYPTED_UTXOS_LENGTH];
     tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
         _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
         leaf_right.to_vec(),
