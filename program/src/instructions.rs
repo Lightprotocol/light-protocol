@@ -159,7 +159,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         account_main,
         system_program_info,
         rent,
-        &_instruction_data[96..128],
+        &_instruction_data[64..96],
         &b"storage"[..],
         number_storage_bytes, //bytes
         lamports,             //lamports
@@ -255,8 +255,9 @@ pub fn create_and_check_pda<'a, 'b>(
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
     } else {
-        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / (2 * 365);
     }
+    msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(
             signer_account.key,

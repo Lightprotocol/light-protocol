@@ -387,7 +387,7 @@ pub fn get_mock_state(
         let mut affine_bytes = vec![0; 64];
         parse_x_group_affine_to_bytes(as_affine, &mut affine_bytes);
         // mock account state after prepare_inputs (instruction index = 466)
-        let mut account_state = vec![0; 3900 + 384];
+        let mut account_state = vec![0; 3900 + config::ENCRYPTED_UTXOS_LENGTH];
         // set is_initialized: true
         account_state[0] = 1;
         // set account_type: tmp account
@@ -413,7 +413,7 @@ pub fn get_mock_state(
         }
         mock_bytes = account_state;
     } else if mode == "final_exponentiation" {
-        let mut account_state = vec![0; 3900 + 384];
+        let mut account_state = vec![0; 3900 + config::ENCRYPTED_UTXOS_LENGTH];
         // set is_initialized:true
         account_state[0] = 1;
         // set account_type: tmp account
@@ -516,7 +516,7 @@ async fn create_pubkeys_from_ix_data(
 ) -> (Pubkey, Pubkey, Pubkey, Pubkey) {
     // Creates pubkeys for all the PDAs we'll use
     let tmp_storage_pda_pubkey =
-        Pubkey::find_program_address(&[&ix_data[105..137], &b"storage"[..]], &program_id).0;
+        Pubkey::find_program_address(&[&ix_data[73..105], &b"storage"[..]], &program_id).0;
     let two_leaves_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[105..137], &b"leaves"[..]], program_id).0;
 
@@ -568,7 +568,7 @@ async fn transact(
             *program_id,
             &[ix_data[8..].to_vec(), vec![separator]].concat(),
             vec![
-                AccountMeta::new(*signer_pubkey, true),
+                AccountMeta::new(*signer_pubkey, false),
                 AccountMeta::new(*tmp_storage_pda_pubkey, false),
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
                 AccountMeta::new_readonly(sysvar::rent::id(), false),
@@ -727,7 +727,7 @@ pub async fn last_tx(
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
     let mut accounts_vector_local = accounts_vector.clone();
-    accounts_vector_local.push((tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector_local.push((tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
     let mut program_context = restart_program(
         &mut accounts_vector_local,
         Some(token_accounts),
@@ -1093,7 +1093,7 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; 224]].concat();
+    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
     assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
@@ -1913,7 +1913,7 @@ async fn compute_prepared_inputs_should_succeed() {
         .process_transaction(transaction)
         .await
         .unwrap();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -1989,7 +1989,7 @@ async fn compute_miller_output_should_succeed() {
 
     let account_state = get_mock_state("miller_output", &signer_keypair);
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, Some(account_state)));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, Some(account_state)));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -2039,7 +2039,7 @@ async fn compute_final_exponentiation_should_succeed() {
     let mut accounts_vector = Vec::new();
     accounts_vector.push((
         &tmp_storage_pda_pubkey,
-        3900 + 384,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
         Some(account_state.clone()),
     ));
     let mut program_context =
@@ -2121,7 +2121,7 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -2232,7 +2232,7 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -2347,7 +2347,7 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -2620,7 +2620,7 @@ async fn wrong_merkle_tree_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -2687,7 +2687,7 @@ async fn wrong_integrity_hash_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + 384, None));
+    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
 
     /*
      *
@@ -2728,7 +2728,7 @@ async fn merkle_tree_insert_should_succeed() {
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
-    let mut account_state = vec![0u8; 3900 + 384];
+    let mut account_state = vec![0u8; 3900 + config::ENCRYPTED_UTXOS_LENGTH];
     let x = usize::to_le_bytes(801 + 465);
     for i in 212..220 {
         account_state[i] = x[i - 212];
@@ -2757,7 +2757,7 @@ async fn merkle_tree_insert_should_succeed() {
     accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
     accounts_vector.push((
         &tmp_storage_pda_pubkey,
-        3900 + 384,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
         Some(account_state.clone()),
     ));
 
