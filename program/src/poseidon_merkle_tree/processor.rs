@@ -97,7 +97,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
     pub fn process_instruction(&mut self, accounts: &[AccountInfo]) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
-        let signer = next_account_info(account)?;
+        let _signer = next_account_info(account)?;
         let _tmp_storage_pda = next_account_info(account)?;
         let mut tmp_storage_pda_data =
             TmpStoragePda::unpack(&self.tmp_storage_pda.unwrap().data.borrow())?;
@@ -167,7 +167,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 return Err(ProgramError::InvalidInstructionData);
             } else {
                 merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_pda_data.pubkey_locked = signer.key.to_bytes().to_vec();
+                merkle_tree_pda_data.pubkey_locked = _tmp_storage_pda.key.to_bytes().to_vec();
             }
 
             merkle_tree_pubkey_check(
