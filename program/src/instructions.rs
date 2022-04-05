@@ -136,6 +136,45 @@ pub fn token_transfer<'a, 'b>(
     Ok(())
 }
 
+pub fn wsol_transfer<'a, 'b>(
+    token_program: &'b AccountInfo<'a>,
+    source: &'b AccountInfo<'a>,
+    destination: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    seed: &[u8],
+    bump_seed: &[u8],
+    amount: u64,
+) -> Result<(), ProgramError> {
+    msg!(
+        "Transferring {} from {:?} to {:?}",
+        amount,
+        source.key,
+        destination.key
+    );
+
+
+
+    let authority_signature_seeds = [seed, bump_seed];
+
+    let signers = &[&authority_signature_seeds[..]];
+
+    let ix = spl_token::instruction::sync_native(
+        token_program.key,
+        source.key
+    )?;
+    invoke_signed(
+        &ix,
+        &[
+            token_program.clone(),
+            source.clone(),
+            // destination.clone(),
+            authority.clone(),
+        ],
+        signers,
+    )?;
+    Ok(())
+}
+
 #[allow(clippy::clone_double_ref)]
 pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
@@ -228,6 +267,83 @@ pub fn check_and_insert_nullifier<'a, 'b>(
     Ok(1u8)
 }
 
+pub fn close_account(
+    account: &AccountInfo,
+    dest_account: &AccountInfo,
+) -> Result<(), ProgramError> {
+
+    //close account by draining lamports
+    let dest_starting_lamports = dest_account.lamports();
+    **dest_account.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(account.lamports())
+        .ok_or(ProgramError::InvalidAccountData)?;
+    **account.lamports.borrow_mut() = 0;
+    Ok(())
+}
+pub fn create_and_check_pda0<'a, 'b>(
+    program_id0: &Pubkey,
+    program_id: &Pubkey,
+    signer_account: &'a AccountInfo<'b>,
+    passed_in_pda: &'a AccountInfo<'b>,
+    system_program: &'a AccountInfo<'b>,
+    rent: &Rent,
+    _instruction_data: &[u8],
+    domain_separation_seed: &[u8],
+    number_storage_bytes: u64,
+    lamports: u64,
+    rent_exempt: bool,
+) -> Result<(), ProgramError> {
+    let derived_pubkey =
+        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id0);
+
+    if derived_pubkey.0 != *passed_in_pda.key {
+        msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+        msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+        msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
+        msg!("Instruction data seed  {:?}", [_instruction_data, domain_separation_seed]);
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let mut account_lamports = lamports;
+    if rent_exempt {
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
+    } else {
+        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
+    }
+    msg!("account_lamports: {}", account_lamports);
+    invoke_signed(
+        &system_instruction::create_account(
+            signer_account.key,     // from_pubkey
+            passed_in_pda.key,      // to_pubkey
+            account_lamports,       // lamports
+            number_storage_bytes,   // space
+            program_id,             // owner
+        ),
+        &[
+            signer_account.clone(),
+            passed_in_pda.clone(),
+            system_program.clone(),
+        ],
+        &[&[
+            _instruction_data,
+            domain_separation_seed,
+            &[derived_pubkey.1],
+        ]],
+    )?;
+
+    // Check for rent exemption
+    if rent_exempt
+        && !rent.is_exempt(
+            **passed_in_pda.lamports.borrow(),
+            number_storage_bytes.try_into().unwrap(),
+        )
+    {
+        msg!("Account is not rent exempt.");
+        return Err(ProgramError::AccountNotRentExempt);
+    }
+    Ok(())
+}
+
 pub fn create_and_check_pda<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
@@ -260,11 +376,11 @@ pub fn create_and_check_pda<'a, 'b>(
     msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(
-            signer_account.key,
-            passed_in_pda.key,
-            account_lamports,
-            number_storage_bytes,
-            program_id,
+            signer_account.key,     // from_pubkey
+            passed_in_pda.key,      // to_pubkey
+            account_lamports,       // lamports
+            number_storage_bytes,   // space
+            program_id,             // owner
         ),
         &[
             signer_account.clone(),
@@ -369,16 +485,16 @@ pub fn try_initialize_tmp_storage_pda(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    check_tx_integrity_hash(
-        tmp_storage_pda_data.recipient.to_vec(),
-        tmp_storage_pda_data.ext_amount.to_vec(),
-        relayer.to_vec(),
-        tmp_storage_pda_data.relayer_fee.to_vec(),
-        tmp_storage_pda_data.tx_integrity_hash.to_vec(),
-        tmp_storage_pda_data.merkle_tree_index,
-        encrypted_utxos.to_vec(),
-        merkle_tree_pda_pubkey,
-    )?;
+    // check_tx_integrity_hash(
+    //     tmp_storage_pda_data.recipient.to_vec(),
+    //     tmp_storage_pda_data.ext_amount.to_vec(),
+    //     relayer.to_vec(),
+    //     tmp_storage_pda_data.relayer_fee.to_vec(),
+    //     tmp_storage_pda_data.tx_integrity_hash.to_vec(),
+    //     tmp_storage_pda_data.merkle_tree_index,
+    //     encrypted_utxos.to_vec(),
+    //     merkle_tree_pda_pubkey,
+    // )?;
     for i in 0..11 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }

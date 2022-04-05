@@ -27,6 +27,7 @@ pub mod tests {
     use solana_sdk::stake_history::Epoch;
     use std::fs;
     use std::str::FromStr;
+    use solana_program::program_option::COption;
 
     const ACCOUNT_RENT_EXEMPTION: u64 = 1000000000000u64;
     pub fn get_ref_value(mode: &str) -> Vec<u8> {
@@ -259,6 +260,7 @@ pub mod tests {
             owner,
             amount: balance,
             state: spl_token::state::AccountState::Initialized,
+            is_native: COption::Some(2),
             ..spl_token::state::Account::default()
         };
         Pack::pack(token_account_state, &mut token_account_data).unwrap();

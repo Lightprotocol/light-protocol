@@ -537,6 +537,7 @@ async fn transact(
     signer_keypair: &Keypair,
     tmp_storage_pda_pubkey: &Pubkey,
     user_pda_token_pubkey: &Pubkey,
+    user_pda_owner_pubkey: Option<&Pubkey>,
     merkle_tree_pda_pubkey: &Pubkey,
     merkle_tree_pda_token_pubkey: &Pubkey,
     expected_authority_pubkey: &Pubkey,
@@ -704,6 +705,7 @@ async fn transact(
         token_accounts,
         relayer_pda_token_pubkey_option,
         recipient_pubkey_option,
+        user_pda_owner_pubkey
     )
     .await;
     Ok(program_context)
@@ -724,6 +726,7 @@ pub async fn last_tx(
     token_accounts: &mut Vec<(&Pubkey, &Pubkey, u64)>,
     relayer_pda_token_pubkey_option: Option<&Pubkey>,
     recipient_pubkey_option: Option<&Pubkey>,
+    user_acc_owner_pubkey_option: Option<&Pubkey>,
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
     let mut accounts_vector_local = accounts_vector.clone();
@@ -770,6 +773,7 @@ pub async fn last_tx(
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(sysvar::rent::id(), false),
                 AccountMeta::new(*expected_authority_pubkey, false),
+                AccountMeta::new(*user_acc_owner_pubkey_option.unwrap(), false),
                 AccountMeta::new(*user_pda_token_pubkey, false),
             ],
         ));
@@ -788,7 +792,7 @@ pub async fn last_tx(
                 AccountMeta::new(*merkle_tree_pda_pubkey, false),
                 AccountMeta::new(*merkle_tree_pda_token_pubkey, false),
                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
-                AccountMeta::new_readonly(spl_token::id(), false),
+                AccountMeta::new(spl_token::id(), false),
                 AccountMeta::new_readonly(sysvar::rent::id(), false),
                 AccountMeta::new(*expected_authority_pubkey, false),
                 AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
@@ -797,6 +801,19 @@ pub async fn last_tx(
     }
     //withdrawal
     else {
+        //let wsol_tmp_pda = solana_sdk::signer::keypair::Keypair::new();
+        let associated_program_id = Pubkey::from_str("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").unwrap();
+        let authority_seed = associated_program_id.to_bytes();//program_id.to_bytes();
+        let (expected_authority_pubkey_ata, _authority_bump_seed) =
+            Pubkey::find_program_address(&[&authority_seed], &associated_program_id);
+        let associated_token_account_signer_seeds: &[&[_]] = &[
+                &signer_keypair.pubkey().to_bytes(),
+                &spl_token::id().to_bytes(),
+                //&associated_program_id.to_bytes(),
+            ];
+        let derived_pubkey =
+            Pubkey::find_program_address(associated_token_account_signer_seeds, &program_id);
+        println!("{:?}",derived_pubkey );
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
             &vec![21],
@@ -812,7 +829,12 @@ pub async fn last_tx(
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(sysvar::rent::id(), false),
                 AccountMeta::new(*expected_authority_pubkey, false),
+                AccountMeta::new(*user_acc_owner_pubkey_option.unwrap(), false),
                 AccountMeta::new(*recipient_pubkey_option.unwrap(), false),
+                AccountMeta::new_readonly(spl_token::native_mint::id(), false),
+                AccountMeta::new(derived_pubkey.0, false),
+                // AccountMeta::new_readonly(associated_program_id, false),
+                // AccountMeta::new(expected_authority_pubkey_ata, false),
                 AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
             ],
         ));
@@ -1167,13 +1189,14 @@ async fn deposit_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    //deposit shielded pool
+    // deposit shielded pool
     let mut program_context = transact(
         &program_id,
         &signer_pubkey,
         &signer_keypair,
         &tmp_storage_pda_pubkey,
         &user_pda_token_pubkey,
+        Some(&signer_pubkey),
         &merkle_tree_pda_pubkey,
         &merkle_tree_pda_token_pubkey,
         &expected_authority_pubkey,
@@ -1274,7 +1297,7 @@ async fn deposit_should_succeed() {
     )
     .unwrap();
 }
-
+/*
 #[tokio::test]
 async fn internal_transfer_should_succeed() {
     let mut ix_withdraw_data = read_test_data(std::string::String::from("internal_transfer.txt"));
@@ -1466,10 +1489,10 @@ async fn internal_transfer_should_succeed() {
     )
     .unwrap();
 }
-
+*/
 #[tokio::test]
 async fn withdrawal_should_succeed() {
-    let ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
+    let mut ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
     let recipient = Pubkey::new(&ix_withdraw_data[489..521]);
     let amount: u64 = (-i64::from_le_bytes(ix_withdraw_data[521..529].try_into().unwrap()))
         .try_into()
@@ -1477,6 +1500,8 @@ async fn withdrawal_should_succeed() {
     println!("amount: {:?}", amount);
     let fees: u64 = u64::from_le_bytes(ix_withdraw_data[561..569].try_into().unwrap());
 
+    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
+    assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
     let mut accounts_vector = Vec::new();
@@ -1544,6 +1569,7 @@ async fn withdrawal_should_succeed() {
         &signer_keypair,
         &tmp_storage_pda_pubkey,
         &recipient,
+        Some(&signer_pubkey),
         &merkle_tree_pda_pubkey,
         &merkle_tree_pda_token_pubkey,
         &expected_authority_pubkey,
@@ -1561,6 +1587,21 @@ async fn withdrawal_should_succeed() {
     .unwrap();
 
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
+
+    let recipient_pda_token_account = program_context
+        .banks_client
+        .get_account(recipient)
+        .await
+        .expect("get_account")
+        .unwrap();
+    let recipient_token_account_data =
+        spl_token::state::Account::unpack(&recipient_pda_token_account.data).unwrap();
+    println!("\recipient: {:?} \n", recipient);
+
+    println!(
+        "recipient_token_account_data: {:?}",
+        recipient_pda_token_account
+    );
 
     let merkle_tree_pda_after = program_context
         .banks_client
@@ -1618,7 +1659,7 @@ async fn withdrawal_should_succeed() {
 
     assert_eq!(relayer_pda_token_account_data.amount, fees);
 }
-
+/*
 #[tokio::test]
 async fn double_spend_should_not_succeed() {
     let ix_withdraw_data = read_test_data(std::string::String::from("withdraw.txt"));
@@ -3113,3 +3154,4 @@ async fn test_user_account_checks() {
     assert_eq!(vec![0u8; 64], user_account_data_modified.data[34..98]);
     println!("user account was not modified success");
 }
+*/
