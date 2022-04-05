@@ -160,10 +160,10 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         system_program_info,
         rent,
         &_instruction_data[64..96],
-        &b"storage"[..],
-        number_storage_bytes, //bytes
-        lamports,             //lamports
-        rent_exempt,          //rent_exempt
+        &[115, 116, 111, 114, 97, 103, 101], // &b"storage"[..],
+        number_storage_bytes,                //bytes
+        lamports,                            //lamports
+        rent_exempt,                         //rent_exempt
     )?;
     try_initialize_tmp_storage_pda(account_main, _instruction_data, signer_account.key)
 }
@@ -247,7 +247,11 @@ pub fn create_and_check_pda<'a, 'b>(
         msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
         msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
         msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
-        msg!("Instruction data seed  {:?}", _instruction_data);
+        msg!(
+            "Instruction data seed  {:?}",
+            [_instruction_data.to_vec(), domain_separation_seed.to_vec()].concat()
+        );
+        msg!("program id {:?}", program_id);
         return Err(ProgramError::InvalidInstructionData);
     }
 
