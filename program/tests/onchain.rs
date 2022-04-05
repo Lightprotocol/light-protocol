@@ -759,7 +759,6 @@ pub async fn last_tx(
         ix_vec.push(approve_instruction);
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
-            //&[vec![bumpSeed;1],signer_keypair.pubkey().to_bytes()[..].to_vec()].concat(),
             &vec![21],
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
@@ -802,18 +801,16 @@ pub async fn last_tx(
     //withdrawal
     else {
         //let wsol_tmp_pda = solana_sdk::signer::keypair::Keypair::new();
-        let associated_program_id = Pubkey::from_str("ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL").unwrap();
-        let authority_seed = associated_program_id.to_bytes();//program_id.to_bytes();
-        let (expected_authority_pubkey_ata, _authority_bump_seed) =
-            Pubkey::find_program_address(&[&authority_seed], &associated_program_id);
+
         let associated_token_account_signer_seeds: &[&[_]] = &[
                 &signer_keypair.pubkey().to_bytes(),
                 &spl_token::id().to_bytes(),
-                //&associated_program_id.to_bytes(),
             ];
         let derived_pubkey =
             Pubkey::find_program_address(associated_token_account_signer_seeds, &program_id);
         println!("{:?}",derived_pubkey );
+        println!("{:?}",associated_token_account_signer_seeds );
+
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
             &vec![21],
@@ -829,12 +826,9 @@ pub async fn last_tx(
                 AccountMeta::new_readonly(spl_token::id(), false),
                 AccountMeta::new_readonly(sysvar::rent::id(), false),
                 AccountMeta::new(*expected_authority_pubkey, false),
-                AccountMeta::new(*user_acc_owner_pubkey_option.unwrap(), false),
                 AccountMeta::new(*recipient_pubkey_option.unwrap(), false),
-                AccountMeta::new_readonly(spl_token::native_mint::id(), false),
                 AccountMeta::new(derived_pubkey.0, false),
-                // AccountMeta::new_readonly(associated_program_id, false),
-                // AccountMeta::new(expected_authority_pubkey_ata, false),
+                AccountMeta::new_readonly(spl_token::native_mint::id(), false),
                 AccountMeta::new(*relayer_pda_token_pubkey_option.unwrap(), false),
             ],
         ));
