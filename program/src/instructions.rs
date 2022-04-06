@@ -136,40 +136,6 @@ pub fn token_transfer<'a, 'b>(
     Ok(())
 }
 
-pub fn wsol_transfer<'a, 'b>(
-    token_program: &'b AccountInfo<'a>,
-    source: &'b AccountInfo<'a>,
-    destination: &'b AccountInfo<'a>,
-    authority: &'b AccountInfo<'a>,
-    seed: &[u8],
-    bump_seed: &[u8],
-    amount: u64,
-) -> Result<(), ProgramError> {
-    msg!(
-        "Transferring {} from {:?} to {:?}",
-        amount,
-        source.key,
-        destination.key
-    );
-
-    let authority_signature_seeds = [seed, bump_seed];
-
-    let signers = &[&authority_signature_seeds[..]];
-
-    let ix = spl_token::instruction::sync_native(token_program.key, source.key)?;
-    invoke_signed(
-        &ix,
-        &[
-            token_program.clone(),
-            source.clone(),
-            // destination.clone(),
-            authority.clone(),
-        ],
-        signers,
-    )?;
-    Ok(())
-}
-
 #[allow(clippy::clone_double_ref)]
 pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,

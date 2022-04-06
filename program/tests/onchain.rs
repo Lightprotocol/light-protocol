@@ -554,6 +554,7 @@ async fn transact(
     )>,
     token_accounts: &mut Vec<(&Pubkey, &Pubkey, u64)>,
     separator: u8,
+    amount: Option<u64>
 ) -> Result<ProgramTestContext> {
     /*
      *
@@ -705,7 +706,8 @@ async fn transact(
         token_accounts,
         relayer_pda_token_pubkey_option,
         recipient_pubkey_option,
-        user_pda_owner_pubkey
+        user_pda_owner_pubkey,
+        amount
     )
     .await;
     Ok(program_context)
@@ -727,6 +729,7 @@ pub async fn last_tx(
     relayer_pda_token_pubkey_option: Option<&Pubkey>,
     recipient_pubkey_option: Option<&Pubkey>,
     user_acc_owner_pubkey_option: Option<&Pubkey>,
+    amount: Option<u64>
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
     let mut accounts_vector_local = accounts_vector.clone();
@@ -747,16 +750,55 @@ pub async fn last_tx(
     let mut ix_vec = Vec::new();
     //deposit case mint wrapped sol tokens and approve a program owned authority
     if recipient_pubkey_option.is_none() && relayer_pda_token_pubkey_option.is_none() {
-        let approve_instruction = spl_token::instruction::approve(
+        // let approve_instruction = spl_token::instruction::approve(
+        //     &spl_token::id(),
+        //     &user_pda_token_pubkey,
+        //     &expected_authority_pubkey,
+        //     &signer_keypair.pubkey(),
+        //     &[],
+        //     token_accounts[1].2,
+        // )
+        // .unwrap();
+        // ix_vec.push(approve_instruction);
+        let mut ix_vec_0 = Vec::new();
+
+        let sync_native_instruction = spl_token::instruction::sync_native(
             &spl_token::id(),
-            &user_pda_token_pubkey,
-            &expected_authority_pubkey,
-            &signer_keypair.pubkey(),
-            &[],
-            token_accounts[1].2,
+            &merkle_tree_pda_token_pubkey,
+            // &expected_authority_pubkey,
+            // &signer_keypair.pubkey(),
+            // &[],
+            // token_accounts[1].2,
         )
         .unwrap();
-        ix_vec.push(approve_instruction);
+        ix_vec_0.push(sync_native_instruction);
+
+        let mut transaction = Transaction::new_with_payer(&ix_vec_0, Some(&signer_keypair.pubkey()));
+        transaction.sign(&[signer_keypair], program_context.last_blockhash);
+
+        let _res_request = timeout(
+            time::Duration::from_millis(500),
+            program_context
+                .banks_client
+                .process_transaction(transaction),
+        )
+        .await;
+        println!("last_tx_first");
+
+        let mut transaction = solana_sdk::system_transaction::transfer(
+            &signer_keypair,
+            merkle_tree_pda_token_pubkey,
+            amount.unwrap(),
+            program_context.last_blockhash,
+        );
+        transaction.sign(&[&*signer_keypair], program_context.last_blockhash);
+        program_context
+            .banks_client
+            .process_transaction(transaction)
+            .await
+            .unwrap();
+        println!("last tx second");
+
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
             &vec![21],
@@ -1203,6 +1245,7 @@ async fn deposit_should_succeed() {
         &mut accounts_vector,
         &mut token_accounts,
         1u8,
+        Some(amount)
     )
     .await
     .unwrap();
@@ -1576,6 +1619,7 @@ async fn withdrawal_should_succeed() {
         &mut accounts_vector,
         &mut token_accounts,
         1u8,
+        Some(amount)
     )
     .await
     .unwrap();
