@@ -1,6 +1,6 @@
 use crate::instructions::{
     check_and_insert_nullifier, check_external_amount, close_account, create_and_check_pda,
-    create_and_check_pda0, token_transfer, wsol_transfer,
+    create_and_check_pda0, token_transfer
 };
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
@@ -168,18 +168,45 @@ pub fn process_instruction(
 
         if relayer_fee != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             if ext_amount > 0 {
-                let user_pda_token = next_account_info(account)?;
+                let merkle_tree_pda_token_data =
+                    spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
-                token_transfer(
-                    token_program_account,
-                    user_pda_token,
-                    merkle_tree_pda_token,
-                    authority,
-                    &authority_seed[..],
-                    &[authority_bump_seed],
-                    pub_amount_checked,
-                )?;
-                msg!("Deposited {}", pub_amount_checked);
+                if merkle_tree_pda_token_data.is_native() {
+                    let token_program_account_native = next_account_info(account)?;
+                    msg!("merkle_tree_pda_token_data.amount {}", merkle_tree_pda_token_data.amount);
+                    let merkle_tree_pda_token_data_prior_amount = merkle_tree_pda_token_data.amount;
+                    invoke(
+                        &spl_token::instruction::sync_native(
+                            token_program_account.key,        // token_program_id
+                            merkle_tree_pda_token.key,                 // account_pubkey
+                        )
+                        .unwrap(),
+                        &[
+                            merkle_tree_pda_token.clone(),
+                        ],
+                    )?;
+                    let merkle_tree_pda_token_data =
+                        spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
+
+                    if merkle_tree_pda_token_data_prior_amount + pub_amount_checked != merkle_tree_pda_token_data.amount {
+                        msg!("merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior_amount + pub_amount_checked ,merkle_tree_pda_token_data.amount);
+                        panic!("wrong amount");
+                    }
+                } else {
+                    let user_pda_token = next_account_info(account)?;
+
+                    token_transfer(
+                        token_program_account,
+                        user_pda_token,
+                        merkle_tree_pda_token,
+                        authority,
+                        &authority_seed[..],
+                        &[authority_bump_seed],
+                        pub_amount_checked,
+                    )?;
+                    msg!("Deposited {}", pub_amount_checked);
+                }
+
             } else if ext_amount < 0 {
                 let closing_account_recipient = next_account_info(account)?;
 
@@ -260,6 +287,7 @@ pub fn process_instruction(
                 //     token_program_account_native.key,
                 //     &spl_token::native_mint::id()
                 // );
+
                 invoke(
                     &spl_token::instruction::initialize_account2(
                         token_program_account.key,        // token_program_id
