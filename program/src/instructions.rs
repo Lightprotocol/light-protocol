@@ -108,12 +108,12 @@ pub fn token_transfer<'a, 'b>(
     let authority_signature_seeds = [seed, bump_seed];
 
     let signers = &[&authority_signature_seeds[..]];
-    msg!(
-        "Transferring {} from {:?} to {:?}",
-        amount,
-        source.key,
-        destination.key
-    );
+    // msg!(
+    //     "Transferring {} from {:?} to {:?}",
+    //     amount,
+    //     source.key,
+    //     destination.key
+    // );
 
     let ix = spl_token::instruction::transfer(
         token_program.key,
@@ -152,16 +152,11 @@ pub fn wsol_transfer<'a, 'b>(
         destination.key
     );
 
-
-
     let authority_signature_seeds = [seed, bump_seed];
 
     let signers = &[&authority_signature_seeds[..]];
 
-    let ix = spl_token::instruction::sync_native(
-        token_program.key,
-        source.key
-    )?;
+    let ix = spl_token::instruction::sync_native(token_program.key, source.key)?;
     invoke_signed(
         &ix,
         &[
@@ -271,7 +266,6 @@ pub fn close_account(
     account: &AccountInfo,
     dest_account: &AccountInfo,
 ) -> Result<(), ProgramError> {
-
     //close account by draining lamports
     let dest_starting_lamports = dest_account.lamports();
     **dest_account.lamports.borrow_mut() = dest_starting_lamports
@@ -300,7 +294,10 @@ pub fn create_and_check_pda0<'a, 'b>(
         msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
         msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
         msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
-        msg!("Instruction data seed  {:?}", [_instruction_data, domain_separation_seed]);
+        msg!(
+            "Instruction data seed  {:?}",
+            [_instruction_data, domain_separation_seed]
+        );
         return Err(ProgramError::InvalidInstructionData);
     }
 
@@ -313,11 +310,11 @@ pub fn create_and_check_pda0<'a, 'b>(
     msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(
-            signer_account.key,     // from_pubkey
-            passed_in_pda.key,      // to_pubkey
-            account_lamports,       // lamports
-            number_storage_bytes,   // space
-            program_id,             // owner
+            signer_account.key,   // from_pubkey
+            passed_in_pda.key,    // to_pubkey
+            account_lamports,     // lamports
+            number_storage_bytes, // space
+            program_id,           // owner
         ),
         &[
             signer_account.clone(),
@@ -376,11 +373,11 @@ pub fn create_and_check_pda<'a, 'b>(
     msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(
-            signer_account.key,     // from_pubkey
-            passed_in_pda.key,      // to_pubkey
-            account_lamports,       // lamports
-            number_storage_bytes,   // space
-            program_id,             // owner
+            signer_account.key,   // from_pubkey
+            passed_in_pda.key,    // to_pubkey
+            account_lamports,     // lamports
+            number_storage_bytes, // space
+            program_id,           // owner
         ),
         &[
             signer_account.clone(),

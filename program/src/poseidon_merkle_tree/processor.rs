@@ -27,7 +27,7 @@ const MERKLE_TREE_UPDATE_LEVEL: u8 = 25;
 const LOCK_START: u8 = 34;
 
 // duration measured in slots
-const LOCK_DURATION: u64 = 20;
+const LOCK_DURATION: u64 = 40;
 const HASH_0: u8 = 0;
 const HASH_1: u8 = 1;
 const HASH_2: u8 = 2;
