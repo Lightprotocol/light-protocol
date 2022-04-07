@@ -31,7 +31,7 @@ pub fn process_instruction(
 ) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
-    // let mut closing_account_recipient = signer_account;
+    // let mut recipient_account = signer_account;
     let tmp_storage_pda = next_account_info(account)?;
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
@@ -168,13 +168,11 @@ pub fn process_instruction(
 
         if relayer_fee != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
             if ext_amount > 0 {
-                let merkle_tree_pda_token_data =
+                let merkle_tree_pda_token_data_prior =
                     spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
-                if merkle_tree_pda_token_data.is_native() {
-                    let token_program_account_native = next_account_info(account)?;
-                    msg!("merkle_tree_pda_token_data.amount {}", merkle_tree_pda_token_data.amount);
-                    let merkle_tree_pda_token_data_prior_amount = merkle_tree_pda_token_data.amount;
+                if merkle_tree_pda_token_data_prior.is_native() {
+
                     invoke(
                         &spl_token::instruction::sync_native(
                             token_program_account.key,        // token_program_id
@@ -185,11 +183,11 @@ pub fn process_instruction(
                             merkle_tree_pda_token.clone(),
                         ],
                     )?;
-                    let merkle_tree_pda_token_data =
+                    let merkle_tree_pda_token_data_after =
                         spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
-                    if merkle_tree_pda_token_data_prior_amount + pub_amount_checked != merkle_tree_pda_token_data.amount {
-                        msg!("merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior_amount + pub_amount_checked ,merkle_tree_pda_token_data.amount);
+                    if merkle_tree_pda_token_data_prior.amount + pub_amount_checked != merkle_tree_pda_token_data_after.amount {
+                        msg!("merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior.amount + pub_amount_checked ,merkle_tree_pda_token_data_after.amount);
                         panic!("wrong amount");
                     }
                 } else {
@@ -208,168 +206,143 @@ pub fn process_instruction(
                 }
 
             } else if ext_amount < 0 {
-                let closing_account_recipient = next_account_info(account)?;
+                let recipient_account = next_account_info(account)?;
+                let merkle_tree_pda_token_data =
+                    spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
+                if merkle_tree_pda_token_data.is_native() {
+                    msg!("is native: {:?}", merkle_tree_pda_token_data);
+                    // if *recipient_account.key
+                    //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.recipient)
+                    // {
+                    //     msg!("Recipient has to be address specified in tx integrity hash.");
+                    //     return Err(ProgramError::InvalidInstructionData);
+                    // }
+                    let wsol_tmp_pda = next_account_info(account)?;
+                    let token_program_account_native = next_account_info(account)?;
+                    let signer_account_pubkey_bytes = &signer_account.key.to_bytes()[..];
+                    let spl_token_pubkey_bytes = &spl_token::id().to_bytes()[..];
 
-                // if *closing_account_recipient.key
-                //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.recipient)
-                // {
-                //     msg!("Recipient has to be address specified in tx integrity hash.");
-                //     return Err(ProgramError::InvalidInstructionData);
-                // }
-                let wsol_tmp_pda = next_account_info(account)?;
-                let token_program_account_native = next_account_info(account)?;
-                let signer_account_pubkey_bytes = &signer_account.key.to_bytes()[..];
-                let spl_token_pubkey_bytes = &spl_token::id().to_bytes()[..];
+                    msg!("withdrawing wsol");
+                    msg!("creating tmp wsol account");
 
-                msg!("withdrawing wsol");
-                msg!("creating tmp wsol account");
+                    create_and_check_pda0(
+                        program_id,
+                        &token_program_account.key,
+                        signer_account,
+                        wsol_tmp_pda,
+                        system_program_account,
+                        rent,
+                        &signer_account_pubkey_bytes,
+                        &spl_token_pubkey_bytes,
+                        165,  //bytes
+                        0,    //lamports
+                        true, //rent_exempt
+                    )?;
 
-                create_and_check_pda0(
-                    program_id,
-                    &token_program_account.key,
-                    signer_account,
-                    wsol_tmp_pda,
-                    system_program_account,
-                    rent,
-                    &signer_account_pubkey_bytes,
-                    &spl_token_pubkey_bytes,
-                    165,  //bytes
-                    0,    //lamports
-                    true, //rent_exempt
-                )?;
+                    let associated_token_account_signer_seeds: &[&[_]] =
+                        &[&signer_account_pubkey_bytes, &spl_token_pubkey_bytes];
+                    let derived_pubkey = Pubkey::find_program_address(
+                        associated_token_account_signer_seeds,
+                        &program_id,
+                    );
+                    if derived_pubkey.0 != *wsol_tmp_pda.key {
+                        panic!();
+                    }
+                    msg!(
+                        "associated_token_account_signer_seeds: {:?}",
+                        associated_token_account_signer_seeds
+                    );
 
-                let associated_token_account_signer_seeds: &[&[_]] =
-                    &[&signer_account_pubkey_bytes, &spl_token_pubkey_bytes];
-                let derived_pubkey = Pubkey::find_program_address(
-                    associated_token_account_signer_seeds,
-                    &program_id,
-                );
-                if derived_pubkey.0 != *wsol_tmp_pda.key {
-                    panic!();
-                }
-                msg!(
-                    "associated_token_account_signer_seeds: {:?}",
-                    associated_token_account_signer_seeds
-                );
+                    msg!("derived_pubkey.1: {:?}", derived_pubkey.1);
 
-                msg!("derived_pubkey.1: {:?}", derived_pubkey.1);
-                /*invoke_signed(
-                    &spl_associated_token_account::create_associated_token_account(
-                        signer_account.key,
-                        &derived_pubkey.0,
-                        token_program_account_native.key
-                    ),
-                    &[
-                    //   0. `[writable]`  The account to initialize.
-                    //   1. `[]` The mint this account will be associated with.
-                    //   2. `[]` The new account's owner/multisignature.
-                    //   3. `[]` Rent sysvar
-                        signer_account.clone(),
-                        wsol_tmp_pda.clone(),
-                        wsol_tmp_pda.clone(),
-                        token_program_account_native.clone(),
-                        system_program_account.clone(),
-                        token_program_account.clone(),
-                        rent_sysvar_info.clone(),
-                    ],
-                    &[
+                    msg!("initing wsol account");
+                    // assert_eq!(
+                    //     token_program_account_native.key,
+                    //     &spl_token::native_mint::id()
+                    // );
+
+                    invoke(
+                        &spl_token::instruction::initialize_account2(
+                            token_program_account.key,        // token_program_id
+                            wsol_tmp_pda.key,                 // account_pubkey
+                            token_program_account_native.key, //mint pubkey
+                            &wsol_tmp_pda.key,                //owner pubkey
+                        )
+                        .unwrap(),
                         &[
-                        &spl_token::id().to_bytes(),
-                        &associated_program_id.key.to_bytes(),
-                        &[derived_pubkey.1]
-                        ]
-                    ],
+                            //   0. `[writable]`  The account to initialize.
+                            //   1. `[]` The mint this account will be associated with.
+                            //   2. `[]` The new account's owner/multisignature.
+                            //   3. `[]` Rent sysvar
+                            wsol_tmp_pda.clone(),
+                            token_program_account_native.clone(),
+                            rent_sysvar_info.clone(),
+                        ],
+                    )?;
 
-                )?;*/
+                    msg!("initialized tmp wsol account");
+                    invoke_signed(
+                        &spl_token::instruction::set_authority(
+                            token_program_account.key, // token_program_id
+                            wsol_tmp_pda.key,          // account_pubkey
+                            Some(wsol_tmp_pda.key),    //owner pubkey
+                            spl_token::instruction::AuthorityType::CloseAccount,
+                            &wsol_tmp_pda.key,   //owner pubkey
+                            &[wsol_tmp_pda.key], //owner pubkey
+                        )
+                        .unwrap(),
+                        &[wsol_tmp_pda.clone(), wsol_tmp_pda.clone()],
+                        &[&[
+                            &signer_account_pubkey_bytes,
+                            &spl_token_pubkey_bytes,
+                            &[derived_pubkey.1],
+                        ]],
+                    )?;
+                    msg!("set authority tmp wsol account: pub_amount_checked {}", pub_amount_checked);
 
-                msg!("initing wsol account");
-                // assert_eq!(
-                //     token_program_account_native.key,
-                //     &spl_token::native_mint::id()
-                // );
+                    token_transfer(
+                        token_program_account,
+                        merkle_tree_pda_token,
+                        wsol_tmp_pda,
+                        authority,
+                        &authority_seed[..],
+                        &[authority_bump_seed],
+                        pub_amount_checked,
+                    )?;
 
-                invoke(
-                    &spl_token::instruction::initialize_account2(
-                        token_program_account.key,        // token_program_id
-                        wsol_tmp_pda.key,                 // account_pubkey
-                        token_program_account_native.key, //mint pubkey
-                        &wsol_tmp_pda.key,                //owner pubkey
-                    )
-                    .unwrap(),
-                    &[
-                        //   0. `[writable]`  The account to initialize.
-                        //   1. `[]` The mint this account will be associated with.
-                        //   2. `[]` The new account's owner/multisignature.
-                        //   3. `[]` Rent sysvar
-                        wsol_tmp_pda.clone(),
-                        token_program_account_native.clone(),
-                        rent_sysvar_info.clone(),
-                    ],
-                )?;
+                    invoke_signed(
+                        &spl_token::instruction::close_account(
+                            token_program_account.key,
+                            wsol_tmp_pda.key,
+                            recipient_account.key,
+                            wsol_tmp_pda.key,
+                            &[wsol_tmp_pda.key],
+                        )
+                        .unwrap(),
+                        &[
+                            wsol_tmp_pda.clone(),
+                            recipient_account.clone(),
+                            wsol_tmp_pda.clone(),
+                        ],
+                        &[&[
+                            &signer_account_pubkey_bytes,
+                            &spl_token_pubkey_bytes,
+                            &[derived_pubkey.1],
+                        ]],
+                    )?;
+                } else {
+                    token_transfer(
+                        token_program_account,
+                        merkle_tree_pda_token,
+                        recipient_account,
+                        authority,
+                        &authority_seed[..],
+                        &[authority_bump_seed],
+                        pub_amount_checked,
+                    )?;
+                }
 
-                msg!("initialized tmp wsol account");
-                invoke_signed(
-                    &spl_token::instruction::set_authority(
-                        token_program_account.key, // token_program_id
-                        wsol_tmp_pda.key,          // account_pubkey
-                        Some(wsol_tmp_pda.key),    //owner pubkey
-                        spl_token::instruction::AuthorityType::CloseAccount,
-                        &wsol_tmp_pda.key,   //owner pubkey
-                        &[wsol_tmp_pda.key], //owner pubkey
-                    )
-                    .unwrap(),
-                    &[wsol_tmp_pda.clone(), wsol_tmp_pda.clone()],
-                    &[&[
-                        &signer_account_pubkey_bytes,
-                        &spl_token_pubkey_bytes,
-                        &[derived_pubkey.1],
-                    ]],
-                )?;
-                msg!("set authority tmp wsol account");
-
-                token_transfer(
-                    token_program_account,
-                    merkle_tree_pda_token,
-                    wsol_tmp_pda,
-                    authority,
-                    &authority_seed[..],
-                    &[authority_bump_seed],
-                    pub_amount_checked,
-                )?;
-
-                invoke_signed(
-                    &spl_token::instruction::close_account(
-                        token_program_account.key,
-                        wsol_tmp_pda.key,
-                        closing_account_recipient.key,
-                        wsol_tmp_pda.key,
-                        &[wsol_tmp_pda.key],
-                    )
-                    .unwrap(),
-                    &[
-                        wsol_tmp_pda.clone(),
-                        closing_account_recipient.clone(),
-                        wsol_tmp_pda.clone(),
-                    ],
-                    &[&[
-                        &signer_account_pubkey_bytes,
-                        &spl_token_pubkey_bytes,
-                        &[derived_pubkey.1],
-                    ]],
-                )?;
-                // } else {
-                //     token_transfer(
-                //         token_program_account,
-                //         merkle_tree_pda_token,
-                //         user_pda_token,
-                //         authority,
-                //         &authority_seed[..],
-                //         &[authority_bump_seed],
-                //         pub_amount_checked,
-                //     )?;
             }
-
-            //}
         }
 
         if relayer_fee > 0 {

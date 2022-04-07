@@ -261,12 +261,16 @@ pub mod tests {
             owner,
             amount: balance,
             state: spl_token::state::AccountState::Initialized,
-            is_native: COption::Some(2),
+            is_native: COption::Some(balance),
             ..spl_token::state::Account::default()
         };
+        let mut amount = balance;
+        if amount < Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165) {
+            amount = Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165)
+        }
         Pack::pack(token_account_state, &mut token_account_data).unwrap();
         let token_account = Account::create(
-            Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165),//ACCOUNT_RENT_EXEMPTION,
+            amount,//ACCOUNT_RENT_EXEMPTION,
             token_account_data,
             spl_token::id(),
             false,
