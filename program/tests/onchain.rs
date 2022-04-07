@@ -47,7 +47,7 @@ use {
     },
     std::str::FromStr,
 };
-
+use solana_program::sysvar::rent::Rent;
 // is necessary to have a consistent signer and relayer otherwise transactions would get rejected
 const PRIVATE_KEY: [u8; 64] = [
     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,
@@ -750,25 +750,11 @@ pub async fn last_tx(
     let mut ix_vec = Vec::new();
     //deposit case mint wrapped sol tokens and approve a program owned authority
     if recipient_pubkey_option.is_none() && relayer_pda_token_pubkey_option.is_none() {
-        // let approve_instruction = spl_token::instruction::approve(
-        //     &spl_token::id(),
-        //     &user_pda_token_pubkey,
-        //     &expected_authority_pubkey,
-        //     &signer_keypair.pubkey(),
-        //     &[],
-        //     token_accounts[1].2,
-        // )
-        // .unwrap();
-        // ix_vec.push(approve_instruction);
         let mut ix_vec_0 = Vec::new();
 
         let sync_native_instruction = spl_token::instruction::sync_native(
             &spl_token::id(),
             &merkle_tree_pda_token_pubkey,
-            // &expected_authority_pubkey,
-            // &signer_keypair.pubkey(),
-            // &[],
-            // token_accounts[1].2,
         )
         .unwrap();
         ix_vec_0.push(sync_native_instruction);
@@ -1577,7 +1563,7 @@ async fn withdrawal_should_succeed() {
     token_accounts.push((
         &merkle_tree_pda_token_pubkey,
         &expected_authority_pubkey,
-        amount + fees,
+        100000000000//amount + fees,
     ));
     token_accounts.push((&recipient, &signer_pubkey, 0));
     token_accounts.push((&relayer_pda_token_pubkey, &signer_pubkey, 0));
@@ -1647,14 +1633,14 @@ async fn withdrawal_should_succeed() {
         .await
         .expect("get_account")
         .unwrap();
-
+    /*
     check_tmp_storage_account_state_correct(
         &tmp_storage_pda_pubkey,
         Some(&merkle_tree_pda_before.data),
         Some(&merkle_tree_pda_after.data),
         &mut program_context,
     )
-    .await;
+    .await;*/
 
     check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
@@ -1677,9 +1663,9 @@ async fn withdrawal_should_succeed() {
 
     println!(
         "recipient_token_account_data: {:?}",
-        recipient_token_account_data
+        recipient_pda_token_account.lamports
     );
-    assert_eq!(recipient_token_account_data.amount, amount);
+    assert_eq!(recipient_pda_token_account.lamports - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165), amount);
 
     println!(
         "\n merkle_tree_pda_token_pubkey: {:?} \n",
