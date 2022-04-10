@@ -106,6 +106,7 @@ pub fn process_instruction(
 
         // Unpack the current_instruction_index.
         let tmp_storage_pda_data = InstructionIndex::unpack(&tmp_storage_pda.data.borrow());
+        msg!("tmp_storage_pda_data: {:?}", tmp_storage_pda_data);
         // Check whether tmp_storage_pda is initialized, if not try create and initialize.
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
