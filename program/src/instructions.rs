@@ -188,12 +188,12 @@ pub fn check_tx_integrity_hash(
         encrypted_utxos,
     ]
     .concat();
-
+    // msg!("integrity_hash inputs: {:?}", input);
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    msg!("hash computed");
+    msg!("hash computed {:?}", hash);
 
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
-        msg!("tx_integrity_hash verification failed.");
+        msg!("tx_integrity_hash verification failed.{:?} != {:?}", &hash[..] , &tx_integrity_hash);
         return Err(ProgramError::InvalidInstructionData);
     }
     Ok(())
@@ -425,7 +425,7 @@ pub fn try_initialize_tmp_storage_pda(
     // Check that relayer in integrity hash == signer.
     // In case of deposit the depositor is their own relayer
     if *signing_address != Pubkey::new(&relayer) {
-        msg!("Specified relayer is not signer.");
+        msg!("Specified relayer is not signer. {:?} != {:?}", *signing_address, Pubkey::new(&relayer));
         return Err(ProgramError::InvalidAccountData);
     }
 
@@ -448,16 +448,16 @@ pub fn try_initialize_tmp_storage_pda(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // check_tx_integrity_hash(
-    //     tmp_storage_pda_data.recipient.to_vec(),
-    //     tmp_storage_pda_data.ext_amount.to_vec(),
-    //     relayer.to_vec(),
-    //     tmp_storage_pda_data.relayer_fee.to_vec(),
-    //     tmp_storage_pda_data.tx_integrity_hash.to_vec(),
-    //     tmp_storage_pda_data.merkle_tree_index,
-    //     encrypted_utxos.to_vec(),
-    //     merkle_tree_pda_pubkey,
-    // )?;
+    check_tx_integrity_hash(
+        tmp_storage_pda_data.recipient.to_vec(),
+        tmp_storage_pda_data.ext_amount.to_vec(),
+        relayer.to_vec(),
+        tmp_storage_pda_data.relayer_fee.to_vec(),
+        tmp_storage_pda_data.tx_integrity_hash.to_vec(),
+        tmp_storage_pda_data.merkle_tree_index,
+        encrypted_utxos.to_vec(),
+        merkle_tree_pda_pubkey,
+    )?;
     for i in 0..11 {
         tmp_storage_pda_data.changed_constants[i] = true;
     }

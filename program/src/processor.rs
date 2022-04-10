@@ -173,10 +173,11 @@ pub fn process_instruction(
 
                 if merkle_tree_pda_token_data_prior.is_native() {
 
+                    //
                     invoke(
                         &spl_token::instruction::sync_native(
                             token_program_account.key,        // token_program_id
-                            merkle_tree_pda_token.key,                 // account_pubkey
+                            merkle_tree_pda_token.key,        // account_pubkey
                         )
                         .unwrap(),
                         &[
@@ -188,7 +189,7 @@ pub fn process_instruction(
 
                     if merkle_tree_pda_token_data_prior.amount + pub_amount_checked != merkle_tree_pda_token_data_after.amount {
                         msg!("merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior.amount + pub_amount_checked ,merkle_tree_pda_token_data_after.amount);
-                        panic!("wrong amount");
+                        return Err(ProgramError::InvalidInstructionData);
                     }
                 } else {
                     let user_pda_token = next_account_info(account)?;
@@ -207,24 +208,41 @@ pub fn process_instruction(
 
             } else if ext_amount < 0 {
                 let recipient_account = next_account_info(account)?;
+                if *recipient_account.key
+                    != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.recipient)
+                {
+                    msg!("Recipient has to be address specified in tx integrity hash.");
+                    return Err(ProgramError::InvalidInstructionData);
+                }
                 let merkle_tree_pda_token_data =
                     spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
+
+                // checking for wrapped sol
                 if merkle_tree_pda_token_data.is_native() {
                     msg!("is native: {:?}", merkle_tree_pda_token_data);
-                    // if *recipient_account.key
-                    //     != solana_program::pubkey::Pubkey::new(&tmp_storage_pda_data.recipient)
-                    // {
-                    //     msg!("Recipient has to be address specified in tx integrity hash.");
-                    //     return Err(ProgramError::InvalidInstructionData);
-                    // }
+
                     let wsol_tmp_pda = next_account_info(account)?;
-                    let token_program_account_native = next_account_info(account)?;
                     let signer_account_pubkey_bytes = &signer_account.key.to_bytes()[..];
                     let spl_token_pubkey_bytes = &spl_token::id().to_bytes()[..];
+                    let associated_token_account_signer_seeds: &[&[_]] =
+                        &[&signer_account_pubkey_bytes, &spl_token_pubkey_bytes];
+                    let derived_pubkey = Pubkey::find_program_address(
+                        associated_token_account_signer_seeds,
+                        &program_id,
+                    );
+                    if derived_pubkey.0 != *wsol_tmp_pda.key {
+                        msg!("Passed-in wrapped sol account incorrect.");
+                        return Err(ProgramError::InvalidArgument);
+                    }
+
+                    let token_program_account_native = next_account_info(account)?;
+                    if *token_program_account_native.key != spl_token::native_mint::id() {
+                        msg!("Passed-in token_program_account_native incorrect.");
+                        return Err(ProgramError::InvalidArgument);
+                    }
 
                     msg!("withdrawing wsol");
-                    msg!("creating tmp wsol account");
-
+                    // Creating tmp wsol account.
                     create_and_check_pda0(
                         program_id,
                         &token_program_account.key,
@@ -239,28 +257,7 @@ pub fn process_instruction(
                         true, //rent_exempt
                     )?;
 
-                    let associated_token_account_signer_seeds: &[&[_]] =
-                        &[&signer_account_pubkey_bytes, &spl_token_pubkey_bytes];
-                    let derived_pubkey = Pubkey::find_program_address(
-                        associated_token_account_signer_seeds,
-                        &program_id,
-                    );
-                    if derived_pubkey.0 != *wsol_tmp_pda.key {
-                        panic!();
-                    }
-                    msg!(
-                        "associated_token_account_signer_seeds: {:?}",
-                        associated_token_account_signer_seeds
-                    );
-
-                    msg!("derived_pubkey.1: {:?}", derived_pubkey.1);
-
-                    msg!("initing wsol account");
-                    // assert_eq!(
-                    //     token_program_account_native.key,
-                    //     &spl_token::native_mint::id()
-                    // );
-
+                    // Initializing wSol tmp account.
                     invoke(
                         &spl_token::instruction::initialize_account2(
                             token_program_account.key,        // token_program_id
@@ -272,15 +269,14 @@ pub fn process_instruction(
                         &[
                             //   0. `[writable]`  The account to initialize.
                             //   1. `[]` The mint this account will be associated with.
-                            //   2. `[]` The new account's owner/multisignature.
-                            //   3. `[]` Rent sysvar
+                            //   2. `[]` Rent sysvar
                             wsol_tmp_pda.clone(),
                             token_program_account_native.clone(),
                             rent_sysvar_info.clone(),
                         ],
                     )?;
 
-                    msg!("initialized tmp wsol account");
+                    // Setting itself as authority for the wrapped sol account.
                     invoke_signed(
                         &spl_token::instruction::set_authority(
                             token_program_account.key, // token_program_id
@@ -298,8 +294,8 @@ pub fn process_instruction(
                             &[derived_pubkey.1],
                         ]],
                     )?;
-                    msg!("set authority tmp wsol account: pub_amount_checked {}", pub_amount_checked);
 
+                    // Transferring wSol from merkle tree pool account to wSol tmp account.
                     token_transfer(
                         token_program_account,
                         merkle_tree_pda_token,
@@ -310,6 +306,8 @@ pub fn process_instruction(
                         pub_amount_checked,
                     )?;
 
+                // Closing wSol tmp account to recipient address.
+                // This way the recipient receives native sol.
                     invoke_signed(
                         &spl_token::instruction::close_account(
                             token_program_account.key,
@@ -331,6 +329,8 @@ pub fn process_instruction(
                         ]],
                     )?;
                 } else {
+                    msg!("withdrawing tokens");
+
                     token_transfer(
                         token_program_account,
                         merkle_tree_pda_token,
@@ -382,7 +382,7 @@ pub fn process_instruction(
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
         merkle_tree_processor.process_instruction(accounts)?;
-        // close tmp account
+        // Close tmp account.
         close_account(tmp_storage_pda, signer_account)?;
     }
 

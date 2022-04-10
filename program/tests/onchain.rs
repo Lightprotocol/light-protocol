@@ -1137,7 +1137,8 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
+    println!("encrypted_utxos bytes: {:?}", ix_withdraw_data[602..].to_vec());
+    // ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
     assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
@@ -1148,11 +1149,12 @@ async fn deposit_should_succeed() {
     //private key is hardcoded to have a deterministic signer as relayer
     // Creates random signer
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
+
     let signer_pubkey = signer_keypair.pubkey();
-    // assign relayer key to signer otherwise it fails relayer check
-    for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
-        *elem = signer_pubkey.to_bytes()[i];
-    }
+    // // assign relayer key to signer otherwise it fails relayer check
+    // for (i, elem) in ix_withdraw_data[529..561].iter_mut().enumerate() {
+    //     *elem = signer_pubkey.to_bytes()[i];
+    // }
 
     let (tmp_storage_pda_pubkey, two_leaves_pda_pubkey, nf_pubkey0, nf_pubkey1) =
         create_pubkeys_from_ix_data(&ix_withdraw_data, &program_id).await;
@@ -1189,7 +1191,7 @@ async fn deposit_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    /*
+        /*
      *
      *
      * Tx that initializes MerkleTree account
@@ -1211,6 +1213,21 @@ async fn deposit_should_succeed() {
         .expect("get_account")
         .unwrap();
 
+
+    const PRIV_KEY_DEPOSIT: [u8;64] = [69,70,119,212,86,198,121,107,166,153,136,136,235,82,29,107,234,124,215,247,21,130,41,35,29,187,24,168,100,77,21,198,21,252,165,117,74,131,28,116,113,215,101,247,118,61,161,38,104,95,245,41,164,215,184,58,107,9,148,220,109,57,200,76];
+    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    // let signer_keypair = solana_sdk::signer::keypair::Keypair::from_base58_string("2AmktuDbvrTw1wQXYsGFzya7ZYTDUKQrDHKfY3rNefJW6eWUcCESnWCp7EU1hwy1qtgka4NXrHGkKJk5X8AFTphK");
+    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
+    assert_eq!(ix_withdraw_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_pubkey = signer_keypair.pubkey();
+    let mut program_context = restart_program(
+                &mut accounts_vector,
+                None,
+                &program_id,
+                &signer_pubkey,
+                &mut program_context,
+        )
+        .await;
     // deposit shielded pool
     let mut program_context = transact(
         &program_id,
