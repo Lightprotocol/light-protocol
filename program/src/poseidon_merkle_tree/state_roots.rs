@@ -108,6 +108,7 @@ pub fn check_root_hash_exists(
     msg!("Looking for root: {:?}", *root_bytes);
     let mut found_root = 0u8;
     for (i, chunk) in merkle_tree_pda_data.roots.chunks(32).enumerate() {
+        msg!("root: {:?}", chunk);
         if *chunk == *root_bytes {
             msg!("Found root hash index: {}", i);
             found_root = 1u8;

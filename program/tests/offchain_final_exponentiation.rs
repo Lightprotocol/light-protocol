@@ -17,6 +17,7 @@ pub mod tests {
         instructions::*, processor::_process_instruction, ranges::*,
         state::FinalExponentiationState,
     };
+    use light_protocol_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
     use light_protocol_program::groth16_verifier::parsers::*;
     use serde_json::Result;
     use solana_program::program_pack::Pack;
@@ -1505,7 +1506,7 @@ pub mod tests {
 
         parse_f_to_bytes(*f, &mut account_struct.f_f2_range);
         account_struct.changed_variables[F_F2_RANGE_ITER] = true;
-        let mut account_onchain_slice = [0u8; 3900];
+        let mut account_onchain_slice = [0u8; 3900 + ENCRYPTED_UTXOS_LENGTH];
         //in
         account_onchain_slice[1] = 1;
         <FinalExponentiationState as Pack>::pack_into_slice(
