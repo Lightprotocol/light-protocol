@@ -75,25 +75,6 @@ pub fn process_instruction(
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
         initialize_user_account(user_account, *signer_account.key, *rent)
     }
-    // Modify onchain user account with arbitrary number of new utxos.
-    // else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
-    //     let user_account = next_account_info(account)?;
-    //     let rent_sysvar_info = next_account_info(account)?;
-    //     let rent = &Rent::from_account_info(rent_sysvar_info)?;
-    //     modify_user_account(
-    //         user_account,
-    //         *signer_account.key,
-    //         *rent,
-    //         &_instruction_data[9..],
-    //     )
-    // }
-    // Close onchain user account.
-    // else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
-    //     let user_account = next_account_info(account)?;
-    //     let rent_sysvar_info = next_account_info(account)?;
-    //     let rent = &Rent::from_account_info(rent_sysvar_info)?;
-    //     close_user_account(user_account, signer_account, *rent)
-    // }
     // Transact with shielded pool.
     // This instruction has to be called 1502 times to perform all computation.
     // There are different instructions which have to be executed in a specific order.

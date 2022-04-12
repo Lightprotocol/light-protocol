@@ -46,14 +46,7 @@ impl Pack for UserAccount {
                 mode_init: true,
             })
         } else {
-            Ok(UserAccount {
-                is_initialized: true,
-                account_type: account_type[0],
-                owner_pubkey: solana_program::pubkey::Pubkey::new(owner_pubkey),
-                modified_ranges: Vec::new(),
-                enc_utxos: enc_utxos.to_vec(),
-                mode_init: false,
-            })
+            Err()
         }
     }
 
@@ -70,16 +63,6 @@ impl Pack for UserAccount {
             }
             *dst_owner_pubkey = self.owner_pubkey.to_bytes();
         }
-        // else {
-        //     for modifying_index in self.modified_ranges.iter() {
-        //         for (i, x) in dst_enc_utxos
-        //             [modifying_index * SIZE_UTXO..modifying_index * SIZE_UTXO + SIZE_UTXO]
-        //             .iter_mut()
-        //             .enumerate()
-        //         {
-        //             *x = self.enc_utxos[i + modifying_index * SIZE_UTXO];
-        //         }
-        //     }
-        // }
+
     }
 }
