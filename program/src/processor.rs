@@ -1,6 +1,6 @@
 use crate::instructions::{
     check_and_insert_nullifier, check_external_amount, close_account, create_and_check_pda,
-    create_and_check_pda0, token_transfer
+    create_and_check_pda_for_different_program, token_transfer
 };
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
@@ -31,7 +31,6 @@ pub fn process_instruction(
 ) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
-    // let mut recipient_account = signer_account;
     let tmp_storage_pda = next_account_info(account)?;
     let mut tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
 
@@ -54,7 +53,7 @@ pub fn process_instruction(
         );
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
-    // and executes transaction, deposit or withdrawal.
+    // executes transaction, deposit or withdrawal, and closes the tmp account.
     else if current_instruction_index == 1501 {
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0_pda = next_account_info(account)?;
@@ -171,7 +170,7 @@ pub fn process_instruction(
                 let merkle_tree_pda_token_data_prior =
                     spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
-                if merkle_tree_pda_token_data_prior.is_native() {
+                if merkle_tree_pda_token_data_prior.is_native() && tmp_storage_pda_data.merkle_tree_index == 0 {
 
                     //
                     invoke(
@@ -187,8 +186,9 @@ pub fn process_instruction(
                     let merkle_tree_pda_token_data_after =
                         spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
+
                     if merkle_tree_pda_token_data_prior.amount + pub_amount_checked != merkle_tree_pda_token_data_after.amount {
-                        msg!("merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior.amount + pub_amount_checked ,merkle_tree_pda_token_data_after.amount);
+                        msg!("Deposited amount incorrect. merkle_tree_pda_token_data_prior_amount + pub_amount_checked {} != {} merkle_tree_pda_token_data.amount",merkle_tree_pda_token_data_prior.amount + pub_amount_checked ,merkle_tree_pda_token_data_after.amount);
                         return Err(ProgramError::InvalidInstructionData);
                     }
                 } else {
@@ -217,20 +217,21 @@ pub fn process_instruction(
                 let merkle_tree_pda_token_data =
                     spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
 
-                // checking for wrapped sol
-                if merkle_tree_pda_token_data.is_native() {
+                // Checking for wrapped sol and Merkle tree index can only be 0. This doesn
+                // not allow multiple Merkle trees for wSol.
+                if merkle_tree_pda_token_data.is_native() && tmp_storage_pda_data.merkle_tree_index == 0 {
                     msg!("is native: {:?}", merkle_tree_pda_token_data);
 
                     let wsol_tmp_pda = next_account_info(account)?;
                     let signer_account_pubkey_bytes = &signer_account.key.to_bytes()[..];
                     let spl_token_pubkey_bytes = &spl_token::id().to_bytes()[..];
-                    let associated_token_account_signer_seeds: &[&[_]] =
+                    let wsol_account_signer_seeds: &[&[_]] =
                         &[&signer_account_pubkey_bytes, &spl_token_pubkey_bytes];
-                    let derived_pubkey = Pubkey::find_program_address(
-                        associated_token_account_signer_seeds,
+                    let wsol_derived_pubkey = Pubkey::find_program_address(
+                        wsol_account_signer_seeds,
                         &program_id,
                     );
-                    if derived_pubkey.0 != *wsol_tmp_pda.key {
+                    if wsol_derived_pubkey.0 != *wsol_tmp_pda.key {
                         msg!("Passed-in wrapped sol account incorrect.");
                         return Err(ProgramError::InvalidArgument);
                     }
@@ -243,7 +244,7 @@ pub fn process_instruction(
 
                     msg!("withdrawing wsol");
                     // Creating tmp wsol account.
-                    create_and_check_pda0(
+                    create_and_check_pda_for_different_program(
                         program_id,
                         &token_program_account.key,
                         signer_account,
@@ -276,7 +277,7 @@ pub fn process_instruction(
                         ],
                     )?;
 
-                    // Setting itself as authority for the wrapped sol account.
+                    // Setting itself as close authority for the wrapped sol account.
                     invoke_signed(
                         &spl_token::instruction::set_authority(
                             token_program_account.key, // token_program_id
@@ -291,7 +292,7 @@ pub fn process_instruction(
                         &[&[
                             &signer_account_pubkey_bytes,
                             &spl_token_pubkey_bytes,
-                            &[derived_pubkey.1],
+                            &[wsol_derived_pubkey.1],
                         ]],
                     )?;
 
@@ -325,7 +326,7 @@ pub fn process_instruction(
                         &[&[
                             &signer_account_pubkey_bytes,
                             &spl_token_pubkey_bytes,
-                            &[derived_pubkey.1],
+                            &[wsol_derived_pubkey.1],
                         ]],
                     )?;
                 } else {

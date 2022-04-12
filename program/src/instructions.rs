@@ -240,9 +240,9 @@ pub fn close_account(
     **account.lamports.borrow_mut() = 0;
     Ok(())
 }
-pub fn create_and_check_pda0<'a, 'b>(
-    program_id0: &Pubkey,
-    program_id: &Pubkey,
+pub fn create_and_check_pda_for_different_program<'a, 'b>(
+    program_id_derived_from: &Pubkey,
+    program_id_owner: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
     passed_in_pda: &'a AccountInfo<'b>,
     system_program: &'a AccountInfo<'b>,
@@ -254,7 +254,7 @@ pub fn create_and_check_pda0<'a, 'b>(
     rent_exempt: bool,
 ) -> Result<(), ProgramError> {
     let derived_pubkey =
-        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id0);
+        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id_derived_from);
 
     if derived_pubkey.0 != *passed_in_pda.key {
         msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
@@ -280,7 +280,7 @@ pub fn create_and_check_pda0<'a, 'b>(
             passed_in_pda.key,    // to_pubkey
             account_lamports,     // lamports
             number_storage_bytes, // space
-            program_id,           // owner
+            program_id_owner,           // owner
         ),
         &[
             signer_account.clone(),
