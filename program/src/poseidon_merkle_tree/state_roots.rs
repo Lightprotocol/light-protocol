@@ -108,7 +108,6 @@ pub fn check_root_hash_exists(
     msg!("Looking for root: {:?}", *root_bytes);
     let mut found_root = 0u8;
     for (i, chunk) in merkle_tree_pda_data.roots.chunks(32).enumerate() {
-        msg!("root: {:?}", chunk);
         if *chunk == *root_bytes {
             msg!("Found root hash index: {}", i);
             found_root = 1u8;
@@ -120,22 +119,5 @@ pub fn check_root_hash_exists(
         return Err(ProgramError::InvalidAccountData);
     }
 
-    // let mut i = 0;
-    // let mut counter = 0;
-    //
-    // loop {
-    //     if merkle_tree_pda_data.roots[i..i + ROOT_HASH_SIZE] == *root_bytes {
-    //         msg!("Found root hash index: {}", counter);
-    //         found_root = 1u8;
-    //         break;
-    //     }
-    //
-    //     i += ROOT_HASH_SIZE;
-    //     counter += 1;
-    //     if counter == merkle_tree_pda_data.root_history_size {
-    //         msg!("Did not find root.");
-    //         return Err(ProgramError::InvalidAccountData);
-    //     }
-    // }
     Ok(found_root)
 }
