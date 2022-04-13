@@ -20,6 +20,15 @@ use solana_program::{
     sysvar::rent::Rent,
     sysvar::Sysvar,
 };
+use solana_security_txt::security_txt;
+
+security_txt! {
+    name: "light_protocol_program",
+    project_url: "lightprotocol.com",
+    contacts: "email:security@lightprotocol.com",
+    policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
+    source_code: "https://github.com/Lightprotocol/light-protocol-program"
+}
 
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
