@@ -1,2 +1,2 @@
-cargo build-bpf --manifest-path=./Cargo.toml --bpf-out-dir=dist/program
-solana program deploy ./dist/program/light_protocol_program.so
+anchor build --verifiable
+solana program deploy target/verifiable/light_protocol_program.so --program-id 2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av

@@ -1555,6 +1555,7 @@ dependencies = [
  "solana-program",
  "solana-program-test",
  "solana-sdk",
+ "solana-security-txt",
  "spl-token",
 ]
 
@@ -2845,6 +2846,12 @@ dependencies = [
  "rustversion",
  "syn",
 ]
+
+[[package]]
+name = "solana-security-txt"
+version = "0.1.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "35b003974e19810384e6b476d3e3c903f00a4e9bdac7eda9cc7257e094acb66d"
 
 [[package]]
 name = "solana-send-transaction-service"
