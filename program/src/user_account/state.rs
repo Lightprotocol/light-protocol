@@ -46,7 +46,7 @@ impl Pack for UserAccount {
                 mode_init: true,
             })
         } else {
-            Err()
+            Err(ProgramError::InvalidAccountData)
         }
     }
 
