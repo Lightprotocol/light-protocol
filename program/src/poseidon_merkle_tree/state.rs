@@ -1,4 +1,4 @@
-use crate::config::MERKLE_TREE_ACCOUNT_TYPE;
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACCOUNT_TYPE};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{ByteOrder, LittleEndian};
 use solana_program::{
@@ -205,6 +205,7 @@ pub struct TmpStoragePda {
     pub current_index: usize,
     pub current_level: usize,
     pub current_instruction_index: usize,
+    pub encrypted_utxos: Vec<u8>,
 }
 
 impl Sealed for TmpStoragePda {}
@@ -215,7 +216,7 @@ impl IsInitialized for TmpStoragePda {
 }
 
 impl Pack for TmpStoragePda {
-    const LEN: usize = 3900; //297;
+    const LEN: usize = 3900 + ENCRYPTED_UTXOS_LENGTH; //297;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TmpStoragePda::LEN];
 
@@ -239,7 +240,29 @@ impl Pack for TmpStoragePda {
             leaf_right,
             _nullifier_0,
             _nullifier_1,
-        ) = array_refs![input, 1, 2, 1, 208, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
+            encrypted_utxos,
+        ) = array_refs![
+            input,
+            1,
+            2,
+            1,
+            208,
+            8,
+            3328,
+            96,
+            8,
+            8,
+            32,
+            32,
+            32,
+            8,
+            8,
+            32,
+            32,
+            32,
+            32,
+            ENCRYPTED_UTXOS_LENGTH
+        ];
 
         let mut parsed_state = Vec::new();
         for i in state.chunks(32) {
@@ -260,6 +283,7 @@ impl Pack for TmpStoragePda {
             current_index: usize::from_le_bytes(*current_index),
             current_level: usize::from_le_bytes(*current_level),
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),
+            encrypted_utxos: encrypted_utxos.to_vec(),
         })
     }
 
@@ -285,7 +309,27 @@ impl Pack for TmpStoragePda {
             //+288
             _nullifier_0_dst,
             _nullifier_1_dst,
-        ) = mut_array_refs![dst, 1, 211, 8, 3328, 96, 8, 8, 32, 32, 32, 8, 8, 32, 32, 32, 32];
+            _encrypted_utxos_dst,
+        ) = mut_array_refs![
+            dst,
+            1,
+            211,
+            8,
+            3328,
+            96,
+            8,
+            8,
+            32,
+            32,
+            32,
+            8,
+            8,
+            32,
+            32,
+            32,
+            32,
+            ENCRYPTED_UTXOS_LENGTH
+        ];
 
         let mut state_tmp = [0u8; 96];
         let mut z = 0;
@@ -321,6 +365,7 @@ pub struct TwoLeavesBytesPda {
     pub leaf_right: Vec<u8>,
     pub leaf_left: Vec<u8>,
     pub merkle_tree_pubkey: Vec<u8>,
+    pub encrypted_utxos: Vec<u8>,
     pub left_leaf_index: usize,
 }
 
@@ -332,7 +377,7 @@ impl IsInitialized for TwoLeavesBytesPda {
 }
 
 impl Pack for TwoLeavesBytesPda {
-    const LEN: usize = 106;
+    const LEN: usize = 106 + ENCRYPTED_UTXOS_LENGTH;
 
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
@@ -344,7 +389,8 @@ impl Pack for TwoLeavesBytesPda {
             _leaf_left,
             _leaf_right,
             _merkle_tree_pubkey,
-        ) = array_refs![input, 1, 1, 8, 32, 32, 32];
+            _encrypted_utxos,
+        ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
         if is_initialized[0] != 0 {
@@ -357,6 +403,7 @@ impl Pack for TwoLeavesBytesPda {
             leaf_right: vec![0u8; 32],
             leaf_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
+            encrypted_utxos: vec![0u8; ENCRYPTED_UTXOS_LENGTH],
             left_leaf_index: 0usize,
         })
     }
@@ -370,7 +417,8 @@ impl Pack for TwoLeavesBytesPda {
             leaf_left_dst,
             leaf_right_dst,
             merkle_tree_pubkey_dst,
-        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32];
+            encrypted_utxos_dst,
+        ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
 
         *is_initialized_dst = [1];
         *account_type_dst = [4];
@@ -378,7 +426,7 @@ impl Pack for TwoLeavesBytesPda {
         *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
         *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();
         *left_leaf_index_dst = usize::to_le_bytes(self.left_leaf_index);
-
+        *encrypted_utxos_dst = self.encrypted_utxos.clone().try_into().unwrap();
         msg!("packed inserted_leaves");
     }
 }
