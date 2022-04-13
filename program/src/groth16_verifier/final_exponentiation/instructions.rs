@@ -665,16 +665,4 @@ mod tests {
             "f mulassign failed"
         );
     }
-    /*
-    pub fn exp_by_neg_x(
-        mut f: Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params>,
-    ) -> Fp12<<ark_bn254::Parameters as ark_ec::bn::BnParameters>::Fp12Params> {
-        f = f.cyclotomic_exp(&<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X);
-        if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-            println!("conjugate");
-            f.conjugate();
-        }
-        f
-    }
-    */
 }

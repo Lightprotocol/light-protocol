@@ -21,14 +21,12 @@ use solana_program::{
     sysvar::Sysvar,
 };
 
-use crate::config::MERKLE_TREE_INIT_AUTHORITY;
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
-use crate::user_account::instructions::{
-    close_user_account, initialize_user_account, modify_user_account,
-};
+use crate::user_account::instructions::initialize_user_account;
 use crate::utils::config;
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -59,10 +57,9 @@ pub fn process_instruction(
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
         if !rent.is_exempt(
-                **merkle_tree_storage_acc.lamports.borrow(),
-                merkle_tree_storage_acc.data.borrow().len()
-            )
-        {
+            **merkle_tree_storage_acc.lamports.borrow(),
+            merkle_tree_storage_acc.data.borrow().len(),
+        ) {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt);
         }
@@ -78,25 +75,6 @@ pub fn process_instruction(
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
         initialize_user_account(user_account, *signer_account.key, *rent)
     }
-    // Modify onchain user account with arbitrary number of new utxos.
-    else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
-        let user_account = next_account_info(account)?;
-        let rent_sysvar_info = next_account_info(account)?;
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-        modify_user_account(
-            user_account,
-            *signer_account.key,
-            *rent,
-            &_instruction_data[9..],
-        )
-    }
-    // Close onchain user account.
-    else if _instruction_data.len() >= 9 && _instruction_data[8] == 102 {
-        let user_account = next_account_info(account)?;
-        let rent_sysvar_info = next_account_info(account)?;
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
-        close_user_account(user_account, signer_account, *rent)
-    }
     // Transact with shielded pool.
     // This instruction has to be called 1502 times to perform all computation.
     // There are different instructions which have to be executed in a specific order.
@@ -109,6 +87,7 @@ pub fn process_instruction(
 
         // Unpack the current_instruction_index.
         let tmp_storage_pda_data = InstructionIndex::unpack(&tmp_storage_pda.data.borrow());
+        msg!("tmp_storage_pda_data: {:?}", tmp_storage_pda_data);
         // Check whether tmp_storage_pda is initialized, if not try create and initialize.
         // First instruction will always create and initialize a new tmp_storage_pda.
         match tmp_storage_pda_data {
@@ -135,9 +114,9 @@ pub fn process_instruction(
                 create_and_try_initialize_tmp_storage_pda(
                     program_id,
                     accounts,
-                    3900u64,                 // bytes
-                    0_u64,                   // lamports
-                    true,                    // rent_exempt
+                    3900u64 + ENCRYPTED_UTXOS_LENGTH as u64, // bytes
+                    0_u64,                                   // lamports
+                    true,                                   // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
@@ -234,7 +213,7 @@ pub const NULLIFIER_0_START: usize = 320;
 pub const NULLIFIER_0_END: usize = 352;
 pub const NULLIFIER_1_START: usize = 352;
 pub const NULLIFIER_1_END: usize = 384;
-pub const TWO_LEAVES_PDA_SIZE: u64 = 106;
+pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + ENCRYPTED_UTXOS_LENGTH as u64;
 //instruction order
 pub const IX_ORDER: [u8; 1502] = [
     //init data happens before this array starts

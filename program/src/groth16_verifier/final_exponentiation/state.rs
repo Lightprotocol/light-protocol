@@ -1,4 +1,4 @@
-use crate::utils::config::TMP_STORAGE_ACCOUNT_TYPE;
+use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, TMP_STORAGE_ACCOUNT_TYPE};
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use solana_program::{
     msg,
@@ -85,7 +85,7 @@ impl FinalExponentiationState {
 }
 
 impl Pack for FinalExponentiationState {
-    const LEN: usize = 3900;
+    const LEN: usize = 3900 + ENCRYPTED_UTXOS_LENGTH;
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, FinalExponentiationState::LEN];
 
@@ -121,8 +121,34 @@ impl Pack for FinalExponentiationState {
             y6_range,
             _unused_remainder,
         ) = array_refs![
-            input, 1, 1, 1, 1, 32, 8, 32, 8, 32, 96, 8, 384, 384, 384, 384, 384, 384, 192, 192,
-            192, 64, 64, 64, 64, 32, 384, 128
+            input,
+            1,
+            1,
+            1,
+            1,
+            32,
+            8,
+            32,
+            8,
+            32,
+            96,
+            8,
+            384,
+            384,
+            384,
+            384,
+            384,
+            384,
+            192,
+            192,
+            192,
+            64,
+            64,
+            64,
+            64,
+            32,
+            384,
+            128 + ENCRYPTED_UTXOS_LENGTH
         ];
         if account_type[0] != TMP_STORAGE_ACCOUNT_TYPE {
             msg!("Wrong account type.");
@@ -187,8 +213,28 @@ impl Pack for FinalExponentiationState {
             y6_range_dst,
             _unused_remainder_dst,
         ) = mut_array_refs![
-            dst, 1, 1, 1, 209, 8, 384, 384, 384, 384, 384, 384, 192, 192, 192, 64, 64, 64, 64, 32,
-            384, 128
+            dst,
+            1,
+            1,
+            1,
+            209,
+            8,
+            384,
+            384,
+            384,
+            384,
+            384,
+            384,
+            192,
+            192,
+            192,
+            64,
+            64,
+            64,
+            64,
+            32,
+            384,
+            128 + ENCRYPTED_UTXOS_LENGTH
         ];
 
         for (i, variable_has_changed) in self.changed_variables.iter().enumerate() {

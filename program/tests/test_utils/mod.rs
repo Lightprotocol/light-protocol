@@ -27,6 +27,8 @@ pub mod tests {
     use solana_sdk::stake_history::Epoch;
     use std::fs;
     use std::str::FromStr;
+    use solana_program::program_option::COption;
+    use solana_program::sysvar::rent::Rent;
 
     const ACCOUNT_RENT_EXEMPTION: u64 = 1000000000000u64;
     pub fn get_ref_value(mode: &str) -> Vec<u8> {
@@ -259,11 +261,16 @@ pub mod tests {
             owner,
             amount: balance,
             state: spl_token::state::AccountState::Initialized,
+            is_native: COption::Some(balance),
             ..spl_token::state::Account::default()
         };
+        let mut amount = balance;
+        if amount < Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165) {
+            amount = Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),165)
+        }
         Pack::pack(token_account_state, &mut token_account_data).unwrap();
         let token_account = Account::create(
-            ACCOUNT_RENT_EXEMPTION,
+            amount,//ACCOUNT_RENT_EXEMPTION,
             token_account_data,
             spl_token::id(),
             false,
@@ -284,7 +291,7 @@ pub mod tests {
             processor!(process_instruction),
         );
         for (pubkey, size, data) in accounts.iter() {
-            let mut account = Account::new(10000000000, *size, &program_id);
+            let mut account = Account::new(Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),*size), *size, &program_id);
             match data {
                 Some(d) => (account.data = d.clone()),
                 None => (),

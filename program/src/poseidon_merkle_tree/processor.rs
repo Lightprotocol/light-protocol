@@ -27,7 +27,7 @@ const MERKLE_TREE_UPDATE_LEVEL: u8 = 25;
 const LOCK_START: u8 = 34;
 
 // duration measured in slots
-const LOCK_DURATION: u64 = 20;
+const LOCK_DURATION: u64 = 40;
 const HASH_0: u8 = 0;
 const HASH_1: u8 = 1;
 const HASH_2: u8 = 2;
@@ -251,6 +251,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 [<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]
             .0
             .to_vec();
+            leaf_pda_account_data.encrypted_utxos = tmp_storage_pda_data.encrypted_utxos.clone();
 
             msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
             msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
