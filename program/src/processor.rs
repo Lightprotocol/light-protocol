@@ -5,7 +5,7 @@ use crate::instructions::{
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::ChecksAndTransferState;
-use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::{MERKLE_TREE_ACC_BYTES_ARRAY, RELAYER_BASE_FEE};
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -161,11 +161,11 @@ pub fn process_instruction(
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
         msg!(
             "ext_amount != tmp_storage_pda_data.relayer_fee: {} != {}",
-            ext_amount,
+            <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() + RELAYER_BASE_FEE,
             relayer_fee
         );
 
-        if relayer_fee != <u64 as TryFrom<i64>>::try_from(ext_amount.abs()).unwrap() {
+        if 0 != pub_amount_checked {
             if ext_amount > 0 {
                 let merkle_tree_pda_token_data_prior =
                     spl_token::state::Account::unpack(&merkle_tree_pda_token.data.borrow()).unwrap();
