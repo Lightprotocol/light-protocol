@@ -613,7 +613,8 @@ mod tests {
     fn merkle_tree_verify_init_bytes_merkle_tree_18() {
 
         let mut zero_value = vec![1 as u8; 32];
-
+        const TREE_HEIGHT: usize = 500;
+        assert_eq!(TREE_HEIGHT, usize::from_le_bytes(config::INIT_BYTES_MERKLE_TREE_18[602..610].to_vec().try_into().unwrap()));
         let rounds = get_rounds_poseidon_circom_bn254_x5_3::<Fq>();
         let mds = get_mds_poseidon_circom_bn254_x5_3::<Fq>();
         let params = PoseidonParameters::<Fq>::new(rounds, mds);
