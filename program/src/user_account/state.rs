@@ -33,7 +33,7 @@ impl Pack for UserAccount {
     fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
         let input = array_ref![input, 0, UserAccount::LEN];
 
-        let (is_initialized, account_type, owner_pubkey, enc_utxos) =
+        let (is_initialized, _account_type, owner_pubkey, enc_utxos) =
             array_refs![input, 1, 1, 32, SIZE_UTXO * UTXO_CAPACITY];
 
         if is_initialized[0] == 0 {
