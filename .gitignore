@@ -4,3 +4,4 @@
 /program/dist/program/*.so
 */*.so
 */test-ledger
+/program/dist/
