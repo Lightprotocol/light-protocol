@@ -1,25 +1,10 @@
 # Light Protocol
 
-## DISCLAIMER: THIS SOFTWARE IS NOT AUDITED. Do not use in production!
-
 ## Tests
 - cargo test-bpf deposit_should_succeed
 - cargo test-bpf withdrawal_should_succeed
 
 Run tests selectively test-bpf crashes sometimes if tests run in parallel.
-
-
-### Critical Checks
-- root test
-- nullifiers test
-- integritiy hash is valid
-- proof is valid
-- merkle tree lock prevents race conditions during Merkle tree update
-- correct accounts are passed in
-- signer is consistent over the whole shielded transaction
-- temporary storage account is consistent over the whole transaction
-
-
 
 ## General Description
 
@@ -38,6 +23,12 @@ For additional documentation refer to DOCUMENTATION.md.
 ### State
 
 We keep state in four types of accounts, a large persistent account for a sparse merkle tree, many small accounts storing two leaves each, many small accounts storing one nullifier each, plus temporary accounts to store intermediate results of computation for SNARK verification and updating the Merkle tree root. For every interaction with the shielded pool a new temporary account has to be created. Since, computation is conducted over 1502 instructions temporary accounts keep an index of the current computational step.
+
+### Security:
+
+Light Protocol has been audited at commit 5a79cdff5e9ea4d621b5d50be16d938124b24723.
+Read the [audit report here](https://github.com/Lightprotocol/program/Audit/Light Protocol Audit Report.pdf).
+A follow up audit for recent program modifications to improve UX will follow soon.
 
 ### Notes:
 - The implementation of the groth16_verifier is based on the arkworks libraries, mainly [ark_bn254](https://docs.rs/ark-bn254/0.3.0/ark_bn254/), [ark_ec](https://docs.rs/ark-ec/0.3.0/ark_ec/) and [ark_ff](https://docs.rs/ark-ff/0.3.0/ark_ff/).
