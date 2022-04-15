@@ -28,6 +28,7 @@ security_txt! {
     contacts: "email:security@lightprotocol.com",
     policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol-program"
+    auditors: "Hashcloak",
 }
 
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
@@ -125,7 +126,7 @@ pub fn process_instruction(
                     accounts,
                     3900u64 + ENCRYPTED_UTXOS_LENGTH as u64, // bytes
                     0_u64,                                   // lamports
-                    false,                                   // rent_exempt
+                    true,                                   // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }

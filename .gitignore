@@ -5,3 +5,4 @@
 */*.so
 */test-ledger
 /program/dist/
+/program/docker-target
