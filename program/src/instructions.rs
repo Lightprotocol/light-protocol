@@ -240,70 +240,22 @@ pub fn close_account(
     **account.lamports.borrow_mut() = 0;
     Ok(())
 }
-pub fn create_and_check_pda_for_different_program<'a, 'b>(
-    program_id_derived_from: &Pubkey,
-    program_id_owner: &Pubkey,
-    signer_account: &'a AccountInfo<'b>,
-    passed_in_pda: &'a AccountInfo<'b>,
-    system_program: &'a AccountInfo<'b>,
-    rent: &Rent,
-    _instruction_data: &[u8],
-    domain_separation_seed: &[u8],
-    number_storage_bytes: u64,
-    lamports: u64,
-    rent_exempt: bool,
+
+pub fn sol_transfer(
+    from_account: &AccountInfo,
+    dest_account: &AccountInfo,
+    amount: u64,
 ) -> Result<(), ProgramError> {
-    let derived_pubkey =
-        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id_derived_from);
 
-    if derived_pubkey.0 != *passed_in_pda.key {
-        msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
-        msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-        msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
-        msg!(
-            "Instruction data seed  {:?}",
-            [_instruction_data, domain_separation_seed]
-        );
-        return Err(ProgramError::InvalidInstructionData);
-    }
+    let from_starting_lamports = from_account.lamports();
+    **from_account.lamports.borrow_mut() = from_starting_lamports
+        .checked_sub(amount)
+        .ok_or(ProgramError::InvalidAccountData)?;
 
-    let mut account_lamports = lamports;
-    if rent_exempt {
-        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
-    } else {
-        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
-    }
-    msg!("account_lamports: {}", account_lamports);
-    invoke_signed(
-        &system_instruction::create_account(
-            signer_account.key,   // from_pubkey
-            passed_in_pda.key,    // to_pubkey
-            account_lamports,     // lamports
-            number_storage_bytes, // space
-            program_id_owner,           // owner
-        ),
-        &[
-            signer_account.clone(),
-            passed_in_pda.clone(),
-            system_program.clone(),
-        ],
-        &[&[
-            _instruction_data,
-            domain_separation_seed,
-            &[derived_pubkey.1],
-        ]],
-    )?;
-
-    // Check for rent exemption
-    if rent_exempt
-        && !rent.is_exempt(
-            **passed_in_pda.lamports.borrow(),
-            number_storage_bytes.try_into().unwrap(),
-        )
-    {
-        msg!("Account is not rent exempt.");
-        return Err(ProgramError::AccountNotRentExempt);
-    }
+    let dest_starting_lamports = dest_account.lamports();
+    **dest_account.lamports.borrow_mut() = dest_starting_lamports
+        .checked_add(amount)
+        .ok_or(ProgramError::InvalidAccountData)?;
     Ok(())
 }
 

@@ -291,6 +291,7 @@ pub mod tests {
             processor!(process_instruction),
         );
         for (pubkey, size, data) in accounts.iter() {
+            
             let mut account = Account::new(Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),*size), *size, &program_id);
             match data {
                 Some(d) => (account.data = d.clone()),
