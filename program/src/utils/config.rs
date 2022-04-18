@@ -105,6 +105,5 @@ pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
 pub const NULLIFIER_ACCOUNT_TYPE: u8 = 3;
 pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 4;
 pub const USER_ACCOUNT_TYPE: u8 = 5;
-pub const RELAYER_BASE_FEE: u64 = 7308627;
 //
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 222;

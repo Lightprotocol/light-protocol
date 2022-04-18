@@ -28,7 +28,6 @@ security_txt! {
     contacts: "email:security@lightprotocol.com",
     policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
     source_code: "https://github.com/Lightprotocol/light-protocol-program"
-    auditors: "Hashcloak",
 }
 
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
