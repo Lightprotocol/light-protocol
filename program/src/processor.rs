@@ -1,11 +1,11 @@
 use crate::instructions::{
     check_and_insert_nullifier, check_external_amount, close_account, create_and_check_pda,
-    token_transfer, sol_transfer
+    sol_transfer, token_transfer,
 };
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::ChecksAndTransferState;
-use crate::utils::config::{MERKLE_TREE_ACC_BYTES_ARRAY};
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -158,13 +158,9 @@ pub fn process_instruction(
         let (pub_amount_checked, relayer_fee) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
-        msg!(
-            "0 != pub_amount_checked: 0 != {}",
-            pub_amount_checked
-        );
+        msg!("0 != pub_amount_checked: 0 != {}", pub_amount_checked);
 
         if 0 != pub_amount_checked {
-
             if ext_amount > 0 {
                 let user_pda_token = next_account_info(account)?;
 
@@ -179,15 +175,13 @@ pub fn process_instruction(
                         rent,
                         &tmp_storage_pda.key.to_bytes(),
                         &b"escrow"[..],
-                        0,                  //bytes
+                        0,                                                    //bytes
                         <u64 as TryFrom<i64>>::try_from(ext_amount).unwrap(), // amount
-                        true,                //rent_exempt
+                        true,                                                 //rent_exempt
                     )?;
                     // Close escrow account to make deposit to shielded pool.
                     close_account(user_pda_token, merkle_tree_pda_token)?;
-
                 } else {
-
                     token_transfer(
                         token_program_account,
                         user_pda_token,
@@ -199,7 +193,6 @@ pub fn process_instruction(
                     )?;
                     msg!("Deposited {}", pub_amount_checked);
                 }
-
             } else if ext_amount < 0 {
                 let recipient_account = next_account_info(account)?;
                 if *recipient_account.key
@@ -212,9 +205,7 @@ pub fn process_instruction(
                 // Checking for wrapped sol and Merkle tree index can only be 0. This does
                 // not allow multiple Merkle trees for wSol.
                 if tmp_storage_pda_data.merkle_tree_index == 0 {
-
-                    sol_transfer(merkle_tree_pda_token,recipient_account, pub_amount_checked)?;
-
+                    sol_transfer(merkle_tree_pda_token, recipient_account, pub_amount_checked)?;
                 } else {
                     msg!("withdrawing tokens");
 
@@ -228,7 +219,6 @@ pub fn process_instruction(
                         pub_amount_checked,
                     )?;
                 }
-
             }
         }
 
@@ -240,9 +230,7 @@ pub fn process_instruction(
             let relayer_pda_token = next_account_info(account)?;
 
             if tmp_storage_pda_data.merkle_tree_index == 0 {
-
-                sol_transfer(merkle_tree_pda_token,relayer_pda_token, relayer_fee)?;
-
+                sol_transfer(merkle_tree_pda_token, relayer_pda_token, relayer_fee)?;
             } else {
                 msg!("withdrawing tokens");
 

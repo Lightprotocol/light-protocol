@@ -30,6 +30,7 @@ use light_protocol_program::{
 };
 use serde_json::Result;
 use solana_program::program_pack::Pack;
+use solana_program::sysvar::rent::Rent;
 use solana_program_test::ProgramTestContext;
 use std::convert::TryInto;
 use std::fs::File;
@@ -47,7 +48,6 @@ use {
     },
     std::str::FromStr,
 };
-use solana_program::sysvar::rent::Rent;
 // is necessary to have a consistent signer and relayer otherwise transactions would get rejected
 const PRIVATE_KEY: [u8; 64] = [
     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,
@@ -55,7 +55,12 @@ const PRIVATE_KEY: [u8; 64] = [
     211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62,
     255, 166, 81,
 ];
-const PRIV_KEY_DEPOSIT: [u8;64] = [70,5,178,190,139,224,161,74,134,130,14,189,253,51,249,124,255,116,66,87,146,202,196,243,68,129,95,145,97,170,145,61,221,240,113,237,127,131,46,151,40,236,223,8,124,162,170,56,71,105,233,43,196,129,63,145,13,2,210,251,197,109,226,3];
+const PRIV_KEY_DEPOSIT: [u8; 64] = [
+    70, 5, 178, 190, 139, 224, 161, 74, 134, 130, 14, 189, 253, 51, 249, 124, 255, 116, 66, 87,
+    146, 202, 196, 243, 68, 129, 95, 145, 97, 170, 145, 61, 221, 240, 113, 237, 127, 131, 46, 151,
+    40, 236, 223, 8, 124, 162, 170, 56, 71, 105, 233, 43, 196, 129, 63, 145, 13, 2, 210, 251, 197,
+    109, 226, 3,
+];
 
 mod test_utils;
 
@@ -558,7 +563,7 @@ async fn transact(
     token_accounts: &mut Vec<(&Pubkey, &Pubkey, u64)>,
     separator: u8,
     amount: Option<u64>,
-    wsol_acc: Option<Pubkey>
+    wsol_acc: Option<Pubkey>,
 ) -> Result<ProgramTestContext> {
     /*
      *
@@ -711,7 +716,7 @@ async fn transact(
         relayer_pda_token_pubkey_option,
         recipient_pubkey_option,
         amount,
-        wsol_acc
+        wsol_acc,
     )
     .await;
     Ok(program_context)
@@ -733,11 +738,15 @@ pub async fn last_tx(
     relayer_pda_token_pubkey_option: Option<&Pubkey>,
     recipient_pubkey_option: Option<&Pubkey>,
     amount: Option<u64>,
-    mut _wsol_acc: Option<Pubkey>
+    mut _wsol_acc: Option<Pubkey>,
 ) -> ProgramTestContext {
     let signer_pubkey = signer_keypair.pubkey();
     let mut accounts_vector_local = accounts_vector.clone();
-    accounts_vector_local.push((tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector_local.push((
+        tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
     let mut program_context = restart_program(
         &mut accounts_vector_local,
         Some(token_accounts),
@@ -755,11 +764,13 @@ pub async fn last_tx(
     let mut ix_vec = Vec::new();
     //deposit case mint wrapped sol tokens and approve a program owned authority
     if recipient_pubkey_option.is_none() && relayer_pda_token_pubkey_option.is_none() {
-        let user_ecrow_acc =
-            Pubkey::find_program_address(&[&tmp_storage_pda_pubkey.to_bytes(), &b"escrow"[..]], &program_id).0;
+        let user_ecrow_acc = Pubkey::find_program_address(
+            &[&tmp_storage_pda_pubkey.to_bytes(), &b"escrow"[..]],
+            &program_id,
+        )
+        .0;
 
         if amount.is_some() {
-
             let signer_account = program_context
                 .banks_client
                 .get_account(signer_pubkey)
@@ -800,7 +811,6 @@ pub async fn last_tx(
                 AccountMeta::new(*expected_authority_pubkey, false),
                 AccountMeta::new(user_ecrow_acc, false),
                 AccountMeta::new(*expected_authority_pubkey, false),
-
             ],
         ));
     }
@@ -821,7 +831,7 @@ pub async fn last_tx(
 
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
-            &vec![23,22],
+            &vec![23, 22],
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(*tmp_storage_pda_pubkey, false),
@@ -853,7 +863,6 @@ pub async fn last_tx(
             .process_transaction(transaction)
             .await
             .unwrap();
-
 
         ix_vec.push(Instruction::new_with_bincode(
             *program_id,
@@ -1150,7 +1159,10 @@ async fn deposit_should_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    println!("encrypted_utxos bytes: {:?}", ix_withdraw_data[602..].to_vec());
+    println!(
+        "encrypted_utxos bytes: {:?}",
+        ix_withdraw_data[602..].to_vec()
+    );
     // ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
     assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
@@ -1188,7 +1200,7 @@ async fn deposit_should_succeed() {
     //    &[&merkle_tree_pda_pubkey.to_bytes()[..]],
     //    &program_id
     // );
-        let user_pda_token_pubkey = Keypair::new().pubkey();
+    let user_pda_token_pubkey = Keypair::new().pubkey();
 
     let mut token_accounts = Vec::new();
 
@@ -1202,7 +1214,7 @@ async fn deposit_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-        /*
+    /*
      *
      *
      * Tx that initializes MerkleTree account
@@ -1217,18 +1229,23 @@ async fn deposit_should_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_withdraw_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_withdraw_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     // deposit shielded pool
     let mut program_context = transact(
         &program_id,
@@ -1249,15 +1266,12 @@ async fn deposit_should_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
 
-
     check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
-
-
 
     check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
@@ -1289,7 +1303,10 @@ async fn deposit_should_succeed() {
         "merkle_tree_pda_token_account_data: {:?}",
         merkle_tree_pda_token_account
     );
-    assert_eq!(merkle_tree_pda_token_account.lamports, amount + 2 * Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0));
+    assert_eq!(
+        merkle_tree_pda_token_account.lamports,
+        amount + 2 * Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0)
+    );
 
     let merkle_tree_account_data = program_context
         .banks_client
@@ -1369,7 +1386,6 @@ async fn internal_transfer_should_succeed() {
     let user_pda_token_pubkey = Keypair::new().pubkey();
     let random_user_owner_pubkey = Keypair::new().pubkey();
 
-
     let mut token_accounts = Vec::new();
     // token_accounts.push((
     //     &merkle_tree_pda_token_pubkey,
@@ -1408,7 +1424,7 @@ async fn internal_transfer_should_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
@@ -1459,9 +1475,12 @@ async fn internal_transfer_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-
     // extra balance is just passed in such that the account does not disappear
-    assert_eq!(merkle_tree_pda_token_account.lamports  - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0), 10000000000 - fees);
+    assert_eq!(
+        merkle_tree_pda_token_account.lamports
+            - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0),
+        10000000000 - fees
+    );
 
     let relayer_pda_token_account = program_context
         .banks_client
@@ -1471,7 +1490,11 @@ async fn internal_transfer_should_succeed() {
         .unwrap();
 
     // assert_eq!(relayer_pda_token_account.lamports , relayer_pda_token_account_before.lamports + fees);
-    assert_eq!(relayer_pda_token_account.lamports - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0), fees);
+    assert_eq!(
+        relayer_pda_token_account.lamports
+            - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0),
+        fees
+    );
 
     let merkle_tree_account_data = program_context
         .banks_client
@@ -1496,7 +1519,6 @@ async fn internal_transfer_should_succeed() {
     )
     .unwrap();
 }
-
 
 #[tokio::test]
 async fn withdrawal_should_succeed() {
@@ -1528,8 +1550,6 @@ async fn withdrawal_should_succeed() {
     accounts_vector.push((&merkle_tree_pda_token_pubkey, 0, None));
     accounts_vector.push((&relayer_pda_token_pubkey, 0, None));
 
-
-
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
@@ -1548,7 +1568,6 @@ async fn withdrawal_should_succeed() {
     //    &[&merkle_tree_pda_pubkey.to_bytes()[..]],
     //    &program_id
     // );
-
 
     let mut token_accounts = Vec::new();
 
@@ -1597,7 +1616,7 @@ async fn withdrawal_should_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
@@ -1610,12 +1629,9 @@ async fn withdrawal_should_succeed() {
         .await
         .expect("get_account")
         .unwrap();
-        println!("\recipient: {:?} \n", recipient);
+    println!("\recipient: {:?} \n", recipient);
 
-    println!(
-        "recipient_token_account_data: {:?}",
-        recipient_account
-    );
+    println!("recipient_token_account_data: {:?}", recipient_account);
 
     let tmp_account = program_context
         .banks_client
@@ -1635,7 +1651,11 @@ async fn withdrawal_should_succeed() {
     .await;
 
     // substract the rent exemption because otherwise the relayer account cannot exist
-    assert_eq!(recipient_account.lamports - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0), amount);
+    assert_eq!(
+        recipient_account.lamports
+            - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0),
+        amount
+    );
 
     println!(
         "\n merkle_tree_pda_token_pubkey: {:?} \n",
@@ -1649,8 +1669,15 @@ async fn withdrawal_should_succeed() {
         .expect("get_account")
         .unwrap();
 
-    assert_eq!(relayer_pda_token_account.lamports , relayer_pda_token_account_before.lamports + fees);
-    assert_eq!(relayer_pda_token_account.lamports - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0), fees);
+    assert_eq!(
+        relayer_pda_token_account.lamports,
+        relayer_pda_token_account_before.lamports + fees
+    );
+    assert_eq!(
+        relayer_pda_token_account.lamports
+            - Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0),
+        fees
+    );
 }
 
 #[tokio::test]
@@ -1748,7 +1775,7 @@ async fn double_spend_should_not_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
@@ -1797,7 +1824,8 @@ async fn double_spend_should_not_succeed() {
 #[tokio::test]
 #[should_panic]
 async fn deposit_with_wrong_proof_should_not_succeed() {
-    let ix_withdraw_data = read_test_data(std::string::String::from("deposit_with_wrong_proof.txt"));
+    let ix_withdraw_data =
+        read_test_data(std::string::String::from("deposit_with_wrong_proof.txt"));
     println!(
         "ix_withdraw_data[521..529]: {:?}",
         ix_withdraw_data[521..529].to_vec()
@@ -1806,7 +1834,10 @@ async fn deposit_with_wrong_proof_should_not_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    println!("encrypted_utxos bytes: {:?}", ix_withdraw_data[602..].to_vec());
+    println!(
+        "encrypted_utxos bytes: {:?}",
+        ix_withdraw_data[602..].to_vec()
+    );
     // ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
     assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
@@ -1844,7 +1875,7 @@ async fn deposit_with_wrong_proof_should_not_succeed() {
     //    &[&merkle_tree_pda_pubkey.to_bytes()[..]],
     //    &program_id
     // );
-        let user_pda_token_pubkey = Keypair::new().pubkey();
+    let user_pda_token_pubkey = Keypair::new().pubkey();
 
     let mut token_accounts = Vec::new();
 
@@ -1858,7 +1889,7 @@ async fn deposit_with_wrong_proof_should_not_succeed() {
         .expect("get_account")
         .unwrap();
 
-        /*
+    /*
      *
      *
      * Tx that initializes MerkleTree account
@@ -1873,18 +1904,23 @@ async fn deposit_with_wrong_proof_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_withdraw_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_withdraw_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
 
     // deposit shielded pool
     transact(
@@ -1906,11 +1942,10 @@ async fn deposit_with_wrong_proof_should_not_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
-
 }
 
 #[tokio::test]
@@ -1925,7 +1960,10 @@ async fn deposit_with_wrong_amount_should_not_succeed() {
         .try_into()
         .unwrap();
     println!("amount: {:?}", amount);
-    println!("encrypted_utxos bytes: {:?}", ix_withdraw_data[602..].to_vec());
+    println!(
+        "encrypted_utxos bytes: {:?}",
+        ix_withdraw_data[602..].to_vec()
+    );
     // ix_withdraw_data = [ix_withdraw_data.to_vec(), vec![1u8; ENCRYPTED_UTXOS_LENGTH]].concat();
     assert_eq!(ix_withdraw_data.len(), 602 + ENCRYPTED_UTXOS_LENGTH);
     // Creates program, accounts, setup.
@@ -1978,7 +2016,7 @@ async fn deposit_with_wrong_amount_should_not_succeed() {
         .expect("get_account")
         .unwrap();
 
-        /*
+    /*
      *
      *
      * Tx that initializes MerkleTree account
@@ -1993,18 +2031,23 @@ async fn deposit_with_wrong_amount_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_withdraw_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_withdraw_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     // deposit shielded pool
     let mut program_context = transact(
         &program_id,
@@ -2025,48 +2068,47 @@ async fn deposit_with_wrong_amount_should_not_succeed() {
         &mut token_accounts,
         1u8,
         Some(0),
-        None
+        None,
     )
     .await
     .unwrap();
 
+    check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
 
+    check_leaves_insert_correct(
+        &two_leaves_pda_pubkey,
+        &ix_withdraw_data[192 + 9..224 + 9], //left leaf todo change order
+        &ix_withdraw_data[160 + 9..192 + 9], //right leaf
+        &ix_withdraw_data[593 + 9..593 + 9 + ENCRYPTED_UTXOS_LENGTH], //encrypted_utxos
+        0,
+        &mut program_context,
+    )
+    .await;
+    let tmp_account = program_context
+        .banks_client
+        .get_account(tmp_storage_pda_pubkey)
+        .await
+        .unwrap();
+    assert!(tmp_account.is_none(), "Tmp account not closed.");
+    println!(
+        "\n merkle_tree_pda_token_pubkey: {:?} \n",
+        merkle_tree_pda_token_pubkey
+    );
+    let merkle_tree_pda_token_account = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_token_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
 
-        check_nullifier_insert_correct(&nullifier_pubkeys, &mut program_context).await;
-
-
-
-        check_leaves_insert_correct(
-            &two_leaves_pda_pubkey,
-            &ix_withdraw_data[192 + 9..224 + 9], //left leaf todo change order
-            &ix_withdraw_data[160 + 9..192 + 9], //right leaf
-            &ix_withdraw_data[593 + 9..593 + 9 + ENCRYPTED_UTXOS_LENGTH], //encrypted_utxos
-            0,
-            &mut program_context,
-        )
-        .await;
-        let tmp_account = program_context
-            .banks_client
-            .get_account(tmp_storage_pda_pubkey)
-            .await
-            .unwrap();
-        assert!(tmp_account.is_none(), "Tmp account not closed.");
-        println!(
-            "\n merkle_tree_pda_token_pubkey: {:?} \n",
-            merkle_tree_pda_token_pubkey
-        );
-        let merkle_tree_pda_token_account = program_context
-            .banks_client
-            .get_account(merkle_tree_pda_token_pubkey)
-            .await
-            .expect("get_account")
-            .unwrap();
-
-        println!(
-            "merkle_tree_pda_token_account_data: {:?}",
-            merkle_tree_pda_token_account
-        );
-        assert_eq!(merkle_tree_pda_token_account.lamports, amount + 2 * Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(),0));
+    println!(
+        "merkle_tree_pda_token_account_data: {:?}",
+        merkle_tree_pda_token_account
+    );
+    assert_eq!(
+        merkle_tree_pda_token_account.lamports,
+        amount + 2 * Rent::minimum_balance(&solana_sdk::sysvar::rent::Rent::default(), 0)
+    );
 }
 
 #[tokio::test]
@@ -2104,18 +2146,23 @@ async fn compute_prepared_inputs_should_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     /*
      *
      *
@@ -2123,28 +2170,32 @@ async fn compute_prepared_inputs_should_succeed() {
      *
      *
      */
-     //sends bytes (public inputs and proof)
-     let mut transaction = Transaction::new_with_payer(
-         &[Instruction::new_with_bincode(
-             program_id,
-             &[ix_data[8..].to_vec(), vec![1]].concat(),
-             vec![
-                 AccountMeta::new(signer_pubkey, true),
-                 AccountMeta::new(tmp_storage_pda_pubkey, false),
-                 AccountMeta::new_readonly(solana_program::system_program::id(), false),
-                 AccountMeta::new_readonly(sysvar::rent::id(), false),
-             ],
-         )],
-         Some(&signer_pubkey),
-     );
-     transaction.sign(&[&signer_keypair], program_context.last_blockhash);
-     program_context
-         .banks_client
-         .process_transaction(transaction)
-         .await
-         .unwrap();
+    //sends bytes (public inputs and proof)
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[ix_data[8..].to_vec(), vec![1]].concat(),
+            vec![
+                AccountMeta::new(signer_pubkey, true),
+                AccountMeta::new(tmp_storage_pda_pubkey, false),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_pubkey),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
 
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *
@@ -2220,7 +2271,11 @@ async fn compute_miller_output_should_succeed() {
 
     let account_state = get_mock_state("miller_output", &signer_keypair);
     let mut accounts_vector = Vec::new();
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, Some(account_state)));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        Some(account_state),
+    ));
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
@@ -2349,7 +2404,6 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
-
     /*
      *
      *
@@ -2365,18 +2419,23 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     /*
      *
      *
@@ -2405,7 +2464,11 @@ async fn submit_proof_with_wrong_root_should_not_succeed() {
         .unwrap();
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *
@@ -2452,7 +2515,7 @@ async fn search_root_at_last_root_index_should_succeed() {
     let mut accounts_vector = Vec::new();
     // Creates pubkey for tmporary storage account
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-    let mut merkle_tree_data: Vec<u8> = vec![0u8;16658];
+    let mut merkle_tree_data: Vec<u8> = vec![0u8; 16658];
     // initing Merkle tree
     // insert root at last place
     for (i, elem) in merkle_tree_data[0..642].iter_mut().enumerate() {
@@ -2460,13 +2523,17 @@ async fn search_root_at_last_root_index_should_succeed() {
     }
 
     // insert root at last place
-    for (i, elem) in merkle_tree_data[16658 - 80.. 16658 - 48].iter_mut().enumerate() {
-        *elem = ix_data[i +9];
+    for (i, elem) in merkle_tree_data[16658 - 80..16658 - 48]
+        .iter_mut()
+        .enumerate()
+    {
+        *elem = ix_data[i + 9];
     }
 
     accounts_vector.push((&merkle_tree_pda_pubkey, 16658, Some(merkle_tree_data)));
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     let tmp_storage_pda_pubkey =
@@ -2513,7 +2580,11 @@ async fn search_root_at_last_root_index_should_succeed() {
         .unwrap();
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *
@@ -2538,10 +2609,9 @@ async fn search_root_at_last_root_index_should_succeed() {
     program_context
         .banks_client
         .process_transaction(transaction)
-        .await.unwrap();
-
+        .await
+        .unwrap();
 }
-
 
 #[tokio::test]
 async fn signer_acc_not_in_first_place_should_not_succeed() {
@@ -2581,7 +2651,6 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
-
     /*
      *
      *
@@ -2597,18 +2666,23 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     /*
      *
      *
@@ -2638,7 +2712,11 @@ async fn signer_acc_not_in_first_place_should_not_succeed() {
         .unwrap();
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *
@@ -2708,7 +2786,6 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
 
-
     /*
      *
      *
@@ -2724,18 +2801,23 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     /*
      *
      *
@@ -2765,7 +2847,11 @@ async fn submit_proof_with_wrong_signer_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *
@@ -2886,12 +2972,10 @@ async fn withdrawal_wrong_recipient_should_not_succeed() {
         &mut token_accounts,
         1u8,
         None,
-        None
+        None,
     )
     .await
     .unwrap();
-
-
 
     let merkle_tree_pda_after = program_context
         .banks_client
@@ -2983,10 +3067,7 @@ async fn wrong_merkle_tree_should_not_succeed() {
         *elem = rnd_value[i];
     }
 
-    println!(
-        "ix_data[521..529]: {:?}",
-        ix_data[521..529].to_vec()
-    );
+    println!("ix_data[521..529]: {:?}", ix_data[521..529].to_vec());
     let amount: u64 = i64::from_le_bytes(ix_data[521..529].try_into().unwrap())
         .try_into()
         .unwrap();
@@ -3020,8 +3101,6 @@ async fn wrong_merkle_tree_should_not_succeed() {
     nullifier_pubkeys.push(nf_pubkey0);
     nullifier_pubkeys.push(nf_pubkey1);
 
-
-
     // start program
     let mut program_context =
         create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
@@ -3032,7 +3111,7 @@ async fn wrong_merkle_tree_should_not_succeed() {
         .expect("get_account")
         .unwrap();
 
-        /*
+    /*
      *
      *
      * Tx that initializes MerkleTree account
@@ -3047,18 +3126,23 @@ async fn wrong_merkle_tree_should_not_succeed() {
     )
     .await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
-    println!("signer_keypair.pubkey() {:?}",  signer_keypair.pubkey());
-    assert_eq!(ix_data[529..561], signer_keypair.pubkey().to_bytes(), "relayer pubkey wrong." );
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    println!("signer_keypair.pubkey() {:?}", signer_keypair.pubkey());
+    assert_eq!(
+        ix_data[529..561],
+        signer_keypair.pubkey().to_bytes(),
+        "relayer pubkey wrong."
+    );
     let signer_pubkey = signer_keypair.pubkey();
     let mut program_context = restart_program(
-                &mut accounts_vector,
-                None,
-                &program_id,
-                &signer_pubkey,
-                &mut program_context,
-        )
-        .await;
+        &mut accounts_vector,
+        None,
+        &program_id,
+        &signer_pubkey,
+        &mut program_context,
+    )
+    .await;
     /*
      *
      *
@@ -3115,7 +3199,8 @@ async fn wrong_integrity_hash_should_not_succeed() {
     let (tmp_storage_pda_pubkey, _, _, _) =
         create_pubkeys_from_ix_data(&ix_data, &program_id).await;
 
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
     // start program
@@ -3124,7 +3209,11 @@ async fn wrong_integrity_hash_should_not_succeed() {
 
     //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
     //it will be initialized in the first instruction onchain
-    accounts_vector.push((&tmp_storage_pda_pubkey, 3900 + config::ENCRYPTED_UTXOS_LENGTH, None));
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
 
     /*
      *

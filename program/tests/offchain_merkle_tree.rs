@@ -611,7 +611,6 @@ mod tests {
 
     #[test]
     fn merkle_tree_verify_init_bytes_merkle_tree_18() {
-
         let mut zero_value = vec![1 as u8; 32];
 
         let rounds = get_rounds_poseidon_circom_bn254_x5_3::<Fq>();
@@ -628,7 +627,10 @@ mod tests {
         );
 
         // looping over init bytes and asserting them with dynamically created poseidon hashes
-        for (level, level_hash) in config::INIT_BYTES_MERKLE_TREE_18[10..(18*32 + 10)].chunks(32).enumerate()  {
+        for (level, level_hash) in config::INIT_BYTES_MERKLE_TREE_18[10..(18 * 32 + 10)]
+            .chunks(32)
+            .enumerate()
+        {
             current_level_hash =
                 <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
                     .unwrap();
@@ -637,13 +639,17 @@ mod tests {
                 &mut zero_value[..],
             );
 
-            assert_eq!(zero_value, level_hash,
-                "Verification of initbytes failed at level {}", level
+            assert_eq!(
+                zero_value, level_hash,
+                "Verification of initbytes failed at level {}",
+                level
             );
-            assert_eq!(zero_value, config::ZERO_BYTES_MERKLE_TREE_18[level*32..(level+1)*32],
-                "Verification of zero bytes failed at level {}", level
+            assert_eq!(
+                zero_value,
+                config::ZERO_BYTES_MERKLE_TREE_18[level * 32..(level + 1) * 32],
+                "Verification of zero bytes failed at level {}",
+                level
             );
-
         }
     }
 

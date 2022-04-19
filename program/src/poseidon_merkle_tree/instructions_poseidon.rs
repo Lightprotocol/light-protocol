@@ -305,7 +305,7 @@ mod tests {
                 current_index: 0usize,
                 current_level: 0usize,
                 current_instruction_index: 0usize,
-                encrypted_utxos: vec![0]
+                encrypted_utxos: vec![0],
             };
 
             //executing poseidon instructions
@@ -362,7 +362,7 @@ mod tests {
                 current_index: 0usize,
                 current_level: 0usize,
                 current_instruction_index: 0usize,
-                encrypted_utxos: vec![0]
+                encrypted_utxos: vec![0],
             };
 
             //executing poseidon instructions
