@@ -63,6 +63,5 @@ impl Pack for UserAccount {
             }
             *dst_owner_pubkey = self.owner_pubkey.to_bytes();
         }
-
     }
 }

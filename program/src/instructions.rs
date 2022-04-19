@@ -193,7 +193,11 @@ pub fn check_tx_integrity_hash(
     msg!("hash computed {:?}", hash);
 
     if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
-        msg!("tx_integrity_hash verification failed.{:?} != {:?}", &hash[..] , &tx_integrity_hash);
+        msg!(
+            "tx_integrity_hash verification failed.{:?} != {:?}",
+            &hash[..],
+            &tx_integrity_hash
+        );
         return Err(ProgramError::InvalidInstructionData);
     }
     Ok(())
@@ -246,7 +250,6 @@ pub fn sol_transfer(
     dest_account: &AccountInfo,
     amount: u64,
 ) -> Result<(), ProgramError> {
-
     let from_starting_lamports = from_account.lamports();
     **from_account.lamports.borrow_mut() = from_starting_lamports
         .checked_sub(amount)
@@ -377,7 +380,11 @@ pub fn try_initialize_tmp_storage_pda(
     // Check that relayer in integrity hash == signer.
     // In case of deposit the depositor is their own relayer
     if *signing_address != Pubkey::new(&relayer) {
-        msg!("Specified relayer is not signer. {:?} != {:?}", *signing_address, Pubkey::new(&relayer));
+        msg!(
+            "Specified relayer is not signer. {:?} != {:?}",
+            *signing_address,
+            Pubkey::new(&relayer)
+        );
         return Err(ProgramError::InvalidAccountData);
     }
 

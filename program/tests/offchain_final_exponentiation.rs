@@ -17,8 +17,8 @@ pub mod tests {
         instructions::*, processor::_process_instruction, ranges::*,
         state::FinalExponentiationState,
     };
-    use light_protocol_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
     use light_protocol_program::groth16_verifier::parsers::*;
+    use light_protocol_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
     use serde_json::Result;
     use solana_program::program_pack::Pack;
     pub const INSTRUCTION_ORDER_CONST: [u8; 371] = [

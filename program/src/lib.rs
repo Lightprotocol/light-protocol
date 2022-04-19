@@ -125,7 +125,7 @@ pub fn process_instruction(
                     accounts,
                     3900u64 + ENCRYPTED_UTXOS_LENGTH as u64, // bytes
                     0_u64,                                   // lamports
-                    true,                                   // rent_exempt
+                    true,                                    // rent_exempt
                     &_instruction_data[9..], // Data starts after instruction identifier.
                 )
             }
