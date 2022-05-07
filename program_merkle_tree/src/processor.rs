@@ -26,17 +26,17 @@ use crate::{
 pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
-    current_instruction_index: usize,
+    tmp_storage_pda_data: &mut MerkleTreeTmpPda
 ) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
     let tmp_storage_pda = next_account_info(account)?;
-    let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+    // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
 
     // Checks whether passed-in root exists in Merkle tree history array.
     // We do this check as soon as possible to avoid proof transaction invalidation for missing
     // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
-    if current_instruction_index == 1 {
+    if tmp_storage_pda_data.current_instruction_index == 0 {
         let merkle_tree_pda = next_account_info(account)?;
         tmp_storage_pda_data.found_root = check_root_hash_exists(
             merkle_tree_pda,
@@ -44,16 +44,23 @@ pub fn process_instruction(
             program_id,
             tmp_storage_pda_data.merkle_tree_index,
         )?;
-        tmp_storage_pda_data.changed_state = 1;
+        tmp_storage_pda_data.changed_state = 3;
         tmp_storage_pda_data.current_instruction_index += 1;
         MerkleTreeTmpPda::pack_into_slice(
             &tmp_storage_pda_data,
             &mut tmp_storage_pda.data.borrow_mut(),
         );
     }
+
+    if tmp_storage_pda_data.current_instruction_index > 0 && tmp_storage_pda_data.current_instruction_index < 75 {
+        let mut merkle_tree_processor =
+            MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
+        msg!("\nprior process_instruction\n");
+        merkle_tree_processor.process_instruction(accounts, tmp_storage_pda_data)?;
+    }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // executes transaction, deposit or withdrawal, and closes the tmp account.
-    else if current_instruction_index == 1501 {
+    else if tmp_storage_pda_data.current_instruction_index == 75 {
         let two_leaves_pda = next_account_info(account)?;
         let nullifier0_pda = next_account_info(account)?;
         let nullifier1_pda = next_account_info(account)?;
@@ -134,7 +141,7 @@ pub fn process_instruction(
         //         [NULLIFIER_0_START..NULLIFIER_0_END],
         // )?;
         msg!(
-            "nullifier0_pda inserted: {}",
+            "nullifier0_pda not inserted its commented: {}",
             tmp_storage_pda_data.account_type
         );
 
@@ -148,9 +155,11 @@ pub fn process_instruction(
         //         [NULLIFIER_1_START..NULLIFIER_1_END],
         // )?;
         msg!(
-            "nullifier1_pda inserted: {}",
+            "nullifier1_pda not inserted its commented: {}",
             tmp_storage_pda_data.account_type
         );
+        msg!(" amount checks and transfers commented");
+        /*
         let (pub_amount_checked, relayer_fee) = check_external_amount(&tmp_storage_pda_data)?;
         let ext_amount =
             i64::from_le_bytes(tmp_storage_pda_data.ext_amount.clone().try_into().unwrap());
@@ -240,9 +249,9 @@ pub fn process_instruction(
                     relayer_fee,
                 )?;
             }
-        }
-        panic!("commented create two_leaves_pda");
-        /*
+        }*/
+
+
         msg!("Creating two_leaves_pda.");
         create_and_check_pda(
             program_id,
@@ -250,18 +259,18 @@ pub fn process_instruction(
             two_leaves_pda,
             system_program_account,
             rent,
-            &tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers
-                [NULLIFIER_0_START..NULLIFIER_0_END],
+            &tmp_storage_pda_data.nullifiers
+                [0..32],
             &b"leaves"[..],
             TWO_LEAVES_PDA_SIZE, //bytes
             0,                   //lamports
             true,                //rent_exempt
-        )?;*/
+        )?;
 
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
-        merkle_tree_processor.process_instruction(accounts, &mut tmp_storage_pda_data)?;
+        merkle_tree_processor.process_instruction(accounts, tmp_storage_pda_data)?;
         // Close tmp account.
         close_account(tmp_storage_pda, signer_account)?;
     }

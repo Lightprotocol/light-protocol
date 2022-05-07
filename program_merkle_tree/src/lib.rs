@@ -1,7 +1,6 @@
 #![allow(clippy::type_complexity, clippy::ptr_arg, clippy::too_many_arguments)]
 
 pub mod instructions;
-pub mod nullifier_state;
 pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
@@ -96,22 +95,9 @@ pub fn process_instruction(
         let mut tmp_storage_pda_data =
             MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
 
-        let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
-        msg!("\nprior process_instruction\n");
-        merkle_tree_processor.process_instruction(accounts, &mut tmp_storage_pda_data)?;
-        Ok(())
-        // let mut merkle_tree_init_data =
-        //     MerkleTreeTmpStorageAccInputData::new(
-        //         &instruction_data,
-        //         merkle_tree_storage_acc.key.to_bytes(),
-        //         signer_account.key.to_bytes(),
-        //         tmp_storage_pda_verifier.key.to_bytes()
-        //     )?;
-        // merkle_tree_init_data.check_tx_integrity_hash()?;
-        // merkle_tree_init_data
-        //     .initialize_new_merkle_tree_tmp_acc_from_bytes(&tmp_storage_pda_merkle_tree)
-    } else {
+        processor::process_instruction(&program_id, &accounts, &mut tmp_storage_pda_data)
+
+        } else {
         panic!("");
         Ok(())
     }
@@ -254,7 +240,7 @@ pub fn process_instruction(
     }*/
 }
 
-const ROOT_CHECK: usize = 1;
+const ROOT_CHECK: u8 = 15;
 const INSERT_LEAVES_NULLIFIER_AND_TRANSFER: usize = 1501;
 const VERIFICATION_END_INDEX: usize = 1266;
 pub const NULLIFIER_0_START: usize = 320;
@@ -263,7 +249,7 @@ pub const NULLIFIER_1_START: usize = 352;
 pub const NULLIFIER_1_END: usize = 384;
 pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + ENCRYPTED_UTXOS_LENGTH as u64;
 //instruction order
-pub const IX_ORDER: [u8; 75] = [
+pub const IX_ORDER: [u8; 76] = [
     //init data happens before this array starts
     //check root
     /* 1, //prepare inputs for verification
@@ -317,7 +303,7 @@ pub const IX_ORDER: [u8; 75] = [
     36, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32,
     32, 32, 35, 36, 32, 32, 32, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
     51, 38, 39, 52, 53, 54, 55, 42, 43,*/ //merkle tree insertion height 18
-    34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
+    ROOT_CHECK, 34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
     16,
     //perform last checks and transfer requested amount
     241,

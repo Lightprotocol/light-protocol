@@ -24,6 +24,8 @@ pub struct MerkleTreeTmpPda {
     pub nullifiers:  Vec<u8>,
     pub leaf_left:  Vec<u8>,
     pub leaf_right:  Vec<u8>,
+    pub origin_leaf_left: Vec<u8>,
+    pub origin_leaf_right: Vec<u8>,
     pub recipient:  Vec<u8>,
     pub verifier_index: usize,
     pub encrypted_utxos:  Vec<u8>,
@@ -58,6 +60,8 @@ impl MerkleTreeTmpPda {
             nullifiers:  vec![0u8],
             leaf_left:  vec![0u8],
             leaf_right:  vec![0u8],
+            origin_leaf_left:  vec![0u8],
+            origin_leaf_right:  vec![0u8],
             recipient:  vec![0u8],
             verifier_index: 0,
             encrypted_utxos:  vec![0u8],
@@ -115,6 +119,8 @@ impl Pack for MerkleTreeTmpPda {
 
             leaf_left,
             leaf_right,
+            origin_leaf_left,
+            origin_leaf_right,
             encrypted_utxos,
             nullifiers,
         ) = array_refs![
@@ -144,6 +150,8 @@ impl Pack for MerkleTreeTmpPda {
 
             32, //leaf_left
             32, //leaf_right
+            32, //origin_leaf_left
+            32, //origin_leaf_right
             ENCRYPTED_UTXOS_LENGTH,
             NULLIFIERS_LENGTH
         ];
@@ -170,6 +178,8 @@ impl Pack for MerkleTreeTmpPda {
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
             leaf_left: leaf_left.to_vec(),
             leaf_right: leaf_right.to_vec(),
+            origin_leaf_left: origin_leaf_left.to_vec(),
+            origin_leaf_right: origin_leaf_right.to_vec(),
             encrypted_utxos: encrypted_utxos.to_vec(),
             recipient: recipient.to_vec(),                 //5
             verifier_tmp_pda: verifier_tmp_pda.to_vec(),
@@ -214,6 +224,8 @@ impl Pack for MerkleTreeTmpPda {
 
             leaf_left_dst,
             leaf_right_dst,
+            origin_leaf_left_dst,
+            origin_leaf_right_dst,
             encrypted_utxos_dst,
             nullifiers_dst,
         ) = mut_array_refs![
@@ -243,6 +255,8 @@ impl Pack for MerkleTreeTmpPda {
 
             32, //leaf_left
             32, //leaf_right
+            32, //origin_leaf_left
+            32, //origin_leaf_right
             ENCRYPTED_UTXOS_LENGTH,
             NULLIFIERS_LENGTH
         ];
@@ -263,6 +277,8 @@ impl Pack for MerkleTreeTmpPda {
             *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
             *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
             *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
+            *origin_leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
+            *origin_leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
             *verifier_tmp_pda_dst = self.verifier_tmp_pda.clone().try_into().unwrap();
 
             *encrypted_utxos_dst = self.encrypted_utxos.clone().try_into().unwrap();

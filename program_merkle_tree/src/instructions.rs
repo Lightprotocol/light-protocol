@@ -237,6 +237,8 @@ impl MerkleTreeTmpStorageAccInputData {
         tmp.nullifiers = self.nullifiers.clone();
         tmp.leaf_left = self.leaf_left.clone();
         tmp.leaf_right = self.leaf_right.clone();
+        tmp.origin_leaf_left = self.leaf_left.clone();
+        tmp.origin_leaf_right = self.leaf_right.clone();
         tmp.ext_amount = self.ext_amount.clone();
         tmp.relayer_fee = self.relayer_fee.clone();
         tmp.ext_sol_amount = self.ext_sol_amount.clone();
@@ -394,103 +396,3 @@ pub fn create_and_check_pda<'a, 'b>(
     }
     Ok(())
 }
-/*
-pub fn try_initialize_tmp_storage_pda(
-    tmp_storage_pda: &AccountInfo,
-    _instruction_data: &[u8],
-    signing_address: &Pubkey,
-) -> Result<(), ProgramError> {
-    msg!(
-        "Initializing tmp_storage_pda: {}",
-        tmp_storage_pda.data.borrow().len()
-    );
-    // Initializing temporary storage pda with instruction data.
-    let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
-    tmp_storage_pda_data.account_type = TMP_STORAGE_ACCOUNT_TYPE;
-
-    let mut groth16_processor = Groth16Processor::new(
-        tmp_storage_pda,
-        tmp_storage_pda_data.current_instruction_index,
-    )?;
-    // store zero knowledge prepared inputs bytes
-    groth16_processor.try_initialize(
-        &_instruction_data[PREPARED_INPUTS_RANGE_START..PREPARED_INPUTS_RANGE_END],
-    )?;
-
-    tmp_storage_pda_data.relayer = signing_address.to_bytes().to_vec();
-    tmp_storage_pda_data.root_hash = _instruction_data[0..32].to_vec();
-    tmp_storage_pda_data.amount = _instruction_data[32..64].to_vec();
-    tmp_storage_pda_data.tx_integrity_hash = _instruction_data[64..96].to_vec();
-
-    let input_nullifier_0 = _instruction_data[96..128].to_vec();
-    let input_nullifier_1 = &_instruction_data[128..160];
-
-    let leaf_right = &_instruction_data[160..192];
-    let leaf_left = &_instruction_data[192..224];
-
-    let encrypted_utxos = &_instruction_data[593..593 + ENCRYPTED_UTXOS_LENGTH];
-    tmp_storage_pda_data.proof_a_b_c_leaves_and_nullifiers = [
-        _instruction_data[PROOF_A_B_C_RANGE_START..PROOF_A_B_C_RANGE_END].to_vec(),
-        leaf_right.to_vec(),
-        leaf_left.to_vec(),
-        input_nullifier_0.to_vec(),
-        input_nullifier_1.to_vec(),
-        encrypted_utxos.to_vec(),
-    ]
-    .concat();
-    tmp_storage_pda_data.recipient = _instruction_data[480..512].to_vec();
-    tmp_storage_pda_data.ext_amount = _instruction_data[512..520].to_vec();
-    let relayer = _instruction_data[520..552].to_vec();
-
-    // Check that relayer in integrity hash == signer.
-    // In case of deposit the depositor is their own relayer
-    if *signing_address != Pubkey::new(&relayer) {
-        msg!(
-            "Specified relayer is not signer. {:?} != {:?}",
-            *signing_address,
-            Pubkey::new(&relayer)
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    let fee = _instruction_data[552..560].to_vec();
-    tmp_storage_pda_data.relayer_fee = fee;
-
-    let merkle_tree_pda_pubkey = _instruction_data[560..592].to_vec();
-    tmp_storage_pda_data.merkle_tree_index = _instruction_data[592];
-
-    if merkle_tree_pda_pubkey
-        != MERKLE_TREE_ACC_BYTES_ARRAY
-            [<usize as TryFrom<u8>>::try_from(tmp_storage_pda_data.merkle_tree_index).unwrap()]
-        .0
-        .to_vec()
-    {
-        msg!(
-            "Merkle tree in tx integrity hash not whitelisted or wrong ID. is: {:?}",
-            merkle_tree_pda_pubkey,
-        );
-        return Err(ProgramError::InvalidAccountData);
-    }
-
-    check_tx_integrity_hash(
-        tmp_storage_pda_data.recipient.to_vec(),
-        tmp_storage_pda_data.ext_amount.to_vec(),
-        relayer.to_vec(),
-        tmp_storage_pda_data.relayer_fee.to_vec(),
-        tmp_storage_pda_data.tx_integrity_hash.to_vec(),
-        tmp_storage_pda_data.merkle_tree_index,
-        encrypted_utxos.to_vec(),
-        merkle_tree_pda_pubkey,
-    )?;
-    for i in 0..11 {
-        tmp_storage_pda_data.changed_constants[i] = true;
-    }
-    tmp_storage_pda_data.current_instruction_index += 1;
-    MerkleTreeTmpPda::pack_into_slice(
-        &tmp_storage_pda_data,
-        &mut tmp_storage_pda.data.borrow_mut(),
-    );
-    msg!("packed init.");
-    Ok(())
-}
-*/
