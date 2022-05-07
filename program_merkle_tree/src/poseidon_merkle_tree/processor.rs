@@ -95,12 +95,10 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     }
 
 
-    pub fn process_instruction(&mut self, accounts: &[AccountInfo]) -> Result<(), ProgramError> {
+    pub fn process_instruction(&mut self, accounts: &[AccountInfo], tmp_storage_pda_data: &mut MerkleTreeTmpPda) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
         let _signer = next_account_info(account)?;
         let _tmp_storage_pda = next_account_info(account)?;
-        let mut tmp_storage_pda_data =
-            MerkleTreeTmpPda::unpack(&self.tmp_storage_pda.unwrap().data.borrow())?;
         msg!(
             "tmp_storage_pda_data.current_instruction_index {}",
             tmp_storage_pda_data.current_instruction_index
@@ -129,7 +127,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index],
-                &mut tmp_storage_pda_data,
+                tmp_storage_pda_data,
                 &mut merkle_tree_pda_data,
             )?;
             tmp_storage_pda_data.changed_state = 4;
@@ -195,7 +193,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             //hash instructions do not need the merkle tree
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index],
-                &mut tmp_storage_pda_data,
+                tmp_storage_pda_data,
                 &mut self.unpacked_merkle_tree,
             )?;
             tmp_storage_pda_data.changed_state = 2;
@@ -233,7 +231,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             )?;
 
             //insert root into merkle tree
-            insert_last_double(&mut merkle_tree_pda_data, &mut tmp_storage_pda_data)?;
+            insert_last_double(&mut merkle_tree_pda_data, tmp_storage_pda_data)?;
 
             //check leaves account is rent exempt
             //let rent = Rent::default();

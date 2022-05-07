@@ -594,8 +594,6 @@ async fn merkle_tree_tmp_account_init_should_succeed() -> Result<()>{
     )
     .await;
 
-
-
     println!("\n ix_withdraw_data: {:?} \n", ix_withdraw_data);
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(

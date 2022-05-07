@@ -261,7 +261,7 @@ pub fn process_instruction(
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
-        merkle_tree_processor.process_instruction(accounts)?;
+        merkle_tree_processor.process_instruction(accounts, &mut tmp_storage_pda_data)?;
         // Close tmp account.
         close_account(tmp_storage_pda, signer_account)?;
     }
