@@ -33,6 +33,7 @@ use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
 use crate::utils::config;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
+use crate::state::MerkleTreeTmpPda;
 
 #[cfg(not(feature = "no-entrypoint"))]
 entrypoint!(process_instruction);
@@ -92,12 +93,13 @@ pub fn process_instruction(
     else if instruction_data.len() >= 9 && instruction_data[8] == 2 {
         let tmp_storage_pda = next_account_info(account)?;
 
-        // let rent_sysvar_info = next_account_info(account)?;
-        // let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        let mut tmp_storage_pda_data =
+            MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+
         let mut merkle_tree_processor =
             MerkleTreeProcessor::new(Some(tmp_storage_pda), None, *program_id)?;
         msg!("\nprior process_instruction\n");
-        merkle_tree_processor.process_instruction(accounts)?;
+        merkle_tree_processor.process_instruction(accounts, &mut tmp_storage_pda_data)?;
         Ok(())
         // let mut merkle_tree_init_data =
         //     MerkleTreeTmpStorageAccInputData::new(
