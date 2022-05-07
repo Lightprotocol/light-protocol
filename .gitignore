@@ -6,3 +6,10 @@
 */test-ledger
 /program/dist/
 /program/docker-target
+
+/program_merkle_tree/target
+/program_merkle_tree/Cargo.lock
+/program_merkle_tree/dist/program/*.so
+
+/program_merkle_tree/dist/
+/program_merkle_tree/docker-target
