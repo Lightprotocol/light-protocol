@@ -897,6 +897,8 @@ mod tests {
                 nullifiers:         vec![0u8;64],
                 leaf_left:          vec![0u8;32],
                 leaf_right:         vec![0u8;32],
+                origin_leaf_left:          vec![0u8;32],
+                origin_leaf_right:         vec![0u8;32],
                 recipient:          vec![0u8;32],
                 ext_amount:         vec![0u8;8],
                 relayer_fee:        vec![0u8;8],
