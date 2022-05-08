@@ -22,10 +22,10 @@ pub struct MerkleTreeTmpPda {
 
     pub tx_integrity_hash:  Vec<u8>,
     pub nullifiers:  Vec<u8>,
-    pub leaf_left:  Vec<u8>,
-    pub leaf_right:  Vec<u8>,
-    pub origin_leaf_left: Vec<u8>,
-    pub origin_leaf_right: Vec<u8>,
+    pub node_left:  Vec<u8>,
+    pub node_right:  Vec<u8>,
+    pub leaf_left: Vec<u8>,
+    pub leaf_right: Vec<u8>,
     pub recipient:  Vec<u8>,
     pub verifier_index: usize,
     pub encrypted_utxos:  Vec<u8>,
@@ -58,10 +58,10 @@ impl MerkleTreeTmpPda {
 
             tx_integrity_hash:  vec![0u8],
             nullifiers:  vec![0u8],
+            node_left:  vec![0u8],
+            node_right:  vec![0u8],
             leaf_left:  vec![0u8],
             leaf_right:  vec![0u8],
-            origin_leaf_left:  vec![0u8],
-            origin_leaf_right:  vec![0u8],
             recipient:  vec![0u8],
             verifier_index: 0,
             encrypted_utxos:  vec![0u8],
@@ -117,10 +117,10 @@ impl Pack for MerkleTreeTmpPda {
             current_level,
             current_level_hash,
 
+            node_left,
+            node_right,
             leaf_left,
             leaf_right,
-            origin_leaf_left,
-            origin_leaf_right,
             encrypted_utxos,
             nullifiers,
         ) = array_refs![
@@ -148,10 +148,10 @@ impl Pack for MerkleTreeTmpPda {
             8, // current level
             32, // current level hash
 
+            32, //node_left
+            32, //node_right
             32, //leaf_left
             32, //leaf_right
-            32, //origin_leaf_left
-            32, //origin_leaf_right
             ENCRYPTED_UTXOS_LENGTH,
             NULLIFIERS_LENGTH
         ];
@@ -176,10 +176,10 @@ impl Pack for MerkleTreeTmpPda {
             amount: amount.to_vec(),                       //7
             root_hash: root_hash.to_vec(),                 //8
             tx_integrity_hash: tx_integrity_hash.to_vec(), //10
+            node_left: node_left.to_vec(),
+            node_right: node_right.to_vec(),
             leaf_left: leaf_left.to_vec(),
             leaf_right: leaf_right.to_vec(),
-            origin_leaf_left: origin_leaf_left.to_vec(),
-            origin_leaf_right: origin_leaf_right.to_vec(),
             encrypted_utxos: encrypted_utxos.to_vec(),
             recipient: recipient.to_vec(),                 //5
             verifier_tmp_pda: verifier_tmp_pda.to_vec(),
@@ -222,10 +222,10 @@ impl Pack for MerkleTreeTmpPda {
             current_level_dst, // current level
             current_level_hash_dst, // current level hash
 
+            node_left_dst,
+            node_right_dst,
             leaf_left_dst,
             leaf_right_dst,
-            origin_leaf_left_dst,
-            origin_leaf_right_dst,
             encrypted_utxos_dst,
             nullifiers_dst,
         ) = mut_array_refs![
@@ -253,10 +253,10 @@ impl Pack for MerkleTreeTmpPda {
             8, // current level
             32, // current level hash
 
+            32, //node_left
+            32, //node_right
             32, //leaf_left
             32, //leaf_right
-            32, //origin_leaf_left
-            32, //origin_leaf_right
             ENCRYPTED_UTXOS_LENGTH,
             NULLIFIERS_LENGTH
         ];
@@ -275,10 +275,10 @@ impl Pack for MerkleTreeTmpPda {
             *ext_sol_amount_dst = self.ext_sol_amount.clone().try_into().unwrap();
             *amount_dst = self.amount.clone().try_into().unwrap();
             *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
-            *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
-            *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
-            *origin_leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
-            *origin_leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
+            *node_left_dst = self.node_left.clone().try_into().unwrap();
+            *node_right_dst = self.node_right.clone().try_into().unwrap();
+            *leaf_left_dst = self.node_left.clone().try_into().unwrap();
+            *leaf_right_dst = self.node_right.clone().try_into().unwrap();
             *verifier_tmp_pda_dst = self.verifier_tmp_pda.clone().try_into().unwrap();
 
             *encrypted_utxos_dst = self.encrypted_utxos.clone().try_into().unwrap();
@@ -299,8 +299,8 @@ impl Pack for MerkleTreeTmpPda {
 
         } else if self.changed_state == 4 {
             *root_hash_dst = self.root_hash.clone().try_into().unwrap();
-            *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
-            *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
+            *node_left_dst = self.node_left.clone().try_into().unwrap();
+            *node_right_dst = self.node_right.clone().try_into().unwrap();
             *state_dst = self.state.clone().try_into().unwrap();
             *current_round_dst = usize::to_le_bytes(self.current_round);
             *current_round_index_dst = usize::to_le_bytes(self.current_round_index);

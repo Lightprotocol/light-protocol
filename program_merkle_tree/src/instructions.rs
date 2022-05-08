@@ -139,8 +139,8 @@ pub struct MerkleTreeTmpStorageAccInputData {
     pub amount:  Vec<u8>,
     pub tx_integrity_hash:  Vec<u8>,
     pub nullifiers:  Vec<u8>,
-    pub leaf_left:  Vec<u8>,
-    pub leaf_right:  Vec<u8>,
+    pub node_left:  Vec<u8>,
+    pub node_right:  Vec<u8>,
     pub recipient:  Vec<u8>,
     pub ext_amount:  Vec<u8>,
     pub relayer_fee:  Vec<u8>,
@@ -164,8 +164,8 @@ impl MerkleTreeTmpStorageAccInputData {
             amount:             data[32..64].to_vec(),
             tx_integrity_hash:  data[64..96].to_vec(),
             nullifiers:         data[96..160].to_vec(),
-            leaf_left:          data[160..192].to_vec(),
-            leaf_right:         data[192..224].to_vec(),
+            node_left:          data[160..192].to_vec(),
+            node_right:         data[192..224].to_vec(),
             recipient:          data[224..256].to_vec(),
             ext_amount:         data[256..264].to_vec(),
             relayer_fee:        data[264..272].to_vec(),
@@ -181,15 +181,15 @@ impl MerkleTreeTmpStorageAccInputData {
     }
 
     pub fn return_ix_data(&self) ->  Result<Vec<u8>, ProgramError>{
-        assert_eq!(self.leaf_left.to_vec(), vec![2u8;32]);
+        assert_eq!(self.node_left.to_vec(), vec![2u8;32]);
 
         let res = [
         self.root_hash.clone(),
         self.amount.clone(),
         self.tx_integrity_hash.clone(),
         self.nullifiers.clone(),
-        self.leaf_left.clone(),
-        self.leaf_right.clone(),
+        self.node_left.clone(),
+        self.node_right.clone(),
         self.recipient.clone(),
         self.ext_amount.clone(),
         self.relayer_fee.clone(),
@@ -235,10 +235,10 @@ impl MerkleTreeTmpStorageAccInputData {
         tmp.amount = self.amount.clone();
         tmp.tx_integrity_hash = self.tx_integrity_hash.clone();
         tmp.nullifiers = self.nullifiers.clone();
-        tmp.leaf_left = self.leaf_left.clone();
-        tmp.leaf_right = self.leaf_right.clone();
-        tmp.origin_leaf_left = self.leaf_left.clone();
-        tmp.origin_leaf_right = self.leaf_right.clone();
+        tmp.node_left = self.node_left.clone();
+        tmp.node_right = self.node_right.clone();
+        tmp.leaf_left = self.node_left.clone();
+        tmp.leaf_right = self.node_right.clone();
         tmp.ext_amount = self.ext_amount.clone();
         tmp.relayer_fee = self.relayer_fee.clone();
         tmp.ext_sol_amount = self.ext_sol_amount.clone();
@@ -250,7 +250,7 @@ impl MerkleTreeTmpStorageAccInputData {
         tmp.found_root = self.found_root.clone();
         tmp.recipient = self.recipient.clone();
         tmp.changed_state = 1;
-        assert_eq!(tmp.leaf_left , [2u8;32]);
+        assert_eq!(tmp.node_left , [2u8;32]);
         MerkleTreeTmpPda::pack_into_slice(
             &tmp,
             &mut account.data.borrow_mut(),

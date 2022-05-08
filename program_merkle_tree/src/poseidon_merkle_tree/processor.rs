@@ -243,8 +243,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 return Err(ProgramError::InvalidAccountData);
             }
             //save leaves into pda account
-            leaf_pda_account_data.leaf_left = tmp_storage_pda_data.origin_leaf_left.clone();
-            leaf_pda_account_data.leaf_right = tmp_storage_pda_data.origin_leaf_right.clone();
+            leaf_pda_account_data.node_left = tmp_storage_pda_data.leaf_left.clone();
+            leaf_pda_account_data.node_right = tmp_storage_pda_data.leaf_right.clone();
             //increased by 2 because we're inserting 2 leaves at once
             leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey = MERKLE_TREE_ACC_BYTES_ARRAY

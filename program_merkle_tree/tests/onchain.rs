@@ -548,8 +548,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
             vec![0u8;32]//verifier_tmp_storage_pda_pubkey.to_bytes().to_vec()
         ).unwrap();
     account_data.merkle_tree_index = vec![0u8;8];
-    account_data.leaf_left = vec![2u8;32];
-    account_data.leaf_right = vec![2u8;32];
+    account_data.node_left = vec![2u8;32];
+    account_data.node_right = vec![2u8;32];
     account_data.relayer = signer_pubkey.to_bytes().to_vec();
     let input = [
         account_data.recipient.clone(),
@@ -635,8 +635,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         .expect("get_account")
         .unwrap();
     let storage_account_unpacked = MerkleTreeTmpPda::unpack(&storage_account.data).unwrap();
-    assert_eq!(storage_account_unpacked.leaf_left, [2u8;32]);
-    assert_eq!(storage_account_unpacked.leaf_right, [2u8;32]);
+    assert_eq!(storage_account_unpacked.node_left, [2u8;32]);
+    assert_eq!(storage_account_unpacked.node_right, [2u8;32]);
     println!("-------------- update_merkle_tree -----------------------");
     update_merkle_tree(
         &program_id_merkle_tree,
@@ -690,8 +690,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
 
         check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
-        &account_data.leaf_left, //left leaf todo change order
-        &account_data.leaf_right, //right leaf
+        &account_data.node_left, //left leaf todo change order
+        &account_data.node_right, //right leaf
         &vec![1u8; ENCRYPTED_UTXOS_LENGTH], //encrypted_utxos
         0,
         &mut program_context,
