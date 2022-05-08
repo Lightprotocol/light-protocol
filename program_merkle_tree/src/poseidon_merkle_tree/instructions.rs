@@ -14,20 +14,20 @@ pub fn insert_0_double(
         tmp_storage_account.current_index
     );
     msg!(
-        "tmp_storage_account.leaf_left: {:?}",
-        tmp_storage_account.leaf_left
+        "tmp_storage_account.node_left: {:?}",
+        tmp_storage_account.node_left
     );
     msg!(
-        "tmp_storage_account.leaf_right: {:?}",
-        tmp_storage_account.leaf_right
+        "tmp_storage_account.node_right: {:?}",
+        tmp_storage_account.node_right
     );
 
     if tmp_storage_account.current_index == 262144 {
         msg!("Merkle tree full");
         return Err(ProgramError::InvalidInstructionData);
     }
-    tmp_storage_account.leaf_left = tmp_storage_account.leaf_left.clone();
-    tmp_storage_account.leaf_right = tmp_storage_account.leaf_right.clone();
+    tmp_storage_account.node_left = tmp_storage_account.node_left.clone();
+    tmp_storage_account.node_right = tmp_storage_account.node_right.clone();
     tmp_storage_account.current_level = 1;
     merkle_tree_account.inserted_leaf = true;
     //zeroing out prior state since the account was used for prior computation
@@ -59,28 +59,28 @@ pub fn insert_1_inner_loop(
             "updating subtree: {:?}",
             tmp_storage_account.current_level_hash
         );
-        tmp_storage_account.leaf_left = tmp_storage_account.current_level_hash.clone();
-        tmp_storage_account.leaf_right = ZERO_BYTES_MERKLE_TREE_18
+        tmp_storage_account.node_left = tmp_storage_account.current_level_hash.clone();
+        tmp_storage_account.node_right = ZERO_BYTES_MERKLE_TREE_18
             [tmp_storage_account.current_level * 32..(tmp_storage_account.current_level * 32 + 32)]
             .to_vec();
         merkle_tree_account.filled_subtrees[tmp_storage_account.current_level] =
             tmp_storage_account.current_level_hash.clone();
     } else {
-        tmp_storage_account.leaf_left =
+        tmp_storage_account.node_left =
             merkle_tree_account.filled_subtrees[tmp_storage_account.current_level].clone();
-        tmp_storage_account.leaf_right = tmp_storage_account.current_level_hash.clone();
+        tmp_storage_account.node_right = tmp_storage_account.current_level_hash.clone();
     }
     tmp_storage_account.current_index /= 2;
     tmp_storage_account.current_level += 1;
     msg!("current_index {:?}", tmp_storage_account.current_index);
 
     msg!(
-        "tmp_storage_account.leaf_left: {:?}",
-        tmp_storage_account.leaf_left
+        "tmp_storage_account.node_left: {:?}",
+        tmp_storage_account.node_left
     );
     msg!(
-        "tmp_storage_account.leaf_right: {:?}",
-        tmp_storage_account.leaf_right
+        "tmp_storage_account.node_right: {:?}",
+        tmp_storage_account.node_right
     );
     Ok(())
 }

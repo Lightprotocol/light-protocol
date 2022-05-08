@@ -32,7 +32,7 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<(),Progr
 
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
-    let mut state_new1 =prepare_inputs(&params, &account_struct_data.leaf_left, &account_struct_data.leaf_right).unwrap();
+    let mut state_new1 =prepare_inputs(&params, &account_struct_data.node_left, &account_struct_data.node_right).unwrap();
     state_new1 = permute_custom_split(&params, state_new1, current_round, 4).unwrap();
     current_round += 4;
     current_round_index += 1;
@@ -322,8 +322,8 @@ mod tests {
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
                 current_round_index: 0,
-                leaf_left: left_input.to_vec(),
-                leaf_right: right_input.to_vec(),
+                node_left: left_input.to_vec(),
+                node_right: right_input.to_vec(),
                 left: left_input.to_vec(),
                 right: right_input.to_vec(),
                 current_level_hash: vec![0u8; 32],
@@ -379,8 +379,8 @@ mod tests {
                 state: vec![vec![0u8; 32]; 3],
                 current_round: 0,
                 current_round_index: 0,
-                leaf_left: left_input.to_vec(),
-                leaf_right: right_input.to_vec(),
+                node_left: left_input.to_vec(),
+                node_right: right_input.to_vec(),
                 left: left_input.to_vec(),
                 right: right_input.to_vec(),
                 current_level_hash: vec![0u8; 32],

@@ -389,7 +389,7 @@ mod tests {
             // leaf is expected to be already hashed
 
             // calculate leaf sibling hash and locate its position (left or right)
-            let (leaf_left, leaf_right) = if index & 1 == 0 {
+            let (node_left, node_right) = if index & 1 == 0 {
                 // leaf on left
                 (new_leaf_hash.clone(), self.leaf_nodes[index + 1].clone())
             } else {
@@ -400,7 +400,7 @@ mod tests {
             let mut path_bottom_to_top = Vec::with_capacity(self.height - 1);
             {
                 path_bottom_to_top
-                    .push(hash_64_to_vec([&leaf_left[..], &leaf_right[..]].concat()).to_vec());
+                    .push(hash_64_to_vec([&node_left[..], &node_right[..]].concat()).to_vec());
             }
 
             // then calculate the updated hash from bottom to root
@@ -895,10 +895,10 @@ mod tests {
                 amount:             vec![0u8;32],
                 tx_integrity_hash:  vec![0u8;32],
                 nullifiers:         vec![0u8;64],
+                node_left:          vec![0u8;32],
+                node_right:         vec![0u8;32],
                 leaf_left:          vec![0u8;32],
                 leaf_right:         vec![0u8;32],
-                origin_leaf_left:          vec![0u8;32],
-                origin_leaf_right:         vec![0u8;32],
                 recipient:          vec![0u8;32],
                 ext_amount:         vec![0u8;8],
                 relayer_fee:        vec![0u8;8],
@@ -939,10 +939,10 @@ mod tests {
             new_leaf_hash_bytes = vec![2u8;32];
             let new_leaf_hash_bytes_1 = new_leaf_hash_bytes.clone();
 
-            println!("hash_tmp_account.leaf_left: {:?}", new_leaf_hash_bytes);
-            println!("hash_tmp_account.leaf_right: {:?}", new_leaf_hash_bytes_1);
-            hash_tmp_account.leaf_left = new_leaf_hash_bytes.clone();
-            hash_tmp_account.leaf_right = new_leaf_hash_bytes_1.clone();
+            println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
+            println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
+            hash_tmp_account.node_left = new_leaf_hash_bytes.clone();
+            hash_tmp_account.node_right = new_leaf_hash_bytes_1.clone();
             filled_leaves.push(new_leaf_hash_bytes.clone());
             filled_leaves.push(new_leaf_hash_bytes_1.clone());
 

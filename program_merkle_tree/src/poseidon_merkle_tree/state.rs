@@ -188,182 +188,13 @@ impl Pack for InitMerkleTreeBytes {
         *bytes_dst = self.bytes.clone().try_into().unwrap();
     }
 }
-/*
-// Account structs for merkle tree:
-#[derive(Debug)]
-pub struct MerkleTreeTmpPda {
-    pub is_initialized: bool,
-    pub merkle_tree_index: u8,
-    pub state: Vec<Vec<u8>>,
-    pub current_round: usize,
-    pub current_round_index: usize,
-    pub leaf_left: Vec<u8>,
-    pub leaf_right: Vec<u8>,
-    pub left: Vec<u8>,
-    pub right: Vec<u8>,
-    pub current_level_hash: Vec<u8>,
-    pub current_index: usize,
-    pub current_level: usize,
-    pub current_instruction_index: usize,
-    pub encrypted_utxos: Vec<u8>,
-}
 
-impl Sealed for MerkleTreeTmpPda {}
-impl IsInitialized for MerkleTreeTmpPda {
-    fn is_initialized(&self) -> bool {
-        self.is_initialized
-    }
-}
-
-impl Pack for MerkleTreeTmpPda {
-    const LEN: usize = 3900 + ENCRYPTED_UTXOS_LENGTH; //297;
-    fn unpack_from_slice(input: &[u8]) -> Result<Self, ProgramError> {
-        let input = array_ref![input, 0, MerkleTreeTmpPda::LEN];
-
-        let (
-            _is_initialized,
-            _unused_remainder0,
-            merkle_tree_index,
-            _unused_remainder0_1,
-            current_instruction_index,
-            //220
-            _unused_remainder1,
-            state,
-            current_round,
-            current_round_index,
-            left,
-            right,
-            current_level_hash,
-            current_index,
-            current_level,
-            leaf_left,
-            leaf_right,
-            _nullifier_0,
-            _nullifier_1,
-            encrypted_utxos,
-        ) = array_refs![
-            input,
-            1,
-            2,
-            1,
-            208,
-            8,
-            3328,
-            96,
-            8,
-            8,
-            32,
-            32,
-            32,
-            8,
-            8,
-            32,
-            32,
-            32,
-            32,
-            ENCRYPTED_UTXOS_LENGTH
-        ];
-
-        let mut parsed_state = Vec::new();
-        for i in state.chunks(32) {
-            parsed_state.push(i.to_vec());
-        }
-
-        Ok(MerkleTreeTmpPda {
-            is_initialized: true,
-            merkle_tree_index: merkle_tree_index[0],
-            state: parsed_state.to_vec(),
-            current_round: usize::from_le_bytes(*current_round),
-            current_round_index: usize::from_le_bytes(*current_round_index),
-            leaf_left: leaf_left.to_vec(),
-            leaf_right: leaf_right.to_vec(),
-            left: left.to_vec(),
-            right: right.to_vec(),
-            current_level_hash: current_level_hash.to_vec(),
-            current_index: usize::from_le_bytes(*current_index),
-            current_level: usize::from_le_bytes(*current_level),
-            current_instruction_index: usize::from_le_bytes(*current_instruction_index),
-            encrypted_utxos: encrypted_utxos.to_vec(),
-        })
-    }
-
-    fn pack_into_slice(&self, dst: &mut [u8]) {
-        let dst = array_mut_ref![dst, 0, MerkleTreeTmpPda::LEN];
-
-        let (
-            _is_initialized_dst,
-            _unused_remainder0_dst,
-            current_instruction_index_dst,
-            //220
-            _unused_remainder1_dst,
-            state_dst,
-            current_round_dst,
-            current_round_index_dst,
-            left_dst,
-            right_dst,
-            current_level_hash_dst,
-            current_index_dst,
-            current_level_dst,
-            leaf_left_dst,
-            leaf_right_dst,
-            //+288
-            _nullifier_0_dst,
-            _nullifier_1_dst,
-            _encrypted_utxos_dst,
-        ) = mut_array_refs![
-            dst,
-            1,
-            211,
-            8,
-            3328,
-            96,
-            8,
-            8,
-            32,
-            32,
-            32,
-            8,
-            8,
-            32,
-            32,
-            32,
-            32,
-            ENCRYPTED_UTXOS_LENGTH
-        ];
-
-        let mut state_tmp = [0u8; 96];
-        let mut z = 0;
-        for i in self.state.iter() {
-            for j in i {
-                state_tmp[z] = *j;
-                z += 1;
-            }
-        }
-
-        *state_dst = state_tmp;
-        *current_round_dst = usize::to_le_bytes(self.current_round);
-        *current_round_index_dst = usize::to_le_bytes(self.current_round_index);
-
-        *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
-
-        *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
-        *left_dst = self.left.clone().try_into().unwrap();
-
-        *right_dst = self.right.clone().try_into().unwrap();
-        *current_level_hash_dst = self.current_level_hash.clone().try_into().unwrap();
-
-        *current_index_dst = usize::to_le_bytes(self.current_index);
-        *current_level_dst = usize::to_le_bytes(self.current_level);
-        *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
-    }
-}
-*/
 #[derive(Clone, Debug)]
 pub struct TwoLeavesBytesPda {
     pub is_initialized: bool,
     pub account_type: u8,
-    pub leaf_right: Vec<u8>,
-    pub leaf_left: Vec<u8>,
+    pub node_right: Vec<u8>,
+    pub node_left: Vec<u8>,
     pub merkle_tree_pubkey: Vec<u8>,
     pub encrypted_utxos: Vec<u8>,
     pub left_leaf_index: usize,
@@ -386,8 +217,8 @@ impl Pack for TwoLeavesBytesPda {
             is_initialized,
             _account_type,
             _left_leaf_index,
-            _leaf_left,
-            _leaf_right,
+            _node_left,
+            _node_right,
             _merkle_tree_pubkey,
             _encrypted_utxos,
         ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
@@ -400,8 +231,8 @@ impl Pack for TwoLeavesBytesPda {
         Ok(TwoLeavesBytesPda {
             is_initialized: true,
             account_type: 4,
-            leaf_right: vec![0u8; 32],
-            leaf_left: vec![0u8; 32],
+            node_right: vec![0u8; 32],
+            node_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
             encrypted_utxos: vec![0u8; ENCRYPTED_UTXOS_LENGTH],
             left_leaf_index: 0usize,
@@ -414,16 +245,16 @@ impl Pack for TwoLeavesBytesPda {
             is_initialized_dst,
             account_type_dst,
             left_leaf_index_dst,
-            leaf_left_dst,
-            leaf_right_dst,
+            node_left_dst,
+            node_right_dst,
             merkle_tree_pubkey_dst,
             encrypted_utxos_dst,
         ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
 
         *is_initialized_dst = [1];
         *account_type_dst = [4];
-        *leaf_right_dst = self.leaf_right.clone().try_into().unwrap();
-        *leaf_left_dst = self.leaf_left.clone().try_into().unwrap();
+        *node_right_dst = self.node_right.clone().try_into().unwrap();
+        *node_left_dst = self.node_left.clone().try_into().unwrap();
         *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();
         *left_leaf_index_dst = usize::to_le_bytes(self.left_leaf_index);
         *encrypted_utxos_dst = self.encrypted_utxos.clone().try_into().unwrap();
