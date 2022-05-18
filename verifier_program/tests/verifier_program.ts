@@ -93,7 +93,7 @@ describe("verifier_program", () => {
   const provider = anchor.AnchorProvider.local();
 
   const program = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
-
+  /*
   it("Is initialized!", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda, bump] = findProgramAddressSync(
@@ -165,7 +165,7 @@ describe("verifier_program", () => {
 
     // console.log(userAccountInfo.data.slice(0,32))
   });
-
+  */
   it("Prepared inputs", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda, bump] = findProgramAddressSync(
@@ -206,26 +206,33 @@ describe("verifier_program", () => {
               }
             ).signers([userAccount]).rpc()
       // requestHeapFrame
-      // const tx1 = await program.methods.updateTmpAccount(
-      //         // new anchor.BN(2)
-      //         new Uint8Array(32).fill(1)
-      //         // "nice"
-      //         // new Uint8Array(3).fill(1)
-      //       ).accounts(
-      //           {
-      //             authority: userAccount.publicKey,
-      //             tmpAccount: pda,
-      //             systemProgram: SystemProgram.programId,
-      //           }
-      //         ).signers([userAccount])
-      //         .rpc();
+      for (var i = 0; i < 464; i++) {
+        console.log("tx: ", i)
+        const tx1 = await program.methods.prepareInputs(
+              ).accounts(
+                  {
+                    signingAddress: userAccount.publicKey,
+                    prepareInputsState: pda,
+                  }
+                ).signers([userAccount])
+                .rpc();
+        var userAccountInfoI = await provider.connection.getAccountInfo(
+              pda
+            )
+            const accountAfterUpdateI = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfoI.data);
+            console.log("accountAfterUpdateI.resXRange ", accountAfterUpdateI.resXRange)
+            console.log("accountAfterUpdateI.resYRange ", accountAfterUpdateI.resYRange)
+            console.log("accountAfterUpdateI.resZRange ", accountAfterUpdateI.resZRange)
+            console.log("current_instruction_index ", accountAfterUpdateI.current_instruction_index)
+      }
+
     // console.log("Your transaction signature", tx);
     // const accountInfo = await program.getAccountInfo( new solana.PublicKey(storage_account_pkey) );
-    const userAccountInfo = await provider.connection.getAccountInfo(
+    var userAccountInfo = await provider.connection.getAccountInfo(
           pda
         )
     const accountAfterUpdate = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfo.data);
-    // console.log(accountAfterUpdate)
+    console.log(accountAfterUpdate)
     // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
     // console.console.log(accountAfterUpdate);
 

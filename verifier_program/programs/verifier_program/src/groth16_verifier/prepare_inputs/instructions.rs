@@ -12,6 +12,8 @@ use solana_program::{msg, program_error::ProgramError};
 use anchor_lang::prelude::*;
 use std::cell::RefMut;
 use crate::state::*;
+use crate::ErrorCode;
+
 use ark_ff::to_bytes;
 use ark_ff::BigInteger;
 
@@ -43,13 +45,13 @@ pub fn init_pairs_instruction<'info>(
     <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.tx_integrity_hash[..]).unwrap(),
     <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier0[..]).unwrap(),
     <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier1[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_left[..]).unwrap(),
     <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_right[..]).unwrap(),
+    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_left[..]).unwrap(),
     ];
 
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
         msg!("Incompatible Verifying Key");
-        return err!(MyError::IncompatibleVerifyingKey);
+        return err!(ErrorCode::IncompatibleVerifyingKey);
     }
 
     // inits g_ic into range.
@@ -90,20 +92,16 @@ pub fn init_pairs_instruction<'info>(
 }
 
 
-#[error_code]
-pub enum MyError {
-    #[msg("Incompatible Verifying Key")]
-    IncompatibleVerifyingKey
-}
-/*
+
+
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
 // Part of the mul() implementation: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#161-164
 // Refer to maths_instruction for details.
 pub fn init_res_instruction(
-    res_x_range: &mut Vec<u8>,
-    res_y_range: &mut Vec<u8>,
-    res_z_range: &mut Vec<u8>,
-) -> Result<(), ProgramError> {
+    res_x_range: &mut [u8;32],
+    res_y_range: &mut [u8;32],
+    res_z_range: &mut [u8;32],
+) -> Result<()> {
     let res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // 88
 
@@ -119,14 +117,14 @@ pub fn init_res_instruction(
 // Current_index (0..256) is parsed in because we need to
 // replicate the stripping of leading zeroes (which are random becuase they're based on the public inputs).
 pub fn maths_instruction(
-    res_x_range: &mut Vec<u8>,
-    res_y_range: &mut Vec<u8>,
-    res_z_range: &mut Vec<u8>,
-    i_range: &Vec<u8>,
-    x_range: &Vec<u8>,
+    res_x_range: &mut [u8;32],
+    res_y_range: &mut [u8;32],
+    res_z_range: &mut [u8;32],
+    i_range: &[u8;32],
+    x_range: &[u8;64],
     current_index: usize,
     rounds: usize,
-) -> Result<(), ProgramError> {
+) -> Result<()> {
     // Parses res,x,i from range.
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range);
     let x = parse_x_group_affine_from_bytes(x_range);
@@ -223,13 +221,13 @@ pub fn maths_instruction(
 
 // Implements: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#634-695
 pub fn maths_g_ic_instruction(
-    g_ic_x_range: &mut Vec<u8>,
-    g_ic_y_range: &mut Vec<u8>,
-    g_ic_z_range: &mut Vec<u8>,
-    res_x_range: &Vec<u8>,
-    res_y_range: &Vec<u8>,
-    res_z_range: &Vec<u8>,
-) -> Result<(), ProgramError> {
+    g_ic_x_range: &mut [u8;32],
+    g_ic_y_range: &mut [u8;32],
+    g_ic_z_range: &mut [u8;32],
+    res_x_range: &[u8;32],
+    res_y_range: &[u8;32],
+    res_z_range: &[u8;32],
+) -> Result<()> {
     let mut g_ic = parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); // 15k
 
@@ -299,10 +297,10 @@ pub fn maths_g_ic_instruction(
 // The verifier then reads the x_1_range to use the g_ic value as P2 for the millerloop.
 // Split up into two ix because of compute budget limits.
 pub fn g_ic_into_affine_1(
-    g_ic_x_range: &mut Vec<u8>,
-    g_ic_y_range: &mut Vec<u8>,
-    g_ic_z_range: &mut Vec<u8>,
-) -> Result<(), ProgramError> {
+    g_ic_x_range: &mut [u8;32],
+    g_ic_y_range: &mut [u8;32],
+    g_ic_z_range: &mut [u8;32],
+) -> Result<()> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let zinv = ark_ff::Field::inverse(&g_ic.z).unwrap();
@@ -314,11 +312,11 @@ pub fn g_ic_into_affine_1(
 }
 
 pub fn g_ic_into_affine_2(
-    g_ic_x_range: &Vec<u8>,
-    g_ic_y_range: &Vec<u8>,
-    g_ic_z_range: &Vec<u8>,
-    x_1_range: &mut Vec<u8>,
-) -> Result<(), ProgramError> {
+    g_ic_x_range: &[u8;32],
+    g_ic_y_range: &[u8;32],
+    g_ic_z_range: &[u8;32],
+    x_1_range: &mut [u8;64],
+) -> Result<()> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
 
@@ -329,7 +327,7 @@ pub fn g_ic_into_affine_2(
     let g_ic_affine: ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupAffine::new(x, y, false);
 
-    parse_x_group_affine_to_bytes(g_ic_affine, x_1_range);
+    parse_x_group_affine_to_bytes(g_ic_affine, x_1_range.try_into().unwrap());
     Ok(())
 }
 
@@ -635,4 +633,3 @@ mod tests {
         }
     }
 }
-*/
