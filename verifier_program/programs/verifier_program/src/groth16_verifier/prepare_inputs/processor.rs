@@ -1,160 +1,198 @@
-/*use crate::groth16_verifier::prepare_inputs::{
+use crate::groth16_verifier::prepare_inputs::{
     instructions::*, ranges::*, state::PrepareInputsState,
 };
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
+use std::cell::RefMut;
 
 const ROUNDS: usize = 4;
 pub fn _process_instruction(
     id: u8,
-    account: &mut PrepareInputsState,
+    account: &mut RefMut<'_, PrepareInputsState>,
     current_index: usize,
 ) -> Result<(), ProgramError> {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
     msg!("instruction: {:?}", id);
 
     if id == 41 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         init_res_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
         )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
     } else if id == 42 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_1_range,
             &account.x_1_range,
             current_index,
             ROUNDS,
         )?; // 1 of 256
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 43 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_2_range,
             &account.x_2_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 44 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_3_range,
             &account.x_3_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 45 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_4_range,
             &account.x_4_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 46 {
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
         maths_g_ic_instruction(
-            &mut account.g_ic_x_range,
-            &mut account.g_ic_y_range,
-            &mut account.g_ic_z_range,
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
             &account.res_x_range,
             &account.res_y_range,
             &account.res_z_range,
         )?;
-        let indices = [G_IC_X_RANGE_INDEX, G_IC_Y_RANGE_INDEX, G_IC_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+
     } else if id == 47 {
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
         g_ic_into_affine_1(
-            &mut account.g_ic_x_range,
-            &mut account.g_ic_y_range,
-            &mut account.g_ic_z_range, // only one changing
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range, // only one changing
         )?;
-        let indices = [G_IC_X_RANGE_INDEX, G_IC_Y_RANGE_INDEX, G_IC_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+
     } else if id == 48 {
         g_ic_into_affine_2(
-            &account.g_ic_x_range,
-            &account.g_ic_y_range,
-            &account.g_ic_z_range,
+            &account.g_ic_x_range.clone(),
+            &account.g_ic_y_range.clone(),
+            &account.g_ic_z_range.clone(),
             &mut account.x_1_range,
         )?;
         let indices = [X_1_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+
     } else if id == 56 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_5_range,
             &account.x_5_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 57 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_6_range,
             &account.x_6_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     } else if id == 58 {
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
         maths_instruction(
-            &mut account.res_x_range,
-            &mut account.res_y_range,
-            &mut account.res_z_range,
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
             &account.i_7_range,
             &account.x_7_range,
             current_index,
             ROUNDS,
-        )?;
-        let indices = [RES_X_RANGE_INDEX, RES_Y_RANGE_INDEX, RES_Z_RANGE_INDEX];
-        for i in indices.iter() {
-            account.changed_variables[*i] = true;
-        }
+        )?; // 1 of 256
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+
     }
     Ok(())
 }
@@ -248,4 +286,3 @@ pub const CURRENT_INDEX_ARRAY: [u8; 464] = [
     164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236,
     240, 244, 248, 252, 46, 47, 48,
 ];
-*/
