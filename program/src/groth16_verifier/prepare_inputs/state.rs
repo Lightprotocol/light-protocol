@@ -90,9 +90,11 @@ impl Pack for PrepareInputsState {
             x_6_range,
             i_7_range,
             x_7_range,
+
             res_x_range,
             res_y_range,
             res_z_range,
+
             g_ic_x_range,
             g_ic_y_range,
             g_ic_z_range, // 3*32
@@ -114,6 +116,7 @@ impl Pack for PrepareInputsState {
             32,
             32,
             8,
+
             32,
             64,
             32,
@@ -128,9 +131,11 @@ impl Pack for PrepareInputsState {
             64,
             32,
             64,
+            // res ranges
             32,
             32,
             32,
+            //gic ranges
             32,
             32,
             32,
