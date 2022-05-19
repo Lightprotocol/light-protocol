@@ -5,7 +5,7 @@ use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
 
-const ROUNDS: usize = 4;
+const ROUNDS: usize = 4 * 8;
 pub fn _process_instruction(
     id: u8,
     account: &mut RefMut<'_, PrepareInputsState>,
@@ -43,6 +43,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 43 {
@@ -61,6 +62,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 44 {
@@ -79,6 +81,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 45 {
@@ -97,6 +100,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 46 {
@@ -155,6 +159,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 57 {
@@ -173,6 +178,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
+        account.current_index +=7;
 
 
     } else if id == 58 {
@@ -191,7 +197,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
+        account.current_index +=7;
 
     }
     Ok(())
@@ -262,13 +268,16 @@ pub const IX_ORDER_ARRAY: [u8; 464] = [
 // Other instructions ignore current_index (see @processor) as they don't need it.
 
 pub const CURRENT_INDEX_ARRAY: [u8; 464] = [
-    41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88,
+    41,
+    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88,
     92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152, 156, 160, 164,
     168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236, 240,
-    244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72,
+    244, 248, 252, 46, 41,
+    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72,
     76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
     156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228,
-    232, 236, 240, 244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56,
+    232, 236, 240, 244, 248, 252, 46, 41,
+    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56,
     60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
     144, 148, 152, 156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216,
     220, 224, 228, 232, 236, 240, 244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40,
