@@ -206,7 +206,7 @@ describe("verifier_program", () => {
               }
             ).signers([userAccount]).rpc()
       // requestHeapFrame
-      for (var i = 0; i < 72; i++) {
+      for (var i = 0; i < 34; i++) {
         console.log("tx: ", i)
         const tx1 = await program.methods.prepareInputs(
               ).accounts(
@@ -220,12 +220,15 @@ describe("verifier_program", () => {
               pda
             )
             const accountAfterUpdateI = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfoI.data);
+            console.log("-------------------------------------------------------------")
             console.log("accountAfterUpdateI.resXRange ", accountAfterUpdateI.resXRange)
             console.log("accountAfterUpdateI.resYRange ", accountAfterUpdateI.resYRange)
             console.log("accountAfterUpdateI.resZRange ", accountAfterUpdateI.resZRange)
             console.log("accountAfterUpdateI.current_index ", accountAfterUpdateI.currentIndex.toString())
 
             console.log("current_instruction_index ", accountAfterUpdateI.currentInstructionIndex.toString())
+            console.log("accountAfterUpdateI.gIcXRange ", accountAfterUpdateI.gIcXRange)
+
       }
 
     // console.log("Your transaction signature", tx);

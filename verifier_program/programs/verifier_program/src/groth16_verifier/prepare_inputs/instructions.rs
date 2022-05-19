@@ -149,7 +149,11 @@ pub fn maths_instruction(
             if m == rounds - 1 {
                 parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             }
-        } else {
+        }
+        else if (index_in - skipped) >= bits_without_leading_zeroes.len() {
+
+        }
+        else {
             // Get the current bit but account for removed zeroes.
             let current_bit = bits_without_leading_zeroes[index_in - skipped];
             // Info: when refering to the library's implementation keep in mind that here:
