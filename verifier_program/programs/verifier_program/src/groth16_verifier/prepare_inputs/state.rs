@@ -44,6 +44,7 @@ pub struct PrepareInputsState {
     pub g_ic_x_range: [u8;32],
     pub g_ic_y_range: [u8;32],
     pub g_ic_z_range: [u8;32],
+    pub current_index: u64,
     pub merkle_tree_index: u8,
     pub found_root: u8,
 }
