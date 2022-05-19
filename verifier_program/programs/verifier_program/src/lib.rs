@@ -62,7 +62,11 @@ pub mod verifier_program {
          msg!("entering init pairs instruction");
          init_pairs_instruction(tmp_account)?;
          // tmp_account.encrypted_utxos = encrypted_utxos.clone();
-         tmp_account.current_index = 0;
+         _process_instruction(41,
+             tmp_account,
+             tmp_account.current_index as usize
+         )?;
+         tmp_account.current_index =1;
          tmp_account.current_instruction_index = 1;
          msg!("finished");
          Ok(())
@@ -87,18 +91,18 @@ pub enum ErrorCode {
     IncompatibleVerifyingKey
 }
 
-pub const IX_ORDER: [u8; 73] = [
+pub const IX_ORDER: [u8; 36] = [
     //init data happens before this array starts
     //check root
     1, //prepare inputs for verification
-    /*40, */ 41,
-    42, 42, 42, 42, 42, 42, 42, 42, 46, 41,
-    43, 43, 43, 43, 43, 43, 43, 43, 46, 41,
-    44, 44, 44, 44, 44, 44, 44, 44, 46, 41,
-    45, 45, 45, 45, 45, 45, 45, 45, 46, 41,
-    56, 56, 56, 56, 56, 56, 56, 56, 46, 41,
-    57, 57, 57, 57, 57, 57, 57, 57, 46, 41,
-    58, 58, 58, 58, 58, 58, 58, 58, 46, 47, 48, //miller loop
+    /*40, */ //41,
+    42, 42, 42, 42, 62, //46, 41,
+    43, 43, 43, 43, 63,
+    44, 44, 44, 44, 64,
+    45, 45, 45, 45, 65,
+    56, 56, 56, 56, 66,
+    57, 57, 57, 57, 67,
+    58, 58, 58, 58, 68, // 46, 47, 48, //miller loop
     /*0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
     4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
     4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,

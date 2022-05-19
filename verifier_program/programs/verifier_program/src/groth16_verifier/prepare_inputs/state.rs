@@ -59,7 +59,7 @@ pub struct CreatePrepareInputsState<'info> {
         /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
 }
-use anchor_lang::accounts::loader::Loader;
+
 #[derive(Accounts)]
 pub struct PrepareInputs<'info> {
     #[account(mut)]

@@ -5,7 +5,8 @@ use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
 
-const ROUNDS: usize = 4 * 8;
+const ROUNDS: usize = 4 * 13;
+const FILLING_ROUNDS: usize = 256 % ROUNDS;
 pub fn _process_instruction(
     id: u8,
     account: &mut RefMut<'_, PrepareInputsState>,
@@ -43,8 +44,49 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
 
+
+    } else if id == 62 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_1_range,
+            &account.x_1_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+        )?;
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
 
     } else if id == 43 {
         let mut account_res_x_range = account.res_x_range;
@@ -62,7 +104,50 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
+
+
+    } else if id == 63 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_2_range,
+            &account.x_2_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+        )?;
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
 
 
     } else if id == 44 {
@@ -81,7 +166,50 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
+
+
+    } else if id == 64 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_3_range,
+            &account.x_3_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+        )?;
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
 
 
     } else if id == 45 {
@@ -100,10 +228,26 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
 
 
-    } else if id == 46 {
+    } else if id == 65 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_4_range,
+            &account.x_4_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
         let mut account_g_ic_z_range = account.g_ic_z_range;
@@ -111,39 +255,42 @@ pub fn _process_instruction(
             &mut account_g_ic_x_range,
             &mut account_g_ic_y_range,
             &mut account_g_ic_z_range,
-            &account.res_x_range,
-            &account.res_y_range,
-            &account.res_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
         )?;
         account.g_ic_x_range = account_g_ic_x_range;
         account.g_ic_y_range = account_g_ic_y_range;
         account.g_ic_z_range = account_g_ic_z_range;
 
-
-    } else if id == 47 {
-        let mut account_g_ic_x_range = account.g_ic_x_range;
-        let mut account_g_ic_y_range = account.g_ic_y_range;
-        let mut account_g_ic_z_range = account.g_ic_z_range;
-        g_ic_into_affine_1(
-            &mut account_g_ic_x_range,
-            &mut account_g_ic_y_range,
-            &mut account_g_ic_z_range, // only one changing
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
         )?;
-        account.g_ic_x_range = account_g_ic_x_range;
-        account.g_ic_y_range = account_g_ic_y_range;
-        account.g_ic_z_range = account_g_ic_z_range;
-
-
-    } else if id == 48 {
-        g_ic_into_affine_2(
-            &account.g_ic_x_range.clone(),
-            &account.g_ic_y_range.clone(),
-            &account.g_ic_z_range.clone(),
-            &mut account.x_1_range,
-        )?;
-        let indices = [X_1_RANGE_INDEX];
-
-    } else if id == 56 {
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+    }
+    // else if id == 46 {
+    //     let mut account_g_ic_x_range = account.g_ic_x_range;
+    //     let mut account_g_ic_y_range = account.g_ic_y_range;
+    //     let mut account_g_ic_z_range = account.g_ic_z_range;
+    //     maths_g_ic_instruction(
+    //         &mut account_g_ic_x_range,
+    //         &mut account_g_ic_y_range,
+    //         &mut account_g_ic_z_range,
+    //         &account.res_x_range,
+    //         &account.res_y_range,
+    //         &account.res_z_range,
+    //     )?;
+    //     account.g_ic_x_range = account_g_ic_x_range;
+    //     account.g_ic_y_range = account_g_ic_y_range;
+    //     account.g_ic_z_range = account_g_ic_z_range;
+    //
+    //
+    // }
+    else if id == 56 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
         let mut account_res_z_range = account.res_z_range;
@@ -159,10 +306,51 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
 
 
-    } else if id == 57 {
+    } else if id == 66 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_5_range,
+            &account.x_5_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+        )?;
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+    }  else if id == 57 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
         let mut account_res_z_range = account.res_z_range;
@@ -178,8 +366,49 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
 
+
+    } else if id == 67 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_6_range,
+            &account.x_6_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        init_res_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+        )?;
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
 
     } else if id == 58 {
         let mut account_res_x_range = account.res_x_range;
@@ -197,9 +426,82 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-        account.current_index +=7;
+        account.current_index += (ROUNDS as u64 / 4) - 1;
+
+    } else if id == 68 {
+        // last instruction after for 256 % ROUNDS != 0
+        // executes FILLING_ROUNDS rounds
+        let mut account_res_x_range = account.res_x_range;
+        let mut account_res_y_range = account.res_y_range;
+        let mut account_res_z_range = account.res_z_range;
+        maths_instruction(
+            &mut account_res_x_range,
+            &mut account_res_y_range,
+            &mut account_res_z_range,
+            &account.i_7_range,
+            &account.x_7_range,
+            current_index,
+            FILLING_ROUNDS,
+        )?; // 1 of 256
+        account.current_index += 13;
+
+        account.res_x_range = account_res_x_range;
+        account.res_y_range = account_res_y_range;
+        account.res_z_range = account_res_z_range;
+
+        let mut account_g_ic_x_range = account.g_ic_x_range;
+        let mut account_g_ic_y_range = account.g_ic_y_range;
+        let mut account_g_ic_z_range = account.g_ic_z_range;
+        maths_g_ic_instruction(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range,
+            &account_res_x_range,
+            &account_res_y_range,
+            &account_res_z_range,
+        )?;
+        g_ic_into_affine_1(
+            &mut account_g_ic_x_range,
+            &mut account_g_ic_y_range,
+            &mut account_g_ic_z_range, // only one changing
+        )?;
+        account.g_ic_x_range = account_g_ic_x_range;
+        account.g_ic_y_range = account_g_ic_y_range;
+        account.g_ic_z_range = account_g_ic_z_range;
+
+        g_ic_into_affine_2(
+            &account.g_ic_x_range.clone(),
+            &account.g_ic_y_range.clone(),
+            &account.g_ic_z_range.clone(),
+            &mut account.x_1_range,
+        )?;
+
 
     }
+    // else if id == 47 {
+    //     let mut account_g_ic_x_range = account.g_ic_x_range;
+    //     let mut account_g_ic_y_range = account.g_ic_y_range;
+    //     let mut account_g_ic_z_range = account.g_ic_z_range;
+    //     g_ic_into_affine_1(
+    //         &mut account_g_ic_x_range,
+    //         &mut account_g_ic_y_range,
+    //         &mut account_g_ic_z_range, // only one changing
+    //     )?;
+    //     account.g_ic_x_range = account_g_ic_x_range;
+    //     account.g_ic_y_range = account_g_ic_y_range;
+    //     account.g_ic_z_range = account_g_ic_z_range;
+    //
+    //
+    // } else if id == 48 {
+    //     g_ic_into_affine_2(
+    //         &account.g_ic_x_range.clone(),
+    //         &account.g_ic_y_range.clone(),
+    //         &account.g_ic_z_range.clone(),
+    //         &mut account.x_1_range,
+    //     )?;
+    //     let indices = [X_1_RANGE_INDEX];
+    //
+    // }
     Ok(())
 }
 
