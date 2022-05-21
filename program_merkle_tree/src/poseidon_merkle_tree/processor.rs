@@ -2,7 +2,7 @@ use crate::poseidon_merkle_tree::instructions::*;
 use crate::poseidon_merkle_tree::instructions_poseidon::{
     poseidon_0, poseidon_1, poseidon_2,
 };
-use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
+use crate::utils::config::{MERKLE_TREE_ACC_BYTES_ARRAY, ENCRYPTED_UTXOS_LENGTH};
 use crate::state::MerkleTreeTmpPda;
 
 use crate::poseidon_merkle_tree::state::{
@@ -95,7 +95,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
     }
 
 
-    pub fn process_instruction(&mut self, accounts: &[AccountInfo], tmp_storage_pda_data: &mut MerkleTreeTmpPda) -> Result<(), ProgramError> {
+    pub fn process_instruction(&mut self, accounts: &[AccountInfo], tmp_storage_pda_data: &mut MerkleTreeTmpPda, instruction_data: Option<&[u8]>) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
         let _signer = next_account_info(account)?;
         let _tmp_storage_pda = next_account_info(account)?;
@@ -113,12 +113,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
 
-            merkle_tree_pubkey_check(
-                *merkle_tree_pda.key,
-                tmp_storage_pda_data.merkle_tree_index,
-                *merkle_tree_pda.owner,
-                self.program_id,
-            )?;
+            // merkle_tree_pubkey_check(
+            //     *merkle_tree_pda.key,
+            //     tmp_storage_pda_data.merkle_tree_index,
+            //     *merkle_tree_pda.owner,
+            //     self.program_id,
+            // )?;
             pubkey_check(
                 *_tmp_storage_pda.key,
                 solana_program::pubkey::Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
@@ -169,12 +169,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 merkle_tree_pda_data.pubkey_locked = _tmp_storage_pda.key.to_bytes().to_vec();
             }
 
-            merkle_tree_pubkey_check(
-                *merkle_tree_pda.key,
-                tmp_storage_pda_data.merkle_tree_index,
-                *merkle_tree_pda.owner,
-                self.program_id,
-            )?;
+            // merkle_tree_pubkey_check(
+            //     *merkle_tree_pda.key,
+            //     tmp_storage_pda_data.merkle_tree_index,
+            //     *merkle_tree_pda.owner,
+            //     self.program_id,
+            // )?;
             MerkleTree::pack_into_slice(
                 &merkle_tree_pda_data,
                 &mut merkle_tree_pda.data.borrow_mut(),
@@ -184,12 +184,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             || IX_ORDER[tmp_storage_pda_data.current_instruction_index] == HASH_2
         {
             let merkle_tree_pda = next_account_info(account)?;
-            merkle_tree_pubkey_check(
-                *merkle_tree_pda.key,
-                tmp_storage_pda_data.merkle_tree_index,
-                *merkle_tree_pda.owner,
-                self.program_id,
-            )?;
+            // merkle_tree_pubkey_check(
+            //     *merkle_tree_pda.key,
+            //     tmp_storage_pda_data.merkle_tree_index,
+            //     *merkle_tree_pda.owner,
+            //     self.program_id,
+            // )?;
             //hash instructions do not need the merkle tree
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index],
@@ -206,13 +206,9 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
             let leaf_pda = next_account_info(account)?;
             let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-            let _nullifer0 = next_account_info(account)?;
-            let _nullifer1 = next_account_info(account)?;
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
-            let _merkle_tree_pda_token = next_account_info(account)?;
             let _system_program_account = next_account_info(account)?;
-            let _token_program_account = next_account_info(account)?;
             let rent_sysvar_info = next_account_info(account)?;
             let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
@@ -223,12 +219,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 String::from("Merkle tree locked by other account."),
             )?;
             //checking merkle tree pubkey for consistency
-            merkle_tree_pubkey_check(
-                *merkle_tree_pda.key,
-                tmp_storage_pda_data.merkle_tree_index,
-                *merkle_tree_pda.owner,
-                self.program_id,
-            )?;
+            // merkle_tree_pubkey_check(
+            //     *merkle_tree_pda.key,
+            //     tmp_storage_pda_data.merkle_tree_index,
+            //     *merkle_tree_pda.owner,
+            //     self.program_id,
+            // )?;
 
             //insert root into merkle tree
             insert_last_double(&mut merkle_tree_pda_data, tmp_storage_pda_data)?;
@@ -247,11 +243,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             leaf_pda_account_data.node_right = tmp_storage_pda_data.leaf_right.clone();
             //increased by 2 because we're inserting 2 leaves at once
             leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
-            leaf_pda_account_data.merkle_tree_pubkey = MERKLE_TREE_ACC_BYTES_ARRAY
-                [tmp_storage_pda_data.merkle_tree_index]
-            .0
-            .to_vec();
-            leaf_pda_account_data.encrypted_utxos = tmp_storage_pda_data.encrypted_utxos.clone();
+            leaf_pda_account_data.merkle_tree_pubkey = tmp_storage_pda_data.merkle_tree_pda_pubkey.clone();
+            leaf_pda_account_data.encrypted_utxos = instruction_data.unwrap()[0..ENCRYPTED_UTXOS_LENGTH].to_vec();
 
             msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
             msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);

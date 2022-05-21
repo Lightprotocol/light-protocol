@@ -14,25 +14,15 @@ pub struct MerkleTreeTmpPda {
     pub is_initialized: bool,
     pub found_root: u8,
     pub account_type: u8,
-    pub root_hash: Vec<u8>,
-    pub amount:  Vec<u8>,
-    pub ext_amount:  Vec<u8>,
-    pub ext_sol_amount:  Vec<u8>,
-    pub relayer_fee:  Vec<u8>,
 
-    pub tx_integrity_hash:  Vec<u8>,
-    pub nullifiers:  Vec<u8>,
     pub node_left:  Vec<u8>,
     pub node_right:  Vec<u8>,
     pub leaf_left: Vec<u8>,
     pub leaf_right: Vec<u8>,
-    pub recipient:  Vec<u8>,
-    pub verifier_index: usize,
-    pub encrypted_utxos:  Vec<u8>,
     pub verifier_tmp_pda:  Vec<u8>,
     pub relayer:  Vec<u8>,
-    pub merkle_tree_index: usize,
-
+    pub merkle_tree_pda_pubkey: Vec<u8>,
+    pub root_hash: Vec<u8>,
     //
     pub state: Vec<u8>,
     pub current_round: usize,
@@ -50,25 +40,15 @@ impl MerkleTreeTmpPda {
             is_initialized: true,
             found_root: 0,
             account_type: 6,
-            root_hash: vec![0u8],
-            amount:  vec![0u8],
-            ext_amount:  vec![0u8],
-            ext_sol_amount:  vec![0u8],
-            relayer_fee:  vec![0u8],
 
-            tx_integrity_hash:  vec![0u8],
-            nullifiers:  vec![0u8],
             node_left:  vec![0u8],
             node_right:  vec![0u8],
             leaf_left:  vec![0u8],
             leaf_right:  vec![0u8],
-            recipient:  vec![0u8],
-            verifier_index: 0,
-            encrypted_utxos:  vec![0u8],
             verifier_tmp_pda:  vec![0u8],
             relayer:  vec![0u8],
-            merkle_tree_index: 0,
-
+            merkle_tree_pda_pubkey:  vec![0u8],
+            root_hash:  vec![0u8],
             state: vec![0u8],
             current_round: 0,
             current_round_index: 0,
@@ -99,17 +79,11 @@ impl Pack for MerkleTreeTmpPda {
             account_type,
             current_instruction_index,
             found_root,
-            verifier_index,
-            merkle_tree_index,
-            relayer, // is relayer address
-            relayer_fee,
-            recipient,
-            ext_amount,
-            ext_sol_amount,
-            amount,
-            root_hash,
-            tx_integrity_hash,
+            relayer,
+            merkle_tree_pda_pubkey,
             verifier_tmp_pda,
+            root_hash,
+
             state,
             current_round,
             current_round_index,
@@ -120,26 +94,17 @@ impl Pack for MerkleTreeTmpPda {
             node_left,
             node_right,
             leaf_left,
-            leaf_right,
-            encrypted_utxos,
-            nullifiers,
+            leaf_right
         ) = array_refs![
             input,
             1, //inited
             1, // account type
             8, // current instruction index
             1, // found_root
-            8, // verifier_index
-            8, // merkle_tree_index
-            32,// relayer/signer
-            8, // relayer_fee
-            32,// recipient
-            8, // ext_amount
-            32, // ext_sol_amount
-            32,// amount
-            32,// root_hash
-            32,// tx_integrity_hash
+            32,// relayer
+            32,// merkle_tree_pda_pubkey
             32,// verifier_tmp_pda
+            32,// root_hash
 
             96,// poseidon state
             8, // current round
@@ -151,9 +116,7 @@ impl Pack for MerkleTreeTmpPda {
             32, //node_left
             32, //node_right
             32, //leaf_left
-            32, //leaf_right
-            ENCRYPTED_UTXOS_LENGTH,
-            NULLIFIERS_LENGTH
+            32 //leaf_right
         ];
 
         if _is_initialized[0] != 0u8 && account_type[0] != MERKLE_TREE_TMP_STORAGE_ACCOUNT_TYPE {
@@ -165,25 +128,15 @@ impl Pack for MerkleTreeTmpPda {
             is_initialized: true,
             found_root: found_root[0],                     //0
             account_type: account_type[0],
-            verifier_index: usize::from_le_bytes(*verifier_index),
             current_instruction_index: usize::from_le_bytes(*current_instruction_index),                //1
-            merkle_tree_index: usize::from_le_bytes(*merkle_tree_index),       //2
+            merkle_tree_pda_pubkey: merkle_tree_pda_pubkey.to_vec(),       //2
             relayer: relayer.to_vec(),     //3
-            relayer_fee: relayer_fee.to_vec(),             //4
-
-            ext_sol_amount: ext_sol_amount.to_vec(),
-            ext_amount: ext_amount.to_vec(),               //6
-            amount: amount.to_vec(),                       //7
-            root_hash: root_hash.to_vec(),                 //8
-            tx_integrity_hash: tx_integrity_hash.to_vec(), //10
+            root_hash: root_hash.to_vec(),
             node_left: node_left.to_vec(),
             node_right: node_right.to_vec(),
             leaf_left: leaf_left.to_vec(),
             leaf_right: leaf_right.to_vec(),
-            encrypted_utxos: encrypted_utxos.to_vec(),
-            recipient: recipient.to_vec(),                 //5
             verifier_tmp_pda: verifier_tmp_pda.to_vec(),
-            nullifiers: nullifiers.to_vec(),
             state: state.to_vec(),
             current_round: usize::from_le_bytes(*current_round),
             current_round_index: usize::from_le_bytes(*current_round_index),
@@ -202,49 +155,32 @@ impl Pack for MerkleTreeTmpPda {
             account_type_dst,
             current_instruction_index_dst,
             found_root_dst,
-            verifier_index_dst,
-            merkle_tree_index_dst,
-            relayer_dst, // is relayer address
-            relayer_fee_dst,
-            recipient_dst,
-            ext_amount_dst,
-            ext_sol_amount_dst,
-            amount_dst,
-            root_hash_dst,
-            tx_integrity_hash_dst,
-
+            relayer_dst,
+            merkle_tree_pda_pubkey_dst,
             verifier_tmp_pda_dst,
+            root_hash_dst,
 
             state_dst,
             current_round_dst,
             current_round_index_dst,
-            current_index_dst, // current index
-            current_level_dst, // current level
-            current_level_hash_dst, // current level hash
+            current_index_dst,
+            current_level_dst,
+            current_level_hash_dst,
 
             node_left_dst,
             node_right_dst,
             leaf_left_dst,
-            leaf_right_dst,
-            encrypted_utxos_dst,
-            nullifiers_dst,
+            leaf_right_dst
         ) = mut_array_refs![
             dst,
             1, //inited
             1, // account type
             8, // current instruction index
             1, // found_root
-            8, // verifier_index
-            8, // merkle_tree_index
-            32,// relayer/signer
-            8, // relayer_fee
-            32,// recipient
-            8, // ext_amount
-            32, // ext_sol_amount
-            32,// amount
-            32,// root_hash
-            32,// tx_integrity_hash
+            32,// relayer
+            32,// merkle_tree_pda_pubkey
             32,// verifier_tmp_pda
+            32,// root_hash
 
             96,// poseidon state
             8, // current round
@@ -256,33 +192,23 @@ impl Pack for MerkleTreeTmpPda {
             32, //node_left
             32, //node_right
             32, //leaf_left
-            32, //leaf_right
-            ENCRYPTED_UTXOS_LENGTH,
-            NULLIFIERS_LENGTH
+            32 //leaf_right
         ];
+
         if self.changed_state == 1 {
-            msg!("pack recipient: {:?}", self.ext_sol_amount);
-            msg!("ext_sol_amount_dst: {:?}", ext_sol_amount_dst);
 
             *account_type_dst = [self.account_type; 1];
             *found_root_dst = [self.found_root; 1];
-            *verifier_index_dst = usize::to_le_bytes(self.verifier_index);
-            *merkle_tree_index_dst = usize::to_le_bytes(self.merkle_tree_index);
+            // *verifier_index_dst = usize::to_le_bytes(self.verifier_index);
+            *merkle_tree_pda_pubkey_dst = self.merkle_tree_pda_pubkey.clone().try_into().unwrap();
             *relayer_dst = self.relayer.clone().try_into().unwrap();
-            *relayer_fee_dst = self.relayer_fee.clone().try_into().unwrap();
-            *recipient_dst = self.recipient.clone().try_into().unwrap();
-            *ext_amount_dst = self.ext_amount.clone().try_into().unwrap();
-            *ext_sol_amount_dst = self.ext_sol_amount.clone().try_into().unwrap();
-            *amount_dst = self.amount.clone().try_into().unwrap();
-            *tx_integrity_hash_dst = self.tx_integrity_hash.clone().try_into().unwrap();
             *node_left_dst = self.node_left.clone().try_into().unwrap();
             *node_right_dst = self.node_right.clone().try_into().unwrap();
             *leaf_left_dst = self.node_left.clone().try_into().unwrap();
             *leaf_right_dst = self.node_right.clone().try_into().unwrap();
             *verifier_tmp_pda_dst = self.verifier_tmp_pda.clone().try_into().unwrap();
+            *root_hash_dst = self.root_hash.clone().try_into().unwrap();
 
-            *encrypted_utxos_dst = self.encrypted_utxos.clone().try_into().unwrap();
-            *nullifiers_dst = self.nullifiers.clone().try_into().unwrap();
         } else if self.changed_state == 2 {
             msg!("packing state: {:?}", self.state[..32].to_vec());
 
