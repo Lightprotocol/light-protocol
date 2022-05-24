@@ -334,7 +334,7 @@ pub fn g_ic_into_affine_2(
     parse_x_group_affine_to_bytes(g_ic_affine, x_1_range.try_into().unwrap());
     Ok(())
 }
-
+/*
 #[cfg(test)]
 mod tests {
     use crate::groth16_verifier::parsers::{
@@ -637,3 +637,4 @@ mod tests {
         }
     }
 }
+*/

@@ -286,7 +286,6 @@ describe("verifier_program", () => {
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
     ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
 
-    // ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
     const tx = await program.methods.createMillerLoopAccount(
           ix_data.proofAbc,
           ).accounts(
@@ -303,9 +302,9 @@ describe("verifier_program", () => {
       const accountAfterUpdate1 = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo1.data);
       console.log(accountAfterUpdate1)
       let arr = []
+      console.log("creating 42 txs")
 
-      for (var i = 0; i < 100; i++) {
-        console.log("tx: ", i)
+      for (var i = 0; i < 42; i++) {
         // let signer_2 = solana.Keypair.generate();
         const tx1 = await program.methods.computeMillerLoop(i
               ).accounts(
@@ -317,7 +316,6 @@ describe("verifier_program", () => {
                 .transaction();
         tx1.feePayer = userAccount.publicKey;
         // await userAccount.signTransaction(tx1);
-        console.log(tx1)
         arr.push({tx:tx1, signers: [userAccount]})
 
       }
