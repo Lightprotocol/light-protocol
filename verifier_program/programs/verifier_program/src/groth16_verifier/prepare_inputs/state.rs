@@ -1,6 +1,7 @@
 use anchor_lang::solana_program::system_program;
 use anchor_lang::prelude::*;
 
+use ark_ec::bn::BnParameters;
 
 
 #[account(zero_copy)]
@@ -49,6 +50,14 @@ pub struct PrepareInputsState {
     pub found_root: u8,
 }
 
+
+#[derive(Accounts)]
+pub struct PrepareInputs<'info> {
+    #[account(mut)]
+    pub prepare_inputs_state: AccountLoader<'info, PrepareInputsState>,
+    pub signing_address: Signer<'info>,
+}
+
 #[derive(Accounts)]
 pub struct CreatePrepareInputsState<'info> {
     #[account(init, seeds = [b"data_holder_v0", signing_address.key().as_ref()], bump, payer=signing_address, space= 2048 as usize)]
@@ -58,11 +67,4 @@ pub struct CreatePrepareInputsState<'info> {
     #[account(address = system_program::ID)]
         /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct PrepareInputs<'info> {
-    #[account(mut)]
-    pub prepare_inputs_state: AccountLoader<'info, PrepareInputsState>,
-    pub signing_address: Signer<'info>,
 }

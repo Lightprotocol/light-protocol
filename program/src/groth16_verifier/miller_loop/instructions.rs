@@ -1488,4 +1488,44 @@ mod tests {
             assert!(reference_f != parse_f_from_bytes(&account_f_range));
         }
     }
+
+    #[test]
+    fn miller_loop_14() {
+        for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()).rev() {
+            if i != ark_bn254::Parameters::ATE_LOOP_COUNT.len() - 1 {
+                f.square_in_place();
+            }
+
+            for (p, ref mut coeffs) in &mut pairs {
+                <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(&mut f, coeffs.next().unwrap(), &p.0);
+            }
+
+            let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i - 1];
+            match bit {
+                1 => {
+                    for &mut (p, ref mut coeffs) in &mut pairs {
+                        <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(&mut f, coeffs.next().unwrap(), &p.0);
+                    }
+                }
+                -1 => {
+                    for &mut (p, ref mut coeffs) in &mut pairs {
+                        <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(&mut f, coeffs.next().unwrap(), &p.0);
+                    }
+                }
+                _ => continue,
+            }
+        }
+
+        if ark_bn254::Parameters::X_IS_NEGATIVE {
+            f.conjugate();
+        }
+
+        for &mut (p, ref mut coeffs) in &mut pairs {
+            <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(&mut f, coeffs.next().unwrap(), &p.0);
+        }
+
+        for &mut (p, ref mut coeffs) in &mut pairs {
+            <ark_ec::models::bn::Bn<ark_bn254::Parameters>>::ell(&mut f, coeffs.next().unwrap(), &p.0);
+        }
+    }
 }

@@ -11,7 +11,7 @@ use ark_std::Zero;
 use solana_program::{msg, program_error::ProgramError};
 use anchor_lang::prelude::*;
 use std::cell::RefMut;
-use crate::state::*;
+use crate::groth16_verifier::prepare_inputs::state::*;
 use crate::ErrorCode;
 
 use ark_ff::to_bytes;

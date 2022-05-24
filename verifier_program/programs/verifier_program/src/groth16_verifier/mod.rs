@@ -6,4 +6,5 @@ pub use parsers::*;
 
 // pub mod final_exponentiation;
 // pub mod groth16_processor;
-// pub mod miller_loop;
+pub mod miller_loop;
+pub use miller_loop::*;

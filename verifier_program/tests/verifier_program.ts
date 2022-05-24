@@ -165,7 +165,7 @@ describe("verifier_program", () => {
 
     // console.log(userAccountInfo.data.slice(0,32))
   });
-  */
+
   it("Prepared inputs", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda, bump] = findProgramAddressSync(
@@ -263,6 +263,94 @@ describe("verifier_program", () => {
     // console.log("program.accoun: ", program.account.prepareInputsState)
 
     // console.log(userAccountInfo.data.slice(0,32))
+  });
+  */
+  it("Miller Loop", async () => {
+    const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
+    let [pda_prepare_inputs, bump_0] = findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("prepare_inputs"),
+          userAccount.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+    let [pda_miller_loop, bump_1] = findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("miller_loop"),
+          userAccount.publicKey.toBuffer(),
+        ],
+        program.programId
+      );
+
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
+
+    // ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
+    const tx = await program.methods.createMillerLoopAccount(
+          ix_data.proofAbc,
+          ).accounts(
+              {
+                signingAddress: userAccount.publicKey,
+                millerLoopState: pda_miller_loop,
+                systemProgram: SystemProgram.programId,
+              }
+            ).signers([userAccount]).rpc()
+
+      var userAccountInfo1 = await provider.connection.getAccountInfo(
+            pda_miller_loop
+          )
+      const accountAfterUpdate1 = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo1.data);
+      console.log(accountAfterUpdate1)
+      let arr = []
+
+      for (var i = 0; i < 100; i++) {
+        console.log("tx: ", i)
+        // let signer_2 = solana.Keypair.generate();
+        const tx1 = await program.methods.computeMillerLoop(i
+              ).accounts(
+                  {
+                    signingAddress: userAccount.publicKey,
+                    millerLoopState: pda_miller_loop,
+                  }
+                ).signers([userAccount])
+                .transaction();
+        tx1.feePayer = userAccount.publicKey;
+        // await userAccount.signTransaction(tx1);
+        console.log(tx1)
+        arr.push({tx:tx1, signers: [userAccount]})
+
+      }
+    //   console.log(program.provider)
+    // await promise.all()
+    // await provider.sendAll(arr);
+  await Promise.all(arr.map(async (tx, index) => {
+    await provider.sendAndConfirm(tx.tx, tx.signers);
+  }));
+
+    // console.log("Your transaction signature", tx);
+    // const accountInfo = await program.getAccountInfo( new solana.PublicKey(storage_account_pkey) );
+    var userAccountInfo = await provider.connection.getAccountInfo(
+          pda_miller_loop
+        )
+    const accountAfterUpdate = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo.data);
+    console.log(accountAfterUpdate)
+    // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
+    // console.console.log(accountAfterUpdate);
+
+    assert_eq(accountAfterUpdate.preparedInputsBytes, ix_data.prepared_inputs_bytes, "preparedInputsBytes insert wrong");
+    // assert_eq(accountAfterUpdate.rootHash, ix_data.rootHash, "rootHash insert wrong");
+    // assert_eq(accountAfterUpdate.amount, ix_data.amount, "amount insert wrong");
+    // assert_eq(accountAfterUpdate.txIntegrityHash, ix_data.txIntegrityHash, "txIntegrityHash insert wrong");
+    // assert_eq(accountAfterUpdate.extAmount, ix_data.extAmount, "extAmount insert wrong");
+    // // assert_eq(accountAfterUpdate.signingAddress, ix_data.relayer, "relayer insert wrong");
+    // assert_eq(accountAfterUpdate.fee, ix_data.fee, "fee insert wrong");
+    //
+    // if (accountAfterUpdate.merkleTreeTmpAccount.toBase58() != new solana.PublicKey(ix_data.merkleTreePdaPubkey).toBase58()) {
+    //     throw ("merkleTreePdaPubkey insert wrong");
+    // }
+    // assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
+
   });
 
 });
