@@ -1,9 +1,10 @@
 use ark_ed_on_bn254::Fq;
 use ark_ff::PrimeField;
 
-use crate::state::MerkleTreeTmpPda;
+use crate::state::{MerkleTreeTmpPda, AuthorityConfig};
 use crate::utils::config::{
-    ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, TMP_STORAGE_ACCOUNT_TYPE, MERKLE_TREE_TMP_PDA_SIZE
+    ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, TMP_STORAGE_ACCOUNT_TYPE, MERKLE_TREE_TMP_PDA_SIZE,
+    AUTHORITY_SEED
 };
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
@@ -171,6 +172,82 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         &merkle_tree_tmp_pda
     )
 }
+
+
+#[allow(clippy::clone_double_ref)]
+pub fn create_authority_config_pda(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let accounts_mut = accounts.clone();
+    let account = &mut accounts_mut.iter();
+    let signer_account = next_account_info(account)?;
+    let authority_config_pda = next_account_info(account)?;
+
+    let system_program_info = next_account_info(account)?;
+    let rent_sysvar_info = next_account_info(account)?;
+    let rent = &Rent::from_account_info(rent_sysvar_info)?;
+    msg!("Creating AuthorityConfig started");
+
+    let authority_config = AuthorityConfig::new(
+        *signer_account.key,
+    )?;
+    msg!("Creating AuthorityConfig done");
+
+    create_and_check_pda(
+        program_id,
+        signer_account,
+        authority_config_pda,
+        system_program_info,
+        rent,
+        &program_id.as_ref(),
+        AUTHORITY_SEED,
+        AuthorityConfig::LEN.try_into().unwrap(),   //bytes
+        0,                          //lamports
+        true,                       //rent_exempt
+    )?;
+    msg!("created_pda");
+    AuthorityConfig::pack(authority_config, &mut authority_config_pda.data.borrow_mut())
+}
+
+
+#[allow(clippy::clone_double_ref)]
+pub fn update_authority_config_pda(
+    program_id: &Pubkey,
+    accounts: &[AccountInfo],
+    _instruction_data: &[u8],
+) -> Result<(), ProgramError> {
+    let accounts_mut = accounts.clone();
+    let account = &mut accounts_mut.iter();
+    let signer_account = next_account_info(account)?;
+    let authority_config_pda = next_account_info(account)?;
+
+    let derived_pubkey =
+        Pubkey::find_program_address(&[program_id.as_ref(), AUTHORITY_SEED], program_id);
+
+    if derived_pubkey.0 != *authority_config_pda.key {
+        msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+        msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+        msg!("Passed-in pda pubkey {:?}", *authority_config_pda.key);
+        msg!("ProgramId  {:?}", program_id);
+        return Err(ProgramError::InvalidInstructionData);
+    }
+
+    let new_authority = Pubkey::new(&_instruction_data[0..32]);
+    msg!("Loading AuthorityConfig started");
+
+    let mut authority_config = AuthorityConfig::unpack(
+        &authority_config_pda.data.borrow()
+    )?;
+    msg!("Loading AuthorityConfig done");
+
+    authority_config.authority_key = new_authority;
+
+    msg!("updated_pda");
+    AuthorityConfig::pack(authority_config, &mut authority_config_pda.data.borrow_mut())
+}
+
 
 pub fn close_account(
     account: &AccountInfo,
