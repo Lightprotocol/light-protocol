@@ -95,6 +95,7 @@ pub mod tests {
                 ]
                 .iter(),
             );
+        panic!("");
         //starting result
         let f = miller_output;
 
