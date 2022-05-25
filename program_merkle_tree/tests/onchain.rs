@@ -714,7 +714,7 @@ async fn create_authority_config() {
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id,
-            &[vec![3u8, 1u8], u64::to_le_bytes(amount).to_vec()].concat(),
+            &[vec![5u8, 0u8]].concat(),
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(authority_config_key, false),
