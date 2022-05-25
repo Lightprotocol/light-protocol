@@ -1,12 +1,12 @@
 use crate::instructions::{
-    close_account, create_and_check_pda,
+    close_account,
     sol_transfer, token_transfer,
 };
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::MerkleTreeTmpPda;
 use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
-
+use crate::utils::create_pda::create_and_check_pda;
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,

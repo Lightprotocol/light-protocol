@@ -5,6 +5,7 @@ pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
 pub mod utils;
+pub mod authority_config;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -31,9 +32,8 @@ use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
 use crate::utils::config;
-use crate::instructions::
-{
-    create_and_try_initialize_tmp_storage_pda,
+use crate::instructions::create_and_try_initialize_tmp_storage_pda;
+use crate::authority_config::processor::{
     create_authority_config_pda,
     update_authority_config_pda
 };
