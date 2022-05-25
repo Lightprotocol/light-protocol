@@ -37,15 +37,18 @@ mod tests {
         let mut state = FinalExponentiationState::new(miller_loop_bytes);
         let f = parse_f_from_bytes(&miller_loop_bytes.to_vec());
         let res = final_exponentiation(&f);
-        let mut compute_state = FinalExponentiationComputeState::new(&state);
         let mut res_custom;
+        let mut compute_state = FinalExponentiationComputeState::new(&state);
 
-        for i in 0..6 {
+        for i in 0..600 {
             res_custom = compute_state.final_exponentiation_custom(&mut state);
+            assert!(state.current_compute <= state.max_compute);
             state.current_compute = 0;
+            compute_state.pack(&mut state);
+            compute_state.new_state();
         }
         assert_eq!(res.unwrap(),  parse_f_from_bytes(&ALPHA_G1_BETA_G2.to_vec()));
-        assert_eq!(compute_state.f2,  parse_f_from_bytes(&ALPHA_G1_BETA_G2.to_vec()));
+        assert_eq!(state.f2,  ALPHA_G1_BETA_G2);
         // assert_eq!(state.current_instruction_index, 5);
 
     }
@@ -124,6 +127,7 @@ mod tests {
         f2: [u8;384],
         f3: [u8;384],
         f4: [u8;384],
+        f5: [u8;384],
         i: [u8;384],
         current_instruction_index: u64,
         max_compute: u64,
@@ -143,6 +147,7 @@ mod tests {
                 f2: [0;384],
                 f3: [0;384],
                 f4: [0;384],
+                f5: [0;384],
                 i: [0;384],
                 current_instruction_index: 0,
                 max_compute: 1,
@@ -173,6 +178,7 @@ mod tests {
         f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
         f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
         f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
+        f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
         i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
 
     }
@@ -187,11 +193,63 @@ mod tests {
                 f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
                 f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
                 f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
                 i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
 
             }
         }
 
+        pub fn new_state(&mut self) -> FinalExponentiationComputeState {
+            FinalExponentiationComputeState {
+                f:  <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f1: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+                i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(),
+
+            }
+        }
+
+        pub fn pack(&self, state: &mut FinalExponentiationState) {
+            if self.f != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f = parse_f_to_bytes(self.f);
+            }
+
+            if self.f1 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f1 = parse_f_to_bytes(self.f1);
+            }
+
+            if self.f2 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f2 = parse_f_to_bytes(self.f2);
+            }
+
+            if self.f3 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f3 = parse_f_to_bytes(self.f3);
+            }
+
+            if self.f4 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f4 = parse_f_to_bytes(self.f4);
+            }
+
+            if self.f5 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.f5 = parse_f_to_bytes(self.f5);
+            }
+
+            if self.i != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                state.i = parse_f_to_bytes(self.i);
+            }
+        }
+
+        pub fn unpack(current_compute: &mut u64, f: &mut <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
+                f_bytes: [u8;384]
+            ) {
+                if *f == <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
+                    *f = parse_f_from_bytes(&f_bytes.to_vec());
+                    *current_compute+=1;
+                }
+            }
             #[allow(clippy::let_and_return)]
             pub fn final_exponentiation_custom(
                 &mut self,
@@ -205,61 +263,74 @@ mod tests {
                 //let mut f1 = *f;
 
                 if state.current_instruction_index == 0 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
                     println!("entered" );
                     self.f = self.f.inverse().unwrap();//.map(|mut f2| {
                     state.current_compute+=1;
                     state.current_instruction_index+=1;
-                }
-                if !state.check_compute_units() {
-                    return Ok(Some(self.f));
-                }
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
 
+                }
 
 
                 if state.current_instruction_index == 1 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
+
                     // f2 = f^(-1);
                     // r = f^(p^6 - 1)
                     self.f1 = self.f1 * self.f;
 
                     state.current_compute+=1;
                     state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
                 }
-                if !state.check_compute_units() {
-                    return Ok(Some(self.f));
-                }
+
 
 
                 if state.current_instruction_index == 2 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
                     // f2 = f^(p^6 - 1)
                     self.f = self.f1;
                     state.current_compute+=1;
                     state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
                 }
-                if !state.check_compute_units() {
-                    return Ok(Some(self.f));
-                }
+
 
 
                 if state.current_instruction_index == 3 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
                     // r = f^((p^6 - 1)(p^2))
                     self.f1.frobenius_map(2);
                     state.current_compute+=1;
                     state.current_instruction_index+=1;
-                }
-                if !state.check_compute_units() {
-                    return Ok(Some(self.f));
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
                 }
 
+
                 if state.current_instruction_index == 4 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
+
                     // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
                     // r = f^((p^6 - 1)(p^2 + 1))
                     self.f1 *= self.f;
                     state.current_compute+=1;
                     state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
                 }
-                if !state.check_compute_units() {
-                    return Ok(Some(self.f));
-                }
+
 
 
                 // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
@@ -271,33 +342,246 @@ mod tests {
                 //               1   * (12*z^3 + 12z^2 + 6z + 1))
                 // which equals
                 //
-                // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r ).
+                // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r )
+                if state.current_instruction_index == 5 {
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
+                    if !cyclotomic_exp(&self.f1, &mut self.f,state) {
+                        println!("cyclotomic_exp" );
+                        return Ok(Some(self.f));
+                    }
+                    state.current_instruction_index +=1;
+                    let mut tmp_f = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f1);
+                    assert_eq!(tmp_f, self.f);
+                }
 
-                self.f = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f1);
-                self.f2 = self.f.cyclotomic_square();
-                self.f = self.f2.cyclotomic_square();
-                self.f = self.f * &self.f2;
-                self.f3 = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f);
-                self.f4 = self.f3.cyclotomic_square();
-                self.f4 = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f4);
-                self.f.conjugate();
-                self.f4.conjugate();
-                self.f4 = self.f4 * &self.f3;
-                self.f4 = self.f4 * &self.f;
-                self.f2 = self.f4 * &self.f2;
-                self.f3 = self.f4 * &self.f3;
-                self.f3 = self.f3 * &self.f1;
-                self.f = self.f2;
+                if state.current_instruction_index == 6 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
 
-                self.f.frobenius_map(1);
-                self.f3 = self.f * &self.f3;
-                self.f4.frobenius_map(2);
-                self.f4 = self.f4 * &self.f3;
-                self.f1.conjugate();
+                    self.f2 = self.f.cyclotomic_square();
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
 
-                self.f2 = self.f1 * &self.f2;
-                self.f2.frobenius_map(3);
-                self.f2 = self.f2 * &self.f4;
+
+
+                if state.current_instruction_index == 7 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f = self.f2.cyclotomic_square();
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+
+                if state.current_instruction_index == 8 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f = self.f * &self.f2;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+
+
+                if state.current_instruction_index == 9 {
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    if !cyclotomic_exp(&self.f, &mut self.f3,state) {
+                        println!("cyclotomic_exp" );
+                        return Ok(Some(self.f));
+                    }
+                    state.current_instruction_index +=1;
+                    let mut tmp_f = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f);
+                    assert_eq!(tmp_f, self.f3);
+                }
+
+                if state.current_instruction_index == 10 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    self.f4 = self.f3.cyclotomic_square();
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 11 {
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f5, state.f5);
+
+                    if !cyclotomic_exp(&self.f4.clone(), &mut self.f5,state) {
+                        println!("cyclotomic_exp" );
+                        return Ok(Some(self.f));
+                    }
+                    // panic!("the bug is here somewhere");
+                    // self.f4 = ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(self.f4);
+                    state.current_instruction_index +=1;
+                    self.f4 = self.f5;
+                    self.f4.conjugate();
+                }
+                if state.current_instruction_index == 12 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    self.f4 = self.f4 * &self.f3;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 13 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    self.f.conjugate();
+
+                    self.f4 = self.f4 * &self.f;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 14 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f2 = self.f4 * &self.f2;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    println!("self.f2{:?}", self.f2);
+
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+                if state.current_instruction_index == 15 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    self.f3 = self.f4 * &self.f3;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+                if state.current_instruction_index == 16 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
+
+                    self.f3 = self.f3 * &self.f1;
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+                if state.current_instruction_index == 17 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f = self.f2;
+                    self.f.frobenius_map(1);
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 18 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    self.f3 = self.f * &self.f3;
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 19 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+
+                    self.f4.frobenius_map(2);
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 20 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
+
+                    self.f4 = self.f4 * &self.f3;
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 21 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f1.conjugate();
+
+                    self.f2 = self.f1 * &self.f2;
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 22 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f2.frobenius_map(3);
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
+
+                if state.current_instruction_index == 23 && state.check_compute_units(){
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
+                    FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
+
+                    self.f2 = self.f2 * &self.f4;
+
+                    state.current_compute+=1;
+                    state.current_instruction_index+=1;
+                    if !state.check_compute_units() {
+                        return Ok(Some(self.f));
+                    }
+                }
 
                 Ok(Some(self.f2))
                 //})
@@ -312,6 +596,8 @@ mod tests {
     ) -> bool {
         if state.initialized == 0 {
             *res = fe.clone();
+            println!("initialized {:?}", res);
+
             state.initialized +=1;
         }
 
@@ -324,6 +610,8 @@ mod tests {
             }
             if state.cyclotomic_square_in_place == 0 {
                 res.cyclotomic_square_in_place();
+                println!("cyclotomic_square_in_place {:?}", res);
+
                 state.cyclotomic_square_in_place = 1;
                 state.current_compute+=1;
             }
@@ -350,6 +638,7 @@ mod tests {
         res.conjugate();
         state.outer_loop = 1;
         state.first_exp_by_neg_x = 1;
+        state.initialized =0;
         true
     }
 
@@ -381,7 +670,7 @@ mod tests {
         }
         println!("current_instruction_index: {:?}", state.current_instruction_index);
         println!("\n\n-------------------------------\n\n");
-        assert_eq!(compute_state.f1, exp_by_neg_x(f));
+        assert_eq!(compute_state.f1,ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(f));
 
     }
 
