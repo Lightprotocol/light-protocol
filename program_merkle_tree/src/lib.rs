@@ -5,7 +5,6 @@ pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
 pub mod utils;
-pub mod authority_config;
 
 use solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -33,10 +32,6 @@ use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::state::InstructionIndex;
 use crate::utils::config;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
-use crate::authority_config::processor::{
-    create_authority_config_pda,
-    update_authority_config_pda
-};
 use crate::state::MerkleTreeTmpPda;
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -127,30 +122,6 @@ pub fn process_instruction(
     //         processor::transfer_tokens(&program_id, &accounts, &mut tmp_storage_pda_data)
     //
     // }
-    // create & update authority config account
-    else if instruction_data.len() >= 9 && instruction_data[8] == 5 {
-        if instruction_data.len() > 10 && instruction_data[9] == 0 {
-            msg!("\n create_authority_config_pda\n");
-            create_authority_config_pda(
-                &program_id,
-                accounts,
-                &instruction_data[10..]
-            )
-        } else if instruction_data.len() > 10 && instruction_data[9] == 1 {
-            msg!("\n update_authority_config_pda\n");
-            update_authority_config_pda(
-                &program_id,
-                accounts,
-                &instruction_data[10..]
-            )
-        } else {
-            return Err(ProgramError::InvalidInstructionData);
-        }
-    }
-    else if instruction_data.len() >= 9 && instruction_data[8] == 6 {
-        msg!("\n create_verifier_config_pda\n");
-        return Err(ProgramError::InvalidInstructionData);
-    }
     else {
         panic!("");
         Ok(())
