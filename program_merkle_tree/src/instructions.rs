@@ -5,7 +5,6 @@ use crate::state::MerkleTreeTmpPda;
 use crate::utils::config::{
     ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, TMP_STORAGE_ACCOUNT_TYPE, MERKLE_TREE_TMP_PDA_SIZE
 };
-use crate::utils::create_pda::create_and_check_pda;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
 use borsh::BorshSerialize;
@@ -172,7 +171,6 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         &merkle_tree_tmp_pda
     )
 }
-
 
 pub fn close_account(
     account: &AccountInfo,
