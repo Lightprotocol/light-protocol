@@ -398,7 +398,7 @@ describe("verifier_program", () => {
       let arr = []
       console.log("creating 42 txs")
       console.log(program.methods)
-      for (var i = 0; i < 200; i++) {
+      for (var i = 0; i < 18; i++) {
         // let signer_2 = solana.Keypair.generate();
         const tx1 = await program.methods.computeFinalExponetiation(new anchor.BN(i)
               ).accounts(
@@ -409,6 +409,8 @@ describe("verifier_program", () => {
                 ).signers([userAccount])
                 .transaction();
         tx1.feePayer = userAccount.publicKey;
+        // tx1.add(solana.ComputeBudgetProgram.requestHeapFrame({ bytes: 256 * 1024 }));
+
         // await userAccount.signTransaction(tx1);
         arr.push({tx:tx1, signers: [userAccount]})
 
@@ -416,7 +418,9 @@ describe("verifier_program", () => {
     //   console.log(program.provider)
     // await promise.all()
     // await provider.sendAll(arr);
-    // console.log(arr)
+    console.log(arr[0].tx.instructions[0])
+    console.log(arr[0].tx.instructions[1])
+
   await Promise.all(arr.map(async (tx, index) => {
     await provider.sendAndConfirm(tx.tx, tx.signers);
   }));
