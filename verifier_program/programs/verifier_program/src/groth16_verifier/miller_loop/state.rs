@@ -9,6 +9,8 @@ use std::cell::RefMut;
 use anchor_lang::solana_program::system_program;
 use anchor_lang::prelude::*;
 
+use crate::groth16_verifier::prepare_inputs::VerifierState;
+
 #[derive(Debug)]
 pub struct MillerLoopStateCompute {
     pub proof_b:        ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
@@ -23,12 +25,12 @@ pub struct MillerLoopStateCompute {
 }
 
 impl MillerLoopStateCompute {
-    pub fn new(tmp_account: &RefMut<'_, MillerLoopState>)-> Self {
+    pub fn new(tmp_account: &RefMut<'_, VerifierState>)-> Self {
         MillerLoopStateCompute {
              proof_b: parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()),
              pairs_0: [
                 parse_x_group_affine_from_bytes(&tmp_account.proof_a_bytes),
-                parse_x_group_affine_from_bytes(&tmp_account.prepared_inputs_bytes),
+                parse_x_group_affine_from_bytes(&tmp_account.x_1_range),
                 parse_x_group_affine_from_bytes(&tmp_account.proof_c_bytes),
              ],
              r: parse_r_from_bytes(&tmp_account.r_bytes.to_vec()),
@@ -37,7 +39,7 @@ impl MillerLoopStateCompute {
         }
     }
 
-    pub fn pack(&self, tmp_account: &mut RefMut<'_, MillerLoopState>) {
+    pub fn pack(&self, tmp_account: &mut RefMut<'_, VerifierState>) {
 
         tmp_account.r_bytes = parse_r_to_bytes(self.r);
         tmp_account.f_bytes = parse_f_to_bytes(self.f);

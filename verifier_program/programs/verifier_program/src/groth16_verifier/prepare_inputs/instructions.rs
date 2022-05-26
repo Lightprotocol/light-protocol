@@ -23,7 +23,7 @@ use ark_ff::BigInteger;
 // the loop behavior inside the library's implementation:
 // https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#31-33
 pub fn init_pairs_instruction<'info>(
-    tmp_account: &mut RefMut<'_, PrepareInputsState>
+    tmp_account: &mut RefMut<'_, VerifierState>
 ) -> Result<()> {
     // Parses vk_gamma_abc_g1 from hard-coded file.
     // Should have 8 items if 7 public inputs are passed in since [0] will be used to initialize g_ic.

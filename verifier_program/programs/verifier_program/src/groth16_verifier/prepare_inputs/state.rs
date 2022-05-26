@@ -5,7 +5,7 @@ use ark_ec::bn::BnParameters;
 
 
 #[account(zero_copy)]
-pub struct PrepareInputsState {
+pub struct VerifierState {
     pub current_instruction_index: u64,
     pub signing_address: Pubkey, // is relayer address
     pub merkle_tree_tmp_account: Pubkey,
@@ -15,7 +15,10 @@ pub struct PrepareInputsState {
     pub nullifier_hash: [u8;32],
     pub root_hash: [u8;32],
     pub tx_integrity_hash: [u8;32], // is calculated on-chain from recipient, amount, signing_address,
-    pub proof_a_b_c: [u8;256],
+    pub proof_a_bytes:        [u8;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
+    pub proof_b_bytes:        [u8;128],//ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
+    pub proof_c_bytes:        [u8;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
+
     pub ext_amount: [u8;8],
     pub fee: [u8;8],
     pub leaf_left: [u8;32],
@@ -42,29 +45,38 @@ pub struct PrepareInputsState {
     pub res_y_range: [u8;32],
     pub res_z_range: [u8;32],
 
-    pub g_ic_x_range: [u8;32],
-    pub g_ic_y_range: [u8;32],
-    pub g_ic_z_range: [u8;32],
+    pub g_ic_x_range:       [u8;32],
+    pub g_ic_y_range:       [u8;32],
+    pub g_ic_z_range:       [u8;32],
     pub current_index: u64,
+
+    // miller loop
+    pub r_bytes:            [u8;192],//ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,//[u8;192],
+    pub q1_bytes:           [u8;128],
+    pub current_coeff_bytes:[u8;192],
+
+
+    pub outer_first_loop_coeff:    u64,
+    pub outer_second_coeff:        u64,
+    pub inner_first_coeff:         u64,
+
+
+    pub f_bytes:  [u8;384], // results miller_loop
+
+    pub number_of_steps:           u64,
+    pub outer_first_loop:          u64,
+    pub outer_second_loop:         u64,
+    pub outer_third_loop:          u64,
+    pub first_inner_loop_index:    u64,
+    pub second_inner_loop_index:   u64,
+    pub square_in_place_executed:  u64,
+    pub coeff_index:               [u8;3],
+
+
+    pub computing_prepared_inputs: bool, // 0 prepare inputs // 1 miller loop //
+    pub computing_miller_loop: bool,
+    pub computing_final_exponentiation: bool,
+
     pub merkle_tree_index: u8,
     pub found_root: u8,
-}
-
-
-#[derive(Accounts)]
-pub struct PrepareInputs<'info> {
-    #[account(mut)]
-    pub prepare_inputs_state: AccountLoader<'info, PrepareInputsState>,
-    pub signing_address: Signer<'info>,
-}
-
-#[derive(Accounts)]
-pub struct CreatePrepareInputsState<'info> {
-    #[account(init, seeds = [b"data_holder_v0", signing_address.key().as_ref()], bump, payer=signing_address, space= 2048 as usize)]
-    pub prepare_inputs_state: AccountLoader<'info, PrepareInputsState>,
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    #[account(address = system_program::ID)]
-        /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
 }

@@ -4,7 +4,7 @@ use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_ff::fields::models::quadratic_extension::QuadExtField;
 use ark_ff::Fp256;
 use ark_ff::One;
-use crate::PrepareInputsState;
+use crate::VerifierState;
 use std::cell::RefMut;
 
 
@@ -442,7 +442,7 @@ pub fn parse_x_group_affine_to_bytes(
 }
 pub fn fill_x_ranges(
         x_vec: Vec<ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>>,
-        tmp_account: &mut RefMut<'_, PrepareInputsState>
+        tmp_account: &mut RefMut<'_, VerifierState>
     ) {
     parse_x_group_affine_to_bytes(x_vec[0], &mut tmp_account.x_1_range);
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[1].x, &mut tmp_account.x_2_range[0..32]).unwrap();
