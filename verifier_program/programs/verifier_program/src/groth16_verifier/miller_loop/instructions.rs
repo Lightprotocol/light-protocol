@@ -16,10 +16,11 @@ use crate::groth16_verifier::miller_loop::{
 };
 use crate::groth16_verifier::parsers::*;
 use crate::utils::prepared_verifying_key::*;
+use crate::groth16_verifier::prepare_inputs::state::*;
 
 pub fn get_coeff(
         pair_index: u64,
-        tmp_account: &mut RefMut<'_, MillerLoopState>,
+        tmp_account: &mut RefMut<'_, VerifierState>,
         total_steps: &mut u64,
         tmp_account_compute: &mut MillerLoopStateCompute
     ) -> Option<(QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -55,7 +56,7 @@ pub fn get_coeff(
 
 pub fn get_b_coeffs(
     total_steps: &mut u64,
-    tmp_account: &mut RefMut<'_, MillerLoopState>,
+    tmp_account: &mut RefMut<'_, VerifierState>,
     tmp_account_compute: &mut MillerLoopStateCompute
 ) -> Option<(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -174,7 +175,7 @@ pub fn get_b_coeffs(
 }
 
 pub fn get_gamma_g2(
-    tmp_account: &mut MillerLoopState
+    tmp_account: &mut VerifierState
 ) ->(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -384,7 +385,7 @@ pub fn get_gamma_g2(
 }
 
 pub fn get_delta_g2(
-    tmp_account: &mut MillerLoopState
+    tmp_account: &mut VerifierState
 ) -> (
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,

@@ -14,19 +14,20 @@ use ark_std::One;
 use solana_program::log::sol_log_compute_units;
 
 use crate::groth16_verifier::miller_loop::{
-    state::*,
     instructions::*,
 };
+use crate::groth16_verifier::prepare_inputs::state::*;
 use crate::groth16_verifier::parsers::*;
 use std::cell::RefMut;
 use anchor_lang::prelude::*;
+use crate::MillerLoopStateCompute;
 
 pub fn miller_loop_process_instruction(
-    tmp_account: &mut RefMut<'_, MillerLoopState>,
+    tmp_account: &mut RefMut<'_, VerifierState>,
 ) {
     // if current_instruction_index == 0 {
     //     // initializing
-    //     let mut tmp_account = MillerLoopState::new(
+    //     let mut tmp_account = VerifierState::new(
     //         ix_data[224..288].try_into().unwrap(),
     //         ix_data[288..416].try_into().unwrap(),
     //         ix_data[416..480].try_into().unwrap(),
@@ -62,7 +63,7 @@ pub fn miller_loop_process_instruction(
 }
 
 pub fn miller_loop_onchain(
-        tmp_account: &mut RefMut<'_, MillerLoopState>,
+        tmp_account: &mut RefMut<'_, VerifierState>,
         tmp_account_compute: &mut MillerLoopStateCompute
 
     ) -> u64 {

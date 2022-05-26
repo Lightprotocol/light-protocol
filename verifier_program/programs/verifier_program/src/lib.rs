@@ -3,7 +3,7 @@ pub mod utils;
 use anchor_lang::solana_program::system_program;
 
 // use crate::groth16_verifier::prepare_inputs::state::{
-//     CreatePrepareInputsState
+//     CreateVerifierState
 // };
 use groth16_verifier::prepare_inputs::*;
 use groth16_verifier::miller_loop::*;
@@ -53,7 +53,7 @@ pub mod verifier_program {
      ) -> Result<()> {
 
 
-         let tmp_account= &mut ctx.accounts.prepare_inputs_state.load_init()?;
+         let tmp_account= &mut ctx.accounts.verifier_state.load_init()?;
          tmp_account.signing_address = ctx.accounts.signing_address.key();
          // let x: u8 = tmp_account;
          tmp_account.root_hash = root_hash.clone();
@@ -66,7 +66,6 @@ pub mod verifier_program {
          tmp_account.relayer_fee =  u64::from_le_bytes(fee.try_into().unwrap()).clone();
          tmp_account.recipient = Pubkey::new(&recipient).clone();
          tmp_account.tx_integrity_hash = tx_integrity_hash.clone();
-         tmp_account.proof_a_b_c = proof.clone();
          tmp_account.ext_amount = ext_amount.clone();
          tmp_account.fee = fee.clone();
          tmp_account.leaf_left = leaf_left;
@@ -83,17 +82,34 @@ pub mod verifier_program {
          tmp_account.current_index =1;
          tmp_account.current_instruction_index = 1;
 
+         // miller loop
+
+         tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
+         tmp_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
+         tmp_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
+         tmp_account.number_of_steps= 1_350_000; // 1_250_000 compute units for core computation
+
+         tmp_account.f_bytes[0] = 1;
+         let proof_b = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
+
+         tmp_account.r_bytes = parse_r_to_bytes(G2HomProjective {
+             x: proof_b.x,
+             y: proof_b.y,
+             z: Fp2::one(),
+         });
+
+
          // create and initialize
-         let miller_loop_account= &mut ctx.accounts.miller_loop_state.load_init()?;
-         miller_loop_account.signing_address = ctx.accounts.signing_address.key();
-
+         // let miller_loop_account= &mut ctx.accounts.miller_loop_state.load_init()?;
          // miller_loop_account.signing_address = ctx.accounts.signing_address.key();
-         miller_loop_account.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-
-         miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
-         miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
-         miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         miller_loop_account.number_of_steps= 250_000; // 1_250_000 compute units for core computation
+         //
+         // // miller_loop_account.signing_address = ctx.accounts.signing_address.key();
+         // miller_loop_account.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
+         //
+         // miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
+         // miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
+         // miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
+         // miller_loop_account.number_of_steps= 250_000; // 1_250_000 compute units for core computation
          // let mut tmp_account = MillerLoopState::new(
          //     ix_data[224..288].try_into().unwrap(),
          //     ix_data[288..416].try_into().unwrap(),
@@ -104,18 +120,32 @@ pub mod verifier_program {
          Ok(())
      }
 
-     pub fn prepare_inputs(ctx: Context<PrepareInputs>)-> Result<()> {
-         let tmp_account= &mut ctx.accounts.prepare_inputs_state.load_mut()?;
+     pub fn compute(ctx: Context<Compute>, _bump: u64)-> Result<()> {
+         let tmp_account= &mut ctx.accounts.verifier_state.load_mut()?;
          msg!("CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}", CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]);
+        if tmp_account.current_instruction_index < (IX_ORDER.len() - 1).try_into().unwrap() {
+            _process_instruction(IX_ORDER[tmp_account.current_instruction_index as usize],
+                tmp_account,
+                usize::from(CURRENT_INDEX_ARRAY[tmp_account.current_index as usize])
+            )?;
+            tmp_account.current_index +=1;
+        } else {
+            msg!("Computing miller_loop");
+            // let g_ic_affine =
+            //     parse_x_group_affine_from_bytes(&tmp_account.x_1_range); // 10k
+            // let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
+            //     ark_ec::bn::g1::G1Prepared::from(g_ic_affine);
 
-         _process_instruction(IX_ORDER[tmp_account.current_instruction_index as usize],
-             tmp_account,
-             usize::from(CURRENT_INDEX_ARRAY[tmp_account.current_index as usize])
-         )?;
-         tmp_account.current_index +=1;
+            let prepared_inputs_expected_res = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
+            assert_eq!(tmp_account.x_1_range.to_vec(),prepared_inputs_expected_res.to_vec(), "prepared inputs failed");
+            msg!("computing miller_loop {}", tmp_account.current_instruction_index);
+            miller_loop_process_instruction(tmp_account);
+        }
+
          tmp_account.current_instruction_index +=1;
          Ok(())
      }
+
 
      pub fn create_miller_loop_account(ctx: Context<CreateMillerLoopState>,
             proof:        [u8;256],
@@ -149,7 +179,7 @@ pub mod verifier_program {
          msg!("finished");
          Ok(())
      }
-
+     /*
      pub fn compute_miller_loop(ctx: Context<ComputeMillerLoop>, bump:u8)-> Result<()> {
          // let tmp_account= &mut ctx.accounts.prepare_inputs_state.load_mut();
          // match tmp_account {
@@ -224,7 +254,19 @@ pub mod verifier_program {
 
          Ok(())
      }
+     */
 }
+
+
+
+
+#[derive(Accounts)]
+pub struct Compute<'info> {
+    #[account(mut)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+    pub signing_address: Signer<'info>,
+}
+
 
 #[derive(Accounts)]
 pub struct ComputeMillerLoop<'info> {
@@ -232,14 +274,18 @@ pub struct ComputeMillerLoop<'info> {
     pub miller_loop_state: AccountLoader<'info, MillerLoopState>,
     pub signing_address: Signer<'info>,
 }
-
+// signing_address.key().as_ref()
 #[derive(Accounts)]
+#[instruction(
+    proof:[u8;256],
+    root_hash:          [u8;32],
+    amount:             [u8;32],
+    tx_integrity_hash: [u8;32]
+)]
 pub struct CreateInputsState<'info> {
-    #[account(init, seeds = [b"prepare_inputs", signing_address.key().as_ref()], bump, payer=signing_address, space= 2048 as usize)]
-    pub prepare_inputs_state: AccountLoader<'info, PrepareInputsState>,
+    #[account(init, seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, payer=signing_address, space= 3072 as usize)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
 
-    #[account(init, seeds = [b"miller_loop", signing_address.key().as_ref()], bump, payer=signing_address, space= 2048 as usize)]
-    pub miller_loop_state: AccountLoader<'info, MillerLoopState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(address = system_program::ID)]
@@ -249,7 +295,7 @@ pub struct CreateInputsState<'info> {
 
 #[derive(Accounts)]
 pub struct CreateMillerLoopState<'info> {
-    #[account(init, seeds = [b"miller_loop", signing_address.key().as_ref()], bump, payer=signing_address, space= 2048 as usize)]
+    #[account(init, seeds = [b"miller_loop", signing_address.key().as_ref()], bump, payer=signing_address, space= 3072 as usize)]
     pub miller_loop_state: AccountLoader<'info, MillerLoopState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,

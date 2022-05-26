@@ -6,6 +6,11 @@ import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pub
 import fs from 'fs';
 const solana = require("@solana/web3.js");
 
+const PREPARED_INPUTS_TX_COUNT = 35
+const MILLER_LOOP_TX_COUNT = 41
+const FINAL_EXPONENTIATION_TX_COUNT = 17
+const MERKLE_TREE_UPDATE_TX_COUNT = 0
+
 const newAccountWithLamports = async (connection, lamports = 1e10) => {
   const account = new anchor.web3.Account()
 
@@ -32,12 +37,13 @@ function assert_eq(
   value1: unknown,
   message: string
 ) {
+
   if (value0.length !== value1.length) {
     console.log("value0: ", value0)
     console.log("value1: ", value1)
     throw Error("Length of asserted values does not match");
   }
-  for (var i = 0; i < value0; i++) {
+  for (var i = 0; i < value0.length; i++) {
     if (value0[i] !== value1[i]) {
       throw Error(message);
     }
@@ -93,7 +99,7 @@ describe("verifier_program", () => {
   const provider = anchor.AnchorProvider.local();
 
   const program = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
-  /*
+/*
   it("Is initialized!", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda, bump] = findProgramAddressSync(
@@ -128,7 +134,7 @@ describe("verifier_program", () => {
           ).accounts(
               {
                 signingAddress: userAccount.publicKey,
-                prepareInputsState: pda,
+                VerifierState: pda,
                 systemProgram: SystemProgram.programId,
               }
             ).signers([userAccount])
@@ -137,9 +143,9 @@ describe("verifier_program", () => {
     const userAccountInfo = await provider.connection.getAccountInfo(
           pda
         )
-    const accountAfterUpdate = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfo.data);
+    const accountAfterUpdate = program.account.VerifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
     // console.log(accountAfterUpdate)
-    // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
+    // const accountAfterUpdate = await program.account.VerifierState.fetch(pda);
     console.log(accountAfterUpdate);
 
     assert_eq(accountAfterUpdate.proofAbc, ix_data.proofAbc, "proof insert wrong");
@@ -161,23 +167,26 @@ describe("verifier_program", () => {
     // assert_eq(accountAfterUpdate.recipient, ix_data.recipient, "recipient insert wrong");
     // assert_eq(accountAfterUpdate.encryptedUtxos, ix_data.encryptedUtxos, "encryptedUtxos insert wrong");
 
-    // console.log("program.accoun: ", program.account.prepareInputsState)
+    // console.log("program.accoun: ", program.account.VerifierState)
 
     // console.log(userAccountInfo.data.slice(0,32))
   });
-
+*/
   it("Prepared inputs", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
+
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    let x = Buffer.from(ix_data.txIntegrityHash);
+    console.log(x)
+
     let [pda, bump] = findProgramAddressSync(
         [
-          anchor.utils.bytes.utf8.encode("data_holder_v0"),
-          userAccount.publicKey.toBuffer(),
+          anchor.utils.bytes.utf8.encode("prepare_inputs"),
+          x,
         ],
         program.programId
       );
-
-    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-
+    console.log(pda.toBase58())
 
     while (ix_data.encryptedUtxos.length < 256) {
       ix_data.encryptedUtxos.push(0);
@@ -201,46 +210,55 @@ describe("verifier_program", () => {
           ).accounts(
               {
                 signingAddress: userAccount.publicKey,
-                prepareInputsState: pda,
+                verifierState: pda,
                 systemProgram: SystemProgram.programId,
               }
             ).signers([userAccount]).rpc()
-      // requestHeapFrame
-      for (var i = 0; i < 34; i++) {
-        console.log("tx: ", i)
-        const tx1 = await program.methods.prepareInputs(
-              ).accounts(
-                  {
-                    signingAddress: userAccount.publicKey,
-                    prepareInputsState: pda,
-                  }
-                ).signers([userAccount])
-                .rpc();
-        var userAccountInfoI = await provider.connection.getAccountInfo(
-              pda
-            )
-            const accountAfterUpdateI = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfoI.data);
-            console.log("-------------------------------------------------------------")
-            console.log("accountAfterUpdateI.resXRange ", accountAfterUpdateI.resXRange)
-            console.log("accountAfterUpdateI.resYRange ", accountAfterUpdateI.resYRange)
-            console.log("accountAfterUpdateI.resZRange ", accountAfterUpdateI.resZRange)
-            console.log("accountAfterUpdateI.current_index ", accountAfterUpdateI.currentIndex.toString())
 
-            console.log("current_instruction_index ", accountAfterUpdateI.currentInstructionIndex.toString())
-            console.log("accountAfterUpdateI.gIcXRange ", accountAfterUpdateI.gIcXRange)
+      checkPreparedInputsAccountCreated({connection:provider.connection, pda, ix_data})
+      // prepare inputs tx: 34
+      await executeXTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT +1,userAccount,pda, program})
+
+
+      await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
+      await checkMillerLoopSuccess({connection:provider.connection, pda})
+      // await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
+
+  });
+
+  async function executeXTransactions({number_of_transactions,userAccount,pda, program}) {
+    let arr = []
+    console.log(`sending ${number_of_transactions} transactions`)
+    for (var i = 0; i < number_of_transactions; i++) {
+
+      let bump = new anchor.BN(i)
+      const tx1 = await program.methods.compute(
+              bump
+            ).accounts(
+                {
+                  signingAddress: userAccount.publicKey,
+                  verifierState: pda,
+                }
+              ).signers([userAccount])
+            .transaction();
+        tx1.feePayer = userAccount.publicKey;
+        // await userAccount.signTransaction(tx1);
+        arr.push({tx:tx1, signers: [userAccount]})
 
       }
+      //   console.log(program.provider)
+      // await promise.all()
+      // await provider.sendAll(arr);
+      await Promise.all(arr.map(async (tx, index) => {
+      await provider.sendAndConfirm(tx.tx, tx.signers);
+      }));
+  }
 
-    // console.log("Your transaction signature", tx);
-    // const accountInfo = await program.getAccountInfo( new solana.PublicKey(storage_account_pkey) );
+  async function checkPreparedInputsAccountCreated({connection, pda, ix_data}) {
     var userAccountInfo = await provider.connection.getAccountInfo(
           pda
         )
-    const accountAfterUpdate = program.account.prepareInputsState._coder.accounts.decode('PrepareInputsState', userAccountInfo.data);
-    console.log(accountAfterUpdate)
-    // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
-    // console.console.log(accountAfterUpdate);
-
+    const accountAfterUpdate = program.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
     assert_eq(accountAfterUpdate.proofAbc, ix_data.proofAbc, "proof insert wrong");
     assert_eq(accountAfterUpdate.rootHash, ix_data.rootHash, "rootHash insert wrong");
     assert_eq(accountAfterUpdate.amount, ix_data.amount, "amount insert wrong");
@@ -253,18 +271,18 @@ describe("verifier_program", () => {
         throw ("merkleTreePdaPubkey insert wrong");
     }
     assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
-    // assert_eq(accountAfterUpdate.nullifier0, ix_data.nullifier0, "nullifier0 insert wrong");
-    // assert_eq(accountAfterUpdate.nullifier1, ix_data.nullifier1, "nullifier1 insert wrong");
-    // assert_eq(accountAfterUpdate.leafRight, ix_data.leafRight, "leafRight insert wrong");
-    // assert_eq(accountAfterUpdate.leafLeft, ix_data.leafLeft, "leafLeft insert wrong");
-    // assert_eq(accountAfterUpdate.recipient, ix_data.recipient, "recipient insert wrong");
-    // assert_eq(accountAfterUpdate.encryptedUtxos, ix_data.encryptedUtxos, "encryptedUtxos insert wrong");
 
-    // console.log("program.accoun: ", program.account.prepareInputsState)
+  }
 
-    // console.log(userAccountInfo.data.slice(0,32))
-  });
-
+  async function checkMillerLoopSuccess({connection, pda}) {
+    var userAccountInfo = await provider.connection.getAccountInfo(
+          pda
+        )
+    const accountAfterUpdate = program.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
+    const expectedMillerLoop = [211, 231, 132, 182, 211, 183, 85, 93, 214, 230, 240, 197, 144, 18, 159, 29, 215, 214, 234, 67, 95, 178, 102, 151, 20, 106, 95, 248, 19, 185, 138, 46, 143, 162, 146, 137, 88, 99, 10, 48, 115, 148, 32, 133, 73, 162, 157, 239, 70, 74, 182, 191, 122, 199, 89, 79, 122, 26, 156, 169, 142, 101, 134, 27, 116, 130, 173, 228, 156, 165, 45, 207, 206, 200, 148, 179, 174, 210, 104, 75, 22, 219, 230, 1, 172, 193, 58, 203, 119, 122, 244, 189, 144, 97, 253, 21, 24, 17, 92, 102, 160, 162, 55, 203, 215, 162, 166, 57, 183, 163, 110, 19, 84, 224, 156, 220, 31, 246, 113, 204, 202, 78, 139, 231, 119, 145, 166, 15, 254, 99, 20, 11, 81, 108, 205, 133, 90, 159, 19, 1, 34, 23, 154, 191, 145, 244, 200, 23, 134, 68, 115, 80, 204, 3, 103, 147, 138, 46, 209, 7, 193, 175, 158, 214, 181, 81, 199, 155, 0, 116, 245, 216, 123, 103, 158, 94, 223, 110, 67, 229, 241, 109, 206, 202, 182, 0, 198, 163, 38, 130, 46, 42, 171, 209, 162, 32, 94, 175, 225, 106, 236, 15, 175, 222, 148, 48, 109, 157, 249, 181, 178, 110, 7, 67, 62, 108, 161, 22, 95, 164, 182, 209, 239, 16, 20, 128, 5, 48, 243, 240, 178, 241, 163, 223, 28, 209, 150, 111, 200, 93, 251, 126, 27, 14, 104, 15, 53, 159, 130, 76, 192, 229, 243, 32, 108, 42, 0, 125, 241, 245, 15, 92, 208, 73, 181, 236, 35, 87, 26, 191, 179, 217, 219, 68, 92, 3, 192, 99, 197, 100, 25, 51, 99, 77, 230, 151, 200, 46, 246, 151, 83, 228, 105, 44, 4, 147, 182, 120, 15, 33, 135, 118, 63, 198, 244, 162, 237, 56, 207, 180, 150, 87, 97, 43, 82, 147, 14, 199, 189, 17, 217, 254, 191, 173, 73, 110, 84, 4, 131, 245, 240, 198, 22, 69, 2, 114, 178, 112, 239, 3, 86, 132, 221, 38, 217, 88, 59, 174, 221, 178, 108, 37, 46, 60, 51, 59, 68, 40, 207, 120, 174, 184, 227, 5, 91, 175, 145, 131, 36, 165, 197, 98, 135, 77, 53, 152, 100, 65, 101, 253, 2, 182, 145, 39];
+    assert_eq(accountAfterUpdate.fBytes, expectedMillerLoop, "Miller loop failed");
+  }
+  /*
   it("Miller Loop", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda_prepare_inputs, bump_0] = findProgramAddressSync(
@@ -333,7 +351,7 @@ describe("verifier_program", () => {
         )
     const accountAfterUpdate = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo.data);
     console.log(accountAfterUpdate)
-    // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
+    // const accountAfterUpdate = await program.account.VerifierState.fetch(pda);
     // console.console.log(accountAfterUpdate);
 
     assert_eq(accountAfterUpdate.preparedInputsBytes, ix_data.prepared_inputs_bytes, "preparedInputsBytes insert wrong");
@@ -350,7 +368,7 @@ describe("verifier_program", () => {
     // assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
 
   });
-  */
+
   it("Final Exponentiation", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     let [pda_prepare_inputs, bump_0] = findProgramAddressSync(
@@ -400,7 +418,9 @@ describe("verifier_program", () => {
       console.log(program.methods)
       for (var i = 0; i < 18; i++) {
         // let signer_2 = solana.Keypair.generate();
-        const tx1 = await program.methods.computeFinalExponetiation(new anchor.BN(i)
+        let bump = new anchor.BN(i)
+        const tx1 = await program.methods.computeFinalExponetiation(
+                bump
               ).accounts(
                   {
                     signingAddress: userAccount.publicKey,
@@ -432,7 +452,7 @@ describe("verifier_program", () => {
         )
     // const accountAfterUpdate = program.account.millerLoopState._coder.accounts.decode('FinalExponentiationState', userAccountInfo.data);
     // console.log(accountAfterUpdate)
-    // // const accountAfterUpdate = await program.account.prepareInputsState.fetch(pda);
+    // // const accountAfterUpdate = await program.account.VerifierState.fetch(pda);
     // // console.console.log(accountAfterUpdate);
     //
     // assert_eq(accountAfterUpdate.preparedInputsBytes, ix_data.prepared_inputs_bytes, "preparedInputsBytes insert wrong");
@@ -449,5 +469,5 @@ describe("verifier_program", () => {
     // assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
 
   });
-
+  */
 });
