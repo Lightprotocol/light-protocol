@@ -1,12 +1,12 @@
 [package]
-name = "merkle_tree_anchor"
+name = "merkle_tree_program"
 version = "0.1.0"
 description = "Created with Anchor"
 edition = "2021"
 
 [lib]
 crate-type = ["cdylib", "lib"]
-name = "merkle_tree_anchor"
+name = "merkle_tree_program"
 
 [patch.crates-io]
 ark-ff = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0" }

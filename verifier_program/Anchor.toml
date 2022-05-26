@@ -2,6 +2,11 @@
 seeds = false
 [programs.localnet]
 verifier_program = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+merkle_tree_program = "2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av"
+
+[programs.mainnet]
+verifier_program = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+merkle_tree_program = "2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av"
 
 [registry]
 url = "https://anchor.projectserum.com"

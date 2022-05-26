@@ -82,7 +82,6 @@ impl MillerLoopStateCompute {
 }
 
 
-#[derive(Debug)]
 #[account(zero_copy)]
 pub struct MillerLoopState {
     pub signing_address: Pubkey,

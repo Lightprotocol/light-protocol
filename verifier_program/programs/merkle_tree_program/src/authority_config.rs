@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use std::mem::size_of;
 use crate::utils::config::AUTHORITY_SEED;
-use crate::program::MerkleTreeAnchor;
+use crate::program::MerkleTreeProgram;
 
 #[account]
 #[derive(Default)]
@@ -27,7 +27,7 @@ pub struct CreateAuthorityConfig<'info> {
     #[account(
         constraint = merkle_tree_program.programdata_address()? == Some(merkle_tree_program_data.key())
     )]
-    pub merkle_tree_program: Program<'info, MerkleTreeAnchor>,
+    pub merkle_tree_program: Program<'info, MerkleTreeProgram>,
 
     #[account(
         constraint = merkle_tree_program_data.upgrade_authority_address == Some(authority.key()),
