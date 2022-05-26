@@ -31,7 +31,7 @@ use crate::state::MerkleTreeTmpPda;
 pub use authority_config::*;
 
 #[program]
-pub mod merkle_tree_anchor {
+pub mod merkle_tree_program {
     use super::*;
 
     pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
