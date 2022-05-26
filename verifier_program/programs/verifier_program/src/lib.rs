@@ -81,6 +81,7 @@ pub mod verifier_program {
          )?;
          tmp_account.current_index =1;
          tmp_account.current_instruction_index = 1;
+         tmp_account.computing_prepared_inputs = true;
 
          // miller loop
 
@@ -122,31 +123,50 @@ pub mod verifier_program {
 
      pub fn compute(ctx: Context<Compute>, _bump: u64)-> Result<()> {
          let tmp_account= &mut ctx.accounts.verifier_state.load_mut()?;
-         msg!("CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}", CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]);
-        if tmp_account.current_instruction_index < (IX_ORDER.len() - 1).try_into().unwrap() {
+        if tmp_account.computing_prepared_inputs /*&& tmp_account.current_instruction_index < (IX_ORDER.len() - 1).try_into().unwrap()*/ {
+            msg!("CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}", CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]);
             _process_instruction(IX_ORDER[tmp_account.current_instruction_index as usize],
                 tmp_account,
                 usize::from(CURRENT_INDEX_ARRAY[tmp_account.current_index as usize])
             )?;
             tmp_account.current_index +=1;
-        } else {
-            msg!("Computing miller_loop");
-            // let g_ic_affine =
-            //     parse_x_group_affine_from_bytes(&tmp_account.x_1_range); // 10k
-            // let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
-            //     ark_ec::bn::g1::G1Prepared::from(g_ic_affine);
+        } else if tmp_account.computing_miller_loop {
 
+
+            msg!("Computing miller_loop");
             let prepared_inputs_expected_res = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
             assert_eq!(tmp_account.x_1_range.to_vec(),prepared_inputs_expected_res.to_vec(), "prepared inputs failed");
             msg!("computing miller_loop {}", tmp_account.current_instruction_index);
             miller_loop_process_instruction(tmp_account);
+
+        } else {
+            if !tmp_account.computing_final_exponentiation {
+                msg!("initializing for final_exponentiation");
+                tmp_account.computing_final_exponentiation = true;
+                let mut f1 = parse_f_from_bytes(&tmp_account.f_bytes.to_vec());
+                f1.conjugate();
+               tmp_account.f_bytes1 = parse_f_to_bytes(f1);
+               tmp_account.f_bytes2[0] = 1;
+               tmp_account.f_bytes3[0] = 1;
+               tmp_account.f_bytes4[0] = 1;
+               tmp_account.f_bytes5[0] = 1;
+               tmp_account.i_bytes[0] = 1;
+               tmp_account.outer_loop = 1;
+               tmp_account.max_compute = 1_200_000;
+           }
+
+               msg!("computing final_exponentiation {}", tmp_account.current_instruction_index);
+               final_exponentiation_process_instruction(tmp_account);
+
+
+
         }
 
          tmp_account.current_instruction_index +=1;
          Ok(())
      }
 
-
+     /*
      pub fn create_miller_loop_account(ctx: Context<CreateMillerLoopState>,
             proof:        [u8;256],
             // prepared_inputs: [u8;64],
@@ -179,36 +199,7 @@ pub mod verifier_program {
          msg!("finished");
          Ok(())
      }
-     /*
-     pub fn compute_miller_loop(ctx: Context<ComputeMillerLoop>, bump:u8)-> Result<()> {
-         // let tmp_account= &mut ctx.accounts.prepare_inputs_state.load_mut();
-         // match tmp_account {
-         //     Some(tmp_account) => {
-         //         msg!("CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}", CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]);
-         //         if tmp_account.current_instruction_index == 35 {
-         //             let prepared_inputs = ;
-         //
-         //
-         //             miller_loop_account
-         //         }
-         //         _process_instruction(IX_ORDER[tmp_account.current_instruction_index as usize],
-         //             tmp_account,
-         //             usize::from(CURRENT_INDEX_ARRAY[tmp_account.current_index as usize])
-         //         )?;
-         //         tmp_account.current_index +=1;
-         //         tmp_account.current_instruction_index +=1;
-         //     }
-         //     _ => {
-         //
-         //     }
-         // }
 
-         let miller_loop_account= &mut ctx.accounts.miller_loop_state.load_mut()?;
-         msg!("computing miller_loop {}", miller_loop_account.current_instruction_index);
-         miller_loop_process_instruction(miller_loop_account);
-
-         Ok(())
-     }
 
      pub fn create_final_exponentiation_account(ctx: Context<CreateFinalExponentiationState>,
             // miller_loop_bytes:  [u8;384],
@@ -283,7 +274,7 @@ pub struct ComputeMillerLoop<'info> {
     tx_integrity_hash: [u8;32]
 )]
 pub struct CreateInputsState<'info> {
-    #[account(init, seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, payer=signing_address, space= 3072 as usize)]
+    #[account(init, seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 
     #[account(mut)]

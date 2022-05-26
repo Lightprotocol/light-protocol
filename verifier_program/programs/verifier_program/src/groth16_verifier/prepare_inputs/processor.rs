@@ -476,8 +476,8 @@ pub fn _process_instruction(
             &account.g_ic_z_range.clone(),
             &mut account.x_1_range,
         )?;
-
-
+        account.computing_prepared_inputs = false;
+        account.computing_miller_loop = true;
     }
     // else if id == 47 {
     //     let mut account_g_ic_x_range = account.g_ic_x_range;
