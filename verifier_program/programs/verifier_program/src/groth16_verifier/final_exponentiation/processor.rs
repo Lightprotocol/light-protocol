@@ -89,39 +89,39 @@ impl FinalExponentiationComputeState {
 
     pub fn pack(&self, state: &mut FinalExponentiationState) {
         if self.f != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            sol_log_compute_units();
-            msg!("packing f {:?}", self.f);
+            // sol_log_compute_units();
+            // msg!("packing f {:?}", self.f);
             state.f = parse_f_to_bytes(self.f);
-            sol_log_compute_units();
+            // sol_log_compute_units();
         }
 
         if self.f1 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing f1 {:?}", self.f1);
+            // msg!("packing f1 {:?}", self.f1);
             state.f1 = parse_f_to_bytes(self.f1);
         }
 
         if self.f2 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing f2 {:?}", self.f2);
+            // msg!("packing f2 {:?}", self.f2);
             state.f2 = parse_f_to_bytes(self.f2);
         }
 
         if self.f3 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing f3 {:?}", self.f3);
+            // msg!("packing f3 {:?}", self.f3);
             state.f3 = parse_f_to_bytes(self.f3);
         }
 
         if self.f4 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing f4 {:?}", self.f4);
+            // msg!("packing f4 {:?}", self.f4);
             state.f4 = parse_f_to_bytes(self.f4);
         }
 
         if self.f5 != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing f5 {:?}", self.f5);
+            // msg!("packing f5 {:?}", self.f5);
             state.f5 = parse_f_to_bytes(self.f5);
         }
 
         if self.i != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
-            msg!("packing i {:?}", self.i);
+            // msg!("packing i {:?}", self.i);
             state.i = parse_f_to_bytes(self.i);
         }
         state.current_compute = 0;
@@ -130,14 +130,14 @@ impl FinalExponentiationComputeState {
     pub fn unpack(current_compute: &mut u64, f: &mut <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
             f_bytes: [u8;384]
         ) {
-            sol_log_compute_units();
-            msg!("unpacking f");
+            // sol_log_compute_units();
+            // msg!("unpacking f");
             if *f == <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero() {
                 *f = parse_f_from_bytes(&f_bytes.to_vec());
                 // unpacking + packing
                 *current_compute+=25268 + 14321;
             }
-            sol_log_compute_units();
+            // sol_log_compute_units();
         }
         #[allow(clippy::let_and_return)]
         pub fn final_exponentiation(
@@ -153,10 +153,10 @@ impl FinalExponentiationComputeState {
 
             if state.current_instruction_index == 0 && state.check_compute_units(){
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
-                sol_log_compute_units();
-                msg!("inverse");
+                // sol_log_compute_units();
+                // msg!("inverse");
                 self.f = self.f.inverse().unwrap();//.map(|mut f2| {
-                sol_log_compute_units();
+                // sol_log_compute_units();
 
                 state.current_compute+=288464;
                 state.current_instruction_index+=1;
@@ -173,10 +173,10 @@ impl FinalExponentiationComputeState {
 
                 // f2 = f^(-1);
                 // r = f^(p^6 - 1)
-                sol_log_compute_units();
-                msg!("mul");
+                // sol_log_compute_units();
+                // msg!("mul");
                 self.f1 = self.f1 * self.f;
-                sol_log_compute_units();
+                // sol_log_compute_units();
 
                 state.current_compute+=125883;
                 state.current_instruction_index+=1;
@@ -203,10 +203,10 @@ impl FinalExponentiationComputeState {
             if state.current_instruction_index == 3 && state.check_compute_units(){
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
                 // r = f^((p^6 - 1)(p^2))
-                sol_log_compute_units();
-                msg!("frobenius_map");
+                // sol_log_compute_units();
+                // msg!("frobenius_map");
                 self.f1.frobenius_map(2);
-                sol_log_compute_units();
+                // sol_log_compute_units();
 
                 state.current_compute+=54002;
                 state.current_instruction_index+=1;
@@ -245,10 +245,10 @@ impl FinalExponentiationComputeState {
             if state.current_instruction_index == 5 {
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
-                msg!("state.current_instruction_index {}", state.current_instruction_index);
+                // msg!("state.current_instruction_index {}", state.current_instruction_index);
 
                 if !cyclotomic_exp(&self.f1, &mut self.f,state) {
-                    msg!("cyclotomic_exp" );
+                    // msg!("cyclotomic_exp" );
                     return Ok(Some(self.f));
                 }
                 state.current_instruction_index +=1;
@@ -270,10 +270,10 @@ impl FinalExponentiationComputeState {
 
             if state.current_instruction_index == 7 && state.check_compute_units(){
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
-                sol_log_compute_units();
-                msg!("cyclotomic_square");
+                // sol_log_compute_units();
+                // msg!("cyclotomic_square");
                 self.f = self.f2.cyclotomic_square();
-                sol_log_compute_units();
+                // sol_log_compute_units();
 
                 state.current_compute+=46602;
                 state.current_instruction_index+=1;
@@ -281,7 +281,7 @@ impl FinalExponentiationComputeState {
                     return Ok(Some(self.f));
                 }
             }
-            msg!("7self.f {:?}", self.f);
+            // msg!("7self.f {:?}", self.f);
 
 
             if state.current_instruction_index == 8 && state.check_compute_units(){
@@ -301,10 +301,10 @@ impl FinalExponentiationComputeState {
             if state.current_instruction_index == 9 {
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f, state.f);
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f3, state.f3);
-                msg!("state.current_instruction_index {}", state.current_instruction_index);
+                // msg!("state.current_instruction_index {}", state.current_instruction_index);
 
                 if !cyclotomic_exp(&self.f, &mut self.f3,state) {
-                    msg!("cyclotomic_exp" );
+                    // msg!("cyclotomic_exp" );
                     return Ok(Some(self.f));
                 }
                 state.current_instruction_index +=1;
@@ -325,9 +325,9 @@ impl FinalExponentiationComputeState {
             if state.current_instruction_index == 11 {
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f5, state.f5);
-                msg!("state.current_instruction_index {}", state.current_instruction_index);
+                // msg!("state.current_instruction_index {}", state.current_instruction_index);
                 if !cyclotomic_exp(&self.f4.clone(), &mut self.f5,state) {
-                    msg!("cyclotomic_exp" );
+                    // msg!("cyclotomic_exp" );
                     return Ok(Some(self.f));
                 }
 
@@ -367,13 +367,13 @@ impl FinalExponentiationComputeState {
                 self.f2 = self.f4 * &self.f2;
                 state.current_compute+=125883;
                 state.current_instruction_index+=1;
-                msg!("self.f2{:?}", self.f2);
+                // msg!("self.f2{:?}", self.f2);
 
                 if !state.check_compute_units() {
                     return Ok(Some(self.f));
                 }
             }
-            msg!("14self.f2 {:?}", self.f2);
+            // msg!("14self.f2 {:?}", self.f2);
 
             if state.current_instruction_index == 15 && state.check_compute_units(){
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f4, state.f4);
@@ -447,7 +447,7 @@ impl FinalExponentiationComputeState {
                     return Ok(Some(self.f));
                 }
             }
-            msg!("20self.f4 {:?}", self.f4);
+            // msg!("20self.f4 {:?}", self.f4);
             if state.current_instruction_index == 21 && state.check_compute_units(){
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f1, state.f1);
                 FinalExponentiationComputeState::unpack( &mut state.current_compute, &mut self.f2, state.f2);
@@ -503,7 +503,7 @@ pub fn cyclotomic_exp(
 ) -> bool {
     if state.initialized == 0 {
         *res = fe.clone();
-        msg!("initialized {:?}", res);
+        // msg!("initialized {:?}", res);
 
         state.initialized +=1;
     }
@@ -516,10 +516,10 @@ pub fn cyclotomic_exp(
             return false;
         }
         if state.cyclotomic_square_in_place == 0 {
-            sol_log_compute_units();
-            msg!("cyclotomic_square_in_place");
+            // sol_log_compute_units();
+            // msg!("cyclotomic_square_in_place");
             res.cyclotomic_square_in_place();
-            sol_log_compute_units();
+            // sol_log_compute_units();
 
             state.cyclotomic_square_in_place = 1;
             state.current_compute+=44606;
@@ -527,10 +527,10 @@ pub fn cyclotomic_exp(
         if !state.check_compute_units() {
             return false;
         }
-        msg!("beferoe naf");
-        // msg!("res {:?}", res);
+        // msg!("beferoe naf");
+        // // msg!("res {:?}", res);
         if NAF_VEC[i] != 0 {
-            msg!("naf {}", NAF_VEC[i]);
+            // msg!("naf {}", NAF_VEC[i]);
 
             if NAF_VEC[i] > 0 {
                 *res *= fe;

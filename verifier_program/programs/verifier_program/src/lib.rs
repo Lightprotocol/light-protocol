@@ -204,7 +204,7 @@ pub mod verifier_program {
         final_exponentiation_account.i[0] = 1;
 
         final_exponentiation_account.outer_loop = 1;
-        final_exponentiation_account.max_compute = 200_000;
+        final_exponentiation_account.max_compute = 1_200_000;
 
          // let mut tmp_account = MillerLoopState::new(
          //     ix_data[224..288].try_into().unwrap(),
