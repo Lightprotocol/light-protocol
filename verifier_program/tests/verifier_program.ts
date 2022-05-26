@@ -7,7 +7,7 @@ import fs from 'fs';
 const solana = require("@solana/web3.js");
 
 const PREPARED_INPUTS_TX_COUNT = 35
-const MILLER_LOOP_TX_COUNT = 41
+const MILLER_LOOP_TX_COUNT = 40
 const FINAL_EXPONENTIATION_TX_COUNT = 17
 const MERKLE_TREE_UPDATE_TX_COUNT = 0
 
@@ -176,13 +176,11 @@ describe("verifier_program", () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-    let x = Buffer.from(ix_data.txIntegrityHash);
-    console.log(x)
 
     let [pda, bump] = findProgramAddressSync(
         [
           anchor.utils.bytes.utf8.encode("prepare_inputs"),
-          x,
+          Buffer.from(ix_data.txIntegrityHash),
         ],
         program.programId
       );
@@ -222,7 +220,9 @@ describe("verifier_program", () => {
 
       await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
       await checkMillerLoopSuccess({connection:provider.connection, pda})
-      // await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
+
+      await executeXTransactions({number_of_transactions: FINAL_EXPONENTIATION_TX_COUNT,userAccount,pda, program})
+      await checkFinalExponentiationSuccess({connection:provider.connection, pda})
 
   });
 
@@ -282,192 +282,32 @@ describe("verifier_program", () => {
     const expectedMillerLoop = [211, 231, 132, 182, 211, 183, 85, 93, 214, 230, 240, 197, 144, 18, 159, 29, 215, 214, 234, 67, 95, 178, 102, 151, 20, 106, 95, 248, 19, 185, 138, 46, 143, 162, 146, 137, 88, 99, 10, 48, 115, 148, 32, 133, 73, 162, 157, 239, 70, 74, 182, 191, 122, 199, 89, 79, 122, 26, 156, 169, 142, 101, 134, 27, 116, 130, 173, 228, 156, 165, 45, 207, 206, 200, 148, 179, 174, 210, 104, 75, 22, 219, 230, 1, 172, 193, 58, 203, 119, 122, 244, 189, 144, 97, 253, 21, 24, 17, 92, 102, 160, 162, 55, 203, 215, 162, 166, 57, 183, 163, 110, 19, 84, 224, 156, 220, 31, 246, 113, 204, 202, 78, 139, 231, 119, 145, 166, 15, 254, 99, 20, 11, 81, 108, 205, 133, 90, 159, 19, 1, 34, 23, 154, 191, 145, 244, 200, 23, 134, 68, 115, 80, 204, 3, 103, 147, 138, 46, 209, 7, 193, 175, 158, 214, 181, 81, 199, 155, 0, 116, 245, 216, 123, 103, 158, 94, 223, 110, 67, 229, 241, 109, 206, 202, 182, 0, 198, 163, 38, 130, 46, 42, 171, 209, 162, 32, 94, 175, 225, 106, 236, 15, 175, 222, 148, 48, 109, 157, 249, 181, 178, 110, 7, 67, 62, 108, 161, 22, 95, 164, 182, 209, 239, 16, 20, 128, 5, 48, 243, 240, 178, 241, 163, 223, 28, 209, 150, 111, 200, 93, 251, 126, 27, 14, 104, 15, 53, 159, 130, 76, 192, 229, 243, 32, 108, 42, 0, 125, 241, 245, 15, 92, 208, 73, 181, 236, 35, 87, 26, 191, 179, 217, 219, 68, 92, 3, 192, 99, 197, 100, 25, 51, 99, 77, 230, 151, 200, 46, 246, 151, 83, 228, 105, 44, 4, 147, 182, 120, 15, 33, 135, 118, 63, 198, 244, 162, 237, 56, 207, 180, 150, 87, 97, 43, 82, 147, 14, 199, 189, 17, 217, 254, 191, 173, 73, 110, 84, 4, 131, 245, 240, 198, 22, 69, 2, 114, 178, 112, 239, 3, 86, 132, 221, 38, 217, 88, 59, 174, 221, 178, 108, 37, 46, 60, 51, 59, 68, 40, 207, 120, 174, 184, 227, 5, 91, 175, 145, 131, 36, 165, 197, 98, 135, 77, 53, 152, 100, 65, 101, 253, 2, 182, 145, 39];
     assert_eq(accountAfterUpdate.fBytes, expectedMillerLoop, "Miller loop failed");
   }
-  /*
-  it("Miller Loop", async () => {
-    const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
-    let [pda_prepare_inputs, bump_0] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("prepare_inputs"),
-          userAccount.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
 
-    let [pda_miller_loop, bump_1] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("miller_loop"),
-          userAccount.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
-
-    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-    ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-
-    const tx = await program.methods.createMillerLoopAccount(
-          ix_data.proofAbc,
-          ).accounts(
-              {
-                signingAddress: userAccount.publicKey,
-                millerLoopState: pda_miller_loop,
-                systemProgram: SystemProgram.programId,
-              }
-            ).signers([userAccount]).rpc()
-
-      var userAccountInfo1 = await provider.connection.getAccountInfo(
-            pda_miller_loop
-          )
-      const accountAfterUpdate1 = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo1.data);
-      console.log(accountAfterUpdate1)
-      let arr = []
-      console.log("creating 42 txs")
-
-      for (var i = 0; i < 42; i++) {
-        // let signer_2 = solana.Keypair.generate();
-        const tx1 = await program.methods.computeMillerLoop(i
-              ).accounts(
-                  {
-                    signingAddress: userAccount.publicKey,
-                    millerLoopState: pda_miller_loop,
-                  }
-                ).signers([userAccount])
-                .transaction();
-        tx1.feePayer = userAccount.publicKey;
-        // await userAccount.signTransaction(tx1);
-        arr.push({tx:tx1, signers: [userAccount]})
-
-      }
-    //   console.log(program.provider)
-    // await promise.all()
-    // await provider.sendAll(arr);
-  await Promise.all(arr.map(async (tx, index) => {
-    await provider.sendAndConfirm(tx.tx, tx.signers);
-  }));
-
-    // console.log("Your transaction signature", tx);
-    // const accountInfo = await program.getAccountInfo( new solana.PublicKey(storage_account_pkey) );
+  async function checkFinalExponentiationSuccess({connection, pda}) {
     var userAccountInfo = await provider.connection.getAccountInfo(
-          pda_miller_loop
+          pda
         )
-    const accountAfterUpdate = program.account.millerLoopState._coder.accounts.decode('MillerLoopState', userAccountInfo.data);
-    console.log(accountAfterUpdate)
-    // const accountAfterUpdate = await program.account.VerifierState.fetch(pda);
-    // console.console.log(accountAfterUpdate);
+    const accountAfterUpdate = program.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
+    const expectedFinalExponentiation = [13, 20, 220, 48, 182, 120, 53, 125, 152, 139, 62, 176, 232, 173, 161, 27, 199, 178, 181, 210,
+      207, 12, 31, 226, 117, 34, 203, 42, 129, 155, 124, 4, 74, 96, 27, 217, 48, 42, 148, 168, 6,
+      119, 169, 247, 46, 190, 170, 218, 19, 30, 155, 251, 163, 6, 33, 200, 240, 56, 181, 71, 190,
+      185, 150, 46, 24, 32, 137, 116, 44, 29, 56, 132, 54, 119, 19, 144, 198, 175, 153, 55, 114, 156,
+      57, 230, 65, 71, 70, 238, 86, 54, 196, 116, 29, 31, 34, 13, 244, 92, 128, 167, 205, 237, 90,
+      214, 83, 188, 79, 139, 32, 28, 148, 5, 73, 24, 222, 225, 96, 225, 220, 144, 206, 160, 39, 212,
+      236, 105, 224, 26, 109, 240, 248, 215, 57, 215, 145, 26, 166, 59, 107, 105, 35, 241, 12, 220,
+      231, 99, 222, 16, 70, 254, 15, 145, 213, 144, 245, 245, 16, 57, 118, 17, 197, 122, 198, 218,
+      172, 47, 146, 34, 216, 204, 49, 48, 229, 127, 153, 220, 210, 237, 236, 179, 225, 209, 27, 134,
+      12, 13, 157, 100, 165, 221, 163, 15, 66, 184, 168, 229, 19, 201, 213, 152, 52, 134, 51, 44, 62,
+      205, 18, 54, 25, 43, 152, 134, 102, 193, 88, 24, 131, 133, 89, 188, 39, 182, 165, 15, 73, 254,
+      232, 143, 212, 58, 200, 141, 195, 231, 84, 25, 191, 212, 81, 55, 78, 37, 184, 196, 132, 91, 75,
+      252, 189, 70, 10, 212, 139, 181, 80, 22, 228, 225, 237, 242, 147, 105, 106, 67, 183, 108, 138,
+      95, 239, 254, 108, 253, 219, 89, 205, 123, 192, 36, 108, 23, 132, 6, 30, 211, 239, 242, 40, 10,
+      116, 229, 111, 202, 188, 91, 147, 216, 77, 114, 225, 10, 10, 215, 128, 121, 176, 45, 6, 204,
+      140, 58, 228, 53, 147, 108, 226, 232, 87, 34, 216, 43, 148, 128, 164, 111, 3, 153, 136, 168,
+      12, 244, 202, 102, 156, 2, 97, 0, 248, 206, 63, 188, 82, 152, 24, 13, 236, 8, 210, 5, 93, 122,
+      98, 26, 211, 204, 79, 221, 153, 36, 42, 134, 215, 200, 5, 40, 211, 180, 56, 196, 102, 146, 136,
+      197, 107, 119, 171, 184, 54, 117, 40, 163, 31, 1, 197, 17];
+      assert_eq(accountAfterUpdate.fBytes2, expectedFinalExponentiation, "Final Exponentiation failed");
+  }
 
-    assert_eq(accountAfterUpdate.preparedInputsBytes, ix_data.prepared_inputs_bytes, "preparedInputsBytes insert wrong");
-    // assert_eq(accountAfterUpdate.rootHash, ix_data.rootHash, "rootHash insert wrong");
-    // assert_eq(accountAfterUpdate.amount, ix_data.amount, "amount insert wrong");
-    // assert_eq(accountAfterUpdate.txIntegrityHash, ix_data.txIntegrityHash, "txIntegrityHash insert wrong");
-    // assert_eq(accountAfterUpdate.extAmount, ix_data.extAmount, "extAmount insert wrong");
-    // // assert_eq(accountAfterUpdate.signingAddress, ix_data.relayer, "relayer insert wrong");
-    // assert_eq(accountAfterUpdate.fee, ix_data.fee, "fee insert wrong");
-    //
-    // if (accountAfterUpdate.merkleTreeTmpAccount.toBase58() != new solana.PublicKey(ix_data.merkleTreePdaPubkey).toBase58()) {
-    //     throw ("merkleTreePdaPubkey insert wrong");
-    // }
-    // assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
-
-  });
-
-  it("Final Exponentiation", async () => {
-    const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
-    let [pda_prepare_inputs, bump_0] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("prepare_inputs"),
-          userAccount.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
-
-    let [pda_miller_loop, bump_1] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("miller_loop"),
-          userAccount.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
-
-    let [pda_final_exponentiation, bump_2] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("final_exponentiation"),
-          userAccount.publicKey.toBuffer(),
-        ],
-        program.programId
-      );
-
-
-    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-    ix_data.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-
-    const tx = await program.methods.createFinalExponentiationAccount(
-          ).accounts(
-              {
-                signingAddress: userAccount.publicKey,
-                finalExponentiationState: pda_final_exponentiation,
-                systemProgram: SystemProgram.programId,
-              }
-            ).signers([userAccount]).rpc()
-
-      var userAccountInfo1 = await provider.connection.getAccountInfo(
-            pda_final_exponentiation
-          )
-      const accountAfterUpdate1 = program.account.millerLoopState._coder.accounts.decode('FinalExponentiationState', userAccountInfo1.data);
-      console.log(accountAfterUpdate1)
-      let arr = []
-      console.log("creating 42 txs")
-      console.log(program.methods)
-      for (var i = 0; i < 18; i++) {
-        // let signer_2 = solana.Keypair.generate();
-        let bump = new anchor.BN(i)
-        const tx1 = await program.methods.computeFinalExponetiation(
-                bump
-              ).accounts(
-                  {
-                    signingAddress: userAccount.publicKey,
-                    finalExponentiationState: pda_final_exponentiation,
-                  }
-                ).signers([userAccount])
-                .transaction();
-        tx1.feePayer = userAccount.publicKey;
-        // tx1.add(solana.ComputeBudgetProgram.requestHeapFrame({ bytes: 256 * 1024 }));
-
-        // await userAccount.signTransaction(tx1);
-        arr.push({tx:tx1, signers: [userAccount]})
-
-      }
-    //   console.log(program.provider)
-    // await promise.all()
-    // await provider.sendAll(arr);
-    console.log(arr[0].tx.instructions[0])
-    console.log(arr[0].tx.instructions[1])
-
-  await Promise.all(arr.map(async (tx, index) => {
-    await provider.sendAndConfirm(tx.tx, tx.signers);
-  }));
-
-    // console.log("Your transaction signature", tx);
-    // const accountInfo = await program.getAccountInfo( new solana.PublicKey(storage_account_pkey) );
-    var userAccountInfo = await provider.connection.getAccountInfo(
-          pda_final_exponentiation
-        )
-    // const accountAfterUpdate = program.account.millerLoopState._coder.accounts.decode('FinalExponentiationState', userAccountInfo.data);
-    // console.log(accountAfterUpdate)
-    // // const accountAfterUpdate = await program.account.VerifierState.fetch(pda);
-    // // console.console.log(accountAfterUpdate);
-    //
-    // assert_eq(accountAfterUpdate.preparedInputsBytes, ix_data.prepared_inputs_bytes, "preparedInputsBytes insert wrong");
-    // assert_eq(accountAfterUpdate.rootHash, ix_data.rootHash, "rootHash insert wrong");
-    // assert_eq(accountAfterUpdate.amount, ix_data.amount, "amount insert wrong");
-    // assert_eq(accountAfterUpdate.txIntegrityHash, ix_data.txIntegrityHash, "txIntegrityHash insert wrong");
-    // assert_eq(accountAfterUpdate.extAmount, ix_data.extAmount, "extAmount insert wrong");
-    // // assert_eq(accountAfterUpdate.signingAddress, ix_data.relayer, "relayer insert wrong");
-    // assert_eq(accountAfterUpdate.fee, ix_data.fee, "fee insert wrong");
-    //
-    // if (accountAfterUpdate.merkleTreeTmpAccount.toBase58() != new solana.PublicKey(ix_data.merkleTreePdaPubkey).toBase58()) {
-    //     throw ("merkleTreePdaPubkey insert wrong");
-    // }
-    // assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
-
-  });
-  */
 });

@@ -320,5 +320,6 @@ pub fn miller_loop_onchain(
         tmp_account.outer_third_loop+=1;
 
     }
+    tmp_account.computing_miller_loop = false;
     total_steps
 }

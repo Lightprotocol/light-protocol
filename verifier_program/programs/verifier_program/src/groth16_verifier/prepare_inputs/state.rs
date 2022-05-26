@@ -70,6 +70,28 @@ pub struct VerifierState {
     pub first_inner_loop_index:    u64,
     pub second_inner_loop_index:   u64,
     pub square_in_place_executed:  u64,
+
+    // final_exponentiation
+    pub fe_instruction_index: u64,
+    pub f_bytes1: [u8;384],
+    pub f_bytes2: [u8;384],
+    pub f_bytes3: [u8;384],
+    pub f_bytes4: [u8;384],
+    pub f_bytes5: [u8;384],
+    pub i_bytes: [u8;384],
+    pub max_compute: u64,
+    pub current_compute: u64,
+    pub first_exp_by_neg_x: u64,
+    pub second_exp_by_neg_x:u64,
+    pub third_exp_by_neg_x: u64,
+    pub initialized: u64,
+    pub outer_loop: u64,
+    pub cyclotomic_square_in_place:u64,
+
+
+
+
+
     pub coeff_index:               [u8;3],
 
 
@@ -79,4 +101,18 @@ pub struct VerifierState {
 
     pub merkle_tree_index: u8,
     pub found_root: u8,
+}
+
+impl VerifierState {
+
+    pub fn check_compute_units(&self)-> bool {
+        if self.current_compute < self.max_compute {
+            msg!("check_compute_units: {}", true);
+            true
+        } else {
+            msg!("check_compute_units: {}", false);
+            false
+        }
+
+    }
 }
