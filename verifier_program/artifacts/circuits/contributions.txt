@@ -1,0 +1,49 @@
+npm i snarkjs
+npx snarkjs zkey contribute circuits/tmp_1_transaction2.zkey circuits/tmp_2_transaction2.zkey
+0:
+Circuit hash:
+		7113aea4 b29478a4 70dc01dc b7d1efe5
+		73ab76fc 2b012fb0 48ae83f8 0d9609f3
+		2aba9142 98ffbde5 147dfb0f b83a10f8
+		0b29715c 8a9b8d4e eafdbc7c 8097a753
+1:
+Circuit Hash:
+		7113aea4 b29478a4 70dc01dc b7d1efe5
+		73ab76fc 2b012fb0 48ae83f8 0d9609f3
+		2aba9142 98ffbde5 147dfb0f b83a10f8
+		0b29715c 8a9b8d4e eafdbc7c 8097a753
+snarkJS: Contribution Hash:
+		ae6892c9 e6cf4dd9 1f5a72e8 fed55c7d
+		0b269f86 0dca8776 f730bd54 d6a819bf
+		5065b00a 46063cde 3e9ed53f be985b16
+		666ee4ee 05b0729c 57d38dd1 f3dd85c
+2
+snarkJS: Circuit Hash: 
+		7113aea4 b29478a4 70dc01dc b7d1efe5
+		73ab76fc 2b012fb0 48ae83f8 0d9609f3
+		2aba9142 98ffbde5 147dfb0f b83a10f8
+		0b29715c 8a9b8d4e eafdbc7c 8097a753
+[INFO]  snarkJS: Contribution Hash: 
+		bb8eadc0 13a20b91 8a05752a ebc922c7
+		576570db 2411d755 b45756dc 6f9240e9
+		338e893f cf2cec41 77199d1d ac1fd8bd
+		2d60c5ec ec16e364 9892040a e579d951
+		
+3
+snarkJS: Circuit Hash: 
+		7113aea4 b29478a4 70dc01dc b7d1efe5
+		73ab76fc 2b012fb0 48ae83f8 0d9609f3
+		2aba9142 98ffbde5 147dfb0f b83a10f8
+		0b29715c 8a9b8d4e eafdbc7c 8097a753
+[INFO]  snarkJS: Contribution Hash: 
+		faa4d6e7 c2254136 53ba0586 4f4151f0
+		5390efb7 9eddc4e8 c4b97212 8def0640
+		7dac2125 e2a77c2d c4f3cb4c 18a0ace1
+		c250d385 cec501df b8350204 e39bd95d
+rnd beacon
+snarkJS: Contribution Hash: 
+		ba7c17c4 0155f30e 9fafcb6a 78bfbdd7
+		39b92990 7e739ad2 0afaed0b 330758dc
+		24e92c89 f72d3722 fafa4f74 5c962cf7
+		90b099fc 986d2e76 d4729ab3 27d0157d
+
