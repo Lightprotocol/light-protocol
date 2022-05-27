@@ -5,11 +5,8 @@ const { poseidon } = require("circomlib");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff, beInt2Buff } = ffjavascript.utils;
 
-// const poseidonHash = (items) => BigNumber.from(poseidon(items).toString());
-function poseidonHash(items) {
-    return BigNumber.from(poseidon(items).toString());
-}
-// const poseidonHash2 = (a, b) => poseidonHash([a, b]);
+const poseidonHash = (items) => BigNumber.from(poseidon(items).toString());
+const poseidonHash2 = (a, b) => poseidonHash([a, b]);
 
 const FIELD_SIZE = BigNumber.from(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617",
@@ -314,7 +311,7 @@ module.exports = {
   toBuffer,
   intToBuffer,
   poseidonHash,
-  // poseidonHash2,
+  poseidonHash2,
   getExtDataHash,
   shuffle,
   // getSignerFromAddress,
@@ -324,23 +321,3 @@ module.exports = {
   parseInputsToBytesArray,
   testest,
 };
-
-// export {
-//   FIELD_SIZE,
-//   randomBN,
-//   toFixedHex,
-//   toBuffer,
-//   intToBuffer,
-//   poseidonHash,
-//   poseidonHash2,
-//   getExtDataHash,
-//   shuffle,
-//   // privateKeyDecoded,
-//   // getSignerFromAddress,
-//   parseInputsToBytes,
-//   parseProofToBytes,
-//   parseProofToBytesArray,
-//   parseInputsToBytesArray,
-//   testest,
-//   leInt2Buffer,
-// };

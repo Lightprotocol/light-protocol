@@ -4,9 +4,10 @@
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
     },
     "dependencies": {
+        "@darjusch/light-protocol-sdk": "^1.0.27",
         "@project-serum/anchor": "^0.24.1",
         "@solana/web3.js": "^1.41.4",
-        "circomlib": "^2.0.3",
+        "circomlib": "^0.5.5",
         "dotenv": "^16.0.1",
         "eth-sig-util": "^3.0.1",
         "ethers": "^5.6.8",

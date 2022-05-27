@@ -5,17 +5,37 @@ const { SystemProgram } = require('@solana/web3.js');
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 import fs from 'fs';
 const solana = require("@solana/web3.js");
+const {U64, I64} = require('n64');
+import nacl from "tweetnacl";
+import { BigNumber } from 'ethers'
+const { poseidonHash } = require('./utils/poseidonHash')
+const {
+  amount,
+  encryptionKeypair,
+  externalAmountBigNumber,
+  publicKey,
+  recipient,
+  relayer,
+  testUuid,
+  testTimeout,
+  inputUtxoAmount,
+  outputUtxoAmount,
+  relayerFee,
+  testInputUtxo,
+  testOutputUtxo
+} = require ('./utils/testUtxos');
 
 const PREPARED_INPUTS_TX_COUNT = 36
 const MILLER_LOOP_TX_COUNT = 40
-const FINAL_EXPONENTIATION_TX_COUNT = 17
+const FINAL_EXPONENTIATION_TX_COUNT = 19
 const MERKLE_TREE_UPDATE_TX_COUNT = 0
 
 //
 // const Utxo = require("./utils/utxo");
 // const prepareTransaction = require("./utils/prepareTransaction");
+const MerkleTree = require("./utils/merkleTree");
 
-
+const light = require('@darjusch/light-protocol-sdk');
 
 
 const newAccountWithLamports = async (connection, lamports = 1e10) => {
@@ -100,6 +120,32 @@ const read_and_parse_instruction_data_bytes = ()  => {
    return {ix_data, bytes};
 }
 
+function parse_instruction_data_bytes(data) {
+  console.log(data)
+   let ix_data = {
+     rootHash:          data.data.publicInputsBytes.slice(0,32),
+     amount:             data.data.publicInputsBytes.slice(32,64),
+     txIntegrityHash:  data.data.publicInputsBytes.slice(64,96),
+     nullifier0:         data.data.publicInputsBytes.slice(96,128),
+     nullifier1:         data.data.publicInputsBytes.slice(128,160),
+     leafRight:         data.data.publicInputsBytes.slice(160,192),
+     leafLeft:          data.data.publicInputsBytes.slice(192,224),
+     proofAbc:        data.data.proofBytes,
+     // relayer_fee:        bytes.slice(264,272),
+     // ext_sol_amount:     bytes.slice(272,304),
+     // verifier_index:     bytes.slice(304,312),
+     // merkleTreeIndex:  bytes.slice(312,320),
+     recipient:          data.data.extDataBytes.slice(0,32),
+     extAmount:         data.data.extAmount,
+     relayer:            data.data.extDataBytes.slice(40,72),
+     fee:                data.data.extDataBytes.slice(72,80),
+     merkleTreePdaPubkey:data.data.extDataBytes.slice(80,112),
+     merkleTreeIndex:     data.data.extDataBytes.slice(112,113),
+     encryptedUtxos:    data.data.extDataBytes.slice(113,335),
+   }
+   return ix_data;
+}
+
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -177,8 +223,8 @@ describe("verifier_program", () => {
     // console.log("program.accoun: ", program.account.VerifierState)
 
     // console.log(userAccountInfo.data.slice(0,32))
-  });
-*/
+  });*/
+
 
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
@@ -223,53 +269,86 @@ describe("verifier_program", () => {
 
       checkPreparedInputsAccountCreated({connection:provider.connection, pda, ix_data})
       // prepare inputs tx: 34
-      await executeXTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT,userAccount,pda, program})
+      await executeXComputeTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT-2,userAccount,pda, program})
 
-      await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
+      await executeXComputeTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT+2,userAccount,pda, program})
       await checkMillerLoopSuccess({connection:provider.connection, pda})
 
-      await executeXTransactions({number_of_transactions: FINAL_EXPONENTIATION_TX_COUNT,userAccount,pda, program})
+      await executeXComputeTransactions({number_of_transactions: FINAL_EXPONENTIATION_TX_COUNT,userAccount,pda, program})
       await checkFinalExponentiationSuccess({connection:provider.connection, pda})
 
   });
 
 
   it("Dynamic Shielded transaction", async () => {
-      // let merkle_tree = new MerkleTree(MERKLE_TREE_HEIGHT, leaves, {
-      //   hashFunction: poseidonHash2,
-      // });
 
-      // Alice deposits into pool
-      // let aliceDepositUtxo = new Utxo({
-      //   amount: 2e9,
-      // });
+    const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
-      // await transaction({
-      //   action: "deposit",
-      //   outputs: [aliceDepositUtxo],
-      //   connection,
-      //   pubkey: publicKey,
-      //   sendTransaction,
-      //   account: account,
-      //   nextIndex: nextIndex,
-      //   privkey: privkey,
-      // });
-      // const { args, extAmountBn, extData } = await prepareTransaction({
-      //   connection: connection,
-      //   outputs: [aliceDepositUtxo],
-      //   inputs: [],
-      //   fee: 0,
-      //   recipient: 0,
-      //   relayer: 0,
-      //   action: "deposit",
-      // });
+    let merkleTree = new MerkleTree(18);
+
+    let inputUtxos = [new light.Utxo(), new light.Utxo()]
+    let outputUtxos = [testOutputUtxo, new light.Utxo()]
+
+    const data = await light.getProof(
+      inputUtxos,
+      outputUtxos,
+      merkleTree,
+      testOutputUtxo.amount.add(BigNumber.from(1)),
+      U64(1),
+      recipient,
+      relayer,
+      "deposit",
+      encryptionKeypair
+    )
+
+    let ix_data = parse_instruction_data_bytes(data);
+
+    let [pda, bump] = findProgramAddressSync(
+        [
+          anchor.utils.bytes.utf8.encode("prepare_inputs"),
+          Buffer.from(ix_data.txIntegrityHash),
+        ],
+        program.programId
+      );
 
 
+    const tx = await program.methods.createTmpAccount(
+          ix_data.proofAbc,
+          ix_data.rootHash,
+          ix_data.amount,
+          ix_data.txIntegrityHash,
+          ix_data.nullifier0,
+          ix_data.nullifier1,
+          ix_data.leafRight,
+          ix_data.leafLeft,
+          ix_data.recipient,
+          ix_data.extAmount,
+          ix_data.relayer,
+          ix_data.fee,
+          ix_data.merkleTreePdaPubkey,
+          ix_data.encryptedUtxos,
+          ix_data.merkleTreeIndex
+          ).accounts(
+              {
+                signingAddress: userAccount.publicKey,
+                verifierState: pda,
+                systemProgram: SystemProgram.programId,
+              }
+            ).signers([userAccount]).rpc()
 
+      checkPreparedInputsAccountCreated({connection:provider.connection, pda, ix_data})
+      // prepare inputs tx: 34
+      await executeXComputeTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT,userAccount,pda, program})
 
+      await executeXComputeTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
+
+      await executeXComputeTransactions({number_of_transactions: FINAL_EXPONENTIATION_TX_COUNT,userAccount,pda, program})
+      await checkFinalExponentiationSuccess({connection:provider.connection, pda})
 
   });
-  async function executeXTransactions({number_of_transactions,userAccount,pda, program}) {
+
+
+  async function executeXComputeTransactions({number_of_transactions,userAccount,pda, program}) {
     let arr = []
     console.log(`sending ${number_of_transactions} transactions`)
     for (var i = 0; i < number_of_transactions; i++) {
