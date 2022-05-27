@@ -174,13 +174,13 @@ pub fn parse_f_from_bytes(
 }
 
 
-pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut Vec<u8>) {
+pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut [u8;32]) {
     let start = 0;
     let end = 32;
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&fp256, &mut range[start..end]).unwrap();
 }
 
-pub fn parse_fp256_from_bytes(range: &Vec<u8>) -> ark_ff::Fp256<ark_bn254::FqParameters> {
+pub fn parse_fp256_from_bytes(range: &[u8;32]) -> ark_ff::Fp256<ark_bn254::FqParameters> {
     let fp256: ark_ff::Fp256<ark_bn254::FqParameters>;
     let start = 0;
     let end = 32;

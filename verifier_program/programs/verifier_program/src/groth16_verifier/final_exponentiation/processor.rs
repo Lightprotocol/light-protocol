@@ -1,20 +1,10 @@
-use solana_program::log::sol_log_compute_units;
-
 use solana_program::{msg, program_error::ProgramError};
 use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
 use crate::groth16_verifier::parsers::*;
-use crate::groth16_verifier::parse_f_from_bytes;
-use crate::groth16_verifier::FinalExponentiationState;
 use crate::groth16_verifier::prepare_inputs::state::VerifierState;
 use std::cell::RefMut;
 use ark_ec;
-use ark_ff::{
-    fields::models::{
-        cubic_extension::CubicExtParameters,
-        quadratic_extension::{QuadExtField, QuadExtParameters},
-    },
-    Field,
-};
+use ark_ff::Field;
 use ark_std::Zero;
 pub const NAF_VEC: [i64; 63] = [
     1, 0, 0, 0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0, -1, 0, 0, 1, 0, 1, 0, -1, 0, -1, 0, -1, 0, 1, 0,
@@ -563,37 +553,17 @@ pub fn cyclotomic_exp(
 #[cfg(test)]
 mod tests {
      use super::*;
-    // use crate::groth16_verifier::{
-    //     final_exponentiation::{ranges::*, state::FinalExponentiationState},
-    //     parsers::{
-    //         parse_cubic_from_bytes_sub, parse_cubic_to_bytes_sub, parse_f_from_bytes, parse_f_to_bytes,
-    //         parse_fp256_from_bytes, parse_fp256_to_bytes, parse_quad_from_bytes, parse_quad_to_bytes,
-    //     },
-    // };
+
+
     use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
-    use crate::groth16_verifier::parsers::*;
-    use crate::groth16_verifier::final_exponentiation::processor::*;
-    use crate::groth16_verifier::final_exponentiation::state::*;
     use crate::groth16_verifier::prepare_inputs::state::VerifierState;
     use solana_program::pubkey::Pubkey;
     use crate::groth16_verifier::parse_f_from_bytes;
-    use ark_ec;
-    use ark_ff::{
-        fields::models::{
-            cubic_extension::CubicExtParameters,
-            quadratic_extension::{QuadExtField, QuadExtParameters},
-        },
-        Field,
-    };
-    use ark_std::Zero;
-    pub const NAF_VEC: [i64; 63] = [
-        1, 0, 0, 0, 1, 0, 1, 0, 0, -1, 0, 1, 0, 1, 0, -1, 0, 0, 1, 0, 1, 0, -1, 0, -1, 0, -1, 0, 1, 0,
-        0, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0, -1, 0, 1, 0, 0, 1, 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 0, -1, 0, 0,
-        0, 1,
-    ];
+
     impl VerifierState {
         pub fn new(f: [u8;384]) ->  VerifierState {
             VerifierState {
+                current_instruction_index: 0,
                 signing_address: Pubkey::new(&[0;32]),
                 f_bytes:  f,
                 f_bytes1: [0;384],
@@ -663,7 +633,7 @@ mod tests {
                 outer_second_coeff:        0,
                 inner_first_coeff:         0,
 
-                number_of_steps:           0,
+                compute_max_miller_loop:           0,
                 outer_first_loop:          0,
                 outer_second_loop:         0,
                 outer_third_loop:          0,
@@ -693,11 +663,11 @@ mod tests {
         let mut state = VerifierState::new(miller_loop_bytes);
         let f = parse_f_from_bytes(&miller_loop_bytes.to_vec());
         let res_origin = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&f).unwrap();
-        let mut res_custom;
+
         let mut compute_state = FinalExponentiationComputeState::new(&state);
 
-        for i in 0..600 {
-            res_custom = compute_state.final_exponentiation(&mut state);
+        for _ in 0..600 {
+            compute_state.final_exponentiation(&mut state).unwrap();
             // assert!(state.current_compute <= state.max_compute);
             state.current_compute = 0;
             compute_state.pack(&mut state);
@@ -710,16 +680,6 @@ mod tests {
 
     }
 
-    pub fn exp_by_neg_x(
-        mut f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    ) -> <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk {
-        f = f.cyclotomic_exp(&<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X);
-        if !<ark_bn254::Parameters as ark_ec::bn::BnParameters>::X_IS_NEGATIVE {
-            println!("conjugate");
-            f.conjugate();
-        }
-        f
-    }
 
     #[test]
     fn test_cyclotomic_exp() {
@@ -729,7 +689,7 @@ mod tests {
         let mut state = VerifierState::new(miller_loop_bytes);
         let mut compute_state = FinalExponentiationComputeState::new(&state);
 
-        for i in 0..150 {
+        for _ in 0..150 {
             cyclotomic_exp(&f, &mut compute_state.f1,&mut state);
             state.fe_instruction_index += state.current_compute;
             state.current_compute = 0;

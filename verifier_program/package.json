@@ -6,7 +6,16 @@
     "dependencies": {
         "@project-serum/anchor": "^0.24.1",
         "@solana/web3.js": "^1.41.4",
-        "fs": "^0.0.1-security"
+        "circomlib": "^2.0.3",
+        "dotenv": "^16.0.1",
+        "eth-sig-util": "^3.0.1",
+        "ethers": "^5.6.8",
+        "ffjavascript": "^0.2.54",
+        "fs": "^0.0.1-security",
+        "n64": "^0.2.10",
+        "snarkjs": "^0.4.19",
+        "tweetnacl": "^1.0.3",
+        "tweetnacl-util": "^0.15.1"
     },
     "devDependencies": {
         "@types/bn.js": "^5.1.0",
