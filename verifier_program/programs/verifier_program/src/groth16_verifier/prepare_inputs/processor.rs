@@ -1,10 +1,9 @@
 use crate::groth16_verifier::prepare_inputs::{
-    instructions::*, ranges::*, state::VerifierState,
+    instructions::*, state::VerifierState,
 };
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
-use ark_ec::bn::BnParameters;
 
 const ROUNDS: usize = 4 * 13;
 const FILLING_ROUNDS: usize = 256 % ROUNDS;
