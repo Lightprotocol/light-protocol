@@ -8,10 +8,10 @@ use crate::utils::config::{
 use crate::utils::create_pda::create_and_check_pda;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
-use borsh::BorshSerialize;
-use solana_program::program::invoke_signed;
-use solana_program::system_instruction;
-use solana_program::{
+
+use anchor_lang::solana_program::{
+    system_instruction,
+    program::invoke_signed,
     account_info::{next_account_info, AccountInfo},
     msg,
     program_error::ProgramError,

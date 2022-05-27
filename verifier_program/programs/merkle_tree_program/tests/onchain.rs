@@ -13,14 +13,12 @@ use light_protocol_program::utils::config;
 use light_protocol_program::{
     process_instruction,
     state::MerkleTreeTmpPda,
-    utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, MERKLE_TREE_TMP_PDA_SIZE, AUTHORITY_SEED},
+    utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, MERKLE_TREE_TMP_PDA_SIZE},
     IX_ORDER,
-    authority_config::state::AuthorityConfig,
 };
 use serde_json::Result;
 use solana_program::program_pack::Pack;
 use solana_program::sysvar::rent::Rent;
-use solana_program::bpf_loader_upgradeable::UpgradeableLoaderState;
 use solana_program_test::ProgramTestContext;
 use std::convert::TryInto;
 use std::fs::File;
@@ -639,109 +637,4 @@ async fn sol_transfer_should_succeed() {
     println!("merkle_tree_data: {:?}", merkle_tree_data);
     assert_eq!(merkle_tree_data.lamports, merkle_tree_data_prior.lamports - amount, "Withdrawal failed.");
 
-}
-
-pub async fn create_and_start_program_authority_config_onchain_test(
-    authority_config_pubkey: &Pubkey,
-    program_id: &Pubkey,
-    signer_pubkey: &Pubkey,
-) -> ProgramTestContext {
-    let mut program_test = ProgramTest::new(
-        "light_protocol_program",
-        *program_id,
-        processor!(process_instruction),
-    );
-    let authority_config_account = Account::new(
-        10000000000,
-        33,
-        &program_id,
-    );
-
-    program_test.add_account(*authority_config_pubkey, authority_config_account);
-
-    let mut program_context = program_test.start_with_context().await;
-    let mut transaction = solana_sdk::system_transaction::transfer(
-        &program_context.payer,
-        &signer_pubkey,
-        10000000000000,
-        program_context.last_blockhash,
-    );
-    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
-    let _res_request = program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await;
-
-    program_context
-}
-
-#[tokio::test]
-async fn create_authority_config() {
-    let amount = 100_000_000;
-    let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
-
-    let signer_keypair = solana_sdk::signer::keypair::Keypair::new();
-    let signer_pubkey = signer_keypair.pubkey();
-
-    let authority_config_key = Pubkey::find_program_address(
-        &[&program_id.to_bytes(), &AUTHORITY_SEED[..]],
-        &program_id,
-    )
-    .0;
-
-    let mut program_context =
-        create_and_start_program_authority_config_onchain_test(&authority_config_key, &program_id, &signer_pubkey).await;
-
-    let program_account = program_context
-        .banks_client
-        .get_account(program_id)
-        .await
-        .expect("get_account")
-        .unwrap();
-
-    let program_state: UpgradeableLoaderState = bincode::deserialize(&program_account.data.clone()).unwrap();
-    let mut program_data_key = solana_sdk::signer::keypair::Keypair::new().pubkey();
-    match program_state {
-        UpgradeableLoaderState::Program {
-            programdata_address
-        } => {
-            program_data_key = programdata_address
-        }
-        _ => {
-            assert!(false, "Program Account doesn't contain exact data type");
-        }
-    }
-    let mut transaction = Transaction::new_with_payer(
-        &[Instruction::new_with_bincode(
-            program_id,
-            &[vec![5u8, 0u8]].concat(),
-            vec![
-                AccountMeta::new(signer_keypair.pubkey(), true),
-                AccountMeta::new(authority_config_key, false),
-                AccountMeta::new_readonly(program_id, false),
-                AccountMeta::new_readonly(program_data_key, false),
-                AccountMeta::new_readonly(solana_program::system_program::id(), false),
-                AccountMeta::new_readonly(sysvar::rent::id(), false),
-            ],
-        )],
-        Some(&signer_keypair.pubkey()),
-    );
-    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
-
-    program_context
-        .banks_client
-        .process_transaction(transaction)
-        .await
-        .unwrap();
-
-    let authority_config_account = program_context
-        .banks_client
-        .get_account(authority_config_key)
-        .await
-        .expect("get_account")
-        .unwrap();
-    println!("authority_config: {:?}", authority_config_key);
-    let authority_config_data =
-        AuthorityConfig::unpack(&authority_config_account.data.clone()).unwrap();
-    assert_eq!(authority_config_data.authority_key, program_id, "Creating authority config failed.");
 }

@@ -7,7 +7,8 @@ use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::MerkleTreeTmpPda;
 use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::utils::create_pda::create_and_check_pda;
-use solana_program::{
+
+use anchor_lang::solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
     program_error::ProgramError,

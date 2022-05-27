@@ -8,10 +8,10 @@ use crate::utils::config::{
 use crate::utils::create_pda::create_and_check_pda;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::{biginteger::BigInteger256, bytes::FromBytes, fields::FpParameters, BigInteger};
-use borsh::BorshSerialize;
-use solana_program::program::invoke_signed;
-use solana_program::system_instruction;
-use solana_program::{
+
+use anchor_lang::solana_program::{
+    system_instruction,
+    program::invoke_signed,
     account_info::{next_account_info, AccountInfo},
     msg,
     program_error::ProgramError,
@@ -155,7 +155,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     )?;
     msg!("MerkleTreeTmpStorageAccInputData done");
 
-    create_and_check_pda(
+    /*create_and_check_pda(
         program_id,
         signer_account,
         merkle_tree_tmp_pda,
@@ -167,7 +167,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         0,                          //lamports
         true,                       //rent_exempt
     )?;
-    msg!("created_pda");
+    msg!("created_pda");*/
     merkle_tree_pda.try_initialize(
         &merkle_tree_tmp_pda
     )

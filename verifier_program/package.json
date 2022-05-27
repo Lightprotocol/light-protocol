@@ -6,6 +6,7 @@
     "dependencies": {
         "@darjusch/light-protocol-sdk": "^1.0.27",
         "@project-serum/anchor": "^0.24.1",
+        "@solana/spl-token": "^0.2.0",
         "@solana/web3.js": "^1.41.4",
         "circomlib": "^0.5.5",
         "dotenv": "^16.0.1",
