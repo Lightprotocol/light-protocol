@@ -76,7 +76,7 @@ describe("Merkle Tree Program", () => {
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
     program.programId
   );
-  const [MERKLE_TREE_TMP_STORAGE_KEY] = PublicKey.findProgramAddressSync(
+  const [MERKLE_TREE_TMP_STORAGE_KEY, bump] = PublicKey.findProgramAddressSync(
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
     program.programId
   );
@@ -120,11 +120,9 @@ describe("Merkle Tree Program", () => {
     ])
     .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
     .rpc();
-    console.log("Your transaction signature", tx);
   });
 
   it("Init Merkle Tree Storage", async () => {
-    console.log(IX_DATA);
     const tx = await program.methods.initializeTmpMerkleTree(Buffer.from(IX_DATA)).accounts({
       authority: ADMIN_AUTH_KEY,
       verifierTmp: VERIFIER_TMP_STORAGE_KEY,

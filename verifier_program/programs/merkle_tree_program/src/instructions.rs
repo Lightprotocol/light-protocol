@@ -155,7 +155,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     )?;
     msg!("MerkleTreeTmpStorageAccInputData done");
 
-    create_and_check_pda(
+    /*create_and_check_pda(
         program_id,
         signer_account,
         merkle_tree_tmp_pda,
@@ -167,7 +167,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         0,                          //lamports
         true,                       //rent_exempt
     )?;
-    msg!("created_pda");
+    msg!("created_pda");*/
     merkle_tree_pda.try_initialize(
         &merkle_tree_tmp_pda
     )
