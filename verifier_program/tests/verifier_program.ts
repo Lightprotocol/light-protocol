@@ -6,10 +6,17 @@ import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pub
 import fs from 'fs';
 const solana = require("@solana/web3.js");
 
-const PREPARED_INPUTS_TX_COUNT = 35
+const PREPARED_INPUTS_TX_COUNT = 36
 const MILLER_LOOP_TX_COUNT = 40
 const FINAL_EXPONENTIATION_TX_COUNT = 17
 const MERKLE_TREE_UPDATE_TX_COUNT = 0
+
+//
+// const Utxo = require("./utils/utxo");
+// const prepareTransaction = require("./utils/prepareTransaction");
+
+
+
 
 const newAccountWithLamports = async (connection, lamports = 1e10) => {
   const account = new anchor.web3.Account()
@@ -172,7 +179,8 @@ describe("verifier_program", () => {
     // console.log(userAccountInfo.data.slice(0,32))
   });
 */
-  it("Prepared inputs", async () => {
+
+  it("Groth16 verification hardcoded inputs should succeed", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
@@ -215,8 +223,7 @@ describe("verifier_program", () => {
 
       checkPreparedInputsAccountCreated({connection:provider.connection, pda, ix_data})
       // prepare inputs tx: 34
-      await executeXTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT +1,userAccount,pda, program})
-
+      await executeXTransactions({number_of_transactions: PREPARED_INPUTS_TX_COUNT,userAccount,pda, program})
 
       await executeXTransactions({number_of_transactions: MILLER_LOOP_TX_COUNT,userAccount,pda, program})
       await checkMillerLoopSuccess({connection:provider.connection, pda})
@@ -226,6 +233,42 @@ describe("verifier_program", () => {
 
   });
 
+
+  it("Dynamic Shielded transaction", async () => {
+      // let merkle_tree = new MerkleTree(MERKLE_TREE_HEIGHT, leaves, {
+      //   hashFunction: poseidonHash2,
+      // });
+
+      // Alice deposits into pool
+      // let aliceDepositUtxo = new Utxo({
+      //   amount: 2e9,
+      // });
+
+      // await transaction({
+      //   action: "deposit",
+      //   outputs: [aliceDepositUtxo],
+      //   connection,
+      //   pubkey: publicKey,
+      //   sendTransaction,
+      //   account: account,
+      //   nextIndex: nextIndex,
+      //   privkey: privkey,
+      // });
+      // const { args, extAmountBn, extData } = await prepareTransaction({
+      //   connection: connection,
+      //   outputs: [aliceDepositUtxo],
+      //   inputs: [],
+      //   fee: 0,
+      //   recipient: 0,
+      //   relayer: 0,
+      //   action: "deposit",
+      // });
+
+
+
+
+
+  });
   async function executeXTransactions({number_of_transactions,userAccount,pda, program}) {
     let arr = []
     console.log(`sending ${number_of_transactions} transactions`)
@@ -246,9 +289,6 @@ describe("verifier_program", () => {
         arr.push({tx:tx1, signers: [userAccount]})
 
       }
-      //   console.log(program.provider)
-      // await promise.all()
-      // await provider.sendAll(arr);
       await Promise.all(arr.map(async (tx, index) => {
       await provider.sendAndConfirm(tx.tx, tx.signers);
       }));

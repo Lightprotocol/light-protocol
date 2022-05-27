@@ -1,7 +1,5 @@
-use anchor_lang::solana_program::system_program;
 use anchor_lang::prelude::*;
 
-use ark_ec::bn::BnParameters;
 
 
 #[account(zero_copy)]
@@ -63,7 +61,7 @@ pub struct VerifierState {
 
     pub f_bytes:  [u8;384], // results miller_loop
 
-    pub number_of_steps:           u64,
+    pub compute_max_miller_loop:           u64,
     pub outer_first_loop:          u64,
     pub outer_second_loop:         u64,
     pub outer_third_loop:          u64,

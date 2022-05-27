@@ -8,18 +8,16 @@ use anchor_lang::solana_program::system_program;
 use groth16_verifier::prepare_inputs::*;
 use groth16_verifier::miller_loop::*;
 use crate::groth16_verifier::final_exponentiation_process_instruction;
-use crate::groth16_verifier::FinalExponentiationState;
 
 use ark_ec::bn::g2::G2HomProjective;
 use crate::groth16_verifier::parse_r_to_bytes;
 use crate::groth16_verifier::parse_proof_b_from_bytes;
 use ark_ff::Fp2;
 use ark_std::One;
-use crate::groth16_verifier::FinalExponentiationComputeState;
 use crate::groth16_verifier::parsers::*;
 
 use anchor_lang::prelude::*;
-use solana_program::log::sol_log_compute_units;
+
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -88,7 +86,7 @@ pub mod verifier_program {
          tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
          tmp_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
          tmp_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         tmp_account.number_of_steps= 1_350_000; // 1_250_000 compute units for core computation
+         tmp_account.compute_max_miller_loop= 1_350_000; // 1_250_000 compute units for core computation
 
          tmp_account.f_bytes[0] = 1;
          let proof_b = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
@@ -110,7 +108,7 @@ pub mod verifier_program {
          // miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
          // miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
          // miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         // miller_loop_account.number_of_steps= 250_000; // 1_250_000 compute units for core computation
+         // miller_loop_account.compute_max_miller_loop= 250_000; // 1_250_000 compute units for core computation
          // let mut tmp_account = MillerLoopState::new(
          //     ix_data[224..288].try_into().unwrap(),
          //     ix_data[288..416].try_into().unwrap(),
@@ -179,7 +177,7 @@ pub mod verifier_program {
                  miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
          miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
          miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         miller_loop_account.number_of_steps= 1_350_000; // 1_250_000 compute units for core computation
+         miller_loop_account.compute_max_miller_loop= 1_350_000; // 1_250_000 compute units for core computation
 
          miller_loop_account.f_bytes[0] = 1;
          let proof_b = parse_proof_b_from_bytes(&miller_loop_account.proof_b_bytes.to_vec());
@@ -295,26 +293,6 @@ pub struct CreateMillerLoopState<'info> {
     pub system_program: AccountInfo<'info>,
 }
 
-#[derive(Accounts)]
-pub struct CreateFinalExponentiationState<'info> {
-    #[account(init, seeds = [b"final_exponentiation", signing_address.key().as_ref()], bump, payer=signing_address, space= 3048 as usize)]
-    pub final_exponentiation_state: AccountLoader<'info, FinalExponentiationState>,
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    #[account(address = system_program::ID)]
-        /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct ComputeFinalExponentiation<'info> {
-    #[account(mut)]
-    pub final_exponentiation_state: AccountLoader<'info, FinalExponentiationState>,
-    pub signing_address: Signer<'info>,
-}
-
-
-
 
 #[error_code]
 pub enum ErrorCode {
@@ -335,44 +313,4 @@ pub const IX_ORDER: [u8; 37] = [
     57, 57, 57, 57, 67,
     58, 58, 58, 58, 68,
     11//miller loop
-    /*0, 1, 2, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
-    4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8,
-    4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,
-    3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5,
-    6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
-    4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3,
-    7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6,
-    8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5,
-    6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4,
-    5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7,
-    4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3,
-    7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 9, 4, 5, 6, 3, 7, 4, 5, 6,
-    3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5, 6, 8, 4, 5, 6, 3, 7, 4, 5, 6, 3, 7, 4, 5,
-    6, 3, 7, 4, 5, 6, 10, 4, 5, 6, 11, 4, 5, 6, //final exp
-    0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 10, 11, 14, 15, 15, 15, 15, 16, 17, 15, 15, 16,
-    17, 15, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 15, 16, 17, 15,
-    15, 16, 17, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15, 15, 15, 16,
-    17, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 18, 19, 15, 15, 16, 17, 15, 15,
-    15, 16, 17, 15, 15, 15, 15, 15, 16, 17, 15, 15, 16, 17, 15, 15, 15, 15, 15, 18, 19, 15, 15, 15,
-    15, 16, 17, 20, 21, 22, 23, 24, 25, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 28, 29, 25,
-    25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29,
-    25, 25, 28, 29, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 25, 26, 27, 25, 25, 25, 26, 27, 25,
-    25, 26, 27, 25, 25, 26, 27, 25, 25, 28, 29, 25, 25, 26, 27, 25, 25, 25, 26, 27, 25, 25, 25, 25,
-    25, 26, 27, 25, 25, 26, 27, 25, 25, 25, 25, 25, 28, 29, 25, 25, 25, 25, 26, 27, 30, 31, 32, 32,
-    32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32, 35, 36, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35,
-    36, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32, 35, 36, 32, 32,
-    33, 34, 32, 32, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 35,
-    36, 32, 32, 33, 34, 32, 32, 32, 33, 34, 32, 32, 32, 32, 32, 33, 34, 32, 32, 33, 34, 32, 32, 32,
-    32, 32, 35, 36, 32, 32, 32, 32, 33, 34, 37, 38, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50,
-    51, 38, 39, 52, 53, 54, 55, 42, 43, //merkle tree insertion height 18
-    34, 14, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1,
-    1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1,
-    1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1,
-    1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1,
-    1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0,
-    1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1,
-    1, 1, 1, 1, 2, 3, 25, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3,
-    //perform last checks and transfer requested amount
-    241,*/
 ];

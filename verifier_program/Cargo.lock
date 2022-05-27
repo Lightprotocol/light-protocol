@@ -255,6 +255,7 @@ dependencies = [
  "blake2",
  "derivative",
  "digest 0.9.0",
+ "rayon",
  "tracing",
 ]
 
@@ -269,6 +270,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "num-traits",
+ "rayon",
  "zeroize",
 ]
 
@@ -312,6 +314,7 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "paste",
+ "rayon",
  "rustc_version 0.3.3",
  "zeroize",
 ]
@@ -351,6 +354,7 @@ dependencies = [
  "ark-relations",
  "ark-serialize",
  "ark-std",
+ "rayon",
 ]
 
 [[package]]
@@ -399,6 +403,7 @@ dependencies = [
  "ark-std",
  "derivative",
  "hashbrown",
+ "rayon",
 ]
 
 [[package]]
@@ -486,6 +491,7 @@ checksum = "1df2c09229cbc5a028b1d70e00fdb2acee28b1055dfb5ca73eea49c5a25c4e7c"
 dependencies = [
  "num-traits",
  "rand 0.8.5",
+ "rayon",
 ]
 
 [[package]]
@@ -3555,6 +3561,7 @@ dependencies = [
  "ark-ec",
  "ark-ed-on-bn254",
  "ark-ff",
+ "ark-groth16",
  "ark-relations",
  "ark-std",
  "arkworks-gadgets",
@@ -3562,6 +3569,7 @@ dependencies = [
  "borsh",
  "byteorder",
  "getrandom 0.2.6",
+ "serde_json",
  "solana-program",
  "solana-security-txt",
  "spl-token",
