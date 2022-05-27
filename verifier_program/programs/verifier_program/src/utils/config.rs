@@ -87,9 +87,10 @@ const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
 pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
     [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
 
+#[constant]
 pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
     2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,
-    253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
+    253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81
 ];
 
 // account bytes
