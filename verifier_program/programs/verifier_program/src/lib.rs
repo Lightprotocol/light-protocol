@@ -82,7 +82,6 @@ pub mod verifier_program {
          tmp_account.computing_prepared_inputs = true;
 
          // miller loop
-
          tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
          tmp_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
          tmp_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
@@ -96,25 +95,6 @@ pub mod verifier_program {
              y: proof_b.y,
              z: Fp2::one(),
          });
-
-
-         // create and initialize
-         // let miller_loop_account= &mut ctx.accounts.miller_loop_state.load_init()?;
-         // miller_loop_account.signing_address = ctx.accounts.signing_address.key();
-         //
-         // // miller_loop_account.signing_address = ctx.accounts.signing_address.key();
-         // miller_loop_account.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-         //
-         // miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
-         // miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
-         // miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         // miller_loop_account.compute_max_miller_loop= 250_000; // 1_250_000 compute units for core computation
-         // let mut tmp_account = MillerLoopState::new(
-         //     ix_data[224..288].try_into().unwrap(),
-         //     ix_data[288..416].try_into().unwrap(),
-         //     ix_data[416..480].try_into().unwrap(),
-         //     prepared_inputs_bytes.try_into().unwrap(),
-         //     1_250_000);
          msg!("finished");
          Ok(())
      }
@@ -129,11 +109,8 @@ pub mod verifier_program {
             )?;
             tmp_account.current_index +=1;
         } else if tmp_account.computing_miller_loop {
+            tmp_account.max_compute = 1_200_000;
 
-
-            msg!("Computing miller_loop");
-            let prepared_inputs_expected_res = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-            assert_eq!(tmp_account.x_1_range.to_vec(),prepared_inputs_expected_res.to_vec(), "prepared inputs failed");
             msg!("computing miller_loop {}", tmp_account.current_instruction_index);
             miller_loop_process_instruction(tmp_account);
 
@@ -141,6 +118,7 @@ pub mod verifier_program {
             if !tmp_account.computing_final_exponentiation {
                 msg!("initializing for final_exponentiation");
                 tmp_account.computing_final_exponentiation = true;
+                msg!("initializing for tmp_account.f_bytes{:?}", tmp_account.f_bytes);
                 let mut f1 = parse_f_from_bytes(&tmp_account.f_bytes.to_vec());
                 f1.conjugate();
                tmp_account.f_bytes1 = parse_f_to_bytes(f1);
@@ -150,7 +128,7 @@ pub mod verifier_program {
                tmp_account.f_bytes5[0] = 1;
                tmp_account.i_bytes[0] = 1;
                tmp_account.outer_loop = 1;
-               tmp_account.max_compute = 1_200_000;
+               tmp_account.max_compute = 1_100_000;
            }
 
                msg!("computing final_exponentiation {}", tmp_account.current_instruction_index);
@@ -164,86 +142,6 @@ pub mod verifier_program {
          Ok(())
      }
 
-     /*
-     pub fn create_miller_loop_account(ctx: Context<CreateMillerLoopState>,
-            proof:        [u8;256],
-            // prepared_inputs: [u8;64],
-     ) -> Result<()> {
-         msg!("initializing miller loop account");
-         // create and initialize
-         let miller_loop_account= &mut ctx.accounts.miller_loop_state.load_init()?;
-         miller_loop_account.signing_address = ctx.accounts.signing_address.key();
-         miller_loop_account.prepared_inputs_bytes = [220, 210, 225, 96, 65, 152, 212, 86, 43, 63, 222, 140, 149, 68, 69, 209, 141, 89, 0, 170, 89, 149, 222, 17, 80, 181, 170, 29, 142, 207, 12, 12, 195, 251, 228, 187, 136, 200, 161, 205, 225, 188, 70, 173, 169, 183, 19, 63, 115, 136, 119, 101, 133, 250, 123, 233, 146, 120, 213, 224, 177, 91, 158, 15];
-                 miller_loop_account.proof_a_bytes = proof[0..64].try_into().unwrap();
-         miller_loop_account.proof_b_bytes = proof[64..64+128].try_into().unwrap();
-         miller_loop_account.proof_c_bytes = proof[64+128..256].try_into().unwrap();
-         miller_loop_account.compute_max_miller_loop= 1_350_000; // 1_250_000 compute units for core computation
-
-         miller_loop_account.f_bytes[0] = 1;
-         let proof_b = parse_proof_b_from_bytes(&miller_loop_account.proof_b_bytes.to_vec());
-
-         miller_loop_account.r_bytes = parse_r_to_bytes(G2HomProjective {
-             x: proof_b.x,
-             y: proof_b.y,
-             z: Fp2::one(),
-         });
-
-         // let mut tmp_account = MillerLoopState::new(
-         //     ix_data[224..288].try_into().unwrap(),
-         //     ix_data[288..416].try_into().unwrap(),
-         //     ix_data[416..480].try_into().unwrap(),
-         //     prepared_inputs_bytes.try_into().unwrap(),
-         //     1_250_000);
-         msg!("finished");
-         Ok(())
-     }
-
-
-     pub fn create_final_exponentiation_account(ctx: Context<CreateFinalExponentiationState>,
-            // miller_loop_bytes:  [u8;384],
-            // prepared_inputs: [u8;64],
-     ) -> Result<()> {
-         msg!("initializing miller loop account");
-         // create and initialize
-         let final_exponentiation_account= &mut ctx.accounts.final_exponentiation_state.load_init()?;
-         final_exponentiation_account.signing_address = ctx.accounts.signing_address.key();
-         let miller_loop_bytes = [211, 231, 132, 182, 211, 183, 85, 93, 214, 230, 240, 197, 144, 18, 159, 29, 215, 214, 234, 67, 95, 178, 102, 151, 20, 106, 95, 248, 19, 185, 138, 46, 143, 162, 146, 137, 88, 99, 10, 48, 115, 148, 32, 133, 73, 162, 157, 239, 70, 74, 182, 191, 122, 199, 89, 79, 122, 26, 156, 169, 142, 101, 134, 27, 116, 130, 173, 228, 156, 165, 45, 207, 206, 200, 148, 179, 174, 210, 104, 75, 22, 219, 230, 1, 172, 193, 58, 203, 119, 122, 244, 189, 144, 97, 253, 21, 24, 17, 92, 102, 160, 162, 55, 203, 215, 162, 166, 57, 183, 163, 110, 19, 84, 224, 156, 220, 31, 246, 113, 204, 202, 78, 139, 231, 119, 145, 166, 15, 254, 99, 20, 11, 81, 108, 205, 133, 90, 159, 19, 1, 34, 23, 154, 191, 145, 244, 200, 23, 134, 68, 115, 80, 204, 3, 103, 147, 138, 46, 209, 7, 193, 175, 158, 214, 181, 81, 199, 155, 0, 116, 245, 216, 123, 103, 158, 94, 223, 110, 67, 229, 241, 109, 206, 202, 182, 0, 198, 163, 38, 130, 46, 42, 171, 209, 162, 32, 94, 175, 225, 106, 236, 15, 175, 222, 148, 48, 109, 157, 249, 181, 178, 110, 7, 67, 62, 108, 161, 22, 95, 164, 182, 209, 239, 16, 20, 128, 5, 48, 243, 240, 178, 241, 163, 223, 28, 209, 150, 111, 200, 93, 251, 126, 27, 14, 104, 15, 53, 159, 130, 76, 192, 229, 243, 32, 108, 42, 0, 125, 241, 245, 15, 92, 208, 73, 181, 236, 35, 87, 26, 191, 179, 217, 219, 68, 92, 3, 192, 99, 197, 100, 25, 51, 99, 77, 230, 151, 200, 46, 246, 151, 83, 228, 105, 44, 4, 147, 182, 120, 15, 33, 135, 118, 63, 198, 244, 162, 237, 56, 207, 180, 150, 87, 97, 43, 82, 147, 14, 199, 189, 17, 217, 254, 191, 173, 73, 110, 84, 4, 131, 245, 240, 198, 22, 69, 2, 114, 178, 112, 239, 3, 86, 132, 221, 38, 217, 88, 59, 174, 221, 178, 108, 37, 46, 60, 51, 59, 68, 40, 207, 120, 174, 184, 227, 5, 91, 175, 145, 131, 36, 165, 197, 98, 135, 77, 53, 152, 100, 65, 101, 253, 2, 182, 145, 39];
-
-         let f = parse_f_from_bytes(&miller_loop_bytes.to_vec());
-         let mut f1 = f.clone();
-         f1.conjugate();
-
-        final_exponentiation_account.f = miller_loop_bytes;
-
-        final_exponentiation_account.f1 = parse_f_to_bytes(f1);
-        final_exponentiation_account.f2[0] = 1;
-        final_exponentiation_account.f3[0] = 1;
-        final_exponentiation_account.f4[0] = 1;
-        final_exponentiation_account.f5[0] = 1;
-        final_exponentiation_account.i[0] = 1;
-
-        final_exponentiation_account.outer_loop = 1;
-        final_exponentiation_account.max_compute = 1_200_000;
-
-         // let mut tmp_account = MillerLoopState::new(
-         //     ix_data[224..288].try_into().unwrap(),
-         //     ix_data[288..416].try_into().unwrap(),
-         //     ix_data[416..480].try_into().unwrap(),
-         //     prepared_inputs_bytes.try_into().unwrap(),
-         //     1_250_000);
-         msg!("finished");
-         Ok(())
-     }
-
-     pub fn compute_final_exponetiation(ctx: Context<ComputeFinalExponentiation>, bump:u64)-> Result<()> {
-
-         let final_exponentiation_account= &mut ctx.accounts.final_exponentiation_state.load_mut()?;
-         msg!("computing final_exponentiation {}", final_exponentiation_account.current_instruction_index);
-         final_exponentiation_process_instruction(final_exponentiation_account);
-
-         Ok(())
-     }
-     */
 }
 
 
@@ -256,14 +154,6 @@ pub struct Compute<'info> {
     pub signing_address: Signer<'info>,
 }
 
-
-#[derive(Accounts)]
-pub struct ComputeMillerLoop<'info> {
-    #[account(mut)]
-    pub miller_loop_state: AccountLoader<'info, MillerLoopState>,
-    pub signing_address: Signer<'info>,
-}
-// signing_address.key().as_ref()
 #[derive(Accounts)]
 #[instruction(
     proof:[u8;256],
@@ -275,17 +165,6 @@ pub struct CreateInputsState<'info> {
     #[account(init, seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    #[account(address = system_program::ID)]
-        /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct CreateMillerLoopState<'info> {
-    #[account(init, seeds = [b"miller_loop", signing_address.key().as_ref()], bump, payer=signing_address, space= 3072 as usize)]
-    pub miller_loop_state: AccountLoader<'info, MillerLoopState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(address = system_program::ID)]

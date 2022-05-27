@@ -552,9 +552,7 @@ pub fn cyclotomic_exp(
 
 #[cfg(test)]
 mod tests {
-     use super::*;
-
-
+    use super::*;
     use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
     use crate::groth16_verifier::prepare_inputs::state::VerifierState;
     use solana_program::pubkey::Pubkey;
