@@ -1,13 +1,11 @@
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::QuadExtField;
+#[allow(unused_imports)]
 
+
+use ark_ff::QuadExtField;
 use ark_std::Zero;
 use ark_ec::models::bn::g2::{doubling_step, addition_step, mul_by_char};
-use ark_ff::Fp2;
-use ark_ec::bn::g2::G2HomProjective;
 use ark_ec::bn::BnParameters;
 use std::convert::TryInto;
-use ark_std::One;
 use ark_ff::Field;
 use solana_program::msg;
 use std::cell::RefMut;
@@ -16,10 +14,12 @@ use crate::groth16_verifier::miller_loop::{
 };
 use crate::groth16_verifier::parsers::*;
 use crate::utils::prepared_verifying_key::*;
+use crate::groth16_verifier::prepare_inputs::state::*;
+use ark_std::One;
 
 pub fn get_coeff(
         pair_index: u64,
-        tmp_account: &mut RefMut<'_, MillerLoopState>,
+        tmp_account: &mut RefMut<'_, VerifierState>,
         total_steps: &mut u64,
         tmp_account_compute: &mut MillerLoopStateCompute
     ) -> Option<(QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -29,6 +29,7 @@ pub fn get_coeff(
     match pair_index {
         0 => {
             //proof_b
+            msg!("getting proof_b coeff");
             get_b_coeffs(
                 total_steps,
                 tmp_account,
@@ -55,7 +56,7 @@ pub fn get_coeff(
 
 pub fn get_b_coeffs(
     total_steps: &mut u64,
-    tmp_account: &mut RefMut<'_, MillerLoopState>,
+    tmp_account: &mut RefMut<'_, VerifierState>,
     tmp_account_compute: &mut MillerLoopStateCompute
 ) -> Option<(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -77,14 +78,6 @@ pub fn get_b_coeffs(
             // if q.is_zero() {
             //     return Err();
             // }
-            // TODO: init at account creation
-            // tmp_account_compute.r = G2HomProjective {
-            //     x: q.x,
-            //     y: q.y,
-            //     z: Fp2::one(),
-            // };
-
-            // tmp_account.negq = -q;
 
         for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(tmp_account.outer_first_loop_coeff as usize)).rev() {
         // let i = ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(*outer_first_loop as usize);
@@ -93,7 +86,7 @@ pub fn get_b_coeffs(
 
                 *total_steps+=140_000;
                 msg!("doubling_step");
-                if *total_steps >= tmp_account.number_of_steps  {
+                if *total_steps >= tmp_account.compute_max_miller_loop  {
                     return None;
                 } else {
                     tmp_account.inner_first_coeff = 1;
@@ -109,7 +102,7 @@ pub fn get_b_coeffs(
 
                     *total_steps+=200_000;
                     msg!("addition_step1");
-                    if *total_steps >= tmp_account.number_of_steps  {
+                    if *total_steps >= tmp_account.compute_max_miller_loop  {
                         return None;
                     } else {
                         tmp_account.inner_first_coeff =0;
@@ -123,7 +116,7 @@ pub fn get_b_coeffs(
 
                     *total_steps+=200_000;
                     msg!("addition_step-1");
-                    if *total_steps >= tmp_account.number_of_steps  {
+                    if *total_steps >= tmp_account.compute_max_miller_loop  {
                         return None;
                     } else {
                         tmp_account.inner_first_coeff =0;
@@ -144,10 +137,10 @@ pub fn get_b_coeffs(
         // }
 
 
-        if (tmp_account.outer_second_coeff == 0){
+        if tmp_account.outer_second_coeff == 0 {
             *total_steps+=200_000;
             msg!("mul_by_char + addition_step");
-            if *total_steps >= tmp_account.number_of_steps  {
+            if *total_steps >= tmp_account.compute_max_miller_loop  {
                 return None;
             }
             let q1 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()));
@@ -162,7 +155,7 @@ pub fn get_b_coeffs(
         }
         *total_steps+=200_000;
         msg!("mul_by_char + addition_step");
-        if *total_steps >= tmp_account.number_of_steps  {
+        if *total_steps >= tmp_account.compute_max_miller_loop  {
             return None;
         }
         let mut q2 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(&tmp_account.q1_bytes.to_vec()));
@@ -174,7 +167,7 @@ pub fn get_b_coeffs(
 }
 
 pub fn get_gamma_g2(
-    tmp_account: &mut MillerLoopState
+    tmp_account: &mut VerifierState
 ) ->(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -384,7 +377,7 @@ pub fn get_gamma_g2(
 }
 
 pub fn get_delta_g2(
-    tmp_account: &mut MillerLoopState
+    tmp_account: &mut VerifierState
 ) -> (
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,

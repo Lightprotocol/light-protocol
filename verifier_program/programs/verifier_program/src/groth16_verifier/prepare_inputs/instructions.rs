@@ -4,7 +4,7 @@ use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::{
     fields::{Field, PrimeField},
     BitIteratorBE, Fp256, One,
-    bytes::{FromBytes, ToBytes}
+    bytes::FromBytes
 
 };
 use ark_std::Zero;
@@ -14,7 +14,6 @@ use std::cell::RefMut;
 use crate::groth16_verifier::prepare_inputs::state::*;
 use crate::ErrorCode;
 
-use ark_ff::to_bytes;
 use ark_ff::BigInteger;
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
@@ -23,7 +22,7 @@ use ark_ff::BigInteger;
 // the loop behavior inside the library's implementation:
 // https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#31-33
 pub fn init_pairs_instruction<'info>(
-    tmp_account: &mut RefMut<'_, PrepareInputsState>
+    tmp_account: &mut RefMut<'_, VerifierState>
 ) -> Result<()> {
     // Parses vk_gamma_abc_g1 from hard-coded file.
     // Should have 8 items if 7 public inputs are passed in since [0] will be used to initialize g_ic.
@@ -359,10 +358,10 @@ mod tests {
             let test_g_ic_x = reference_g_ic.x.clone();
             let test_g_ic_y = reference_g_ic.y.clone();
             let test_g_ic_z = reference_g_ic.z.clone();
-            let mut account_g_ic_x_range = vec![0u8; 32];
-            let mut account_g_ic_y_range = vec![0u8; 32];
-            let mut account_g_ic_z_range = vec![0u8; 32];
-            let mut account_x_range = vec![0u8; 64];
+            let mut account_g_ic_x_range = [0u8; 32];
+            let mut account_g_ic_y_range = [0u8; 32];
+            let mut account_g_ic_z_range = [0u8; 32];
+            let mut account_x_range = [0u8; 64];
             parse_fp256_to_bytes(test_g_ic_x, &mut account_g_ic_x_range);
             parse_fp256_to_bytes(test_g_ic_y, &mut account_g_ic_y_range);
             parse_fp256_to_bytes(test_g_ic_z, &mut account_g_ic_z_range);
@@ -409,12 +408,12 @@ mod tests {
             let test_g_ic_z = reference_g_ic.z.clone();
 
             //simulating the onchain account
-            let mut account_res_x_range = vec![0u8; 32];
-            let mut account_res_y_range = vec![0u8; 32];
-            let mut account_res_z_range = vec![0u8; 32];
-            let mut account_g_ic_x_range = vec![0u8; 32];
-            let mut account_g_ic_y_range = vec![0u8; 32];
-            let mut account_g_ic_z_range = vec![0u8; 32];
+            let mut account_res_x_range = [0u8; 32];
+            let mut account_res_y_range = [0u8; 32];
+            let mut account_res_z_range = [0u8; 32];
+            let mut account_g_ic_x_range = [0u8; 32];
+            let mut account_g_ic_y_range = [0u8; 32];
+            let mut account_g_ic_z_range = [0u8; 32];
             parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
             parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
             parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
@@ -474,12 +473,12 @@ mod tests {
             let test_g_ic_z = test_g_ic.z.clone();
 
             //simulating the onchain account
-            let mut account_res_x_range = vec![0u8; 32];
-            let mut account_res_y_range = vec![0u8; 32];
-            let mut account_res_z_range = vec![0u8; 32];
-            let mut account_g_ic_x_range = vec![0u8; 32];
-            let mut account_g_ic_y_range = vec![0u8; 32];
-            let mut account_g_ic_z_range = vec![0u8; 32];
+            let mut account_res_x_range = [0u8; 32];
+            let mut account_res_y_range = [0u8; 32];
+            let mut account_res_z_range = [0u8; 32];
+            let mut account_g_ic_x_range = [0u8; 32];
+            let mut account_g_ic_y_range = [0u8; 32];
+            let mut account_g_ic_z_range = [0u8; 32];
             parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
             parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
             parse_fp256_to_bytes(test_res_z, &mut account_res_z_range);
@@ -536,11 +535,11 @@ mod tests {
             let test_x_range = reference_x_range.clone();
 
             //simulating the onchain account
-            let mut account_res_x_range = vec![0u8; 32];
-            let mut account_res_y_range = vec![0u8; 32];
-            let mut account_res_z_range = vec![0u8; 32];
-            let mut account_i_range = vec![0u8; 32];
-            let mut account_x_range = vec![0u8; 64];
+            let mut account_res_x_range = [0u8; 32];
+            let mut account_res_y_range = [0u8; 32];
+            let mut account_res_z_range = [0u8; 32];
+            let mut account_i_range = [0u8; 32];
+            let mut account_x_range = [0u8; 64];
 
             parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
             parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);
@@ -605,11 +604,11 @@ mod tests {
             let test_x_range = reference_x_range.clone();
 
             //simulating the onchain account
-            let mut account_res_x_range = vec![0u8; 32];
-            let mut account_res_y_range = vec![0u8; 32];
-            let mut account_res_z_range = vec![0u8; 32];
-            let mut account_i_range = vec![0u8; 32];
-            let mut account_x_range = vec![0u8; 64];
+            let mut account_res_x_range = [0u8; 32];
+            let mut account_res_y_range = [0u8; 32];
+            let mut account_res_z_range = [0u8; 32];
+            let mut account_i_range = [0u8; 32];
+            let mut account_x_range = [0u8; 64];
 
             parse_fp256_to_bytes(test_res_x, &mut account_res_x_range);
             parse_fp256_to_bytes(test_res_y, &mut account_res_y_range);

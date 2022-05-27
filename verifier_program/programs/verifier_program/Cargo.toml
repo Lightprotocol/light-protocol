@@ -40,3 +40,7 @@ ark-relations = { version = "^0.3.0", default-features = false  }
 
 #poseidon
 arkworks-gadgets = "0.3.14"
+
+[dev-dependencies]
+ark-groth16 ={ version = "^0.3.0", default-features = false, features = ["std"]}
+serde_json = "1.0.59"
