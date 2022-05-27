@@ -10,7 +10,7 @@ use anchor_lang::prelude::*;
 use std::convert::TryInto;
 
 #[allow(unused_variables)]
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct MerkleTree {
     pub is_initialized: bool,
     pub levels: usize,

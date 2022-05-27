@@ -21,12 +21,13 @@ pub mod constant;
 pub mod authority_config;
 
 use crate::utils::config;
-use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY, TREE_ROOT_SEED};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 pub use crate::constant::*;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 
 use crate::state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::state::MerkleTree;
 
 pub use authority_config::*;
 
@@ -35,8 +36,9 @@ pub mod merkle_tree_program {
     use super::*;
 
     pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
-        let merkle_tree_storage_acc = ctx.accounts.merkle_tree_storage.to_account_info();
+        let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
         let rent = Rent::get()?;
+
         if !rent.is_exempt(
             **merkle_tree_storage_acc.lamports.borrow(),
             merkle_tree_storage_acc.data.borrow().len(),
@@ -45,7 +47,7 @@ pub mod merkle_tree_program {
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
         let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(None, Some(&merkle_tree_storage_acc), *ctx.program_id)?;
+            MerkleTreeProcessor::new(None, Some(&merkle_tree_storage_acc), crate::ID)?;
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])?;
         Ok(())
@@ -130,9 +132,16 @@ pub struct InitializeNewMerkleTree<'info> {
     pub authority: Signer<'info>,
     pub rent: Sysvar<'info, Rent>,
 
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
-    pub merkle_tree_storage: AccountInfo<'info>,
+    /// CHECK: it should be unpacked internally
+    #[account(
+        mut,
+        // init,
+        // payer = authority,
+        // seeds = [TREE_ROOT_SEED.as_ref()],
+        // bump,
+        // space = MerkleTree::LEN,
+    )]
+    pub merkle_tree: AccountInfo<'info>,
 
 }
 
