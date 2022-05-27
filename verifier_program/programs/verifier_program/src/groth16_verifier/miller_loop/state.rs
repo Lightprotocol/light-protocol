@@ -1,12 +1,9 @@
+#[allow(unused_imports)]
 
 use crate::groth16_verifier::parsers::*;
-use ark_ff::Fp2;
-use ark_ec::bn::g2::G2HomProjective;
-use ark_std::One;
 use solana_program::msg;
 use ark_ff::QuadExtField;
 use std::cell::RefMut;
-use anchor_lang::solana_program::system_program;
 use anchor_lang::prelude::*;
 
 use crate::groth16_verifier::prepare_inputs::VerifierState;
@@ -103,7 +100,7 @@ pub struct MillerLoopState {
     // miller_loop
     pub f_bytes:  [u8;384],
 
-    pub number_of_steps:  u64,
+    pub compute_max_miller_loop:  u64,
     pub outer_first_loop: u64,
     pub outer_second_loop: u64,
     pub outer_third_loop: u64,
@@ -120,7 +117,7 @@ impl MillerLoopState {
         proof_b_bytes:        [u8;128], //ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
         proof_c_bytes:        [u8;64],
         prepared_inputs_bytes: [u8;64],
-        number_of_steps: u64,
+        compute_max_miller_loop: u64,
     )-> Self {
         let proof_b = parse_proof_b_from_bytes(&proof_b_bytes.to_vec());
         let mut f = [0u8;384];
@@ -142,7 +139,7 @@ impl MillerLoopState {
             outer_first_loop_coeff: 0,
             outer_second_coeff: 0,
             inner_first_coeff: 0,
-            number_of_steps:  number_of_steps,
+            compute_max_miller_loop:  compute_max_miller_loop,
             outer_first_loop: 0,
             outer_second_loop: 0,
             outer_third_loop: 0,
