@@ -21,7 +21,9 @@ pub mod constant;
 pub mod authority_config;
 
 use crate::utils::config;
-use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY, TREE_ROOT_SEED};
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
+use crate::config::{MERKLE_TREE_TMP_PDA_SIZE};
+use crate::config::{TREE_ROOT_SEED, STORAGE_SEED};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 pub use crate::constant::*;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
@@ -146,13 +148,20 @@ pub struct InitializeNewMerkleTree<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(data: Vec<u8>)]
 pub struct InitializeTmpMerkleTree<'info> {
-    #[account(address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
+    #[account(mut, address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub verifier_tmp: AccountInfo<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
+    #[account(
+        init,
+        payer = authority,
+        seeds = [&(data.as_slice()[0..32]), STORAGE_SEED.as_ref()],
+        bump,
+        space = MERKLE_TREE_TMP_PDA_SIZE,
+    )]
     pub merkle_tree_tmp: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
