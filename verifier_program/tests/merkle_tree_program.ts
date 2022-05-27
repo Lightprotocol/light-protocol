@@ -3,7 +3,6 @@ import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { MerkleTreeProgram, IDL } from "../target/types/merkle_tree_program";
 import {
-  Connection,
   Keypair,
   PublicKey,
   SystemProgram,
@@ -12,6 +11,10 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
+import { assert } from "chai";
+
+import { struct, u8, u16, blob } from 'buffer-layout';
+import { publicKey, u64, u128, } from '@project-serum/borsh';
 
 export const DEFAULT_PROGRAMS = {
   systemProgram: SystemProgram.programId,
@@ -26,6 +29,26 @@ const constants:any = {};
 const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
 const TYPE_SEED = {defined: "&[u8]"};
 const TYPE_INIT_DATA = { array: [ 'u8', 642 ] };
+const STORAGE_LAYOUT = struct([
+  u8('isInitialized'),
+  u8('accountType'),
+  u64('currentInstructionIndex'),
+  u8('foundRoot'),
+  publicKey('relayer'),
+  publicKey('merkleTreeKey'),
+  publicKey('verifierKey'),
+  publicKey('rootHash'),
+  blob(96, 'state'),
+  u64('currentRound'),
+  u64('currentRoundIndex'),
+  u64('currentIndex'),
+  u64('currentLevel'),
+  publicKey('currentRoundHash'),
+  publicKey('nodeLeft'),
+  publicKey('nodeRight'),
+  publicKey('leafLeft'),
+  publicKey('leafRight'),
+]);
 
 IDL.constants.map((item) => {
   if(_.isEqual(item.type, TYPE_SEED)) {
@@ -64,19 +87,19 @@ describe("Merkle Tree Program", () => {
   const NODE_RIGHT = Array(32).fill(2);
   const ROOT_HASH = Array(32).fill(0);
   const VERIFIER_KEY = Array(32).fill(0);
-  const IX_DATA = []
+  const INIT_STORAGE_DATA = []
         .concat(NODE_LEFT)
         .concat(NODE_RIGHT)
         .concat(ROOT_HASH)
         .concat([...ADMIN_AUTH_KEY.toBytes()])
         .concat([...MERKLE_TREE_KEY.toBytes().values()])
         .concat(VERIFIER_KEY)
-  const CONCAT_DATA = Array(9).fill(0).concat(IX_DATA);
+  const CONCAT_DATA = Array(9).fill(0).concat(INIT_STORAGE_DATA);
   const [VERIFIER_TMP_STORAGE_KEY] = PublicKey.findProgramAddressSync(
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
     program.programId
   );
-  const [MERKLE_TREE_TMP_STORAGE_KEY, bump] = PublicKey.findProgramAddressSync(
+  const [MERKLE_TREE_TMP_STORAGE_KEY] = PublicKey.findProgramAddressSync(
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
     program.programId
   );
@@ -101,6 +124,10 @@ describe("Merkle Tree Program", () => {
 
     const airdropTx = await connection.requestAirdrop(ADMIN_AUTH_KEY, 100_000_000_000_000);
     await connection.confirmTransaction(airdropTx);
+
+    const programInfo = await connection.getAccountInfo(program.programId);
+    console.log(programInfo.data);
+
   });
   it("Initialize Merkle Tree", async () => {
 
@@ -123,24 +150,52 @@ describe("Merkle Tree Program", () => {
   });
 
   it("Init Merkle Tree Storage", async () => {
-    const tx = await program.methods.initializeTmpMerkleTree(Buffer.from(IX_DATA)).accounts({
+    const tx = await program.methods.initializeTmpMerkleTree(Buffer.from(INIT_STORAGE_DATA)).accounts({
       authority: ADMIN_AUTH_KEY,
       verifierTmp: VERIFIER_TMP_STORAGE_KEY,
-      merkleTreeTmp: MERKLE_TREE_TMP_STORAGE_KEY,
+      merkleTreeTmpStorage: MERKLE_TREE_TMP_STORAGE_KEY,
       ...DEFAULT_PROGRAMS
     })
     .signers([ADMIN_AUTH_KEYPAIR])
     .rpc();
   });
-  return;
   it("Update Merkle Tree", async () => {
-    const tx = await program.methods.updateMerkleTree([]).accounts({
-      authority: ADMIN_AUTH_KEY,
-      merkleTree: MERKLE_TREE_KEY,
-      ...DEFAULT_PROGRAMS
-    })
-    .signers([ADMIN_AUTH_KEYPAIR])
-    .rpc();
+    let i = 0;
+    let cache_index = 3;
+    for(let ix_id = 0; ix_id < 38; ix_id ++) {
+      let ix_data = [2, i];
+      const transaction = new Transaction();
+      transaction.add(
+        await program.methods.updateMerkleTree(Buffer.from(ix_data)).accounts({
+          authority: ADMIN_AUTH_KEY,
+          merkleTreeTmpStorage: MERKLE_TREE_TMP_STORAGE_KEY,
+        }).remainingAccounts([{
+          isSigner: false,
+          isWritable: true,
+          pubkey: MERKLE_TREE_KEY,
+        }])
+        .instruction()
+      )
+      if (ix_id != 0) {
+        ix_data = [1, i];
+        const storageData = (await connection.getAccountInfo(MERKLE_TREE_TMP_STORAGE_KEY)).data;
+        const storage = STORAGE_LAYOUT.decode(storageData);
+        assert(+storage.currentInstructionIndex.toString() == cache_index, `CurrentInstructionIndex mismatch ${storage.currentInstructionIndex.toString()} <-> ${cache_index}`);
+        cache_index += 2;
+      }
+      transaction.add(
+        await program.methods.updateMerkleTree(Buffer.from(ix_data)).accounts({
+          authority: ADMIN_AUTH_KEY,
+          merkleTreeTmpStorage: MERKLE_TREE_TMP_STORAGE_KEY,
+        }).remainingAccounts([{
+          isSigner: false,
+          isWritable: true,
+          pubkey: MERKLE_TREE_KEY,
+        }])
+        .instruction()
+      )
+      await program.provider.sendAndConfirm(transaction, [ADMIN_AUTH_KEYPAIR]);
+    }
   });
 
 
