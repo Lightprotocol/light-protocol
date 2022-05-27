@@ -16,7 +16,7 @@ use crate::groth16_verifier::{
     miller_loop::{ranges::*, state::*},
     parsers::*,
     prepare_inputs,
-    prepare_inputs::{processor::CURRENT_INDEX_ARRAY, ranges::*, state::PrepareInputsState},
+    prepare_inputs::{processor::CURRENT_INDEX_ARRAY, ranges::*, state::VerifierState},
 };
 use crate::IX_ORDER;
 
@@ -64,7 +64,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     // Implements prepare_inputs as per: https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#20-36
     // in a way that can be executed by the solana runtime.
     fn prepare_inputs(&mut self) -> Result<(), ProgramError> {
-        let mut account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
+        let mut account_data = VerifierState::unpack(&self.main_account.data.borrow())?;
 
         let current_instruction_index = account_data.current_instruction_index;
         prepare_inputs::processor::_process_instruction(
@@ -74,7 +74,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         )?;
 
         account_data.current_instruction_index += 1;
-        PrepareInputsState::pack_into_slice(
+        VerifierState::pack_into_slice(
             &account_data,
             &mut self.main_account.data.borrow_mut(),
         );
@@ -107,7 +107,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         // First ix (0): Parses g_ic_affine(proof.b) and more from prepared_inputs state to miller_loop state.
         if IX_ORDER[main_account_data.current_instruction_index] == 0 {
             let account_prepare_inputs_data =
-                PrepareInputsState::unpack(&self.main_account.data.borrow())?;
+                VerifierState::unpack(&self.main_account.data.borrow())?;
             let g_ic_affine =
                 parse_x_group_affine_from_bytes(&account_prepare_inputs_data.x_1_range); // 10k
             let p2: ark_ec::bn::G1Prepared<ark_bn254::Parameters> =
@@ -166,7 +166,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
     }
 
     pub fn try_initialize(&mut self, _instruction_data: &[u8]) -> Result<(), ProgramError> {
-        let mut main_account_data = PrepareInputsState::unpack(&self.main_account.data.borrow())?;
+        let mut main_account_data = VerifierState::unpack(&self.main_account.data.borrow())?;
 
         // get public_inputs from _instruction_data.
         //root
@@ -245,7 +245,7 @@ impl<'a, 'b> Groth16Processor<'a, 'b> {
         for i in indices.iter() {
             main_account_data.changed_variables[*i] = true;
         }
-        PrepareInputsState::pack_into_slice(
+        VerifierState::pack_into_slice(
             &main_account_data,
             &mut self.main_account.data.borrow_mut(),
         );

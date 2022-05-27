@@ -1,16 +1,15 @@
 use crate::groth16_verifier::prepare_inputs::{
-    instructions::*, ranges::*, state::PrepareInputsState,
+    instructions::*, state::VerifierState,
 };
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
-use ark_ec::bn::BnParameters;
 
 const ROUNDS: usize = 4 * 13;
 const FILLING_ROUNDS: usize = 256 % ROUNDS;
 pub fn _process_instruction(
     id: u8,
-    account: &mut RefMut<'_, PrepareInputsState>,
+    account: &mut RefMut<'_, VerifierState>,
     current_index: usize,
 ) -> Result<(), ProgramError> {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
@@ -476,8 +475,8 @@ pub fn _process_instruction(
             &account.g_ic_z_range.clone(),
             &mut account.x_1_range,
         )?;
-
-
+        account.computing_prepared_inputs = false;
+        account.computing_miller_loop = true;
     }
     // else if id == 47 {
     //     let mut account_g_ic_x_range = account.g_ic_x_range;

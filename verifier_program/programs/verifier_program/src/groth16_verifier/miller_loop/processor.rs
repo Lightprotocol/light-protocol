@@ -1,32 +1,23 @@
 use ark_ec;
 use ark_ff::Field;
 
-use ark_ff::biginteger::BigInteger256;
-use ark_ff::QuadExtField;
-
-use ark_std::Zero;
-use ark_ec::models::bn::g2::{doubling_step, addition_step, mul_by_char};
-use ark_ff::Fp2;
-use ark_ec::bn::g2::G2HomProjective;
 use ark_ec::bn::BnParameters;
-use std::convert::TryInto;
-use ark_std::One;
 use solana_program::log::sol_log_compute_units;
 
 use crate::groth16_verifier::miller_loop::{
-    state::*,
     instructions::*,
 };
-use crate::groth16_verifier::parsers::*;
+use crate::groth16_verifier::prepare_inputs::state::*;
 use std::cell::RefMut;
 use anchor_lang::prelude::*;
+use crate::MillerLoopStateCompute;
 
 pub fn miller_loop_process_instruction(
-    tmp_account: &mut RefMut<'_, MillerLoopState>,
+    tmp_account: &mut RefMut<'_, VerifierState>,
 ) {
     // if current_instruction_index == 0 {
     //     // initializing
-    //     let mut tmp_account = MillerLoopState::new(
+    //     let mut tmp_account = VerifierState::new(
     //         ix_data[224..288].try_into().unwrap(),
     //         ix_data[288..416].try_into().unwrap(),
     //         ix_data[416..480].try_into().unwrap(),
@@ -62,7 +53,7 @@ pub fn miller_loop_process_instruction(
 }
 
 pub fn miller_loop_onchain(
-        tmp_account: &mut RefMut<'_, MillerLoopState>,
+        tmp_account: &mut RefMut<'_, VerifierState>,
         tmp_account_compute: &mut MillerLoopStateCompute
 
     ) -> u64 {
@@ -85,7 +76,7 @@ pub fn miller_loop_onchain(
 
             total_steps+=80_000;
             tmp_account.square_in_place_executed = 1;
-            if total_steps >= tmp_account.number_of_steps  {
+            if total_steps >= tmp_account.compute_max_miller_loop  {
                 // msg!("trying to return in square_in_place");
                 return total_steps;
             }
@@ -106,7 +97,7 @@ pub fn miller_loop_onchain(
                 return total_steps;
             }
             total_steps+=120_000;
-            if total_steps >= tmp_account.number_of_steps  {
+            if total_steps >= tmp_account.compute_max_miller_loop  {
                 tmp_account_compute.current_coeff = current_coeff;
                 return total_steps;
             }
@@ -149,7 +140,7 @@ pub fn miller_loop_onchain(
                         return total_steps;
                     }
                     total_steps+=120_000;
-                    if total_steps >= tmp_account.number_of_steps  {
+                    if total_steps >= tmp_account.compute_max_miller_loop  {
                         tmp_account_compute.current_coeff = current_coeff;
                         return total_steps;
                     }
@@ -192,7 +183,7 @@ pub fn miller_loop_onchain(
                         return total_steps;
                     }
                     total_steps+=120_000;
-                    if total_steps >= tmp_account.number_of_steps  {
+                    if total_steps >= tmp_account.compute_max_miller_loop  {
                         tmp_account_compute.current_coeff = current_coeff;
                         return total_steps;
                     }
@@ -223,7 +214,7 @@ pub fn miller_loop_onchain(
                     tmp_account.second_inner_loop_index =0;
                     tmp_account.square_in_place_executed = 0;
                     tmp_account.outer_first_loop+=1;
-                    // if total_steps == *number_of_steps  {
+                    // if total_steps == *compute_max_miller_loop  {
                     //     msg!("trying to return in match2");
                     //
                     //     return *f_custom;
@@ -258,7 +249,7 @@ pub fn miller_loop_onchain(
             return total_steps;
         }
         total_steps+=120_000;
-        if total_steps >= tmp_account.number_of_steps  {
+        if total_steps >= tmp_account.compute_max_miller_loop  {
             tmp_account_compute.current_coeff = current_coeff;
             return total_steps;
         }
@@ -298,7 +289,7 @@ pub fn miller_loop_onchain(
             return total_steps;
         }
         total_steps+=120_000;
-        if total_steps >= tmp_account.number_of_steps  {
+        if total_steps >= tmp_account.compute_max_miller_loop  {
             msg!("saving coeff for next instruction: ",);
             tmp_account_compute.current_coeff = current_coeff;
             return total_steps;
@@ -319,5 +310,6 @@ pub fn miller_loop_onchain(
         tmp_account.outer_third_loop+=1;
 
     }
+    tmp_account.computing_miller_loop = false;
     total_steps
 }

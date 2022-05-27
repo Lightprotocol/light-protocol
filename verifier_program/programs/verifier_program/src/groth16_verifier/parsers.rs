@@ -4,7 +4,7 @@ use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_ff::fields::models::quadratic_extension::QuadExtField;
 use ark_ff::Fp256;
 use ark_ff::One;
-use crate::PrepareInputsState;
+use crate::VerifierState;
 use std::cell::RefMut;
 
 
@@ -174,13 +174,13 @@ pub fn parse_f_from_bytes(
 }
 
 
-pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut Vec<u8>) {
+pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut [u8;32]) {
     let start = 0;
     let end = 32;
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&fp256, &mut range[start..end]).unwrap();
 }
 
-pub fn parse_fp256_from_bytes(range: &Vec<u8>) -> ark_ff::Fp256<ark_bn254::FqParameters> {
+pub fn parse_fp256_from_bytes(range: &[u8;32]) -> ark_ff::Fp256<ark_bn254::FqParameters> {
     let fp256: ark_ff::Fp256<ark_bn254::FqParameters>;
     let start = 0;
     let end = 32;
@@ -442,7 +442,7 @@ pub fn parse_x_group_affine_to_bytes(
 }
 pub fn fill_x_ranges(
         x_vec: Vec<ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>>,
-        tmp_account: &mut RefMut<'_, PrepareInputsState>
+        tmp_account: &mut RefMut<'_, VerifierState>
     ) {
     parse_x_group_affine_to_bytes(x_vec[0], &mut tmp_account.x_1_range);
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[1].x, &mut tmp_account.x_2_range[0..32]).unwrap();
