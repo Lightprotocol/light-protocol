@@ -3558,6 +3558,7 @@ dependencies = [
  "borsh",
  "byteorder",
  "getrandom 0.2.6",
+ "merkle_tree_program",
  "serde_json",
  "solana-program",
  "solana-security-txt",

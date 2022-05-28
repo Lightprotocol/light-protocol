@@ -19,6 +19,8 @@ default = []
 overflow-checks = true
 
 [dependencies]
+merkle_tree_program = { path = "../merkle_tree_program", version = "0.1.0", features = [ "cpi" ]}
+
 anchor-lang = "0.24.1"
 byteorder = "1.3"
 

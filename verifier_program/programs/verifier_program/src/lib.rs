@@ -17,7 +17,7 @@ use ark_std::One;
 use crate::groth16_verifier::parsers::*;
 
 use anchor_lang::prelude::*;
-
+use merkle_tree_program::{self, program::MerkleTreeProgram};
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -142,10 +142,22 @@ pub mod verifier_program {
          Ok(())
      }
 
+     pub fn create_merkle_tree_tmp_storage(ctx: Context<CreateTmpMerkleTree>, data: Vec<u8>) -> Result<()> {
+        merkle_tree_program::cpi::initialize_tmp_merkle_tree(
+            CpiContext::new(
+                ctx.accounts.merkle_tree_program.to_account_info(),
+                merkle_tree_program::cpi::accounts::InitializeTmpMerkleTree{
+                    authority: ctx.accounts.authority.to_account_info(),
+                    verifier_tmp: ctx.accounts.verifier_tmp.to_account_info(),
+                    merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
+                    system_program: ctx.accounts.system_program.to_account_info(),
+                    rent: ctx.accounts.rent.to_account_info(),
+                }
+            ),
+            data
+        )
+     }
 }
-
-
-
 
 #[derive(Accounts)]
 pub struct Compute<'info> {
@@ -172,6 +184,19 @@ pub struct CreateInputsState<'info> {
     pub system_program: AccountInfo<'info>,
 }
 
+#[derive(Accounts)]
+pub struct CreateTmpMerkleTree<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub verifier_tmp: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
+    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub merkle_tree_program: Program<'info, MerkleTreeProgram>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+}
 
 #[error_code]
 pub enum ErrorCode {
