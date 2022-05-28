@@ -19,7 +19,6 @@ pub struct MerkleTreeTmpPda {
     pub node_right:  Vec<u8>,
     pub leaf_left: Vec<u8>,
     pub leaf_right: Vec<u8>,
-    pub verifier_tmp_pda:  Vec<u8>,
     pub relayer:  Vec<u8>,
     pub merkle_tree_pda_pubkey: Vec<u8>,
     pub root_hash: Vec<u8>,
@@ -45,7 +44,6 @@ impl MerkleTreeTmpPda {
             node_right:  vec![0u8],
             leaf_left:  vec![0u8],
             leaf_right:  vec![0u8],
-            verifier_tmp_pda:  vec![0u8],
             relayer:  vec![0u8],
             merkle_tree_pda_pubkey:  vec![0u8],
             root_hash:  vec![0u8],
@@ -81,7 +79,6 @@ impl Pack for MerkleTreeTmpPda {
             found_root,
             relayer,
             merkle_tree_pda_pubkey,
-            verifier_tmp_pda,
             root_hash,
 
             state,
@@ -103,7 +100,6 @@ impl Pack for MerkleTreeTmpPda {
             1, // found_root
             32,// relayer
             32,// merkle_tree_pda_pubkey
-            32,// verifier_tmp_pda
             32,// root_hash
 
             96,// poseidon state
@@ -136,7 +132,6 @@ impl Pack for MerkleTreeTmpPda {
             node_right: node_right.to_vec(),
             leaf_left: leaf_left.to_vec(),
             leaf_right: leaf_right.to_vec(),
-            verifier_tmp_pda: verifier_tmp_pda.to_vec(),
             state: state.to_vec(),
             current_round: usize::from_le_bytes(*current_round),
             current_round_index: usize::from_le_bytes(*current_round_index),
@@ -157,7 +152,6 @@ impl Pack for MerkleTreeTmpPda {
             found_root_dst,
             relayer_dst,
             merkle_tree_pda_pubkey_dst,
-            verifier_tmp_pda_dst,
             root_hash_dst,
 
             state_dst,
@@ -179,7 +173,6 @@ impl Pack for MerkleTreeTmpPda {
             1, // found_root
             32,// relayer
             32,// merkle_tree_pda_pubkey
-            32,// verifier_tmp_pda
             32,// root_hash
 
             96,// poseidon state
@@ -206,7 +199,6 @@ impl Pack for MerkleTreeTmpPda {
             *node_right_dst = self.node_right.clone().try_into().unwrap();
             *leaf_left_dst = self.node_left.clone().try_into().unwrap();
             *leaf_right_dst = self.node_right.clone().try_into().unwrap();
-            *verifier_tmp_pda_dst = self.verifier_tmp_pda.clone().try_into().unwrap();
             *root_hash_dst = self.root_hash.clone().try_into().unwrap();
 
         } else if self.changed_state == 2 {

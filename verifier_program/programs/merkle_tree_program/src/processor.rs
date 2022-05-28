@@ -33,6 +33,7 @@ pub fn process_instruction(
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
     let tmp_storage_pda = next_account_info(account)?;
+    msg!("tmp_storage_pda {:?}", tmp_storage_pda.key);
     // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
 
     // Checks whether passed-in root exists in Merkle tree history array.
@@ -40,12 +41,13 @@ pub fn process_instruction(
     // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
     if tmp_storage_pda_data.current_instruction_index == 0 {
         let merkle_tree_pda = next_account_info(account)?;
-        tmp_storage_pda_data.found_root = check_root_hash_exists(
-            merkle_tree_pda,
-            &tmp_storage_pda_data.root_hash,
-            program_id,
-            merkle_tree_pda.key,
-        )?;
+        msg!("skipping root hash search");
+        // tmp_storage_pda_data.found_root = check_root_hash_exists(
+        //     merkle_tree_pda,
+        //     &tmp_storage_pda_data.root_hash,
+        //     program_id,
+        //     merkle_tree_pda.key,
+        // )?;
         tmp_storage_pda_data.changed_state = 3;
         tmp_storage_pda_data.current_instruction_index += 1;
         MerkleTreeTmpPda::pack_into_slice(

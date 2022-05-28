@@ -96,7 +96,7 @@ pub struct VerifierState {
     pub computing_prepared_inputs: bool, // 0 prepare inputs // 1 miller loop //
     pub computing_miller_loop: bool,
     pub computing_final_exponentiation: bool,
-
+    pub updating_merkle_tree: bool,
     pub merkle_tree_index: u8,
     pub found_root: u8,
 }

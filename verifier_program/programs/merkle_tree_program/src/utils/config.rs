@@ -96,7 +96,7 @@ pub const MERKLE_TREE_TMP_STORAGE_ACCOUNT_TYPE: u8 = 6;
 //
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 222;
 pub const NULLIFIERS_LENGTH: usize = 64;
-pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 427;
+pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 395;
 
 #[constant]
 pub const AUTHORITY_SEED: &[u8] = b"AUTHORITY_SEED";
