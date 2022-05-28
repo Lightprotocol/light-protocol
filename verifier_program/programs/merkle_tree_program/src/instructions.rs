@@ -65,7 +65,6 @@ pub fn token_transfer<'a, 'b>(
 pub struct MerkleTreeTmpStorageAccInputData {
     pub node_left:  Vec<u8>,
     pub node_right:  Vec<u8>,
-    pub verifier_tmp_pda:  Vec<u8>,
     pub relayer:  Vec<u8>,
     pub merkle_tree_pda_pubkey: Vec<u8>,
     pub root_hash: Vec<u8>,
@@ -80,14 +79,12 @@ impl MerkleTreeTmpStorageAccInputData {
             root_hash: Vec<u8>,
             merkle_tree_address: Vec<u8>,
             signing_address: Vec<u8>,
-            verifier_tmp_pda: Vec<u8>
         ) -> Result<MerkleTreeTmpStorageAccInputData, ProgramError> {
         Ok(MerkleTreeTmpStorageAccInputData {
             node_left:          node_left,
             node_right:         node_right,
             relayer:            signing_address,
             merkle_tree_pda_pubkey:  merkle_tree_address,
-            verifier_tmp_pda:  verifier_tmp_pda,
             root_hash: root_hash,
             is_initialized: 1u8,
             found_root: 0u8,
@@ -101,7 +98,6 @@ impl MerkleTreeTmpStorageAccInputData {
         self.root_hash.clone(),
         self.relayer.clone(),
         self.merkle_tree_pda_pubkey.clone(),
-        self.verifier_tmp_pda.clone(),
         ].concat();
         Ok(res)
     }
@@ -113,7 +109,6 @@ impl MerkleTreeTmpStorageAccInputData {
         tmp.node_right = self.node_right.clone();
         tmp.leaf_left = self.node_left.clone();
         tmp.leaf_right = self.node_right.clone();
-        tmp.verifier_tmp_pda = self.verifier_tmp_pda.clone();
         tmp.relayer = self.relayer.clone();
         tmp.root_hash = self.root_hash.clone();
         tmp.merkle_tree_pda_pubkey = self.merkle_tree_pda_pubkey.clone();
@@ -133,41 +128,41 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     _instruction_data: &[u8],
+    // tx_integrity_hash: &[u8]
 ) -> Result<(), ProgramError> {
     let accounts_mut = accounts.clone();
     let account = &mut accounts_mut.iter();
     let signer_account = next_account_info(account)?;
-    let verifier_tmp_pda = next_account_info(account)?;
+    // let verifier_tmp_pda = next_account_info(account)?;
     // TODO: check owner
     let merkle_tree_tmp_pda = next_account_info(account)?;
-    let system_program_info = next_account_info(account)?;
-    let rent_sysvar_info = next_account_info(account)?;
-    let rent = &Rent::from_account_info(rent_sysvar_info)?;
-    msg!("MerkleTreeTmpStorageAccInputData started");
-
+    // let system_program_info = next_account_info(account)?;
+    // let rent_sysvar_info = next_account_info(account)?;
+    // let rent = &Rent::from_account_info(rent_sysvar_info)?;
+    // msg!("MerkleTreeTmpStorageAccInputData started");
+    //
     let mut merkle_tree_pda = MerkleTreeTmpStorageAccInputData::new(
         _instruction_data[0..32].to_vec(),
         _instruction_data[32..64].to_vec(),
         _instruction_data[64..96].to_vec(),
         merkle_tree_tmp_pda.key.to_bytes().to_vec(),
-        signer_account.key.to_bytes().to_vec(),
-        verifier_tmp_pda.key.to_bytes().to_vec()
+        signer_account.key.to_bytes().to_vec()
     )?;
-    msg!("MerkleTreeTmpStorageAccInputData done");
-
-    /*create_and_check_pda(
-        program_id,
-        signer_account,
-        merkle_tree_tmp_pda,
-        system_program_info,
-        rent,
-        &merkle_tree_pda.node_left,
-        &b"storage"[..],
-        MERKLE_TREE_TMP_PDA_SIZE.try_into().unwrap(),   //bytes
-        0,                          //lamports
-        true,                       //rent_exempt
-    )?;
-    msg!("created_pda");*/
+    // msg!("MerkleTreeTmpStorageAccInputData done");
+    //
+    // create_and_check_pda(
+    //     program_id,
+    //     signer_account,
+    //     merkle_tree_tmp_pda,
+    //     system_program_info,
+    //     rent,
+    //     &tx_integrity_hash[..],
+    //     &b"storage"[..],
+    //     MERKLE_TREE_TMP_PDA_SIZE.try_into().unwrap(),   //bytes
+    //     0,                          //lamports
+    //     true,                       //rent_exempt
+    // )?;
+    // msg!("created_pda");
     merkle_tree_pda.try_initialize(
         &merkle_tree_tmp_pda
     )

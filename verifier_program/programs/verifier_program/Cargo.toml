@@ -21,6 +21,7 @@ overflow-checks = true
 [dependencies]
 anchor-lang = "0.24.1"
 byteorder = "1.3"
+merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
 
 #solana
 solana-program = "1.9.16"

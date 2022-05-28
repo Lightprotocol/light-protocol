@@ -54,33 +54,36 @@ pub mod merkle_tree_program {
             .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])?;
         Ok(())
     }
-    pub fn initialize_tmp_merkle_tree(ctx: Context<InitializeTmpMerkleTree>, data: Vec<u8>) -> Result<()> {
+    pub fn initialize_tmp_merkle_tree_state(ctx: Context<InitializeTmpMerkleTree>, data: Vec<u8>) -> Result<()> {
+
         create_and_try_initialize_tmp_storage_pda(
             ctx.program_id,
             &[
                 ctx.accounts.authority.to_account_info(),
-                ctx.accounts.verifier_tmp.to_account_info(),
+                // ctx.accounts.verifier_tmp.to_account_info(),
                 ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-                ctx.accounts.rent.to_account_info(),
+                // ctx.accounts.system_program.to_account_info(),
+                // ctx.accounts.rent.to_account_info(),
             ][..],
-            &data.as_slice()
+            &data.as_slice()[32..]
         )?;
         Ok(())
     }
 
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>, data: Vec<u8>) -> Result<()> {
+        msg!("update_merkle_tree");
         let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
         let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
         processor::process_instruction(
-            ctx.program_id, 
+            ctx.program_id,
             &[
                 vec![
                     ctx.accounts.authority.to_account_info(),
                     ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
+                    ctx.accounts.merkle_tree.to_account_info(),
                 ],
-                ctx.remaining_accounts.to_vec()
-            ].concat().as_slice(), 
+                // ctx.remaining_accounts.to_vec()
+            ].concat().as_slice(),
             &mut tmp_storage_pda_data,
             &data.as_slice()
         )?;
@@ -98,13 +101,13 @@ pub mod merkle_tree_program {
                 ctx.accounts.rent.to_account_info(),
                 ctx.accounts.merkle_tree_token.to_account_info(),
                 ctx.accounts.user_escrow.to_account_info(),
-            ], 
+            ],
             &new_data.as_slice()
         )?;
         Ok(())
     }
     pub fn withdraw_sol<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, WithdrawSOL<'info>>, data: Vec<u8>) -> Result<()> {
-        
+
         let mut new_data = data.clone();
         new_data.insert(0, 2);
 
@@ -112,10 +115,10 @@ pub mod merkle_tree_program {
         accounts.insert(0, ctx.accounts.authority.to_account_info());
         accounts.insert(1, ctx.accounts.tmp_storage.to_account_info());
         accounts.insert(2, ctx.accounts.merkle_tree_token.to_account_info());
-        
+
         processor::process_sol_transfer(
             ctx.program_id,
-            &accounts.as_slice(), 
+            &accounts.as_slice(),
             &new_data.as_slice()
         )?;
         Ok(())
@@ -136,14 +139,7 @@ pub struct InitializeNewMerkleTree<'info> {
     pub rent: Sysvar<'info, Rent>,
 
     /// CHECK: it should be unpacked internally
-    #[account(
-        mut,
-        // init,
-        // payer = authority,
-        // seeds = [TREE_ROOT_SEED.as_ref()],
-        // bump,
-        // space = MerkleTree::LEN,
-    )]
+    #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
 
 }
@@ -151,10 +147,10 @@ pub struct InitializeNewMerkleTree<'info> {
 #[derive(Accounts)]
 #[instruction(data: Vec<u8>)]
 pub struct InitializeTmpMerkleTree<'info> {
-    #[account(mut, address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
+    #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub verifier_tmp: AccountInfo<'info>,
+    // pub verifier_tmp: AccountInfo<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(
         init,
@@ -170,29 +166,33 @@ pub struct InitializeTmpMerkleTree<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
-    #[account(address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
-    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
+    pub authority: AccountInfo<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
 pub struct DepositSOL<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub tmp_storage: AccountInfo<'info>,
-    
+
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    
+
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
-    
+
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub user_escrow: AccountInfo<'info>,
@@ -203,13 +203,12 @@ pub struct DepositSOL<'info> {
 pub struct WithdrawSOL<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    
+
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub tmp_storage: AccountInfo<'info>,
-    
+
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
 }
-

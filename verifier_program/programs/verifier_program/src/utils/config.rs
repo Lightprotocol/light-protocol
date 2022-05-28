@@ -92,6 +92,8 @@ pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
     253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81
 ];
 
+pub const STORAGE_SEED: &[u8] = b"storage";
+
 // account bytes
 pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
 pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;

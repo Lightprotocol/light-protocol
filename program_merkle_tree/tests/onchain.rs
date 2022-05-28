@@ -380,8 +380,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
             vec![0u8;32]//verifier_tmp_storage_pda_pubkey.to_bytes().to_vec()
         ).unwrap();
 
-    account_data.node_left = vec![2u8;32];
-    account_data.node_right = vec![2u8;32];
+    // account_data.node_left = vec![2u8;32];
+    // account_data.node_right = vec![2u8;32];
     account_data.root_hash = vec![0u8;32];
     account_data.merkle_tree_pda_pubkey =
         Pubkey::find_program_address(&[&account_data.node_left, &b"storage"[..]], &program_id_merkle_tree).0.to_bytes().to_vec();
@@ -455,8 +455,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         .expect("get_account")
         .unwrap();
     let storage_account_unpacked = MerkleTreeTmpPda::unpack(&storage_account.data).unwrap();
-    assert_eq!(storage_account_unpacked.node_left, [2u8;32]);
-    assert_eq!(storage_account_unpacked.node_right, [2u8;32]);
+    // assert_eq!(storage_account_unpacked.node_left, [2u8;32]);
+    // assert_eq!(storage_account_unpacked.node_right, [2u8;32]);
     println!("-------------- update_merkle_tree -----------------------");
     update_merkle_tree(
         &program_id_merkle_tree,

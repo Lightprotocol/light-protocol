@@ -65,7 +65,7 @@ describe("Merkle Tree Program", () => {
 
   const program = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
   const connection = program.provider.connection;
-  
+
   const PRIVATE_KEY = [
     17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,
     97, 112, 131, 180, 164, 96, 220, 57, 207, 65, 107, 2, 99, 226, 251, 88, 66, 92, 33, 25, 216,

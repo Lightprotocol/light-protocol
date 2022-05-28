@@ -15,8 +15,11 @@ use crate::groth16_verifier::parse_proof_b_from_bytes;
 use ark_ff::Fp2;
 use ark_std::One;
 use crate::groth16_verifier::parsers::*;
+use crate::utils::config::STORAGE_SEED;
 
 use anchor_lang::prelude::*;
+
+use merkle_tree_program::{self, program::MerkleTreeProgram};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -44,7 +47,7 @@ pub mod verifier_program {
             ext_amount:         [u8;8],
             relayer:            [u8;32],
             fee:                [u8;8],
-            merkle_tree_pda_pubkey:[u8;32],
+            // merkle_tree_pda_pubkey:[u8;32], // storage account
             _encrypted_utxos:    [u8;256],//,bytes.slice(593,593+222),
             // prepared_inputs: [u8;64],
             merkle_tree_index:  [u8;1],
@@ -58,8 +61,6 @@ pub mod verifier_program {
          msg!("root_hash {:?}", tmp_account.root_hash);
          assert_eq!(tmp_account.root_hash, root_hash);
          tmp_account.amount = amount.clone();
-
-         tmp_account.merkle_tree_tmp_account = Pubkey::new(&merkle_tree_pda_pubkey).clone();
          tmp_account.merkle_tree_index = merkle_tree_index[0].clone();
          tmp_account.relayer_fee =  u64::from_le_bytes(fee.try_into().unwrap()).clone();
          tmp_account.recipient = Pubkey::new(&recipient).clone();
@@ -95,12 +96,44 @@ pub mod verifier_program {
              y: proof_b.y,
              z: Fp2::one(),
          });
-         msg!("finished");
+
+
+
          Ok(())
      }
 
+     pub fn create_merkle_tree_tmp_account(ctx: Context<CreateMerkleTreeState>
+     ) -> Result<()> {
+         msg!("starting cpi");
+         let tmp_account= &mut ctx.accounts.verifier_state.load()?;
+
+         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+         let accounts = merkle_tree_program::cpi::accounts::InitializeTmpMerkleTree {
+             authority: ctx.accounts.signing_address.to_account_info(),
+             merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_state.to_account_info(),
+             system_program: ctx.accounts.system_program.to_account_info(),
+             rent: ctx.accounts.rent.to_account_info(),
+         };
+
+         let data = [
+             tmp_account.tx_integrity_hash.to_vec(),
+             vec![2u8;32],//tmp_account.leaf_left.to_vec(),
+             vec![2u8;32],//tmp_account.leaf_right.to_vec(),
+             tmp_account.root_hash.to_vec(),
+         ].concat();
+         msg!("data: {:?}", data);
+
+         let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
+         merkle_tree_program::cpi::initialize_tmp_merkle_tree_state(cpi_ctx, data).unwrap();
+         msg!("finished cpi");
+         Ok(())
+    }
+
      pub fn compute(ctx: Context<Compute>, _bump: u64)-> Result<()> {
          let tmp_account= &mut ctx.accounts.verifier_state.load_mut()?;
+        // tmp_account.computing_prepared_inputs = false;
+        // tmp_account.computing_miller_loop= false;
+        // tmp_account.updating_merkle_tree = true;
         if tmp_account.computing_prepared_inputs /*&& tmp_account.current_instruction_index < (IX_ORDER.len() - 1).try_into().unwrap()*/ {
             msg!("CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}", CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]);
             _process_instruction(IX_ORDER[tmp_account.current_instruction_index as usize],
@@ -114,7 +147,30 @@ pub mod verifier_program {
             msg!("computing miller_loop {}", tmp_account.current_instruction_index);
             miller_loop_process_instruction(tmp_account);
 
-        } else {
+        }
+        else if tmp_account.updating_merkle_tree {
+
+            let derived_pubkey =
+                 Pubkey::find_program_address(&[tmp_account.tx_integrity_hash.as_ref(), b"storage"], ctx.program_id);
+            msg!("derived_pubkey {:?}", derived_pubkey);
+            let derived_pubkey_1 = &[derived_pubkey.1][..];
+
+            let data = _bump.to_le_bytes().to_vec();
+
+            let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+            let accounts = merkle_tree_program::cpi::accounts::UpdateMerkleTree {
+                authority: ctx.accounts.signing_address.to_account_info(),
+                merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_state.to_account_info(),
+                merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+            };
+            let seeds = [&[tmp_account.tx_integrity_hash.as_ref(), &b"storage"[..]][..]];
+            msg!("starting cpi");
+            let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
+            // let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
+            let x = merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
+            msg!("finished cpi {:?}", x);
+        }
+        else {
             if !tmp_account.computing_final_exponentiation {
                 msg!("initializing for final_exponentiation");
                 tmp_account.computing_final_exponentiation = true;
@@ -141,6 +197,10 @@ pub mod verifier_program {
          tmp_account.current_instruction_index +=1;
          Ok(())
      }
+     // pub fn initialize_tmp_merkle_tree_state(ctx: Context<InitializeTmpMerkleTree>)-> Result<()> {
+     //     Ok(())
+     // }
+
 
 }
 
@@ -151,7 +211,19 @@ pub mod verifier_program {
 pub struct Compute<'info> {
     #[account(mut)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
+    #[account(mut)]
     pub signing_address: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    // pub verifier_state_authority: UncheckedAccount<'info>,
+
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
+    pub merkle_tree_tmp_state: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub program_merkle_tree: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -162,7 +234,7 @@ pub struct Compute<'info> {
     tx_integrity_hash: [u8;32]
 )]
 pub struct CreateInputsState<'info> {
-    #[account(init, seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, payer=signing_address, space= 5 * 1024 as usize)]
+    #[account(init, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 
     #[account(mut)]
@@ -170,6 +242,58 @@ pub struct CreateInputsState<'info> {
     #[account(address = system_program::ID)]
         /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+// #[instruction(tx_integrity_hash:  [u8;32])]
+pub struct CreateMerkleTreeState<'info> {
+    #[account(mut)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    // #[account(seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, program_id=program_merkle_tree)]
+    // #[account(
+    //     init,
+    //     payer = signing_address,
+    //     seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()],
+    //     bump,
+    //     space = 395,
+    //     // owner= *program_merkle_tree.key
+    // )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
+    pub merkle_tree_tmp_state: AccountInfo<'info>,
+
+    #[account(address = system_program::ID)]
+        /// CHECK: This is not dangerous because we don't read or write from this account
+    pub system_program: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub program_merkle_tree: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub rent: AccountInfo<'info>,
+
+}
+
+#[derive(Accounts)]
+#[instruction(tx_integrity_hash: [u8;32])]
+pub struct InitializeTmpMerkleTree<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub verifier_tmp: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(
+        init,
+        payer = authority,
+        seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()],
+        bump,
+        space = 395,
+        owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av")
+    )]
+    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 
