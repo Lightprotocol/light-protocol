@@ -2,11 +2,10 @@
 const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 //const DEFAULT_ZERO = '14522046728041339886521211779101644712859239303505368468566383402165481390632'//'21663839004416932945382355908790599225266501822907911457504978515578255421292'
-
+const { ethers } = require("ethers");
+const BigNumber = ethers.BigNumber;
 const {
   toFixedHex,
-  poseidonHash2,
-  poseidonHash,
   getExtDataHash,
   FIELD_SIZE,
   shuffle,
@@ -14,7 +13,7 @@ const {
   parseInputsToBytesArray,
   testest,
 } = require("./utils");
-
+const { poseidonHash2 } = require('./poseidonHash')
 // todo ensure consistent types in tree and inserted elements?
 // todo make sha3 default hasher (and update tests) to get rid of mimc/snarkjs/circomlib dependency
 

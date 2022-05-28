@@ -19,4 +19,5 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"
+test_merkle_tree = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/merkle_tree_program.ts"
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/verifier_program.ts"
