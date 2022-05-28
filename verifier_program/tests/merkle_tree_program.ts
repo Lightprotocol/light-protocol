@@ -11,9 +11,14 @@ import {
   Transaction,
 } from '@solana/web3.js';
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import { assert } from "chai";
 
-import { struct, u8, u16, blob } from 'buffer-layout';
+import { use as chaiUse } from "chai";
+import chaiAsPromised from "chai-as-promised";
+chaiUse(chaiAsPromised);
+
+import { assert, expect } from "chai";
+
+import { struct, u8, u16, u32, blob } from 'buffer-layout';
 import { publicKey, u64, u128, } from '@project-serum/borsh';
 
 export const DEFAULT_PROGRAMS = {
@@ -49,7 +54,10 @@ const STORAGE_LAYOUT = struct([
   publicKey('leafLeft'),
   publicKey('leafRight'),
 ]);
-
+const PROGRAM_LAYOUT = struct([
+  u32('isInitialized'),
+  publicKey('programDataAddress'),
+]);
 IDL.constants.map((item) => {
   if(_.isEqual(item.type, TYPE_SEED)) {
     constants[item.name] = item.value.replace("b\"", "").replace("\"", "");
@@ -74,6 +82,7 @@ describe("Merkle Tree Program", () => {
   ];
   const ADMIN_AUTH_KEY = new PublicKey(new Uint8Array(constants.MERKLE_TREE_INIT_AUTHORITY));
   const ADMIN_AUTH_KEYPAIR = Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
+  const [AUTHORITY_CONFIG_KEY] = PublicKey.findProgramAddressSync([Buffer.from(constants.AUTHORITY_SEED)], program.programId);
 
   const MERKLE_TREE_KEY_DEVNET = new PublicKey(new Uint8Array(constants.MERKLE_TREE_ACC_BYTES_0));
   const [MERKLE_TREE_KEY_PDA] = PublicKey.findProgramAddressSync([Buffer.from(constants.TREE_ROOT_SEED)], program.programId);
@@ -124,10 +133,55 @@ describe("Merkle Tree Program", () => {
 
     const airdropTx = await connection.requestAirdrop(ADMIN_AUTH_KEY, 100_000_000_000_000);
     await connection.confirmTransaction(airdropTx);
-
+  });
+  it("Failed to Create AuthorityConfig for not upgradable authority", async () => {
     const programInfo = await connection.getAccountInfo(program.programId);
-    console.log(programInfo.data);
+    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
+    const authKeypair = Keypair.generate();
+    await expect(
+      program.methods.createAuthorityConfig().accounts({
+        authority: authKeypair.publicKey,
+        merkleTreeProgram: program.programId,
+        authorityConfig: AUTHORITY_CONFIG_KEY,
+        merkleTreeProgramData: programDataAddress,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([authKeypair])
+      .rpc()
+    ).to.be.rejectedWith("0", "A raw constraint was violated");
+  });
+  it("Create AuthorityConfig", async () => {
+    const programInfo = await connection.getAccountInfo(program.programId);
+    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
 
+    const tx = await program.methods.createAuthorityConfig().accounts({
+      authority: (program.provider as any).wallet.pubkey,
+      merkleTreeProgram: program.programId,
+      authorityConfig: AUTHORITY_CONFIG_KEY,
+      merkleTreeProgramData: programDataAddress,
+      ...DEFAULT_PROGRAMS
+    })
+    .rpc();
+  });
+  it("Failed to update AuthorityConfig for not current authority", async () => {
+    const authKeypair = Keypair.generate();
+    await expect(
+      program.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
+        authority: authKeypair.publicKey,
+        authorityConfig: AUTHORITY_CONFIG_KEY,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([authKeypair])
+      .rpc()
+    ).to.be.rejectedWith("0", "A raw constraint was violated");
+  });
+  it("Update Authority Config", async () => {
+    const tx = await program.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
+      authority: (program.provider as any).wallet.pubkey,
+      authorityConfig: AUTHORITY_CONFIG_KEY,
+      ...DEFAULT_PROGRAMS
+    })
+    .rpc();
   });
   it("Initialize Merkle Tree", async () => {
 

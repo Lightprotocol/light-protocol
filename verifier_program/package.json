@@ -20,6 +20,7 @@
     },
     "devDependencies": {
         "@types/bn.js": "^5.1.0",
+        "@types/chai-as-promised": "^7.1.5",
         "@types/chai": "^4.3.0",
         "@types/mocha": "^9.0.0",
         "chai": "^4.3.4",
