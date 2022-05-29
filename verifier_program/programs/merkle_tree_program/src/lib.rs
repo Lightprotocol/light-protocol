@@ -82,7 +82,7 @@ pub mod merkle_tree_program {
                     ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
                     ctx.accounts.merkle_tree.to_account_info(),
                 ],
-                // ctx.remaining_accounts.to_vec()
+                ctx.remaining_accounts.to_vec()
             ].concat().as_slice(),
             &mut tmp_storage_pda_data,
             &data.as_slice()
@@ -130,6 +130,10 @@ pub mod merkle_tree_program {
     pub fn update_authority_config(ctx: Context<UpdateAuthorityConfig>, new_authority: Pubkey) -> Result<()> {
         ctx.accounts.handle(new_authority)
     }
+    pub fn initialize_nullifier(ctx: Context<InitializeNullifier>, nullifier: [u8;32]) -> anchor_lang::Result<()> {
+
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -168,7 +172,7 @@ pub struct InitializeTmpMerkleTree<'info> {
 pub struct UpdateMerkleTree<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
-    pub authority: AccountInfo<'info>,
+    pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_tmp_storage: AccountInfo<'info>,
@@ -211,4 +215,64 @@ pub struct WithdrawSOL<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
+}
+
+use crate::config::NF_SEED;
+
+#[derive(Accounts)]
+#[instruction(nullifier: [u8;32])]
+pub struct InitializeNullifier<'info> {
+    #[account(
+        init,
+        payer = authority,
+        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        bump,
+        space = 8,
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier_pda: Account<'info, Nullifier>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub system_program: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+
+
+}
+
+
+// Nullfier pdas are derived from the nullifier
+// existence of a nullifier is the check to
+// prevent double spends.
+#[account]
+pub struct Nullifier {
+
+}
+
+#[derive(Accounts)]
+#[instruction(nullifier: [u8;32])]
+pub struct InitializeLeavesPda<'info> {
+    #[account(
+        init,
+        payer = authority,
+        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        bump,
+        space = 8,
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier_pda: Account<'info, Nullifier>,
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub system_program: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+}
+
+#[account(zero_copy)]
+pub struct LeavesPda {
+    pub leaf_right: [u8;32],
+    pub leaf_left: [u8;32],
+    pub merkle_tree_pubkey: Pubkey,
+    pub encrypted_utxos: [u8;222],
+    pub left_leaf_index: u64,
 }

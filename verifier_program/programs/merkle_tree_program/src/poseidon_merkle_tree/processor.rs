@@ -4,9 +4,9 @@ use crate::poseidon_merkle_tree::instructions_poseidon::{
 };
 use crate::utils::config::{MERKLE_TREE_ACC_BYTES_ARRAY, ENCRYPTED_UTXOS_LENGTH};
 use crate::state::MerkleTreeTmpPda;
-
+use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
 use crate::poseidon_merkle_tree::state::{
-    InitMerkleTreeBytes, MerkleTree, TwoLeavesBytesPda,
+    InitMerkleTreeBytes, MerkleTree,
 };
 use crate::{IX_ORDER, TWO_LEAVES_PDA_SIZE};
 use anchor_lang::solana_program::{
@@ -204,9 +204,9 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 "Root insert Instruction: {}",
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index]
             );
+            let merkle_tree_pda = next_account_info(account)?;
             let leaf_pda = next_account_info(account)?;
             let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
-            let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
             let _system_program_account = next_account_info(account)?;
             let rent_sysvar_info = next_account_info(account)?;
@@ -244,7 +244,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             //increased by 2 because we're inserting 2 leaves at once
             leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
             leaf_pda_account_data.merkle_tree_pubkey = tmp_storage_pda_data.merkle_tree_pda_pubkey.clone();
-            leaf_pda_account_data.encrypted_utxos = instruction_data.unwrap()[0..ENCRYPTED_UTXOS_LENGTH].to_vec();
+            // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
+            leaf_pda_account_data.encrypted_utxos = instruction_data.unwrap()[32..254].to_vec();
 
             msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
             msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
