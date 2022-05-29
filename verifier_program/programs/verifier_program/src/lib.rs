@@ -168,18 +168,22 @@ pub mod verifier_program {
                 merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_state.to_account_info(),
                 merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
             };
-            let seeds = [&[tmp_account.tx_integrity_hash.as_ref(), &b"storage"[..]][..]];
-            msg!("starting cpi");
+            let bump_seed = &[derived_pubkey.1];
+            let seeds = [&[tmp_account.tx_integrity_hash.as_ref(), &b"storage"[..], bump_seed][..]];
+            msg!("starting cpi updating merkle tree");
             let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
             // let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
             let x = merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
             msg!("finished cpi {:?}", x);
             tmp_account.merkle_tree_instruction_index+=1;
+            msg!("merkle_tree_instruction_index {:?}", tmp_account.merkle_tree_instruction_index);
+
             if tmp_account.merkle_tree_instruction_index == 74 {
                 tmp_account.last_transaction = true;
                 tmp_account.updating_merkle_tree = false;
             }
-        } else {
+        } else{
+
             if !tmp_account.computing_final_exponentiation {
                 msg!("initializing for final_exponentiation");
                 tmp_account.computing_final_exponentiation = true;
@@ -196,10 +200,8 @@ pub mod verifier_program {
                tmp_account.max_compute = 1_100_000;
            }
 
-               msg!("computing final_exponentiation {}", tmp_account.current_instruction_index);
+               msg!("computing final_exponentiation");
                final_exponentiation_process_instruction(tmp_account);
-
-
 
         }
 
@@ -388,7 +390,9 @@ pub enum ErrorCode {
     #[msg("Incompatible Verifying Key")]
     IncompatibleVerifyingKey,
     #[msg("WrongPubAmount")]
-    WrongPubAmount
+    WrongPubAmount,
+    #[msg("PrepareInputsDidNotFinish")]
+    PrepareInputsDidNotFinish
 }
 
 pub const IX_ORDER: [u8; 37] = [
