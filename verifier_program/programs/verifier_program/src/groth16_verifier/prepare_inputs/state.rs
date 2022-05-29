@@ -86,8 +86,7 @@ pub struct VerifierState {
     pub outer_loop: u64,
     pub cyclotomic_square_in_place:u64,
     pub merkle_tree_instruction_index: u64,
-
-
+    pub current_instruction_index_prepare_inputs: u64,
 
 
     pub encrypted_utxos: [u8;222],
