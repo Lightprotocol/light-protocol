@@ -114,6 +114,11 @@ pub fn process_last_transaction(
     //     true,                //rent_exempt
     // )?;
     //arbitrary bump
+    let derived_pubkey =
+         Pubkey::find_program_address(&[verifier_state.tx_integrity_hash.as_ref(), b"storage"], ctx.program_id);
+    msg!("derived_pubkey {:?}", derived_pubkey);
+    let bump_seed = &[derived_pubkey.1][..];
+
     let data = [vec![0u8;32],verifier_state.encrypted_utxos.to_vec()].concat();
 
     let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
@@ -123,7 +128,7 @@ pub fn process_last_transaction(
         merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
 
     };
-    let seeds = [&[verifier_state.tx_integrity_hash.as_ref(), &b"storage"[..]][..]];
+    let seeds = [&[verifier_state.tx_integrity_hash.as_ref(), &b"storage"[..],  &bump_seed][..]];
     msg!("starting cpi");
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(vec![
@@ -132,7 +137,7 @@ pub fn process_last_transaction(
             ctx.accounts.rent.to_account_info()
         ]);
     // let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
-    let x = merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
+    let x = merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data);
 
     // Close tmp account.
     close_account(&ctx.accounts.verifier_state.to_account_info(), &ctx.accounts.signing_address.to_account_info());
