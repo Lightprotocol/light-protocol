@@ -122,7 +122,7 @@ pub fn maths_instruction(
     i_range: &[u8;32],
     x_range: &[u8;64],
     current_index: usize,
-    rounds: usize,
+    rounds: u64,
 ) -> Result<()> {
     // Parses res,x,i from range.
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range);
@@ -140,7 +140,7 @@ pub fn maths_instruction(
 
     // The current processor merges 4 rounds into one ix to efficiently use the compute budget.
     let mut index_in = current_index;
-    for m in 0..rounds {
+    for m in 0u64..rounds {
         // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
         if index_in < skipped {
             // parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);

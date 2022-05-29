@@ -4,9 +4,9 @@ use crate::groth16_verifier::prepare_inputs::{
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
-
-const ROUNDS: usize = 4 * 13;
-const FILLING_ROUNDS: usize = 256 % ROUNDS;
+const MULTIPLE:u64 = 13;
+const ROUNDS: u64 = 4 * MULTIPLE;
+const FILLING_ROUNDS: u64 = 256 % ROUNDS;
 pub fn _process_instruction(
     id: u8,
     account: &mut RefMut<'_, VerifierState>,
@@ -62,7 +62,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -122,7 +122,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
@@ -184,7 +184,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
@@ -246,7 +246,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -324,7 +324,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -384,7 +384,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -443,7 +443,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += 13;
+        account.current_index += MULTIPLE;
 
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
