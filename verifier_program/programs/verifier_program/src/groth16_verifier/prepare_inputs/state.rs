@@ -16,7 +16,6 @@ pub struct VerifierState {
     pub proof_a_bytes:        [u8;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
     pub proof_b_bytes:        [u8;128],//ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
     pub proof_c_bytes:        [u8;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
-
     pub ext_amount: [u8;8],
     pub fee: [u8;8],
     pub leaf_left: [u8;32],
@@ -54,6 +53,7 @@ pub struct VerifierState {
     pub current_coeff_bytes:[u8;192],
 
 
+
     pub outer_first_loop_coeff:    u64,
     pub outer_second_coeff:        u64,
     pub inner_first_coeff:         u64,
@@ -85,14 +85,15 @@ pub struct VerifierState {
     pub initialized: u64,
     pub outer_loop: u64,
     pub cyclotomic_square_in_place:u64,
+    pub merkle_tree_instruction_index: u64,
 
 
 
 
-
+    pub encrypted_utxos: [u8;222],
     pub coeff_index:               [u8;3],
 
-
+    pub last_transaction: bool,
     pub computing_prepared_inputs: bool, // 0 prepare inputs // 1 miller loop //
     pub computing_miller_loop: bool,
     pub computing_final_exponentiation: bool,

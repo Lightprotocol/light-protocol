@@ -48,6 +48,7 @@ pub fn process_instruction(
         //     program_id,
         //     merkle_tree_pda.key,
         // )?;
+        tmp_storage_pda_data.found_root = 1;
         tmp_storage_pda_data.changed_state = 3;
         tmp_storage_pda_data.current_instruction_index += 1;
         MerkleTreeTmpPda::pack_into_slice(
@@ -65,8 +66,8 @@ pub fn process_instruction(
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // executes transaction, deposit or withdrawal, and closes the tmp account.
     else if tmp_storage_pda_data.current_instruction_index == 75 {
-        let two_leaves_pda = next_account_info(account)?;
         let merkle_tree_pda = next_account_info(account)?;
+        let two_leaves_pda = next_account_info(account)?;
         let system_program_account = next_account_info(account)?;
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;

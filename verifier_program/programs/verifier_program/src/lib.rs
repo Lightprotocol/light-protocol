@@ -1,5 +1,6 @@
 pub mod groth16_verifier;
 pub mod utils;
+pub mod processor_last_transaction;
 use anchor_lang::solana_program::system_program;
 
 // use crate::groth16_verifier::prepare_inputs::state::{
@@ -48,7 +49,7 @@ pub mod verifier_program {
             relayer:            [u8;32],
             fee:                [u8;8],
             // merkle_tree_pda_pubkey:[u8;32], // storage account
-            _encrypted_utxos:    [u8;256],//,bytes.slice(593,593+222),
+            encrypted_utxos:    [u8;256],//,bytes.slice(593,593+222),
             // prepared_inputs: [u8;64],
             merkle_tree_index:  [u8;1],
      ) -> Result<()> {
@@ -71,6 +72,8 @@ pub mod verifier_program {
          tmp_account.leaf_right = leaf_right;
          tmp_account.nullifier0 = nullifier0;
          tmp_account.nullifier1 = nullifier1;
+         tmp_account.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
+         msg!("tmp_account.encrypted_utxos {:?}", tmp_account.encrypted_utxos);
          msg!("entering init pairs instruction");
          init_pairs_instruction(tmp_account)?;
          // tmp_account.encrypted_utxos = encrypted_utxos.clone();
@@ -104,6 +107,8 @@ pub mod verifier_program {
 
      pub fn create_merkle_tree_tmp_account(ctx: Context<CreateMerkleTreeState>
      ) -> Result<()> {
+         // Can I init this account with data dynamically before the update merkle tree
+         // instructions.
          msg!("starting cpi");
          let tmp_account= &mut ctx.accounts.verifier_state.load()?;
 
@@ -117,8 +122,8 @@ pub mod verifier_program {
 
          let data = [
              tmp_account.tx_integrity_hash.to_vec(),
-             vec![2u8;32],//tmp_account.leaf_left.to_vec(),
-             vec![2u8;32],//tmp_account.leaf_right.to_vec(),
+             tmp_account.leaf_left.to_vec(),
+             tmp_account.leaf_right.to_vec(),
              tmp_account.root_hash.to_vec(),
          ].concat();
          msg!("data: {:?}", data);
@@ -142,7 +147,7 @@ pub mod verifier_program {
             )?;
             tmp_account.current_index +=1;
         } else if tmp_account.computing_miller_loop {
-            tmp_account.max_compute = 1_200_000;
+            tmp_account.max_compute = 1_300_000;
 
             msg!("computing miller_loop {}", tmp_account.current_instruction_index);
             miller_loop_process_instruction(tmp_account);
@@ -169,8 +174,12 @@ pub mod verifier_program {
             // let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
             let x = merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
             msg!("finished cpi {:?}", x);
-        }
-        else {
+            tmp_account.merkle_tree_instruction_index+=1;
+            if tmp_account.merkle_tree_instruction_index == 74 {
+                tmp_account.last_transaction = true;
+                tmp_account.updating_merkle_tree = false;
+            }
+        } else {
             if !tmp_account.computing_final_exponentiation {
                 msg!("initializing for final_exponentiation");
                 tmp_account.computing_final_exponentiation = true;
@@ -197,9 +206,37 @@ pub mod verifier_program {
          tmp_account.current_instruction_index +=1;
          Ok(())
      }
-     // pub fn initialize_tmp_merkle_tree_state(ctx: Context<InitializeTmpMerkleTree>)-> Result<()> {
-     //     Ok(())
-     // }
+
+
+     pub fn last_transaction(
+         ctx: Context<LastTransaction>,
+         nullifier0: [u8;32],
+         nullifier1: [u8;32]
+     )-> Result<()> {
+         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
+             authority: ctx.accounts.signing_address.to_account_info(),
+             nullifier_pda: ctx.accounts.nullifier0_pda.to_account_info(),
+             system_program: ctx.accounts.system_program.to_account_info(),
+             rent: ctx.accounts.rent.to_account_info(),
+         };
+
+         let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
+         merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier0).unwrap();
+
+         let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
+         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
+             authority: ctx.accounts.signing_address.to_account_info(),
+             nullifier_pda: ctx.accounts.nullifier1_pda.to_account_info(),
+             system_program: ctx.accounts.system_program.to_account_info(),
+             rent: ctx.accounts.rent.to_account_info(),
+         };
+
+         let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
+         merkle_tree_program::cpi::initialize_nullifier(cpi_ctx1, nullifier1).unwrap();
+
+         processor_last_transaction::process_last_transaction(ctx)
+     }
 
 
 }
@@ -244,6 +281,64 @@ pub struct CreateInputsState<'info> {
     pub system_program: AccountInfo<'info>,
 }
 
+
+#[derive(Accounts)]
+#[instruction(
+    nullifier0: [u8;32],
+    nullifier1: [u8;32],
+)]
+pub struct LastTransaction<'info> {
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier0_pda: UncheckedAccount<'info>,
+    // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier1_pda: UncheckedAccount<'info>,//Account<'info, Nullifier>,
+    #[account(mut)]
+    // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
+    pub leaves_pda: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+    // #[account(seeds = [nullifier0.as_ref(), b"esrow"], bump)]
+    #[account(mut)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub escrow_pda: UncheckedAccount<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    #[account(address = system_program::ID)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub system_program: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    // merkle tree account liquidity pool pda
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree_pda_token: AccountInfo<'info>,
+    // account from which funds are transferred
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub user_account: Signer<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree:  AccountInfo<'info>,
+}
+
+// Nullfier pdas are derived from the nullifier
+// existence of a nullifier is the check to
+// prevent double spends.
+#[account]
+pub struct Nullifier {
+
+}
+
+
+
 #[derive(Accounts)]
 // #[instruction(tx_integrity_hash:  [u8;32])]
 pub struct CreateMerkleTreeState<'info> {
@@ -252,15 +347,6 @@ pub struct CreateMerkleTreeState<'info> {
 
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    // #[account(seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()], bump, program_id=program_merkle_tree)]
-    // #[account(
-    //     init,
-    //     payer = signing_address,
-    //     seeds = [b"prepare_inputs", tx_integrity_hash.as_ref()],
-    //     bump,
-    //     space = 395,
-    //     // owner= *program_merkle_tree.key
-    // )]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_tmp_state: AccountInfo<'info>,
@@ -300,7 +386,9 @@ pub struct InitializeTmpMerkleTree<'info> {
 #[error_code]
 pub enum ErrorCode {
     #[msg("Incompatible Verifying Key")]
-    IncompatibleVerifyingKey
+    IncompatibleVerifyingKey,
+    #[msg("WrongPubAmount")]
+    WrongPubAmount
 }
 
 pub const IX_ORDER: [u8; 37] = [
