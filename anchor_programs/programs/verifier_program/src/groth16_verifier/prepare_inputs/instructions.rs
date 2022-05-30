@@ -1,28 +1,25 @@
 use crate::groth16_verifier::parsers::*;
+use crate::state::VerifierState;
 use crate::utils::prepared_verifying_key::*;
+use crate::ErrorCode;
+use anchor_lang::prelude::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
+use ark_ff::BigInteger;
 use ark_ff::{
+    bytes::FromBytes,
     fields::{Field, PrimeField},
     BitIteratorBE, Fp256, One,
-    bytes::FromBytes
-
 };
 use ark_std::Zero;
 use solana_program::msg;
-use anchor_lang::prelude::*;
 use std::cell::RefMut;
-use crate::ErrorCode;
-use crate::state::VerifierState;
-use ark_ff::BigInteger;
 
 // Initializes all i,x pairs. 7 pairs for 7 public inputs.
 // Creates all i,x pairs once, then stores them in specified ranges.
 // Other ix can then parse the i,x pair they need. Storing all pairs allows us to replicate
 // the loop behavior inside the library's implementation:
 // https://docs.rs/ark-groth16/0.3.0/src/ark_groth16/verifier.rs.html#31-33
-pub fn init_pairs_instruction<'info>(
-    tmp_account: &mut RefMut<'_, VerifierState>
-) -> Result<()> {
+pub fn init_pairs_instruction<'info>(tmp_account: &mut RefMut<'_, VerifierState>) -> Result<()> {
     // Parses vk_gamma_abc_g1 from hard-coded file.
     // Should have 8 items if 7 public inputs are passed in since [0] will be used to initialize g_ic.
     // Called once.
@@ -38,13 +35,21 @@ pub fn init_pairs_instruction<'info>(
     ];
 
     let public_inputs: [Fp256<ark_ed_on_bn254::FqParameters>; 7] = [
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.root_hash[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.amount[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.tx_integrity_hash[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier0[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier1[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_right[..]).unwrap(),
-    <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_left[..]).unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.root_hash[..])
+            .unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.amount[..]).unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(
+            &tmp_account.tx_integrity_hash[..],
+        )
+        .unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier0[..])
+            .unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.nullifier1[..])
+            .unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_right[..])
+            .unwrap(),
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.leaf_left[..])
+            .unwrap(),
     ];
 
     if (public_inputs.len() + 1) != pvk_vk_gamma_abc_g1.len() {
@@ -54,7 +59,6 @@ pub fn init_pairs_instruction<'info>(
 
     // inits g_ic into range.
     let g_ic = pvk_vk_gamma_abc_g1[0].into_projective();
-
 
     // parse_group_projective_to_bytes_254(g_ic, g_ic_x_range, g_ic_y_range, g_ic_z_range);
     tmp_account.g_ic_x_range = g_ic.x.into_repr().to_bytes_le().try_into().unwrap();
@@ -89,16 +93,13 @@ pub fn init_pairs_instruction<'info>(
     Ok(())
 }
 
-
-
-
 // Initializes fresh res range. Called once for each bit at the beginning of each loop (256x).
 // Part of the mul() implementation: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#161-164
 // Refer to maths_instruction for details.
 pub fn init_res_instruction(
-    res_x_range: &mut [u8;32],
-    res_y_range: &mut [u8;32],
-    res_z_range: &mut [u8;32],
+    res_x_range: &mut [u8; 32],
+    res_y_range: &mut [u8; 32],
+    res_z_range: &mut [u8; 32],
 ) -> Result<()> {
     let res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         ark_ec::short_weierstrass_jacobian::GroupProjective::zero(); // 88
@@ -115,11 +116,11 @@ pub fn init_res_instruction(
 // Current_index (0..256) is parsed in because we need to
 // replicate the stripping of leading zeroes (which are random becuase they're based on the public inputs).
 pub fn maths_instruction(
-    res_x_range: &mut [u8;32],
-    res_y_range: &mut [u8;32],
-    res_z_range: &mut [u8;32],
-    i_range: &[u8;32],
-    x_range: &[u8;64],
+    res_x_range: &mut [u8; 32],
+    res_y_range: &mut [u8; 32],
+    res_z_range: &mut [u8; 32],
+    i_range: &[u8; 32],
+    x_range: &[u8; 64],
     current_index: usize,
     rounds: u64,
 ) -> Result<()> {
@@ -147,11 +148,8 @@ pub fn maths_instruction(
             if m == rounds - 1 {
                 parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             }
-        }
-        else if (index_in - skipped) >= bits_without_leading_zeroes.len() {
-
-        }
-        else {
+        } else if (index_in - skipped) >= bits_without_leading_zeroes.len() {
+        } else {
             // Get the current bit but account for removed zeroes.
             let current_bit = bits_without_leading_zeroes[index_in - skipped];
             // Info: when refering to the library's implementation keep in mind that here:
@@ -223,12 +221,12 @@ pub fn maths_instruction(
 
 // Implements: https://docs.rs/snarkvm-curves/0.5.0/src/snarkvm_curves/templates/short_weierstrass/short_weierstrass_jacobian.rs.html#634-695
 pub fn maths_g_ic_instruction(
-    g_ic_x_range: &mut [u8;32],
-    g_ic_y_range: &mut [u8;32],
-    g_ic_z_range: &mut [u8;32],
-    res_x_range: &[u8;32],
-    res_y_range: &[u8;32],
-    res_z_range: &[u8;32],
+    g_ic_x_range: &mut [u8; 32],
+    g_ic_y_range: &mut [u8; 32],
+    g_ic_z_range: &mut [u8; 32],
+    res_x_range: &[u8; 32],
+    res_y_range: &[u8; 32],
+    res_z_range: &[u8; 32],
 ) -> Result<()> {
     let mut g_ic = parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
     let res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range); // 15k
@@ -299,9 +297,9 @@ pub fn maths_g_ic_instruction(
 // The verifier then reads the x_1_range to use the g_ic value as P2 for the millerloop.
 // Split up into two ix because of compute budget limits.
 pub fn g_ic_into_affine_1(
-    g_ic_x_range: &mut [u8;32],
-    g_ic_y_range: &mut [u8;32],
-    g_ic_z_range: &mut [u8;32],
+    g_ic_x_range: &mut [u8; 32],
+    g_ic_y_range: &mut [u8; 32],
+    g_ic_z_range: &mut [u8; 32],
 ) -> Result<()> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k
@@ -314,10 +312,10 @@ pub fn g_ic_into_affine_1(
 }
 
 pub fn g_ic_into_affine_2(
-    g_ic_x_range: &[u8;32],
-    g_ic_y_range: &[u8;32],
-    g_ic_z_range: &[u8;32],
-    x_1_range: &mut [u8;64],
+    g_ic_x_range: &[u8; 32],
+    g_ic_y_range: &[u8; 32],
+    g_ic_z_range: &[u8; 32],
+    x_1_range: &mut [u8; 64],
 ) -> Result<()> {
     let g_ic: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> =
         parse_group_projective_from_bytes_254(g_ic_x_range, g_ic_y_range, g_ic_z_range); // 15k

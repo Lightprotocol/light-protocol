@@ -1,176 +1,187 @@
-use ark_ff::QuadExtField;
-use ark_std::Zero;
-use ark_ec::models::bn::g2::{doubling_step, addition_step, mul_by_char};
+use crate::groth16_verifier::miller_loop::state::*;
+use crate::groth16_verifier::parsers::*;
+use crate::state::VerifierState;
+use crate::utils::prepared_verifying_key::*;
 use ark_ec::bn::BnParameters;
-use std::convert::TryInto;
+use ark_ec::models::bn::g2::{addition_step, doubling_step, mul_by_char};
 use ark_ff::Field;
+use ark_ff::QuadExtField;
+use ark_std::One;
+use ark_std::Zero;
 use solana_program::msg;
 use std::cell::RefMut;
-use crate::groth16_verifier::miller_loop::{
-    state::*,
-};
-use crate::groth16_verifier::parsers::*;
-use crate::utils::prepared_verifying_key::*;
-use crate::state::VerifierState;
-use ark_std::One;
+use std::convert::TryInto;
 
 pub fn get_coeff(
-        pair_index: u64,
-        tmp_account: &mut RefMut<'_, VerifierState>,
-        total_steps: &mut u64,
-        tmp_account_compute: &mut MillerLoopStateCompute
-    ) -> Option<(QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>)> {
-
+    pair_index: u64,
+    tmp_account: &mut RefMut<'_, VerifierState>,
+    total_steps: &mut u64,
+    tmp_account_compute: &mut MillerLoopStateCompute,
+) -> Option<(
+    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+)> {
     match pair_index {
         0 => {
             //proof_b
             msg!("getting proof_b coeff");
-            get_b_coeffs(
-                total_steps,
-                tmp_account,
-                tmp_account_compute,
-            )
-        },
+            get_b_coeffs(total_steps, tmp_account, tmp_account_compute)
+        }
         1 => {
             //gamma_g2_neg_pc
             msg!("getting gamma coeff");
             return Some(get_gamma_g2(tmp_account));
-
-        },
+        }
         2 => {
             //delta_g2
             msg!("getting delta coeff");
             return Some(get_delta_g2(tmp_account));
-        },
-        _=> {
+        }
+        _ => {
             panic!("Invalid index {}", pair_index);
         }
     }
 }
 
-
 pub fn get_b_coeffs(
     total_steps: &mut u64,
     tmp_account: &mut RefMut<'_, VerifierState>,
-    tmp_account_compute: &mut MillerLoopStateCompute
+    tmp_account_compute: &mut MillerLoopStateCompute,
 ) -> Option<(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
 )> {
     msg!("getting b coeff");
-        // if q.is_zero() {
-        //     return Self {
-        //         ell_coeffs: vec![],
-        //         infinity: true,
-        //     };
-        // }
-        let two_inv = <ark_bn254::Parameters as BnParameters>::Fp::one().double().inverse().unwrap();
+    // if q.is_zero() {
+    //     return Self {
+    //         ell_coeffs: vec![],
+    //         infinity: true,
+    //     };
+    // }
+    let two_inv = <ark_bn254::Parameters as BnParameters>::Fp::one()
+        .double()
+        .inverse()
+        .unwrap();
 
-            // TODO: hardcode constant
-            // let q = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
-            // TODO: throw error at zero
-            // if q.is_zero() {
-            //     return Err();
-            // }
+    // TODO: hardcode constant
+    // let q = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
+    // TODO: throw error at zero
+    // if q.is_zero() {
+    //     return Err();
+    // }
 
-        for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(tmp_account.outer_first_loop_coeff as usize)).rev() {
+    for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()
+        - (tmp_account.outer_first_loop_coeff as usize))
+        .rev()
+    {
         // let i = ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(*outer_first_loop as usize);
-            if tmp_account.inner_first_coeff == 0 {
+        if tmp_account.inner_first_coeff == 0 {
+            *total_steps += 140_000;
+            msg!("doubling_step");
+            if *total_steps >= tmp_account.compute_max_miller_loop {
+                return None;
+            } else {
+                tmp_account.inner_first_coeff = 1;
+                tmp_account.coeff_index[0] += 1;
+                return Some(doubling_step::<ark_bn254::Parameters>(
+                    &mut tmp_account_compute.r,
+                    &two_inv,
+                ));
+            }
+        }
 
+        let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i - 1];
 
-                *total_steps+=140_000;
-                msg!("doubling_step");
-                if *total_steps >= tmp_account.compute_max_miller_loop  {
+        match bit {
+            1 => {
+                *total_steps += 200_000;
+                msg!("addition_step1");
+                if *total_steps >= tmp_account.compute_max_miller_loop {
                     return None;
                 } else {
-                    tmp_account.inner_first_coeff = 1;
-                    tmp_account.coeff_index[0]+=1;
-                    return Some(doubling_step::<ark_bn254::Parameters>(&mut tmp_account_compute.r, &two_inv));
+                    tmp_account.inner_first_coeff = 0;
+                    tmp_account.outer_first_loop_coeff += 1;
+                    tmp_account.coeff_index[0] += 1;
+                    return Some(addition_step::<ark_bn254::Parameters>(
+                        &mut tmp_account_compute.r,
+                        &parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()),
+                    ));
                 }
             }
-
-            let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i - 1];
-
-            match bit {
-                1 => {
-
-                    *total_steps+=200_000;
-                    msg!("addition_step1");
-                    if *total_steps >= tmp_account.compute_max_miller_loop  {
-                        return None;
-                    } else {
-                        tmp_account.inner_first_coeff =0;
-                        tmp_account.outer_first_loop_coeff+=1;
-                        tmp_account.coeff_index[0]+=1;
-                        return Some(addition_step::<ark_bn254::Parameters>(&mut tmp_account_compute.r, &parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec())));
-                    }
+            -1 => {
+                *total_steps += 200_000;
+                msg!("addition_step-1");
+                if *total_steps >= tmp_account.compute_max_miller_loop {
+                    return None;
+                } else {
+                    tmp_account.inner_first_coeff = 0;
+                    tmp_account.outer_first_loop_coeff += 1;
+                    tmp_account.coeff_index[0] += 1;
+                    return Some(addition_step::<ark_bn254::Parameters>(
+                        &mut tmp_account_compute.r,
+                        &-parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()),
+                    ));
                 }
-                -1 => {
-
-
-                    *total_steps+=200_000;
-                    msg!("addition_step-1");
-                    if *total_steps >= tmp_account.compute_max_miller_loop  {
-                        return None;
-                    } else {
-                        tmp_account.inner_first_coeff =0;
-                        tmp_account.outer_first_loop_coeff+=1;
-                        tmp_account.coeff_index[0]+=1;
-                        return Some(addition_step::<ark_bn254::Parameters>(&mut tmp_account_compute.r, &-parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec())));
-                    }                }
-                _ => {
-                    tmp_account.inner_first_coeff =0;
-                    tmp_account.outer_first_loop_coeff+=1;
-                    continue;},
+            }
+            _ => {
+                tmp_account.inner_first_coeff = 0;
+                tmp_account.outer_first_loop_coeff += 1;
+                continue;
             }
         }
+    }
 
+    // if ark_bn254::Parameters::X_IS_NEGATIVE {
+    //     r.y = -r.y;
+    // }
 
-        // if ark_bn254::Parameters::X_IS_NEGATIVE {
-        //     r.y = -r.y;
-        // }
-
-
-        if tmp_account.outer_second_coeff == 0 {
-            *total_steps+=200_000;
-            msg!("mul_by_char + addition_step");
-            if *total_steps >= tmp_account.compute_max_miller_loop  {
-                return None;
-            }
-            let q1 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()));
-
-            let mut tmp = vec![0u8;128];
-            parse_proof_b_to_bytes(q1, &mut  tmp);
-            tmp_account.q1_bytes = tmp.try_into().unwrap();
-            tmp_account.outer_second_coeff = 1;
-
-            tmp_account.coeff_index[0]+=1;
-            return Some(addition_step::<ark_bn254::Parameters>(&mut tmp_account_compute.r, &q1));
-        }
-        *total_steps+=200_000;
+    if tmp_account.outer_second_coeff == 0 {
+        *total_steps += 200_000;
         msg!("mul_by_char + addition_step");
-        if *total_steps >= tmp_account.compute_max_miller_loop  {
+        if *total_steps >= tmp_account.compute_max_miller_loop {
             return None;
         }
-        let mut q2 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(&tmp_account.q1_bytes.to_vec()));
-        q2.y = -q2.y;
-        tmp_account.coeff_index[0] +=1;
+        let q1 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
+            &tmp_account.proof_b_bytes.to_vec(),
+        ));
 
-        return Some(addition_step::<ark_bn254::Parameters>(&mut tmp_account_compute.r, &q2));
+        let mut tmp = vec![0u8; 128];
+        parse_proof_b_to_bytes(q1, &mut tmp);
+        tmp_account.q1_bytes = tmp.try_into().unwrap();
+        tmp_account.outer_second_coeff = 1;
 
+        tmp_account.coeff_index[0] += 1;
+        return Some(addition_step::<ark_bn254::Parameters>(
+            &mut tmp_account_compute.r,
+            &q1,
+        ));
+    }
+    *total_steps += 200_000;
+    msg!("mul_by_char + addition_step");
+    if *total_steps >= tmp_account.compute_max_miller_loop {
+        return None;
+    }
+    let mut q2 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
+        &tmp_account.q1_bytes.to_vec(),
+    ));
+    q2.y = -q2.y;
+    tmp_account.coeff_index[0] += 1;
+
+    return Some(addition_step::<ark_bn254::Parameters>(
+        &mut tmp_account_compute.r,
+        &q2,
+    ));
 }
 #[allow(unused_assignments)]
 pub fn get_gamma_g2(
-    tmp_account: &mut VerifierState
-) ->(
+    tmp_account: &mut VerifierState,
+) -> (
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
 ) {
-
     let mut coeff: (
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
         QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -181,7 +192,7 @@ pub fn get_gamma_g2(
         QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
     );
     let id = tmp_account.coeff_index[1];
-    msg!("Getting gamma coeff id: {}",id );
+    msg!("Getting gamma coeff id: {}", id);
     // Reads from hardcoded verifying key.
     if id == 0 {
         coeff = get_gamma_g2_neg_pc_0();
@@ -369,12 +380,12 @@ pub fn get_gamma_g2(
         msg!("ERR: coeff uninitialized value");
         panic!();
     }
-    tmp_account.coeff_index[1]+=1;
+    tmp_account.coeff_index[1] += 1;
     coeff
 }
 #[allow(unused_assignments)]
 pub fn get_delta_g2(
-    tmp_account: &mut VerifierState
+    tmp_account: &mut VerifierState,
 ) -> (
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -390,7 +401,7 @@ pub fn get_delta_g2(
         QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
     );
     let id = tmp_account.coeff_index[2];
-    msg!("Getting delta coeff id: {}",id );
+    msg!("Getting delta coeff id: {}", id);
 
     // Reads from hardcoded verifying key.
     if id == 0 {
@@ -579,6 +590,6 @@ pub fn get_delta_g2(
         msg!("ERR: coeff uninitialized value");
         panic!();
     }
-    tmp_account.coeff_index[2]+=1;
+    tmp_account.coeff_index[2] += 1;
     coeff
 }

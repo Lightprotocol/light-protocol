@@ -1,11 +1,11 @@
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACCOUNT_TYPE};
-use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::{ByteOrder, LittleEndian};
 use anchor_lang::solana_program::{
     msg,
     program_error::ProgramError,
     program_pack::{IsInitialized, Pack, Sealed},
 };
+use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
+use byteorder::{ByteOrder, LittleEndian};
 use std::convert::TryInto;
 
 #[allow(unused_variables)]

@@ -1,7 +1,4 @@
-use crate::instructions::{
-    close_account,
-    sol_transfer,
-};
+use crate::instructions::{close_account, sol_transfer};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::MerkleTreeTmpPda;
@@ -25,7 +22,7 @@ pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     tmp_storage_pda_data: &mut MerkleTreeTmpPda,
-    instruction_data: &[u8]
+    instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
@@ -54,9 +51,10 @@ pub fn process_instruction(
         );
     }
 
-    if tmp_storage_pda_data.current_instruction_index > 0 && tmp_storage_pda_data.current_instruction_index < 75 {
-        let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+    if tmp_storage_pda_data.current_instruction_index > 0
+        && tmp_storage_pda_data.current_instruction_index < 75
+    {
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
         msg!("\nprior process_instruction\n");
         merkle_tree_processor.process_instruction(accounts, tmp_storage_pda_data, None)?;
     }
@@ -68,7 +66,6 @@ pub fn process_instruction(
         let system_program_account = next_account_info(account)?;
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
-
 
         if tmp_storage_pda_data.found_root != 1u8 {
             msg!("Root was not found. {}", tmp_storage_pda_data.found_root);
@@ -100,7 +97,6 @@ pub fn process_instruction(
             return Err(ProgramError::IllegalOwner);
         }
 
-
         msg!("Creating two_leaves_pda.");
         create_and_check_pda(
             program_id,
@@ -108,8 +104,7 @@ pub fn process_instruction(
             two_leaves_pda,
             system_program_account,
             rent,
-            &tmp_storage_pda_data.leaf_left
-                [0..32],
+            &tmp_storage_pda_data.leaf_left[0..32],
             &b"leaves"[..],
             TWO_LEAVES_PDA_SIZE, //bytes
             0,                   //lamports
@@ -117,16 +112,18 @@ pub fn process_instruction(
         )?;
 
         msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
-        merkle_tree_processor.process_instruction(accounts, tmp_storage_pda_data, Some(instruction_data))?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+        merkle_tree_processor.process_instruction(
+            accounts,
+            tmp_storage_pda_data,
+            Some(instruction_data),
+        )?;
         // Close tmp account.
         close_account(tmp_storage_pda, signer_account)?;
     }
 
     Ok(())
 }
-
 
 pub fn process_sol_transfer(
     program_id: &Pubkey,
@@ -165,7 +162,7 @@ pub fn process_sol_transfer(
             )?;
             // Close escrow account to make deposit to shielded pool.
             close_account(user_ecrow_acc, merkle_tree_pda_token)
-        },
+        }
         WITHDRAWAL => {
             let merkle_tree_pda_token = next_account_info(account)?;
             // withdraws amounts to accounts
@@ -177,7 +174,7 @@ pub fn process_sol_transfer(
                 sol_transfer(merkle_tree_pda_token, to, amount)?;
             }
             Ok(())
-        },
+        }
         _ => Err(ProgramError::InvalidInstructionData),
     }
 }

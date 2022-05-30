@@ -26,9 +26,7 @@ mod tests {
     use light_protocol_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
     use std::convert::TryInto;
 
-    use light_protocol_program::poseidon_merkle_tree::state::{
-        MerkleTree as MerkleTreeOnchain,
-    };
+    use light_protocol_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
     use light_protocol_program::state::MerkleTreeTmpPda;
 
     use ark_std::One;
@@ -891,14 +889,14 @@ mod tests {
                 is_initialized: true,
                 found_root: 1u8,
                 account_type: 4u8,
-                root_hash:          vec![0u8;32],
-                node_left:          vec![0u8;32],
-                node_right:         vec![0u8;32],
-                leaf_left:          vec![0u8;32],
-                leaf_right:         vec![0u8;32],
-                merkle_tree_pda_pubkey:  vec![0u8;32],
-                verifier_tmp_pda:   vec![0u8;32],
-                relayer:    vec![0u8;32],
+                root_hash: vec![0u8; 32],
+                node_left: vec![0u8; 32],
+                node_right: vec![0u8; 32],
+                leaf_left: vec![0u8; 32],
+                leaf_right: vec![0u8; 32],
+                merkle_tree_pda_pubkey: vec![0u8; 32],
+                verifier_tmp_pda: vec![0u8; 32],
+                relayer: vec![0u8; 32],
 
                 state: vec![0u8; 96],
                 current_round: 0,
@@ -908,7 +906,7 @@ mod tests {
                 current_index: 0usize,
                 current_level: 0usize,
                 current_instruction_index: 0usize,
-                changed_state: 1
+                changed_state: 1,
             };
 
             let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
@@ -927,7 +925,7 @@ mod tests {
                 &new_leaf_hash_1,
                 &mut new_leaf_hash_bytes_1[..],
             );
-            new_leaf_hash_bytes = vec![2u8;32];
+            new_leaf_hash_bytes = vec![2u8; 32];
             let new_leaf_hash_bytes_1 = new_leaf_hash_bytes.clone();
 
             println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
@@ -944,13 +942,22 @@ mod tests {
                     &mut hash_tmp_account,
                     &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
                 );
-                println!("tmp_storage_account.state[0..32]: {:?}", hash_tmp_account.state[0..32].to_vec());
+                println!(
+                    "tmp_storage_account.state[0..32]: {:?}",
+                    hash_tmp_account.state[0..32].to_vec()
+                );
                 // assert_eq!(hash_tmp_account.changed_state, true);
-                if vec![46, 249, 231, 68, 228, 157, 60, 58, 59, 174, 47, 106, 74, 47, 118, 145, 47, 97, 124, 204, 19, 185, 250, 79, 31, 239, 247, 99, 135, 127, 84, 12] ==
-                    hash_tmp_account.state[0..32].to_vec() {
-                        println!("found match at instruction: {}", hash_tmp_account.current_instruction_index);
-                        panic!("");
-                    }
+                if vec![
+                    46, 249, 231, 68, 228, 157, 60, 58, 59, 174, 47, 106, 74, 47, 118, 145, 47, 97,
+                    124, 204, 19, 185, 250, 79, 31, 239, 247, 99, 135, 127, 84, 12,
+                ] == hash_tmp_account.state[0..32].to_vec()
+                {
+                    println!(
+                        "found match at instruction: {}",
+                        hash_tmp_account.current_instruction_index
+                    );
+                    panic!("");
+                }
             }
             instructions::insert_last_double(&mut smt, &mut hash_tmp_account);
 
@@ -978,5 +985,4 @@ mod tests {
             j += 2;
         }
     }
-
 }
