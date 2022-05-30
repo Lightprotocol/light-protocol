@@ -17,10 +17,14 @@ pub fn final_exponentiation_process_instruction(tmp_account: &mut RefMut<'_, Ver
     // The original implementation is split up into steps which can be executed within 1.4m
     // compute units. Every step has compute costs assigned to it which were collected through
     // measurements. Every steps increments a global total compute used variable which is checked
-    // at the end of every compute step.
+    // before every compute step.
     // The flow is as follows:
-    // 
-    // if state.fe_instruction_index == 0 && state.check_compute_units() {
+    //
+    // if state.fe_instruction_index == 0 {
+    //     state.current_compute += 288464;
+    //     if !state.check_compute_units() {
+    //         return Ok(Some(self.f));
+    //     }
     //     FinalExponentiationComputeState::unpack(
     //         &mut state.current_compute,
     //         &mut self.f,
@@ -29,11 +33,8 @@ pub fn final_exponentiation_process_instruction(tmp_account: &mut RefMut<'_, Ver
     //
     //     self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
     //
-    //     state.current_compute += 288464;
     //     state.fe_instruction_index += 1;
-    //     if !state.check_compute_units() {
-    //         return Ok(Some(self.f));
-    //     }
+
     // }
     let mut compute_state = FinalExponentiationComputeState::new_state();
     compute_state.final_exponentiation(tmp_account).unwrap();
@@ -187,14 +188,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f,
                 state.f_bytes,
             );
-
-            self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
-
             state.current_compute += 288464;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
+
+            state.fe_instruction_index += 1;
+
         }
 
         if state.fe_instruction_index == 1 && state.check_compute_units() {
@@ -208,16 +209,17 @@ impl FinalExponentiationComputeState {
                 &mut self.f1,
                 state.f_bytes1,
             );
+            state.current_compute += 125883;
+            if !state.check_compute_units() {
+                return Ok(Some(self.f));
+            }
 
             // f2 = f^(-1);
             // r = f^(p^6 - 1)
             self.f1 = self.f1 * self.f;
 
-            state.current_compute += 125883;
             state.fe_instruction_index += 1;
-            if !state.check_compute_units() {
-                return Ok(Some(self.f));
-            }
+
         }
 
         if state.fe_instruction_index == 2 && state.check_compute_units() {
@@ -240,14 +242,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f1,
                 state.f_bytes1,
             );
-            // r = f^((p^6 - 1)(p^2))
-            self.f1.frobenius_map(2);
-
             state.current_compute += 54002;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            // r = f^((p^6 - 1)(p^2))
+            self.f1.frobenius_map(2);
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 4 && state.check_compute_units() {
@@ -262,14 +263,15 @@ impl FinalExponentiationComputeState {
                 state.f_bytes1,
             );
 
-            // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
-            // r = f^((p^6 - 1)(p^2 + 1))
-            self.f1 *= self.f;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            // r = f^((p^6 - 1)(p^2) + (p^6 - 1))
+            // r = f^((p^6 - 1)(p^2 + 1))
+            self.f1 *= self.f;
+            state.fe_instruction_index += 1;
+
         }
 
         // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
@@ -282,7 +284,7 @@ impl FinalExponentiationComputeState {
         // which equals
         //
         // result = elt^( 2z * ( 6z^2 + 3z + 1 ) * (q^4 - q^2 + 1)/r )
-        if state.fe_instruction_index == 5 {
+        if state.fe_instruction_index == 5 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
                 &mut state.current_compute,
                 &mut self.f,
@@ -295,9 +297,9 @@ impl FinalExponentiationComputeState {
             );
 
             if !cyclotomic_exp(&self.f1, &mut self.f, state) {
-                // msg!("cyclotomic_exp" );
                 return Ok(Some(self.f));
             }
+
             state.fe_instruction_index += 1;
         }
 
@@ -307,13 +309,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f,
                 state.f_bytes,
             );
-
-            self.f2 = self.f.cyclotomic_square();
             state.current_compute += 46602;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f2 = self.f.cyclotomic_square();
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 7 && state.check_compute_units() {
@@ -322,13 +324,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-            self.f = self.f2.cyclotomic_square();
-
             state.current_compute += 46602;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f = self.f2.cyclotomic_square();
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 8 && state.check_compute_units() {
@@ -342,16 +344,16 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
-            self.f = self.f * &self.f2;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f = self.f * &self.f2;
+            state.fe_instruction_index += 1;
         }
 
-        if state.fe_instruction_index == 9 {
+        if state.fe_instruction_index == 9 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
                 &mut state.current_compute,
                 &mut self.f,
@@ -364,7 +366,6 @@ impl FinalExponentiationComputeState {
             );
 
             if !cyclotomic_exp(&self.f, &mut self.f3, state) {
-                // msg!("cyclotomic_exp" );
                 return Ok(Some(self.f));
             }
             state.fe_instruction_index += 1;
@@ -376,16 +377,16 @@ impl FinalExponentiationComputeState {
                 &mut self.f3,
                 state.f_bytes3,
             );
-
-            self.f4 = self.f3.cyclotomic_square();
             state.current_compute += 46602;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f4 = self.f3.cyclotomic_square();
+            state.fe_instruction_index += 1;
+
         }
 
-        if state.fe_instruction_index == 11 {
+        if state.fe_instruction_index == 11 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
                 &mut state.current_compute,
                 &mut self.f4,
@@ -401,9 +402,9 @@ impl FinalExponentiationComputeState {
                 return Ok(Some(self.f));
             }
 
-            state.fe_instruction_index += 1;
             self.f4 = self.f5;
             self.f4.conjugate();
+            state.fe_instruction_index += 1;
         }
         if state.fe_instruction_index == 12 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
@@ -416,13 +417,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f3,
                 state.f_bytes3,
             );
-
-            self.f4 = self.f4 * &self.f3;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f4 = self.f4 * &self.f3;
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 13 && state.check_compute_units() {
@@ -436,14 +437,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f4,
                 state.f_bytes4,
             );
-            self.f.conjugate();
-
-            self.f4 = self.f4 * &self.f;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f.conjugate();
+            self.f4 = self.f4 * &self.f;
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 14 && state.check_compute_units() {
@@ -457,17 +458,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
-            self.f2 = self.f4 * &self.f2;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
-            // msg!("self.f2{:?}", self.f2);
-
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f2 = self.f4 * &self.f2;
+            state.fe_instruction_index += 1;
         }
-        // msg!("14self.f2 {:?}", self.f2);
 
         if state.fe_instruction_index == 15 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
@@ -480,13 +478,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f3,
                 state.f_bytes3,
             );
-
-            self.f3 = self.f4 * &self.f3;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f3 = self.f4 * &self.f3;
+            state.fe_instruction_index += 1;
         }
         if state.fe_instruction_index == 16 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
@@ -499,13 +497,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f1,
                 state.f_bytes1,
             );
-
-            self.f3 = self.f3 * &self.f1;
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f3 = self.f3 * &self.f1;
+            state.fe_instruction_index += 1;
+
         }
         if state.fe_instruction_index == 17 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
@@ -513,15 +512,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
-            self.f = self.f2;
-            self.f.frobenius_map(1);
-
             state.current_compute += 54002;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f = self.f2;
+            self.f.frobenius_map(1);
+            state.fe_instruction_index += 1;
+
         }
 
         if state.fe_instruction_index == 18 && state.check_compute_units() {
@@ -535,14 +533,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f3,
                 state.f_bytes3,
             );
-
-            self.f3 = self.f * &self.f3;
-
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f3 = self.f * &self.f3;
+            state.fe_instruction_index += 1;
+
         }
 
         if state.fe_instruction_index == 19 && state.check_compute_units() {
@@ -551,14 +549,13 @@ impl FinalExponentiationComputeState {
                 &mut self.f4,
                 state.f_bytes4,
             );
-
-            self.f4.frobenius_map(2);
-
             state.current_compute += 54002;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+
+            self.f4.frobenius_map(2);
+            state.fe_instruction_index += 1;
         }
 
         if state.fe_instruction_index == 20 && state.check_compute_units() {
@@ -572,14 +569,12 @@ impl FinalExponentiationComputeState {
                 &mut self.f3,
                 state.f_bytes3,
             );
-
-            self.f4 = self.f4 * &self.f3;
-
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f4 = self.f4 * &self.f3;
+            state.fe_instruction_index += 1;
         }
         // msg!("20self.f4 {:?}", self.f4);
         if state.fe_instruction_index == 21 && state.check_compute_units() {
@@ -593,16 +588,16 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
-            self.f1.conjugate();
-
-            self.f2 = self.f1 * &self.f2;
-
             state.current_compute += 125883;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f1.conjugate();
+
+            self.f2 = self.f1 * &self.f2;
+            state.fe_instruction_index += 1;
+
+
         }
 
         if state.fe_instruction_index == 22 && state.check_compute_units() {
@@ -611,14 +606,14 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
-            self.f2.frobenius_map(3);
-
             state.current_compute += 54002;
-            state.fe_instruction_index += 1;
             if !state.check_compute_units() {
                 return Ok(Some(self.f));
             }
+            self.f2.frobenius_map(3);
+            state.fe_instruction_index += 1;
+
+
         }
 
         if state.fe_instruction_index == 23 && state.check_compute_units() {
@@ -632,22 +627,20 @@ impl FinalExponentiationComputeState {
                 &mut self.f2,
                 state.f_bytes2,
             );
-
+            state.current_compute += 125883;
+            if !state.check_compute_units() {
+                return Ok(Some(self.f));
+            }
             self.f2 = self.f2 * &self.f4;
 
             assert_eq!(self.f2, parse_f_from_bytes(&ALPHA_G1_BETA_G2.to_vec()));
             msg!("Proof Verification success.");
             state.updating_merkle_tree = true;
             state.computing_final_exponentiation = false;
-            state.current_compute += 125883;
             state.fe_instruction_index += 1;
-            if !state.check_compute_units() {
-                return Ok(Some(self.f));
-            }
         }
 
         Ok(Some(self.f2))
-        //})
     }
 }
 pub fn cyclotomic_exp(

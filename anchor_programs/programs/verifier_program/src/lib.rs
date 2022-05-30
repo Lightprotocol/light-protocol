@@ -190,7 +190,8 @@ pub mod verifier_program {
                 tmp_account.i_bytes[0] = 1;
                 // Skipping the first loop iteration since the naf_vec is zero.
                 tmp_account.outer_loop = 1;
-                tmp_account.max_compute = 1_100_000;
+                tmp_account.max_compute = 1_200_000;
+                tmp_account.current_compute+=150_000;
             }
 
             msg!("computing final_exponentiation");
