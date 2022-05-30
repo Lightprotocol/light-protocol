@@ -133,23 +133,13 @@ const constants:any = {};
 const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
 const TYPE_SEED = {defined: "&[u8]"};
 const TYPE_INIT_DATA = { array: [ 'u8', 642 ] };
-// IDL.constants.map((item) => {
-//   if(_.isEqual(item.type, TYPE_SEED)) {
-//     constants[item.name] = item.value.replace("b\"", "").replace("\"", "");
-//   } else //if(_.isEqual(item.type, TYPE_PUBKEY) || _.isEqual(item.type, TYPE_INIT_DATA))
-//   {
-//     constants[item.name] = JSON.parse(item.value)
-//   }
-// });
+
 
 
 
 const read_and_parse_instruction_data_bytes = ()  => {
   let file = fs.readFileSync('tests/deposit.txt','utf8');
-  // let file = await fs.readFile("deposit.txt", function(err, fd) {
-  //  if (err) {
-  //     return console.error(err);
-  //  }
+
    console.log("File opened successfully!");
    var data = JSON.parse(file.toString());
    var partsOfStr = data.bytes[0].split(',');
@@ -171,10 +161,6 @@ const read_and_parse_instruction_data_bytes = ()  => {
      leafRight:         bytes.slice(160,192),
      leafLeft:          bytes.slice(192,224),
      proofAbc:        bytes.slice(224,480),
-     // relayer_fee:        bytes.slice(264,272),
-     // ext_sol_amount:     bytes.slice(272,304),
-     // verifier_index:     bytes.slice(304,312),
-     // merkleTreeIndex:  bytes.slice(312,320),
      recipient:          bytes.slice(480,512),
      extAmount:         bytes.slice(512,520),
      relayer:            bytes.slice(520, 552),
@@ -196,10 +182,6 @@ function parse_instruction_data_bytes(data) {
      leafRight:         data.data.publicInputsBytes.slice(160,192),
      leafLeft:          data.data.publicInputsBytes.slice(192,224),
      proofAbc:        data.data.proofBytes,
-     // relayer_fee:        bytes.slice(264,272),
-     // ext_sol_amount:     bytes.slice(272,304),
-     // verifier_index:     bytes.slice(304,312),
-     // merkleTreeIndex:  bytes.slice(312,320),
      recipient:          data.data.extDataBytes.slice(0,32),
      extAmount:         data.data.extAmount,
      relayer:            data.data.extDataBytes.slice(40,72),
@@ -321,7 +303,7 @@ describe("verifier_program", () => {
 
   });
 
-  /*
+
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount,verifierProgram ) // new anchor.web3.Account()
@@ -498,126 +480,12 @@ describe("verifier_program", () => {
           ix_data
         })
 
-  });*/
-
-  /*
-  it("Last Transaction hardcoded inputs should succeed", async () => {
-    let userAccount =new anchor.web3.Account()
-    await newAccountWithLamports(provider.connection, userAccount,verifierProgram , 1e11) // new anchor.web3.Account()
-    // const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),verifierProgram, lamports = 1e10) => {
-    let init_account = await newAccountWithLamports(provider.connection ) // new anchor.web3.Account()
-
-    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-
-    let [pda, bump] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("prepare_inputs"),
-          Buffer.from(userAccount.publicKey.toBytes()),
-        ],
-        verifierProgram.programId
-      );
-
-    let [pda1, bump1] = findProgramAddressSync(
-        [
-          Buffer.from(ix_data.txIntegrityHash),
-          anchor.utils.bytes.utf8.encode("storage"),
-        ],
-        merkleTreeProgram.programId
-      );
-
-    let pdas = getPdaAddresses({
-      tx_integrity_hash: ix_data.txIntegrityHash,
-      nullifier0: ix_data.nullifier0,
-      nullifier1: ix_data.nullifier1,
-      leafLeft: ix_data.leafLeft
-    })
-    console.log("ix_data.rootHash ", ix_data.rootHash)
-
-    console.log("verifier_state: ", pdas.verifierStatePubkey.toBase58())
-    console.log("merkleTreeTmpState: ", pdas.merkleTreeTmpState.toBase58())
-    console.log("merkleTreeProgram.programId: ", merkleTreeProgram.programId.toBase58())
-    await newAddressWithLamports(provider.connection, pdas.verifierStatePubkey) // new anchor.web3.Account()
-
-    const tx = await verifierProgram.methods.createTmpAccount(
-          ix_data.proofAbc,
-          ix_data.rootHash,
-          ix_data.amount,
-          ix_data.txIntegrityHash,
-          ix_data.nullifier0,
-          ix_data.nullifier1,
-          ix_data.leafRight,
-          ix_data.leafLeft,
-          ix_data.recipient,
-          ix_data.extAmount,
-          ix_data.relayer,
-          ix_data.fee,
-          // ix_data.merkleTreePdaPubkey,
-          ix_data.encryptedUtxos,
-          ix_data.merkleTreeIndex
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                systemProgram: SystemProgram.programId
-              }
-            ).signers([init_account]).rpc()
-
-    await checkPreparedInputsAccountCreated({
-      connection:provider.connection,
-      pda: pdas.verifierStatePubkey,
-      ix_data
-    })
-    var userAccountPublicKeyInfo = await provider.connection.getAccountInfo(
-          userAccount.publicKey
-        )
-    try {
-      let merkleTreeTmpStateDataBefore = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-      console.log(merkleTreeTmpStateDataBefore)
-    }catch{}
-
-    const txCreateMerkleTreeTmpAccount = await verifierProgram.methods.createMerkleTreeTmpAccount(
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                merkleTreeTmpState:pdas.merkleTreeTmpState,
-                systemProgram: SystemProgram.programId,
-                programMerkleTree: merkleTreeProgram.programId,
-                rent: DEFAULT_PROGRAMS.rent,
-              }
-            ).signers([init_account]).rpc()
-      var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
-            pdas.merkleTreeTmpState
-          )
-      console.log("merkleTreeTmpAccountInfo: ", merkleTreeTmpAccountInfo.data.length)
-
-      if (merkleTreeTmpAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-        throw "merkle tree pda owner wrong after initializing";
-      }
-      let merkleTreeTmpStateData = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-      console.log(merkleTreeTmpStateData)
-      console.log("userAccount.publicKey", userAccount.publicKey.toBase58())
-      console.log("pdas.nullifier0PdaPubkey.publicKey", pdas.nullifier0PdaPubkey.toBase58())
-      console.log("merkleTreeProgram.programId", merkleTreeProgram.programId.toBase58())
-      await newAddressWithLamports(provider.connection,userAccount.pubicKey);
-      await provider.connection.requestAirdrop(userAccount.publicKey, 1_000_000_000_000)
-      await provider.connection.requestAirdrop(pdas.verifierStatePubkey, 1_000_000_000_000)
-
   });
-*/
 
   it("Dynamic Shielded transaction", async () => {
     while (true) {
-    const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
-    const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
+    const userAccount = await newAccountWithLamports(provider.connection)
+    const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
     const burnerUserAccount = await newAccountWithLamports(provider.connection)
     const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
@@ -982,14 +850,6 @@ describe("verifier_program", () => {
 
 
   function getPdaAddresses({tx_integrity_hash, nullifier0, nullifier1, leafLeft}) {
-    // let bytes = solana.PublicKey.findProgramAddressSync(
-    //     [merkleTreeProgram.programId.toBytes()],
-    //     verifierProgram.programId)[0].toBytes();
-    // let v = ""
-    // for (var i in bytes) {
-    //   v+=bytes[i] + ", "
-    // }
-    // console.log("signerAuthorityPubkey bytes: ", v)
     return {
       signerAuthorityPubkey: solana.PublicKey.findProgramAddressSync(
           [merkleTreeProgram.programId.toBytes()],
@@ -1028,10 +888,6 @@ describe("verifier_program", () => {
     assert_eq(accountAfterUpdate.extAmount, ix_data.extAmount, "extAmount insert wrong");
     // assert_eq(accountAfterUpdate.signingAddress, ix_data.relayer, "relayer insert wrong");
     assert_eq(accountAfterUpdate.fee, ix_data.fee, "fee insert wrong");
-
-    // if (accountAfterUpdate.merkleTreeTmpAccount.toBase58() != new solana.PublicKey(ix_data.merkleTreePdaPubkey).toBase58()) {
-    //     throw ("merkleTreePdaPubkey insert wrong");
-    // }
     assert_eq(accountAfterUpdate.merkleTreeIndex, ix_data.merkleTreeIndex[0], "merkleTreeIndex insert wrong");
 
   }
@@ -1134,16 +990,6 @@ describe("verifier_program", () => {
     assert_eq(leavesAccountData.leafRight, ix_data.leafRight, "right leaf not inserted correctly")
     assert_eq(leavesAccountData.encryptedUtxos, ix_data.encryptedUtxos, "encryptedUtxos not inserted correctly")
 
-    // assert_eq(leavesAccountData.merkleTree, ix_data.merkleTree)
-
-    //TODO check root hash inserted correctly
-    // root should be in this position [609..642]
-    // var merkleTreeAccount = await provider.connection.getAccountInfo(
-    //       MERKLE_TREE_KEY
-    //     )
-    // console.log("merkleTreeAccount.data.slice(609,641): " Array.prototype.slice.call(merkleTreeAccount.data.slice(609,641)))
-    // console.log(" ix_data.rootHash: ",  ix_data.rootHash)
-    // assert_eq(merkleTreeAccount.data.slice(609,641), ix_data.rootHash)
     var senderAccount = await provider.connection.getAccountInfo(
           sender
         )
