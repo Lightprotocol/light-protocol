@@ -1,7 +1,6 @@
 #[allow(unused_imports)]
 use crate::groth16_verifier::parsers::*;
 use ark_ff::QuadExtField;
-use solana_program::msg;
 use std::cell::RefMut;
 
 use crate::state::VerifierState;

@@ -19,7 +19,7 @@ mod test {
     use std::cell::{RefCell, RefMut};
     use verifier_program::groth16_verifier::miller_loop::{instructions::*, state::*};
     use verifier_program::groth16_verifier::parsers::*;
-    use verifier_program::groth16_verifier::VerifierState;
+    use verifier_program::state::VerifierState;
 
     pub fn new_verifier_state() -> VerifierState {
         VerifierState {
@@ -108,6 +108,11 @@ mod test {
 
             merkle_tree_index: 0,
             found_root: 0,
+            current_instruction_index_prepare_inputs: 0,
+            encrypted_utxos: [0u8;222],
+            last_transaction: false,
+            merkle_tree_instruction_index:0,
+            updating_merkle_tree:false,
         }
     }
 

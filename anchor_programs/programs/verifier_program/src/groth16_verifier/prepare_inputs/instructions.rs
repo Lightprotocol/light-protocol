@@ -128,6 +128,7 @@ pub fn maths_instruction(
     let mut res = parse_group_projective_from_bytes_254(res_x_range, res_y_range, res_z_range);
     let x = parse_x_group_affine_from_bytes(x_range);
     let i = parse_fp256_ed_from_bytes(i_range);
+    msg!("rounds: {:?}", rounds);
 
     // create bit: (current i,x * current index).
     // First constructs all bits of current i,x pair.
@@ -137,10 +138,10 @@ pub fn maths_instruction(
     let bits: ark_ff::BitIteratorBE<ark_ff::BigInteger256> = BitIteratorBE::new(a);
     let bits_without_leading_zeroes: Vec<bool> = bits.skip_while(|b| !b).collect();
     let skipped = 256 - bits_without_leading_zeroes.len();
-
     // The current processor merges 4 rounds into one ix to efficiently use the compute budget.
     let mut index_in = current_index;
     for m in 0u64..rounds {
+
         // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
         if index_in < skipped {
             // parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
@@ -214,6 +215,7 @@ pub fn maths_instruction(
                 parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);
             }
         }
+
         index_in += 1;
     }
     Ok(())

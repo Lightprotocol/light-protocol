@@ -56,8 +56,8 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-    pub fn initialize_tmp_merkle_tree_state(
-        ctx: Context<InitializeTmpMerkleTree>,
+    pub fn initialize_merkle_tree_update_state(
+        ctx: Context<InitializeMerkleTreeUpdateState>,
         data: Vec<u8>,
     ) -> Result<()> {
         let derived_pubkey =
@@ -177,7 +177,7 @@ pub struct InitializeNewMerkleTree<'info> {
 
 #[derive(Accounts)]
 #[instruction(data: Vec<u8>)]
-pub struct InitializeTmpMerkleTree<'info> {
+pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
