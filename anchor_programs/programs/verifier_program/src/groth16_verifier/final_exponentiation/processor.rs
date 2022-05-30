@@ -1,7 +1,11 @@
 use crate::groth16_verifier::parsers::*;
 use crate::state::VerifierState;
 use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
-use ark_ec;
+use ark_ec::{
+    PairingEngine,
+    models::bn::Bn
+};
+use ark_bn254::Parameters;
 use ark_ff::Field;
 use ark_std::Zero;
 use solana_program::msg;
@@ -20,11 +24,16 @@ pub fn final_exponentiation_process_instruction(tmp_account: &mut RefMut<'_, Ver
     // before every compute step.
     // The flow is as follows:
     //
+    // Check if transaction was already executed
     // if state.fe_instruction_index == 0 {
+    //     Increment current_compute,
+    //     check whether enough compute is left to execute the step,
+    //      if not stop the computation and safe the current state.
     //     state.current_compute += 288464;
     //     if !state.check_compute_units() {
     //         return Ok(Some(self.f));
     //     }
+    //     Unpack variables necessary in this compute step.
     //     FinalExponentiationComputeState::unpack(
     //         &mut state.current_compute,
     //         &mut self.f,
@@ -33,22 +42,24 @@ pub fn final_exponentiation_process_instruction(tmp_account: &mut RefMut<'_, Ver
     //
     //     self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
     //
+    //     Mark the compute step as executed.
     //     state.fe_instruction_index += 1;
 
     // }
     let mut compute_state = FinalExponentiationComputeState::new_state();
     compute_state.final_exponentiation(tmp_account).unwrap();
+    // Pack all variables which were used into bytes after compute is stopped.
     compute_state.pack(tmp_account);
 }
 
 pub struct FinalExponentiationComputeState {
-    f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    f1: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
+    f: <Bn<Parameters> as PairingEngine>::Fqk,
+    f1: <Bn<Parameters> as PairingEngine>::Fqk,
+    f2: <Bn<Parameters> as PairingEngine>::Fqk,
+    f3: <Bn<Parameters> as PairingEngine>::Fqk,
+    f4: <Bn<Parameters> as PairingEngine>::Fqk,
+    f5: <Bn<Parameters> as PairingEngine>::Fqk,
+    i: <Bn<Parameters> as PairingEngine>::Fqk,
 }
 impl FinalExponentiationComputeState {
     pub fn new(state: &VerifierState) -> FinalExponentiationComputeState {
@@ -58,109 +69,109 @@ impl FinalExponentiationComputeState {
         FinalExponentiationComputeState {
             f: f,
             f1: f1,
-            f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
         }
     }
 
     pub fn new_state() -> FinalExponentiationComputeState {
         FinalExponentiationComputeState {
-            f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f1: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
         }
     }
 
     pub fn reset(&mut self) -> FinalExponentiationComputeState {
         FinalExponentiationComputeState {
-            f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f1: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f2: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f3: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f4: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            f5: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
-            i: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero(
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
             ),
         }
     }
 
     pub fn pack(&self, state: &mut VerifierState) {
         if self.f
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes = parse_f_to_bytes(self.f);
         }
 
         if self.f1
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes1 = parse_f_to_bytes(self.f1);
         }
 
         if self.f2
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes2 = parse_f_to_bytes(self.f2);
         }
 
         if self.f3
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes3 = parse_f_to_bytes(self.f3);
         }
 
         if self.f4
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes4 = parse_f_to_bytes(self.f4);
         }
 
         if self.f5
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.f_bytes5 = parse_f_to_bytes(self.f5);
         }
 
         if self.i
-            != <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             state.i_bytes = parse_f_to_bytes(self.i);
         }
         state.current_compute = 0;
     }
-
+    // Checks whether an Fqk is already unpacked if not unpacks it and increments the costs counter.
     pub fn unpack(
         current_compute: &mut u64,
-        f: &mut <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
+        f: &mut <Bn<Parameters> as PairingEngine>::Fqk,
         f_bytes: [u8; 384],
     ) {
         if *f
-            == <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::zero()
+            == <Bn<Parameters> as PairingEngine>::Fqk::zero()
         {
             *f = parse_f_from_bytes(&f_bytes.to_vec());
             // unpacking + packing
@@ -172,7 +183,7 @@ impl FinalExponentiationComputeState {
         &mut self,
         state: &mut VerifierState,
     ) -> Result<
-        Option<<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk>,
+        Option<<Bn<Parameters> as PairingEngine>::Fqk>,
         (),
     > {
         // Easy part: result = elt^((q^6-1)*(q^2+1)).
@@ -576,7 +587,7 @@ impl FinalExponentiationComputeState {
             self.f4 = self.f4 * &self.f3;
             state.fe_instruction_index += 1;
         }
-        // msg!("20self.f4 {:?}", self.f4);
+
         if state.fe_instruction_index == 21 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
                 &mut state.current_compute,
@@ -644,30 +655,27 @@ impl FinalExponentiationComputeState {
     }
 }
 pub fn cyclotomic_exp(
-    fe: &<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
-    res: &mut <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
+    fe: &<Bn<Parameters> as PairingEngine>::Fqk,
+    res: &mut <Bn<Parameters> as PairingEngine>::Fqk,
     state: &mut VerifierState,
 ) -> bool {
     if state.initialized == 0 {
         *res = fe.clone();
-        // msg!("initialized {:?}", res);
-
-        state.initialized += 1;
+        // Mark the cyclotomic_exp as initialized.
+        state.initialized = 1;
     }
 
     // let naf = crate::biginteger::arithmetic::find_wnaf(exponent.as_ref());
 
-    // skip first iteration for it is the assignment
+    // Skip first iteration for it is the assignment
     for i in (state.outer_loop as usize)..63 {
         if !state.check_compute_units() {
             return false;
         }
         if state.cyclotomic_square_in_place == 0 {
-            // sol_log_compute_units();
-            // msg!("cyclotomic_square_in_place");
             res.cyclotomic_square_in_place();
-            // sol_log_compute_units();
 
+            // Mark cyclotomic_square_in_place as executed in this iteration.
             state.cyclotomic_square_in_place = 1;
             state.current_compute += 44606;
         }
@@ -688,15 +696,16 @@ pub fn cyclotomic_exp(
 
             state.current_compute += 125883;
         }
+        // Resect cyclotomic_square_in_place marker since the iteration is over.
         state.cyclotomic_square_in_place = 0;
-
+        // Increment loop counter to start from the correct iteration in the next transaction.
         state.outer_loop += 1;
     }
 
     res.conjugate();
-
+    // Reset the loop counter for the next loop.
     state.outer_loop = 1;
-    state.first_exp_by_neg_x = 1;
+    // Reset initialized marker.
     state.initialized = 0;
     true
 }
@@ -738,7 +747,7 @@ mod tests {
                 root_hash: [0; 32],
                 tx_integrity_hash: [0; 32], // is calculated on-chain from recipient, amount, signing_address,
                 proof_a_bytes: [0; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
-                proof_b_bytes: [0; 128], //ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
+                proof_b_bytes: [0; 128], //ark_ec::models::bn::g2::G2Affine<Parameters>,
                 proof_c_bytes: [0; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
 
                 ext_amount: [0; 8],
@@ -773,7 +782,7 @@ mod tests {
                 current_index: 0,
 
                 // miller loop
-                r_bytes: [0; 192], //ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,//[0;192],
+                r_bytes: [0; 192],
                 q1_bytes: [0; 128],
                 current_coeff_bytes: [0; 192],
 
@@ -832,7 +841,7 @@ mod tests {
         ];
         let mut state = VerifierState::new(miller_loop_bytes);
         let f = parse_f_from_bytes(&miller_loop_bytes.to_vec());
-        let res_origin = <ark_ec::models::bn::Bn::<ark_bn254::Parameters> as ark_ec::PairingEngine>::final_exponentiation(&f).unwrap();
+        let res_origin = <Bn::<Parameters> as PairingEngine>::final_exponentiation(&f).unwrap();
 
         let mut compute_state = FinalExponentiationComputeState::new(&state);
 
@@ -868,7 +877,7 @@ mod tests {
         }
         println!("fe_instruction_index: {:?}", state.fe_instruction_index);
         println!("\n\n-------------------------------\n\n");
-        assert_eq!(compute_state.f1,ark_ec::models::bn::Bn::<ark_bn254::Parameters>::exp_by_neg_x(f));
+        assert_eq!(compute_state.f1,Bn::<Parameters>::exp_by_neg_x(f));
 
     }*/
 

@@ -15,7 +15,7 @@ use std::convert::TryInto;
 pub fn get_coeff(
     pair_index: u64,
     tmp_account: &mut RefMut<'_, VerifierState>,
-    total_steps: &mut u64,
+    current_compute: &mut u64,
     tmp_account_compute: &mut MillerLoopStateCompute,
 ) -> Option<(
     QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
@@ -26,7 +26,7 @@ pub fn get_coeff(
         0 => {
             //proof_b
             msg!("getting proof_b coeff");
-            get_b_coeffs(total_steps, tmp_account, tmp_account_compute)
+            get_b_coeffs(current_compute, tmp_account, tmp_account_compute)
         }
         1 => {
             //gamma_g2_neg_pc
@@ -45,7 +45,7 @@ pub fn get_coeff(
 }
 
 pub fn get_b_coeffs(
-    total_steps: &mut u64,
+    current_compute: &mut u64,
     tmp_account: &mut RefMut<'_, VerifierState>,
     tmp_account_compute: &mut MillerLoopStateCompute,
 ) -> Option<(
@@ -78,9 +78,9 @@ pub fn get_b_coeffs(
     {
         // let i = ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(*outer_first_loop as usize);
         if tmp_account.inner_first_coeff == 0 {
-            *total_steps += 140_000;
+            *current_compute += 140_000;
             msg!("doubling_step");
-            if *total_steps >= tmp_account.compute_max_miller_loop {
+            if *current_compute >= tmp_account.compute_max_miller_loop {
                 return None;
             } else {
                 tmp_account.inner_first_coeff = 1;
@@ -96,9 +96,9 @@ pub fn get_b_coeffs(
 
         match bit {
             1 => {
-                *total_steps += 200_000;
+                *current_compute += 200_000;
                 msg!("addition_step1");
-                if *total_steps >= tmp_account.compute_max_miller_loop {
+                if *current_compute >= tmp_account.compute_max_miller_loop {
                     return None;
                 } else {
                     tmp_account.inner_first_coeff = 0;
@@ -111,9 +111,9 @@ pub fn get_b_coeffs(
                 }
             }
             -1 => {
-                *total_steps += 200_000;
+                *current_compute += 200_000;
                 msg!("addition_step-1");
-                if *total_steps >= tmp_account.compute_max_miller_loop {
+                if *current_compute >= tmp_account.compute_max_miller_loop {
                     return None;
                 } else {
                     tmp_account.inner_first_coeff = 0;
@@ -132,15 +132,15 @@ pub fn get_b_coeffs(
             }
         }
     }
-
+    // It is not negative.
     // if ark_bn254::Parameters::X_IS_NEGATIVE {
     //     r.y = -r.y;
     // }
 
     if tmp_account.outer_second_coeff == 0 {
-        *total_steps += 200_000;
+        *current_compute += 200_000;
         msg!("mul_by_char + addition_step");
-        if *total_steps >= tmp_account.compute_max_miller_loop {
+        if *current_compute >= tmp_account.compute_max_miller_loop {
             return None;
         }
         let q1 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
@@ -158,9 +158,9 @@ pub fn get_b_coeffs(
             &q1,
         ));
     }
-    *total_steps += 200_000;
+    *current_compute += 200_000;
     msg!("mul_by_char + addition_step");
-    if *total_steps >= tmp_account.compute_max_miller_loop {
+    if *current_compute >= tmp_account.compute_max_miller_loop {
         return None;
     }
     let mut q2 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
