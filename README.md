@@ -1,12 +1,12 @@
-#Light Protocol Program V2
+# Light Protocol Program V2
 
-###Current State
+### Current State
 Both programs are not secure and are missing basic account and other security checks.
 
 Only Groth16 ZKP verification and poseidon hashes are fully implemented right now.
 
 
-###The architecture changes are the following:
+### The architecture changes are the following:
 - one Merkle tree program which can only be invoked by registered verifier programs (currently hardcoded)
 - this enables us to use multiple verifier programs which invoke the Merkle tree i.e. to easily use different verifying keys
 - re-write of Groth16 proof verification and poseidon hashes: they've been adapted to the
@@ -14,7 +14,7 @@ Only Groth16 ZKP verification and poseidon hashes are fully implemented right no
 - use of the anchor framework -> typescript tests -> snarkjs proofgen in tests. Easier integration testing with .ts
 
 
-###Verifier Program:
+### Verifier Program:
 - verifies Groth16 ZKPs
 - invokes the Merkle Tree program to:
   - withdraw funds from a liquidity pool
@@ -28,7 +28,7 @@ Accounts:
   - saves data between computation steps of the Groth16 verification
   - saves data for protocol logic
 
-###Merkle Tree Program:
+### Merkle Tree Program:
 - trusts the verifier programs -> does only access control checks
 - owns merkle tree update state accounts
 - owns accounts of the liquidity pools
@@ -64,12 +64,12 @@ Accounts:
 
 
 
-##Current State
+## Current State
 
 The following implementations are ready for review. The protocol logic and access control is not.
 
 
-###Poseidon Hash
+### Poseidon Hash
 
 The implementation is the same for only more permutations are executed within one transactions.
 
@@ -118,7 +118,7 @@ Helper variables:
 
 
 
-###Example Final Exponentiation:
+### Example Final Exponentiation:
 
 Helper variables:
 - fe_instruction_index // keeps track of the executed transaction
