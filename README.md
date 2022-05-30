@@ -5,13 +5,13 @@ Both programs are not secure and are missing basic account and other security ch
 
 Only Groth16 ZKP verification and poseidon hashes are fully implemented right now.
 
+
 ###The architecture changes are the following:
-- one Merkle tree program which can only be invoked by verifier programs
-- multiple verifier programs which invoke the Merkle tree
-  this enables us to work easily with different verifying keys
-- rewrite Groth16 proof verification and poseidon hashes adapting to
-  increased Solana compute budget of 1.4 compute units
-- use of the anchor framework -> typescript tests -> snarkjs proofgen in tests
+- one Merkle tree program which can only be invoked by registered verifier programs (currently hardcoded)
+- this enables us to use multiple verifier programs which invoke the Merkle tree i.e. to easily use different verifying keys
+- re-write of Groth16 proof verification and poseidon hashes: they've been adapted to the
+  increased Solana compute budget of 1.4 compute units per instruction. This makes the program about 30% more efficient.
+- use of the anchor framework -> typescript tests -> snarkjs proofgen in tests. Easier integration testing with .ts
 
 
 ###Verifier Program:
@@ -76,9 +76,9 @@ The implementation is the same for only more permutations are executed within on
 ### Input Preparation
 
 Our circuit has seven public inputs.
-For prepared inputs implementation remains largely the same.
+The prepared inputs implementation remains largely the same.
 The biggest changes is the round constant which is increased from 4 rounds
-by a multiple of 12 to 48 within one transaction. A multiple constant is specified in
+by a multiple of 12 to 48 within one instruction. A multiple constant is specified in
 anchor_programs/programs/verifier_program/src/groht16_verifier/prepare_inputs/processor.rs/L6.
 
 The total number of rounds is 256. Since it does not divide exactly by 48 an additional instruction is necessary
@@ -92,10 +92,10 @@ Miller loop and final exponentiation are rewritten to be better adjusted to
 Solana's increased compute budget.
 In both cases the original implementation is split up into steps which can be
 executed within 1.4m compute units. Every step has compute costs assigned
-to it which were collected through measurements.
-Every steps increments a global total compute used variable which is checked
-before every compute step. Before a step it is checks whether enough compute is
-left in the transaction, if not computation is stopped and the current state saved.
+to it which were collected through manual measurement.
+Every steps increments a global total-compute-used variable which is checked
+before every compute step. Before a step it checks whether enough compute is
+left in the transaction. if not enough compute is left the computation is stopped and the current state is saved.
 
 ###Miller Loop
 Helper variables:
