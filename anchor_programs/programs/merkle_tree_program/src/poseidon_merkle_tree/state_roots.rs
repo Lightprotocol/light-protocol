@@ -1,5 +1,4 @@
 use crate::config::MERKLE_TREE_ACCOUNT_TYPE;
-use arrayref::{array_ref, array_refs};
 use anchor_lang::solana_program::{
     account_info::AccountInfo,
     msg,
@@ -7,6 +6,7 @@ use anchor_lang::solana_program::{
     program_pack::{IsInitialized, Pack, Sealed},
     pubkey::Pubkey,
 };
+use arrayref::{array_ref, array_refs};
 
 // max roots that can be checked within one ix memory budget.
 const ROOT_HISTORY_SIZE: u64 = 593;

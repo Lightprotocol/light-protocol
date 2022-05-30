@@ -1,16 +1,16 @@
 use crate::poseidon_merkle_tree::poseidon_round_constants_split;
+use anchor_lang::prelude::*;
 use ark_ed_on_bn254::Fq;
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
     BigInteger,
 };
 use ark_std::Zero;
-use anchor_lang::prelude::*;
 use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
 
-use std::ops::{Add, AddAssign, Mul};
 use crate::state::MerkleTreeTmpPda;
+use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
 #[derive(Default, Clone)]
@@ -23,28 +23,35 @@ impl Rounds for PoseidonCircomRounds3 {
     const WIDTH: usize = 3;
 }
 
-
 pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
-
     let mut current_round_index = 0;
     let mut current_round = 0;
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
 
-    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+        current_round_index,
+    );
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
-    let mut state_new1 =prepare_inputs(&params, &account_struct_data.node_left, &account_struct_data.node_right).unwrap();
+    let mut state_new1 = prepare_inputs(
+        &params,
+        &account_struct_data.node_left,
+        &account_struct_data.node_right,
+    )
+    .unwrap();
     state_new1 = permute_custom_split(&params, state_new1, current_round, 4).unwrap();
     current_round += 4;
     current_round_index += 1;
 
     for _i in 0..3 {
-        let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+        let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+            current_round_index,
+        );
         let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
         state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
         current_round += 6;
         current_round_index += 1;
     }
-    let mut state_final = vec![vec![0u8;32]; 3];
+    let mut state_final = vec![vec![0u8; 32]; 3];
     for (i, input_state) in state_final.iter_mut().enumerate() {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
@@ -52,7 +59,7 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     account_struct_data.current_round_index = current_round_index;
     account_struct_data.current_round = current_round;
     // account_struct_data.current_instruction_index  +=1;
-    let mut tmp_state = vec![0u8;96];
+    let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
             tmp_state[i * 32 + j] = inner_elem.clone();
@@ -68,20 +75,21 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     let mut current_round = account_struct_data.current_round;
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
 
-    let mut state_new1 =Vec::new();
-    for i in  account_struct_data.state.chunks(32) {
+    let mut state_new1 = Vec::new();
+    for i in account_struct_data.state.chunks(32) {
         state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
 
     for _i in 0..4 {
-
-        let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+        let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+            current_round_index,
+        );
         let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
         state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
         current_round += 6;
         current_round_index += 1;
     }
-    let mut state_final = vec![vec![0u8;32]; 3];
+    let mut state_final = vec![vec![0u8; 32]; 3];
     for (i, input_state) in state_final.iter_mut().enumerate() {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
@@ -89,7 +97,7 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     account_struct_data.current_round = current_round;
     // account_struct_data.current_instruction_index +=1;
 
-    let mut tmp_state = vec![0u8;96];
+    let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
             tmp_state[i * 32 + j] = inner_elem.clone();
@@ -106,43 +114,48 @@ pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     let mut current_round = account_struct_data.current_round;
 
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
-    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+        current_round_index,
+    );
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
 
-    let mut state_new1 =Vec::new();
-    for i in  account_struct_data.state.chunks(32) {
+    let mut state_new1 = Vec::new();
+    for i in account_struct_data.state.chunks(32) {
         state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
     state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
     current_round += 6;
     current_round_index += 1;
 
-    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+        current_round_index,
+    );
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
     state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
     current_round += 6;
     current_round_index += 1;
 
-
-    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+        current_round_index,
+    );
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
     state_new1 = permute_custom_split(&params, state_new1, current_round, 3).unwrap();
     current_round += 3;
     current_round_index += 1;
 
-
-    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(current_round_index);
+    let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
+        current_round_index,
+    );
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
     state_new1 = permute_custom_split(&params, state_new1, current_round, 4).unwrap();
 
-
-    let mut state_final = vec![vec![0u8;32]; 3];
+    let mut state_final = vec![vec![0u8; 32]; 3];
     for (i, input_state) in state_final.iter_mut().enumerate() {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
 
     // account_struct_data.current_instruction_index +=1;
-    let mut tmp_state = vec![0u8;96];
+    let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
             tmp_state[i * 32 + j] = inner_elem.clone();
@@ -208,7 +221,8 @@ pub fn permute_custom_split(
         if r < half_rounds || r >= (half_rounds + PoseidonCircomRounds3::PARTIAL_ROUNDS) {
             state
                 .iter_mut()
-                .try_for_each(|a| PoseidonCircomRounds3::SBOX.apply_sbox(*a).map(|f| *a = f)).unwrap();
+                .try_for_each(|a| PoseidonCircomRounds3::SBOX.apply_sbox(*a).map(|f| *a = f))
+                .unwrap();
         } else {
             state[0] = PoseidonCircomRounds3::SBOX.apply_sbox(state[0]).unwrap();
         }

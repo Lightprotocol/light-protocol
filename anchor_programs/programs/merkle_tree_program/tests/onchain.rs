@@ -1,7 +1,4 @@
-use crate::test_utils::tests::{
-    create_and_start_program_var,
-     read_test_data, restart_program,
-};
+use crate::test_utils::tests::{create_and_start_program_var, read_test_data, restart_program};
 use crate::tokio::time::timeout;
 use ark_ec::ProjectiveCurve;
 use ark_ff::BigInteger;
@@ -13,7 +10,9 @@ use light_protocol_program::utils::config;
 use light_protocol_program::{
     process_instruction,
     state::MerkleTreeTmpPda,
-    utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, MERKLE_TREE_TMP_PDA_SIZE},
+    utils::config::{
+        ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACC_BYTES_ARRAY, MERKLE_TREE_TMP_PDA_SIZE,
+    },
     IX_ORDER,
 };
 use serde_json::Result;
@@ -32,8 +31,8 @@ use {
     },
     solana_program_test::*,
     solana_sdk::{
-        signers::Signers,
-        account::Account, signature::Signer, signer::keypair::Keypair, transaction::Transaction,
+        account::Account, signature::Signer, signer::keypair::Keypair, signers::Signers,
+        transaction::Transaction,
     },
     std::str::FromStr,
 };
@@ -104,7 +103,7 @@ pub async fn update_merkle_tree(
     let mut cache_index = 3;
     // 73
     for instruction_id in 0..38 {
-        let instruction_data: Vec<u8> = vec![2u8,2u8, i as u8];
+        let instruction_data: Vec<u8> = vec![2u8, 2u8, i as u8];
 
         let mut instruction_vec = vec![Instruction::new_with_bincode(
             *program_id,
@@ -117,7 +116,7 @@ pub async fn update_merkle_tree(
         )];
         //checking merkle tree lock and add second instruction
         if instruction_id != 0 {
-            let instruction_data: Vec<u8> = vec![2u8,1u8, i as u8];
+            let instruction_data: Vec<u8> = vec![2u8, 1u8, i as u8];
             let merkle_tree_pda_account = program_context
                 .banks_client
                 .get_account(*merkle_tree_pda_pubkey)
@@ -140,7 +139,10 @@ pub async fn update_merkle_tree(
                 MerkleTreeTmpPda::unpack(&tmp_storage_pda_account.data.clone()).unwrap();
             println!("cache_index: {}", cache_index);
             println!("IX_ORDER: {}", IX_ORDER[cache_index]);
-            println!("tmp_storage_pda_account_data.current_instruction_index: {}", tmp_storage_pda_account_data.current_instruction_index);
+            println!(
+                "tmp_storage_pda_account_data.current_instruction_index: {}",
+                tmp_storage_pda_account_data.current_instruction_index
+            );
 
             assert_eq!(
                 tmp_storage_pda_account_data.current_instruction_index,
@@ -148,7 +150,6 @@ pub async fn update_merkle_tree(
             );
             // always executing 2 instructions except for the first time
             cache_index += 2;
-
         }
         instruction_vec.push(Instruction::new_with_bincode(
             *program_id,
@@ -165,12 +166,12 @@ pub async fn update_merkle_tree(
         let mut success = false;
         let mut retries_left = 2;
         while retries_left > 0 && success != true {
-            let mut transaction = Transaction::new_with_payer(
-                &instruction_vec[..],
-
-                Some(&signer_keypair.pubkey()),
+            let mut transaction =
+                Transaction::new_with_payer(&instruction_vec[..], Some(&signer_keypair.pubkey()));
+            println!(
+                "transaction: update merkle tree {} {:?}",
+                instruction_id, transaction
             );
-            println!("transaction: update merkle tree {} {:?}", instruction_id, transaction);
             transaction.sign(&[signer_keypair], program_context.last_blockhash);
 
             let res_request = timeout(
@@ -202,11 +203,17 @@ pub async fn update_merkle_tree(
             .await
             .expect("get_account")
             .unwrap();
-        println!("storage_account_unpacked.state[0..32] {:?}", storage_account.data);
+        println!(
+            "storage_account_unpacked.state[0..32] {:?}",
+            storage_account.data
+        );
 
         let storage_account_unpacked = MerkleTreeTmpPda::unpack(&storage_account.data).unwrap();
 
-        println!("storage_account_unpacked.state[0..32] {:?}", storage_account_unpacked.state[0..32].to_vec());
+        println!(
+            "storage_account_unpacked.state[0..32] {:?}",
+            storage_account_unpacked.state[0..32].to_vec()
+        );
 
         println!("Test Instruction index {}", i);
         i += 1;
@@ -279,14 +286,22 @@ async fn create_pubkeys_from_ix_data(
     // Creates pubkeys for all the PDAs we'll use
     let verifier_tmp_storage_pda_pubkey =
         Pubkey::find_program_address(&[&ix_data[73..105], &b"storage"[..]], &program_id).0;
-    let merkel_tree_tmp_storage_pda_pubkey =
-        Pubkey::find_program_address(&[&ix_data[73..105], &b"storage"[..]], &program_id_merkle_tree).0;
-    let two_leaves_pda_pubkey =
-        Pubkey::find_program_address(&[&ix_data[105..137], &b"leaves"[..]], program_id_merkle_tree).0;
+    let merkel_tree_tmp_storage_pda_pubkey = Pubkey::find_program_address(
+        &[&ix_data[73..105], &b"storage"[..]],
+        &program_id_merkle_tree,
+    )
+    .0;
+    let two_leaves_pda_pubkey = Pubkey::find_program_address(
+        &[&ix_data[105..137], &b"leaves"[..]],
+        program_id_merkle_tree,
+    )
+    .0;
 
-    let nf_pubkey0 = Pubkey::find_program_address(&[&ix_data[105..137], &b"nf"[..]], program_id_merkle_tree).0;
+    let nf_pubkey0 =
+        Pubkey::find_program_address(&[&ix_data[105..137], &b"nf"[..]], program_id_merkle_tree).0;
 
-    let nf_pubkey1 = Pubkey::find_program_address(&[&ix_data[137..169], &b"nf"[..]], program_id_merkle_tree).0;
+    let nf_pubkey1 =
+        Pubkey::find_program_address(&[&ix_data[137..169], &b"nf"[..]], program_id_merkle_tree).0;
     (
         verifier_tmp_storage_pda_pubkey,
         merkel_tree_tmp_storage_pda_pubkey,
@@ -295,7 +310,6 @@ async fn create_pubkeys_from_ix_data(
         nf_pubkey1,
     )
 }
-
 
 async fn check_tmp_storage_account_state_correct(
     tmp_storage_pda_pubkey: &Pubkey,
@@ -351,41 +365,56 @@ async fn check_tmp_storage_account_state_correct(
     }
 }
 
-
-use light_protocol_program::instructions::MerkleTreeTmpStorageAccInputData;
-use borsh::ser::BorshSerialize;
 use ark_ed_on_bn254::Fq;
 use ark_ff::bytes::ToBytes;
+use borsh::ser::BorshSerialize;
+use light_protocol_program::instructions::MerkleTreeTmpStorageAccInputData;
 
 #[tokio::test]
 async fn merkle_tree_tmp_account_init_should_succeed() {
     // let program_id = Pubkey::from_str("TransferLamports111111111111111111111111111").unwrap();
-    let program_id_merkle_tree = Pubkey::from_str("TransferLamports111111111111111111111111122").unwrap();
+    let program_id_merkle_tree =
+        Pubkey::from_str("TransferLamports111111111111111111111111122").unwrap();
     let merkle_tree_pda_pubkey = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[0].0);
-
-
 
     let signer_keypair = solana_sdk::signer::keypair::Keypair::from_bytes(&PRIVATE_KEY).unwrap();
     let signer_pubkey = signer_keypair.pubkey();
 
-    let mut ix_withdraw_data = vec![1u8;1000];
+    let mut ix_withdraw_data = vec![1u8; 1000];
     let mut account_data = MerkleTreeTmpStorageAccInputData::new(
-            ix_withdraw_data[0..32].to_vec(),
-            ix_withdraw_data[32..64].to_vec(),
-            ix_withdraw_data[32..64].to_vec(),
-            merkle_tree_pda_pubkey.to_bytes().to_vec(),
-            signer_pubkey.to_bytes().to_vec(),
-            vec![0u8;32]//verifier_tmp_storage_pda_pubkey.to_bytes().to_vec()
-        ).unwrap();
+        ix_withdraw_data[0..32].to_vec(),
+        ix_withdraw_data[32..64].to_vec(),
+        ix_withdraw_data[32..64].to_vec(),
+        merkle_tree_pda_pubkey.to_bytes().to_vec(),
+        signer_pubkey.to_bytes().to_vec(),
+        vec![0u8; 32], //verifier_tmp_storage_pda_pubkey.to_bytes().to_vec()
+    )
+    .unwrap();
 
-    account_data.node_left = vec![2u8;32];
-    account_data.node_right = vec![2u8;32];
-    account_data.root_hash = vec![0u8;32];
-    account_data.merkle_tree_pda_pubkey =
-        Pubkey::find_program_address(&[&account_data.node_left, &b"storage"[..]], &program_id_merkle_tree).0.to_bytes().to_vec();
-    println!("account_data.merkle_tree_pda_pubkey: {:?}", Pubkey::find_program_address(&[&account_data.node_left, &b"leaves"[..]], &program_id_merkle_tree).0);
+    account_data.node_left = vec![2u8; 32];
+    account_data.node_right = vec![2u8; 32];
+    account_data.root_hash = vec![0u8; 32];
+    account_data.merkle_tree_pda_pubkey = Pubkey::find_program_address(
+        &[&account_data.node_left, &b"storage"[..]],
+        &program_id_merkle_tree,
+    )
+    .0
+    .to_bytes()
+    .to_vec();
+    println!(
+        "account_data.merkle_tree_pda_pubkey: {:?}",
+        Pubkey::find_program_address(
+            &[&account_data.node_left, &b"leaves"[..]],
+            &program_id_merkle_tree
+        )
+        .0
+    );
     account_data.relayer = signer_pubkey.to_bytes().to_vec();
-    let two_leaves_pda_pubkey = Pubkey::find_program_address(&[&account_data.node_left, &b"leaves"[..]], &program_id_merkle_tree).0;
+    let two_leaves_pda_pubkey = Pubkey::find_program_address(
+        &[&account_data.node_left, &b"leaves"[..]],
+        &program_id_merkle_tree,
+    )
+    .0;
 
     ix_withdraw_data = account_data.return_ix_data().unwrap();
     println!("ix_withdraw_data: {:?}", ix_withdraw_data);
@@ -394,24 +423,29 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         merkle_tree_tmp_storage_pda_pubkey,
         _two_leaves_pda_pubkey,
         nf_pubkey0,
-        nf_pubkey1
-        ) =
-        create_pubkeys_from_ix_data(&[vec![0u8;9],ix_withdraw_data.to_vec()].concat(), &program_id_merkle_tree, &program_id_merkle_tree).await;
+        nf_pubkey1,
+    ) = create_pubkeys_from_ix_data(
+        &[vec![0u8; 9], ix_withdraw_data.to_vec()].concat(),
+        &program_id_merkle_tree,
+        &program_id_merkle_tree,
+    )
+    .await;
     let mut nullifier_pubkeys = Vec::new();
     nullifier_pubkeys.push(nf_pubkey0);
     nullifier_pubkeys.push(nf_pubkey1);
 
-
     let mut accounts_vector = Vec::new();
-    accounts_vector.push(
-        (&merkle_tree_pda_pubkey, 16658, None)
-    );
+    accounts_vector.push((&merkle_tree_pda_pubkey, 16658, None));
 
-    let merkle_tree_tmp_storage_pda_pubkey =
-            Pubkey::new(&account_data.merkle_tree_pda_pubkey);
+    let merkle_tree_tmp_storage_pda_pubkey = Pubkey::new(&account_data.merkle_tree_pda_pubkey);
 
-    let mut program_context =
-        create_and_start_program_var(&accounts_vector, None, &program_id_merkle_tree, &signer_pubkey).await;
+    let mut program_context = create_and_start_program_var(
+        &accounts_vector,
+        None,
+        &program_id_merkle_tree,
+        &signer_pubkey,
+    )
+    .await;
     println!("here");
     initialize_merkle_tree(
         &program_id_merkle_tree,
@@ -445,7 +479,6 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         .await
         .unwrap();
 
-
     let storage_account = program_context
         .banks_client
         .get_account(merkle_tree_tmp_storage_pda_pubkey)
@@ -453,8 +486,8 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         .expect("get_account")
         .unwrap();
     let storage_account_unpacked = MerkleTreeTmpPda::unpack(&storage_account.data).unwrap();
-    assert_eq!(storage_account_unpacked.node_left, [2u8;32]);
-    assert_eq!(storage_account_unpacked.node_right, [2u8;32]);
+    assert_eq!(storage_account_unpacked.node_left, [2u8; 32]);
+    assert_eq!(storage_account_unpacked.node_right, [2u8; 32]);
     println!("-------------- update_merkle_tree -----------------------");
     update_merkle_tree(
         &program_id_merkle_tree,
@@ -475,16 +508,21 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
     let storage_account_unpacked = MerkleTreeTmpPda::unpack(&storage_account.data).unwrap();
 
     assert_eq!(
-        [141, 69, 80, 56, 132, 104, 54, 29, 244, 1, 168, 24, 51, 53, 162, 230, 208, 149, 158, 156, 84, 167, 67, 171, 234, 58, 128, 14, 0, 179, 97, 46],
+        [
+            141, 69, 80, 56, 132, 104, 54, 29, 244, 1, 168, 24, 51, 53, 162, 230, 208, 149, 158,
+            156, 84, 167, 67, 171, 234, 58, 128, 14, 0, 179, 97, 46
+        ],
         storage_account_unpacked.state[0..32]
     );
-    println!("initializing merkle tree success: {:?}", storage_account_unpacked);
-
+    println!(
+        "initializing merkle tree success: {:?}",
+        storage_account_unpacked
+    );
 
     let mut transaction = Transaction::new_with_payer(
         &[Instruction::new_with_bincode(
             program_id_merkle_tree,
-            &[vec![2u8], vec![2u8;ENCRYPTED_UTXOS_LENGTH]].concat(),
+            &[vec![2u8], vec![2u8; ENCRYPTED_UTXOS_LENGTH]].concat(),
             vec![
                 AccountMeta::new(signer_keypair.pubkey(), true),
                 AccountMeta::new(merkle_tree_tmp_storage_pda_pubkey, false),
@@ -504,30 +542,31 @@ async fn merkle_tree_tmp_account_init_should_succeed() {
         .await
         .unwrap();
 
-        check_leaves_insert_correct(
+    check_leaves_insert_correct(
         &two_leaves_pda_pubkey,
-        &account_data.node_left, //left leaf todo change order
-        &account_data.node_right, //right leaf
+        &account_data.node_left,            //left leaf todo change order
+        &account_data.node_right,           //right leaf
         &vec![2u8; ENCRYPTED_UTXOS_LENGTH], //encrypted_utxos
         &merkle_tree_tmp_storage_pda_pubkey.to_bytes(),
         &mut program_context,
-        )
-        .await;
+    )
+    .await;
 
-        let storage_account = program_context
-            .banks_client
-            .get_account(merkle_tree_pda_pubkey)
-            .await
-            .expect("get_account")
-            .unwrap();
-        let storage_account_unpacked = MerkleTree::unpack(&storage_account.data).unwrap();
+    let storage_account = program_context
+        .banks_client
+        .get_account(merkle_tree_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+    let storage_account_unpacked = MerkleTree::unpack(&storage_account.data).unwrap();
 
-        assert_eq!(
-            vec![141, 69, 80, 56, 132, 104, 54, 29, 244, 1, 168, 24, 51, 53, 162, 230, 208, 149, 158, 156, 84, 167, 67, 171, 234, 58, 128, 14, 0, 179, 97, 46],
-            storage_account_unpacked.roots
-        );
-
-
+    assert_eq!(
+        vec![
+            141, 69, 80, 56, 132, 104, 54, 29, 244, 1, 168, 24, 51, 53, 162, 230, 208, 149, 158,
+            156, 84, 167, 67, 171, 234, 58, 128, 14, 0, 179, 97, 46
+        ],
+        storage_account_unpacked.roots
+    );
 }
 
 #[tokio::test]
@@ -595,8 +634,11 @@ async fn sol_transfer_should_succeed() {
     println!("merkle_tree_data_prior: {:?}", merkle_tree_data_prior);
 
     println!("merkle_tree_data: {:?}", merkle_tree_data);
-    assert_eq!(merkle_tree_data.lamports, merkle_tree_data_prior.lamports + 890880 + amount, "Deposit failed.");
-
+    assert_eq!(
+        merkle_tree_data.lamports,
+        merkle_tree_data_prior.lamports + 890880 + amount,
+        "Deposit failed."
+    );
 
     let merkle_tree_data_prior = program_context
         .banks_client
@@ -635,6 +677,9 @@ async fn sol_transfer_should_succeed() {
     println!("merkle_tree_data_prior: {:?}", merkle_tree_data_prior);
 
     println!("merkle_tree_data: {:?}", merkle_tree_data);
-    assert_eq!(merkle_tree_data.lamports, merkle_tree_data_prior.lamports - amount, "Withdrawal failed.");
-
+    assert_eq!(
+        merkle_tree_data.lamports,
+        merkle_tree_data_prior.lamports - amount,
+        "Withdrawal failed."
+    );
 }

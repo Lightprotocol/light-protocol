@@ -12,24 +12,24 @@ security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
+pub mod authority_config;
+pub mod constant;
 pub mod instructions;
 pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
 pub mod utils;
-pub mod constant;
-pub mod authority_config;
 
-use crate::utils::config;
-use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
-use crate::config::{MERKLE_TREE_TMP_PDA_SIZE};
+use crate::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::config::STORAGE_SEED;
-use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
+use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 pub use crate::constant::*;
 use crate::instructions::create_and_try_initialize_tmp_storage_pda;
+use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
+use crate::utils::config;
 
-use crate::state::MerkleTreeTmpPda;
 use crate::config::NF_SEED;
+use crate::state::MerkleTreeTmpPda;
 use anchor_lang::system_program;
 
 pub use authority_config::*;
@@ -56,15 +56,20 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-
-    pub fn initialize_tmp_merkle_tree_state(ctx: Context<InitializeTmpMerkleTree>, data: Vec<u8>) -> Result<()> {
+    pub fn initialize_tmp_merkle_tree_state(
+        ctx: Context<InitializeTmpMerkleTree>,
+        data: Vec<u8>,
+    ) -> Result<()> {
         let derived_pubkey =
             Pubkey::find_program_address(&[&data[0..32], b"storage"], ctx.program_id);
 
         if derived_pubkey.0 != *ctx.accounts.merkle_tree_tmp_storage.key {
             msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
             msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-            msg!("Passed-in pda pubkey {:?}", ctx.accounts.merkle_tree_tmp_storage.key);
+            msg!(
+                "Passed-in pda pubkey {:?}",
+                ctx.accounts.merkle_tree_tmp_storage.key
+            );
             msg!("Instruction data seed  {:?}", data);
             return err!(ErrorCode::MtTmpPdaInitFailed);
         }
@@ -77,12 +82,15 @@ pub mod merkle_tree_program {
                 // ctx.accounts.system_program.to_account_info(),
                 // ctx.accounts.rent.to_account_info(),
             ][..],
-            &data.as_slice()[32..]
+            &data.as_slice()[32..],
         )?;
         Ok(())
     }
 
-    pub fn update_merkle_tree<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>, data: Vec<u8>) -> Result<()> {
+    pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
         msg!("update_merkle_tree");
         let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
         let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
@@ -94,10 +102,12 @@ pub mod merkle_tree_program {
                     ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
                     ctx.accounts.merkle_tree.to_account_info(),
                 ],
-                ctx.remaining_accounts.to_vec()
-            ].concat().as_slice(),
+                ctx.remaining_accounts.to_vec(),
+            ]
+            .concat()
+            .as_slice(),
             &mut tmp_storage_pda_data,
-            &data.as_slice()
+            &data.as_slice(),
         )?;
         Ok(())
     }
@@ -118,8 +128,10 @@ pub mod merkle_tree_program {
         )?;
         Ok(())
     }*/
-    pub fn withdraw_sol<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, WithdrawSOL<'info>>, data: Vec<u8>) -> Result<()> {
-
+    pub fn withdraw_sol<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, WithdrawSOL<'info>>,
+        data: Vec<u8>,
+    ) -> Result<()> {
         let mut new_data = data.clone();
         new_data.insert(0, 2);
 
@@ -130,19 +142,25 @@ pub mod merkle_tree_program {
         processor::process_sol_transfer(
             ctx.program_id,
             &accounts.as_slice(),
-            &new_data.as_slice()
+            &new_data.as_slice(),
         )?;
         Ok(())
     }
 
     pub fn create_authority_config(ctx: Context<CreateAuthorityConfig>) -> Result<()> {
-        ctx.accounts.handle(*ctx.bumps.get("authority_config").unwrap())
+        ctx.accounts
+            .handle(*ctx.bumps.get("authority_config").unwrap())
     }
-    pub fn update_authority_config(ctx: Context<UpdateAuthorityConfig>, new_authority: Pubkey) -> Result<()> {
+    pub fn update_authority_config(
+        ctx: Context<UpdateAuthorityConfig>,
+        new_authority: Pubkey,
+    ) -> Result<()> {
         ctx.accounts.handle(new_authority)
     }
-    pub fn initialize_nullifier(_ctx: Context<InitializeNullifier>, _nullifier: [u8;32]) -> anchor_lang::Result<()> {
-
+    pub fn initialize_nullifier(
+        _ctx: Context<InitializeNullifier>,
+        _nullifier: [u8; 32],
+    ) -> anchor_lang::Result<()> {
         Ok(())
     }
 }
@@ -155,7 +173,6 @@ pub struct InitializeNewMerkleTree<'info> {
     /// CHECK: it should be unpacked internally
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
-
 }
 
 #[derive(Accounts)]
@@ -213,7 +230,6 @@ pub struct DepositSOL<'info> {
     pub user_escrow: AccountInfo<'info>,
 }*/
 
-
 #[derive(Accounts)]
 pub struct WithdrawSOL<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
@@ -239,17 +255,14 @@ pub struct InitializeNullifier<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub rent: Sysvar<'info, Rent>,
 }
-
 
 // Nullfier pdas are derived from the nullifier
 // existence of a nullifier is the check to
 // prevent double spends.
 #[account]
-pub struct Nullifier {
-
-}
+pub struct Nullifier {}
 
 #[derive(Accounts)]
 #[instruction(nullifier: [u8;32])]
@@ -272,10 +285,10 @@ pub struct InitializeLeavesPda<'info> {
 
 #[account(zero_copy)]
 pub struct LeavesPda {
-    pub leaf_right: [u8;32],
-    pub leaf_left: [u8;32],
+    pub leaf_right: [u8; 32],
+    pub leaf_left: [u8; 32],
     pub merkle_tree_pubkey: Pubkey,
-    pub encrypted_utxos: [u8;222],
+    pub encrypted_utxos: [u8; 222],
     pub left_leaf_index: u64,
 }
 
@@ -283,5 +296,4 @@ pub struct LeavesPda {
 pub enum ErrorCode {
     #[msg("Merkle tree tmp account init failed wrong pda.")]
     MtTmpPdaInitFailed,
-
 }

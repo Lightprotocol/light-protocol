@@ -3,7 +3,7 @@ use crate::VerifierState;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
-const MULTIPLE:u64 = 13;
+const MULTIPLE: u64 = 13;
 const ROUNDS: u64 = 4 * MULTIPLE;
 const FILLING_ROUNDS: u64 = 256 % ROUNDS;
 pub fn _process_instruction(
@@ -26,7 +26,6 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
     } else if id == 42 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -44,8 +43,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 62 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -86,7 +83,6 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
     } else if id == 43 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -104,8 +100,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 63 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -123,7 +117,6 @@ pub fn _process_instruction(
         )?; // 1 of 256
         account.current_index += MULTIPLE;
 
-
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
         let mut account_g_ic_z_range = account.g_ic_z_range;
@@ -147,8 +140,6 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
-
     } else if id == 44 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -166,8 +157,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 64 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -184,7 +173,6 @@ pub fn _process_instruction(
             FILLING_ROUNDS,
         )?; // 1 of 256
         account.current_index += MULTIPLE;
-
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -209,8 +197,6 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
-
     } else if id == 45 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -228,8 +214,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 65 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -306,8 +290,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 66 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -348,8 +330,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
-    }  else if id == 57 {
+    } else if id == 57 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
         let mut account_res_z_range = account.res_z_range;
@@ -366,8 +347,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
-
     } else if id == 67 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -408,7 +387,6 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-
     } else if id == 58 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -426,7 +404,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
         account.current_index += (ROUNDS as u64 / 4) - 1;
-
     } else if id == 68 {
         // last instruction after for 256 % ROUNDS != 0
         // executes FILLING_ROUNDS rounds
@@ -535,14 +512,8 @@ pub const IX_ORDER: [u8; 37] = [
     //init data happens before this array starts
     //check root
     1, //prepare inputs for verification
-    42, 42, 42, 42, 62,
-    43, 43, 43, 43, 63,
-    44, 44, 44, 44, 64,
-    45, 45, 45, 45, 65,
-    56, 56, 56, 56, 66,
-    57, 57, 57, 57, 67,
-    58, 58, 58, 58, 68,
-    11//miller loop
+    42, 42, 42, 42, 62, 43, 43, 43, 43, 63, 44, 44, 44, 44, 64, 45, 45, 45, 45, 65, 56, 56, 56, 56,
+    66, 57, 57, 57, 57, 67, 58, 58, 58, 58, 68, 11, //miller loop
 ];
 // The current_index informs the maths_instruction where exactly in the 256* loop we are at any given time.
 // This is needed because we have to skip leading zeroes and can't keep
@@ -559,16 +530,13 @@ pub const IX_ORDER: [u8; 37] = [
 // Other instructions ignore current_index (see @processor) as they don't need it.
 
 pub const CURRENT_INDEX_ARRAY: [u8; 464] = [
-    41,
-    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88,
+    41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72, 76, 80, 84, 88,
     92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152, 156, 160, 164,
     168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228, 232, 236, 240,
-    244, 248, 252, 46, 41,
-    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72,
+    244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56, 60, 64, 68, 72,
     76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140, 144, 148, 152,
     156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216, 220, 224, 228,
-    232, 236, 240, 244, 248, 252, 46, 41,
-    0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56,
+    232, 236, 240, 244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40, 44, 48, 52, 56,
     60, 64, 68, 72, 76, 80, 84, 88, 92, 96, 100, 104, 108, 112, 116, 120, 124, 128, 132, 136, 140,
     144, 148, 152, 156, 160, 164, 168, 172, 176, 180, 184, 188, 192, 196, 200, 204, 208, 212, 216,
     220, 224, 228, 232, 236, 240, 244, 248, 252, 46, 41, 0, 4, 8, 12, 16, 20, 24, 28, 32, 36, 40,

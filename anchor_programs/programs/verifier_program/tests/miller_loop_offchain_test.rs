@@ -1,125 +1,115 @@
-
 #[cfg(test)]
 mod test {
-    use std::convert::TryInto;
     use ark_ff::QuadExtField;
-    use std::fs;
-    use serde_json::{Result, Value};
     use ark_groth16::prepare_verifying_key;
+    use serde_json::{Result, Value};
+    use std::convert::TryInto;
+    use std::fs;
 
-    use ark_groth16::prepare_inputs;
-    use ark_ec::ProjectiveCurve;
     use ark_bn254::Fr;
-    use verifier_program::groth16_verifier::miller_loop::{
-        instructions::*,
-        state::*
-    };
-    use std::cell::{RefMut, RefCell};
-    use verifier_program::groth16_verifier::VerifierState;
-    use verifier_program::groth16_verifier::parsers::*;
-    use solana_program::pubkey::Pubkey;
-    use ark_ff::bytes::FromBytes;
-    use ark_ff::Fp256;
-    use std::borrow::Borrow;
     use ark_ec::bn::g2::G2HomProjective;
+    use ark_ec::ProjectiveCurve;
+    use ark_ff::bytes::FromBytes;
     use ark_ff::Fp2;
+    use ark_ff::Fp256;
     use ark_ff::One;
+    use ark_groth16::prepare_inputs;
+    use solana_program::pubkey::Pubkey;
+    use std::borrow::Borrow;
+    use std::cell::{RefCell, RefMut};
+    use verifier_program::groth16_verifier::miller_loop::{instructions::*, state::*};
+    use verifier_program::groth16_verifier::parsers::*;
+    use verifier_program::groth16_verifier::VerifierState;
 
-    pub fn new_verifier_state() ->  VerifierState {
-            VerifierState {
-                current_instruction_index: 0,
-                signing_address: Pubkey::new(&[0;32]),
-                f_bytes:  [0;384],
-                f_bytes1: [0;384],
-                f_bytes2: [0;384],
-                f_bytes3: [0;384],
-                f_bytes4: [0;384],
-                f_bytes5: [0;384],
-                i_bytes: [0;384],
-                fe_instruction_index: 0,
-                max_compute: 1_250_000,
-                current_compute:0,
-                first_exp_by_neg_x: 0,
-                second_exp_by_neg_x:0,
-                third_exp_by_neg_x: 0,
-                initialized: 0,
-                outer_loop: 1,
-                cyclotomic_square_in_place:0,
-                merkle_tree_tmp_account: Pubkey::new(&[0;32]),
-                relayer_fee: 0,
-                recipient: Pubkey::new(&[0;32]),
-                amount: [0;32],
-                nullifier_hash: [0;32],
-                root_hash: [0;32],
-                tx_integrity_hash: [0;32], // is calculated on-chain from recipient, amount, signing_address,
-                proof_a_bytes:        [0;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
-                proof_b_bytes:        [0;128],//ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
-                proof_c_bytes:        [0;64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
+    pub fn new_verifier_state() -> VerifierState {
+        VerifierState {
+            current_instruction_index: 0,
+            signing_address: Pubkey::new(&[0; 32]),
+            f_bytes: [0; 384],
+            f_bytes1: [0; 384],
+            f_bytes2: [0; 384],
+            f_bytes3: [0; 384],
+            f_bytes4: [0; 384],
+            f_bytes5: [0; 384],
+            i_bytes: [0; 384],
+            fe_instruction_index: 0,
+            max_compute: 1_250_000,
+            current_compute: 0,
+            first_exp_by_neg_x: 0,
+            second_exp_by_neg_x: 0,
+            third_exp_by_neg_x: 0,
+            initialized: 0,
+            outer_loop: 1,
+            cyclotomic_square_in_place: 0,
+            merkle_tree_tmp_account: Pubkey::new(&[0; 32]),
+            relayer_fee: 0,
+            recipient: Pubkey::new(&[0; 32]),
+            amount: [0; 32],
+            nullifier_hash: [0; 32],
+            root_hash: [0; 32],
+            tx_integrity_hash: [0; 32], // is calculated on-chain from recipient, amount, signing_address,
+            proof_a_bytes: [0; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
+            proof_b_bytes: [0; 128], //ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
+            proof_c_bytes: [0; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
 
-                ext_amount: [0;8],
-                fee: [0;8],
-                leaf_left: [0;32],
-                leaf_right: [0;32],
-                nullifier0: [0; 32],
-                nullifier1: [0;32],
+            ext_amount: [0; 8],
+            fee: [0; 8],
+            leaf_left: [0; 32],
+            leaf_right: [0; 32],
+            nullifier0: [0; 32],
+            nullifier1: [0; 32],
 
-                i_1_range: [0;32],
-                x_1_range: [0;64],
-                i_2_range: [0;32],
-                x_2_range: [0;64],
-                i_3_range: [0;32],
-                x_3_range: [0;64],
-                i_4_range: [0;32],
-                x_4_range: [0;64],
-                i_5_range: [0;32],
-                x_5_range: [0;64],
-                i_6_range: [0;32],
-                x_6_range: [0;64],
-                i_7_range: [0;32],
-                x_7_range: [0;64],
+            i_1_range: [0; 32],
+            x_1_range: [0; 64],
+            i_2_range: [0; 32],
+            x_2_range: [0; 64],
+            i_3_range: [0; 32],
+            x_3_range: [0; 64],
+            i_4_range: [0; 32],
+            x_4_range: [0; 64],
+            i_5_range: [0; 32],
+            x_5_range: [0; 64],
+            i_6_range: [0; 32],
+            x_6_range: [0; 64],
+            i_7_range: [0; 32],
+            x_7_range: [0; 64],
 
-                res_x_range: [0;32],
-                res_y_range: [0;32],
-                res_z_range: [0;32],
+            res_x_range: [0; 32],
+            res_y_range: [0; 32],
+            res_z_range: [0; 32],
 
-                g_ic_x_range:       [0;32],
-                g_ic_y_range:       [0;32],
-                g_ic_z_range:       [0;32],
-                current_index: 0,
+            g_ic_x_range: [0; 32],
+            g_ic_y_range: [0; 32],
+            g_ic_z_range: [0; 32],
+            current_index: 0,
 
-                // miller loop
-                r_bytes:            [0;192],//ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,//[0;192],
-                q1_bytes:           [0;128],
-                current_coeff_bytes:[0;192],
+            // miller loop
+            r_bytes: [0; 192], //ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,//[0;192],
+            q1_bytes: [0; 128],
+            current_coeff_bytes: [0; 192],
 
+            outer_first_loop_coeff: 0,
+            outer_second_coeff: 0,
+            inner_first_coeff: 0,
 
-                outer_first_loop_coeff:    0,
-                outer_second_coeff:        0,
-                inner_first_coeff:         0,
+            compute_max_miller_loop: 0,
+            outer_first_loop: 0,
+            outer_second_loop: 0,
+            outer_third_loop: 0,
+            first_inner_loop_index: 0,
+            second_inner_loop_index: 0,
+            square_in_place_executed: 0,
 
-                compute_max_miller_loop:           0,
-                outer_first_loop:          0,
-                outer_second_loop:         0,
-                outer_third_loop:          0,
-                first_inner_loop_index:    0,
-                second_inner_loop_index:   0,
-                square_in_place_executed:  0,
+            coeff_index: [0; 3],
 
+            computing_prepared_inputs: false, // 0 prepare inputs // 1 miller loop //
+            computing_miller_loop: false,
+            computing_final_exponentiation: true,
 
-
-
-
-                coeff_index:               [0;3],
-
-
-                computing_prepared_inputs: false, // 0 prepare inputs // 1 miller loop //
-                computing_miller_loop: false,
-                computing_final_exponentiation: true,
-
-                merkle_tree_index: 0,
-                found_root: 0,
-            }
+            merkle_tree_index: 0,
+            found_root: 0,
         }
+    }
 
     #[test]
     fn test_miller_loop_coeffs() {
@@ -136,8 +126,11 @@ mod test {
             public_inputs.push(<Fr as FromBytes>::read(&*input).unwrap());
         }
         let prepared_inputs = prepare_inputs(&pvk, &public_inputs[..]).unwrap();
-        let mut prepared_inputs_bytes = [0u8;64];
-        parse_x_group_affine_to_bytes((prepared_inputs).into_affine().into(), &mut prepared_inputs_bytes);
+        let mut prepared_inputs_bytes = [0u8; 64];
+        parse_x_group_affine_to_bytes(
+            (prepared_inputs).into_affine().into(),
+            &mut prepared_inputs_bytes,
+        );
 
         let tmp = RefCell::new(new_verifier_state());
         let mut tmp_account: RefMut<'_, VerifierState> = tmp.borrow_mut();
@@ -146,15 +139,14 @@ mod test {
         tmp_account.proof_c_bytes = ix_data[416..480].try_into().unwrap();
         tmp_account.x_1_range = prepared_inputs_bytes.try_into().unwrap();
         tmp_account.max_compute = 1_000_000_000;
-        tmp_account.r_bytes =  parse_r_to_bytes(G2HomProjective {
-                x: proof_b.x,
-                y: proof_b.y,
-                z: Fp2::one(),
-            });
+        tmp_account.r_bytes = parse_r_to_bytes(G2HomProjective {
+            x: proof_b.x,
+            y: proof_b.y,
+            z: Fp2::one(),
+        });
         tmp_account.f_bytes[0] = 1;
         tmp_account.compute_max_miller_loop = 1_000_000_000;
         let mut tmp_account_compute = MillerLoopStateCompute::new(tmp_account.borrow());
-
 
         _test_coeffs(
             [
@@ -167,7 +159,7 @@ mod test {
             ]
             .iter(),
             &mut tmp_account,
-            &mut tmp_account_compute
+            &mut tmp_account_compute,
         );
     }
 
@@ -180,7 +172,7 @@ mod test {
         where
             I: IntoIterator<Item = &'a (<ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::G1Prepared, <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::G2Prepared)>,
         {
-        let mut total_steps:u64 = 0;
+        let mut total_steps: u64 = 0;
         let mut pairs = vec![];
         for (p, q) in i {
             if !p.is_zero() && !q.is_zero() {
@@ -189,23 +181,40 @@ mod test {
         }
         // println!("{:?}", pairs[0].1.next());
         for (index, coeff) in pairs[0].1.clone().enumerate() {
-            assert_eq!(*coeff, get_coeff(0, tmp_account, &mut total_steps, tmp_account_compute).unwrap(), "failed at {}", index);
+            assert_eq!(
+                *coeff,
+                get_coeff(0, tmp_account, &mut total_steps, tmp_account_compute).unwrap(),
+                "failed at {}",
+                index
+            );
             println!("\ncoeff_index {:?}\n", tmp_account.coeff_index);
             println!("\ninner_first_coeff {}\n", tmp_account.inner_first_coeff);
-            println!("\nouter_first_loop_coeff {}\n", tmp_account.outer_first_loop_coeff);
+            println!(
+                "\nouter_first_loop_coeff {}\n",
+                tmp_account.outer_first_loop_coeff
+            );
             println!("\nouter_second_coeff {}\n", tmp_account.outer_second_coeff);
         }
         for (index, coeff) in pairs[1].1.clone().enumerate() {
-            assert_eq!(*coeff, get_coeff(1, tmp_account, &mut total_steps, tmp_account_compute).unwrap(), "failed at {}", index);
+            assert_eq!(
+                *coeff,
+                get_coeff(1, tmp_account, &mut total_steps, tmp_account_compute).unwrap(),
+                "failed at {}",
+                index
+            );
         }
         for (index, coeff) in pairs[2].1.clone().enumerate() {
-            assert_eq!(*coeff, get_coeff(2, tmp_account, &mut total_steps, tmp_account_compute).unwrap(), "failed at {}", index);
+            assert_eq!(
+                *coeff,
+                get_coeff(2, tmp_account, &mut total_steps, tmp_account_compute).unwrap(),
+                "failed at {}",
+                index
+            );
         }
     }
 
-
     pub fn get_vk_from_file() -> Result<
-        ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>
+        ark_groth16::data_structures::VerifyingKey<ark_ec::models::bn::Bn<ark_bn254::Parameters>>,
     > {
         let contents = fs::read_to_string("./tests/test_data/verification_key_bytes_254.txt")
             .expect("Something went wrong reading the file");
@@ -324,7 +333,6 @@ mod test {
         })
     }
 
-
     pub fn read_test_data(file_name: std::string::String) -> Vec<u8> {
         let mut path = std::string::String::from("./tests/test_data/");
         path.push_str(&file_name);
@@ -349,6 +357,4 @@ mod test {
         println!("{:?}", ix_data);
         ix_data
     }
-
-
 }

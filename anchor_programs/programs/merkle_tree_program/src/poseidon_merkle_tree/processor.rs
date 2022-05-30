@@ -1,13 +1,9 @@
 use crate::poseidon_merkle_tree::instructions::*;
-use crate::poseidon_merkle_tree::instructions_poseidon::{
-    poseidon_0, poseidon_1, poseidon_2,
-};
-use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
-use crate::state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::instructions_poseidon::{poseidon_0, poseidon_1, poseidon_2};
 use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
-use crate::poseidon_merkle_tree::state::{
-    InitMerkleTreeBytes, MerkleTree,
-};
+use crate::poseidon_merkle_tree::state::{InitMerkleTreeBytes, MerkleTree};
+use crate::state::MerkleTreeTmpPda;
+use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::{IX_ORDER, TWO_LEAVES_PDA_SIZE};
 use anchor_lang::solana_program::{
     account_info::{next_account_info, AccountInfo},
@@ -91,8 +87,12 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         Ok(())
     }
 
-
-    pub fn process_instruction(&mut self, accounts: &[AccountInfo], tmp_storage_pda_data: &mut MerkleTreeTmpPda, instruction_data: Option<&[u8]>) -> Result<(), ProgramError> {
+    pub fn process_instruction(
+        &mut self,
+        accounts: &[AccountInfo],
+        tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+        instruction_data: Option<&[u8]>,
+    ) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
         let _signer = next_account_info(account)?;
         let _tmp_storage_pda = next_account_info(account)?;
@@ -194,7 +194,6 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 &mut self.unpacked_merkle_tree,
             )?;
             tmp_storage_pda_data.changed_state = 2;
-
         } else if IX_ORDER[tmp_storage_pda_data.current_instruction_index] == ROOT_INSERT {
             //inserting root and creating leave pda accounts
             msg!(
@@ -240,7 +239,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             leaf_pda_account_data.node_right = tmp_storage_pda_data.leaf_right.clone();
             //increased by 2 because we're inserting 2 leaves at once
             leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
-            leaf_pda_account_data.merkle_tree_pubkey = tmp_storage_pda_data.merkle_tree_pda_pubkey.clone();
+            leaf_pda_account_data.merkle_tree_pubkey =
+                tmp_storage_pda_data.merkle_tree_pda_pubkey.clone();
             // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
             leaf_pda_account_data.encrypted_utxos = instruction_data.unwrap()[32..254].to_vec();
 
@@ -258,8 +258,14 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 &mut leaf_pda.data.borrow_mut(),
             );
         }
-        msg!("tmp_storage_pda_data.current_instruction_index : {}", tmp_storage_pda_data.current_instruction_index );
-        msg!("tmp_storage_pda_data.current_instruction_index : {:?}", IX_ORDER[tmp_storage_pda_data.current_instruction_index] );
+        msg!(
+            "tmp_storage_pda_data.current_instruction_index : {}",
+            tmp_storage_pda_data.current_instruction_index
+        );
+        msg!(
+            "tmp_storage_pda_data.current_instruction_index : {:?}",
+            IX_ORDER[tmp_storage_pda_data.current_instruction_index]
+        );
         tmp_storage_pda_data.current_instruction_index += 1;
 
         MerkleTreeTmpPda::pack_into_slice(
@@ -277,17 +283,11 @@ pub fn _process_instruction(
 ) -> Result<(), ProgramError> {
     msg!("executing instruction {}", id);
     if id == HASH_0 {
-        poseidon_0(
-            tmp_storage_pda_data
-        )?;
+        poseidon_0(tmp_storage_pda_data)?;
     } else if id == HASH_1 {
-        poseidon_1(
-            tmp_storage_pda_data
-        )?;
+        poseidon_1(tmp_storage_pda_data)?;
     } else if id == HASH_2 {
-        poseidon_2(
-            tmp_storage_pda_data
-        )?;
+        poseidon_2(tmp_storage_pda_data)?;
     } else if id == MERKLE_TREE_UPDATE_LEVEL {
         insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
     } else if id == MERKLE_TREE_UPDATE_START {
@@ -302,21 +302,11 @@ fn merkle_tree_pubkey_check(
     merkle_tree_pda_owner: Pubkey,
     program_id: Pubkey,
 ) -> Result<(), ProgramError> {
-    if account_pubkey
-        != Pubkey::new(
-            &MERKLE_TREE_ACC_BYTES_ARRAY
-                [merkle_tree_index]
-            .0,
-        )
-    {
+    if account_pubkey != Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index].0) {
         msg!(
             "invalid merkle tree {:?}, {:?}",
             account_pubkey,
-            Pubkey::new(
-                &MERKLE_TREE_ACC_BYTES_ARRAY
-                    [merkle_tree_index]
-                .0
-            )
+            Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index].0)
         );
         return Err(ProgramError::InvalidAccountData);
     }

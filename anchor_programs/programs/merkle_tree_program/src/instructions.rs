@@ -1,8 +1,8 @@
 use crate::state::MerkleTreeTmpPda;
 
 use anchor_lang::solana_program::{
-    program::invoke_signed,
     account_info::{next_account_info, AccountInfo},
+    program::invoke_signed,
     program_error::ProgramError,
     program_pack::Pack,
     pubkey::Pubkey,
@@ -49,9 +49,9 @@ pub fn token_transfer<'a, 'b>(
 }
 
 pub struct MerkleTreeTmpStorageAccInputData {
-    pub node_left:  Vec<u8>,
-    pub node_right:  Vec<u8>,
-    pub relayer:  Vec<u8>,
+    pub node_left: Vec<u8>,
+    pub node_right: Vec<u8>,
+    pub relayer: Vec<u8>,
     pub merkle_tree_pda_pubkey: Vec<u8>,
     pub root_hash: Vec<u8>,
     pub found_root: u8,
@@ -60,34 +60,34 @@ pub struct MerkleTreeTmpStorageAccInputData {
 
 impl MerkleTreeTmpStorageAccInputData {
     pub fn new(
-            node_left: Vec<u8>,
-            node_right:Vec<u8>,
-            root_hash: Vec<u8>,
-            merkle_tree_address: Vec<u8>,
-            signing_address: Vec<u8>,
-        ) -> Result<MerkleTreeTmpStorageAccInputData, ProgramError> {
+        node_left: Vec<u8>,
+        node_right: Vec<u8>,
+        root_hash: Vec<u8>,
+        merkle_tree_address: Vec<u8>,
+        signing_address: Vec<u8>,
+    ) -> Result<MerkleTreeTmpStorageAccInputData, ProgramError> {
         Ok(MerkleTreeTmpStorageAccInputData {
-            node_left:          node_left,
-            node_right:         node_right,
-            relayer:            signing_address,
-            merkle_tree_pda_pubkey:  merkle_tree_address,
+            node_left: node_left,
+            node_right: node_right,
+            relayer: signing_address,
+            merkle_tree_pda_pubkey: merkle_tree_address,
             root_hash: root_hash,
             is_initialized: 1u8,
             found_root: 0u8,
         })
     }
 
-    pub fn return_ix_data(&self) ->  Result<Vec<u8>, ProgramError>{
+    pub fn return_ix_data(&self) -> Result<Vec<u8>, ProgramError> {
         let res = [
-        self.node_left.clone(),
-        self.node_right.clone(),
-        self.root_hash.clone(),
-        self.relayer.clone(),
-        self.merkle_tree_pda_pubkey.clone(),
-        ].concat();
+            self.node_left.clone(),
+            self.node_right.clone(),
+            self.root_hash.clone(),
+            self.relayer.clone(),
+            self.merkle_tree_pda_pubkey.clone(),
+        ]
+        .concat();
         Ok(res)
     }
-
 
     pub fn try_initialize(&mut self, account: &AccountInfo) -> Result<(), ProgramError> {
         let mut tmp = MerkleTreeTmpPda::new();
@@ -100,14 +100,10 @@ impl MerkleTreeTmpStorageAccInputData {
         tmp.merkle_tree_pda_pubkey = self.merkle_tree_pda_pubkey.clone();
         tmp.found_root = self.found_root.clone();
         tmp.changed_state = 1;
-        MerkleTreeTmpPda::pack_into_slice(
-            &tmp,
-            &mut account.data.borrow_mut(),
-        );
+        MerkleTreeTmpPda::pack_into_slice(&tmp, &mut account.data.borrow_mut());
         Ok(())
     }
 }
-
 
 #[allow(clippy::clone_double_ref)]
 pub fn create_and_try_initialize_tmp_storage_pda(
@@ -132,7 +128,7 @@ pub fn create_and_try_initialize_tmp_storage_pda(
         _instruction_data[32..64].to_vec(),
         _instruction_data[64..96].to_vec(),
         merkle_tree_tmp_pda.key.to_bytes().to_vec(),
-        signer_account.key.to_bytes().to_vec()
+        signer_account.key.to_bytes().to_vec(),
     )?;
     // msg!("MerkleTreeTmpStorageAccInputData done");
     //
@@ -149,11 +145,8 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     //     true,                       //rent_exempt
     // )?;
     // msg!("created_pda");
-    merkle_tree_pda.try_initialize(
-        &merkle_tree_tmp_pda
-    )
+    merkle_tree_pda.try_initialize(&merkle_tree_tmp_pda)
 }
-
 
 pub fn close_account(
     account: &AccountInfo,

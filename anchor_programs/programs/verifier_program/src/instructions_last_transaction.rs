@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::state::VerifierState;
+use anchor_lang::prelude::*;
 use merkle_tree_program::program::MerkleTreeProgram;
 #[derive(Accounts)]
 #[instruction(
@@ -13,7 +13,7 @@ pub struct LastTransactionDeposit<'info> {
     // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub nullifier1_pda: UncheckedAccount<'info>,//Account<'info, Nullifier>,
+    pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
     #[account(mut)]
     // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
@@ -28,7 +28,7 @@ pub struct LastTransactionDeposit<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
-     /// CHECK: This is not dangerous because we don't read or write from this account
+    /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
@@ -44,7 +44,7 @@ pub struct LastTransactionDeposit<'info> {
     pub user_account: Signer<'info>,
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree:  AccountInfo<'info>,
+    pub merkle_tree: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -59,7 +59,7 @@ pub struct LastTransactionWithdrawal<'info> {
     // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub nullifier1_pda: UncheckedAccount<'info>,//Account<'info, Nullifier>,
+    pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
     #[account(mut)]
     // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
@@ -87,11 +87,11 @@ pub struct LastTransactionWithdrawal<'info> {
     // account from which funds are transferred
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree:  AccountInfo<'info>,
+    pub merkle_tree: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub recipient:  AccountInfo<'info>,
+    pub recipient: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub relayer_recipient:  AccountInfo<'info>,
+    pub relayer_recipient: AccountInfo<'info>,
 }

@@ -1,18 +1,17 @@
+use crate::VerifierState;
 use ark_bn254;
 use ark_ec;
 use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_ff::fields::models::quadratic_extension::QuadExtField;
 use ark_ff::Fp256;
 use ark_ff::One;
-use crate::VerifierState;
 use std::cell::RefMut;
-
 
 pub fn parse_f_to_bytes(
     f: <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk,
     // range: &mut Vec<u8>,
-) -> [u8;384]{
-    let mut range = [0u8;384];
+) -> [u8; 384] {
+    let mut range = [0u8; 384];
     let mut iter = 0;
     for i in 0..2_u8 {
         for j in 0..3_u8 {
@@ -173,14 +172,13 @@ pub fn parse_f_from_bytes(
     f
 }
 
-
-pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut [u8;32]) {
+pub fn parse_fp256_to_bytes(fp256: ark_ff::Fp256<ark_bn254::FqParameters>, range: &mut [u8; 32]) {
     let start = 0;
     let end = 32;
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&fp256, &mut range[start..end]).unwrap();
 }
 
-pub fn parse_fp256_from_bytes(range: &[u8;32]) -> ark_ff::Fp256<ark_bn254::FqParameters> {
+pub fn parse_fp256_from_bytes(range: &[u8; 32]) -> ark_ff::Fp256<ark_bn254::FqParameters> {
     let fp256: ark_ff::Fp256<ark_bn254::FqParameters>;
     let start = 0;
     let end = 32;
@@ -199,7 +197,7 @@ pub fn parse_fp256_ed_to_bytes(
 }
 
 pub fn parse_fp256_ed_from_bytes(
-    account: &[u8;32],
+    account: &[u8; 32],
 ) -> ark_ff::Fp256<ark_ed_on_bn254::FqParameters> {
     let fp256: ark_ff::Fp256<ark_ed_on_bn254::FqParameters>;
     let start = 0;
@@ -214,7 +212,7 @@ pub fn parse_fp256_ed_from_bytes(
 pub fn parse_r_to_bytes(
     r: ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,
     //range: &mut Vec<u8>,
-) -> [u8;192]{
+) -> [u8; 192] {
     let mut tmp1 = vec![0u8; 64];
     let mut tmp2 = vec![0u8; 64];
     let mut tmp3 = vec![0u8; 64];
@@ -223,7 +221,6 @@ pub fn parse_r_to_bytes(
     parse_quad_to_bytes(r.z, &mut tmp3);
     [tmp1, tmp2, tmp3].concat().try_into().unwrap()
 }
-
 
 pub fn parse_r_from_bytes(
     range: &Vec<u8>,
@@ -424,7 +421,7 @@ pub fn parse_cubic_from_bytes_sub(
 
 // x
 pub fn parse_x_group_affine_from_bytes(
-    account: &[u8;64],
+    account: &[u8; 64],
 ) -> ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters> {
     ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>::new(
         <Fp256<ark_bn254::FqParameters> as FromBytes>::read(&account[0..32]).unwrap(),
@@ -435,34 +432,81 @@ pub fn parse_x_group_affine_from_bytes(
 
 pub fn parse_x_group_affine_to_bytes(
     x: ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
-    account: &mut [u8;64],
+    account: &mut [u8; 64],
 ) {
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.x, &mut account[0..32]).unwrap();
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x.y, &mut account[32..64]).unwrap();
 }
 pub fn fill_x_ranges(
-        x_vec: Vec<ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>>,
-        tmp_account: &mut RefMut<'_, VerifierState>
-    ) {
+    x_vec: Vec<ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>>,
+    tmp_account: &mut RefMut<'_, VerifierState>,
+) {
     parse_x_group_affine_to_bytes(x_vec[0], &mut tmp_account.x_1_range);
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[1].x, &mut tmp_account.x_2_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[1].y, &mut tmp_account.x_2_range[32..64]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[1].x,
+        &mut tmp_account.x_2_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[1].y,
+        &mut tmp_account.x_2_range[32..64],
+    )
+    .unwrap();
 
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[2].x, &mut tmp_account.x_3_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[2].y, &mut tmp_account.x_3_range[32..64]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[2].x,
+        &mut tmp_account.x_3_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[2].y,
+        &mut tmp_account.x_3_range[32..64],
+    )
+    .unwrap();
 
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[3].x, &mut tmp_account.x_4_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[3].y, &mut tmp_account.x_4_range[32..64]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[3].x,
+        &mut tmp_account.x_4_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[3].y,
+        &mut tmp_account.x_4_range[32..64],
+    )
+    .unwrap();
 
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[4].x, &mut tmp_account.x_5_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[4].y, &mut tmp_account.x_5_range[32..64]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[4].x,
+        &mut tmp_account.x_5_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[4].y,
+        &mut tmp_account.x_5_range[32..64],
+    )
+    .unwrap();
 
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[5].x, &mut tmp_account.x_6_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[5].y, &mut tmp_account.x_6_range[32..64]).unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[5].x,
+        &mut tmp_account.x_6_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[5].y,
+        &mut tmp_account.x_6_range[32..64],
+    )
+    .unwrap();
 
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[6].x, &mut tmp_account.x_7_range[0..32]).unwrap();
-    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&x_vec[6].y, &mut tmp_account.x_7_range[32..64]).unwrap();
-
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[6].x,
+        &mut tmp_account.x_7_range[0..32],
+    )
+    .unwrap();
+    <Fp256<ark_bn254::FqParameters> as ToBytes>::write(
+        &x_vec[6].y,
+        &mut tmp_account.x_7_range[32..64],
+    )
+    .unwrap();
 }
 /*
 pub fn parse_x_group_affine_to_bytes(
@@ -477,9 +521,9 @@ pub fn parse_x_group_affine_to_bytes(
 */
 
 pub fn parse_group_projective_from_bytes_254(
-    acc1: &[u8;32],
-    acc2: &[u8;32],
-    acc3: &[u8;32],
+    acc1: &[u8; 32],
+    acc2: &[u8; 32],
+    acc3: &[u8; 32],
 ) -> ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters> {
     ark_ec::short_weierstrass_jacobian::GroupProjective::<ark_bn254::g1::Parameters>::new(
         <Fp256<ark_bn254::FqParameters> as FromBytes>::read(&acc1[0..32]).unwrap(), // i 0..48
@@ -490,9 +534,9 @@ pub fn parse_group_projective_from_bytes_254(
 
 pub fn parse_group_projective_to_bytes_254(
     res: ark_ec::short_weierstrass_jacobian::GroupProjective<ark_bn254::g1::Parameters>,
-    acc1: &mut [u8;32],
-    acc2: &mut [u8;32],
-    acc3: &mut [u8;32],
+    acc1: &mut [u8; 32],
+    acc2: &mut [u8; 32],
+    acc3: &mut [u8; 32],
 ) {
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.x, &mut acc1[0..32]).unwrap(); // i 0..48
     <Fp256<ark_bn254::FqParameters> as ToBytes>::write(&res.y, &mut acc2[0..32]).unwrap();
