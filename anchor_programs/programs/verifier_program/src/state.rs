@@ -49,7 +49,7 @@ pub struct VerifierState {
     pub r_bytes: [u8; 192],
     pub q1_bytes: [u8; 128],
     pub current_coeff_bytes: [u8; 192],
-
+    // helpers
     pub outer_first_loop_coeff: u64,
     pub outer_second_coeff: u64,
     pub inner_first_coeff: u64,
@@ -72,14 +72,13 @@ pub struct VerifierState {
     pub f_bytes4: [u8; 384],
     pub f_bytes5: [u8; 384],
     pub i_bytes: [u8; 384],
+    // helpers
     pub max_compute: u64,
     pub current_compute: u64,
-    pub first_exp_by_neg_x: u64,
-    pub second_exp_by_neg_x: u64,
-    pub third_exp_by_neg_x: u64,
     pub initialized: u64,
     pub outer_loop: u64,
     pub cyclotomic_square_in_place: u64,
+
     pub merkle_tree_instruction_index: u64,
     pub current_instruction_index_prepare_inputs: u64,
 

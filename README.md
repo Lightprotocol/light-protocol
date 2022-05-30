@@ -1,49 +1,150 @@
-# Light Protocol
+#Light Protocol Program V2
 
-## Tests
-- cargo test-bpf deposit_should_succeed
-- cargo test-bpf withdrawal_should_succeed
+###Current State
+Both programs are not secure and are missing basic account and other security checks.
 
-Run tests selectively test-bpf crashes sometimes if tests run in parallel.
+Only Groth16 ZKP verification and poseidon hashes are fully implemented right now.
 
-## General Description
+###The architecture changes are the following:
+- one Merkle tree program which can only be invoked by verifier programs
+- multiple verifier programs which invoke the Merkle tree
+  this enables us to work easily with different verifying keys
+- rewrite Groth16 proof verification and poseidon hashes adapting to
+  increased Solana compute budget of 1.4 compute units
+- use of the anchor framework -> typescript tests -> snarkjs proofgen in tests
 
-The Light Protocol program verifies zkSNARK proofs to enable anonymous transactions on Solana.
 
-An SDK will follow soon. Developers will be able to build solana-based programs on top of private transactions.
-If you're a developer interested in using or integrating with the program, reach out to us: [Discord community](https://discord.gg/WDAAaX6je2)  /  [Twitter](https://twitter.com/LightProtocol)
+###Verifier Program:
+- verifies Groth16 ZKPs
+- invokes the Merkle Tree program to:
+  - withdraw funds from a liquidity pool
+  - update the Merkle tree
+  - insert leaves into the Merkle tree
+- currently deposits are handled in the verifier program
 
-Zero-knowledge proofs verify that the owner of recipient address B has deposited tokens to a shielded pool (similar to Zcash) from another address A before.
-The zero-knowledge proof includes meta data such as the recipient address. In case this data is tampered with the zero-knowledge proof becomes invalid and the withdrawal fails. Therefore, Light Protocol is completely trustless.
 
-### Documentation
+Accounts:
+  VerifierState:
+  - saves data between computation steps of the Groth16 verification
+  - saves data for protocol logic
 
-For additional documentation refer to DOCUMENTATION.md.
+###Merkle Tree Program:
+- trusts the verifier programs -> does only access control checks
+- owns merkle tree update state accounts
+- owns accounts of the liquidity pools
+- implements transfer logic to deposit and withdraw tokens
+- owns Merkle tree permanent storage accounts which store the state for sparse
+  Merkle trees
+- registers verifier program
+- only registerd verifier programs can interact with it
+- owns and inserts nullifier program derived addresses
+- owns and inserts merkle tree leaves pdas
 
-### State
+Accounts:
+  MerkleTreeUpdateState:
+  - saves compute of poseidon hashes during updating the merkle tree
+  - is initialized via cross program invocation by a verifier program
 
-We keep state in four types of accounts, a large persistent account for a sparse merkle tree, many small accounts storing two leaves each, many small accounts storing one nullifier each, plus temporary accounts to store intermediate results of computation for SNARK verification and updating the Merkle tree root. For every interaction with the shielded pool a new temporary account has to be created. Since, computation is conducted over 1502 instructions temporary accounts keep an index of the current computational step.
+  NullifierPda:
+    - nullifiers are inserted once and cannot be deleted
+    - if a transaction tries to insert a nullifier again it will fail
+    - this results in constant lookup time for nullifiers
 
-### Security:
+  LeavesPda:
+    - every leaves pda stores:
+      - two leaves (2x 32 bytes)
+      - merkle tree publikey (32 bytes)
+      - two encrypted utxos (222 bytes)
 
-Light Protocol has been audited at commit 5a79cdff5e9ea4d621b5d50be16d938124b24723.
-Read the [audit report here](https://github.com/Lightprotocol/program/Audit/Light Protocol Audit Report.pdf).
-A follow up audit for recent program modifications to improve UX will follow soon.
+  AuthorityPda:
+    - can register new verifier programs
 
-### Notes:
-- The implementation of the groth16_verifier is based on the arkworks libraries, mainly [ark_bn254](https://docs.rs/ark-bn254/0.3.0/ark_bn254/), [ark_ec](https://docs.rs/ark-ec/0.3.0/ark_ec/) and [ark_ff](https://docs.rs/ark-ff/0.3.0/ark_ff/).
-- The implementation of the poseidon hash is based on [arkworks_gadgets](https://docs.rs/arkworks-gadgets/0.3.14/arkworks_gadgets/poseidon/circom/index.html)
-- Light uses a circuit based on [tornado_pool](https://github.com/tornadocash/tornado-pool/tree/onchain-tree/circuits).
+  VerifierRegistryPda:
+    - registers one verifier based on its derivation path
 
-Also note that we're using a fork of arkwork's ark-ec: https://github.com/Lightprotocol/algebra where we've made certain functions/structs public:
 
-...bls12/g2.rs
-- G2HomProjective
-- mul_by_char
-- doubling_step
-- addition_step
 
-...models/bn/mod.rs
-- ell
+##Current State
 
-so we can reuse them mostly in tests.
+###Poseidon Hash
+
+The implementation is the same for only more permutations are executed within one transactions.
+
+### Input Preparation
+
+Our circuit has seven public inputs.
+For prepared inputs implementation remains largely the same.
+The biggest changes is the round constant which is increased from 4 rounds
+by a multiple of 12 to 48 within one transaction. A multiple constant is specified in
+anchor_programs/programs/verifier_program/src/groht16_verifier/prepare_inputs/processor.rs/L6.
+
+The total number of rounds is 256. Since it does not divide exactly by 48 an additional instruction is necessary
+which executes the remaining 16 rounds. This instruction is merged with two smaller instructions
+which perform the gic additions.
+
+
+
+### Miller Loop and Final Exponentiation
+
+Miller loop and final exponentiation are rewritten to be better adjusted to
+Solana's increased compute budget.
+In both cases the original implementation is split up into steps which can be
+executed within 1.4m compute units. Every step has compute costs assigned
+to it which were collected through measurements.
+Every steps increments a global total compute used variable which is checked
+before every compute step. Before a step it is checks whether enough compute is
+left in the transaction, if not computation is stopped and the current state saved.
+
+###Miller Loop
+Helper variables:
+// max compute budget to be used during miller loop execution.
+- compute_max_miller_loop
+
+- outer_first_loop
+- outer_second_loop
+- outer_third_loop
+- first_inner_loop_index
+- second_inner_loop_index
+- square_in_place_executed
+
+// keep state in coeff generation from proof b which are generated on demand
+// the verifying key is hardcoded therefore obtaining these coeffs is inexpensive
+- outer_first_loop_coeff
+- outer_second_coeff
+- inner_first_coeff
+
+
+
+###Example Final Exponentiation:
+
+Helper variables:
+- fe_instruction_index // keeps track of the executed transaction
+- max_compute      // defines max compute to be used within one transaction
+- current_compute // collects an estimate of how many compute units have already been used
+- initialized     // cyclotomic_exp is initialized
+- outer_loop      // index of cyclotomic_exp loop
+- cyclotomic_square_in_place // has been executed in this loop iteration
+
+
+`Check if instruction was already executed`
+if state.fe_instruction_index == 0 {
+    `Increment current_compute variable,
+    check whether enough compute is left to execute the step,
+     if not stop the computation and safe the current state.`
+    state.current_compute += 288464;
+    if !state.check_compute_units() {
+        return Ok(Some(self.f));
+    }
+    `Unpack variables necessary in this compute step.`
+    FinalExponentiationComputeState::unpack(
+        &mut state.current_compute,
+        &mut self.f,
+        state.f_bytes,
+    );
+
+    self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
+
+    `Mark the compute step as executed.`
+    state.fe_instruction_index += 1;
+
+}

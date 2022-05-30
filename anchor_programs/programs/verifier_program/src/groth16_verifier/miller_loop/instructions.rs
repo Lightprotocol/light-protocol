@@ -4,13 +4,21 @@ use crate::state::VerifierState;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::bn::BnParameters;
 use ark_ec::models::bn::g2::{addition_step, doubling_step, mul_by_char};
-use ark_ff::Field;
-use ark_ff::QuadExtField;
+use ark_ff::{
+    Field,
+    Fp2ParamsWrapper,
+    QuadExtField
+};
+
 use ark_std::One;
 use ark_std::Zero;
 use solana_program::msg;
 use std::cell::RefMut;
 use std::convert::TryInto;
+use ark_bn254::{
+    Parameters,
+    Fq2Parameters
+};
 
 pub fn get_coeff(
     pair_index: u64,
@@ -18,9 +26,9 @@ pub fn get_coeff(
     current_compute: &mut u64,
     tmp_account_compute: &mut MillerLoopStateCompute,
 ) -> Option<(
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
 )> {
     match pair_index {
         0 => {
@@ -49,9 +57,9 @@ pub fn get_b_coeffs(
     tmp_account: &mut RefMut<'_, VerifierState>,
     tmp_account_compute: &mut MillerLoopStateCompute,
 ) -> Option<(
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
 )> {
     msg!("getting b coeff");
     // if q.is_zero() {
@@ -60,7 +68,7 @@ pub fn get_b_coeffs(
     //         infinity: true,
     //     };
     // }
-    let two_inv = <ark_bn254::Parameters as BnParameters>::Fp::one()
+    let two_inv = <Parameters as BnParameters>::Fp::one()
         .double()
         .inverse()
         .unwrap();
@@ -72,11 +80,10 @@ pub fn get_b_coeffs(
     //     return Err();
     // }
 
-    for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()
+    for i in (1..Parameters::ATE_LOOP_COUNT.len()
         - (tmp_account.outer_first_loop_coeff as usize))
         .rev()
     {
-        // let i = ark_bn254::Parameters::ATE_LOOP_COUNT.len()-(*outer_first_loop as usize);
         if tmp_account.inner_first_coeff == 0 {
             *current_compute += 140_000;
             msg!("doubling_step");
@@ -85,14 +92,14 @@ pub fn get_b_coeffs(
             } else {
                 tmp_account.inner_first_coeff = 1;
                 tmp_account.coeff_index[0] += 1;
-                return Some(doubling_step::<ark_bn254::Parameters>(
+                return Some(doubling_step::<Parameters>(
                     &mut tmp_account_compute.r,
                     &two_inv,
                 ));
             }
         }
 
-        let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i - 1];
+        let bit = Parameters::ATE_LOOP_COUNT[i - 1];
 
         match bit {
             1 => {
@@ -104,7 +111,7 @@ pub fn get_b_coeffs(
                     tmp_account.inner_first_coeff = 0;
                     tmp_account.outer_first_loop_coeff += 1;
                     tmp_account.coeff_index[0] += 1;
-                    return Some(addition_step::<ark_bn254::Parameters>(
+                    return Some(addition_step::<Parameters>(
                         &mut tmp_account_compute.r,
                         &parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()),
                     ));
@@ -119,7 +126,7 @@ pub fn get_b_coeffs(
                     tmp_account.inner_first_coeff = 0;
                     tmp_account.outer_first_loop_coeff += 1;
                     tmp_account.coeff_index[0] += 1;
-                    return Some(addition_step::<ark_bn254::Parameters>(
+                    return Some(addition_step::<Parameters>(
                         &mut tmp_account_compute.r,
                         &-parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec()),
                     ));
@@ -133,7 +140,7 @@ pub fn get_b_coeffs(
         }
     }
     // It is not negative.
-    // if ark_bn254::Parameters::X_IS_NEGATIVE {
+    // if Parameters::X_IS_NEGATIVE {
     //     r.y = -r.y;
     // }
 
@@ -143,7 +150,7 @@ pub fn get_b_coeffs(
         if *current_compute >= tmp_account.compute_max_miller_loop {
             return None;
         }
-        let q1 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
+        let q1 = mul_by_char::<Parameters>(parse_proof_b_from_bytes(
             &tmp_account.proof_b_bytes.to_vec(),
         ));
 
@@ -153,7 +160,7 @@ pub fn get_b_coeffs(
         tmp_account.outer_second_coeff = 1;
 
         tmp_account.coeff_index[0] += 1;
-        return Some(addition_step::<ark_bn254::Parameters>(
+        return Some(addition_step::<Parameters>(
             &mut tmp_account_compute.r,
             &q1,
         ));
@@ -163,13 +170,13 @@ pub fn get_b_coeffs(
     if *current_compute >= tmp_account.compute_max_miller_loop {
         return None;
     }
-    let mut q2 = mul_by_char::<ark_bn254::Parameters>(parse_proof_b_from_bytes(
+    let mut q2 = mul_by_char::<Parameters>(parse_proof_b_from_bytes(
         &tmp_account.q1_bytes.to_vec(),
     ));
     q2.y = -q2.y;
     tmp_account.coeff_index[0] += 1;
 
-    return Some(addition_step::<ark_bn254::Parameters>(
+    return Some(addition_step::<Parameters>(
         &mut tmp_account_compute.r,
         &q2,
     ));
@@ -178,18 +185,18 @@ pub fn get_b_coeffs(
 pub fn get_gamma_g2(
     tmp_account: &mut VerifierState,
 ) -> (
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
 ) {
     let mut coeff: (
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
     ) = (
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
     );
     let id = tmp_account.coeff_index[1];
     msg!("Getting gamma coeff id: {}", id);
@@ -387,18 +394,18 @@ pub fn get_gamma_g2(
 pub fn get_delta_g2(
     tmp_account: &mut VerifierState,
 ) -> (
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-    QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+    QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
 ) {
     let mut coeff: (
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
-        QuadExtField<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
+        QuadExtField<Fp2ParamsWrapper<Fq2Parameters>>,
     ) = (
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
-        QuadExtField::<ark_ff::Fp2ParamsWrapper<ark_bn254::Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
+        QuadExtField::<Fp2ParamsWrapper<Fq2Parameters>>::zero(),
     );
     let id = tmp_account.coeff_index[2];
     msg!("Getting delta coeff id: {}", id);
