@@ -731,11 +731,8 @@ mod tests {
                 f_bytes5: [0; 384],
                 i_bytes: [0; 384],
                 fe_instruction_index: 0,
-                max_compute: 1_250_000,
+                fe_max_compute: 1_250_000,
                 current_compute: 0,
-                first_exp_by_neg_x: 0,
-                second_exp_by_neg_x: 0,
-                third_exp_by_neg_x: 0,
                 initialized: 0,
                 outer_loop: 1,
                 cyclotomic_square_in_place: 0,
@@ -790,7 +787,7 @@ mod tests {
                 outer_second_coeff: 0,
                 inner_first_coeff: 0,
 
-                compute_max_miller_loop: 0,
+                ml_max_compute: 0,
                 outer_first_loop: 0,
                 outer_second_loop: 0,
                 outer_third_loop: 0,
@@ -847,7 +844,7 @@ mod tests {
 
         for _ in 0..600 {
             compute_state.final_exponentiation(&mut state).unwrap();
-            // assert!(state.current_compute <= state.max_compute);
+            // assert!(state.current_compute <= state.fe_max_compute);
             state.current_compute = 0;
             compute_state.pack(&mut state);
             compute_state.reset();

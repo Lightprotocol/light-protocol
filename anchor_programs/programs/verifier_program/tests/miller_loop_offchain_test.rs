@@ -5,7 +5,7 @@ mod test {
     use serde_json::{Result, Value};
     use std::convert::TryInto;
     use std::fs;
-
+    use verifier_program::groth16_verifier::miller_loop_onchain;
     use ark_bn254::Fr;
     use ark_ec::bn::g2::G2HomProjective;
     use ark_ec::ProjectiveCurve;
@@ -33,11 +33,8 @@ mod test {
             f_bytes5: [0; 384],
             i_bytes: [0; 384],
             fe_instruction_index: 0,
-            max_compute: 1_250_000,
+            fe_max_compute: 1_250_000,
             current_compute: 0,
-            first_exp_by_neg_x: 0,
-            second_exp_by_neg_x: 0,
-            third_exp_by_neg_x: 0,
             initialized: 0,
             outer_loop: 1,
             cyclotomic_square_in_place: 0,
@@ -92,7 +89,7 @@ mod test {
             outer_second_coeff: 0,
             inner_first_coeff: 0,
 
-            compute_max_miller_loop: 0,
+            ml_max_compute: 0,
             outer_first_loop: 0,
             outer_second_loop: 0,
             outer_third_loop: 0,
@@ -114,6 +111,90 @@ mod test {
             merkle_tree_instruction_index:0,
             updating_merkle_tree:false,
         }
+    }
+
+    #[test]
+    fn miller_loop_test() {
+        let pvk_unprepped = get_vk_from_file().unwrap();
+        let pvk = prepare_verifying_key(&pvk_unprepped);
+
+        let mut ix_data = read_test_data(String::from("./deposit.txt"));
+        ix_data = ix_data[9..].to_vec();
+        let proof_a = parse_x_group_affine_from_bytes(&ix_data[224..288].try_into().unwrap());
+        let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].try_into().unwrap());
+        let proof_c = parse_x_group_affine_from_bytes(&ix_data[416..480].try_into().unwrap());
+        let mut public_inputs = Vec::new();
+        for input in ix_data[..224].chunks(32) {
+            public_inputs.push(<Fr as FromBytes>::read(&*input).unwrap());
+        }
+        println!("here");
+        let prepared_inputs = prepare_inputs(&pvk, &public_inputs[..]).unwrap();
+
+        let miller_output_ref =
+            <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::miller_loop(
+                [
+                    (proof_a.into(), proof_b.into()),
+                    (
+                        (prepared_inputs).into_affine().into(),
+                        pvk.gamma_g2_neg_pc.clone(),
+                    ),
+                    (proof_c.into(), pvk.delta_g2_neg_pc.clone()),
+                ]
+                .iter(),
+            );
+
+        println!("here");
+        let f = <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
+        let mut prepared_inputs_bytes = [0u8;64];
+        parse_x_group_affine_to_bytes((prepared_inputs).into_affine().into(), &mut prepared_inputs_bytes);
+
+
+        let tmp = RefCell::new(new_verifier_state());
+        let mut tmp_account: RefMut<'_, VerifierState> = tmp.borrow_mut();
+        tmp_account.proof_a_bytes = ix_data[224..288].try_into().unwrap();
+        tmp_account.proof_b_bytes = ix_data[288..416].try_into().unwrap();
+        tmp_account.proof_c_bytes = ix_data[416..480].try_into().unwrap();
+        tmp_account.x_1_range = prepared_inputs_bytes.try_into().unwrap();
+        tmp_account.ml_max_compute = 1_000_000_000;
+        tmp_account.r_bytes = parse_r_to_bytes(G2HomProjective {
+            x: proof_b.x,
+            y: proof_b.y,
+            z: Fp2::one(),
+            });
+        let mut tmp_account_compute = MillerLoopStateCompute::new(&tmp_account);
+        tmp_account_compute.f = f;
+        println!("initing tmp_account_compute {:?}", tmp_account_compute);
+
+        // [224..288].to_vec());
+        // let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].to_vec());
+        // let proof_c = parse_x_group_affine_from_bytes(&ix_data[416..480].to_vec());
+        let mut total_steps = 0;
+        for i in 0..46{
+            total_steps +=
+                miller_loop_onchain(
+                    &mut tmp_account,
+                    &mut tmp_account_compute
+                );
+            println!("initing tmp_account_compute {:?}", tmp_account_compute);
+
+            println!("-----------------------------------------");
+            println!("iterations: {} \n", i);
+            println!("coeff_index: {:?} ", tmp_account.coeff_index);
+            println!("outer_first_loop: {} ", tmp_account.outer_first_loop);
+            println!("outer_second_loop: {} ", tmp_account.outer_second_loop);
+            println!("outer_third_loop: {} ", tmp_account.outer_third_loop);
+            println!("square_in_place_executed: {} ", tmp_account.square_in_place_executed);
+            println!("first_inner_loop_index: {} ", tmp_account.first_inner_loop_index);
+            println!("second_inner_loop_index: {} \n", tmp_account.second_inner_loop_index);
+
+
+        }
+
+        println!("total_steps: {} ", total_steps);
+
+        assert_eq!(miller_output_ref, tmp_account_compute.f);
+
+        println!("final f bytes: {:?}", parse_f_to_bytes(tmp_account_compute.f));
     }
 
     #[test]
@@ -143,14 +224,14 @@ mod test {
         tmp_account.proof_b_bytes = ix_data[288..416].try_into().unwrap();
         tmp_account.proof_c_bytes = ix_data[416..480].try_into().unwrap();
         tmp_account.x_1_range = prepared_inputs_bytes.try_into().unwrap();
-        tmp_account.max_compute = 1_000_000_000;
+        tmp_account.fe_max_compute = 1_000_000_000;
         tmp_account.r_bytes = parse_r_to_bytes(G2HomProjective {
             x: proof_b.x,
             y: proof_b.y,
             z: Fp2::one(),
         });
         tmp_account.f_bytes[0] = 1;
-        tmp_account.compute_max_miller_loop = 1_000_000_000;
+        tmp_account.ml_max_compute = 1_000_000_000;
         let mut tmp_account_compute = MillerLoopStateCompute::new(tmp_account.borrow());
 
         _test_coeffs(
