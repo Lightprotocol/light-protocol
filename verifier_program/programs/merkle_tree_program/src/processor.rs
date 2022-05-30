@@ -41,13 +41,13 @@ pub fn process_instruction(
     // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
     if tmp_storage_pda_data.current_instruction_index == 0 {
         let merkle_tree_pda = next_account_info(account)?;
-        msg!("skipping root hash search");
-        // tmp_storage_pda_data.found_root = check_root_hash_exists(
-        //     merkle_tree_pda,
-        //     &tmp_storage_pda_data.root_hash,
-        //     program_id,
-        //     merkle_tree_pda.key,
-        // )?;
+
+        tmp_storage_pda_data.found_root = check_root_hash_exists(
+            merkle_tree_pda,
+            &tmp_storage_pda_data.root_hash,
+            program_id,
+            merkle_tree_pda.key,
+        )?;
         tmp_storage_pda_data.found_root = 1;
         tmp_storage_pda_data.changed_state = 3;
         tmp_storage_pda_data.current_instruction_index += 1;
@@ -140,12 +140,12 @@ pub fn process_sol_transfer(
     const WITHDRAWAL: u8 = 2;
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
-    let tmp_storage_pda = next_account_info(account)?;
 
     msg!("instruction_data[0] {}", instruction_data[0]);
 
     match instruction_data[0] {
         DEPOSIT => {
+            let tmp_storage_pda = next_account_info(account)?;
             let system_program_account = next_account_info(account)?;
             let rent_sysvar_info = next_account_info(account)?;
             let rent = &Rent::from_account_info(rent_sysvar_info)?;
@@ -171,7 +171,7 @@ pub fn process_sol_transfer(
         },
         WITHDRAWAL => {
             let merkle_tree_pda_token = next_account_info(account)?;
-
+            // withdraws amounts to accounts
             msg!("Entered withdrawal. {:?}", instruction_data[1..].chunks(8));
             for amount_u8 in instruction_data[1..].chunks(8) {
                 let amount = u64::from_le_bytes(amount_u8.try_into().unwrap());

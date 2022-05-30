@@ -210,8 +210,8 @@ pub mod verifier_program {
      }
 
 
-     pub fn last_transaction(
-         ctx: Context<LastTransaction>,
+     pub fn last_transaction_deposit(
+         ctx: Context<LastTransactionDeposit>,
          nullifier0: [u8;32],
          nullifier1: [u8;32]
      )-> Result<()> {
@@ -237,9 +237,38 @@ pub mod verifier_program {
          let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
          merkle_tree_program::cpi::initialize_nullifier(cpi_ctx1, nullifier1).unwrap();
 
-         processor_last_transaction::process_last_transaction(ctx)
+         processor_last_transaction::process_last_transaction_deposit(ctx)
      }
 
+     pub fn last_transaction_withdrawal(
+         ctx: Context<LastTransactionWithdrawal>,
+         nullifier0: [u8;32],
+         nullifier1: [u8;32]
+     )-> Result<()> {
+         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
+             authority: ctx.accounts.signing_address.to_account_info(),
+             nullifier_pda: ctx.accounts.nullifier0_pda.to_account_info(),
+             system_program: ctx.accounts.system_program.to_account_info(),
+             rent: ctx.accounts.rent.to_account_info(),
+         };
+
+         let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
+         merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier0).unwrap();
+
+         let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
+         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
+             authority: ctx.accounts.signing_address.to_account_info(),
+             nullifier_pda: ctx.accounts.nullifier1_pda.to_account_info(),
+             system_program: ctx.accounts.system_program.to_account_info(),
+             rent: ctx.accounts.rent.to_account_info(),
+         };
+
+         let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
+         merkle_tree_program::cpi::initialize_nullifier(cpi_ctx1, nullifier1).unwrap();
+
+         processor_last_transaction::process_last_transaction_withdrawal(ctx)
+     }
 
 }
 
@@ -289,7 +318,7 @@ pub struct CreateInputsState<'info> {
     nullifier0: [u8;32],
     nullifier1: [u8;32],
 )]
-pub struct LastTransaction<'info> {
+pub struct LastTransactionDeposit<'info> {
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub nullifier0_pda: UncheckedAccount<'info>,
@@ -330,6 +359,57 @@ pub struct LastTransaction<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub merkle_tree:  AccountInfo<'info>,
 }
+
+#[derive(Accounts)]
+#[instruction(
+    nullifier0: [u8;32],
+    nullifier1: [u8;32],
+)]
+pub struct LastTransactionWithdrawal<'info> {
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier0_pda: UncheckedAccount<'info>,
+    // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub nullifier1_pda: UncheckedAccount<'info>,//Account<'info, Nullifier>,
+    #[account(mut)]
+    // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
+    pub leaves_pda: UncheckedAccount<'info>,
+    #[account(mut)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+    // #[account(seeds = [nullifier0.as_ref(), b"esrow"], bump)]
+    #[account(mut)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub escrow_pda: UncheckedAccount<'info>,
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    #[account(address = system_program::ID)]
+    /// CHECK: This is not dangerous because we don't read or write from this account
+    pub system_program: AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub rent: Sysvar<'info, Rent>,
+    // merkle tree account liquidity pool pda
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree_pda_token: AccountInfo<'info>,
+    // account from which funds are transferred
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree:  AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub recipient:  AccountInfo<'info>,
+    #[account(mut)]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub relayer_recipient:  AccountInfo<'info>,
+}
+
 
 // Nullfier pdas are derived from the nullifier
 // existence of a nullifier is the check to
@@ -392,7 +472,9 @@ pub enum ErrorCode {
     #[msg("WrongPubAmount")]
     WrongPubAmount,
     #[msg("PrepareInputsDidNotFinish")]
-    PrepareInputsDidNotFinish
+    PrepareInputsDidNotFinish,
+    #[msg("NotLastTransactionState")]
+    NotLastTransactionState
 }
 
 pub const IX_ORDER: [u8; 37] = [
