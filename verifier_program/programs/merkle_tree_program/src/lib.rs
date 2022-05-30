@@ -113,8 +113,7 @@ pub mod merkle_tree_program {
 
         let mut accounts = ctx.remaining_accounts.to_vec();
         accounts.insert(0, ctx.accounts.authority.to_account_info());
-        accounts.insert(1, ctx.accounts.tmp_storage.to_account_info());
-        accounts.insert(2, ctx.accounts.merkle_tree_token.to_account_info());
+        accounts.insert(1, ctx.accounts.merkle_tree_token.to_account_info());
 
         processor::process_sol_transfer(
             ctx.program_id,
@@ -207,14 +206,10 @@ pub struct DepositSOL<'info> {
 pub struct WithdrawSOL<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
-    pub tmp_storage: AccountInfo<'info>,
-
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
+    // recipients are specified in additional accounts and checked in the verifier
 }
 
 use crate::config::NF_SEED;

@@ -605,15 +605,20 @@ describe("verifier_program", () => {
     *
     */
     let merkleTree = await light.buildMerkelTree(provider.connection);
+    let Keypair = new light.Keypair()
+    let deposit_utxo1 = new light.Utxo(BigNumber.from(1_000_000), Keypair)
+    let deposit_utxo2 = new light.Utxo(BigNumber.from(1_000_000), Keypair)
 
     let inputUtxos = [new light.Utxo(), new light.Utxo()]
-    let outputUtxos = [new light.Utxo(), testOutputUtxo ]
+    let outputUtxos = [deposit_utxo1, deposit_utxo2 ]
+
+    console.log("deposit_utxo1: ", deposit_utxo1)
 
     const data = await light.getProof(
       inputUtxos,
       outputUtxos,
       merkleTree,
-      testOutputUtxo.amount,
+      deposit_utxo1.amount.add(deposit_utxo2.amount),
       U64(0),
       merkleTreePdaToken.publicKey.toBase58(),
       burnerUserAccount.publicKey.toBase58(),
@@ -638,7 +643,8 @@ describe("verifier_program", () => {
       origin: userAccount,
       signer: burnerUserAccount,
       recipient: merkleTreePdaToken,
-      verifierProgram
+      verifierProgram,
+      mode: "deposit"
     })
 
 
@@ -648,19 +654,39 @@ describe("verifier_program", () => {
     *
     */
 
-    merkleTree = await light.buildMerkelTree(provider.connection);
+    const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
 
-    let inputUtxosWithdrawal = [new light.Utxo(), testOutputUtxo] // 38241198
+    deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
+
+    deposit_utxo2.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo2.getCommitment()._hex)
+    console.log("deposit_utxo1.index  ", deposit_utxo1.index )
+    console.log("deposit_utxo2.index  ", deposit_utxo2.index )
+
+    let relayer = await newAccountWithLamports(provider.connection);
+    let relayer_recipient = new anchor.web3.Account();
+    let relayFee = BigNumber.from(1);
+    let inputUtxosWithdrawal = [deposit_utxo1, new light.Utxo()] // 38241198
     let outputUtxosWithdrawal = [new light.Utxo(), new light.Utxo() ]
 
+    const externalAmountBigNumber: BigNumber = BigNumber.from(relayFee.toString())
+    .add(
+      outputUtxosWithdrawal.reduce(
+        (sum, utxo) => sum.add(utxo.amount),
+        BigNumber.from(0),
+      ),
+    )
+    .sub(
+      inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
+    )
+    console.log("External amount ", externalAmountBigNumber.toString())
     const dataWithdrawal = await light.getProof(
       inputUtxosWithdrawal,
       outputUtxosWithdrawal,
-      merkleTree,
-      BigNumber.from(0).sub(testOutputUtxo.amount),
+      merkleTreeWithdrawal,
+      externalAmountBigNumber,
       U64(1),
-      userAccount,
-      signer,
+      recipientWithdrawal.publicKey.toBase58(),
+      burnerUserAccount.publicKey.toBase58(),
       "withdrawal",
       encryptionKeypair
     )
@@ -668,20 +694,22 @@ describe("verifier_program", () => {
     let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
     console.log("withdrawal amount: ", U64(ix_dataWithdrawal.amount, 0))
     let pdasWithdrawal = getPdaAddresses({
-      tx_integrity_hash: ix_data.txIntegrityHash,
-      nullifier0: ix_data.nullifier0,
-      nullifier1: ix_data.nullifier1,
-      leafLeft: ix_data.leafLeft
+      tx_integrity_hash: ix_dataWithdrawal.txIntegrityHash,
+      nullifier0: ix_dataWithdrawal.nullifier0,
+      nullifier1: ix_dataWithdrawal.nullifier1,
+      leafLeft: ix_dataWithdrawal.leafLeft
     })
 
     await transact({
       connection: provider.connection,
-      ix_dataWithdrawal,
+      ix_data: ix_dataWithdrawal,
       pdas: pdasWithdrawal,
       origin: merkleTreePdaToken,
       signer: burnerUserAccount,
-      recipient: userAccount,
-      verifierProgram
+      recipient: recipientWithdrawal,
+      relayer_recipient,
+      verifierProgram,
+      mode: "withdrawal"
     })
 
   });
@@ -692,7 +720,9 @@ describe("verifier_program", () => {
     origin,
     signer,
     recipient,
-    verifierProgram
+    verifierProgram,
+    relayer_recipient,
+    mode
   }) {
 
         const tx = await verifierProgram.methods.createTmpAccount(
@@ -767,27 +797,56 @@ describe("verifier_program", () => {
               )
           let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
 
-          const txLastTransaction = await verifierProgram.methods.lastTransaction(
-              ix_data.nullifier0,
-              ix_data.nullifier1,
-                ).accounts(
-                    {
-                      signingAddress: signer.publicKey,
-                      verifierState: pdas.verifierStatePubkey,
-                      merkleTreeTmpStorage:pdas.merkleTreeTmpState,
-                      systemProgram: SystemProgram.programId,
-                      programMerkleTree: merkleTreeProgram.programId,
-                      rent: DEFAULT_PROGRAMS.rent,
-                      nullifier0Pda: pdas.nullifier0PdaPubkey,
-                      nullifier1Pda: pdas.nullifier1PdaPubkey,
-                      leavesPda: pdas.leavesPdaPubkey,
-                      escrowPda: pdas.escrowPdaPubkey,
-                      merkleTreePdaToken: recipient.publicKey,
-                      userAccount: origin.publicKey,
-                      merkleTree: MERKLE_TREE_KEY,
-                      merkleTreeProgram:  merkleTreeProgram.programId
-                    }
-                  ).signers([signer, origin]).rpc()
+          if (mode == "deposit") {
+            const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
+                ix_data.nullifier0,
+                ix_data.nullifier1,
+                  ).accounts(
+                      {
+                        signingAddress: signer.publicKey,
+                        verifierState: pdas.verifierStatePubkey,
+                        merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+                        systemProgram: SystemProgram.programId,
+                        programMerkleTree: merkleTreeProgram.programId,
+                        rent: DEFAULT_PROGRAMS.rent,
+                        nullifier0Pda: pdas.nullifier0PdaPubkey,
+                        nullifier1Pda: pdas.nullifier1PdaPubkey,
+                        leavesPda: pdas.leavesPdaPubkey,
+                        escrowPda: pdas.escrowPdaPubkey,
+                        merkleTreePdaToken: recipient.publicKey,
+                        userAccount: origin.publicKey,
+                        merkleTree: MERKLE_TREE_KEY,
+                        merkleTreeProgram:  merkleTreeProgram.programId
+                      }
+                    ).signers([signer, origin]).rpc()
+          } else if (mode== "withdrawal") {
+
+            const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
+                ix_data.nullifier0,
+                ix_data.nullifier1,
+                  ).accounts(
+                      {
+                        signingAddress: signer.publicKey,
+                        verifierState: pdas.verifierStatePubkey,
+                        merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+                        systemProgram: SystemProgram.programId,
+                        programMerkleTree: merkleTreeProgram.programId,
+                        rent: DEFAULT_PROGRAMS.rent,
+                        nullifier0Pda: pdas.nullifier0PdaPubkey,
+                        nullifier1Pda: pdas.nullifier1PdaPubkey,
+                        leavesPda: pdas.leavesPdaPubkey,
+                        escrowPda: pdas.escrowPdaPubkey,
+                        merkleTreePdaToken: origin.publicKey,
+                        merkleTree: MERKLE_TREE_KEY,
+                        merkleTreeProgram:  merkleTreeProgram.programId,
+                        recipient:  recipient.publicKey,
+                        relayerRecipient: relayer_recipient.publicKey,
+                      }
+                    ).signers([signer]).rpc()
+          } else {
+            throw Error("mode not supplied");
+          }
+
             await checkLastTxSuccess({
               connection,
               pdas,
