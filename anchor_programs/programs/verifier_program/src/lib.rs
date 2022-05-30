@@ -190,11 +190,14 @@ pub mod verifier_program {
                 tmp_account.i_bytes[0] = 1;
                 // Skipping the first loop iteration since the naf_vec is zero.
                 tmp_account.outer_loop = 1;
+                // Adjusting max compute limite to 1.2m, we still need some buffer
+                // for overhead and varying compute costs depending on the numbers.
                 tmp_account.max_compute = 1_200_000;
+                // Adding compute costs for packing the initialized fs.
                 tmp_account.current_compute+=150_000;
             }
 
-            msg!("computing final_exponentiation");
+            msg!("Computing final_exponentiation");
             final_exponentiation_process_instruction(tmp_account);
         }
 
