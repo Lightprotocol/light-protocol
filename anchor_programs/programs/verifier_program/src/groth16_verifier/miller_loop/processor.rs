@@ -41,7 +41,7 @@ pub fn miller_loop_onchain(
 
             total_compute += 80_000;
             tmp_account.square_in_place_executed = 1;
-            if total_compute >= tmp_account.compute_max_miller_loop {
+            if total_compute >= tmp_account.ml_max_compute {
                 return total_compute;
             }
         }
@@ -64,7 +64,7 @@ pub fn miller_loop_onchain(
                 return total_compute;
             }
             total_compute += 120_000;
-            if total_compute >= tmp_account.compute_max_miller_loop {
+            if total_compute >= tmp_account.ml_max_compute {
                 tmp_account_compute.current_coeff = current_coeff;
                 return total_compute;
             }
@@ -96,7 +96,7 @@ pub fn miller_loop_onchain(
                         return total_compute;
                     }
                     total_compute += 120_000;
-                    if total_compute >= tmp_account.compute_max_miller_loop {
+                    if total_compute >= tmp_account.ml_max_compute {
                         tmp_account_compute.current_coeff = current_coeff;
                         return total_compute;
                     }
@@ -130,7 +130,7 @@ pub fn miller_loop_onchain(
                         return total_compute;
                     }
                     total_compute += 120_000;
-                    if total_compute >= tmp_account.compute_max_miller_loop {
+                    if total_compute >= tmp_account.ml_max_compute {
                         tmp_account_compute.current_coeff = current_coeff;
                         return total_compute;
                     }
@@ -179,7 +179,7 @@ pub fn miller_loop_onchain(
             return total_compute;
         }
         total_compute += 120_000;
-        if total_compute >= tmp_account.compute_max_miller_loop {
+        if total_compute >= tmp_account.ml_max_compute {
             tmp_account_compute.current_coeff = current_coeff;
             return total_compute;
         }
@@ -209,7 +209,7 @@ pub fn miller_loop_onchain(
             return total_compute;
         }
         total_compute += 120_000;
-        if total_compute >= tmp_account.compute_max_miller_loop {
+        if total_compute >= tmp_account.ml_max_compute {
             msg!("saving coeff for next instruction: ",);
             tmp_account_compute.current_coeff = current_coeff;
             return total_compute;

@@ -6,24 +6,20 @@ pub mod utils;
 pub use instructions_last_transaction::*;
 
 use crate::state::VerifierState;
+use crate::groth16_verifier::{
+    prepare_inputs::*,
+    final_exponentiation_process_instruction,
+    miller_loop::*,
+    parsers::*,
+};
 
-use crate::groth16_verifier::prepare_inputs::IX_ORDER;
-
-use crate::groth16_verifier::final_exponentiation_process_instruction;
-use groth16_verifier::miller_loop::*;
-use groth16_verifier::prepare_inputs::*;
-
-use crate::groth16_verifier::parse_proof_b_from_bytes;
-use crate::groth16_verifier::parse_r_to_bytes;
-use crate::groth16_verifier::parsers::*;
-use crate::utils::config::STORAGE_SEED;
 use ark_ec::bn::g2::G2HomProjective;
 use ark_ff::Fp2;
 use ark_std::One;
 
 use anchor_lang::prelude::*;
-
 use merkle_tree_program::{self};
+use crate::merkle_tree_program::utils::config::STORAGE_SEED;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -31,6 +27,7 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod verifier_program {
     use super::*;
 
+    // Creates and initializes a state account to save state of a verification for one transaction
     pub fn create_verifier_state(
         ctx: Context<CreateVerifierState>,
         proof: [u8; 256],
@@ -75,7 +72,7 @@ pub mod verifier_program {
         tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
         tmp_account.proof_b_bytes = proof[64..64 + 128].try_into().unwrap();
         tmp_account.proof_c_bytes = proof[64 + 128..256].try_into().unwrap();
-        tmp_account.compute_max_miller_loop = 1_350_000;
+        tmp_account.ml_max_compute = 1_350_000;
         tmp_account.f_bytes[0] = 1;
         let proof_b = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
 
@@ -88,6 +85,7 @@ pub mod verifier_program {
         Ok(())
     }
 
+    // Creates and initializes a merkle tree state account to save state of hash computations during the Merkle tree update
     pub fn create_merkle_tree_update_state(ctx: Context<CreateMerkleTreeUpdateState>) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load()?;
 
@@ -112,6 +110,8 @@ pub mod verifier_program {
         Ok(())
     }
 
+
+    // Verifies Groth16 ZKPs and updates the Merkle tree
     pub fn compute(ctx: Context<Compute>, _bump: u64) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load_mut()?;
 
@@ -128,7 +128,7 @@ pub mod verifier_program {
             )?;
             tmp_account.current_index += 1;
         } else if tmp_account.computing_miller_loop {
-            tmp_account.max_compute = 1_300_000;
+            tmp_account.ml_max_compute = 1_300_000;
 
             msg!(
                 "computing miller_loop {}",
@@ -174,10 +174,6 @@ pub mod verifier_program {
             if !tmp_account.computing_final_exponentiation {
                 msg!("Initializing for final_exponentiation.");
                 tmp_account.computing_final_exponentiation = true;
-                msg!(
-                    "initializing for tmp_account.f_bytes{:?}",
-                    tmp_account.f_bytes
-                );
                 let mut f1 = parse_f_from_bytes(&tmp_account.f_bytes.to_vec());
                 f1.conjugate();
                 tmp_account.f_bytes1 = parse_f_to_bytes(f1);
@@ -192,7 +188,7 @@ pub mod verifier_program {
                 tmp_account.outer_loop = 1;
                 // Adjusting max compute limite to 1.2m, we still need some buffer
                 // for overhead and varying compute costs depending on the numbers.
-                tmp_account.max_compute = 1_200_000;
+                tmp_account.fe_max_compute = 1_200_000;
                 // Adding compute costs for packing the initialized fs.
                 tmp_account.current_compute+=150_000;
             }
@@ -205,6 +201,8 @@ pub mod verifier_program {
         Ok(())
     }
 
+    // Transfers the deposit amount,
+    // inserts nullifiers and Merkle tree leaves
     pub fn last_transaction_deposit(
         ctx: Context<LastTransactionDeposit>,
         nullifier0: [u8; 32],
@@ -235,6 +233,8 @@ pub mod verifier_program {
         processor_last_transaction::process_last_transaction_deposit(ctx)
     }
 
+    // Transfers the withdrawal amount, pays the relayer,
+    // inserts nullifiers and Merkle tree leaves
     pub fn last_transaction_withdrawal(
         ctx: Context<LastTransactionWithdrawal>,
         nullifier0: [u8; 32],

@@ -73,13 +73,6 @@ pub fn get_b_coeffs(
         .inverse()
         .unwrap();
 
-    // TODO: hardcode constant
-    // let q = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
-    // TODO: throw error at zero
-    // if q.is_zero() {
-    //     return Err();
-    // }
-
     for i in (1..Parameters::ATE_LOOP_COUNT.len()
         - (tmp_account.outer_first_loop_coeff as usize))
         .rev()
@@ -87,7 +80,7 @@ pub fn get_b_coeffs(
         if tmp_account.inner_first_coeff == 0 {
             *current_compute += 140_000;
             msg!("doubling_step");
-            if *current_compute >= tmp_account.compute_max_miller_loop {
+            if *current_compute >= tmp_account.ml_max_compute {
                 return None;
             } else {
                 tmp_account.inner_first_coeff = 1;
@@ -105,7 +98,7 @@ pub fn get_b_coeffs(
             1 => {
                 *current_compute += 200_000;
                 msg!("addition_step1");
-                if *current_compute >= tmp_account.compute_max_miller_loop {
+                if *current_compute >= tmp_account.ml_max_compute {
                     return None;
                 } else {
                     tmp_account.inner_first_coeff = 0;
@@ -120,7 +113,7 @@ pub fn get_b_coeffs(
             -1 => {
                 *current_compute += 200_000;
                 msg!("addition_step-1");
-                if *current_compute >= tmp_account.compute_max_miller_loop {
+                if *current_compute >= tmp_account.ml_max_compute {
                     return None;
                 } else {
                     tmp_account.inner_first_coeff = 0;
@@ -147,7 +140,7 @@ pub fn get_b_coeffs(
     if tmp_account.outer_second_coeff == 0 {
         *current_compute += 200_000;
         msg!("mul_by_char + addition_step");
-        if *current_compute >= tmp_account.compute_max_miller_loop {
+        if *current_compute >= tmp_account.ml_max_compute {
             return None;
         }
         let q1 = mul_by_char::<Parameters>(parse_proof_b_from_bytes(
@@ -167,7 +160,7 @@ pub fn get_b_coeffs(
     }
     *current_compute += 200_000;
     msg!("mul_by_char + addition_step");
-    if *current_compute >= tmp_account.compute_max_miller_loop {
+    if *current_compute >= tmp_account.ml_max_compute {
         return None;
     }
     let mut q2 = mul_by_char::<Parameters>(parse_proof_b_from_bytes(

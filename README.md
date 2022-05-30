@@ -20,8 +20,8 @@ Only Groth16 ZKP verification and poseidon hashes are fully implemented right no
   - withdraw funds from a liquidity pool
   - update the Merkle tree
   - insert leaves into the Merkle tree
+  - insert nullifiers
 - currently deposits are handled in the verifier program
-
 
 Accounts:
   VerifierState:
@@ -66,6 +66,9 @@ Accounts:
 
 ##Current State
 
+The following implementations are ready for review. The protocol logic and access control is not.
+
+
 ###Poseidon Hash
 
 The implementation is the same for only more permutations are executed within one transactions.
@@ -83,7 +86,6 @@ which executes the remaining 16 rounds. This instruction is merged with two smal
 which perform the gic additions.
 
 
-
 ### Miller Loop and Final Exponentiation
 
 Miller loop and final exponentiation are rewritten to be better adjusted to
@@ -98,8 +100,9 @@ left in the transaction, if not computation is stopped and the current state sav
 ###Miller Loop
 Helper variables:
 // max compute budget to be used during miller loop execution.
-- compute_max_miller_loop
+- ml_max_compute
 
+// keep state of the different indices in the loops of the miller loop
 - outer_first_loop
 - outer_second_loop
 - outer_third_loop
@@ -119,7 +122,7 @@ Helper variables:
 
 Helper variables:
 - fe_instruction_index // keeps track of the executed transaction
-- max_compute      // defines max compute to be used within one transaction
+- fe_max_compute      // defines max compute to be used within one transaction
 - current_compute // collects an estimate of how many compute units have already been used
 - initialized     // cyclotomic_exp is initialized
 - outer_loop      // index of cyclotomic_exp loop

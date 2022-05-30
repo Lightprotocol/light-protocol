@@ -56,7 +56,7 @@ pub struct VerifierState {
 
     pub f_bytes: [u8; 384], // results miller_loop
 
-    pub compute_max_miller_loop: u64,
+    pub ml_max_compute: u64,
     pub outer_first_loop: u64,
     pub outer_second_loop: u64,
     pub outer_third_loop: u64,
@@ -73,7 +73,7 @@ pub struct VerifierState {
     pub f_bytes5: [u8; 384],
     pub i_bytes: [u8; 384],
     // helpers
-    pub max_compute: u64,
+    pub fe_max_compute: u64,
     pub current_compute: u64,
     pub initialized: u64,
     pub outer_loop: u64,
@@ -96,7 +96,7 @@ pub struct VerifierState {
 
 impl VerifierState {
     pub fn check_compute_units(&self) -> bool {
-        if self.current_compute < self.max_compute {
+        if self.current_compute < self.fe_max_compute {
             msg!("check_compute_units: {}", true);
             true
         } else {

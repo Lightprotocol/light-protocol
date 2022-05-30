@@ -425,7 +425,7 @@ pub fn _process_instruction(
         g_ic_into_affine_1(
             &mut account_g_ic_x_range,
             &mut account_g_ic_y_range,
-            &mut account_g_ic_z_range, // only one changing
+            &mut account_g_ic_z_range,
         )?;
         account.g_ic_x_range = account_g_ic_x_range;
         account.g_ic_y_range = account_g_ic_y_range;
