@@ -3,7 +3,7 @@ use crate::VerifierState;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
-const MULTIPLE: u64 = 13;
+const MULTIPLE: u64 = 12;
 const ROUNDS: u64 = 4 * MULTIPLE;
 const FILLING_ROUNDS: u64 = 256 % ROUNDS;
 pub fn _process_instruction(
@@ -13,6 +13,10 @@ pub fn _process_instruction(
 ) -> Result<(), ProgramError> {
     // i_order: [0,1,256*2,6,    1,256*3,6, .... x7]
     msg!("instruction: {:?}", id);
+    msg!("res_x_range: {:?}", account.res_x_range);
+    msg!("g_ic_x_range: {:?}", account.g_ic_x_range);
+    msg!("current_index: {:?}", account.current_index);
+    msg!("CURRENT_INDEX_ARRAY: {:?}", CURRENT_INDEX_ARRAY[account.current_index as usize]);
 
     if id == 41 {
         let mut account_res_x_range = account.res_x_range;
@@ -58,7 +62,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -115,7 +119,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -172,7 +176,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -229,7 +233,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -255,24 +259,6 @@ pub fn _process_instruction(
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
     }
-    // else if id == 46 {
-    //     let mut account_g_ic_x_range = account.g_ic_x_range;
-    //     let mut account_g_ic_y_range = account.g_ic_y_range;
-    //     let mut account_g_ic_z_range = account.g_ic_z_range;
-    //     maths_g_ic_instruction(
-    //         &mut account_g_ic_x_range,
-    //         &mut account_g_ic_y_range,
-    //         &mut account_g_ic_z_range,
-    //         &account.res_x_range,
-    //         &account.res_y_range,
-    //         &account.res_z_range,
-    //     )?;
-    //     account.g_ic_x_range = account_g_ic_x_range;
-    //     account.g_ic_y_range = account_g_ic_y_range;
-    //     account.g_ic_z_range = account_g_ic_z_range;
-    //
-    //
-    // }
     else if id == 56 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
@@ -305,7 +291,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -362,7 +348,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -419,7 +405,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += MULTIPLE;
+        account.current_index += (FILLING_ROUNDS/4) + 1;
 
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
@@ -454,34 +440,11 @@ pub fn _process_instruction(
         account.computing_prepared_inputs = false;
         account.computing_miller_loop = true;
     }
-    // else if id == 47 {
-    //     let mut account_g_ic_x_range = account.g_ic_x_range;
-    //     let mut account_g_ic_y_range = account.g_ic_y_range;
-    //     let mut account_g_ic_z_range = account.g_ic_z_range;
-    //     g_ic_into_affine_1(
-    //         &mut account_g_ic_x_range,
-    //         &mut account_g_ic_y_range,
-    //         &mut account_g_ic_z_range, // only one changing
-    //     )?;
-    //     account.g_ic_x_range = account_g_ic_x_range;
-    //     account.g_ic_y_range = account_g_ic_y_range;
-    //     account.g_ic_z_range = account_g_ic_z_range;
-    //
-    //
-    // } else if id == 48 {
-    //     g_ic_into_affine_2(
-    //         &account.g_ic_x_range.clone(),
-    //         &account.g_ic_y_range.clone(),
-    //         &account.g_ic_z_range.clone(),
-    //         &mut account.x_1_range,
-    //     )?;
-    //     let indices = [X_1_RANGE_INDEX];
-    //
-    // }
+
     Ok(())
 }
 
-// All 1809 instructions will be called in a fixed order. This should provide some safety.
+// All instructions will be called in a fixed order.
 // Also, only the first ix receives payload from the client (init_pairs_instruction).
 // And since we don't read any payloads after the first ix, prepared_inputs can (theoretically) be executed within 2 blocks.
 
@@ -508,12 +471,17 @@ pub fn _process_instruction(
 // That's because we're accessing different i,x ranges. If you look
 // at the actual calls inside /processor.rs you'll see the minor differences between those.
 
-pub const IX_ORDER: [u8; 37] = [
+pub const IX_ORDER: [u8; 43] = [
     //init data happens before this array starts
     //check root
     1, //prepare inputs for verification
-    42, 42, 42, 42, 62, 43, 43, 43, 43, 63, 44, 44, 44, 44, 64, 45, 45, 45, 45, 65, 56, 56, 56, 56,
-    66, 57, 57, 57, 57, 67, 58, 58, 58, 58, 68, 11, //miller loop
+    42, 42, 42, 42,42, 62,
+    43,43, 43, 43, 43, 63,
+    44, 44,44, 44, 44, 64,
+    45,45, 45, 45, 45, 65,
+    56, 56, 56, 56, 56,66,
+    57, 57, 57, 57,57, 67,
+    58,58, 58, 58, 58, 68,
 ];
 // The current_index informs the maths_instruction where exactly in the 256* loop we are at any given time.
 // This is needed because we have to skip leading zeroes and can't keep

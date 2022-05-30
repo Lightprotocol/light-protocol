@@ -78,7 +78,7 @@ pub fn miller_loop_onchain(
         }
 
         let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i as usize - 1];
-        msg!("bit {}", bit);
+
         match bit {
             1 => {
                 for pair_index in tmp_account.second_inner_loop_index..3 {

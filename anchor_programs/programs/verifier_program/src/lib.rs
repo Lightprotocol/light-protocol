@@ -31,10 +31,9 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 pub mod verifier_program {
     use super::*;
 
-    pub fn create_tmp_account(
-        ctx: Context<CreateInputsState>,
+    pub fn create_verifier_state(
+        ctx: Context<CreateVerifierState>,
         proof: [u8; 256],
-
         root_hash: [u8; 32],
         amount: [u8; 32],
         tx_integrity_hash: [u8; 32],
@@ -51,10 +50,7 @@ pub mod verifier_program {
     ) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load_init()?;
         tmp_account.signing_address = ctx.accounts.signing_address.key();
-        // let x: u8 = tmp_account;
         tmp_account.root_hash = root_hash.clone();
-        msg!("root_hash {:?}", tmp_account.root_hash);
-        assert_eq!(tmp_account.root_hash, root_hash);
         tmp_account.amount = amount.clone();
         tmp_account.merkle_tree_index = merkle_tree_index[0].clone();
         tmp_account.relayer_fee = u64::from_le_bytes(fee.try_into().unwrap()).clone();
@@ -67,13 +63,9 @@ pub mod verifier_program {
         tmp_account.nullifier0 = nullifier0;
         tmp_account.nullifier1 = nullifier1;
         tmp_account.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
-        msg!(
-            "tmp_account.encrypted_utxos {:?}",
-            tmp_account.encrypted_utxos
-        );
-        msg!("entering init pairs instruction");
+
+        // initing pairs to prepared inputs
         init_pairs_instruction(tmp_account)?;
-        // tmp_account.encrypted_utxos = encrypted_utxos.clone();
         _process_instruction(41, tmp_account, tmp_account.current_index as usize)?;
         tmp_account.current_index = 1;
         tmp_account.current_instruction_index = 1;
@@ -83,8 +75,7 @@ pub mod verifier_program {
         tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
         tmp_account.proof_b_bytes = proof[64..64 + 128].try_into().unwrap();
         tmp_account.proof_c_bytes = proof[64 + 128..256].try_into().unwrap();
-        tmp_account.compute_max_miller_loop = 1_350_000; // 1_250_000 compute units for core computation
-
+        tmp_account.compute_max_miller_loop = 1_350_000;
         tmp_account.f_bytes[0] = 1;
         let proof_b = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
 
@@ -97,14 +88,11 @@ pub mod verifier_program {
         Ok(())
     }
 
-    pub fn create_merkle_tree_tmp_account(ctx: Context<CreateMerkleTreeState>) -> Result<()> {
-        // Can I init this account with data dynamically before the update merkle tree
-        // instructions.
-        msg!("starting cpi");
+    pub fn create_merkle_tree_update_state(ctx: Context<CreateMerkleTreeUpdateState>) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load()?;
 
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
-        let accounts = merkle_tree_program::cpi::accounts::InitializeTmpMerkleTree {
+        let accounts = merkle_tree_program::cpi::accounts::InitializeMerkleTreeUpdateState {
             authority: ctx.accounts.signing_address.to_account_info(),
             merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_state.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
@@ -118,21 +106,16 @@ pub mod verifier_program {
             tmp_account.root_hash.to_vec(),
         ]
         .concat();
-        msg!("data: {:?}", data);
 
         let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
-        merkle_tree_program::cpi::initialize_tmp_merkle_tree_state(cpi_ctx, data).unwrap();
-        msg!("finished cpi");
+        merkle_tree_program::cpi::initialize_merkle_tree_update_state(cpi_ctx, data).unwrap();
         Ok(())
     }
 
     pub fn compute(ctx: Context<Compute>, _bump: u64) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load_mut()?;
-        // tmp_account.computing_prepared_inputs = false;
-        // tmp_account.computing_miller_loop= false;
-        // tmp_account.updating_merkle_tree = true;
+
         if tmp_account.computing_prepared_inputs
-        /*&& tmp_account.current_instruction_index < (IX_ORDER.len() - 1).try_into().unwrap()*/
         {
             msg!(
                 "CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}",
@@ -175,11 +158,8 @@ pub mod verifier_program {
                 &b"storage"[..],
                 bump_seed,
             ][..]];
-            msg!("starting cpi updating merkle tree");
             let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
-            // let cpi_ctx = CpiContext::new(merkle_tree_program_id, accounts);
             merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
-            msg!("finished cpi");
             tmp_account.merkle_tree_instruction_index += 1;
             msg!(
                 "merkle_tree_instruction_index {:?}",
@@ -192,7 +172,7 @@ pub mod verifier_program {
             }
         } else {
             if !tmp_account.computing_final_exponentiation {
-                msg!("initializing for final_exponentiation");
+                msg!("Initializing for final_exponentiation.");
                 tmp_account.computing_final_exponentiation = true;
                 msg!(
                     "initializing for tmp_account.f_bytes{:?}",
@@ -201,11 +181,14 @@ pub mod verifier_program {
                 let mut f1 = parse_f_from_bytes(&tmp_account.f_bytes.to_vec());
                 f1.conjugate();
                 tmp_account.f_bytes1 = parse_f_to_bytes(f1);
+                // Initializing temporary storage for final_exponentiation
+                // with fqk::zero() which is equivalent to [[1], [0;383]].concat()
                 tmp_account.f_bytes2[0] = 1;
                 tmp_account.f_bytes3[0] = 1;
                 tmp_account.f_bytes4[0] = 1;
                 tmp_account.f_bytes5[0] = 1;
                 tmp_account.i_bytes[0] = 1;
+                // Skipping the first loop iteration since the naf_vec is zero.
                 tmp_account.outer_loop = 1;
                 tmp_account.max_compute = 1_100_000;
             }
@@ -305,7 +288,7 @@ pub struct Compute<'info> {
     amount:             [u8;32],
     tx_integrity_hash: [u8;32]
 )]
-pub struct CreateInputsState<'info> {
+pub struct CreateVerifierState<'info> {
     #[account(init, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 
@@ -317,7 +300,7 @@ pub struct CreateInputsState<'info> {
 
 #[derive(Accounts)]
 // #[instruction(tx_integrity_hash:  [u8;32])]
-pub struct CreateMerkleTreeState<'info> {
+pub struct CreateMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 

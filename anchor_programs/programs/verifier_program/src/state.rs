@@ -10,10 +10,10 @@ pub struct VerifierState {
     pub amount: [u8; 32],
     pub nullifier_hash: [u8; 32],
     pub root_hash: [u8; 32],
-    pub tx_integrity_hash: [u8; 32], // is calculated on-chain from recipient, amount, signing_address,
-    pub proof_a_bytes: [u8; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
-    pub proof_b_bytes: [u8; 128], //ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,
-    pub proof_c_bytes: [u8; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
+    pub tx_integrity_hash: [u8; 32],
+    pub proof_a_bytes: [u8; 64],
+    pub proof_b_bytes: [u8; 128],
+    pub proof_c_bytes: [u8; 64],
     pub ext_amount: [u8; 8],
     pub fee: [u8; 8],
     pub leaf_left: [u8; 32],
@@ -46,7 +46,7 @@ pub struct VerifierState {
     pub current_index: u64,
 
     // miller loop
-    pub r_bytes: [u8; 192], //ark_ec::models::bn::g2::G2HomProjective<ark_bn254::Parameters>,//[u8;192],
+    pub r_bytes: [u8; 192],
     pub q1_bytes: [u8; 128],
     pub current_coeff_bytes: [u8; 192],
 
@@ -87,7 +87,7 @@ pub struct VerifierState {
     pub coeff_index: [u8; 3],
 
     pub last_transaction: bool,
-    pub computing_prepared_inputs: bool, // 0 prepare inputs // 1 miller loop //
+    pub computing_prepared_inputs: bool,
     pub computing_miller_loop: bool,
     pub computing_final_exponentiation: bool,
     pub updating_merkle_tree: bool,
