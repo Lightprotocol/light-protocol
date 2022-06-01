@@ -19,6 +19,7 @@ pub mod state;
 pub mod utils;
 pub mod constant;
 pub mod authority_config;
+pub mod registry;
 
 use crate::utils::config;
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
@@ -32,6 +33,7 @@ use crate::state::MerkleTreeTmpPda;
 use crate::poseidon_merkle_tree::state::MerkleTree;
 
 pub use authority_config::*;
+pub use registry::*;
 
 #[program]
 pub mod merkle_tree_program {
@@ -126,6 +128,10 @@ pub mod merkle_tree_program {
     }
     pub fn update_authority_config(ctx: Context<UpdateAuthorityConfig>, new_authority: Pubkey) -> Result<()> {
         ctx.accounts.handle(new_authority)
+    }
+
+    pub fn register_new_id(ctx: Context<RegisterNewId>) -> Result<()> {
+        ctx.accounts.handle(*ctx.bumps.get("registry").unwrap())
     }
 }
 

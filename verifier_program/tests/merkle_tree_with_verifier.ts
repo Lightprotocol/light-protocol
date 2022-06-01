@@ -12,6 +12,7 @@ import { IDL, MerkleTreeProgram } from "../target/types/merkle_tree_program";
 import _ from "lodash";
 import { Keypair, PublicKey, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { assert } from "chai";
 const TYPE_SEED = {defined: "&[u8]"};
 const constants:any = {};
 IDL.constants.map((item) => {
@@ -83,10 +84,10 @@ describe("verifier_program with merkle tree", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.AnchorProvider.local();
 
-  const program = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
+  const verfierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
 
-  const connection = program.provider.connection;
+  const connection = verfierProgram.provider.connection;
 
   const [VERIFIER_TMP_STORAGE_KEY] = PublicKey.findProgramAddressSync(
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
@@ -96,6 +97,12 @@ describe("verifier_program with merkle tree", () => {
     [Buffer.from(new Uint8Array(/*CONCAT_DATA.slice(73, 105)*/NODE_LEFT)), Buffer.from(constants.STORAGE_SEED)],
     merkleTreeProgram.programId
   );
+
+  const [REGISTERED_VERIFIER_KEY] = PublicKey.findProgramAddressSync(
+    [verfierProgram.programId.toBuffer()],
+    merkleTreeProgram.programId
+  );
+
 
   before(async () => {
     const airdropTx = await connection.requestAirdrop(ADMIN_AUTH_KEY, 100_000_000_000_000);
@@ -122,8 +129,22 @@ describe("verifier_program with merkle tree", () => {
     .rpc();
   });
 
+  it("Register Verifier Program", async () => {
+
+    const tx = await merkleTreeProgram.methods.registerNewId().accounts({
+      authority: ADMIN_AUTH_KEY,
+      registry: REGISTERED_VERIFIER_KEY,
+      newId: verfierProgram.programId,
+      ...DEFAULT_PROGRAMS
+    })
+    .signers([ADMIN_AUTH_KEYPAIR])
+    .rpc();
+    const registry = await merkleTreeProgram.account.registry.fetch(REGISTERED_VERIFIER_KEY);
+    assert(registry.id.equals(verfierProgram.programId) , 'Verifier Program Id mismatch');
+  });
+
   it("Init Merkle Tree Storage via Verifier", async () => {
-    const tx = await program.methods.createMerkleTreeTmpStorage(Buffer.from(INIT_STORAGE_DATA)).accounts({
+    const tx = await verfierProgram.methods.createMerkleTreeTmpStorage(Buffer.from(INIT_STORAGE_DATA)).accounts({
       authority: ADMIN_AUTH_KEY,
       verifierTmp: VERIFIER_TMP_STORAGE_KEY,
       merkleTreeTmpStorage: MERKLE_TREE_TMP_STORAGE_KEY,
