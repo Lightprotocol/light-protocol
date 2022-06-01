@@ -32,9 +32,15 @@ security_txt! {
 
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::groth16_verifier::groth16_processor::Groth16Processor;
-use crate::instructions::create_and_try_initialize_tmp_storage_pda;
+use crate::instructions::{
+    create_and_try_initialize_tmp_storage_pda,
+    close_account
+};
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
-use crate::state::InstructionIndex;
+use crate::state::{
+    InstructionIndex,
+    ChecksAndTransferState
+};
 use crate::user_account::instructions::initialize_user_account;
 use crate::utils::config;
 
@@ -83,6 +89,23 @@ pub fn process_instruction(
         let rent_sysvar_info = next_account_info(account)?;
         let rent = &Rent::from_account_info(rent_sysvar_info)?;
         initialize_user_account(user_account, *signer_account.key, *rent)
+    }
+    // Close onchain temporary account.
+    else if _instruction_data.len() >= 9 && _instruction_data[8] == 101 {
+        let tmp_storage_pda = next_account_info(account)?;
+        let tmp_storage_pda_data = ChecksAndTransferState::unpack(&tmp_storage_pda.data.borrow())?;
+        if Pubkey::new(&tmp_storage_pda_data.signing_address) != *signer_account.key {
+            msg!("Wrong signer.");
+            return Err(ProgramError::IllegalOwner);
+        } else if *program_id != *tmp_storage_pda.owner {
+            msg!(
+                "Wrong owner. {:?} != {:?}",
+                *program_id,
+                *tmp_storage_pda.owner
+            );
+            return Err(ProgramError::IllegalOwner);
+        }
+        close_account(tmp_storage_pda, signer_account)
     }
     // Transact with shielded pool.
     // This instruction has to be called 1502 times to perform all computation.
