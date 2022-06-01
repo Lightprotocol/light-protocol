@@ -3639,3 +3639,142 @@ async fn test_user_account_checks() {
     assert_eq!(vec![0u8; 64], user_account_data_modified.data[34..98]);
     println!("user account was not modified success");*/
 }
+
+
+#[tokio::test]
+async fn close_tmp_account_test() {
+    let mut ix_data = read_test_data(String::from("deposit.txt"));
+
+    // Creates program, accounts, setup.
+    let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
+    let mut accounts_vector = Vec::new();
+
+    // Creates pubkey for tmporary storage account
+
+    let (tmp_storage_pda_pubkey, _, _, _) =
+        create_pubkeys_from_ix_data(&ix_data, &program_id).await;
+
+    let signer_keypair =
+        solana_sdk::signer::keypair::Keypair::from_bytes(&PRIV_KEY_DEPOSIT).unwrap();
+    let signer_pubkey = signer_keypair.pubkey();
+
+    // start program
+    let mut program_context =
+        create_and_start_program_var(&accounts_vector, None, &program_id, &signer_pubkey).await;
+
+    //push tmp_storage_pda_pubkey after creating program contex such that it is not initialized
+    //it will be initialized in the first instruction onchain
+    accounts_vector.push((
+        &tmp_storage_pda_pubkey,
+        3900 + config::ENCRYPTED_UTXOS_LENGTH,
+        None,
+    ));
+
+    /*
+     *
+     *
+     * initialize tmporary storage account
+     *
+     *
+     */
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &ix_data[8..].to_vec(),
+            vec![
+                AccountMeta::new(signer_pubkey, true),
+                AccountMeta::new(tmp_storage_pda_pubkey, false),
+                AccountMeta::new_readonly(solana_program::system_program::id(), false),
+                AccountMeta::new_readonly(sysvar::rent::id(), false),
+            ],
+        )],
+        Some(&signer_pubkey),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+
+    let user_account_data = program_context
+        .banks_client
+        .get_account(tmp_storage_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    assert_eq!(
+        user_account_data.data[0],1u8,
+        "User account should be initialized."
+    );
+
+    //try close user_account with different signer address
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![101u8, 0u8], usize::to_le_bytes(1020).to_vec()].concat(),
+            vec![
+                AccountMeta::new(program_context.payer.pubkey(), true),
+                AccountMeta::new(tmp_storage_pda_pubkey, false)
+            ],
+        )],
+        Some(&program_context.payer.pubkey()),
+    );
+    transaction.sign(&[&program_context.payer], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        // .unwrap();
+        .expect_err("Should not be closed by other signer.");
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(tmp_storage_pda_pubkey)
+        .await
+        .expect("get_account")
+        .unwrap();
+
+    println!("User data after attempted close {:?}", user_account_data_init.data[0]);
+    assert_eq!(
+        user_account_data.data[0],1u8,
+        "User account should be initialized."
+    );
+    //close user_account account
+
+    let mut transaction = Transaction::new_with_payer(
+        &[Instruction::new_with_bincode(
+            program_id,
+            &[vec![101u8, 0u8], usize::to_le_bytes(1000).to_vec()].concat(),
+            vec![
+                AccountMeta::new(signer_keypair.pubkey(), true),
+                AccountMeta::new(tmp_storage_pda_pubkey, false)
+            ],
+        )],
+        Some(&signer_keypair.pubkey()),
+    );
+    transaction.sign(&[&signer_keypair], program_context.last_blockhash);
+
+    program_context
+        .banks_client
+        .process_transaction(transaction)
+        .await
+        .unwrap();
+
+    let user_account_data_init = program_context
+        .banks_client
+        .get_account(tmp_storage_pda_pubkey)
+        .await
+        .unwrap();
+    assert!(
+        user_account_data_init.is_none(),
+        "User account should be closed."
+    );
+
+    println!("closing tmp account success");
+}
