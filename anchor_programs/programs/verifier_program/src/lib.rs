@@ -18,8 +18,15 @@ use ark_ff::Fp2;
 use ark_std::One;
 
 use anchor_lang::prelude::*;
-use merkle_tree_program::{self};
-use crate::merkle_tree_program::utils::config::STORAGE_SEED;
+use merkle_tree_program::{
+    self,
+    program::MerkleTreeProgram,
+    utils::config::STORAGE_SEED,
+    wrapped_state:: {
+        MerkleTree,
+        MerkleTreeTmpPda,
+    },
+};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -268,21 +275,28 @@ pub mod verifier_program {
 
 #[derive(Accounts)]
 pub struct Compute<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump
+    )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     // pub verifier_state_authority: UncheckedAccount<'info>,
 
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(
+        mut,
+        seeds = [merkle_tree_tmp_state.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        bump,
+        owner = MerkleTreeProgram::id(),
+    )]
+    pub merkle_tree_tmp_state: Account<'info, MerkleTreeTmpPda>,
+
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     #[account(mut)]
-    pub merkle_tree_tmp_state: AccountInfo<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub program_merkle_tree: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: Account<'info, MerkleTree>,
 }
 
 #[derive(Accounts)]
@@ -298,28 +312,32 @@ pub struct CreateVerifierState<'info> {
 
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
 // #[instruction(tx_integrity_hash:  [u8;32])]
 pub struct CreateMerkleTreeUpdateState<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump
+    )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
 
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
-    pub merkle_tree_tmp_state: AccountInfo<'info>,
+    #[account(
+        mut,
+        seeds = [merkle_tree_tmp_state.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        bump,
+        owner = MerkleTreeProgram::id(),
+    )]
+    pub merkle_tree_tmp_state: Account<'info, MerkleTreeTmpPda>,
 
-    /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub program_merkle_tree: AccountInfo<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub rent: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[error_code]
