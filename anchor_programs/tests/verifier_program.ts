@@ -21,17 +21,14 @@ const {
   testOutputUtxo
 } = require ('./utils/testUtxos');
 import _ from "lodash"
+const light = require('../light-protocol-sdk');
 
 const PREPARED_INPUTS_TX_COUNT = 42
 const MILLER_LOOP_TX_COUNT = 42
 const FINAL_EXPONENTIATION_TX_COUNT = 19
 const MERKLE_TREE_UPDATE_TX_COUNT = 38
 const MERKLE_TREE_SIGNER_AUTHORITY = new solana.PublicKey([59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42, 153, 232, 210, 107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225])
-//
 
-const MerkleTree = require("./utils/merkleTree");
-
-const light = require('../light-protocol-sdk');
 
 const newAddressWithLamports = async (connection,address = new anchor.web3.Account().publicKey, lamports = 1e11) => {
 

@@ -1,7 +1,5 @@
 import { BigNumber } from 'ethers'
-const light = require('@darjusch/light-protocol-sdk');
-// import { light.Keypair } from "light"
-// import light.Utxo from "light"
+const light = require('../../light-protocol-sdk');
 const { U64 } = require('n64')
 // import { RELAYER_ADDRESS, RPC_URL } from '../../src/constants'
 import nacl from 'tweetnacl'

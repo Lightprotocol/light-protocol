@@ -4,10 +4,11 @@
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
     },
     "dependencies": {
-        "@darjusch/light-protocol-sdk": "^1.0.27",
         "@project-serum/anchor": "^0.24.1",
         "@solana/spl-token": "^0.2.0",
+        "@solana/wallet-adapter-base": "^0.9.5",
         "@solana/web3.js": "^1.41.4",
+        "axios": "^0.27.2",
         "circomlib": "^0.5.5",
         "dotenv": "^16.0.1",
         "eth-sig-util": "^3.0.1",
