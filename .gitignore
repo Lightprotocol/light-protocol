@@ -6,3 +6,4 @@
 */test-ledger
 /program/dist/
 /program/docker-target
+/anchor_programs

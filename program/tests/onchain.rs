@@ -3643,7 +3643,7 @@ async fn test_user_account_checks() {
 
 #[tokio::test]
 async fn close_tmp_account_test() {
-    let mut ix_data = read_test_data(String::from("deposit.txt"));
+    let ix_data = read_test_data(String::from("deposit.txt"));
 
     // Creates program, accounts, setup.
     let program_id = Pubkey::from_str("TransferLamports111111111111111111112111111").unwrap();
