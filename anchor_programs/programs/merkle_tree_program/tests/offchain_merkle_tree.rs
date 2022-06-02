@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-
+    use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
     use ark_ed_on_bn254;
     use ark_ed_on_bn254::Fq;
     use ark_ff::bytes::{FromBytes, ToBytes};
@@ -23,16 +23,15 @@ mod tests {
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
     };
-    use light_protocol_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
     use std::convert::TryInto;
 
-    use light_protocol_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
-    use light_protocol_program::state::MerkleTreeTmpPda;
+    use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
+    use merkle_tree_program::state::MerkleTreeTmpPda;
 
     use ark_std::One;
 
-    use light_protocol_program::poseidon_merkle_tree::{instructions, processor};
-    use light_protocol_program::utils::config;
+    use merkle_tree_program::poseidon_merkle_tree::{instructions, processor};
+    use merkle_tree_program::utils::config;
 
     use std::fs::File;
     use std::io::Error as ioError;
@@ -654,8 +653,8 @@ mod tests {
 
     #[test]
     fn merkle_tree_arkworks_fork_vs_tornado_cash_fork_init() {
-        //testing full arkforks_merkle tree vs sparse tornado cash fork tree for heights from 1 to 15
-        for i in 1..12 {
+        //testing full arkforks_merkle tree vs sparse tornado cash fork tree for heights from 1 to 5
+        for i in 1..5 {
             println!("tree_height: {}", i);
             let tree_height = i;
             let zero_value = [
@@ -848,7 +847,7 @@ mod tests {
         print_init_bytes_helper(smt);
     }
 
-    use light_protocol_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
+    use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
 
     #[test]
     // #[ignore]
@@ -895,7 +894,6 @@ mod tests {
                 leaf_left: vec![0u8; 32],
                 leaf_right: vec![0u8; 32],
                 merkle_tree_pda_pubkey: vec![0u8; 32],
-                verifier_tmp_pda: vec![0u8; 32],
                 relayer: vec![0u8; 32],
 
                 state: vec![0u8; 96],
@@ -946,7 +944,6 @@ mod tests {
                     "tmp_storage_account.state[0..32]: {:?}",
                     hash_tmp_account.state[0..32].to_vec()
                 );
-                // assert_eq!(hash_tmp_account.changed_state, true);
                 if vec![
                     46, 249, 231, 68, 228, 157, 60, 58, 59, 174, 47, 106, 74, 47, 118, 145, 47, 97,
                     124, 204, 19, 185, 250, 79, 31, 239, 247, 99, 135, 127, 84, 12,
@@ -961,16 +958,6 @@ mod tests {
             }
             instructions::insert_last_double(&mut smt, &mut hash_tmp_account);
 
-            // for leaf in 2..262144 {
-            // 	filled_leaves.push(initial_zero_hash.to_vec().clone());
-            // }
-            //assert_eq!(filled_leaves[0], new_leaf_hash_bytes);
-            // let fll = &filled_leaves.len();
-            //
-            // let leaves: Vec<Vec<u8>> = [
-            // 		filled_leaves.clone(),
-            // 		vec![initial_zero_hash.to_vec(); 2_usize.pow(tree_height as u32)-fll]
-            // 	].concat();
 
             tree.update(j, &new_leaf_hash_bytes);
             tree.update(j + 1, &new_leaf_hash_bytes_1);

@@ -246,7 +246,7 @@ pub struct InitializeNullifier<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        seeds = [&(nullifier.as_ref()[0..32]), NF_SEED.as_ref()],
         bump,
         space = 8,
     )]
@@ -270,7 +270,7 @@ pub struct InitializeLeavesPda<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        seeds = [&(nullifier.as_ref()[0..32]), NF_SEED.as_ref()],
         bump,
         space = 8,
     )]
