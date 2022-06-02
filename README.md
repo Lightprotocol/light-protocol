@@ -4,10 +4,10 @@
 
 *Requirements:*
 - solana cli v1.9.16 or higher
-  sh -c "$(curl -sSfL https://release.solana.com/v1.9.16/install)"
+  - ``sh -c "$(curl -sSfL https://release.solana.com/v1.9.16/install)"``
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
-  npm i -g @project-serum/anchor-cli
+  - ``npm i -g @project-serum/anchor-cli``
 
 
 *Unit Tests:*
