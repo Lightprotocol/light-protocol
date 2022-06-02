@@ -2,7 +2,7 @@
 
 ## Tests
 
-Requirements:
+*Requirements:*
 - solana cli v1.9.16 or higher
   sh -c "$(curl -sSfL https://release.solana.com/v1.9.16/install)"
 - anchor cli
@@ -14,14 +14,15 @@ Requirements:
 - ``cd anchor_programs/``
 - ``cargo test``
 
-Anchor tests:
-``npm install``
-``anchor test``
+*Anchor tests:*
+- ``npm install``
+- ``anchor test``
 
 For repeated tests ``anchor test --skip-build`` is useful.
+
 Check logs in anchor_programs/.anchor/program-logs
 
-###Current State
+### Current State
 Both programs are not secure and are missing basic account and other security checks.
 
 Only Groth16 ZKP verification and poseidon hashes are fully implemented right now.
