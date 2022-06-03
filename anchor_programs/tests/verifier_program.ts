@@ -57,34 +57,39 @@ const newAddressWithLamports = async (connection,address = new anchor.web3.Accou
 const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
   let account = new anchor.web3.Account();
   let payer = new anchor.web3.Account();
-
-  await connection.confirmTransaction(
-    await connection.requestAirdrop(payer.publicKey, 1e13)
-  )
-
-  const tx = new solana.Transaction().add(
-    solana.SystemProgram.createAccount({
-      fromPubkey: payer.publicKey,
-      newAccountPubkey: account.publicKey,
-      space: 0,
-      lamports: lamports,
-      programId: owner.programId,
-    })
-  );
-
-  tx.feePayer = payer.publicKey
-  tx.recentBlockhash = await connection.getRecentBlockhash();
-  // tx.sign([payer])
-  let x = await solana.sendAndConfirmTransaction(
-        connection,
-        tx,
-        [payer, account],
-        {
-          commitment: 'singleGossip',
-          preflightCommitment: 'singleGossip',
-        },
-    );
+  let retry = 0;
+  while(retry < 30){
+    try{
+      await connection.confirmTransaction(
+        await connection.requestAirdrop(payer.publicKey, 1e13)
+      )
+    
+      const tx = new solana.Transaction().add(
+        solana.SystemProgram.createAccount({
+          fromPubkey: payer.publicKey,
+          newAccountPubkey: account.publicKey,
+          space: 0,
+          lamports: lamports,
+          programId: owner.programId,
+        })
+      );
+    
+      tx.feePayer = payer.publicKey
+      tx.recentBlockhash = await connection.getRecentBlockhash();
+      // tx.sign([payer])
+      let x = await solana.sendAndConfirmTransaction(
+            connection,
+            tx,
+            [payer, account],
+            {
+              commitment: 'singleGossip',
+              preflightCommitment: 'singleGossip',
+            },
+        );
+    } catch {}
+  
     return account;
+  }
 }
 const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e13) => {
   await connection.confirmTransaction(await connection.requestAirdrop(account.publicKey, lamports))
@@ -606,7 +611,7 @@ describe("verifier_program", () => {
 
       const burnerUserAccount = await newAccountWithLamports(provider.connection)
       const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
-      console.log("MERKLE_TREE_SIGNER_AUTHORITY : ", MERKLE_TREE_SIGNER_AUTHORITY)
+      console.log("MERKLE_TREE_SIGNER_AUTHORITY : ", MERKLE_TREE_SIGNER_AUTHORITY.toString())
       //
       // *
       // * test deposit
