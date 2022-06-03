@@ -21,7 +21,7 @@ pub struct LastTransactionDeposit<'info> {
         mut,
         seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub nullifier0_pda: UncheckedAccount<'info>,
@@ -29,7 +29,7 @@ pub struct LastTransactionDeposit<'info> {
         mut,
         seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
@@ -37,7 +37,7 @@ pub struct LastTransactionDeposit<'info> {
         mut,
         seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub leaves_pda: UncheckedAccount<'info>,
@@ -60,9 +60,9 @@ pub struct LastTransactionDeposit<'info> {
     pub system_program: Program<'info, System>,
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_storage.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
@@ -87,7 +87,7 @@ pub struct LastTransactionWithdrawal<'info> {
         mut,
         seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub nullifier0_pda: UncheckedAccount<'info>,
@@ -95,7 +95,7 @@ pub struct LastTransactionWithdrawal<'info> {
         mut,
         seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
@@ -103,7 +103,7 @@ pub struct LastTransactionWithdrawal<'info> {
         mut,
         seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub leaves_pda: UncheckedAccount<'info>,
@@ -127,9 +127,9 @@ pub struct LastTransactionWithdrawal<'info> {
     pub system_program: Program<'info, System>,
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_storage.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
     pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
