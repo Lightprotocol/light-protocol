@@ -86,10 +86,12 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
               preflightCommitment: 'singleGossip',
             },
         );
+      return account;
     } catch {}
   
-    return account;
+    retry ++;
   }
+  throw "Can't create program account with lamports"
 }
 const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e13) => {
   await connection.confirmTransaction(await connection.requestAirdrop(account.publicKey, lamports))
