@@ -22,10 +22,7 @@ use merkle_tree_program::{
     self,
     program::MerkleTreeProgram,
     utils::config::STORAGE_SEED,
-    wrapped_state:: {
-        MerkleTree,
-        MerkleTreeTmpPda,
-    },
+    wrapped_state:: {MerkleTree},
 };
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
@@ -288,11 +285,11 @@ pub struct Compute<'info> {
 
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_state.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
-    pub merkle_tree_tmp_state: Account<'info, MerkleTreeTmpPda>,
+    pub merkle_tree_tmp_state: UncheckedAccount<'info>,
 
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     #[account(mut)]
@@ -316,7 +313,6 @@ pub struct CreateVerifierState<'info> {
 }
 
 #[derive(Accounts)]
-// #[instruction(tx_integrity_hash:  [u8;32])]
 pub struct CreateMerkleTreeUpdateState<'info> {
     #[account(
         mut,
@@ -329,11 +325,12 @@ pub struct CreateMerkleTreeUpdateState<'info> {
     pub signing_address: Signer<'info>,
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_state.node_left.as_slice().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
         bump,
-        owner = MerkleTreeProgram::id(),
+        seeds::program = MerkleTreeProgram::id(),
     )]
-    pub merkle_tree_tmp_state: Account<'info, MerkleTreeTmpPda>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree_tmp_state: UncheckedAccount<'info>,
 
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
