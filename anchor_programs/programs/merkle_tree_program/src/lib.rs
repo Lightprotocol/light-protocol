@@ -19,6 +19,7 @@ pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
 pub mod utils;
+pub mod wrapped_state;
 
 use crate::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::config::STORAGE_SEED;
@@ -60,19 +61,20 @@ pub mod merkle_tree_program {
         ctx: Context<InitializeMerkleTreeUpdateState>,
         data: Vec<u8>,
     ) -> Result<()> {
-        let derived_pubkey =
-            Pubkey::find_program_address(&[&data[0..32], b"storage"], ctx.program_id);
+        // we don't need this check
+        // let derived_pubkey =
+        //     Pubkey::find_program_address(&[&data[0..32], b"storage"], ctx.program_id);
 
-        if derived_pubkey.0 != *ctx.accounts.merkle_tree_tmp_storage.key {
-            msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
-            msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-            msg!(
-                "Passed-in pda pubkey {:?}",
-                ctx.accounts.merkle_tree_tmp_storage.key
-            );
-            msg!("Instruction data seed  {:?}", data);
-            return err!(ErrorCode::MtTmpPdaInitFailed);
-        }
+        // if derived_pubkey.0 != *ctx.accounts.merkle_tree_tmp_storage.key {
+        //     msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+        //     msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+        //     msg!(
+        //         "Passed-in pda pubkey {:?}",
+        //         ctx.accounts.merkle_tree_tmp_storage.key
+        //     );
+        //     msg!("Instruction data seed  {:?}", data);
+        //     return err!(ErrorCode::MtTmpPdaInitFailed);
+        // }
         create_and_try_initialize_tmp_storage_pda(
             ctx.program_id,
             &[

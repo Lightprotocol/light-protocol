@@ -7,7 +7,7 @@ use anchor_lang::solana_program::{
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use std::convert::TryInto;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct MerkleTreeTmpPda {
     pub is_initialized: bool,
     pub found_root: u8,
