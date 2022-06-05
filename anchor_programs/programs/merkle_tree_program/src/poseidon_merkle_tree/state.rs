@@ -9,7 +9,7 @@ use byteorder::{ByteOrder, LittleEndian};
 use std::convert::TryInto;
 
 #[allow(unused_variables)]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default, PartialEq)]
 pub struct MerkleTree {
     pub is_initialized: bool,
     pub levels: usize,

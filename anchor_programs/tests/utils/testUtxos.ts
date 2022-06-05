@@ -1,5 +1,6 @@
 import { BigNumber } from 'ethers'
-const light = require('@darjusch/light-protocol-sdk');
+// const light = require('@darjusch/light-protocol-sdk');
+const light = require('../../light-protocol-sdk');
 // import { light.Keypair } from "light"
 // import light.Utxo from "light"
 const { U64 } = require('n64')

@@ -1,50 +1,80 @@
 use crate::state::VerifierState;
 use anchor_lang::prelude::*;
-use merkle_tree_program::program::MerkleTreeProgram;
+
+use merkle_tree_program::{
+    program::MerkleTreeProgram,
+    wrapped_state::{ MerkleTree, MerkleTreeTmpPda},
+    utils::config::{
+        STORAGE_SEED,
+        NF_SEED,
+        LEAVES_SEED,
+    }
+};
+use crate::utils::config:: {ESCROW_SEED};
 #[derive(Accounts)]
 #[instruction(
     nullifier0: [u8;32],
     nullifier1: [u8;32],
 )]
 pub struct LastTransactionDeposit<'info> {
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(
+        mut,
+        seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
     pub nullifier0_pda: UncheckedAccount<'info>,
-    // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(
+        mut,
+        seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
-    #[account(mut)]
-    // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
+    #[account(
+        mut,
+        seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub leaves_pda: UncheckedAccount<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump
+    )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-    // #[account(seeds = [nullifier0.as_ref(), b"esrow"], bump)]
-    #[account(mut)]
-    /// CHECK: This is not dangerous because we don't read or write from this account
+    #[account(
+        mut,
+        seeds = [verifier_state.key().as_ref(), ESCROW_SEED.as_ref()],
+        bump
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
     pub escrow_pda: UncheckedAccount<'info>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
+    pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
     // merkle tree account liquidity pool pda
     #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    /// CHECK: doc comment explaining why no checks through types are necessary.
     pub merkle_tree_pda_token: AccountInfo<'info>,
     // account from which funds are transferred
     #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub user_account: Signer<'info>,
     #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: Account<'info, MerkleTree>,
 }
 
 #[derive(Accounts)]
@@ -53,32 +83,55 @@ pub struct LastTransactionDeposit<'info> {
     nullifier1: [u8;32],
 )]
 pub struct LastTransactionWithdrawal<'info> {
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub nullifier0_pda: UncheckedAccount<'info>,
-    // #[account(init, seeds = [nullifier1.as_ref(), b"nf"], bump,  payer=signing_address, space=8, owner=merkle_tree.key())]
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
-    #[account(mut)]
-    // #[account(init, seeds = [nullifier0.as_ref(), b"leaves"], bump,  payer=signing_address, space=8+96 + 8 + 256, owner=merkle_tree.key() )]
+    #[account(
+        mut,
+        seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
     pub leaves_pda: UncheckedAccount<'info>,
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump
+    )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-    // #[account(seeds = [nullifier0.as_ref(), b"esrow"], bump)]
-    #[account(mut)]
+    #[account(
+        mut,
+        seeds = [verifier_state.key().as_ref(), ESCROW_SEED.as_ref()],
+        bump
+    )]
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub escrow_pda: UncheckedAccount<'info>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
     /// CHECK: This is not dangerous because we don't read or write from this account
-    pub system_program: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
+    pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
     // merkle tree account liquidity pool pda
     #[account(mut)]
