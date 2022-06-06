@@ -21,6 +21,9 @@ pub mod state;
 pub mod utils;
 pub mod wrapped_state;
 
+pub mod registry;
+pub use registry::*;
+
 use crate::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::config::STORAGE_SEED;
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
@@ -158,6 +161,10 @@ pub mod merkle_tree_program {
         new_authority: Pubkey,
     ) -> Result<()> {
         ctx.accounts.handle(new_authority)
+    }
+
+    pub fn register_new_id(ctx: Context<RegisterNewId>) -> Result<()> {
+        ctx.accounts.handle(*ctx.bumps.get("registry").unwrap())
     }
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
