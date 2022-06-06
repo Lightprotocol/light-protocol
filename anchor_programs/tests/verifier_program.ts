@@ -22,7 +22,15 @@ const {
   testInputUtxo,
   testOutputUtxo
 } = require ('./utils/testUtxos');
-import _ from "lodash"
+import _ from "lodash";
+
+import { use as chaiUse } from "chai";
+import chaiAsPromised from "chai-as-promised";
+chaiUse(chaiAsPromised);
+
+import { assert, expect } from "chai";
+
+
 
 const PREPARED_INPUTS_TX_COUNT = 42
 const MILLER_LOOP_TX_COUNT = 42
@@ -36,6 +44,7 @@ const MerkleTree = require("./utils/merkleTree");
 
 // const light = require('@darjusch/light-protocol-sdk');
 const light = require('../light-protocol-sdk');
+
 
 const newAddressWithLamports = async (connection,address = new anchor.web3.Account().publicKey, lamports = 1e11) => {
 
@@ -63,7 +72,7 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
       await connection.confirmTransaction(
         await connection.requestAirdrop(payer.publicKey, 1e13)
       )
-    
+
       const tx = new solana.Transaction().add(
         solana.SystemProgram.createAccount({
           fromPubkey: payer.publicKey,
@@ -73,7 +82,7 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
           programId: owner.programId,
         })
       );
-    
+
       tx.feePayer = payer.publicKey
       tx.recentBlockhash = await connection.getRecentBlockhash();
       // tx.sign([payer])
@@ -88,7 +97,7 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
         );
       return account;
     } catch {}
-  
+
     retry ++;
   }
   throw "Can't create program account with lamports"
@@ -120,6 +129,10 @@ function assert_eq(
 
 }
 import { MerkleTreeProgram, IDL } from "../target/types/merkle_tree_program";
+
+import { publicKey, u64, u128, } from '@project-serum/borsh';
+import { struct, u8, u16, u32, blob } from 'buffer-layout';
+
 const constants:any = {};
 
 const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
@@ -250,6 +263,7 @@ const ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_K
 const MERKLE_TREE_KP = solana.Keypair.generate();
 const MERKLE_TREE_KEY = MERKLE_TREE_KP.publicKey;
 const MERKLE_TREE_SIZE = 16658;
+const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")
 export const DEFAULT_PROGRAMS = {
   systemProgram: solana.SystemProgram.programId,
   tokenProgram: TOKEN_PROGRAM_ID,
@@ -258,13 +272,23 @@ export const DEFAULT_PROGRAMS = {
   clock: solana.SYSVAR_CLOCK_PUBKEY,
 };
 
+const PROGRAM_LAYOUT = struct([
+  u32('isInitialized'),
+  publicKey('programDataAddress'),
+]);
+
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.getProvider();
-  
+
   const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
+  const [REGISTERED_VERIFIER_KEY] = solana.PublicKey.findProgramAddressSync(
+      [verifierProgram.programId.toBuffer()],
+      merkleTreeProgram.programId
+    );
+  const [AUTHORITY_CONFIG_KEY] = solana.PublicKey.findProgramAddressSync([Buffer.from(AUTHORITY_SEED)], merkleTreeProgram.programId);
 
   it("Initialize Merkle Tree", async () => {
     await newAccountWithLamports(
@@ -313,6 +337,73 @@ describe("verifier_program", () => {
 
   });
 
+  it("Register Verifier Program", async () => {
+    console.log("Register Verifier Program here");
+    const tx = await merkleTreeProgram.methods.registerNewId().accounts({
+      authority: ADMIN_AUTH_KEY,
+      registry: REGISTERED_VERIFIER_KEY,
+      newId: verifierProgram.programId,
+      ...DEFAULT_PROGRAMS
+    })
+    .signers([ADMIN_AUTH_KEYPAIR])
+    .rpc();
+    console.log("register new id tx: ", tx)
+    const registry = await merkleTreeProgram.account.registry.fetch(REGISTERED_VERIFIER_KEY);
+    console.log("registry: ", registry)
+    assert(registry.id.equals(verifierProgram.programId) , 'Verifier Program Id mismatch');
+
+  });
+
+  it("Failed to Create AuthorityConfig for not upgradable authority", async () => {
+    const programInfo = await provider.connection.getAccountInfo(merkleTreeProgram.programId);
+    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
+    const authKeypair = solana.Keypair.generate();
+    await expect(
+      merkleTreeProgram.methods.createAuthorityConfig().accounts({
+        authority: authKeypair.publicKey,
+        merkleTreeProgram: merkleTreeProgram.programId,
+        authorityConfig: AUTHORITY_CONFIG_KEY,
+        merkleTreeProgramData: programDataAddress,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([authKeypair])
+      .rpc()
+    ).to.be.rejectedWith("0", "A raw constraint was violated");
+  });
+  it("Create AuthorityConfig", async () => {
+    const programInfo = await provider.connection.getAccountInfo(merkleTreeProgram.programId);
+    console.log(programInfo.data);
+    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
+
+    const tx = await merkleTreeProgram.methods.createAuthorityConfig().accounts({
+      authority: (merkleTreeProgram.provider as any).wallet.pubkey,
+      merkleTreeProgram: merkleTreeProgram.programId,
+      authorityConfig: AUTHORITY_CONFIG_KEY,
+      merkleTreeProgramData: programDataAddress,
+      ...DEFAULT_PROGRAMS
+    })
+    .rpc();
+  });
+  it("Failed to update AuthorityConfig for not current authority", async () => {
+    const authKeypair = solana.Keypair.generate();
+    await expect(
+      merkleTreeProgram.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
+        authority: authKeypair.publicKey,
+        authorityConfig: AUTHORITY_CONFIG_KEY,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([authKeypair])
+      .rpc()
+    ).to.be.rejectedWith("0", "A raw constraint was violated");
+});
+  it("Update Authority Config", async () => {
+    const tx = await merkleTreeProgram.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
+      authority: (merkleTreeProgram.provider as any).wallet.pubkey,
+      authorityConfig: AUTHORITY_CONFIG_KEY,
+      ...DEFAULT_PROGRAMS
+    })
+    .rpc();
+  });
   /*
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
@@ -605,9 +696,9 @@ describe("verifier_program", () => {
 
   });
 */
-
+/*
   it("Dynamic Shielded transaction", async () => {
-    while (true) {
+
       const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
       const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
@@ -734,9 +825,9 @@ describe("verifier_program", () => {
         verifierProgram,
         mode: "withdrawal"
       })
-      */
-    }
-  });
+
+
+  });*/
 
   async function transact({
     connection,
