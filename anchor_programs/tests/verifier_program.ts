@@ -25,8 +25,6 @@ const {
 import _ from "lodash";
 
 import { use as chaiUse } from "chai";
-import chaiAsPromised from "chai-as-promised";
-chaiUse(chaiAsPromised);
 
 import { assert, expect } from "chai";
 
@@ -272,15 +270,15 @@ export const DEFAULT_PROGRAMS = {
   clock: solana.SYSVAR_CLOCK_PUBKEY,
 };
 
-const PROGRAM_LAYOUT = struct([
-  u32('isInitialized'),
-  publicKey('programDataAddress'),
-]);
+// const PROGRAM_LAYOUT = struct([
+//   u32('isInitialized'),
+//   publicKey('programDataAddress'),
+// ]);
 
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.getProvider();
+  const provider = anchor.AnchorProvider.local();//anchor.getProvider();
 
   const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
@@ -337,7 +335,7 @@ describe("verifier_program", () => {
 
   });
 
-  it("Register Verifier Program", async () => {
+  /*it("Register Verifier Program", async () => {
     console.log("Register Verifier Program here");
     const tx = await merkleTreeProgram.methods.registerNewId().accounts({
       authority: ADMIN_AUTH_KEY,
@@ -403,11 +401,11 @@ describe("verifier_program", () => {
       ...DEFAULT_PROGRAMS
     })
     .rpc();
-  });
-  /*
+  });*/
+
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
-    await newAccountWithLamports(provider.connection, userAccount,verifierProgram ) // new anchor.web3.Account()
+    await newAccountWithLamports(provider.connection, userAccount ) // new anchor.web3.Account()
     let init_account = await newAccountWithLamports(provider.connection ) // new anchor.web3.Account()
     let merkleTreePdaToken = await newProgramOwnedAccount({
       connection: provider.connection,
@@ -433,155 +431,7 @@ describe("verifier_program", () => {
       verifierProgram,
       mode: "deposit"
     })
-
-    const tx = await verifierProgram.methods.createTmpAccount(
-          ix_data.proofAbc,
-          ix_data.rootHash,
-          ix_data.amount,
-          ix_data.txIntegrityHash,
-          ix_data.nullifier0,
-          ix_data.nullifier1,
-          ix_data.leafRight,
-          ix_data.leafLeft,
-          ix_data.recipient,
-          ix_data.extAmount,
-          ix_data.relayer,
-          ix_data.fee,
-          // ix_data.merkleTreePdaPubkey,
-          ix_data.encryptedUtxos,
-          ix_data.merkleTreeIndex
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                systemProgram: SystemProgram.programId
-              }
-            ).signers([init_account]).rpc()
-
-    await checkPreparedInputsAccountCreated({
-      connection:provider.connection,
-      pda: pdas.verifierStatePubkey,
-      ix_data
-    })
-    var userAccountPublicKeyInfo = await provider.connection.getAccountInfo(
-          userAccount.publicKey
-        )
-    try {
-      let merkleTreeTmpStateDataBefore = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-      console.log(merkleTreeTmpStateDataBefore)
-    }catch{}
-    console.log("creating merkle tree account")
-    const tx1 = await verifierProgram.methods.createMerkleTreeTmpAccount(
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                merkleTreeTmpState:pdas.merkleTreeTmpState,
-                systemProgram: SystemProgram.programId,
-                programMerkleTree: merkleTreeProgram.programId,
-                rent: DEFAULT_PROGRAMS.rent,
-              }
-            ).signers([init_account]).rpc()
-      var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
-            pdas.merkleTreeTmpState
-          )
-
-      if (merkleTreeTmpAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-        throw "merkle tree pda owner wrong after initializing";
-      }
-      let merkleTreeTmpStateData = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-
-      // prepare inputs tx: 34
-      await executeXComputeTransactions({
-        number_of_transactions: PREPARED_INPUTS_TX_COUNT-2,
-        userAccount: init_account,
-        pdas: pdas,
-        program: verifierProgram
-      })
-
-      await executeXComputeTransactions({
-        number_of_transactions: MILLER_LOOP_TX_COUNT+2,
-        userAccount,
-        pdas: pdas,
-        program: verifierProgram
-      })
-      // await checkMillerLoopSuccess({
-      //   connection:provider.connection,
-      //   pda: pdas.verifierStatePubkey,
-      // })
-
-      await executeXComputeTransactions({
-        number_of_transactions: FINAL_EXPONENTIATION_TX_COUNT,
-        userAccount,
-        pdas: pdas,
-        program: verifierProgram
-      })
-
-      await checkFinalExponentiationSuccess({
-        connection:provider.connection,
-        pda: pdas.verifierStatePubkey
-      })
-      try {
-        await executeXComputeTransactionsMerkleTree({
-          number_of_transactions: MERKLE_TREE_UPDATE_TX_COUNT,
-          userAccount:    init_account,
-          pdas:           pdas,
-          program:        verifierProgram,
-          number_of_instructions: true,
-        })
-      } catch(e){console.log(e)}
-
-
-      let merkleTreePdaToken = await newAccountWithLamports(provider.connection);
-      var userAccountPriorLastTx = await provider.connection.getAccountInfo(
-            userAccount.publicKey
-          )
-      let senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
-      var recipientAccountPriorLastTx = await provider.connection.getAccountInfo(
-            pdas.verifierStatePubkey
-          )
-      let recipientBalancePriorLastTx = recipientAccountPriorLastTx.lamports;
-
-      const txLastTransaction = await verifierProgram.methods.lastTransaction(
-          ix_data.nullifier0,
-          ix_data.nullifier1,
-            ).accounts(
-                {
-                  signingAddress: init_account.publicKey,
-                  verifierState: pdas.verifierStatePubkey,
-                  merkleTreeTmpStorage:pdas.merkleTreeTmpState,
-                  systemProgram: SystemProgram.programId,
-                  programMerkleTree: merkleTreeProgram.programId,
-                  rent: DEFAULT_PROGRAMS.rent,
-                  nullifier0Pda: pdas.nullifier0PdaPubkey,
-                  nullifier1Pda: pdas.nullifier1PdaPubkey,
-                  leavesPda: pdas.leavesPdaPubkey,
-                  escrowPda: pdas.escrowPdaPubkey,
-                  merkleTreePdaToken: merkleTreePdaToken.publicKey,
-                  userAccount: userAccount.publicKey,
-                  merkleTree: MERKLE_TREE_KEY,
-                  merkleTreeProgram:  merkleTreeProgram.programId
-                }
-              ).signers([init_account, userAccount]).rpc()
-        await checkLastTxSuccess({
-          connection: provider.connection,
-          pdas,
-          sender:userAccount.publicKey,
-          senderAccountBalancePriorLastTx,
-          recipient: merkleTreePdaToken.publicKey,
-          recipientBalancePriorLastTx,
-          ix_data
-        })
-
-  });*/
+  });
 
   /*
   it("Last Transaction hardcoded inputs should succeed", async () => {
@@ -633,7 +483,7 @@ describe("verifier_program", () => {
           ix_data.recipient,
           ix_data.extAmount,
           ix_data.relayer,
-          ix_data.fee,
+          ix_data.relayer_fee,
           // ix_data.merkleTreePdaPubkey,
           ix_data.encryptedUtxos,
           ix_data.merkleTreeIndex
@@ -696,8 +546,8 @@ describe("verifier_program", () => {
 
   });
 */
-/*
-  it("Dynamic Shielded transaction", async () => {
+
+/*  it("Dynamic Shielded transaction", async () => {
 
       const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
       const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
@@ -840,7 +690,47 @@ describe("verifier_program", () => {
     relayer_recipient,
     mode
   }) {
-    console.log("here1")
+    console.log("here123")
+        // tx fee in lamports
+        let tx_fee = 50_000 * PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 2* MERKLE_TREE_UPDATE_TX_COUNT;
+        console.log("verifierStatePubkey: ", pdas.verifierStatePubkey)
+        console.log("pubicKey: ", signer.publicKey)
+        var userAccountPriorLastTx = await connection.getAccountInfo(
+              origin.publicKey
+            )
+        let senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
+        var recipientAccountPriorLastTx = await connection.getAccountInfo(
+              recipient.publicKey
+            )
+        let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
+
+        if (mode === "deposit") {
+          console.log("creating escrow")
+          // create escrow account
+          const tx = await verifierProgram.methods.createEscrowState(
+                ix_data.txIntegrityHash,
+                new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+                ix_data.fee,
+                new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+              ).accounts(
+                    {
+                      signingAddress: signer.publicKey,
+                      verifierState: pdas.verifierStatePubkey,
+                      systemProgram: SystemProgram.programId,
+                      feeEscrowState: pdas.feeEscrowStatePubkey,
+                      user:           origin.publicKey,
+                    }
+                  ).signers([signer, origin]).rpc();
+
+            await checkEscrowAccountCreated({
+              connection:provider.connection,
+              pdas,
+              ix_data,
+              user_pubkey: origin.publicKey,
+              relayer_pubkey: signer.publicKey,
+              tx_fee: new anchor.BN(tx_fee)//check doesn t work
+            });
+        }
         const tx = await verifierProgram.methods.createVerifierState(
               ix_data.proofAbc,
               ix_data.rootHash,
@@ -854,14 +744,13 @@ describe("verifier_program", () => {
               ix_data.extAmount,
               ix_data.relayer,
               ix_data.fee,
-              // ix_data.merkleTreePdaPubkey,
               ix_data.encryptedUtxos,
               ix_data.merkleTreeIndex
               ).accounts(
                   {
                     signingAddress: signer.publicKey,
                     verifierState: pdas.verifierStatePubkey,
-                    systemProgram: SystemProgram.programId
+                    systemProgram: SystemProgram.programId,
                   }
                 ).signers([signer]).rpc()
           console.log("here2")
@@ -908,19 +797,16 @@ describe("verifier_program", () => {
 
           await checkFinalExponentiationSuccess({connection:connection, pda: pdas.verifierStatePubkey})
 
-          var userAccountPriorLastTx = await connection.getAccountInfo(
-                origin.publicKey
-              )
-          let senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
-          var recipientAccountPriorLastTx = await connection.getAccountInfo(
-                recipient.publicKey
-              )
-          let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
 
           if (mode == "deposit") {
+            console.log(mode)
+            var userAccountInfo = await provider.connection.getAccountInfo(
+                  pdas.feeEscrowStatePubkey
+                )
+            const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
+            console.log(accountAfterUpdate)
+
             const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
-                ix_data.nullifier0,
-                ix_data.nullifier1,
                   ).accounts(
                       {
                         signingAddress: signer.publicKey,
@@ -936,14 +822,13 @@ describe("verifier_program", () => {
                         merkleTreePdaToken: recipient.publicKey,
                         userAccount: origin.publicKey,
                         merkleTree: MERKLE_TREE_KEY,
-                        merkleTreeProgram:  merkleTreeProgram.programId
+                        feeEscrowState: pdas.feeEscrowStatePubkey,
+                        merkleTreeProgram:  merkleTreeProgram.programId,
                       }
-                    ).signers([signer, origin]).rpc()
+                    ).signers([signer]).rpc()
           } else if (mode== "withdrawal") {
-
+            console.log(mode)
             const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
-                ix_data.nullifier0,
-                ix_data.nullifier1,
                   ).accounts(
                       {
                         signingAddress: signer.publicKey,
@@ -974,7 +859,8 @@ describe("verifier_program", () => {
               senderAccountBalancePriorLastTx,
               recipient: recipient.publicKey,
               recipientBalancePriorLastTx,
-              ix_data
+              ix_data,
+              mode
             })
 
   }
@@ -1080,6 +966,9 @@ describe("verifier_program", () => {
       verifierStatePubkey: solana.PublicKey.findProgramAddressSync(
           [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("storage")],
           verifierProgram.programId)[0],
+      feeEscrowStatePubkey: solana.PublicKey.findProgramAddressSync(
+          [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("fee_escrow")],
+          verifierProgram.programId)[0],
       merkleTreeTmpState: solana.PublicKey.findProgramAddressSync(
           [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("storage")],
           merkleTreeProgram.programId)[0],
@@ -1099,6 +988,21 @@ describe("verifier_program", () => {
           verifierProgram.programId)[0],
     }
   }
+
+  async function checkEscrowAccountCreated({connection, pdas, user_pubkey,relayer_pubkey, ix_data, tx_fee}) {
+    var userAccountInfo = await provider.connection.getAccountInfo(
+          pdas.feeEscrowStatePubkey
+        )
+    const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
+    console.log("userAccountInfo: ", userAccountInfo)
+    assert(userAccountInfo.lamports, U64.readLE(ix_data.extAmount, 0).toString(), "incorrect amount transferred");
+    assert(accountAfterUpdate.txFee.toString() == tx_fee.toString(), "tx_fee insert wrong");
+    assert(accountAfterUpdate.relayerFee.toString() == U64.readLE(ix_data.fee, 0).toString(), "relayer_fee insert wrong");
+    assert(accountAfterUpdate.relayerPubkey.toBase58() == relayer_pubkey.toBase58(), "relayer_pubkey insert wrong");
+    assert(accountAfterUpdate.verifierStatePubkey.toBase58() == pdas.verifierStatePubkey.toBase58(), "verifierStatePubkey insert wrong");
+    assert(accountAfterUpdate.userPubkey.toBase58() == user_pubkey.toBase58(), "user_pubkey insert wrong");
+  }
+
   async function checkPreparedInputsAccountCreated({connection, pda, ix_data}) {
     var userAccountInfo = await provider.connection.getAccountInfo(
           pda
@@ -1110,7 +1014,7 @@ describe("verifier_program", () => {
     assert_eq(accountAfterUpdate.txIntegrityHash, ix_data.txIntegrityHash, "txIntegrityHash insert wrong");
     assert_eq(accountAfterUpdate.extAmount, ix_data.extAmount, "extAmount insert wrong");
     // assert_eq(accountAfterUpdate.signingAddress, ix_data.relayer, "relayer insert wrong");
-    assert_eq(accountAfterUpdate.fee, ix_data.fee, "fee insert wrong");
+    assert_eq(accountAfterUpdate.fee, ix_data.relayer_fee, "fee insert wrong");
 
     // if (accountAfterUpdate.merkleTreeTmpAccount.toBase58() != new solana.PublicKey(ix_data.merkleTreePdaPubkey).toBase58()) {
     //     throw ("merkleTreePdaPubkey insert wrong");
@@ -1163,16 +1067,23 @@ describe("verifier_program", () => {
     senderAccountBalancePriorLastTx,
     recipient,
     recipientBalancePriorLastTx,
-    ix_data
+    ix_data,
+    mode
   }){
     var verifierStateAccount = await connection.getAccountInfo(
           pdas.verifierStatePubkey
         )
+    assert(verifierStateAccount== null, "Shielded transaction failed verifierStateAccount is not closed")
     if (verifierStateAccount!= null) {
       console.log("Shielded transaction failed verifierStateAccount is not closed");
       console.log("verifierStateAccount: ", verifierStateAccount)
 
     }
+    var feeEscrowStateAccount = await connection.getAccountInfo(
+          pdas.feeEscrowStatePubkey
+        )
+    console.log("feeEscrowStateAccount: ", feeEscrowStateAccount)
+    assert(feeEscrowStateAccount == null, "Shielded transaction failed feeEscrowStateAccount is not closed")
 
 
     var merkleTreeTmpStateAccount = await connection.getAccountInfo(
@@ -1227,17 +1138,37 @@ describe("verifier_program", () => {
     // console.log("merkleTreeAccount.data.slice(609,641): " Array.prototype.slice.call(merkleTreeAccount.data.slice(609,641)))
     // console.log(" ix_data.rootHash: ",  ix_data.rootHash)
     // assert_eq(merkleTreeAccount.data.slice(609,641), ix_data.rootHash)
-    var senderAccount = await provider.connection.getAccountInfo(
-          sender
-        )
-    console.log("senderAccount: ", senderAccount)
-    console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
+    if (mode == "deposit") {
+      var senderAccount = await provider.connection.getAccountInfo(
+            sender
+          )
+      console.log("senderAccount: ", senderAccount)
+      console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
+      assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
 
-    var recipientAccount = await provider.connection.getAccountInfo(
-          recipient
-        )
-    console.log("senderAccount: ", recipientAccount)
-    console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
+      var recipientAccount = await provider.connection.getAccountInfo(
+            recipient
+          )
+      console.log("senderAccount: ", recipientAccount)
+      console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
+      assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
+    } else if (mode == "withdrawal") {
+      var senderAccount = await provider.connection.getAccountInfo(
+            sender
+          )
+      console.log("senderAccount: ", senderAccount)
+      console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
+
+      var recipientAccount = await provider.connection.getAccountInfo(
+            recipient
+          )
+      console.log("senderAccount: ", recipientAccount)
+      console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
+
+    } else {
+      throw Error("mode not supplied");
+    }
+
 
   }
   function unpackLeavesAccount(leavesAccountData) {

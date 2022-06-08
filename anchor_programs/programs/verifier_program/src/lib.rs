@@ -24,6 +24,7 @@ use merkle_tree_program::{
     utils::config::STORAGE_SEED,
     wrapped_state:: {MerkleTree},
 };
+use merkle_tree_program::instructions::sol_transfer;
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -45,20 +46,25 @@ pub mod verifier_program {
         recipient: [u8; 32],
         ext_amount: [u8; 8],
         _relayer: [u8; 32],
-        fee: [u8; 8],
+        relayer_fee: [u8; 8],
         encrypted_utxos: [u8; 256],
         merkle_tree_index: [u8; 1],
     ) -> Result<()> {
-        let tmp_account = &mut ctx.accounts.verifier_state.load_init()?;
+        // if not initialized this will run load_init
+        let tmp_account = &mut match ctx.accounts.verifier_state.load_mut() {
+                Ok(res) => res,
+                Err(_)  => ctx.accounts.verifier_state.load_init()?
+        };
+
         tmp_account.signing_address = ctx.accounts.signing_address.key();
         tmp_account.root_hash = root_hash.clone();
         tmp_account.amount = amount.clone();
         tmp_account.merkle_tree_index = merkle_tree_index[0].clone();
-        tmp_account.relayer_fee = u64::from_le_bytes(fee.try_into().unwrap()).clone();
+        tmp_account.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
         tmp_account.recipient = Pubkey::new(&recipient).clone();
         tmp_account.tx_integrity_hash = tx_integrity_hash.clone();
         tmp_account.ext_amount = ext_amount.clone();
-        tmp_account.fee = fee.clone();
+        tmp_account.fee = relayer_fee.clone();//tx_fee.clone();
         tmp_account.leaf_left = leaf_left;
         tmp_account.leaf_right = leaf_right;
         tmp_account.nullifier0 = nullifier0;
@@ -86,6 +92,39 @@ pub mod verifier_program {
             z: Fp2::one(),
         });
 
+
+        Ok(())
+    }
+
+    pub fn create_escrow_state(
+        ctx: Context<CreateEscrowState>,
+        tx_integrity_hash: [u8; 32],
+        tx_fee: u64,
+        relayer_fee: [u8;8],
+        amount: u64
+    )-> Result<()> {
+        msg!("starting initializing escrow account");
+
+        // init escrow account
+        let fee_escrow_state = &mut ctx.accounts.fee_escrow_state;
+
+        fee_escrow_state.verifier_state_pubkey = ctx.accounts.verifier_state.key();
+        fee_escrow_state.relayer_pubkey = ctx.accounts.signing_address.key();
+        fee_escrow_state.user_pubkey = ctx.accounts.user.key();
+        fee_escrow_state.tx_fee = tx_fee;//u64::from_le_bytes(tx_fee.try_into().unwrap()).clone();// fees for tx (tx_fee = number_of_tx * 0.000005)
+        fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();// for relayer
+        // fee_escrow_state.creation_slot = anchor_lang::prelude::Clock::slot;
+        // sol_transfer(
+        //     &ctx.accounts.user.to_account_info(),
+        //     &ctx.accounts.signing_address.to_account_info(),
+        //     amount
+        // );
+        let cpi_ctx1 = CpiContext::new(ctx.accounts.system_program.to_account_info(), anchor_lang::system_program::Transfer{
+             from: ctx.accounts.user.to_account_info(),
+             to: ctx.accounts.fee_escrow_state.to_account_info()
+         });
+        anchor_lang::system_program::transfer(cpi_ctx1, amount)?;
+        msg!(" initialized escrow account");
         Ok(())
     }
 
@@ -207,11 +246,7 @@ pub mod verifier_program {
 
     // Transfers the deposit amount,
     // inserts nullifiers and Merkle tree leaves
-    pub fn last_transaction_deposit(
-        ctx: Context<LastTransactionDeposit>,
-        nullifier0: [u8; 32],
-        nullifier1: [u8; 32],
-    ) -> Result<()> {
+    pub fn last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
             authority: ctx.accounts.signing_address.to_account_info(),
@@ -221,7 +256,10 @@ pub mod verifier_program {
         };
 
         let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
-        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier0).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(
+            cpi_ctx,
+            ctx.accounts.verifier_state.load()?.nullifier0
+        ).unwrap();
 
         let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
@@ -232,18 +270,17 @@ pub mod verifier_program {
         };
 
         let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
-        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx1, nullifier1).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(
+            cpi_ctx1,
+            ctx.accounts.verifier_state.load()?.nullifier1
+        ).unwrap();
 
         processor_last_transaction::process_last_transaction_deposit(ctx)
     }
 
     // Transfers the withdrawal amount, pays the relayer,
     // inserts nullifiers and Merkle tree leaves
-    pub fn last_transaction_withdrawal(
-        ctx: Context<LastTransactionWithdrawal>,
-        nullifier0: [u8; 32],
-        nullifier1: [u8; 32],
-    ) -> Result<()> {
+    pub fn last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawal>) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
             authority: ctx.accounts.signing_address.to_account_info(),
@@ -253,7 +290,10 @@ pub mod verifier_program {
         };
 
         let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
-        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier0).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(
+            cpi_ctx,
+            ctx.accounts.verifier_state.load()?.nullifier0
+        ).unwrap();
 
         let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
@@ -264,9 +304,55 @@ pub mod verifier_program {
         };
 
         let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
-        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx1, nullifier1).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(
+            cpi_ctx1,
+            ctx.accounts.verifier_state.load()?.nullifier1
+        ).unwrap();
 
         processor_last_transaction::process_last_transaction_withdrawal(ctx)
+    }
+
+    pub fn close_fee_escrow_pda(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
+        let fee_escrow_state = &mut ctx.accounts.fee_escrow_state;
+        let verifier_state = &mut ctx.accounts.verifier_state.load()?;
+        // this might be unsafe maybe the check doesn't matter anyway because for a withdrawal this
+        // account does not exist
+        let external_amount: i64 = i64::from_le_bytes(verifier_state.ext_amount);
+        // escrow is only applied for deposits
+        if external_amount < 0 {
+            return err!(ErrorCode::NotDeposit);
+        }
+
+        // transfer remaining funds after subtracting the fee
+        // for the number of executed transactions to the user
+        // TODO make fee per transaction configurable
+        let transfer_amount_relayer = verifier_state.current_instruction_index * 50_000;
+        msg!("transfer_amount_relayer: {}", transfer_amount_relayer);
+        sol_transfer(
+            &fee_escrow_state.to_account_info(),
+            &ctx.accounts.user.to_account_info(),
+            transfer_amount_relayer.try_into().unwrap()
+
+        )?;
+
+
+        // transfer remaining funds after subtracting the fee
+        // for the number of executed transactions to the user
+        let transfer_amount_user: u64 =
+            fee_escrow_state.relayer_fee
+            + fee_escrow_state.tx_fee
+            - transfer_amount_relayer as u64
+            + external_amount as u64;
+
+        msg!("transfer_amount_user: {}", transfer_amount_user);
+        sol_transfer(
+            &fee_escrow_state.to_account_info(),
+            &ctx.accounts.user.to_account_info(),
+            transfer_amount_user.try_into().unwrap()
+
+        )?;
+        Ok(())
+
     }
 }
 
@@ -304,14 +390,29 @@ pub struct Compute<'info> {
     tx_integrity_hash: [u8;32]
 )]
 pub struct CreateVerifierState<'info> {
-    #[account(init, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
+    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
 
+#[derive(Accounts)]
+#[instruction(
+    tx_integrity_hash: [u8;32]
+)]
+pub struct CreateEscrowState<'info> {
+    #[account(init,seeds = [tx_integrity_hash.as_ref(), b"fee_escrow"], bump,  payer=signing_address, space= 256 as usize)]
+    pub fee_escrow_state: Account<'info, FeeEscrowState>,
+    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
+    /// CHECK: is ininitialized at this point the
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    #[account(mut)]
+    pub user: Signer<'info>,
+    pub system_program: Program<'info, System>,
+}
 #[derive(Accounts)]
 pub struct CreateMerkleTreeUpdateState<'info> {
     #[account(
@@ -337,6 +438,35 @@ pub struct CreateMerkleTreeUpdateState<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+#[derive(Accounts)]
+pub struct CloseFeeEscrowPda<'info> {
+    #[account(mut, close = relayer)]
+    pub fee_escrow_state: Account<'info, FeeEscrowState>,
+    #[account(mut, close = relayer)]
+    pub verifier_state: AccountLoader<'info, VerifierState>,
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    #[account(mut, constraint= user.key() == fee_escrow_state.user_pubkey)]
+    /// either user address or relayer address depending on who claims
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub user: AccountInfo<'info>,
+    #[account(mut, constraint=relayer.key() == fee_escrow_state.relayer_pubkey )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub relayer: AccountInfo<'info>,
+
+}
+
+#[account]
+pub struct FeeEscrowState {
+    pub verifier_state_pubkey: Pubkey,
+    pub relayer_pubkey: Pubkey,
+    pub user_pubkey:    Pubkey,
+    pub tx_fee:        u64,// fees for tx (tx_fee = number_of_tx * 0.000005)
+    pub relayer_fee:   u64,// for relayer
+    pub creation_slot:  u64
+}
+
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("Incompatible Verifying Key")]
@@ -347,4 +477,6 @@ pub enum ErrorCode {
     PrepareInputsDidNotFinish,
     #[msg("NotLastTransactionState")]
     NotLastTransactionState,
+    #[msg("Tx is not a deposit")]
+    NotDeposit
 }

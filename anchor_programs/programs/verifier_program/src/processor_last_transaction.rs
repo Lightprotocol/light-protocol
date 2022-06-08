@@ -10,6 +10,7 @@ use merkle_tree_program;
 use merkle_tree_program::utils::create_pda::create_and_check_pda;
 use solana_program::{msg, pubkey::Pubkey};
 use std::cell::RefMut;
+use merkle_tree_program::instructions::sol_transfer;
 
 pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
     let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
@@ -32,23 +33,29 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         return err!(ErrorCode::NotLastTransactionState);
     }
     // Deposit
-    create_and_check_pda(
-        &ctx.program_id,
-        &ctx.accounts.user_account.to_account_info(),
-        &ctx.accounts.escrow_pda.to_account_info(),
-        &ctx.accounts.system_program.to_account_info(),
-        &rent,
-        &ctx.accounts.verifier_state.to_account_info().key.to_bytes()[..],
-        &b"escrow"[..],
-        0,                  //bytes
-        pub_amount_checked, // amount
-        true,               //rent_exempt
-    )?;
-    // Close escrow account to make deposit to shielded pool.
-    close_account(
-        &ctx.accounts.escrow_pda.to_account_info(),
+    msg!("starting sol transfer");
+    sol_transfer(
+        &ctx.accounts.fee_escrow_state.to_account_info(),
         &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-    )?;
+        pub_amount_checked
+    );
+    // create_and_check_pda(
+    //     &ctx.program_id,
+    //     &ctx.accounts.user_account.to_account_info(),
+    //     &ctx.accounts.escrow_pda.to_account_info(),
+    //     &ctx.accounts.system_program.to_account_info(),
+    //     &rent,
+    //     &ctx.accounts.verifier_state.to_account_info().key.to_bytes()[..],
+    //     &b"escrow"[..],
+    //     0,                  //bytes
+    //     pub_amount_checked, // amount
+    //     true,               //rent_exempt
+    // )?;
+    // // Close escrow account to make deposit to shielded pool.
+    // close_account(
+    //     &ctx.accounts.escrow_pda.to_account_info(),
+    //     &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+    // )?;
 
     // Inserting leaves and root
     let derived_pubkey = Pubkey::find_program_address(
@@ -80,11 +87,6 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
     ]);
     merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
 
-    // Close tmp account.
-    close_account(
-        &ctx.accounts.verifier_state.to_account_info(),
-        &ctx.accounts.signing_address.to_account_info(),
-    )?;
     Ok(())
 }
 
