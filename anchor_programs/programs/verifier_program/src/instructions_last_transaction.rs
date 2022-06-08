@@ -10,16 +10,14 @@ use merkle_tree_program::{
         LEAVES_SEED,
     }
 };
+use crate::FeeEscrowState;
+
 use crate::utils::config:: {ESCROW_SEED};
 #[derive(Accounts)]
-#[instruction(
-    nullifier0: [u8;32],
-    nullifier1: [u8;32],
-)]
 pub struct LastTransactionDeposit<'info> {
     #[account(
         mut,
-        seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier0.as_ref(), NF_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
@@ -27,7 +25,7 @@ pub struct LastTransactionDeposit<'info> {
     pub nullifier0_pda: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier1.as_ref(), NF_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
@@ -44,7 +42,7 @@ pub struct LastTransactionDeposit<'info> {
     #[account(
         mut,
         seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
-        bump
+        bump, close = signing_address
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(
@@ -71,21 +69,20 @@ pub struct LastTransactionDeposit<'info> {
     /// CHECK: doc comment explaining why no checks through types are necessary.
     pub merkle_tree_pda_token: AccountInfo<'info>,
     // account from which funds are transferred
-    #[account(mut)]
-    pub user_account: Signer<'info>,
+    // #[account(mut)]
+    // pub user_account: Signer<'info>,
+    #[account(mut, close = signing_address)]
+    pub fee_escrow_state: Account<'info, FeeEscrowState>,
     #[account(mut)]
     pub merkle_tree: Account<'info, MerkleTree>,
+
 }
 
 #[derive(Accounts)]
-#[instruction(
-    nullifier0: [u8;32],
-    nullifier1: [u8;32],
-)]
 pub struct LastTransactionWithdrawal<'info> {
     #[account(
         mut,
-        seeds = [nullifier0.as_ref(), NF_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier0.as_ref(), NF_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
@@ -93,7 +90,7 @@ pub struct LastTransactionWithdrawal<'info> {
     pub nullifier0_pda: UncheckedAccount<'info>,
     #[account(
         mut,
-        seeds = [nullifier1.as_ref(), NF_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier1.as_ref(), NF_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]

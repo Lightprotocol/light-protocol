@@ -16,7 +16,7 @@ cpi = ["no-entrypoint"]
 default = []
 
 [dependencies]
-anchor-lang = "0.24.1"
+anchor-lang = { version = "0.24.1", features = ["init-if-needed"] }
 byteorder = "1.3"
 merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
 
