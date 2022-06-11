@@ -38,6 +38,10 @@ use anchor_lang::system_program;
 
 pub use authority_config::*;
 
+use crate::poseidon_merkle_tree::state::MerkleTree;
+use crate::utils::create_pda::create_and_check_pda;
+use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
+
 #[program]
 pub mod merkle_tree_program {
     use super::*;
@@ -116,6 +120,57 @@ pub mod merkle_tree_program {
         )?;
         Ok(())
     }
+
+    pub fn insert_two_leaves<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeaves<'info>>,
+        leaf_left: [u8;32],
+        leaf_right: [u8;32],
+        encrypted_utxos: Vec<u8>,
+        nullifier: [u8;32],
+        next_index: u64,
+        merkle_tree_pda_pubkey: [u8;32]
+    ) -> Result<()> {
+        let next_index:u64 = 2;
+        let merkle_tree_pda_pubkey = vec![1u8;32];
+        msg!("insert_two_leaves");
+        // let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
+        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+        let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
+        let two_leaves_pda = ctx.accounts.two_leaves_pda.to_account_info();
+        // let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
+
+        msg!("Creating two_leaves_pda.");
+        create_and_check_pda(
+            &ctx.program_id,
+            &ctx.accounts.authority.to_account_info(),
+            &two_leaves_pda.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            rent,
+            &nullifier,
+            &b"leaves"[..],
+            TWO_LEAVES_PDA_SIZE, //bytes
+            0,                   //lamports
+            true,                //rent_exempt
+        );
+        let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&two_leaves_pda.data.borrow())?;
+
+        //save leaves into pda account
+        leaf_pda_account_data.node_left = leaf_left.to_vec();
+        leaf_pda_account_data.node_right = leaf_right.to_vec();
+        //increased by 2 because we're inserting 2 leaves at once
+        leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
+        leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
+        // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
+        msg!("encrypted_utxos: {:?}", encrypted_utxos.to_vec());
+        leaf_pda_account_data.encrypted_utxos = encrypted_utxos[0..222].to_vec();
+
+        TwoLeavesBytesPda::pack_into_slice(
+            &leaf_pda_account_data,
+            &mut two_leaves_pda.data.borrow_mut(),
+        );
+        msg!("packed two_leaves_pda");
+        Ok(())
+    }
     /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()> {
         let mut new_data = data.clone();
         new_data.insert(0, 1);
@@ -190,7 +245,7 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    // pub verifier_tmp: AccountInfo<'info>,
+    // pub two_leaves_pda: AccountInfo<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(
         init,
@@ -215,6 +270,18 @@ pub struct UpdateMerkleTree<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct InsertTwoLeaves<'info> {
+    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
+    pub two_leaves_pda: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 /*
 // deposits are currently implemented in the verifier program

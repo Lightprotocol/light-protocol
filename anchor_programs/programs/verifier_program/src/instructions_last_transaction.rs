@@ -33,12 +33,12 @@ pub struct LastTransactionDeposit<'info> {
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier0.as_ref(), LEAVES_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
-    pub leaves_pda: UncheckedAccount<'info>,
+    pub two_leaves_pda: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
@@ -98,12 +98,12 @@ pub struct LastTransactionWithdrawal<'info> {
     pub nullifier1_pda: UncheckedAccount<'info>, //Account<'info, Nullifier>,
     #[account(
         mut,
-        seeds = [merkle_tree_tmp_storage.leaf_left.as_ref(), LEAVES_SEED.as_ref()],
+        seeds = [verifier_state.load()?.nullifier0.as_ref(), LEAVES_SEED.as_ref()],
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
     /// CHECK:` doc comment explaining why no checks through types are necessary
-    pub leaves_pda: UncheckedAccount<'info>,
+    pub two_leaves_pda: UncheckedAccount<'info>,
     #[account(
         mut,
         seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],

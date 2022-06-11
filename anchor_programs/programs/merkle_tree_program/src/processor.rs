@@ -97,19 +97,7 @@ pub fn process_instruction(
             return Err(ProgramError::IllegalOwner);
         }
 
-        msg!("Creating two_leaves_pda.");
-        create_and_check_pda(
-            program_id,
-            signer_account,
-            two_leaves_pda,
-            system_program_account,
-            rent,
-            &tmp_storage_pda_data.leaf_left[0..32],
-            &b"leaves"[..],
-            TWO_LEAVES_PDA_SIZE, //bytes
-            0,                   //lamports
-            true,                //rent_exempt
-        )?;
+    
 
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;

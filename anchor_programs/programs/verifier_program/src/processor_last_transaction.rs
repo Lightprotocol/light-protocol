@@ -39,39 +39,26 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.merkle_tree_pda_token.to_account_info(),
         pub_amount_checked
     );
-    // create_and_check_pda(
-    //     &ctx.program_id,
-    //     &ctx.accounts.user_account.to_account_info(),
-    //     &ctx.accounts.escrow_pda.to_account_info(),
-    //     &ctx.accounts.system_program.to_account_info(),
-    //     &rent,
-    //     &ctx.accounts.verifier_state.to_account_info().key.to_bytes()[..],
-    //     &b"escrow"[..],
-    //     0,                  //bytes
-    //     pub_amount_checked, // amount
-    //     true,               //rent_exempt
-    // )?;
-    // // Close escrow account to make deposit to shielded pool.
-    // close_account(
-    //     &ctx.accounts.escrow_pda.to_account_info(),
-    //     &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-    // )?;
+
 
     // Inserting leaves and root
     let derived_pubkey = Pubkey::find_program_address(
         &[verifier_state.tx_integrity_hash.as_ref(), b"storage"],
         ctx.program_id,
     );
+
     msg!("derived_pubkey {:?}", derived_pubkey);
     let bump_seed = &[derived_pubkey.1][..];
 
     let data = [vec![0u8; 32], verifier_state.encrypted_utxos.to_vec()].concat();
 
     let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
-    let accounts = merkle_tree_program::cpi::accounts::UpdateMerkleTree {
+    let accounts = merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: ctx.accounts.signing_address.to_account_info(),
-        merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
-        merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        two_leaves_pda: ctx.accounts.two_leaves_pda.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        rent: ctx.accounts.rent.to_account_info(),
+        // add merkle tree leaves index of not inserted leaves
     };
     let seeds = [&[
         verifier_state.tx_integrity_hash.as_ref(),
@@ -80,12 +67,20 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
     ][..]];
     msg!("starting cpi");
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
-    cpi_ctx = cpi_ctx.with_remaining_accounts(vec![
-        ctx.accounts.leaves_pda.to_account_info(),
-        ctx.accounts.system_program.to_account_info(),
-        ctx.accounts.rent.to_account_info(),
-    ]);
-    merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
+    // cpi_ctx = cpi_ctx.with_remaining_accounts(vec![
+    //     ctx.accounts.system_program.to_account_info(),
+    //     ctx.accounts.rent.to_account_info(),
+    // ]);
+    msg!("next leaves index is hardcoded right now");
+    merkle_tree_program::cpi::insert_two_leaves(
+        cpi_ctx,
+        verifier_state.leaf_left,
+        verifier_state.leaf_right,
+        [verifier_state.encrypted_utxos.to_vec(),vec![0u8;34]].concat(),
+        verifier_state.nullifier0,
+        2u64,
+        verifier_state.merkle_tree_tmp_account.to_bytes()
+    )?;
 
     Ok(())
 }
@@ -189,7 +184,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
     msg!("starting cpi");
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(vec![
-        ctx.accounts.leaves_pda.to_account_info(),
+        ctx.accounts.two_leaves_pda.to_account_info(),
         ctx.accounts.system_program.to_account_info(),
         ctx.accounts.rent.to_account_info(),
     ]);
