@@ -201,8 +201,6 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index]
             );
             let merkle_tree_pda = next_account_info(account)?;
-            let leaf_pda = next_account_info(account)?;
-            let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&leaf_pda.data.borrow())?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
             let _system_program_account = next_account_info(account)?;
             let rent_sysvar_info = next_account_info(account)?;
@@ -227,22 +225,14 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
             //check leaves account is rent exempt
             //let rent = Rent::default();
-            if !rent.is_exempt(
-                **leaf_pda.lamports.borrow(),
-                usize::try_from(TWO_LEAVES_PDA_SIZE).unwrap(),
-            ) {
-                msg!("Leaves account is not rent-exempt.");
-                return Err(ProgramError::InvalidAccountData);
-            }
-            //save leaves into pda account
-            leaf_pda_account_data.node_left = tmp_storage_pda_data.leaf_left.clone();
-            leaf_pda_account_data.node_right = tmp_storage_pda_data.leaf_right.clone();
-            //increased by 2 because we're inserting 2 leaves at once
-            leaf_pda_account_data.left_leaf_index = merkle_tree_pda_data.next_index - 2;
-            leaf_pda_account_data.merkle_tree_pubkey =
-                tmp_storage_pda_data.merkle_tree_pda_pubkey.clone();
-            // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
-            leaf_pda_account_data.encrypted_utxos = instruction_data.unwrap()[32..254].to_vec();
+            // if !rent.is_exempt(
+            //     **leaf_pda.lamports.borrow(),
+            //     usize::try_from(TWO_LEAVES_PDA_SIZE).unwrap(),
+            // ) {
+            //     msg!("Leaves account is not rent-exempt.");
+            //     return Err(ProgramError::InvalidAccountData);
+            // }
+
 
             msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
             msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
@@ -253,10 +243,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 &merkle_tree_pda_data,
                 &mut merkle_tree_pda.data.borrow_mut(),
             );
-            TwoLeavesBytesPda::pack_into_slice(
-                &leaf_pda_account_data,
-                &mut leaf_pda.data.borrow_mut(),
-            );
+
         }
         msg!(
             "tmp_storage_pda_data.current_instruction_index : {}",
