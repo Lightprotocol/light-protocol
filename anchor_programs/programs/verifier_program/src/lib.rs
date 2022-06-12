@@ -129,7 +129,7 @@ pub mod verifier_program {
     }
 
     // Creates and initializes a merkle tree state account to save state of hash computations during the Merkle tree update
-    pub fn create_merkle_tree_update_state(ctx: Context<CreateMerkleTreeUpdateState>) -> Result<()> {
+    /*pub fn create_merkle_tree_update_state(ctx: Context<CreateMerkleTreeUpdateState>) -> Result<()> {
         let tmp_account = &mut ctx.accounts.verifier_state.load()?;
 
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
@@ -152,7 +152,7 @@ pub mod verifier_program {
         merkle_tree_program::cpi::initialize_merkle_tree_update_state(cpi_ctx, data).unwrap();
         Ok(())
     }
-
+    */
 
     // Verifies Groth16 ZKPs and updates the Merkle tree
     pub fn compute(ctx: Context<Compute>, _bump: u64) -> Result<()> {
@@ -178,7 +178,7 @@ pub mod verifier_program {
                 tmp_account.current_instruction_index
             );
             miller_loop_process_instruction(tmp_account);
-        } else if tmp_account.updating_merkle_tree {
+        }/* else if tmp_account.updating_merkle_tree {
             let derived_pubkey = Pubkey::find_program_address(
                 &[
                     tmp_account.tx_integrity_hash.as_ref(),
@@ -213,7 +213,7 @@ pub mod verifier_program {
                 tmp_account.last_transaction = true;
                 tmp_account.updating_merkle_tree = false;
             }
-        } else {
+        } */else {
             if !tmp_account.computing_final_exponentiation {
                 msg!("Initializing for final_exponentiation.");
                 tmp_account.computing_final_exponentiation = true;
@@ -413,6 +413,7 @@ pub struct CreateEscrowState<'info> {
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
+/*
 #[derive(Accounts)]
 pub struct CreateMerkleTreeUpdateState<'info> {
     #[account(
@@ -437,7 +438,7 @@ pub struct CreateMerkleTreeUpdateState<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,
 }
-
+*/
 #[derive(Accounts)]
 pub struct CloseFeeEscrowPda<'info> {
     #[account(mut, close = relayer)]

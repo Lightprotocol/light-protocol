@@ -22,7 +22,7 @@ pub fn process_instruction(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     tmp_storage_pda_data: &mut MerkleTreeTmpPda,
-    instruction_data: &[u8],
+    //instruction_data: &[u8],
 ) -> Result<(), ProgramError> {
     let account = &mut accounts.iter();
     let signer_account = next_account_info(account)?;
@@ -36,12 +36,12 @@ pub fn process_instruction(
     if tmp_storage_pda_data.current_instruction_index == 0 {
         let merkle_tree_pda = next_account_info(account)?;
 
-        tmp_storage_pda_data.found_root = check_root_hash_exists(
-            merkle_tree_pda,
-            &tmp_storage_pda_data.root_hash,
-            program_id,
-            merkle_tree_pda.key,
-        )?;
+        // tmp_storage_pda_data.found_root = check_root_hash_exists(
+        //     merkle_tree_pda,
+        //     &tmp_storage_pda_data.root_hash,
+        //     program_id,
+        //     merkle_tree_pda.key,
+        // )?;
         tmp_storage_pda_data.found_root = 1;
         tmp_storage_pda_data.changed_state = 3;
         tmp_storage_pda_data.current_instruction_index += 1;
@@ -62,10 +62,10 @@ pub fn process_instruction(
     // executes transaction, deposit or withdrawal, and closes the tmp account.
     else if tmp_storage_pda_data.current_instruction_index == 75 {
         let merkle_tree_pda = next_account_info(account)?;
-        let two_leaves_pda = next_account_info(account)?;
-        let system_program_account = next_account_info(account)?;
-        let rent_sysvar_info = next_account_info(account)?;
-        let rent = &Rent::from_account_info(rent_sysvar_info)?;
+        // let two_leaves_pda = next_account_info(account)?;
+        // let system_program_account = next_account_info(account)?;
+        // let rent_sysvar_info = next_account_info(account)?;
+        // let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
         if tmp_storage_pda_data.found_root != 1u8 {
             msg!("Root was not found. {}", tmp_storage_pda_data.found_root);
@@ -97,14 +97,14 @@ pub fn process_instruction(
             return Err(ProgramError::IllegalOwner);
         }
 
-    
+
 
         msg!("Inserting new merkle root.");
         let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
         merkle_tree_processor.process_instruction(
             accounts,
             tmp_storage_pda_data,
-            Some(instruction_data),
+            None,
         )?;
         // Close tmp account.
         close_account(tmp_storage_pda, signer_account)?;

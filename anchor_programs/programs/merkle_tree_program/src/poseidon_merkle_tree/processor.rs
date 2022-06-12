@@ -202,9 +202,9 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             );
             let merkle_tree_pda = next_account_info(account)?;
             let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
-            let _system_program_account = next_account_info(account)?;
-            let rent_sysvar_info = next_account_info(account)?;
-            let rent = &Rent::from_account_info(rent_sysvar_info)?;
+            // let _system_program_account = next_account_info(account)?;
+            // let rent_sysvar_info = next_account_info(account)?;
+            // let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
             //checking if signer locked
             pubkey_check(
@@ -282,6 +282,12 @@ pub fn _process_instruction(
     }
     Ok(())
 }
+// start update
+// update level until you get a zero value on the right if that then
+// start update again and repeat until no more queued leaves
+// no need for ix array
+// just need to keep track of the current level and stop at the top
+// also need to keep track of whether a hash is completed
 #[allow(dead_code)]
 fn merkle_tree_pubkey_check(
     account_pubkey: Pubkey,

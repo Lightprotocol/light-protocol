@@ -56,13 +56,13 @@ pub struct LastTransactionDeposit<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(
-        mut,
-        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
-        bump,
-        seeds::program = MerkleTreeProgram::id(),
-    )]
-    pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
+    // #[account(
+    //     mut,
+    //     seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+    //     bump,
+    //     seeds::program = MerkleTreeProgram::id(),
+    // )]
+    // pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
     // merkle tree account liquidity pool pda
     #[account(mut)]
