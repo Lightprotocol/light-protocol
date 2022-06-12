@@ -224,10 +224,10 @@ impl Pack for TwoLeavesBytesPda {
         ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
-        if is_initialized[0] != 0 {
-            msg!("Leaf pda is already initialized");
-            return Err(ProgramError::InvalidAccountData);
-        }
+        // if is_initialized[0] != 0 {
+        //     msg!("Leaf pda is already initialized");
+        //     return Err(ProgramError::InvalidAccountData);
+        // }
         Ok(TwoLeavesBytesPda {
             is_initialized: true,
             account_type: 4,

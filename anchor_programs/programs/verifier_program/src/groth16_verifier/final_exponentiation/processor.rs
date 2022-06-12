@@ -646,7 +646,7 @@ impl FinalExponentiationComputeState {
 
             assert_eq!(self.f2, parse_f_from_bytes(&ALPHA_G1_BETA_G2.to_vec()));
             msg!("Proof Verification success.");
-            state.updating_merkle_tree = true;
+            state.last_transaction = true;
             state.computing_final_exponentiation = false;
             state.fe_instruction_index += 1;
         }

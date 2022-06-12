@@ -12,7 +12,7 @@ pub mod tests {
     use ark_groth16::{prepare_inputs, prepare_verifying_key};
 
     use ark_ec::*;
-    use light_protocol_program::process_instruction;
+    use merkle_tree_program::processor::process_instruction;
     use serde_json::{Result, Value};
     use solana_program::program_option::COption;
     use solana_program::program_pack::Pack;
@@ -84,7 +84,7 @@ pub mod tests {
         );
         program_test.add_account(token_address, token_account);
     }
-
+    /*
     pub async fn create_and_start_program_var(
         accounts: &Vec<(&Pubkey, usize, Option<Vec<u8>>)>,
         token_accounts: Option<&mut Vec<(&Pubkey, &Pubkey, u64)>>,
@@ -92,7 +92,7 @@ pub mod tests {
         signer_pubkey: &Pubkey,
     ) -> ProgramTestContext {
         let mut program_test = ProgramTest::new(
-            "light_protocol_program",
+            "merkle_tree_program",
             *program_id,
             processor!(process_instruction),
         );
@@ -141,7 +141,7 @@ pub mod tests {
 
         program_context
     }
-
+    */
     // We need program restart logic since we're firing 300+ ix and
     // the program_context seems to melt down every couple of hundred ix.
     // It basically just picks up the account state where it left off and restarts the client
