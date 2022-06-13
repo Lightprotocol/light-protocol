@@ -30,6 +30,11 @@ pub struct MerkleTreeTmpPda {
     pub current_level_hash: Vec<u8>,
     // set changed_constants to true to pack specified values other values will not be packed
     pub changed_state: u8,
+
+    pub leaves: Vec<Vec<u8>>,
+    pub number_of_leaves: u8,
+    pub insert_leaves_index: u8,
+    pub tmp_leaves_index: Vec<u8>
 }
 impl MerkleTreeTmpPda {
     pub fn new() -> MerkleTreeTmpPda {
