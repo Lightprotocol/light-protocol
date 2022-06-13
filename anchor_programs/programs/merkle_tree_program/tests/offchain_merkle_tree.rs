@@ -1175,34 +1175,39 @@ mod tests {
         filled_leaves.push(new_leaf_hash_bytes_1.clone());
 
         //assert_eq!(true, false,"will fail because no data is incjected");
-        for i in config::INSERT_INSTRUCTION_ORDER_18 {
-            processor::_process_instruction(
-                i,
+        while !hash_tmp_account.inserted_root  {
+            batch_process_instruction(
+                hash_tmp_account.current_instruction_index,
                 &mut hash_tmp_account,
                 &mut smt_batch, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
             );
-            println!(
-                "tmp_storage_account.state[0..32]: {:?}",
-                hash_tmp_account.state[0..32].to_vec()
-            );
-            // assert_eq!(hash_tmp_account.changed_state, true);
-            if vec![
-                46, 249, 231, 68, 228, 157, 60, 58, 59, 174, 47, 106, 74, 47, 118, 145, 47, 97,
-                124, 204, 19, 185, 250, 79, 31, 239, 247, 99, 135, 127, 84, 12,
-            ] == hash_tmp_account.state[0..32].to_vec()
-            {
-                println!(
-                    "found match at instruction: {}",
-                    hash_tmp_account.current_instruction_index
-                );
-                panic!("");
-            }
+            hash_tmp_account.current_instruction_index +=1;
         }
+
         instructions::insert_last_double(&mut smt_batch, &mut hash_tmp_account);
 
 
         assert_eq!(smt.roots, smt_batch.roots);
     }
 
+    pub fn batch_process_instruction(
+        id: u8,
+        tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+        merkle_tree_pda_data: &mut MerkleTree,
+    ) -> Result<(), ProgramError> {
+        msg!("executing instruction {}", id);
+        if id == HASH_0 {
+            poseidon_0(tmp_storage_pda_data)?;
+        } else if id == HASH_1 {
+            poseidon_1(tmp_storage_pda_data)?;
+        } else if id == HASH_2 {
+            poseidon_2(tmp_storage_pda_data)?;
+        } else if id == MERKLE_TREE_UPDATE_LEVEL {
+            insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
+        } else if id == MERKLE_TREE_UPDATE_START {
+            insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data)?;
+        }
+        Ok(())
+    }
 
 }
