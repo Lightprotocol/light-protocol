@@ -66,22 +66,21 @@ pub mod merkle_tree_program {
 
     pub fn initialize_merkle_tree_update_state(
         ctx: Context<InitializeMerkleTreeUpdateState>,
-        data: Vec<u8>,
+        tx_integrity_hash: [u8;32],
     ) -> Result<()> {
-        // we don't need this check
-        // let derived_pubkey =
-        //     Pubkey::find_program_address(&[&data[0..32], b"storage"], ctx.program_id);
+        let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&ctx.accounts.two_leaves_pda.to_account_info().data.borrow())?;
+        msg!("InitializeMerkleTreeUpdateState");
+        //save leaves into pda account
+        let data = [
+            leaf_pda_account_data.node_left.to_vec(),
+            leaf_pda_account_data.node_right.to_vec(),
+            ctx.accounts.authority.key().to_bytes().to_vec(),
+            leaf_pda_account_data.merkle_tree_pubkey.to_vec()
+        ].concat();
+        //increased by 2 because we're inserting 2 leaves at once
+        // leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
+        // leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
 
-        // if derived_pubkey.0 != *ctx.accounts.merkle_tree_tmp_storage.key {
-        //     msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
-        //     msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-        //     msg!(
-        //         "Passed-in pda pubkey {:?}",
-        //         ctx.accounts.merkle_tree_tmp_storage.key
-        //     );
-        //     msg!("Instruction data seed  {:?}", data);
-        //     return err!(ErrorCode::MtTmpPdaInitFailed);
-        // }
         create_and_try_initialize_tmp_storage_pda(
             ctx.program_id,
             &[
@@ -91,14 +90,14 @@ pub mod merkle_tree_program {
                 // ctx.accounts.system_program.to_account_info(),
                 // ctx.accounts.rent.to_account_info(),
             ][..],
-            &data.as_slice()[32..],
+            &data.as_slice(),
         )?;
         Ok(())
     }
 
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
-        data: Vec<u8>,
+        bump: u64//data: Vec<u8>,
     ) -> Result<()> {
         msg!("update_merkle_tree");
         let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
@@ -110,13 +109,14 @@ pub mod merkle_tree_program {
                     ctx.accounts.authority.to_account_info(),
                     ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
                     ctx.accounts.merkle_tree.to_account_info(),
+                    ctx.accounts.merkle_tree.to_account_info(),
                 ],
                 ctx.remaining_accounts.to_vec(),
             ]
             .concat()
             .as_slice(),
             &mut tmp_storage_pda_data,
-            &data.as_slice(),
+            // &data.as_slice(),
         )?;
         Ok(())
     }
@@ -240,23 +240,26 @@ pub struct InitializeNewMerkleTree<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(data: Vec<u8>)]
+#[instruction(tx_integrity_hash: [u8;32])]
 pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    // pub two_leaves_pda: AccountInfo<'info>,
+    #[account(mut)]
+    pub two_leaves_pda: AccountInfo<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(
         init,
-        payer = authority,
-        seeds = [&(data.as_slice()[0..32]), STORAGE_SEED.as_ref()],
+        seeds = [&tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
         bump,
+        payer = authority,
         space = MERKLE_TREE_TMP_PDA_SIZE,
     )]
     pub merkle_tree_tmp_storage: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    // /// CHECK:` doc comment explaining why no checks through types are necessary.
+    // pub two_leaves_pda: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -322,7 +325,7 @@ pub struct InitializeNullifier<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        seeds = [&(nullifier.as_ref()[0..32]), NF_SEED.as_ref()],
         bump,
         space = 8,
     )]
@@ -346,7 +349,7 @@ pub struct InitializeLeavesPda<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
+        seeds = [&(nullifier.as_ref()[0..32]), NF_SEED.as_ref()],
         bump,
         space = 8,
     )]

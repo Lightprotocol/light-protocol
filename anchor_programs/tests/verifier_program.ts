@@ -421,17 +421,6 @@ describe("verifier_program", () => {
     })
     console.log("pdas ", pdas)
     await newAddressWithLamports(provider.connection, pdas.verifierStatePubkey) // new anchor.web3.Account()
-    // await transact({
-    //   connection: provider.connection,
-    //   ix_data,
-    //   pdas,
-    //   origin: userAccount,
-    //   signer: init_account,
-    //   recipient: merkleTreePdaToken,
-    //   verifierProgram,
-    //   mode: "deposit"
-    // })
-
     await transact({
       connection: provider.connection,
       ix_data,
@@ -442,6 +431,7 @@ describe("verifier_program", () => {
       verifierProgram,
       mode: "deposit"
     })
+
   });
 
   /*
@@ -772,41 +762,16 @@ describe("verifier_program", () => {
             ix_data
           })
           console.log("here3")
-          const tx1 = await verifierProgram.methods.createMerkleTreeUpdateState(
-                ).accounts(
-                    {
-                      signingAddress: signer.publicKey,
-                      verifierState: pdas.verifierStatePubkey,
-                      merkleTreeTmpState:pdas.merkleTreeTmpState,
-                      systemProgram: SystemProgram.programId,
-                      programMerkleTree: merkleTreeProgram.programId,
-                      rent: DEFAULT_PROGRAMS.rent,
-                    }
-                  ).signers([signer]).rpc()
-                  console.log("here4")
 
-            var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
-                  pdas.merkleTreeTmpState
-                )
-
-            if (merkleTreeTmpAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-              throw "merkle tree pda owner wrong after initializing";
-            }
-            let merkleTreeTmpStateData = await readAndParseAccountDataMerkleTreeTmpState({
-              connection: connection,
-              pda: pdas.merkleTreeTmpState
-
-            })
 
           await executeXComputeTransactions({
-            number_of_transactions: PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 2* MERKLE_TREE_UPDATE_TX_COUNT,
+            number_of_transactions: PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 1 - 4 ,// final exp executes 4 to many
             signer: signer,
             pdas: pdas,
             program: verifierProgram
           })
 
 
-          await checkFinalExponentiationSuccess({connection:connection, pda: pdas.verifierStatePubkey})
 
 
           if (mode == "deposit") {
@@ -822,7 +787,7 @@ describe("verifier_program", () => {
                       {
                         signingAddress: signer.publicKey,
                         verifierState: pdas.verifierStatePubkey,
-                        merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+                        // merkleTreeTmpStorage:pdas.merkleTreeTmpState,
                         systemProgram: SystemProgram.programId,
                         programMerkleTree: merkleTreeProgram.programId,
                         rent: DEFAULT_PROGRAMS.rent,
@@ -862,7 +827,22 @@ describe("verifier_program", () => {
           } else {
             throw Error("mode not supplied");
           }
-
+          var leavesPdaAccountInfo = await provider.connection.getAccountInfo(
+                pdas.leavesPdaPubkey
+              )
+          // const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
+          console.log(leavesPdaAccountInfo)
+          var merkleTreeAccountPrior = await provider.connection.getAccountInfo(
+                MERKLE_TREE_KEY
+              )
+          await executeUpdateMerkleTreeTransactions({
+            connection: provider.connection,
+            signer:signer,
+            pdas,
+            ix_data: ix_data,
+            program: merkleTreeProgram
+          });
+          //
             await checkLastTxSuccess({
               connection,
               pdas,
@@ -871,7 +851,8 @@ describe("verifier_program", () => {
               recipient: recipient.publicKey,
               recipientBalancePriorLastTx,
               ix_data,
-              mode
+              mode,
+              merkleTreeAccountPrior
             })
 
   }
@@ -1034,9 +1015,38 @@ describe("verifier_program", () => {
 
   }
 
-  async function executeXComputeTransactionsMerkleTree({number_of_transactions,signer,pdas, program}) {
+  async function executeUpdateMerkleTreeTransactions({signer,pdas, program, ix_data}) {
+  console.log("pdas: ", pdas)
+  console.log("signer: ", signer)
+  console.log("ix_data.txIntegrityHash: ", ix_data.txIntegrityHash)
+  const tx1 = await program.methods.initializeMerkleTreeUpdateState(
+      ix_data.txIntegrityHash
+      ).accounts(
+          {
+            authority: signer.publicKey,
+            merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+            systemProgram: SystemProgram.programId,
+            rent: DEFAULT_PROGRAMS.rent,
+            twoLeavesPda: pdas.leavesPdaPubkey
+          }
+        ).signers([signer]).rpc()
+        console.log("here4")
+
+  var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
+        pdas.merkleTreeTmpState
+      )
+
+  if (merkleTreeTmpAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
+    throw "merkle tree pda owner wrong after initializing";
+  }
+  let merkleTreeTmpStateData = await readAndParseAccountDataMerkleTreeTmpState({
+    connection: provider.connection,
+    pda: pdas.merkleTreeTmpState
+
+  })
+
     let arr = []
-    console.log(`sending ${number_of_transactions} transactions`)
+    console.log(`sending ${38} transactions`)
     console.log(`verifierState ${pdas.verifierStatePubkey}`)
     console.log(`merkleTreeTmpState ${pdas.merkleTreeTmpState}`)
     let i = 0;
@@ -1045,13 +1055,12 @@ describe("verifier_program", () => {
       let ix_data = [2, i];
       const transaction = new solana.Transaction();
       transaction.add(
-        await program.methods.compute(new anchor.BN(i))
+        await program.methods.updateMerkleTree(new anchor.BN(i))
         .accounts({
-          signingAddress: signer.publicKey,
-          verifierState: pdas.verifierStatePubkey,
+          authority: signer.publicKey,
+          twoLeavesPda: pdas.LeavesPda,
           // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeTmpState: pdas.merkleTreeTmpState,
-          programMerkleTree: merkleTreeProgram.programId,
+          merkleTreeTmpStorage: pdas.merkleTreeTmpState,
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
@@ -1064,12 +1073,11 @@ describe("verifier_program", () => {
         i+=1;
       }
       transaction.add(
-        await program.methods.compute(new anchor.BN(i)).accounts({
-          signingAddress: signer.publicKey,
-          verifierState: pdas.verifierStatePubkey,
+        await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
+          authority: signer.publicKey,
+          twoLeavesPda: pdas.LeavesPda,
           // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeTmpState: pdas.merkleTreeTmpState,
-          programMerkleTree: merkleTreeProgram.programId,
+          merkleTreeTmpStorage: pdas.merkleTreeTmpState,
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
@@ -1174,27 +1182,27 @@ describe("verifier_program", () => {
         )
         console.log("userAccountInfo: ", userAccountInfo.data.length)
 
-    // const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
-    // const expectedFinalExponentiation = [13, 20, 220, 48, 182, 120, 53, 125, 152, 139, 62, 176, 232, 173, 161, 27, 199, 178, 181, 210,
-    //   207, 12, 31, 226, 117, 34, 203, 42, 129, 155, 124, 4, 74, 96, 27, 217, 48, 42, 148, 168, 6,
-    //   119, 169, 247, 46, 190, 170, 218, 19, 30, 155, 251, 163, 6, 33, 200, 240, 56, 181, 71, 190,
-    //   185, 150, 46, 24, 32, 137, 116, 44, 29, 56, 132, 54, 119, 19, 144, 198, 175, 153, 55, 114, 156,
-    //   57, 230, 65, 71, 70, 238, 86, 54, 196, 116, 29, 31, 34, 13, 244, 92, 128, 167, 205, 237, 90,
-    //   214, 83, 188, 79, 139, 32, 28, 148, 5, 73, 24, 222, 225, 96, 225, 220, 144, 206, 160, 39, 212,
-    //   236, 105, 224, 26, 109, 240, 248, 215, 57, 215, 145, 26, 166, 59, 107, 105, 35, 241, 12, 220,
-    //   231, 99, 222, 16, 70, 254, 15, 145, 213, 144, 245, 245, 16, 57, 118, 17, 197, 122, 198, 218,
-    //   172, 47, 146, 34, 216, 204, 49, 48, 229, 127, 153, 220, 210, 237, 236, 179, 225, 209, 27, 134,
-    //   12, 13, 157, 100, 165, 221, 163, 15, 66, 184, 168, 229, 19, 201, 213, 152, 52, 134, 51, 44, 62,
-    //   205, 18, 54, 25, 43, 152, 134, 102, 193, 88, 24, 131, 133, 89, 188, 39, 182, 165, 15, 73, 254,
-    //   232, 143, 212, 58, 200, 141, 195, 231, 84, 25, 191, 212, 81, 55, 78, 37, 184, 196, 132, 91, 75,
-    //   252, 189, 70, 10, 212, 139, 181, 80, 22, 228, 225, 237, 242, 147, 105, 106, 67, 183, 108, 138,
-    //   95, 239, 254, 108, 253, 219, 89, 205, 123, 192, 36, 108, 23, 132, 6, 30, 211, 239, 242, 40, 10,
-    //   116, 229, 111, 202, 188, 91, 147, 216, 77, 114, 225, 10, 10, 215, 128, 121, 176, 45, 6, 204,
-    //   140, 58, 228, 53, 147, 108, 226, 232, 87, 34, 216, 43, 148, 128, 164, 111, 3, 153, 136, 168,
-    //   12, 244, 202, 102, 156, 2, 97, 0, 248, 206, 63, 188, 82, 152, 24, 13, 236, 8, 210, 5, 93, 122,
-    //   98, 26, 211, 204, 79, 221, 153, 36, 42, 134, 215, 200, 5, 40, 211, 180, 56, 196, 102, 146, 136,
-    //   197, 107, 119, 171, 184, 54, 117, 40, 163, 31, 1, 197, 17];
-    //   assert_eq(accountAfterUpdate.fBytes2, expectedFinalExponentiation, "Final Exponentiation failed");
+    const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
+    const expectedFinalExponentiation = [13, 20, 220, 48, 182, 120, 53, 125, 152, 139, 62, 176, 232, 173, 161, 27, 199, 178, 181, 210,
+      207, 12, 31, 226, 117, 34, 203, 42, 129, 155, 124, 4, 74, 96, 27, 217, 48, 42, 148, 168, 6,
+      119, 169, 247, 46, 190, 170, 218, 19, 30, 155, 251, 163, 6, 33, 200, 240, 56, 181, 71, 190,
+      185, 150, 46, 24, 32, 137, 116, 44, 29, 56, 132, 54, 119, 19, 144, 198, 175, 153, 55, 114, 156,
+      57, 230, 65, 71, 70, 238, 86, 54, 196, 116, 29, 31, 34, 13, 244, 92, 128, 167, 205, 237, 90,
+      214, 83, 188, 79, 139, 32, 28, 148, 5, 73, 24, 222, 225, 96, 225, 220, 144, 206, 160, 39, 212,
+      236, 105, 224, 26, 109, 240, 248, 215, 57, 215, 145, 26, 166, 59, 107, 105, 35, 241, 12, 220,
+      231, 99, 222, 16, 70, 254, 15, 145, 213, 144, 245, 245, 16, 57, 118, 17, 197, 122, 198, 218,
+      172, 47, 146, 34, 216, 204, 49, 48, 229, 127, 153, 220, 210, 237, 236, 179, 225, 209, 27, 134,
+      12, 13, 157, 100, 165, 221, 163, 15, 66, 184, 168, 229, 19, 201, 213, 152, 52, 134, 51, 44, 62,
+      205, 18, 54, 25, 43, 152, 134, 102, 193, 88, 24, 131, 133, 89, 188, 39, 182, 165, 15, 73, 254,
+      232, 143, 212, 58, 200, 141, 195, 231, 84, 25, 191, 212, 81, 55, 78, 37, 184, 196, 132, 91, 75,
+      252, 189, 70, 10, 212, 139, 181, 80, 22, 228, 225, 237, 242, 147, 105, 106, 67, 183, 108, 138,
+      95, 239, 254, 108, 253, 219, 89, 205, 123, 192, 36, 108, 23, 132, 6, 30, 211, 239, 242, 40, 10,
+      116, 229, 111, 202, 188, 91, 147, 216, 77, 114, 225, 10, 10, 215, 128, 121, 176, 45, 6, 204,
+      140, 58, 228, 53, 147, 108, 226, 232, 87, 34, 216, 43, 148, 128, 164, 111, 3, 153, 136, 168,
+      12, 244, 202, 102, 156, 2, 97, 0, 248, 206, 63, 188, 82, 152, 24, 13, 236, 8, 210, 5, 93, 122,
+      98, 26, 211, 204, 79, 221, 153, 36, 42, 134, 215, 200, 5, 40, 211, 180, 56, 196, 102, 146, 136,
+      197, 107, 119, 171, 184, 54, 117, 40, 163, 31, 1, 197, 17];
+      assert_eq(accountAfterUpdate.fBytes2, expectedFinalExponentiation, "Final Exponentiation failed");
   }
   async function checkLastTxSuccess({
     connection,
@@ -1204,7 +1212,8 @@ describe("verifier_program", () => {
     recipient,
     recipientBalancePriorLastTx,
     ix_data,
-    mode
+    mode,
+    merkleTreeAccountPrior
   }){
     var verifierStateAccount = await connection.getAccountInfo(
           pdas.verifierStatePubkey
@@ -1268,12 +1277,20 @@ describe("verifier_program", () => {
 
     //TODO check root hash inserted correctly
     // root should be in this position [609..642]
-    // var merkleTreeAccount = await provider.connection.getAccountInfo(
-    //       MERKLE_TREE_KEY
-    //     )
-    // console.log("merkleTreeAccount.data.slice(609,641): " Array.prototype.slice.call(merkleTreeAccount.data.slice(609,641)))
-    // console.log(" ix_data.rootHash: ",  ix_data.rootHash)
-    // assert_eq(merkleTreeAccount.data.slice(609,641), ix_data.rootHash)
+    var merkleTreeAccount = await provider.connection.getAccountInfo(
+          MERKLE_TREE_KEY
+        )
+    let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8),0).sub(U64(1)).toNumber()
+    let current_root_start_range = 610 + current_root_index * 32;
+    let current_root_end_range = 610 + (current_root_index + 1) * 32;
+    // index has increased by 2
+    assert(U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(2)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
+    // root hash changed
+    assert(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range) != merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))
+
+
+
+    // assert_eq(merkleTreeAccount.data.slice(610,642), ix_data.rootHash)
     if (mode == "deposit") {
       var senderAccount = await provider.connection.getAccountInfo(
             sender
