@@ -61,22 +61,22 @@ const newAddressWithLamports = async (connection,address = new anchor.web3.Accou
   }
   throw new Error(`Airdrop of ${lamports} failed`)
 }
-const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
+const newProgramOwnedAccount = async ({connection, owner, lamports = 0, payer = new anchor.web3.Account()}) => {
   let account = new anchor.web3.Account();
-  let payer = new anchor.web3.Account();
+  console.log("account: ", account)
   let retry = 0;
-  while(retry < 30){
+  //while(retry < 30){
     try{
-      await connection.confirmTransaction(
-        await connection.requestAirdrop(payer.publicKey, 1e13)
-      )
-
+      // await connection.sendAndconfirmTransaction(
+      //   await connection.requestAirdrop(payer.publicKey, 1e9)
+      // )
+      // await connection.requestAirdrop(payer.publicKey, 1e9)
       const tx = new solana.Transaction().add(
         solana.SystemProgram.createAccount({
           fromPubkey: payer.publicKey,
           newAccountPubkey: account.publicKey,
           space: 0,
-          lamports: lamports,
+          lamports: 1e7,
           programId: owner.programId,
         })
       );
@@ -88,16 +88,16 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
             connection,
             tx,
             [payer, account],
-            {
-              commitment: 'singleGossip',
-              preflightCommitment: 'singleGossip',
-            },
+            // {
+            //   commitment: 'singleGossip',
+            //   preflightCommitment: 'singleGossip',
+            // },
         );
       return account;
     } catch {}
-
-    retry ++;
-  }
+  //   await sleep(1000)
+  //   retry ++;
+  // }
   throw "Can't create program account with lamports"
 }
 const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e13) => {
@@ -278,7 +278,8 @@ export const DEFAULT_PROGRAMS = {
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.AnchorProvider.local();//anchor.getProvider();
+  console.log("anchor.AnchorProvider: ", anchor.getProvider())
+  const provider = anchor.getProvider();//anchor.AnchorProvider.devnet()//.local();//
 
   const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
@@ -289,18 +290,23 @@ describe("verifier_program", () => {
   const [AUTHORITY_CONFIG_KEY] = solana.PublicKey.findProgramAddressSync([Buffer.from(AUTHORITY_SEED)], merkleTreeProgram.programId);
 
   it("Initialize Merkle Tree", async () => {
-    await newAccountWithLamports(
-      provider.connection,
-      ADMIN_AUTH_KEYPAIR
-    )
+    // await newAccountWithLamports(
+    //   provider.connection,
+    //   ADMIN_AUTH_KEYPAIR
+    // )
     console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR)
-    await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
+    await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000)
     var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
           ADMIN_AUTH_KEYPAIR.publicKey
         )
         console.log("ADMIN_AUTH_KEYPAIRAccountInfo: ", ADMIN_AUTH_KEYPAIRAccountInfo)
 
-
+    await newProgramOwnedAccount({
+      connection: provider.connection,
+      owner: merkleTreeProgram,
+      payer: ADMIN_AUTH_KEYPAIR
+    })
+    process.exit()
     const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
       authority: ADMIN_AUTH_KEY,
       merkleTree: MERKLE_TREE_KEY,
@@ -402,7 +408,7 @@ describe("verifier_program", () => {
     })
     .rpc();
   });*/
-
+  /*
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount ) // new anchor.web3.Account()
@@ -434,7 +440,7 @@ describe("verifier_program", () => {
 
   });
 
-  /*
+
   it("Last Transaction hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount,verifierProgram , 1e11) // new anchor.web3.Account()

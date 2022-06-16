@@ -26,7 +26,7 @@ use merkle_tree_program::{
 };
 use merkle_tree_program::instructions::sol_transfer;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("8r9DYKvhif2mNSYaJpFkGaVhBKN1QjkLe5vmThhuYPGs");
 
 #[program]
 pub mod verifier_program {
