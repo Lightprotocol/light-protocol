@@ -306,7 +306,7 @@ describe("verifier_program", () => {
       owner: merkleTreeProgram,
       payer: ADMIN_AUTH_KEYPAIR
     })
-    process.exit()
+    
     const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
       authority: ADMIN_AUTH_KEY,
       merkleTree: MERKLE_TREE_KEY,

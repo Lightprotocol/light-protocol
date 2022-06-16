@@ -1,6 +1,4 @@
 use anchor_lang::prelude::*;
-
-declare_id!("2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av");
 use solana_program::program_pack::Pack;
 use solana_security_txt::security_txt;
 
@@ -42,6 +40,7 @@ use crate::poseidon_merkle_tree::state::MerkleTree;
 use crate::utils::create_pda::create_and_check_pda;
 use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
 
+declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 #[program]
 pub mod merkle_tree_program {
     use super::*;
@@ -314,7 +313,7 @@ pub struct WithdrawSOL<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut, owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av"))]
+    #[account(mut, owner= Pubkey::new(b"JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"))]
     pub merkle_tree_token: AccountInfo<'info>,
     // recipients are specified in additional accounts and checked in the verifier
 }
