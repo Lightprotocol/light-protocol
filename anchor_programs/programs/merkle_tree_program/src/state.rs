@@ -7,35 +7,39 @@ use anchor_lang::solana_program::{
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use std::convert::TryInto;
 
-#[derive(Clone, Debug, Default, PartialEq)]
+// #[derive(Clone, Debug, Default, PartialEq)]
+use anchor_lang::prelude::*;
+#[account(zero_copy)]
 pub struct MerkleTreeTmpPda {
-    pub is_initialized: bool,
-    pub found_root: u8,
-    pub account_type: u8,
+    // pub is_initialized: bool,
+    // pub account_type: u8,
 
-    pub node_left: Vec<u8>,
-    pub node_right: Vec<u8>,
-    pub leaf_left: Vec<u8>,
-    pub leaf_right: Vec<u8>,
-    pub relayer: Vec<u8>,
-    pub merkle_tree_pda_pubkey: Vec<u8>,
-    pub root_hash: Vec<u8>,
+    pub node_left: [u8;32],
+    pub node_right: [u8;32],
+    pub leaf_left: [u8;32],
+    pub leaf_right: [u8;32],
+    pub relayer: [u8;32],
+    pub merkle_tree_pda_pubkey: [u8;32],
+    pub root_hash: [u8;32],
     //
-    pub state: Vec<u8>,
-    pub current_round: usize,
-    pub current_round_index: usize,
-    pub current_instruction_index: usize,
-    pub current_index: usize,
-    pub current_level: usize,
-    pub current_level_hash: Vec<u8>,
+    pub state: [u8;96],
+    pub current_round: u64,
+    pub current_round_index: u64,
+    pub current_instruction_index: u64,
+    pub current_index: u64,
+    pub current_level: u64,
+    pub current_level_hash: [u8;32],
     // set changed_constants to true to pack specified values other values will not be packed
-    pub changed_state: u8,
+    // pub changed_state: u8,
+    pub tmp_leaves_index: u64,
 
-    pub leaves: Vec<Vec<u8>>,
+    pub leaves: [[u8;32];16], // 2 times the number of leaves which can be batch_inserted
     pub number_of_leaves: u8,
     pub insert_leaves_index: u8,
-    pub tmp_leaves_index: Vec<u8>
+    pub found_root: u8,
+
 }
+/*
 impl MerkleTreeTmpPda {
     pub fn new() -> MerkleTreeTmpPda {
         MerkleTreeTmpPda {
@@ -217,3 +221,4 @@ impl Pack for MerkleTreeTmpPda {
         *current_instruction_index_dst = usize::to_le_bytes(self.current_instruction_index);
     }
 }
+*/

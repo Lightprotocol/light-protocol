@@ -34,7 +34,7 @@ impl anchor_lang::AccountDeserialize for MerkleTree {
       Ok(crate::poseidon_merkle_tree::state::MerkleTree::unpack(buf).map(MerkleTree)?)
   }
 }
-
+/*
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MerkleTreeTmpPda(crate::state::MerkleTreeTmpPda);
 impl MerkleTreeTmpPda {
@@ -66,3 +66,4 @@ impl anchor_lang::AccountDeserialize for MerkleTreeTmpPda {
       Ok(crate::state::MerkleTreeTmpPda::unpack(buf).map(MerkleTreeTmpPda)?)
   }
 }
+*/

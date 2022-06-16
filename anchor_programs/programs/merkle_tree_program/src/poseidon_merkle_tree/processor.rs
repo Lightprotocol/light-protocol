@@ -16,6 +16,8 @@ use anchor_lang::solana_program::{
     sysvar::Sysvar,
 };
 use std::convert::TryFrom;
+use std::cell::RefMut;
+use anchor_lang::prelude::*;
 
 const MERKLE_TREE_UPDATE_START: u8 = 14;
 const MERKLE_TREE_UPDATE_LEVEL: u8 = 25;
@@ -89,8 +91,8 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
     pub fn process_instruction(
         &mut self,
-        accounts: &[AccountInfo],
-        tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+        ctx: Context<ComputeMerkleTreeRoot>,
+        tmp_storage_pda_data: &mut RefMut<'_, MerkleTreeTmpPda>,
         instruction_data: Option<&[u8]>,
     ) -> Result<(), ProgramError> {
         let account = &mut accounts.iter();
@@ -127,7 +129,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 tmp_storage_pda_data,
                 &mut merkle_tree_pda_data,
             )?;
-            tmp_storage_pda_data.changed_state = 4;
+            // tmp_storage_pda_data.changed_state = 4;
 
             MerkleTree::pack_into_slice(
                 &merkle_tree_pda_data,
@@ -193,57 +195,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 tmp_storage_pda_data,
                 &mut self.unpacked_merkle_tree,
             )?;
-            tmp_storage_pda_data.changed_state = 2;
-        } else if IX_ORDER[tmp_storage_pda_data.current_instruction_index] == ROOT_INSERT {
-            //inserting root and creating leave pda accounts
-            msg!(
-                "Root insert Instruction: {}",
-                IX_ORDER[tmp_storage_pda_data.current_instruction_index]
-            );
-            let merkle_tree_pda = next_account_info(account)?;
-            let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
-            // let _system_program_account = next_account_info(account)?;
-            // let rent_sysvar_info = next_account_info(account)?;
-            // let rent = &Rent::from_account_info(rent_sysvar_info)?;
-
-            //checking if signer locked
-            pubkey_check(
-                *_tmp_storage_pda.key,
-                Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
-                String::from("Merkle tree locked by other account."),
-            )?;
-            //checking merkle tree pubkey for consistency
-            // merkle_tree_pubkey_check(
-            //     *merkle_tree_pda.key,
-            //     tmp_storage_pda_data.merkle_tree_index,
-            //     *merkle_tree_pda.owner,
-            //     self.program_id,
-            // )?;
-
-            //insert root into merkle tree
-            insert_last_double(&mut merkle_tree_pda_data, tmp_storage_pda_data)?;
-
-            //check leaves account is rent exempt
-            //let rent = Rent::default();
-            // if !rent.is_exempt(
-            //     **leaf_pda.lamports.borrow(),
-            //     usize::try_from(TWO_LEAVES_PDA_SIZE).unwrap(),
-            // ) {
-            //     msg!("Leaves account is not rent-exempt.");
-            //     return Err(ProgramError::InvalidAccountData);
-            // }
-
-
-            msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
-            msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
-            merkle_tree_pda_data.time_locked = 0;
-            merkle_tree_pda_data.pubkey_locked = vec![0; 32];
-
-            MerkleTree::pack_into_slice(
-                &merkle_tree_pda_data,
-                &mut merkle_tree_pda.data.borrow_mut(),
-            );
-
+            // tmp_storage_pda_data.changed_state = 2;
         }
         msg!(
             "tmp_storage_pda_data.current_instruction_index : {}",
@@ -255,11 +207,58 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         );
         tmp_storage_pda_data.current_instruction_index += 1;
 
-        MerkleTreeTmpPda::pack_into_slice(
-            &tmp_storage_pda_data,
-            &mut self.tmp_storage_pda.unwrap().data.borrow_mut(),
-        );
+        // MerkleTreeTmpPda::pack_into_slice(
+        //     &tmp_storage_pda_data,
+        //     &mut self.tmp_storage_pda.unwrap().data.borrow_mut(),
+        // );
         Ok(())
+    }
+
+    pub fn insert_root(
+        merkle_tree_pda:
+    ) -> Result<(), ProgramError> {
+        //inserting root and creating leave pda accounts
+        msg!(
+            "Root insert Instruction: {}",
+            IX_ORDER[tmp_storage_pda_data.current_instruction_index]
+        );
+        if IX_ORDER[tmp_storage_pda_data.current_instruction_index] != ROOT_INSERT {
+            msg!("Compute not completed yet");
+            return Err(ProgramError::InvalidAccountData);
+        }
+
+        let mut merkle_tree_pda_data = MerkleTree::unpack(&merkle_tree_pda.data.borrow())?;
+
+
+        //checking if signer locked
+        pubkey_check(
+            *_tmp_storage_pda.key,
+            Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+            String::from("Merkle tree locked by other account."),
+        )?;
+        //checking merkle tree pubkey for consistency
+        // merkle_tree_pubkey_check(
+        //     *merkle_tree_pda.key,
+        //     tmp_storage_pda_data.merkle_tree_index,
+        //     *merkle_tree_pda.owner,
+        //     self.program_id,
+        // )?;
+
+        //insert root into merkle tree
+        insert_last_double(&mut merkle_tree_pda_data, tmp_storage_pda_data)?;
+
+
+        msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
+        msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
+        merkle_tree_pda_data.time_locked = 0;
+        merkle_tree_pda_data.pubkey_locked = vec![0; 32];
+
+        MerkleTree::pack_into_slice(
+            &merkle_tree_pda_data,
+            &mut merkle_tree_pda.data.borrow_mut(),
+        );
+
+
     }
 }
 

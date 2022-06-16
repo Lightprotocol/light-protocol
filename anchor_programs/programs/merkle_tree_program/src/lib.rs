@@ -100,23 +100,11 @@ pub mod merkle_tree_program {
         bump: u64//data: Vec<u8>,
     ) -> Result<()> {
         msg!("update_merkle_tree");
-        let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
-        let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+        let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.load_mut();
+        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
         processor::process_instruction(
-            ctx.program_id,
-            &[
-                vec![
-                    ctx.accounts.authority.to_account_info(),
-                    ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
-                    ctx.accounts.merkle_tree.to_account_info(),
-                    ctx.accounts.merkle_tree.to_account_info(),
-                ],
-                ctx.remaining_accounts.to_vec(),
-            ]
-            .concat()
-            .as_slice(),
-            &mut tmp_storage_pda_data,
-            // &data.as_slice(),
+            ctx,
+            &mut tmp_storage_pda,
         )?;
         Ok(())
     }

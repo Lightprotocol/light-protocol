@@ -14,42 +14,43 @@ use anchor_lang::solana_program::{
 };
 
 use std::convert::TryInto;
-
+use std::cell::RefMut;
 use crate::TWO_LEAVES_PDA_SIZE;
+use anchor_lang::prelude::*;
 // Processor for deposit and withdraw logic.
 #[allow(clippy::comparison_chain)]
 pub fn process_instruction(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+    // program_id: &Pubkey,
+    // accounts: &[AccountInfo],
+    ctx: Context<ComputeMerkleTreeRoot>,
+    tmp_storage_pda_data: &mut RefMut<'_, MerkleTreeTmpPda>
     //instruction_data: &[u8],
-) -> Result<(), ProgramError> {
-    let account = &mut accounts.iter();
-    let signer_account = next_account_info(account)?;
-    let tmp_storage_pda = next_account_info(account)?;
-    msg!("tmp_storage_pda {:?}", tmp_storage_pda.key);
+) -> Result<()> {
+    // let account = &mut accounts.iter();
+    // let signer_account = next_account_info(account)?;
+    // let tmp_storage_pda = next_account_info(account)?;
     // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
 
     // Checks whether passed-in root exists in Merkle tree history array.
     // We do this check as soon as possible to avoid proof transaction invalidation for missing
     // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
-    if tmp_storage_pda_data.current_instruction_index == 0 {
-        let merkle_tree_pda = next_account_info(account)?;
-
-        // tmp_storage_pda_data.found_root = check_root_hash_exists(
-        //     merkle_tree_pda,
-        //     &tmp_storage_pda_data.root_hash,
-        //     program_id,
-        //     merkle_tree_pda.key,
-        // )?;
-        tmp_storage_pda_data.found_root = 1;
-        tmp_storage_pda_data.changed_state = 3;
-        tmp_storage_pda_data.current_instruction_index += 1;
-        MerkleTreeTmpPda::pack_into_slice(
-            &tmp_storage_pda_data,
-            &mut tmp_storage_pda.data.borrow_mut(),
-        );
-    }
+    // if tmp_storage_pda_data.current_instruction_index == 0 {
+    //     let merkle_tree_pda = ctx.accounts.merkle_tree_pda;//next_account_info(account)?;
+    //
+    //     // tmp_storage_pda_data.found_root = check_root_hash_exists(
+    //     //     merkle_tree_pda,
+    //     //     &tmp_storage_pda_data.root_hash,
+    //     //     program_id,
+    //     //     merkle_tree_pda.key,
+    //     // )?;
+    //     tmp_storage_pda_data.found_root = 1;
+    //     tmp_storage_pda_data.changed_state = 3;
+    //     tmp_storage_pda_data.current_instruction_index += 1;
+    //     MerkleTreeTmpPda::pack_into_slice(
+    //         &tmp_storage_pda_data,
+    //         &mut tmp_storage_pda.data.borrow_mut(),
+    //     );
+    // }
 
     if tmp_storage_pda_data.current_instruction_index > 0
         && tmp_storage_pda_data.current_instruction_index < 75
@@ -62,36 +63,7 @@ pub fn process_instruction(
     // executes transaction, deposit or withdrawal, and closes the tmp account.
     else if tmp_storage_pda_data.current_instruction_index == 75 {
         let merkle_tree_pda = next_account_info(account)?;
-        // let two_leaves_pda = next_account_info(account)?;
-        // let system_program_account = next_account_info(account)?;
-        // let rent_sysvar_info = next_account_info(account)?;
-        // let rent = &Rent::from_account_info(rent_sysvar_info)?;
 
-        if tmp_storage_pda_data.found_root != 1u8 {
-            msg!("Root was not found. {}", tmp_storage_pda_data.found_root);
-            return Err(ProgramError::InvalidArgument);
-        }
-
-        // if *merkle_tree_pda.key
-        //     != solana_program::pubkey::Pubkey::new(
-        //         &MERKLE_TREE_ACC_BYTES_ARRAY[
-        //             tmp_storage_pda_data.merkle_tree_index
-        //         ]
-        //         .0,
-        //     )
-        // {
-        //     msg!(
-        //         "Passed-in Merkle tree account is invalid. {:?} != {:?}",
-        //         *merkle_tree_pda.key,
-        //         solana_program::pubkey::Pubkey::new(
-        //             &MERKLE_TREE_ACC_BYTES_ARRAY[
-        //                 tmp_storage_pda_data.merkle_tree_index
-        //             ]
-        //             .0
-        //         )
-        //     );
-        //     return Err(ProgramError::InvalidInstructionData);
-        // }
         if *merkle_tree_pda.owner != *program_id {
             msg!("Invalid merkle tree owner.");
             return Err(ProgramError::IllegalOwner);
@@ -117,7 +89,7 @@ pub fn process_sol_transfer(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
-) -> Result<(), ProgramError> {
+) -> Result<()> {
     const DEPOSIT: u8 = 1;
     const WITHDRAWAL: u8 = 2;
     let account = &mut accounts.iter();
