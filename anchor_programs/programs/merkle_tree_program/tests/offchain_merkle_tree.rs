@@ -3,7 +3,7 @@
 
 #[cfg(test)]
 mod tests {
-
+    pub mod batched_instructions;
     use ark_ed_on_bn254;
     use ark_ed_on_bn254::Fq;
     use ark_ff::bytes::{FromBytes, ToBytes};
@@ -1022,7 +1022,7 @@ mod tests {
 
         let mut filled_leaves = Vec::new();
         let mut j = 0;
-        for i in 0..1 {
+        for i in 0..2 {
             let mut hash_tmp_account = MerkleTreeTmpPda {
                 is_initialized: true,
                 found_root: 1u8,
@@ -1148,32 +1148,33 @@ mod tests {
             changed_state: 1,
         };
 
-        let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+        // let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+        //
+        // let mut new_leaf_hash_bytes = vec![0u8; 32];
+        // <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+        //     &new_leaf_hash,
+        //     &mut new_leaf_hash_bytes[..],
+        // );
+        //
+        // let new_leaf_hash_1 = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+        //
+        // let mut new_leaf_hash_bytes_1 = vec![0u8; 32];
+        //
+        // <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+        //     &new_leaf_hash_1,
+        //     &mut new_leaf_hash_bytes_1[..],
+        // );
+        // new_leaf_hash_bytes = vec![2u8; 32];
+        // let new_leaf_hash_bytes_1 = new_leaf_hash_bytes.clone();
 
-        let mut new_leaf_hash_bytes = vec![0u8; 32];
-        <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
-            &new_leaf_hash,
-            &mut new_leaf_hash_bytes[..],
-        );
-
-        let new_leaf_hash_1 = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
-
-        let mut new_leaf_hash_bytes_1 = vec![0u8; 32];
-
-        <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
-            &new_leaf_hash_1,
-            &mut new_leaf_hash_bytes_1[..],
-        );
-        new_leaf_hash_bytes = vec![2u8; 32];
-        let new_leaf_hash_bytes_1 = new_leaf_hash_bytes.clone();
-
-        println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
-        println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
-        hash_tmp_account.node_left = new_leaf_hash_bytes.clone();
-        hash_tmp_account.node_right = new_leaf_hash_bytes_1.clone();
-        filled_leaves.push(new_leaf_hash_bytes.clone());
-        filled_leaves.push(new_leaf_hash_bytes_1.clone());
-
+        // println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
+        // println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
+        // hash_tmp_account.node_left = new_leaf_hash_bytes.clone();
+        // hash_tmp_account.node_right = new_leaf_hash_bytes_1.clone();
+        // filled_leaves.push(new_leaf_hash_bytes.clone());
+        // filled_leaves.push(new_leaf_hash_bytes_1.clone());
+        
+        println!("filled_leaves: {:?}",filled_leaves );
         //assert_eq!(true, false,"will fail because no data is incjected");
         while !hash_tmp_account.inserted_root  {
             batch_process_instruction(
@@ -1203,9 +1204,9 @@ mod tests {
         } else if id == HASH_2 {
             poseidon_2(tmp_storage_pda_data)?;
         } else if id == MERKLE_TREE_UPDATE_LEVEL {
-            insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
+            batched_instructions::insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
         } else if id == MERKLE_TREE_UPDATE_START {
-            insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data)?;
+            batched_instructions::insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data)?;
         }
         Ok(())
     }
