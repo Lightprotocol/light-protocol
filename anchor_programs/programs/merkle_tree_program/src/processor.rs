@@ -12,84 +12,56 @@ use anchor_lang::solana_program::{
     pubkey::Pubkey,
     sysvar::{rent::Rent, Sysvar},
 };
-
+use crate::UpdateMerkleTree;
 use std::convert::TryInto;
 use std::cell::RefMut;
 use crate::TWO_LEAVES_PDA_SIZE;
 use anchor_lang::prelude::*;
+use crate::ErrorCode;
 // Processor for deposit and withdraw logic.
 #[allow(clippy::comparison_chain)]
 pub fn process_instruction(
-    // program_id: &Pubkey,
-    // accounts: &[AccountInfo],
-    ctx: Context<ComputeMerkleTreeRoot>,
-    tmp_storage_pda_data: &mut RefMut<'_, MerkleTreeTmpPda>
-    //instruction_data: &[u8],
-) -> Result<()> {
-    // let account = &mut accounts.iter();
-    // let signer_account = next_account_info(account)?;
-    // let tmp_storage_pda = next_account_info(account)?;
-    // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
-
-    // Checks whether passed-in root exists in Merkle tree history array.
-    // We do this check as soon as possible to avoid proof transaction invalidation for missing
-    // root. Currently 500 roots are stored at once. After 500 transactions roots are overwritten.
-    // if tmp_storage_pda_data.current_instruction_index == 0 {
-    //     let merkle_tree_pda = ctx.accounts.merkle_tree_pda;//next_account_info(account)?;
-    //
-    //     // tmp_storage_pda_data.found_root = check_root_hash_exists(
-    //     //     merkle_tree_pda,
-    //     //     &tmp_storage_pda_data.root_hash,
-    //     //     program_id,
-    //     //     merkle_tree_pda.key,
-    //     // )?;
-    //     tmp_storage_pda_data.found_root = 1;
-    //     tmp_storage_pda_data.changed_state = 3;
-    //     tmp_storage_pda_data.current_instruction_index += 1;
-    //     MerkleTreeTmpPda::pack_into_slice(
-    //         &tmp_storage_pda_data,
-    //         &mut tmp_storage_pda.data.borrow_mut(),
-    //     );
-    // }
-
+    ctx: Context<UpdateMerkleTree>,
+) -> Result<()>{
+    let tmp_storage_pda_data = ctx.accounts.merkle_tree_tmp_storage.load()?.clone();
     if tmp_storage_pda_data.current_instruction_index > 0
-        && tmp_storage_pda_data.current_instruction_index < 75
+        && tmp_storage_pda_data.current_instruction_index < 74
     {
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
         msg!("\nprior process_instruction\n");
-        merkle_tree_processor.process_instruction(accounts, tmp_storage_pda_data, None)?;
+        merkle_tree_processor.process_instruction(ctx)?;
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // executes transaction, deposit or withdrawal, and closes the tmp account.
-    else if tmp_storage_pda_data.current_instruction_index == 75 {
-        let merkle_tree_pda = next_account_info(account)?;
+    else if tmp_storage_pda_data.current_instruction_index == 74 {
+        // TODO make this its own instruction
 
-        if *merkle_tree_pda.owner != *program_id {
-            msg!("Invalid merkle tree owner.");
-            return Err(ProgramError::IllegalOwner);
-        }
+
+        // if *merkle_tree_pda.owner != *program_id {
+        //     msg!("Invalid merkle tree owner.");
+        //     return Err(ProgramError::IllegalOwner);
+        // }
 
 
 
         msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(Some(tmp_storage_pda), None)?;
-        merkle_tree_processor.process_instruction(
-            accounts,
-            tmp_storage_pda_data,
-            None,
-        )?;
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
+        let close_to_acc = &ctx.accounts.authority.to_account_info();
+        merkle_tree_processor.insert_root(ctx)?;
         // Close tmp account.
-        close_account(tmp_storage_pda, signer_account)?;
+        close_account(close_acc, close_to_acc).unwrap();
     }
 
     Ok(())
 }
 
+
 pub fn process_sol_transfer(
     program_id: &Pubkey,
     accounts: &[AccountInfo],
     instruction_data: &[u8],
-) -> Result<()> {
+) -> Result<()>{
     const DEPOSIT: u8 = 1;
     const WITHDRAWAL: u8 = 2;
     let account = &mut accounts.iter();
@@ -135,6 +107,6 @@ pub fn process_sol_transfer(
             }
             Ok(())
         }
-        _ => Err(ProgramError::InvalidInstructionData),
+        _ => err!(ErrorCode::WithdrawalFailed),
     }
 }

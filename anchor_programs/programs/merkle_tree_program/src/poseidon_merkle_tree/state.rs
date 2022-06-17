@@ -133,6 +133,7 @@ impl Pack for MerkleTree {
                 roots_dst[i_tmp] = *it;
                 i_tmp += 1;
             }
+            msg!("packed root");
         }
 
         LittleEndian::write_u64(
@@ -147,6 +148,7 @@ impl Pack for MerkleTree {
         *pubkey_locked_dst = self.pubkey_locked.clone().try_into().unwrap();
 
         LittleEndian::write_u64(time_locked_dst, self.time_locked); // TODO: check if removing try_into().unwrap() has sideeffects
+        msg!("packed merkle tree");
     }
 }
 

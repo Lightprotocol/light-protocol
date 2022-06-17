@@ -3,12 +3,13 @@ use anchor_lang::prelude::*;
 
 use merkle_tree_program::{
     program::MerkleTreeProgram,
-    wrapped_state::{ MerkleTree, MerkleTreeTmpPda},
+    wrapped_state::{ MerkleTree},
     utils::config::{
         STORAGE_SEED,
         NF_SEED,
         LEAVES_SEED,
-    }
+    },
+    state::MerkleTreeTmpPda
 };
 use crate::FeeEscrowState;
 
@@ -128,7 +129,7 @@ pub struct LastTransactionWithdrawal<'info> {
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
-    pub merkle_tree_tmp_storage: Account<'info, MerkleTreeTmpPda>,
+    pub merkle_tree_tmp_storage: AccountLoader<'info, MerkleTreeTmpPda>,
     pub rent: Sysvar<'info, Rent>,
     // merkle tree account liquidity pool pda
     #[account(mut)]

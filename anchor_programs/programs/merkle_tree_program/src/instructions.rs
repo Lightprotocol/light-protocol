@@ -8,6 +8,9 @@ use anchor_lang::solana_program::{
     pubkey::Pubkey,
     msg
 };
+use std::cell::RefMut;
+use anchor_lang::prelude::Error;
+use crate::ErrorCode;
 
 pub fn token_transfer<'a, 'b>(
     token_program: &'b AccountInfo<'a>,
@@ -48,7 +51,7 @@ pub fn token_transfer<'a, 'b>(
     )?;
     Ok(())
 }
-
+/*
 pub struct MerkleTreeTmpStorageAccInputData {
     pub node_left: Vec<u8>,
     pub node_right: Vec<u8>,
@@ -90,18 +93,14 @@ impl MerkleTreeTmpStorageAccInputData {
         Ok(res)
     }
 
-    pub fn try_initialize(&mut self, account: &AccountInfo) -> Result<(), ProgramError> {
-        let mut tmp = MerkleTreeTmpPda::new();
-        tmp.node_left = self.node_left.clone();
-        tmp.node_right = self.node_right.clone();
-        tmp.leaf_left = self.node_left.clone();
-        tmp.leaf_right = self.node_right.clone();
-        tmp.relayer = self.relayer.clone();
-        tmp.root_hash = self.root_hash.clone();
-        tmp.merkle_tree_pda_pubkey = self.merkle_tree_pda_pubkey.clone();
-        tmp.found_root = self.found_root.clone();
-        tmp.changed_state = 1;
-        MerkleTreeTmpPda::pack_into_slice(&tmp, &mut account.data.borrow_mut());
+    pub fn try_initialize(&mut self, account: &mut RefMut<'_, MerkleTreeTmpPda>) -> Result<(), ProgramError> {
+        account.node_left = self.node_left.clone().try_into().unwrap();
+        account.node_right = self.node_right.clone().try_into().unwrap();
+        account.leaf_left = self.node_left.clone().try_into().unwrap();
+        account.leaf_right = self.node_right.clone().try_into().unwrap();
+        account.relayer = self.relayer.clone().try_into().unwrap();
+        account.root_hash = self.root_hash.clone().try_into().unwrap();
+        account.merkle_tree_pda_pubkey = self.merkle_tree_pda_pubkey.clone().try_into().unwrap();
         Ok(())
     }
 }
@@ -146,18 +145,18 @@ pub fn create_and_try_initialize_tmp_storage_pda(
     //     true,                       //rent_exempt
     // )?;
     // msg!("created_pda");
-    merkle_tree_pda.try_initialize(&merkle_tree_tmp_pda)
+    merkle_tree_pda.try_initialize(merkle_tree_tmp_pda)
 }
-
+*/
 pub fn close_account(
     account: &AccountInfo,
     dest_account: &AccountInfo,
-) -> Result<(), ProgramError> {
+) -> Result<(), Error> {
     //close account by draining lamports
     let dest_starting_lamports = dest_account.lamports();
     **dest_account.lamports.borrow_mut() = dest_starting_lamports
         .checked_add(account.lamports())
-        .ok_or(ProgramError::InvalidAccountData)?;
+        .ok_or(ErrorCode::CloseAccountFailed)?;
     **account.lamports.borrow_mut() = 0;
     Ok(())
 }

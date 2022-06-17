@@ -547,8 +547,8 @@ describe("verifier_program", () => {
 
   });
 */
-
-/*  it("Dynamic Shielded transaction", async () => {
+/*
+  it("Dynamic Shielded transaction", async () => {
 
       const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
       const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
@@ -998,9 +998,9 @@ describe("verifier_program", () => {
                   signingAddress: signer.publicKey,
                   verifierState: pdas.verifierStatePubkey,
                   // verifierStateAuthority:pdas.verifierStatePubkey,
-                  merkleTreeTmpState: pdas.merkleTreeTmpState,
-                  programMerkleTree: merkleTreeProgram.programId,
-                  merkleTree: MERKLE_TREE_KEY
+                  // merkleTreeTmpState: pdas.merkleTreeTmpState,
+                  // programMerkleTree: merkleTreeProgram.programId,
+                  // merkleTree: MERKLE_TREE_KEY
                 }
               ).signers([signer])
             .transaction();
@@ -1019,17 +1019,30 @@ describe("verifier_program", () => {
   console.log("pdas: ", pdas)
   console.log("signer: ", signer)
   console.log("ix_data.txIntegrityHash: ", ix_data.txIntegrityHash)
-  const tx1 = await program.methods.initializeMerkleTreeUpdateState(
-      ix_data.txIntegrityHash
-      ).accounts(
-          {
-            authority: signer.publicKey,
-            merkleTreeTmpStorage:pdas.merkleTreeTmpState,
-            systemProgram: SystemProgram.programId,
-            rent: DEFAULT_PROGRAMS.rent,
-            twoLeavesPda: pdas.leavesPdaPubkey
-          }
-        ).signers([signer]).rpc()
+  console.log("ix_data.leafLeft", ix_data.leafLeft)
+  console.log("ix_data.leafLeft", ix_data.leafRight)
+
+  try {
+    const tx1 = await program.methods.initializeMerkleTreeUpdateState(
+        ix_data.leafLeft,
+        ix_data.leafRight,
+        new anchor.BN(0)
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: MERKLE_TREE_KEY
+              // twoLeavesPda: pdas.leavesPdaPubkey
+            }
+          ).signers([signer]).rpc()
+  }catch (e) {
+    console.log("e: ", e);
+    console.log("process.exit()")
+    process.exit()
+  }
+
         console.log("here4")
 
   var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
@@ -1051,7 +1064,7 @@ describe("verifier_program", () => {
     console.log(`merkleTreeTmpState ${pdas.merkleTreeTmpState}`)
     let i = 0;
     let cache_index = 3;
-    for(let ix_id = 0; ix_id < 38; ix_id ++) {
+    for(let ix_id = 0; ix_id < 37; ix_id ++) {
       let ix_data = [2, i];
       const transaction = new solana.Transaction();
       transaction.add(
@@ -1114,7 +1127,7 @@ describe("verifier_program", () => {
           [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("fee_escrow")],
           verifierProgram.programId)[0],
       merkleTreeTmpState: solana.PublicKey.findProgramAddressSync(
-          [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("storage")],
+          [Buffer.from(new Uint8Array(leafLeft)), anchor.utils.bytes.utf8.encode("storage")],
           merkleTreeProgram.programId)[0],
       leavesPdaPubkey: solana.PublicKey.findProgramAddressSync(
           [Buffer.from(new Uint8Array(nullifier0)), anchor.utils.bytes.utf8.encode("leaves")],
@@ -1283,11 +1296,26 @@ describe("verifier_program", () => {
     let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8),0).sub(U64(1)).toNumber()
     let current_root_start_range = 610 + current_root_index * 32;
     let current_root_end_range = 610 + (current_root_index + 1) * 32;
+    console.log(`prior +2 ${U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(2)).toString()},
+      now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
+    `)
     // index has increased by 2
     assert(U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(2)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
     // root hash changed
     assert(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range) != merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))
+    console.log(`current_root_start_range: ${current_root_start_range}, current_root_end_range ${current_root_end_range}`)
+    console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(610, 642))} == reference ${
+      [60,131,16,4,128,200,110,165,209,87,186,23,154,250,32,38,238,152,69,191,230,195,86,115,113,78,158,137,89,215,181,26]
 
+    }`)
+    console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(642, 674))} == reference ${
+      [60, 131, 16, 4, 128, 200, 110, 165, 209, 87, 186, 23, 154, 250, 32, 38, 238, 152, 69, 191, 230, 195, 86, 115, 113, 78, 158, 137, 89, 215, 181, 26]
+
+    }`)
+    assert(
+      Array.prototype.slice.call(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range)).toString() ==
+      Array.from([60, 131, 16, 4, 128, 200, 110, 165, 209, 87, 186, 23, 154, 250, 32, 38, 238, 152, 69, 191, 230, 195, 86, 115, 113, 78, 158, 137, 89, 215, 181, 26]).toString()
+    )
 
 
     // assert_eq(merkleTreeAccount.data.slice(610,642), ix_data.rootHash)

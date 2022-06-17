@@ -38,7 +38,7 @@ pub struct CreateAuthorityConfig<'info> {
 }
 
 impl<'info> CreateAuthorityConfig<'info> {
-    pub fn handle(&mut self, bump: u8) -> Result<()> {
+    pub fn handle(&mut self, bump: u8) -> Result<()>{
         self.authority_config.bump = bump;
         self.authority_config.authority_key = self.authority.key();
         Ok(())
@@ -61,7 +61,7 @@ pub struct UpdateAuthorityConfig<'info> {
 }
 
 impl<'info> UpdateAuthorityConfig<'info> {
-    pub fn handle(&mut self, new_authority: Pubkey) -> Result<()> {
+    pub fn handle(&mut self, new_authority: Pubkey) -> Result<()>{
         self.authority_config.authority_key = new_authority;
         Ok(())
     }

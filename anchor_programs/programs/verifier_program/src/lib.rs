@@ -366,20 +366,20 @@ pub struct Compute<'info> {
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    // / CHECK:` doc comment explaining why no checks through types are necessary.
     // pub verifier_state_authority: UncheckedAccount<'info>,
 
-    #[account(
-        mut,
-        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
-        bump,
-        seeds::program = MerkleTreeProgram::id(),
-    )]
-    pub merkle_tree_tmp_state: UncheckedAccount<'info>,
+    // #[account(
+    //     mut,
+    //     seeds = [verifier_state.load()?.leaf_left.as_ref(), STORAGE_SEED.as_ref()],
+    //     bump,
+    //     seeds::program = MerkleTreeProgram::id(),
+    // )]
+    // pub merkle_tree_tmp_state: UncheckedAccount<'info>,
 
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    #[account(mut)]
-    pub merkle_tree: Account<'info, MerkleTree>,
+    // pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    // #[account(mut)]
+    // pub merkle_tree: Account<'info, MerkleTree>,
 }
 
 #[derive(Accounts)]

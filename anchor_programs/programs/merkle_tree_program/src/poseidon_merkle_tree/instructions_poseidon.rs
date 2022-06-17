@@ -56,8 +56,8 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
 
-    account_struct_data.current_round_index = current_round_index;
-    account_struct_data.current_round = current_round;
+    account_struct_data.current_round_index = current_round_index.try_into().unwrap();
+    account_struct_data.current_round = current_round.try_into().unwrap();
     // account_struct_data.current_instruction_index  +=1;
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
@@ -65,8 +65,8 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state;
-    account_struct_data.changed_state = 2;
+    account_struct_data.state = tmp_state.try_into().unwrap();
+
     Ok(())
 }
 
@@ -82,10 +82,10 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
 
     for _i in 0..4 {
         let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
-            current_round_index,
+            current_round_index.try_into().unwrap(),
         );
         let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
-        state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
+        state_new1 = permute_custom_split(&params, state_new1, current_round.try_into().unwrap(), 6).unwrap();
         current_round += 6;
         current_round_index += 1;
     }
@@ -103,15 +103,15 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state;
-    account_struct_data.changed_state = 2;
+    account_struct_data.state = tmp_state.try_into().unwrap();
+
 
     Ok(())
 }
 
 pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
-    let mut current_round_index = account_struct_data.current_round_index;
-    let mut current_round = account_struct_data.current_round;
+    let mut current_round_index: usize = account_struct_data.current_round_index.try_into().unwrap();
+    let mut current_round: usize = account_struct_data.current_round.try_into().unwrap();
 
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
@@ -161,8 +161,8 @@ pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state;
-    account_struct_data.changed_state = 2;
+    account_struct_data.state = tmp_state.try_into().unwrap();
+
     Ok(())
 }
 
