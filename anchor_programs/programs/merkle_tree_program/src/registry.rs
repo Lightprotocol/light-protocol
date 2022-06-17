@@ -31,10 +31,10 @@ pub struct RegisterNewId<'info> {
 }
 
 impl<'info> RegisterNewId<'info> {
-    pub fn handle(&mut self, bump: u8) -> Result<()>{
+    pub fn handle(&mut self, bump: u8) -> Result<()> {
         self.registry.bump = bump;
         self.registry.id = self.new_id.key();
         self.registry.paused = 0;
         Ok(())
     }
-} 
+}

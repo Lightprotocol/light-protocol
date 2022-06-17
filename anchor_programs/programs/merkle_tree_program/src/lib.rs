@@ -28,7 +28,6 @@ use crate::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::config::STORAGE_SEED;
 use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 pub use crate::constant::*;
-use crate::instructions::create_and_try_initialize_tmp_storage_pda;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::utils::config;
 
@@ -46,7 +45,7 @@ use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
 pub mod merkle_tree_program {
     use super::*;
 
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
+    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()>{
         let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
         let rent = Rent::get()?;
 
@@ -58,7 +57,7 @@ pub mod merkle_tree_program {
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
         let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(None, Some(&merkle_tree_storage_acc))?;
+            MerkleTreeProcessor::new(Some(&merkle_tree_storage_acc))?;
         merkle_tree_processor
             .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])?;
         Ok(())
@@ -66,45 +65,46 @@ pub mod merkle_tree_program {
 
     pub fn initialize_merkle_tree_update_state(
         ctx: Context<InitializeMerkleTreeUpdateState>,
-        tx_integrity_hash: [u8;32],
-    ) -> Result<()> {
-        let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&ctx.accounts.two_leaves_pda.to_account_info().data.borrow())?;
+        node_left: [u8;32],
+        node_right: [u8;32],
+        merkle_tree_index: u64
+    ) -> Result<()>{
+        // let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&ctx.accounts.two_leaves_pda.to_account_info().data.borrow())?;
         msg!("InitializeMerkleTreeUpdateState");
-        //save leaves into pda account
-        let data = [
-            leaf_pda_account_data.node_left.to_vec(),
-            leaf_pda_account_data.node_right.to_vec(),
-            ctx.accounts.authority.key().to_bytes().to_vec(),
-            leaf_pda_account_data.merkle_tree_pubkey.to_vec()
-        ].concat();
+
+        let tmp_storage_pda = &mut ctx.accounts.merkle_tree_tmp_storage.load_init()?;
         //increased by 2 because we're inserting 2 leaves at once
         // leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
         // leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
 
-        create_and_try_initialize_tmp_storage_pda(
-            ctx.program_id,
-            &[
-                ctx.accounts.authority.to_account_info(),
-                // ctx.accounts.verifier_tmp.to_account_info(),
-                ctx.accounts.merkle_tree_tmp_storage.to_account_info(),
-                // ctx.accounts.system_program.to_account_info(),
-                // ctx.accounts.rent.to_account_info(),
-            ][..],
-            &data.as_slice(),
-        )?;
+        tmp_storage_pda.relayer = ctx.accounts.authority.key();
+        tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
+        tmp_storage_pda.node_left = node_left.clone().try_into().unwrap();
+        tmp_storage_pda.node_right = node_right.clone().try_into().unwrap();
+        tmp_storage_pda.leaf_left = node_left.clone().try_into().unwrap();
+        tmp_storage_pda.leaf_right = node_right.clone().try_into().unwrap();
+        tmp_storage_pda.current_instruction_index = 1;
+        msg!("tmp_storage_pda.node_left: {:?}", tmp_storage_pda.node_left);
+        msg!("tmp_storage_pda.node_right: {:?}", tmp_storage_pda.node_right);
+
+        // TODO: add looping over leaves to save their commithashes into the tmp account
+        // this will make the upper leaf inserts obsolete still need to check what to do with node_left, right
+        // for (index, account) in ctx.remaining_accounts.iter().enumerate() {
+        //     tmp_storage.leaves[index].0 = account.data.[12..];
+        //     tmp_storage.leaves[index].1 = account.data.[12..];
+        // }
         Ok(())
     }
 
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
         bump: u64//data: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<()>{
         msg!("update_merkle_tree");
-        let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.load_mut();
+
         // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
         processor::process_instruction(
-            ctx,
-            &mut tmp_storage_pda,
+            ctx
         )?;
         Ok(())
     }
@@ -117,7 +117,7 @@ pub mod merkle_tree_program {
         nullifier: [u8;32],
         next_index: u64,
         merkle_tree_pda_pubkey: [u8;32]
-    ) -> Result<()> {
+    ) -> Result<()>{
         let next_index:u64 = 2;
         let merkle_tree_pda_pubkey = vec![1u8;32];
         msg!("insert_two_leaves");
@@ -159,7 +159,7 @@ pub mod merkle_tree_program {
         msg!("packed two_leaves_pda");
         Ok(())
     }
-    /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()> {
+    /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()>{
         let mut new_data = data.clone();
         new_data.insert(0, 1);
         processor::process_sol_transfer(
@@ -179,7 +179,7 @@ pub mod merkle_tree_program {
     pub fn withdraw_sol<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSOL<'info>>,
         data: Vec<u8>,
-    ) -> Result<()> {
+    ) -> Result<()>{
         let mut new_data = data.clone();
         new_data.insert(0, 2);
 
@@ -195,24 +195,24 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-    pub fn create_authority_config(ctx: Context<CreateAuthorityConfig>) -> Result<()> {
+    pub fn create_authority_config(ctx: Context<CreateAuthorityConfig>) -> Result<()>{
         ctx.accounts
             .handle(*ctx.bumps.get("authority_config").unwrap())
     }
     pub fn update_authority_config(
         ctx: Context<UpdateAuthorityConfig>,
         new_authority: Pubkey,
-    ) -> Result<()> {
+    ) -> Result<()>{
         ctx.accounts.handle(new_authority)
     }
 
-    pub fn register_new_id(ctx: Context<RegisterNewId>) -> Result<()> {
+    pub fn register_new_id(ctx: Context<RegisterNewId>) -> Result<()>{
         ctx.accounts.handle(*ctx.bumps.get("registry").unwrap())
     }
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
         _nullifier: [u8; 32],
-    ) -> anchor_lang::Result<()> {
+    ) -> anchor_lang::Result<()>{
         Ok(())
     }
 }
@@ -228,25 +228,25 @@ pub struct InitializeNewMerkleTree<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(tx_integrity_hash: [u8;32])]
+#[instruction(node_left: [u8;32])]
 pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
-    pub two_leaves_pda: AccountInfo<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(
         init,
-        seeds = [&tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [&node_left.as_ref(), STORAGE_SEED.as_ref()],
         bump,
         payer = authority,
-        space = MERKLE_TREE_TMP_PDA_SIZE,
+        space = MERKLE_TREE_TMP_PDA_SIZE * 3,
     )]
-    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     // /// CHECK:` doc comment explaining why no checks through types are necessary.
+    // leaves are passed as remaining accounts
     // pub two_leaves_pda: AccountInfo<'info>,
 }
 
@@ -257,7 +257,7 @@ pub struct UpdateMerkleTree<'info> {
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
-    pub merkle_tree_tmp_storage: AccountInfo<'info>,
+    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
@@ -359,8 +359,26 @@ pub struct LeavesPda {
     pub left_leaf_index: u64,
 }
 
+
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("Merkle tree tmp account init failed wrong pda.")]
     MtTmpPdaInitFailed,
+    #[msg("Merkle tree tmp account init failed.")]
+    MerkleTreeInitFailed,
+    #[msg("Contract is still locked.")]
+    ContractStillLocked,
+    #[msg("InvalidMerkleTree.")]
+    InvalidMerkleTree,
+    #[msg("InvalidMerkleTreeOwner.")]
+    InvalidMerkleTreeOwner,
+    #[msg("PubkeyCheckFailed")]
+    PubkeyCheckFailed,
+    #[msg("CloseAccountFailed")]
+    CloseAccountFailed,
+    #[msg("WithdrawalFailed")]
+    WithdrawalFailed,
+    #[msg("MerkleTreeUpdateNotInRootInsert")]
+    MerkleTreeUpdateNotInRootInsert
 }

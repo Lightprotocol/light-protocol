@@ -18,9 +18,8 @@ pub struct MerkleTreeTmpPda {
     pub node_right: [u8;32],
     pub leaf_left: [u8;32],
     pub leaf_right: [u8;32],
-    pub relayer: [u8;32],
-    pub merkle_tree_pda_pubkey: [u8;32],
-    pub root_hash: [u8;32],
+    pub relayer: Pubkey,
+    pub merkle_tree_pda_pubkey: Pubkey,
     //
     pub state: [u8;96],
     pub current_round: u64,
@@ -61,11 +60,13 @@ impl MerkleTreeTmpPda {
             current_index: 0,
             current_level: 0,
             current_level_hash: vec![0],
+
             // set changed_constants to true to pack specified values other values will not be packed
             changed_state: 1,
         }
     }
 }
+
 impl Sealed for MerkleTreeTmpPda {}
 impl IsInitialized for MerkleTreeTmpPda {
     fn is_initialized(&self) -> bool {
