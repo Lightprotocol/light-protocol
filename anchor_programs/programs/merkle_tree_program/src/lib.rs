@@ -87,6 +87,7 @@ pub mod merkle_tree_program {
         msg!("tmp_storage_pda.node_left: {:?}", tmp_storage_pda.node_left);
         msg!("tmp_storage_pda.node_right: {:?}", tmp_storage_pda.node_right);
 
+        // tmp_storage_account.tmp_leaves_index = merkle_tree_account.next_index;
         // TODO: add looping over leaves to save their commithashes into the tmp account
         // this will make the upper leaf inserts obsolete still need to check what to do with node_left, right
         // for (index, account) in ctx.remaining_accounts.iter().enumerate() {
