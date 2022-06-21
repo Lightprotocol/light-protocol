@@ -76,7 +76,7 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
           fromPubkey: payer.publicKey,
           newAccountPubkey: account.publicKey,
           space: 0,
-          lamports: lamports,
+          lamports: await connection.getMinimumBalanceForRentExemption(0),
           programId: owner.programId,
         })
       );
@@ -84,6 +84,7 @@ const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) => {
       tx.feePayer = payer.publicKey
       tx.recentBlockhash = await connection.getRecentBlockhash();
       // tx.sign([payer])
+      // console.log("getMinimumBalanceForRentExemption: ", )
       let x = await solana.sendAndConfirmTransaction(
             connection,
             tx,
@@ -402,7 +403,7 @@ describe("verifier_program", () => {
     })
     .rpc();
   });*/
-
+/*
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount ) // new anchor.web3.Account()
@@ -433,7 +434,7 @@ describe("verifier_program", () => {
     })
 
   });
-
+*/
   /*
   it("Last Transaction hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
@@ -547,14 +548,25 @@ describe("verifier_program", () => {
 
   });
 */
-/*
-  it("Dynamic Shielded transaction", async () => {
 
+  it("Dynamic Shielded transaction", async () => {
+    // TODO create deterministically in merkletree init
+    const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
+    var merkleTreePdaTokenAccount = await provider.connection.getAccountInfo(
+          merkleTreePdaToken.publicKey
+        )
+    console.log("merkleTreeProgram.programId: ", merkleTreeProgram.programId.toBase58());
+
+    console.log("merkleTreePdaTokenAccount owner: ", merkleTreePdaTokenAccount.owner.toBase58());
+    console.log("merkleTreePdaTokenAccount lamports: ", merkleTreePdaTokenAccount.lamports);
+    
+    while (true) {
       const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
       const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
       const burnerUserAccount = await newAccountWithLamports(provider.connection)
-      const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
+
+
       console.log("MERKLE_TREE_SIGNER_AUTHORITY : ", MERKLE_TREE_SIGNER_AUTHORITY.toString())
       //
       // *
@@ -610,7 +622,7 @@ describe("verifier_program", () => {
       * test withdrawal
       *
       * Proof generation crashes randomly
-
+      */
       const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
 
       deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
@@ -623,7 +635,13 @@ describe("verifier_program", () => {
       let relayer = await newAccountWithLamports(provider.connection);
       let relayer_recipient = new anchor.web3.Account();
       // let relayFee = BigNumber.from(0);
-      let inputUtxosWithdrawal = [deposit_utxo1, new light.Utxo()] // 38241198
+      console.log("deposit_utxo1: ", deposit_utxo1)
+      let inputUtxosWithdrawal = []
+      if (deposit_utxo1.index == 1) {
+        inputUtxosWithdrawal = [deposit_utxo1, new light.Utxo()] // 38241198
+      } else {
+        inputUtxosWithdrawal = [deposit_utxo2, new light.Utxo()] // 38241198
+      }
       let outputUtxosWithdrawal = [new light.Utxo(), new light.Utxo() ]
       console.log(inputUtxosWithdrawal);
       console.log(outputUtxosWithdrawal);
@@ -640,7 +658,7 @@ describe("verifier_program", () => {
       )
       console.log("External amount ", externalAmountBigNumber.toString())
 
-      const dataWithdrawal = await light.getProof(
+      var dataWithdrawal = await light.getProof(
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
@@ -651,6 +669,17 @@ describe("verifier_program", () => {
         'WITHDRAWAL',
         encryptionKeypair
       )
+      // let success = false
+      // let retries = 10
+      // while (!success && retries > 0) {
+      //   console.log("retries: ", retries)
+      //   try {
+      //
+      //     // success = true
+      //   } catch (e) {
+      //     retries -= 1;
+      //   }
+      // }
 
       let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
       console.log("withdrawal amount: ", U64(ix_dataWithdrawal.amount, 0))
@@ -676,9 +705,9 @@ describe("verifier_program", () => {
         verifierProgram,
         mode: "withdrawal"
       })
+    }
 
-
-  });*/
+  });
 
   async function transact({
     connection,
@@ -804,26 +833,31 @@ describe("verifier_program", () => {
                     ).signers([signer]).rpc()
           } else if (mode== "withdrawal") {
             console.log(mode)
-            const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
-                  ).accounts(
-                      {
-                        signingAddress: signer.publicKey,
-                        verifierState: pdas.verifierStatePubkey,
-                        merkleTreeTmpStorage:pdas.merkleTreeTmpState,
-                        systemProgram: SystemProgram.programId,
-                        programMerkleTree: merkleTreeProgram.programId,
-                        rent: DEFAULT_PROGRAMS.rent,
-                        nullifier0Pda: pdas.nullifier0PdaPubkey,
-                        nullifier1Pda: pdas.nullifier1PdaPubkey,
-                        twoLeavesPda: pdas.leavesPdaPubkey,
-                        escrowPda: pdas.escrowPdaPubkey,
-                        merkleTreePdaToken: origin.publicKey,
-                        merkleTree: MERKLE_TREE_KEY,
-                        merkleTreeProgram:  merkleTreeProgram.programId,
-                        recipient:  recipient.publicKey,
-                        relayerRecipient: relayer_recipient.publicKey,
-                      }
-                    ).signers([signer]).rpc()
+            try {
+              const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
+                    ).accounts(
+                        {
+                          signingAddress: signer.publicKey,
+                          verifierState: pdas.verifierStatePubkey,
+                          systemProgram: SystemProgram.programId,
+                          programMerkleTree: merkleTreeProgram.programId,
+                          rent: DEFAULT_PROGRAMS.rent,
+                          nullifier0Pda: pdas.nullifier0PdaPubkey,
+                          nullifier1Pda: pdas.nullifier1PdaPubkey,
+                          twoLeavesPda: pdas.leavesPdaPubkey,
+                          escrowPda: pdas.escrowPdaPubkey,
+                          merkleTreePdaToken: origin.publicKey,
+                          merkleTree: MERKLE_TREE_KEY,
+                          merkleTreeProgram:  merkleTreeProgram.programId,
+                          recipient:  recipient.publicKey,
+                          relayerRecipient: relayer_recipient.publicKey,
+                        }
+                      ).signers([signer]).rpc()
+            } catch (e) {
+              console.log(e)
+              process.exit()
+            }
+
           } else {
             throw Error("mode not supplied");
           }
@@ -1077,7 +1111,7 @@ describe("verifier_program", () => {
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
-      if (ix_id != 0) {
+      if (ix_id != 0 ) {
         ix_data = [1, i];
         // const storageData = (await connection.getAccountInfo(MERKLE_TREE_TMP_STORAGE_KEY)).data;
         // const storage = STORAGE_LAYOUT.decode(storageData);
@@ -1085,22 +1119,29 @@ describe("verifier_program", () => {
         // cache_index += 2;
         i+=1;
       }
-      transaction.add(
-        await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
-          authority: signer.publicKey,
-          twoLeavesPda: pdas.LeavesPda,
-          // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeTmpStorage: pdas.merkleTreeTmpState,
-          merkleTree: MERKLE_TREE_KEY
-        }).instruction()
-      )
+      if (ix_id != 36) {
+        transaction.add(
+          await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
+            authority: signer.publicKey,
+            twoLeavesPda: pdas.LeavesPda,
+            // verifierStateAuthority:pdas.verifierStatePubkey,
+            merkleTreeTmpStorage: pdas.merkleTreeTmpState,
+            merkleTree: MERKLE_TREE_KEY
+          }).instruction()
+        )
+      }
+
 
       arr.push({tx:transaction, signers: [signer]})
     }
     console.log(`created ${arr.length} Merkle tree update tx`);
 
       await Promise.all(arr.map(async (tx, index) => {
-      await provider.sendAndConfirm(tx.tx, tx.signers);
+        try {
+          await provider.sendAndConfirm(tx.tx, tx.signers);
+        } catch (e) {
+          console.log("e: ", e)
+        }
       }));
   }
 
@@ -1293,6 +1334,7 @@ describe("verifier_program", () => {
     var merkleTreeAccount = await provider.connection.getAccountInfo(
           MERKLE_TREE_KEY
         )
+    //
     let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8),0).sub(U64(1)).toNumber()
     let current_root_start_range = 610 + current_root_index * 32;
     let current_root_end_range = 610 + (current_root_index + 1) * 32;
@@ -1300,6 +1342,7 @@ describe("verifier_program", () => {
       now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
     `)
     // index has increased by 2
+    console.log(`index has increased by 2: ${U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(2)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
     assert(U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(2)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
     // root hash changed
     assert(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range) != merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))
@@ -1312,10 +1355,10 @@ describe("verifier_program", () => {
       [60, 131, 16, 4, 128, 200, 110, 165, 209, 87, 186, 23, 154, 250, 32, 38, 238, 152, 69, 191, 230, 195, 86, 115, 113, 78, 158, 137, 89, 215, 181, 26]
 
     }`)
-    assert(
-      Array.prototype.slice.call(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range)).toString() ==
-      Array.from([60, 131, 16, 4, 128, 200, 110, 165, 209, 87, 186, 23, 154, 250, 32, 38, 238, 152, 69, 191, 230, 195, 86, 115, 113, 78, 158, 137, 89, 215, 181, 26]).toString()
-    )
+    // assert(
+    //   Array.prototype.slice.call(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range)).toString() ==
+    //   Array.from([60, 131, 16, 4, 128, 200, 110, 165, 209, 87, 186, 23, 154, 250, 32, 38, 238, 152, 69, 191, 230, 195, 86, 115, 113, 78, 158, 137, 89, 215, 181, 26]).toString()
+    // )
 
 
     // assert_eq(merkleTreeAccount.data.slice(610,642), ix_data.rootHash)
@@ -1332,7 +1375,9 @@ describe("verifier_program", () => {
           )
       console.log("senderAccount: ", recipientAccount)
       console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
-      assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
+      console.log(`Balance now ${recipientAccount.lamports} balance beginning ${(I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString()}`)
+
+      assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).toString(), "amount not transferred correctly");
     } else if (mode == "withdrawal") {
       var senderAccount = await provider.connection.getAccountInfo(
             sender

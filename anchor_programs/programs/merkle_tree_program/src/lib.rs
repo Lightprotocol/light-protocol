@@ -2,6 +2,9 @@ use anchor_lang::prelude::*;
 
 declare_id!("2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av");
 use solana_program::program_pack::Pack;
+use solana_program::{
+    clock::Clock
+};
 use solana_security_txt::security_txt;
 
 security_txt! {
@@ -76,13 +79,15 @@ pub mod merkle_tree_program {
         //increased by 2 because we're inserting 2 leaves at once
         // leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
         // leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
-
+        tmp_storage_pda.leaves[0][0] = node_left;
+        tmp_storage_pda.leaves[0][1] = node_right;
         tmp_storage_pda.relayer = ctx.accounts.authority.key();
         tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
-        tmp_storage_pda.node_left = node_left.clone().try_into().unwrap();
-        tmp_storage_pda.node_right = node_right.clone().try_into().unwrap();
-        tmp_storage_pda.leaf_left = node_left.clone().try_into().unwrap();
-        tmp_storage_pda.leaf_right = node_right.clone().try_into().unwrap();
+        // tmp_storage_pda.node_left = node_left.clone().try_into().unwrap();
+        // tmp_storage_pda.node_right = node_right.clone().try_into().unwrap();
+
+        // tmp_storage_pda.leaf_left = node_left.clone().try_into().unwrap();
+        // tmp_storage_pda.leaf_right = node_right.clone().try_into().unwrap();
         tmp_storage_pda.current_instruction_index = 1;
         msg!("tmp_storage_pda.node_left: {:?}", tmp_storage_pda.node_left);
         msg!("tmp_storage_pda.node_right: {:?}", tmp_storage_pda.node_right);
@@ -94,6 +99,49 @@ pub mod merkle_tree_program {
         //     tmp_storage.leaves[index].0 = account.data.[12..];
         //     tmp_storage.leaves[index].1 = account.data.[12..];
         // }
+
+        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
+
+        tmp_storage_pda.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
+
+        let current_slot = <Clock as  solana_program::sysvar::Sysvar>::get()?.slot;
+        msg!("Current slot: {:?}", current_slot);
+
+        msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
+        msg!(
+            "Lock ends at slot: {}",
+            merkle_tree_pda_data.time_locked + constant::LOCK_DURATION
+        );
+
+        //lock
+        if merkle_tree_pda_data.time_locked == 0
+            || merkle_tree_pda_data.time_locked + constant::LOCK_DURATION < current_slot
+        {
+            merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+            merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
+            msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
+            msg!(
+                "Locked by: {:?}",
+                Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
+            );
+        } else if merkle_tree_pda_data.time_locked + constant::LOCK_DURATION > current_slot {
+            msg!("Contract is still locked.");
+            return err!(ErrorCode::ContractStillLocked);
+        } else {
+            merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+            merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
+        }
+
+        // merkle_tree_pubkey_check(
+        //     *merkle_tree_pda.key,
+        //     tmp_storage_pda_data.merkle_tree_index,
+        //     *merkle_tree_pda.owner,
+        //     self.program_id,
+        // )?;
+        MerkleTree::pack_into_slice(
+            &merkle_tree_pda_data,
+            &mut ctx.accounts.merkle_tree.data.borrow_mut(),
+        );
         Ok(())
     }
 
@@ -239,10 +287,11 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
         seeds = [&node_left.as_ref(), STORAGE_SEED.as_ref()],
         bump,
         payer = authority,
-        space = MERKLE_TREE_TMP_PDA_SIZE * 3,
+        space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
     )]
     pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -302,8 +351,8 @@ pub struct DepositSOL<'info> {
 pub struct WithdrawSOL<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
     pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut, owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av"))]
+    /// CHECK:` doc comment explaining why no checks through types are necessary., owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av")
+    #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
     // recipients are specified in additional accounts and checked in the verifier
 }

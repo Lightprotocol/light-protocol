@@ -24,16 +24,18 @@ pub fn process_instruction(
     ctx: Context<UpdateMerkleTree>,
 ) -> Result<()>{
     let tmp_storage_pda_data = ctx.accounts.merkle_tree_tmp_storage.load()?.clone();
+    msg!("\nprior process_instruction {}\n",tmp_storage_pda_data.current_instruction_index );
+
     if tmp_storage_pda_data.current_instruction_index > 0
-        && tmp_storage_pda_data.current_instruction_index < 74
+        && tmp_storage_pda_data.current_instruction_index < 73
     {
         let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
-        msg!("\nprior process_instruction\n");
+
         merkle_tree_processor.process_instruction(ctx)?;
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // executes transaction, deposit or withdrawal, and closes the tmp account.
-    else if tmp_storage_pda_data.current_instruction_index == 74 {
+    else if tmp_storage_pda_data.current_instruction_index == 73 {
         // TODO make this its own instruction
 
 

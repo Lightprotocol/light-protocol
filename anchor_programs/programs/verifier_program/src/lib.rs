@@ -178,42 +178,7 @@ pub mod verifier_program {
                 tmp_account.current_instruction_index
             );
             miller_loop_process_instruction(tmp_account);
-        }/* else if tmp_account.updating_merkle_tree {
-            let derived_pubkey = Pubkey::find_program_address(
-                &[
-                    tmp_account.tx_integrity_hash.as_ref(),
-                    STORAGE_SEED.as_ref(),
-                ],
-                ctx.program_id,
-            );
-
-            let data = _bump.to_le_bytes().to_vec();
-
-            let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
-            let accounts = merkle_tree_program::cpi::accounts::UpdateMerkleTree {
-                authority: ctx.accounts.signing_address.to_account_info(),
-                merkle_tree_tmp_storage: ctx.accounts.merkle_tree_tmp_state.to_account_info(),
-                merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-            };
-            let bump_seed = &[derived_pubkey.1];
-            let seeds = [&[
-                tmp_account.tx_integrity_hash.as_ref(),
-                &b"storage"[..],
-                bump_seed,
-            ][..]];
-            let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id, accounts, &seeds);
-            merkle_tree_program::cpi::update_merkle_tree(cpi_ctx, data)?;
-            tmp_account.merkle_tree_instruction_index += 1;
-            msg!(
-                "merkle_tree_instruction_index {:?}",
-                tmp_account.merkle_tree_instruction_index
-            );
-
-            if tmp_account.merkle_tree_instruction_index == 74 {
-                tmp_account.last_transaction = true;
-                tmp_account.updating_merkle_tree = false;
-            }
-        } */else {
+        } else {
             if !tmp_account.computing_final_exponentiation {
                 msg!("Initializing for final_exponentiation.");
                 tmp_account.computing_final_exponentiation = true;
