@@ -5,6 +5,16 @@ use crate::poseidon_merkle_tree::state::{InitMerkleTreeBytes, MerkleTree};
 use crate::state::MerkleTreeTmpPda;
 use crate::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY;
 use crate::{IX_ORDER, TWO_LEAVES_PDA_SIZE};
+use crate::constant::{
+    LOCK_DURATION,
+    MERKLE_TREE_UPDATE_START,
+    MERKLE_TREE_UPDATE_LEVEL,
+    LOCK_START,
+    HASH_0,
+    HASH_1,
+    HASH_2,
+    ROOT_INSERT,
+};
 use anchor_lang::solana_program::{
     account_info::{next_account_info, AccountInfo},
     clock::Clock,
@@ -21,17 +31,7 @@ use anchor_lang::prelude::*;
 use crate::UpdateMerkleTree;
 use crate::ErrorCode;
 
-const MERKLE_TREE_UPDATE_START: u8 = 14;
-const MERKLE_TREE_UPDATE_LEVEL: u8 = 25;
 
-const LOCK_START: u8 = 34;
-
-// duration measured in slots
-const LOCK_DURATION: u64 = 60;
-const HASH_0: u8 = 0;
-const HASH_1: u8 = 1;
-const HASH_2: u8 = 2;
-const ROOT_INSERT: u8 = 241;
 
 pub struct MerkleTreeProcessor<'a, 'b> {
     merkle_tree_pda: Option<&'a AccountInfo<'b>>,
@@ -93,7 +93,13 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         ctx: Context<UpdateMerkleTree>,
     ) -> Result<()>  {
         let tmp_storage_pda_data = &mut ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
+        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
+        pubkey_check(
+            ctx.accounts.merkle_tree_tmp_storage.key(),
+            Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+            String::from("Merkle tree locked by another account."),
+        )?;
         msg!(
             "tmp_storage_pda_data.current_instruction_index {}",
             tmp_storage_pda_data.current_instruction_index
@@ -105,7 +111,6 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
                 || IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize]
                     == MERKLE_TREE_UPDATE_LEVEL)
         {
-            let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
             // merkle_tree_pubkey_check(
             //     *merkle_tree_pda.key,
@@ -113,11 +118,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             //     *merkle_tree_pda.owner,
             //     self.program_id,
             // )?;
-            pubkey_check(
-                ctx.accounts.merkle_tree_tmp_storage.key(),
-                Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
-                String::from("Merkle tree locked by another account."),
-            )?;
+
 
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize],
@@ -126,48 +127,6 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             )?;
             // tmp_storage_pda_data.changed_state = 4;
 
-            MerkleTree::pack_into_slice(
-                &merkle_tree_pda_data,
-                &mut ctx.accounts.merkle_tree.data.borrow_mut(),
-            );
-        } else if tmp_storage_pda_data.current_instruction_index < IX_ORDER.len().try_into().unwrap()
-            && IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize] == LOCK_START
-        {
-            let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-            let current_slot = <Clock as Sysvar>::get()?.slot;
-            msg!("Current slot: {:?}", current_slot);
-
-            msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
-            msg!(
-                "Lock ends at slot: {}",
-                merkle_tree_pda_data.time_locked + LOCK_DURATION
-            );
-
-            //lock
-            if merkle_tree_pda_data.time_locked == 0
-                || merkle_tree_pda_data.time_locked + LOCK_DURATION < current_slot
-            {
-                merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
-                msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
-                msg!(
-                    "Locked by: {:?}",
-                    Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
-                );
-            } else if merkle_tree_pda_data.time_locked + LOCK_DURATION > current_slot {
-                msg!("Contract is still locked.");
-                return err!(ErrorCode::ContractStillLocked);
-            } else {
-                merkle_tree_pda_data.time_locked = <Clock as Sysvar>::get()?.slot;
-                merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
-            }
-
-            // merkle_tree_pubkey_check(
-            //     *merkle_tree_pda.key,
-            //     tmp_storage_pda_data.merkle_tree_index,
-            //     *merkle_tree_pda.owner,
-            //     self.program_id,
-            // )?;
             MerkleTree::pack_into_slice(
                 &merkle_tree_pda_data,
                 &mut ctx.accounts.merkle_tree.data.borrow_mut(),
@@ -218,6 +177,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             "Root insert Instruction: {}",
             IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize]
         );
+
         if IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize] != ROOT_INSERT {
             msg!("Merkle Tree update not completed yet, cannot insert root.");
             return err!(ErrorCode::MerkleTreeUpdateNotInRootInsert);
@@ -225,12 +185,14 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
         let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
+        msg!("Pubkey::new(&merkle_tree_pda_data.pubkey_locked): {:?}", Pubkey::new(&merkle_tree_pda_data.pubkey_locked));
+        msg!("ctx.accounts.merkle_tree_tmp_storage.key(): {:?}", ctx.accounts.merkle_tree_tmp_storage.key());
 
         //checking if signer locked
         pubkey_check(
             ctx.accounts.merkle_tree_tmp_storage.key(),
             Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
-            String::from("Merkle tree locked by other account."),
+            String::from("Merkle tree locked by another account."),
         )?;
         //checking merkle tree pubkey for consistency
         // merkle_tree_pubkey_check(
