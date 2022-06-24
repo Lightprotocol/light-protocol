@@ -114,12 +114,10 @@ pub mod verifier_program {
         fee_escrow_state.tx_fee = tx_fee;//u64::from_le_bytes(tx_fee.try_into().unwrap()).clone();// fees for tx (tx_fee = number_of_tx * 0.000005)
         fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();// for relayer
         // fee_escrow_state.creation_slot = anchor_lang::prelude::Clock::slot;
-        // sol_transfer(
-        //     &ctx.accounts.user.to_account_info(),
-        //     &ctx.accounts.signing_address.to_account_info(),
-        //     amount
-        // );
-        let cpi_ctx1 = CpiContext::new(ctx.accounts.system_program.to_account_info(), anchor_lang::system_program::Transfer{
+
+        let cpi_ctx1 = CpiContext::new(
+            ctx.accounts.system_program.to_account_info(),
+            anchor_lang::system_program::Transfer{
              from: ctx.accounts.user.to_account_info(),
              to: ctx.accounts.fee_escrow_state.to_account_info()
          });
@@ -331,20 +329,6 @@ pub struct Compute<'info> {
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
-    // / CHECK:` doc comment explaining why no checks through types are necessary.
-    // pub verifier_state_authority: UncheckedAccount<'info>,
-
-    // #[account(
-    //     mut,
-    //     seeds = [verifier_state.load()?.leaf_left.as_ref(), STORAGE_SEED.as_ref()],
-    //     bump,
-    //     seeds::program = MerkleTreeProgram::id(),
-    // )]
-    // pub merkle_tree_tmp_state: UncheckedAccount<'info>,
-
-    // pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    // #[account(mut)]
-    // pub merkle_tree: Account<'info, MerkleTree>,
 }
 
 #[derive(Accounts)]
@@ -378,32 +362,7 @@ pub struct CreateEscrowState<'info> {
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
-/*
-#[derive(Accounts)]
-pub struct CreateMerkleTreeUpdateState<'info> {
-    #[account(
-        mut,
-        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
-        bump
-    )]
-    pub verifier_state: AccountLoader<'info, VerifierState>,
 
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    #[account(
-        mut,
-        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), STORAGE_SEED.as_ref()],
-        bump,
-        seeds::program = MerkleTreeProgram::id(),
-    )]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree_tmp_state: UncheckedAccount<'info>,
-
-    pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    pub rent: Sysvar<'info, Rent>,
-}
-*/
 #[derive(Accounts)]
 pub struct CloseFeeEscrowPda<'info> {
     #[account(mut, close = relayer)]

@@ -3,8 +3,8 @@
 
 #[cfg(test)]
 mod tests {
-    mod batched_instructions;
-    use batched_instructions::batched_instructions::*;
+    // mod batched_instructions;
+    // use batched_instructions::batched_instructions::*;
     mod merkle_tree_update_instructions;
     use crate::tests::merkle_tree_update_instructions::instructions::insert_last_double;
     use ark_ed_on_bn254;
@@ -996,12 +996,16 @@ mod tests {
     }
 
     use merkle_tree_program::poseidon_merkle_tree::state;
-    pub const INIT_BYTES_MERKLE_TREE_6 : [u8;258] = [1, 2, 6, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32, 227, 42, 164, 149, 188, 70, 170, 8, 197, 44, 134, 162, 211, 186, 50, 238, 97, 71, 25, 130, 77, 70, 37, 128, 172, 154, 54, 111, 93, 193, 105, 27, 25, 241, 255, 33, 65, 214, 48, 229, 38, 116, 134, 103, 44, 146, 163, 214, 31, 238, 148, 206, 34, 137, 144, 221, 184, 11, 5, 213, 10, 188, 143, 18, 211, 61, 251, 33, 128, 34, 4, 100, 229, 47, 99, 121, 109, 204, 224, 90, 200, 149, 219, 20, 48, 206, 210, 177, 161, 66, 44, 10, 169, 56, 248, 8, 200, 15, 65, 80, 151, 74, 72, 69, 229, 131, 25, 215, 86, 36, 195, 74, 67, 59, 117, 179, 51, 60, 181, 13, 242, 192, 228, 228, 189, 238, 70, 8, 171, 62, 122, 81, 181, 197, 22, 238, 224, 40, 154, 231, 127, 202, 201, 169, 196, 109, 244, 175, 117, 101, 23, 67, 103, 57, 127, 200, 37, 43, 111, 7, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 244, 1, 0, 0, 0, 0, 0, 0, 59, 78, 126, 104, 199, 143, 213, 10, 2, 158, 64, 78, 153, 25, 107, 190, 32, 122, 123, 211, 116, 179, 175, 172, 70, 54, 175, 59, 201, 120, 64, 44];
+    pub const INSERT_INSTRUCTION_ORDER_18: [u8; 73] = [
+        34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
+        25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25,
+        0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
+    ];
     #[test]
     fn batch_updat_smt_test() {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for height 18
         let tree_height = 18;
-        let iterations = 16;
+        let iterations = 2;
         println!("tree_height: {}", tree_height);
         //let zero_value = [1u8, 32];
         let zero_value = vec![1 as u8; 32];
@@ -1031,6 +1035,16 @@ mod tests {
 
 
         let mut filled_leaves = [[[0u8; 32];2]; 16];
+        filled_leaves[0][0]= vec![122, 211, 19, 11, 66, 4, 220, 94, 97, 4, 55, 167, 17, 188, 163, 24, 95, 226, 42, 95, 245, 35, 100, 234, 210, 0, 177, 23, 6, 54, 141, 36]
+.try_into().unwrap();
+
+         filled_leaves[0][1]= vec![221, 219, 197, 254, 66, 250, 66, 161, 9, 62, 220, 57, 202, 115, 205, 232, 199, 222, 131, 2, 116, 138, 212, 25, 104, 209, 32, 254, 20, 161, 49, 47]
+.try_into().unwrap();
+        filled_leaves[1][0]= vec![177, 178, 52, 116, 232, 152, 188, 86, 170, 183, 5, 59, 51, 142, 44, 62, 78, 105, 95, 4, 247, 13, 250, 27, 153, 208, 63, 76, 70, 159, 54, 10]
+.try_into().unwrap();
+        filled_leaves[1][1]= vec![218, 210, 112, 195, 148, 121, 95, 46, 107, 224, 46, 89, 100, 236, 202, 218, 164, 24, 16, 25, 13, 235, 6, 65, 239, 70, 165, 32, 152, 43, 73, 18]
+.try_into().unwrap();
+
         let mut j = 0;
         for i in 0..iterations {
             let mut tmp_pda = MerkleTreeTmpPda {
@@ -1081,13 +1095,13 @@ mod tests {
 
             println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
             println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
-            hash_tmp_account.node_left = new_leaf_hash_bytes.clone();
-            hash_tmp_account.node_right = new_leaf_hash_bytes_1.clone();
-            filled_leaves[i] = [new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()];
+            hash_tmp_account.node_left = filled_leaves[i][0];
+            hash_tmp_account.node_right = filled_leaves[i][1];
+            // filled_leaves[i] = [new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()];
 
 
             //assert_eq!(true, false,"will fail because no data is incjected");
-            for i in config::INSERT_INSTRUCTION_ORDER_18 {
+            for i in INSERT_INSTRUCTION_ORDER_18 {
                 double_process_instruction(
                     i,
                     &mut hash_tmp_account,
@@ -1102,8 +1116,8 @@ mod tests {
             println!("smt.roots {:?}", smt.roots);
 
 
-            // tree.update(j, &new_leaf_hash_bytes.to_vec());
-            // tree.update(j + 1, &new_leaf_hash_bytes_1.to_vec());
+            // tree.update(j, &filled_leaves[i][0].to_vec());
+            // tree.update(j + 1, &filled_leaves[i][1].to_vec());
             // let proof = tree.generate_proof(j + 1).unwrap();
             //
             // //println!("merkle proof: {:?}", proof);
@@ -1147,8 +1161,8 @@ mod tests {
         println!("filled_leaves: {:?}",filled_leaves );
         //assert_eq!(true, false,"will fail because no data is incjected");
         let mut counter = 0;
-        while hash_tmp_account.current_instruction_index != 73  {
-            batch_process_instruction(
+        while hash_tmp_account.current_instruction_index != 56  {
+            processor::_process_instruction(
                 config::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account.current_instruction_index as usize],
                 &mut hash_tmp_account,
                 &mut smt_batch, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
@@ -1163,8 +1177,13 @@ mod tests {
         instructions::insert_last_double(&mut smt_batch, &mut hash_tmp_account);
 
         println!("current_level_hash {:?}", hash_tmp_account.current_level_hash);
+        println!("smt.roots {:?}", smt.roots);
 
         assert_eq!(smt.roots, smt_batch.roots);
+        assert_eq!(
+            vec![194,152,246,84,243,21,82,3,176,169,72,89,231,239,92,186,47,95,68,136,112,218,43,168,139,62,46,131,15,210,192,20],
+            smt.roots
+        );
     }
     use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::poseidon_0;
     use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::poseidon_1;
@@ -1180,7 +1199,7 @@ mod tests {
     const HASH_1: u8 = 1;
     const HASH_2: u8 = 2;
     const ROOT_INSERT: u8 = 241;
-
+    /*
     pub fn batch_process_instruction(
         id: u8,
         tmp_storage_pda_data: &mut MerkleTreeTmpPda,
@@ -1198,7 +1217,7 @@ mod tests {
         } else if id == MERKLE_TREE_UPDATE_START {
             batched_instructions::batched_instructions::insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data);
         }
-    }
+    }*/
 
     pub fn double_process_instruction(
         id: u8,

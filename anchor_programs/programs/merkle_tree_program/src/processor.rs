@@ -1,5 +1,18 @@
 use crate::instructions::{close_account, sol_transfer};
-use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
+use crate::poseidon_merkle_tree::processor::{
+    MerkleTreeProcessor,
+    _process_instruction,
+};
+use crate::constant::{
+    LOCK_DURATION,
+    MERKLE_TREE_UPDATE_START,
+    MERKLE_TREE_UPDATE_LEVEL,
+    LOCK_START,
+    HASH_0,
+    HASH_1,
+    HASH_2,
+    ROOT_INSERT,
+};
 use crate::poseidon_merkle_tree::state_roots::check_root_hash_exists;
 use crate::state::MerkleTreeTmpPda;
 use crate::utils::create_pda::create_and_check_pda;
@@ -18,24 +31,71 @@ use std::cell::RefMut;
 use crate::TWO_LEAVES_PDA_SIZE;
 use anchor_lang::prelude::*;
 use crate::ErrorCode;
+use crate::IX_ORDER;
+use crate::MerkleTree;
+use crate::poseidon_merkle_tree::processor::pubkey_check;
+
 // Processor for deposit and withdraw logic.
 #[allow(clippy::comparison_chain)]
 pub fn process_instruction(
-    ctx: Context<UpdateMerkleTree>,
+    ctx: &mut Context<UpdateMerkleTree>,
 ) -> Result<()>{
     let tmp_storage_pda_data = ctx.accounts.merkle_tree_tmp_storage.load()?.clone();
     msg!("\nprior process_instruction {}\n",tmp_storage_pda_data.current_instruction_index );
 
     if tmp_storage_pda_data.current_instruction_index > 0
-        && tmp_storage_pda_data.current_instruction_index < 73
+        && tmp_storage_pda_data.current_instruction_index < 56
     {
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        // let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        let tmp_storage_pda_data = &mut ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
+        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
-        merkle_tree_processor.process_instruction(ctx)?;
+        pubkey_check(
+            ctx.accounts.merkle_tree_tmp_storage.key(),
+            Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+            String::from("Merkle tree locked by another account."),
+        )?;
+        // merkle_tree_pubkey_check(
+        //     *merkle_tree_pda.key,
+        //     tmp_storage_pda_data.merkle_tree_index,
+        //     *merkle_tree_pda.owner,
+        //     self.program_id,
+        // )?;
+        msg!(
+            "tmp_storage_pda_data.current_instruction_index0 {}",
+            tmp_storage_pda_data.current_instruction_index
+        );
+
+        if tmp_storage_pda_data.current_instruction_index == 1 {
+            // merkle_tree_processor.process_instruction(ctx)?;
+            _process_instruction(
+                IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize],
+                tmp_storage_pda_data,
+                &mut merkle_tree_pda_data,
+            )?;
+            tmp_storage_pda_data.current_instruction_index +=1;
+        }
+
+        msg!(
+            "tmp_storage_pda_data.current_instruction_index1 {}",
+            tmp_storage_pda_data.current_instruction_index
+        );
+        // merkle_tree_processor.process_instruction(ctx)?;
+        _process_instruction(
+            IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize],
+            tmp_storage_pda_data,
+            &mut merkle_tree_pda_data,
+        )?;
+        tmp_storage_pda_data.current_instruction_index +=1;
+
+        MerkleTree::pack_into_slice(
+            &merkle_tree_pda_data,
+            &mut ctx.accounts.merkle_tree.data.borrow_mut(),
+        );
     }
     // Checks and inserts nullifier pdas, two Merkle tree leaves (output utxo hashes),
     // executes transaction, deposit or withdrawal, and closes the tmp account.
-    else if tmp_storage_pda_data.current_instruction_index == 73 {
+    else if tmp_storage_pda_data.current_instruction_index == 56 {
         // TODO make this its own instruction
 
 
@@ -46,13 +106,13 @@ pub fn process_instruction(
 
 
 
-        msg!("Inserting new merkle root.");
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
-        let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
-        let close_to_acc = &ctx.accounts.authority.to_account_info();
-        merkle_tree_processor.insert_root(ctx)?;
-        // Close tmp account.
-        close_account(close_acc, close_to_acc).unwrap();
+        // msg!("Inserting new merkle root.");
+        // let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        // let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
+        // let close_to_acc = &ctx.accounts.authority.to_account_info();
+        // merkle_tree_processor.insert_root(ctx)?;
+        // // Close tmp account.
+        // close_account(close_acc, close_to_acc).unwrap();
     }
 
     Ok(())

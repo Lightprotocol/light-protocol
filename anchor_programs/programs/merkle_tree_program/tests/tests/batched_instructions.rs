@@ -39,7 +39,7 @@ pub mod batched_instructions {
         tmp_storage_account.current_level = 1;
         // increase insert leaves index to insert the next leaf
         tmp_storage_account.insert_leaves_index +=1;
-        println!("tmp_storage_account.node_right {}", tmp_storage_account.insert_leaves_index);
+        println!("tmp_storage_account.insert_leaves_index {}", tmp_storage_account.insert_leaves_index);
 
         merkle_tree_account.inserted_leaf = true;
         //zeroing out prior state since the account was used for prior computation
@@ -80,7 +80,8 @@ pub mod batched_instructions {
             merkle_tree_account.filled_subtrees[tmp_storage_account.current_level as usize] =
                 tmp_storage_account.current_level_hash.clone().to_vec();
             // check if there is another queued leaves pair
-            if tmp_storage_account.insert_leaves_index < tmp_storage_account.number_of_leaves &&  tmp_storage_account.current_index == 0{
+            if tmp_storage_account.insert_leaves_index < tmp_storage_account.number_of_leaves {
+                msg!("\n\nresetting current_instruction_index {} < {}\n\n", tmp_storage_account.insert_leaves_index, tmp_storage_account.number_of_leaves);
                 // reset current_instruction_index to 1 since the lock is already taken
                 tmp_storage_account.current_instruction_index = 1;
 

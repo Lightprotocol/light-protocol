@@ -28,7 +28,10 @@ use anchor_lang::solana_program::{
 use std::convert::TryFrom;
 use std::cell::RefMut;
 use anchor_lang::prelude::*;
-use crate::UpdateMerkleTree;
+use crate::{
+    UpdateMerkleTree,
+    LastTransactionUpdateMerkleTree
+};
 use crate::ErrorCode;
 
 
@@ -87,10 +90,10 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
         }
         Ok(())
     }
-
+    // can delete completely since it is only one function
     pub fn process_instruction(
         &mut self,
-        ctx: Context<UpdateMerkleTree>,
+        ctx: &mut Context<UpdateMerkleTree>,
     ) -> Result<()>  {
         let tmp_storage_pda_data = &mut ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
         let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
@@ -104,7 +107,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             "tmp_storage_pda_data.current_instruction_index {}",
             tmp_storage_pda_data.current_instruction_index
         );
-
+        /*
         if tmp_storage_pda_data.current_instruction_index < IX_ORDER.len().try_into().unwrap()
             && (IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize]
                 == MERKLE_TREE_UPDATE_START
@@ -145,9 +148,24 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             _process_instruction(
                 IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize],
                 tmp_storage_pda_data,
-                &mut self.unpacked_merkle_tree,
+                &mut merkle_tree_pda_data,
             )?;
+            MerkleTree::pack_into_slice(
+                &merkle_tree_pda_data,
+                &mut ctx.accounts.merkle_tree.data.borrow_mut(),
+            );
             // tmp_storage_pda_data.changed_state = 2;
+        }*/
+        if tmp_storage_pda_data.current_instruction_index < IX_ORDER.len() as u64 {
+            _process_instruction(
+                IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize],
+                tmp_storage_pda_data,
+                &mut merkle_tree_pda_data,
+            )?;
+            MerkleTree::pack_into_slice(
+                &merkle_tree_pda_data,
+                &mut ctx.accounts.merkle_tree.data.borrow_mut(),
+            );
         }
         msg!(
             "tmp_storage_pda_data.current_instruction_index : {}",
@@ -157,7 +175,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
             "tmp_storage_pda_data.current_instruction_index : {:?}",
             IX_ORDER[tmp_storage_pda_data.current_instruction_index as usize]
         );
-        tmp_storage_pda_data.current_instruction_index += 1;
+        // tmp_storage_pda_data.current_instruction_index += 1;
 
         // MerkleTreeTmpPda::pack_into_slice(
         //     &tmp_storage_pda_data,
@@ -168,7 +186,7 @@ impl<'a, 'b> MerkleTreeProcessor<'a, 'b> {
 
     pub fn insert_root(
         &mut self,
-        ctx: Context<UpdateMerkleTree>,
+        ctx: &mut Context<LastTransactionUpdateMerkleTree>,
     ) -> Result<()>  {
         let tmp_storage_pda_data = &mut ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
 
@@ -231,8 +249,11 @@ pub fn _process_instruction(
         poseidon_1(tmp_storage_pda_data)?;
     } else if id == HASH_2 {
         poseidon_2(tmp_storage_pda_data)?;
+        if tmp_storage_pda_data.current_level < 18 {
+            insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
+        }
     } else if id == MERKLE_TREE_UPDATE_LEVEL {
-        insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data)?;
+        panic!("should not enter");
     } else if id == MERKLE_TREE_UPDATE_START {
         insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data)?;
     }
@@ -266,7 +287,7 @@ fn merkle_tree_pubkey_check(
     Ok(())
 }
 
-fn pubkey_check(
+pub fn pubkey_check(
     account_pubkey0: Pubkey,
     account_pubkey1: Pubkey,
     msg: String,
