@@ -7,7 +7,7 @@ use anchor_lang::solana_program::{
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::TryInto;
-
+use crate::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
 #[allow(unused_variables)]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MerkleTree {
@@ -217,7 +217,7 @@ impl Pack for TwoLeavesBytesPda {
 
         let (
             is_initialized,
-            _account_type,
+            account_type,
             _left_leaf_index,
             _node_left,
             _node_right,
@@ -226,13 +226,13 @@ impl Pack for TwoLeavesBytesPda {
         ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
-        // if is_initialized[0] != 0 {
+        // if is_initialized[0] != 0 || account_type[0] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
         //     msg!("Leaf pda is already initialized");
         //     return Err(ProgramError::InvalidAccountData);
         // }
         Ok(TwoLeavesBytesPda {
             is_initialized: true,
-            account_type: 4,
+            account_type: account_type[0],
             node_right: vec![0u8; 32],
             node_left: vec![0u8; 32],
             merkle_tree_pubkey: vec![0u8; 32],
@@ -254,7 +254,7 @@ impl Pack for TwoLeavesBytesPda {
         ) = mut_array_refs![dst, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
 
         *is_initialized_dst = [1];
-        *account_type_dst = [4];
+        *account_type_dst = [self.account_type];
         *node_right_dst = self.node_right.clone().try_into().unwrap();
         *node_left_dst = self.node_left.clone().try_into().unwrap();
         *merkle_tree_pubkey_dst = self.merkle_tree_pubkey.clone().try_into().unwrap();

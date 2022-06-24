@@ -33,6 +33,7 @@ pub struct MerkleTreeTmpPda {
     pub tmp_leaves_index: u64,
 
     pub leaves: [[[u8;32]; 2];16], // 2 times the number of leaves which can be batch_inserted
+    pub merkle_tree_index: u8,
     pub number_of_leaves: u8,
     pub insert_leaves_index: u8,
     pub found_root: u8,

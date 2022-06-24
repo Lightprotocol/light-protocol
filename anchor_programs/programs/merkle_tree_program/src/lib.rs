@@ -15,7 +15,7 @@ security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
-pub mod authority_config;
+// pub mod authority_config;
 pub mod constant;
 pub mod instructions;
 pub mod poseidon_merkle_tree;
@@ -23,22 +23,28 @@ pub mod processor;
 pub mod state;
 pub mod utils;
 pub mod wrapped_state;
+// pub mod registry;
+// pub use registry::*;
 
-pub mod registry;
-pub use registry::*;
+use crate::config::{
+    MERKLE_TREE_TMP_PDA_SIZE,
+    STORAGE_SEED,
+    ENCRYPTED_UTXOS_LENGTH,
+    MERKLE_TREE_INIT_AUTHORITY,
+    LEAVES_PDA_ACCOUNT_TYPE,
+    UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE,
+    NF_SEED,
+    MERKLE_TREE_ACC_BYTES_ARRAY
+};
+use crate::poseidon_merkle_tree::processor::pubkey_check;
 
-use crate::config::MERKLE_TREE_TMP_PDA_SIZE;
-use crate::config::STORAGE_SEED;
-use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 pub use crate::constant::*;
 use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
 use crate::utils::config;
 
-use crate::config::NF_SEED;
 use crate::state::MerkleTreeTmpPda;
 use anchor_lang::system_program;
 
-pub use authority_config::*;
 
 use crate::poseidon_merkle_tree::state::MerkleTree;
 use crate::utils::create_pda::create_and_check_pda;
@@ -74,10 +80,11 @@ pub mod merkle_tree_program {
         // let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&ctx.accounts.two_leaves_pda.to_account_info().data.borrow())?;
         msg!("InitializeMerkleTreeUpdateState");
 
+        // TODO check merkle tree index if not already done in contraints
+
         let tmp_storage_pda = &mut ctx.accounts.merkle_tree_tmp_storage.load_init()?;
         //increased by 2 because we're inserting 2 leaves at once
-        // leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
-        // leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();;
+        tmp_storage_pda.merkle_tree_index = merkle_tree_index.try_into().unwrap();
         tmp_storage_pda.relayer = ctx.accounts.authority.key();
         tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
         // tmp_storage_pda.node_left = node_left.clone().try_into().unwrap();
@@ -99,8 +106,11 @@ pub mod merkle_tree_program {
         // TODO: add looping over leaves to save their commithashes into the tmp account
         // this will make the upper leaf inserts obsolete still need to check what to do with node_left, right
         for (index, account) in ctx.remaining_accounts.iter().enumerate() {
-            msg!("copying leaves pair {}", index);
-            // let acc = next_account_info(account)?;
+            msg!("Copying leaves pair {}", index);
+            if account.data.borrow()[1] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
+                msg!("Leaf pda state {} with address {:?} is already inserted",account.data.borrow()[1], *account.key);
+                return err!(ErrorCode::LeafAlreadyInserted);
+            }
             tmp_storage_pda.leaves[index][0] = account.data.borrow()[10..42].try_into().unwrap();
             tmp_storage_pda.leaves[index][1] = account.data.borrow()[42..74].try_into().unwrap();
             msg!("tmp_storage.leaves[index][0] {:?}", tmp_storage_pda.leaves[index][0]);
@@ -150,19 +160,70 @@ pub mod merkle_tree_program {
             &merkle_tree_pda_data,
             &mut ctx.accounts.merkle_tree.data.borrow_mut(),
         );
+        // execute
+
         Ok(())
     }
 
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
-        bump: u64//data: Vec<u8>,
+        mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
+        _bump: u64//data: Vec<u8>,
     ) -> Result<()>{
         msg!("update_merkle_tree");
 
         // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
         processor::process_instruction(
-            ctx
+            &mut ctx
         )?;
+        Ok(())
+    }
+
+    pub fn last_transaction_update_merkle_tree<'a, 'b, 'c, 'info>(
+        mut ctx: Context<'a, 'b, 'c, 'info, LastTransactionUpdateMerkleTree<'info>>,
+        _bump: u64
+    ) -> Result<()>{
+        // doing checks after for mutability
+        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        // let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
+        // let close_to_acc = &ctx.accounts.authority.to_account_info();
+        merkle_tree_processor.insert_root(&mut ctx)?;
+
+
+        let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
+
+        msg!("inserting merkle tree root");
+         if tmp_storage_pda.current_instruction_index != 56 {
+             msg!("Wrong state instruction index should be 56 is {}", tmp_storage_pda.current_instruction_index);
+        }
+
+
+        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+        // processor::process_instruction(
+        //     &mut ctx
+        // )?;
+
+        // // Close tmp account.
+        // close_account(close_acc, close_to_acc).unwrap();
+        // mark leaves as inserted
+        // check that leaves are the same as in first tx
+        for (index, account) in ctx.remaining_accounts.iter().enumerate() {
+            msg!("Checking leaves pair {}", index);
+            if index >= tmp_storage_pda.number_of_leaves.into() {
+                msg!("Submitted to many remaining accounts {}", ctx.remaining_accounts.len());
+                return err!(ErrorCode::WrongLeavesLastTx);
+            }
+            if tmp_storage_pda.leaves[index][0][..] != account.data.borrow()[10..42] {
+                msg!("Wrong leaf in position {}", index);
+                return err!(ErrorCode::WrongLeavesLastTx);
+            }
+            if account.data.borrow()[1] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
+                msg!("Leaf pda with address {:?} is already inserted", *account.key);
+                return err!(ErrorCode::LeafAlreadyInserted);
+            }
+            // mark leaves pda as inserted
+            account.data.borrow_mut()[1] = LEAVES_PDA_ACCOUNT_TYPE;
+        }
+
         Ok(())
     }
 
@@ -199,6 +260,7 @@ pub mod merkle_tree_program {
         );
         let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&two_leaves_pda.data.borrow())?;
 
+        leaf_pda_account_data.account_type = UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
         //save leaves into pda account
         leaf_pda_account_data.node_left = leaf_left.to_vec();
         leaf_pda_account_data.node_right = leaf_right.to_vec();
@@ -251,7 +313,7 @@ pub mod merkle_tree_program {
         )?;
         Ok(())
     }
-
+    /*
     pub fn create_authority_config(ctx: Context<CreateAuthorityConfig>) -> Result<()>{
         ctx.accounts
             .handle(*ctx.bumps.get("authority_config").unwrap())
@@ -266,6 +328,7 @@ pub mod merkle_tree_program {
     pub fn register_new_id(ctx: Context<RegisterNewId>) -> Result<()>{
         ctx.accounts.handle(*ctx.bumps.get("registry").unwrap())
     }
+    */
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
         _nullifier: [u8; 32],
@@ -285,6 +348,7 @@ pub struct InitializeNewMerkleTree<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(merkle_tree_index: u64)]
 pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -297,14 +361,11 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
         space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
     )]
     pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
+    /// CHECK: that the merkle tree is whitelisted
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    // /// CHECK:` doc comment explaining why no checks through types are necessary.
-    // leaves are passed as remaining accounts
-    // pub two_leaves_pda: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -312,11 +373,23 @@ pub struct UpdateMerkleTree<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    /// CHECK:` that merkle tree is locked for this account
     #[account(mut)]
     pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
+    pub merkle_tree: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+pub struct LastTransactionUpdateMerkleTree<'info> {
     #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(mut, close = authority)]
+    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
 
@@ -388,6 +461,8 @@ pub struct InitializeNullifier<'info> {
 #[account]
 pub struct Nullifier {}
 
+/*
+// not used right now because already inited merkle tree would not be compatible
 #[derive(Accounts)]
 #[instruction(nullifier: [u8;32])]
 pub struct InitializeLeavesPda<'info> {
@@ -407,6 +482,7 @@ pub struct InitializeLeavesPda<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
+// not used right now because already inited merkle tree would not be compatible
 #[account(zero_copy)]
 pub struct LeavesPda {
     pub leaf_right: [u8; 32],
@@ -415,7 +491,7 @@ pub struct LeavesPda {
     pub encrypted_utxos: [u8; 222],
     pub left_leaf_index: u64,
 }
-
+*/
 
 
 #[error_code]
@@ -439,5 +515,9 @@ pub enum ErrorCode {
     #[msg("MerkleTreeUpdateNotInRootInsert")]
     MerkleTreeUpdateNotInRootInsert,
     #[msg("InvalidNumberOfLeaves")]
-    InvalidNumberOfLeaves
+    InvalidNumberOfLeaves,
+    #[msg("LeafAlreadyInserted")]
+    LeafAlreadyInserted,
+    #[msg("WrongLeavesLastTx")]
+    WrongLeavesLastTx
 }

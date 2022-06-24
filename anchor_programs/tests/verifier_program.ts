@@ -272,7 +272,12 @@ const MERKLE_TREE_INIT_AUTHORITY = [2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 21
 ];
 const ADMIN_AUTH_KEY = new solana.PublicKey(new Uint8Array(MERKLE_TREE_INIT_AUTHORITY));
 const ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
-const MERKLE_TREE_KP = solana.Keypair.generate();
+const MERKLE_TREE_ACC_BYTES_0 = new Uint8Array([
+    242, 149, 147, 41, 62, 228, 214, 222, 231, 159, 167, 195, 10, 226, 182, 153, 84, 80, 249, 150,
+    131, 112, 150, 225, 133, 131, 32, 149, 69, 188, 94, 13,
+]);
+const MERKLE_TREE_KP = solana.Keypair.fromSeed(MERKLE_TREE_ACC_BYTES_0);
+
 const MERKLE_TREE_KEY = MERKLE_TREE_KP.publicKey;
 const MERKLE_TREE_SIZE = 16658;
 const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")
@@ -314,7 +319,7 @@ describe("verifier_program", () => {
         )
         console.log("ADMIN_AUTH_KEYPAIRAccountInfo: ", ADMIN_AUTH_KEYPAIRAccountInfo)
 
-
+    console.log("MERKLE_TREE_KP: ", MERKLE_TREE_KP);
     const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
       authority: ADMIN_AUTH_KEY,
       merkleTree: MERKLE_TREE_KEY,
@@ -331,6 +336,7 @@ describe("verifier_program", () => {
     ])
     .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
     .rpc();
+    console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
     var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
           MERKLE_TREE_KEY
         )
@@ -416,7 +422,7 @@ describe("verifier_program", () => {
     })
     .rpc();
   });*/
-  /*
+
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount ) // new anchor.web3.Account()
@@ -466,7 +472,7 @@ describe("verifier_program", () => {
     merkleTree.update(1, BigNumber.from(leavesAccount.data.slice(44,76)))
     console.log("merkleTree: ", merkleTree.root().toHexString())
   });
-  */
+
   /*
   it("Last Transaction hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
@@ -580,7 +586,7 @@ describe("verifier_program", () => {
 
   });
 */
-
+/*
   it("Dynamic Shielded transaction", async () => {
 
     // TODO create deterministically in  init
@@ -748,9 +754,9 @@ describe("verifier_program", () => {
         verifierProgram,
         mode: "withdrawal"
       })
-    }*/
+    }
 
-})
+})*/
 
   async function deposit({
     Keypair,
@@ -956,7 +962,6 @@ describe("verifier_program", () => {
                       ).signers([signer]).rpc()
             } catch (e) {
               console.log(e)
-              process.exit()
             }
 
           } else {
@@ -1189,7 +1194,7 @@ describe("verifier_program", () => {
     console.log(`merkleTreeTmpState ${merkleTreeTmpState}`)
     let i = 0;
     let cache_index = 3;
-    for(let ix_id = 0; ix_id < 40; ix_id ++) {
+    for(let ix_id = 0; ix_id < 29; ix_id ++) {
       let ix_data = [2, i];
       const transaction = new solana.Transaction();
       transaction.add(
@@ -1209,16 +1214,14 @@ describe("verifier_program", () => {
         // cache_index += 2;
         i+=1;
       }
-      if (ix_id != 36) {
-        transaction.add(
-          await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
-            authority: signer.publicKey,
-            // verifierStateAuthority:pdas.verifierStatePubkey,
-            merkleTreeTmpStorage: merkleTreeTmpState,
-            merkleTree: MERKLE_TREE_KEY
-          }).instruction()
-        )
-      }
+      transaction.add(
+        await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
+          authority: signer.publicKey,
+          // verifierStateAuthority:pdas.verifierStatePubkey,
+          merkleTreeTmpStorage: merkleTreeTmpState,
+          merkleTree: MERKLE_TREE_KEY
+        }).instruction()
+      )
 
 
       arr.push({tx:transaction, signers: [signer]})
@@ -1236,23 +1239,27 @@ describe("verifier_program", () => {
         }
       }));
 
+      // final tx to insert root
       try {
-
-          await program.methods.updateMerkleTree(new anchor.BN(254))
+        console.log("inal tx to insert root")
+          await program.methods.lastTransactionUpdateMerkleTree(
+            new anchor.BN(254))
           .accounts({
             authority: signer.publicKey,
-            // verifierStateAuthority:pdas.verifierStatePubkey,
             merkleTreeTmpStorage: merkleTreeTmpState,
             merkleTree: MERKLE_TREE_KEY
-          }).rpc()
+          }).remainingAccounts(
+            leavesPdas
+          ).signers([signer]).rpc()
       } catch (e) {
-
+        console.log(e)
+        process.exit()
       }
     await checkMerkleTreeBatchUpdateSuccess({
       connection: provider.connection,
       merkleTreeTmpState,
       merkleTreeAccountPrior,
-      numberOfLeaves: 4
+      numberOfLeaves: leavesPdas.length
     })
   }
 
