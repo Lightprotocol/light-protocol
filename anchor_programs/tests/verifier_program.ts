@@ -749,28 +749,36 @@ describe("verifier_program", () => {
               tx_fee: new anchor.BN(tx_fee)//check doesn t work
             });
         }
-        const tx = await verifierProgram.methods.createVerifierState(
-              ix_data.proofAbc,
-              ix_data.rootHash,
-              ix_data.amount,
-              ix_data.txIntegrityHash,
-              ix_data.nullifier0,
-              ix_data.nullifier1,
-              ix_data.leafRight,
-              ix_data.leafLeft,
-              ix_data.recipient,
-              ix_data.extAmount,
-              ix_data.relayer,
-              ix_data.fee,
-              ix_data.encryptedUtxos,
-              ix_data.merkleTreeIndex
-              ).accounts(
-                  {
-                    signingAddress: signer.publicKey,
-                    verifierState: pdas.verifierStatePubkey,
-                    systemProgram: SystemProgram.programId,
-                  }
-                ).signers([signer]).rpc()
+        try  {
+          const tx = await verifierProgram.methods.createVerifierState(
+                ix_data.proofAbc,
+                ix_data.rootHash,
+                ix_data.amount,
+                ix_data.txIntegrityHash,
+                ix_data.nullifier0,
+                ix_data.nullifier1,
+                ix_data.leafRight,
+                ix_data.leafLeft,
+                ix_data.recipient,
+                ix_data.extAmount,
+                ix_data.relayer,
+                ix_data.fee,
+                ix_data.encryptedUtxos,
+                ix_data.merkleTreeIndex
+                ).accounts(
+                    {
+                      signingAddress: signer.publicKey,
+                      verifierState: pdas.verifierStatePubkey,
+                      systemProgram: SystemProgram.programId,
+                      merkleTree: MERKLE_TREE_KEY,
+                      programMerkleTree:  merkleTreeProgram.programId,
+                    }
+                  ).signers([signer]).rpc()
+        } catch(e) {
+          console.log(e)
+          process.exit()
+        }
+
           console.log("here2")
 
           checkVerifierStateAccountCreated({
@@ -1355,7 +1363,7 @@ describe("verifier_program", () => {
     let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
     console.log("merkle_tree_prior_current_root_index: ", merkle_tree_prior_current_root_index)
     console.log("current_root_index: ", current_root_index)
-    console.log("equal: ", current_root_index == merkle_tree_prior_current_root_index)
+    console.log("equal: ", current_root_index + 1 == merkle_tree_prior_current_root_index)
     assert(merkle_tree_prior_current_root_index + 1 == current_root_index)
     let current_root_start_range = 610 + current_root_index * 32;
     let current_root_end_range = 610 + (current_root_index + 1) * 32;

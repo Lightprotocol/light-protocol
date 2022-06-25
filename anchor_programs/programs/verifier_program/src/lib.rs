@@ -92,6 +92,19 @@ pub mod verifier_program {
             z: Fp2::one(),
         });
 
+        // check roothash exists
+        let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+        let accounts = merkle_tree_program::cpi::accounts::CheckMerkleRootExists {
+            authority: ctx.accounts.signing_address.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
+        merkle_tree_program::cpi::check_root_hash_exists(
+            cpi_ctx,
+            merkle_tree_index[0].into(),
+            root_hash.clone()
+        ).unwrap();
 
         Ok(())
     }
@@ -210,6 +223,7 @@ pub mod verifier_program {
     // Transfers the deposit amount,
     // inserts nullifiers and Merkle tree leaves
     pub fn last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
+
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
             authority: ctx.accounts.signing_address.to_account_info(),
@@ -344,6 +358,9 @@ pub struct CreateVerifierState<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
+    #[account(mut)]
+    pub merkle_tree: Account<'info, MerkleTree>,
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>
 }
 
 #[derive(Accounts)]
