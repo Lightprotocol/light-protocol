@@ -279,6 +279,7 @@ const MERKLE_TREE_ACC_BYTES_0 = new Uint8Array([
 const MERKLE_TREE_KP = solana.Keypair.fromSeed(MERKLE_TREE_ACC_BYTES_0);
 
 const MERKLE_TREE_KEY = MERKLE_TREE_KP.publicKey;
+
 const MERKLE_TREE_SIZE = 16658;
 const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")
 export const DEFAULT_PROGRAMS = {
@@ -306,6 +307,10 @@ describe("verifier_program", () => {
       merkleTreeProgram.programId
     );
   const [AUTHORITY_CONFIG_KEY] = solana.PublicKey.findProgramAddressSync([Buffer.from(AUTHORITY_SEED)], merkleTreeProgram.programId);
+  const PRE_INSERTED_LEAVES_INDEX = solana.PublicKey.findProgramAddressSync(
+      [MERKLE_TREE_KEY.toBuffer()],
+      merkleTreeProgram.programId
+    )[0];
 
   it("Initialize Merkle Tree", async () => {
     await newAccountWithLamports(
@@ -320,22 +325,40 @@ describe("verifier_program", () => {
         console.log("ADMIN_AUTH_KEYPAIRAccountInfo: ", ADMIN_AUTH_KEYPAIRAccountInfo)
 
     console.log("MERKLE_TREE_KP: ", MERKLE_TREE_KP);
-    const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
-      authority: ADMIN_AUTH_KEY,
-      merkleTree: MERKLE_TREE_KEY,
-      ...DEFAULT_PROGRAMS
-    })
-    .preInstructions([
-      SystemProgram.createAccount({
-        fromPubkey: ADMIN_AUTH_KEY,
-        newAccountPubkey: MERKLE_TREE_KEY,
-        space: MERKLE_TREE_SIZE,
-        lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
-        programId: merkleTreeProgram.programId,
+    try {
+      const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+        authority: ADMIN_AUTH_KEY,
+        merkleTree: MERKLE_TREE_KEY,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+        ...DEFAULT_PROGRAMS
       })
-    ])
-    .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
-    .rpc();
+      .preInstructions([
+        SystemProgram.createAccount({
+          fromPubkey: ADMIN_AUTH_KEY,
+          newAccountPubkey: MERKLE_TREE_KEY,
+          space: MERKLE_TREE_SIZE,
+          lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
+          programId: merkleTreeProgram.programId,
+        })
+      ])
+      .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
+      .rpc();
+      console.log("initializeNewMerkleTree: ", merkleTreeProgram.methods)
+      console.log("PRE_INSERTED_LEAVES_INDEX: ", PRE_INSERTED_LEAVES_INDEX)
+      // const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeLeavesIndex(
+      //   new anchor.BN(0)
+      // ).accounts({
+      //   authority: ADMIN_AUTH_KEYPAIR.publicKey,
+      //   preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+      //   merkleTree: MERKLE_TREE_KEY,
+      //   systemProgram: DEFAULT_PROGRAMS.systemProgram,
+      //   rent: DEFAULT_PROGRAMS.rent
+      // })
+      // .signers([ADMIN_AUTH_KEYPAIR])
+      // .rpc();
+    } catch(e) {
+      console.log("e: ", e)
+    }
     console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
     var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
           MERKLE_TREE_KEY
@@ -351,8 +374,13 @@ describe("verifier_program", () => {
     if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
       throw "merkle tree pda owner wrong after initializing";
     }
-    // const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('VerifierState', userAccountInfo.data);
-
+    var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
+          PRE_INSERTED_LEAVES_INDEX
+        )
+    console.log("merkleTreeIndexAccountInfo. ", merkleTreeIndexAccountInfo)
+    if (merkleTreeIndexAccountInfo === null) {
+      throw "merkleTreeIndexAccountInfo not initialized";
+    }
   });
 
   /*it("Register Verifier Program", async () => {
@@ -422,7 +450,7 @@ describe("verifier_program", () => {
     })
     .rpc();
   });*/
-
+  /*
   it("Groth16 verification hardcoded inputs should succeed", async () => {
     let userAccount =new anchor.web3.Account()
     await newAccountWithLamports(provider.connection, userAccount ) // new anchor.web3.Account()
@@ -459,134 +487,13 @@ describe("verifier_program", () => {
       connection: provider.connection,
       signer:userAccount,
       program: merkleTreeProgram,
-      leavesPdas
+      leavesPdas,
+      merkleTree
     });
-
-    //
-
-    var leavesAccount = await provider.connection.getAccountInfo(
-          res
-        )
-
-    merkleTree.update(0, BigNumber.from(leavesAccount.data.slice(12,44)))
-    merkleTree.update(1, BigNumber.from(leavesAccount.data.slice(44,76)))
-    console.log("merkleTree: ", merkleTree.root().toHexString())
   });
+  */
 
-  /*
-  it("Last Transaction hardcoded inputs should succeed", async () => {
-    let userAccount =new anchor.web3.Account()
-    await newAccountWithLamports(provider.connection, userAccount,verifierProgram , 1e11) // new anchor.web3.Account()
-    // const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),verifierProgram, lamports = 1e10) => {
-    let init_account = await newAccountWithLamports(provider.connection ) // new anchor.web3.Account()
 
-    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
-
-    let [pda, bump] = findProgramAddressSync(
-        [
-          anchor.utils.bytes.utf8.encode("prepare_inputs"),
-          Buffer.from(userAccount.publicKey.toBytes()),
-        ],
-        verifierProgram.programId
-      );
-
-    let [pda1, bump1] = findProgramAddressSync(
-        [
-          Buffer.from(ix_data.txIntegrityHash),
-          anchor.utils.bytes.utf8.encode("storage"),
-        ],
-        merkleTreeProgram.programId
-      );
-
-    let pdas = getPdaAddresses({
-      tx_integrity_hash: ix_data.txIntegrityHash,
-      nullifier0: ix_data.nullifier0,
-      nullifier1: ix_data.nullifier1,
-      leafLeft: ix_data.leafLeft
-    })
-    console.log("ix_data.rootHash ", ix_data.rootHash)
-
-    console.log("verifier_state: ", pdas.verifierStatePubkey.toBase58())
-    console.log("merkleTreeTmpState: ", pdas.merkleTreeTmpState.toBase58())
-    console.log("merkleTreeProgram.programId: ", merkleTreeProgram.programId.toBase58())
-    await newAddressWithLamports(provider.connection, pdas.verifierStatePubkey) // new anchor.web3.Account()
-
-    const tx = await verifierProgram.methods.createTmpAccount(
-          ix_data.proofAbc,
-          ix_data.rootHash,
-          ix_data.amount,
-          ix_data.txIntegrityHash,
-          ix_data.nullifier0,
-          ix_data.nullifier1,
-          ix_data.leafRight,
-          ix_data.leafLeft,
-          ix_data.recipient,
-          ix_data.extAmount,
-          ix_data.relayer,
-          ix_data.relayer_fee,
-          // ix_data.merkleTreePdaPubkey,
-          ix_data.encryptedUtxos,
-          ix_data.merkleTreeIndex
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                systemProgram: SystemProgram.programId
-              }
-            ).signers([init_account]).rpc()
-
-    await checkVerifierStateAccountCreated({
-      connection:provider.connection,
-      pda: pdas.verifierStatePubkey,
-      ix_data
-    })
-    var userAccountPublicKeyInfo = await provider.connection.getAccountInfo(
-          userAccount.publicKey
-        )
-    try {
-      let merkleTreeTmpStateDataBefore = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-      console.log(merkleTreeTmpStateDataBefore)
-    }catch{}
-
-    const txCreateMerkleTreeTmpAccount = await verifierProgram.methods.createMerkleTreeTmpAccount(
-          ).accounts(
-              {
-                signingAddress: init_account.publicKey,
-                verifierState: pdas.verifierStatePubkey,
-                merkleTreeTmpState:pdas.merkleTreeTmpState,
-                systemProgram: SystemProgram.programId,
-                programMerkleTree: merkleTreeProgram.programId,
-                rent: DEFAULT_PROGRAMS.rent,
-              }
-            ).signers([init_account]).rpc()
-      var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
-            pdas.merkleTreeTmpState
-          )
-      console.log("merkleTreeTmpAccountInfo: ", merkleTreeTmpAccountInfo.data.length)
-
-      if (merkleTreeTmpAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-        throw "merkle tree pda owner wrong after initializing";
-      }
-      let merkleTreeTmpStateData = await readAndParseAccountDataMerkleTreeTmpState({
-        connection: provider.connection,
-        pda: pdas.merkleTreeTmpState
-
-      })
-      console.log(merkleTreeTmpStateData)
-      console.log("userAccount.publicKey", userAccount.publicKey.toBase58())
-      console.log("pdas.nullifier0PdaPubkey.publicKey", pdas.nullifier0PdaPubkey.toBase58())
-      console.log("merkleTreeProgram.programId", merkleTreeProgram.programId.toBase58())
-      await newAddressWithLamports(provider.connection,userAccount.pubicKey);
-      await provider.connection.requestAirdrop(userAccount.publicKey, 1_000_000_000_000)
-      await provider.connection.requestAirdrop(pdas.verifierStatePubkey, 1_000_000_000_000)
-
-  });
-*/
-/*
   it("Dynamic Shielded transaction", async () => {
 
     // TODO create deterministically in  init
@@ -604,7 +511,7 @@ describe("verifier_program", () => {
       const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
       var leavesPdas = []
-
+      var utxos = []
       console.log("MERKLE_TREE_SIGNER_AUTHORITY : ", MERKLE_TREE_SIGNER_AUTHORITY.toString())
       //
       // *
@@ -617,69 +524,42 @@ describe("verifier_program", () => {
       console.log("merkleTree: ", merkleTree.root())
 
       let Keypair = new light.Keypair()
-      let res = await deposit({
-        Keypair,
-        encryptionKeypair,
-        amount: 1_000_000_00,// amount
-        connection: provider.connection,
-        merkleTree,
-        merkleTreePdaToken,
-        userAccount
-      })
-      console.log("{leavesPda0, outputUtxos0} ", res[0], res[1])
-      leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
-
-
-
-      let res1 = await deposit({
-        Keypair,
-        encryptionKeypair,
-        amount: 1_000_000_00,// amount
-        connection: provider.connection,
-        merkleTree,
-        merkleTreePdaToken,
-        userAccount
-      })
-
-      leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res1[0] })
-      console.log("{leavesPda1, outputUtxos1} ", res1[0], res1[1] )
-
+      for (var i= 0; i < 2; i++) {
+        let res = await deposit({
+          Keypair,
+          encryptionKeypair,
+          amount: 1_000_000_00,// amount
+          connection: provider.connection,
+          merkleTree,
+          merkleTreePdaToken,
+          userAccount
+        })
+        console.log("{leavesPda0, outputUtxos0} ", res[0], res[1])
+        leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
+        utxos.push(res[1])
+      }
 
       await executeUpdateMerkleTreeTransactions({
         connection: provider.connection,
         signer:userAccount,
         program: merkleTreeProgram,
-        leavesPdas
+        leavesPdas,
+        merkleTree
       });
-      console.log("merkleTree: ", merkleTree.root().toHexString())
-
-      merkleTree.update(0, toFixedHex(res[1][0].getCommitment()))
-      console.log("merkleTree: ", toFixedHex(merkleTree.root().toHexString()))
-
-      merkleTree.update(1, toFixedHex(res[1][1].getCommitment()))
-      console.log("merkleTree: ", toFixedHex(merkleTree.root().toHexString()))
-      //
-      merkleTree.update(2, toFixedHex(res1[1][0].getCommitment()))
-      merkleTree.update(3, toFixedHex(res1[1][1].getCommitment()))
-      console.log("merkleTree: ", merkleTree.root().toHexString())
-      let merkleTreeAfter = await light.buildMerkelTree(provider.connection);
-      console.log("merkleTreeAfter: ", merkleTreeAfter.root().toHexString())
-
 
 
       /*
       * test withdrawal
       *
-      * Proof generation crashes randomly
+      *
+      */
 
+      var leavesPdasWithdrawal = []
       const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
-
+      let deposit_utxo1 = utxos[0][0];
+      let deposit_utxo2 = utxos[0][1];
       deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
       deposit_utxo2.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo2.getCommitment()._hex)
-
-      testOutputUtxo.index = merkleTreeWithdrawal._layers[0].indexOf(testOutputUtxo.getCommitment()._hex)
-      console.log("deposit_utxo1.index  ", deposit_utxo1.index )
-      console.log("deposit_utxo2.index  ", deposit_utxo2.index )
 
       let relayer = await newAccountWithLamports(provider.connection);
       let relayer_recipient = new anchor.web3.Account();
@@ -718,17 +598,7 @@ describe("verifier_program", () => {
         'WITHDRAWAL',
         encryptionKeypair
       )
-      // let success = false
-      // let retries = 10
-      // while (!success && retries > 0) {
-      //   console.log("retries: ", retries)
-      //   try {
-      //
-      //     // success = true
-      //   } catch (e) {
-      //     retries -= 1;
-      //   }
-      // }
+
 
       let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
       console.log("withdrawal amount: ", U64(ix_dataWithdrawal.amount, 0))
@@ -740,23 +610,34 @@ describe("verifier_program", () => {
       })
       console.log("merkleTreePdaToken: ", merkleTreePdaToken.publicKey.toBase58())
       console.log("recipientWithdrawal: ", recipientWithdrawal.publicKey.toBase58())
-      console.log("burnerUserAccount: ", burnerUserAccount.publicKey.toBase58())
+      console.log("relayer: ", relayer.publicKey.toBase58())
       console.log("relayer_recipient: ", relayer_recipient.publicKey.toBase58())
 
-      await transact({
+      let resWithdrawalTransact = await transact({
         connection: provider.connection,
         ix_data: ix_dataWithdrawal,
         pdas: pdasWithdrawal,
         origin: merkleTreePdaToken,
-        signer: burnerUserAccount,
+        signer: relayer,
         recipient: recipientWithdrawal,
         relayer_recipient,
         verifierProgram,
         mode: "withdrawal"
       })
-    }
+      leavesPdasWithdrawal.push({
+        isSigner: false,
+        isWritable: true,
+        pubkey: resWithdrawalTransact
+      })
+      await executeUpdateMerkleTreeTransactions({
+        connection: provider.connection,
+        signer:relayer,
+        program: merkleTreeProgram,
+        leavesPdas: leavesPdasWithdrawal,
+        merkleTree: merkleTreeWithdrawal
+      });
 
-})*/
+})
 
   async function deposit({
     Keypair,
@@ -936,6 +817,7 @@ describe("verifier_program", () => {
                         merkleTree: MERKLE_TREE_KEY,
                         feeEscrowState: pdas.feeEscrowStatePubkey,
                         merkleTreeProgram:  merkleTreeProgram.programId,
+                        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX
                       }
                     ).signers([signer]).rpc()
           } else if (mode== "withdrawal") {
@@ -958,6 +840,7 @@ describe("verifier_program", () => {
                           merkleTreeProgram:  merkleTreeProgram.programId,
                           recipient:  recipient.publicKey,
                           relayerRecipient: relayer_recipient.publicKey,
+                          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX
                         }
                       ).signers([signer]).rpc()
             } catch (e) {
@@ -1148,22 +1031,37 @@ describe("verifier_program", () => {
 
   }
 
-  async function executeUpdateMerkleTreeTransactions({signer, program, leavesPdas}) {
+  async function executeUpdateMerkleTreeTransactions({
+    signer,
+    program,
+    leavesPdas,
+    merkleTree
+  }) {
   console.log("signer: ", signer)
+  console.log("leavesPdas: ", leavesPdas)
+  var merkleTreeAccountPrior = await provider.connection.getAccountInfo(
+    MERKLE_TREE_KEY
+  )
   let merkleTreeTmpState = solana.PublicKey.findProgramAddressSync(
       [Buffer.from(new Uint8Array(signer.publicKey.toBytes())), anchor.utils.bytes.utf8.encode("storage")],
       merkleTreeProgram.programId)[0];
+  console.log("merkleTreeTmpState: ", merkleTreeTmpState)
+
   try {
+    console.log("SystemProgram.programId ", SystemProgram.programId)
+    console.log("DEFAULT_PROGRAMS.rent: ", DEFAULT_PROGRAMS.rent)
+    console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY)
+    console.log("leavesPdas: ", leavesPdas)
+
     const tx1 = await program.methods.initializeMerkleTreeUpdateState(
         new anchor.BN(0) // merkle tree index
         ).accounts(
             {
               authority: signer.publicKey,
-              merkleTreeTmpStorage:merkleTreeTmpState,
+              merkleTreeTmpStorage: merkleTreeTmpState,
               systemProgram: SystemProgram.programId,
               rent: DEFAULT_PROGRAMS.rent,
               merkleTree: MERKLE_TREE_KEY
-              // twoLeavesPda: pdas.leavesPdaPubkey
             }
           ).remainingAccounts(
             leavesPdas
@@ -1174,7 +1072,7 @@ describe("verifier_program", () => {
     process.exit()
   }
 
-        console.log("here4")
+  console.log("here4")
 
   var merkleTreeTmpAccountInfo = await provider.connection.getAccountInfo(
         merkleTreeTmpState
@@ -1189,13 +1087,15 @@ describe("verifier_program", () => {
   })
 
     let arr = []
-    console.log(`sending ${38} transactions`)
+    console.log(`sending ${29 + 5 * leavesPdas.length} transactions`)
 
     console.log(`merkleTreeTmpState ${merkleTreeTmpState}`)
     let i = 0;
-    let cache_index = 3;
-    for(let ix_id = 0; ix_id < 29; ix_id ++) {
-      let ix_data = [2, i];
+
+    // the number of tx needs to increase with greater batchsize
+    // 29 + 2 * leavesPdas.length is a first approximation
+    for(let ix_id = 0; ix_id < 252; ix_id ++) {
+
       const transaction = new solana.Transaction();
       transaction.add(
         await program.methods.updateMerkleTree(new anchor.BN(i))
@@ -1206,14 +1106,7 @@ describe("verifier_program", () => {
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
-      if (ix_id != 0 ) {
-        ix_data = [1, i];
-        // const storageData = (await connection.getAccountInfo(MERKLE_TREE_TMP_STORAGE_KEY)).data;
-        // const storage = STORAGE_LAYOUT.decode(storageData);
-        // assert(+storage.currentInstructionIndex.toString() == cache_index, `CurrentInstructionIndex mismatch ${storage.currentInstructionIndex.toString()} <-> ${cache_index}`);
-        // cache_index += 2;
-        i+=1;
-      }
+      i+=1;
       transaction.add(
         await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
           authority: signer.publicKey,
@@ -1222,14 +1115,12 @@ describe("verifier_program", () => {
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
-
+      i+=1;
 
       arr.push({tx:transaction, signers: [signer]})
     }
     console.log(`created ${arr.length} Merkle tree update tx`);
-    var merkleTreeAccountPrior = await provider.connection.getAccountInfo(
-          MERKLE_TREE_KEY
-        )
+
 
       await Promise.all(arr.map(async (tx, index) => {
         try {
@@ -1239,9 +1130,27 @@ describe("verifier_program", () => {
         }
       }));
 
-      // final tx to insert root
+    // final tx to insert root
+    let success = false;
+    try {
+      console.log("final tx to insert root")
+        await program.methods.lastTransactionUpdateMerkleTree(
+          new anchor.BN(254))
+        .accounts({
+          authority: signer.publicKey,
+          merkleTreeTmpStorage: merkleTreeTmpState,
+          merkleTree: MERKLE_TREE_KEY
+        }).remainingAccounts(
+          leavesPdas
+        ).signers([signer]).rpc()
+    } catch (e) {
+      console.log(e)
+      // sending 10 additional tx to finish the merkle tree update
+    }
+    /*
+    for (var retry = 0; retry < 10; retry++) {
       try {
-        console.log("inal tx to insert root")
+        console.log("final tx to insert root")
           await program.methods.lastTransactionUpdateMerkleTree(
             new anchor.BN(254))
           .accounts({
@@ -1251,15 +1160,57 @@ describe("verifier_program", () => {
           }).remainingAccounts(
             leavesPdas
           ).signers([signer]).rpc()
+          break;
       } catch (e) {
         console.log(e)
-        process.exit()
+        // sending 10 additional tx to finish the merkle tree update
       }
+      let arr_retry = []
+      for(let ix_id = 0; ix_id < 10; ix_id ++) {
+
+        const transaction = new solana.Transaction();
+        transaction.add(
+          await program.methods.updateMerkleTree(new anchor.BN(i))
+          .accounts({
+            authority: signer.publicKey,
+            // verifierStateAuthority:pdas.verifierStatePubkey,
+            merkleTreeTmpStorage: merkleTreeTmpState,
+            merkleTree: MERKLE_TREE_KEY
+          }).instruction()
+        )
+        i+=1;
+        transaction.add(
+          await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
+            authority: signer.publicKey,
+            // verifierStateAuthority:pdas.verifierStatePubkey,
+            merkleTreeTmpStorage: merkleTreeTmpState,
+            merkleTree: MERKLE_TREE_KEY
+          }).instruction()
+        )
+        i+=1;
+
+        arr_retry.push({tx:transaction, signers: [signer]})
+      }
+      console.log(`created ${arr.length} Merkle tree update tx`);
+
+
+      await Promise.all(arr_retry.map(async (tx, index) => {
+        try {
+          await provider.sendAndConfirm(tx.tx, tx.signers);
+        } catch (e) {
+          console.log("e: ", e)
+        }
+      }));
+    }
+    */
+
     await checkMerkleTreeBatchUpdateSuccess({
       connection: provider.connection,
       merkleTreeTmpState,
       merkleTreeAccountPrior,
-      numberOfLeaves: leavesPdas.length
+      numberOfLeaves: leavesPdas.length * 2,
+      leavesPdas,
+      merkleTree: merkleTree
     })
   }
 
@@ -1381,7 +1332,9 @@ describe("verifier_program", () => {
     connection,
     merkleTreeTmpState,
     merkleTreeAccountPrior,
-    numberOfLeaves
+    numberOfLeaves,
+    leavesPdas,
+    merkleTree
   }) {
 
     var merkleTreeTmpStateAccount = await connection.getAccountInfo(
@@ -1395,30 +1348,69 @@ describe("verifier_program", () => {
     var merkleTreeAccount = await connection.getAccountInfo(
           MERKLE_TREE_KEY
         )
-    //
-    let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8),0).sub(U64(1)).toNumber()
+    let merkle_tree_prior_leaves_index = U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0);
+    console.log("merkle_tree_prior_leaves_index: ", merkle_tree_prior_leaves_index)
+    let merkle_tree_prior_current_root_index = U64.readLE(merkleTreeAccountPrior.data.slice(594 - 8, 594),0).toNumber()
+
+    let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
+    console.log("merkle_tree_prior_current_root_index: ", merkle_tree_prior_current_root_index)
+    console.log("current_root_index: ", current_root_index)
+    console.log("equal: ", current_root_index == merkle_tree_prior_current_root_index)
+    assert(merkle_tree_prior_current_root_index + 1 == current_root_index)
     let current_root_start_range = 610 + current_root_index * 32;
     let current_root_end_range = 610 + (current_root_index + 1) * 32;
+    console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(610, current_root_end_range +32))}`)
     console.log(`root: ${BigNumber.from(Array.prototype.slice.call(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))).toHexString()}`)
 
-    console.log(`prior +${numberOfLeaves} ${U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(numberOfLeaves)).toString()},
+    console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()},
       now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
     `)
     // index has increased by numberOfLeaves
-    console.log(`index has increased by numberOfLeaves: ${U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
-    assert(U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0).add(U64(numberOfLeaves)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
-    // root hash changed
-    assert(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range) != merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))
-    console.log(`current_root_start_range: ${current_root_start_range}, current_root_end_range ${current_root_end_range}`)
-    console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(610, 642))} == reference ${
-      [60,131,16,4,128,200,110,165,209,87,186,23,154,250,32,38,238,152,69,191,230,195,86,115,113,78,158,137,89,215,181,26]
-
-    }`)
+    console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
+    assert(merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
+    // root hash changed doesn't work
+    // assert(merkleTreeAccountPrior.data.slice(current_root_start_range, current_root_end_range) != merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))
+    // console.log(`current_root_start_range: ${current_root_start_range}, current_root_end_range ${current_root_end_range}`)
+    // console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(610, 642))} == reference ${
+    //   [60,131,16,4,128,200,110,165,209,87,186,23,154,250,32,38,238,152,69,191,230,195,86,115,113,78,158,137,89,215,181,26]
+    //
+    // }`)
     console.log(`result: ${Array.prototype.slice.call(merkleTreeAccount.data.slice(642, 674))} == reference ${
       [60,131,16,4,128,200,110,165,209,87,186,23,154,250,32,38,238,152,69,191,230,195,86,115,113,78,158,137,89,215,181,26]
 
     }`)
-    console.log(`result: ${BigNumber.from(Array.prototype.slice.call(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range))).toHexString()}`)
+    let leavesPdasPubkeys = []
+    leavesPdas.map( (pda) => { leavesPdasPubkeys.push(pda.pubkey) })
+    var leavesAccounts = await connection.getMultipleAccountsInfo(
+      leavesPdasPubkeys
+        )
+    let leaves_to_sort = []
+    leavesAccounts.map((acc) => {
+      assert(acc.data[1] == 4);
+        leaves_to_sort.push({
+          index: U64(acc.data.slice(2, 10)).toString(),
+          leaves: acc.data.slice(10, 74),
+        });
+      });
+    leaves_to_sort.sort((a, b) => parseFloat(a.index) - parseFloat(b.index));
+    let numberOfLeavesPdas = 0
+    console.log("leaves_to_sort: ", leaves_to_sort)
+
+    for (var i = Number(merkle_tree_prior_leaves_index); i < Number(merkle_tree_prior_leaves_index) + Number(numberOfLeaves); i+=2) {
+      console.log("numberOfLeavesPdas: ", numberOfLeavesPdas)
+      console.log("i: ", i)
+
+      merkleTree.update(i, BigNumber.from(leaves_to_sort[numberOfLeavesPdas].leaves.slice(0,32).reverse()))
+      merkleTree.update(i + 1, BigNumber.from(leaves_to_sort[numberOfLeavesPdas].leaves.slice(32,64).reverse()))
+      numberOfLeavesPdas++;
+    }
+
+    let merkleTreeAfter = await light.buildMerkelTree(provider.connection);
+
+    console.log("merkleTree: ", merkleTree.root().toHexString())
+    console.log("merkleTreeAfter: ", merkleTreeAfter.root().toHexString())
+    assert(merkleTree.root().toHexString() == merkleTreeAfter.root().toHexString());
+
   }
   async function checkLastTxSuccess({
     connection,
@@ -1481,7 +1473,7 @@ describe("verifier_program", () => {
     assert_eq(leavesAccountData.leafLeft, ix_data.leafLeft, "left leaf not inserted correctly")
     assert_eq(leavesAccountData.leafRight, ix_data.leafRight, "right leaf not inserted correctly")
     assert_eq(leavesAccountData.encryptedUtxos, ix_data.encryptedUtxos, "encryptedUtxos not inserted correctly")
-
+    assert(leavesAccountData.leafType == 7);
     // assert_eq(leavesAccountData.merkleTree, ix_data.merkleTree)
 
     //TODO check root hash inserted correctly
@@ -1531,6 +1523,7 @@ describe("verifier_program", () => {
   }
   function unpackLeavesAccount(leavesAccountData) {
     return{
+      leafType: leavesAccountData[1],
       leafIndex:    U64.readLE(leavesAccountData.slice(2,10),0),
       leafLeft:     Array.prototype.slice.call(leavesAccountData.slice(10, 42)),
       leafRight:    Array.prototype.slice.call(leavesAccountData.slice(42, 74)),

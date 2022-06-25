@@ -120,6 +120,10 @@ pub fn insert_last_double(
     merkle_tree_account.current_root_index =
         ((merkle_tree_account.current_root_index + 1) % merkle_tree_account.root_history_size).try_into().unwrap();
     //
+    msg!(
+        "merkle_tree_account.current_root_index {}",
+        merkle_tree_account.current_root_index
+    );
     merkle_tree_account.next_index = tmp_storage_account.tmp_leaves_index.try_into().unwrap();
     msg!(
         "merkle_tree_account.next_index {:?}",

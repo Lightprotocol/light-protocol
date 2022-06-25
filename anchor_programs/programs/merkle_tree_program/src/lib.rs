@@ -87,40 +87,59 @@ pub mod merkle_tree_program {
         tmp_storage_pda.merkle_tree_index = merkle_tree_index.try_into().unwrap();
         tmp_storage_pda.relayer = ctx.accounts.authority.key();
         tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
-        // tmp_storage_pda.node_left = node_left.clone().try_into().unwrap();
-        // tmp_storage_pda.node_right = node_right.clone().try_into().unwrap();
 
-        // tmp_storage_pda.leaf_left = node_left.clone().try_into().unwrap();
-        // tmp_storage_pda.leaf_right = node_right.clone().try_into().unwrap();
         tmp_storage_pda.current_instruction_index = 1;
-        msg!("tmp_storage_pda.node_left: {:?}", tmp_storage_pda.node_left);
-        msg!("tmp_storage_pda.node_right: {:?}", tmp_storage_pda.node_right);
 
 
+        // Checking that the number of remaining accounts is non zero and smaller than 16.
         if ctx.remaining_accounts.len() == 0 || ctx.remaining_accounts.len() > 16 {
             msg!("Submitted number of leaves: {}", ctx.remaining_accounts.len());
             return err!(ErrorCode::InvalidNumberOfLeaves);
         }
 
-        // tmp_storage_account.tmp_leaves_index = merkle_tree_account.next_index;
-        // TODO: add looping over leaves to save their commithashes into the tmp account
-        // this will make the upper leaf inserts obsolete still need to check what to do with node_left, right
+        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
+        tmp_storage_pda.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
+
+
+        let mut tmp_index = merkle_tree_pda_data.next_index;
+
+        // Copying leaves to tmp account.
         for (index, account) in ctx.remaining_accounts.iter().enumerate() {
             msg!("Copying leaves pair {}", index);
-            if account.data.borrow()[1] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
+            let leaves_pda_data = TwoLeavesBytesPda::unpack(&account.data.borrow())?;
+
+            // Checking that leaves are not inserted already.
+            if leaves_pda_data.account_type != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
                 msg!("Leaf pda state {} with address {:?} is already inserted",account.data.borrow()[1], *account.key);
                 return err!(ErrorCode::LeafAlreadyInserted);
             }
-            tmp_storage_pda.leaves[index][0] = account.data.borrow()[10..42].try_into().unwrap();
-            tmp_storage_pda.leaves[index][1] = account.data.borrow()[42..74].try_into().unwrap();
+
+            // Checking that index is correct.
+            if index == 0 &&
+                leaves_pda_data.left_leaf_index != merkle_tree_pda_data.next_index
+
+             {
+                 msg!("Leaves pda at index {} has index {} but should have {}", index,
+                    leaves_pda_data.left_leaf_index,
+                    merkle_tree_pda_data.next_index
+                );
+                 return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
+            }
+
+            // Check that following leaves are correct and in the right order.
+            else if leaves_pda_data.left_leaf_index != tmp_index {
+                return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
+            }
+            // Copy leaves to tmp account.
+            tmp_storage_pda.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
+            tmp_storage_pda.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
             msg!("tmp_storage.leaves[index][0] {:?}", tmp_storage_pda.leaves[index][0]);
-            msg!("tmp_storage.leaves[index][0] {:?}", tmp_storage_pda.leaves[index][1]);
+            msg!("tmp_storage.leaves[index][1] {:?}", tmp_storage_pda.leaves[index][1]);
             tmp_storage_pda.number_of_leaves = (index + 1).try_into().unwrap();
+            tmp_index +=2;
         }
 
-        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-
-        tmp_storage_pda.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
+        // let ctx = get_lock(ctx)?;
 
         let current_slot = <Clock as  solana_program::sysvar::Sysvar>::get()?.slot;
         msg!("Current slot: {:?}", current_slot);
@@ -236,14 +255,10 @@ pub mod merkle_tree_program {
         next_index: u64,
         merkle_tree_pda_pubkey: [u8;32]
     ) -> Result<()>{
-        let next_index:u64 = 2;
-        let merkle_tree_pda_pubkey = vec![1u8;32];
         msg!("insert_two_leaves");
-        // let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.to_account_info();
-        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
+
         let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
         let two_leaves_pda = ctx.accounts.two_leaves_pda.to_account_info();
-        // let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
         msg!("Creating two_leaves_pda.");
         create_and_check_pda(
@@ -265,7 +280,7 @@ pub mod merkle_tree_program {
         leaf_pda_account_data.node_left = leaf_left.to_vec();
         leaf_pda_account_data.node_right = leaf_right.to_vec();
         //increased by 2 because we're inserting 2 leaves at once
-        leaf_pda_account_data.left_leaf_index = next_index.try_into().unwrap();
+        leaf_pda_account_data.left_leaf_index = ctx.accounts.pre_inserted_leaves_index.next_index.try_into().unwrap();
         leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
         // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
         msg!("encrypted_utxos: {:?}", encrypted_utxos.to_vec());
@@ -275,6 +290,7 @@ pub mod merkle_tree_program {
             &leaf_pda_account_data,
             &mut two_leaves_pda.data.borrow_mut(),
         );
+        ctx.accounts.pre_inserted_leaves_index.next_index += 2;
         msg!("packed two_leaves_pda");
         Ok(())
     }
@@ -335,16 +351,53 @@ pub mod merkle_tree_program {
     ) -> anchor_lang::Result<()>{
         Ok(())
     }
+    pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>, _bump: u64
+    ) -> anchor_lang::Result<()>{
+        msg!("hello {}", _bump);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTree<'info> {
-    #[account(address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
+    #[account(mut,address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
     pub authority: Signer<'info>,
-    pub rent: Sysvar<'info, Rent>,
     /// CHECK: it should be unpacked internally
     #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
+    #[account(
+        init,
+        seeds = [merkle_tree.key().to_bytes().as_ref()],
+        bump,
+        payer = authority,
+        space = 8 + 8
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
+
+}
+
+#[derive(Accounts)]
+pub struct InitializeMerkleTreeLeavesIndex<'info> {
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    // /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account(
+        init,
+        payer = authority,
+        seeds = [&merkle_tree.key().to_bytes()],
+        bump,
+        space = 16,
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    /// CHECK:` that this function can only be used to create this account for the existing sol
+    /// Merkle tree.
+    #[account(mut, address=Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[0].0))]
+    pub merkle_tree: AccountInfo<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>
 }
 
 #[derive(Accounts)]
@@ -367,6 +420,7 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
+
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
@@ -401,6 +455,8 @@ pub struct InsertTwoLeaves<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
     pub two_leaves_pda: AccountInfo<'info>,
+    #[account(mut)]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -461,6 +517,13 @@ pub struct InitializeNullifier<'info> {
 #[account]
 pub struct Nullifier {}
 
+
+// keeps track of leaves which have been queued but not inserted into the merkle tree yet
+#[account]
+pub struct PreInsertedLeavesIndex {
+    pub next_index: u64
+}
+
 /*
 // not used right now because already inited merkle tree would not be compatible
 #[derive(Accounts)]
@@ -519,5 +582,7 @@ pub enum ErrorCode {
     #[msg("LeafAlreadyInserted")]
     LeafAlreadyInserted,
     #[msg("WrongLeavesLastTx")]
-    WrongLeavesLastTx
+    WrongLeavesLastTx,
+    #[msg("FirstLeavesPdaIncorrectIndex")]
+    FirstLeavesPdaIncorrectIndex
 }

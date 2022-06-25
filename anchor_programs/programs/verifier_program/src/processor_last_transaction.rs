@@ -58,6 +58,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         two_leaves_pda: ctx.accounts.two_leaves_pda.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
         rent: ctx.accounts.rent.to_account_info(),
+        pre_inserted_leaves_index: ctx.accounts.pre_inserted_leaves_index.to_account_info()
         // add merkle tree leaves index of not inserted leaves
     };
     let seeds = [&[
@@ -177,6 +178,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         two_leaves_pda: ctx.accounts.two_leaves_pda.to_account_info(),
         system_program: ctx.accounts.system_program.to_account_info(),
         rent: ctx.accounts.rent.to_account_info(),
+        pre_inserted_leaves_index: ctx.accounts.pre_inserted_leaves_index.to_account_info()
         // add merkle tree leaves index of not inserted leaves
     };
     let seeds = [&[

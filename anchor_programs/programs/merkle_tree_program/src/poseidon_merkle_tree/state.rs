@@ -216,12 +216,12 @@ impl Pack for TwoLeavesBytesPda {
         let input = array_ref![input, 0, TwoLeavesBytesPda::LEN];
 
         let (
-            is_initialized,
+            _is_initialized,
             account_type,
-            _left_leaf_index,
-            _node_left,
-            _node_right,
-            _merkle_tree_pubkey,
+            left_leaf_index,
+            node_left,
+            node_right,
+            merkle_tree_pubkey,
             _encrypted_utxos,
         ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
@@ -233,11 +233,11 @@ impl Pack for TwoLeavesBytesPda {
         Ok(TwoLeavesBytesPda {
             is_initialized: true,
             account_type: account_type[0],
-            node_right: vec![0u8; 32],
-            node_left: vec![0u8; 32],
-            merkle_tree_pubkey: vec![0u8; 32],
+            node_left: node_left.to_vec(),
+            node_right: node_right.to_vec(),
+            merkle_tree_pubkey: merkle_tree_pubkey.to_vec(),
             encrypted_utxos: vec![0u8; ENCRYPTED_UTXOS_LENGTH],
-            left_leaf_index: 0usize,
+            left_leaf_index: usize::from_le_bytes(*left_leaf_index),
         })
     }
 

@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 
 use merkle_tree_program::{
     program::MerkleTreeProgram,
+    PreInsertedLeavesIndex,
     wrapped_state::{ MerkleTree},
     utils::config::{
         STORAGE_SEED,
@@ -67,8 +68,10 @@ pub struct LastTransactionDeposit<'info> {
     // pub user_account: Signer<'info>,
     #[account(mut, close = signing_address)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    #[account(mut)]
+    #[account()]
     pub merkle_tree: Account<'info, MerkleTree>,
+    #[account(mut)]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
 
 }
 
@@ -124,11 +127,13 @@ pub struct LastTransactionWithdrawal<'info> {
     // account from which funds are transferred
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
-    pub merkle_tree: AccountInfo<'info>,
-    #[account(mut)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub recipient: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     pub relayer_recipient: AccountInfo<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    #[account()]
+    pub merkle_tree: Account<'info, MerkleTree>,
+    #[account(mut)]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
 }
