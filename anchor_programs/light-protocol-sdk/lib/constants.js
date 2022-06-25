@@ -13,7 +13,7 @@ exports.REACT_APP_RELAYER_URL = 'https://relay.lightprotocol.com';
 // TODO WE WORK ON LOCALHOST RIGHT NOW
 // console.log('WE WORK ON LOCALHOST RIGHT NOW!!!!!!!!')
 //export const REACT_APP_RELAYER_URL = 'http://localhost:3001'
-exports.REACT_APP_MERKLE_TREE_PDA_PUBKEY = '8PEM1idiDmUJc3efD3Qm1sfHMDs1BPgWHCbNc2bvXdeR';
+exports.REACT_APP_MERKLE_TREE_PDA_PUBKEY = 'DpdgARh2mTCgCkCawPzQYG5q9miYB8H5cFQWYXASJSy9';
 exports.MERKLE_TREE_HEIGHT = 18;
 exports.LIGHTSHIELD_WIDGET = 'https://widget.lightprotocol.com'; //'https://widget.lightprotocol.com'
 // TODO How is this an address if it is made from a function called publicKey
