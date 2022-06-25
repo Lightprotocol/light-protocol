@@ -26,6 +26,14 @@ pub mod wrapped_state;
 // pub mod registry;
 // pub use registry::*;
 
+
+use anchor_lang::system_program;
+
+pub use crate::constant::*;
+
+use crate::state::MerkleTreeTmpPda;
+
+
 use crate::config::{
     MERKLE_TREE_TMP_PDA_SIZE,
     STORAGE_SEED,
@@ -36,19 +44,22 @@ use crate::config::{
     NF_SEED,
     MERKLE_TREE_ACC_BYTES_ARRAY
 };
-use crate::poseidon_merkle_tree::processor::pubkey_check;
 
-pub use crate::constant::*;
-use crate::poseidon_merkle_tree::processor::MerkleTreeProcessor;
-use crate::utils::config;
-
-use crate::state::MerkleTreeTmpPda;
-use anchor_lang::system_program;
-
-
-use crate::poseidon_merkle_tree::state::MerkleTree;
-use crate::utils::create_pda::create_and_check_pda;
-use crate::poseidon_merkle_tree::state::TwoLeavesBytesPda;
+use crate::utils::{
+    create_pda::create_and_check_pda,
+    config
+};
+use crate::poseidon_merkle_tree::{
+    state::{
+        TwoLeavesBytesPda,
+        MerkleTree
+    },
+    processor::{
+        MerkleTreeProcessor,
+        pubkey_check
+    },
+    state_roots
+};
 
 
 #[program]
@@ -351,13 +362,33 @@ pub mod merkle_tree_program {
     ) -> anchor_lang::Result<()>{
         Ok(())
     }
+
     pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>, _bump: u64
+        _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>, _bump: u64
     ) -> anchor_lang::Result<()>{
-        msg!("hello {}", _bump);
+        Ok(())
+    }
+
+    pub fn check_root_hash_exists<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, CheckMerkleRootExists<'info>>,
+        merkle_tree_index: u64,
+        root_hash: [u8;32]
+    ) -> anchor_lang::Result<()>{
+        msg!("Invoking check_root_hash_exists");
+        state_roots::check_root_hash_exists(
+            &ctx.accounts.merkle_tree.to_account_info(),
+            &root_hash.to_vec(),
+            &ctx.program_id,
+            &Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
+            // merkle_tree_pda: &AccountInfo,
+            // root_bytes: &Vec<u8>,
+            // program_id: &Pubkey,
+            // merkle_tree_pda_pubkey: &Pubkey,
+        );
         Ok(())
     }
 }
+
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTree<'info> {
@@ -424,7 +455,7 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    /// CHECK:` should be consistent
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
@@ -432,6 +463,17 @@ pub struct UpdateMerkleTree<'info> {
     pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
+    pub merkle_tree: AccountInfo<'info>,
+}
+
+#[derive(Accounts)]
+#[instruction(merkle_tree_index: u64)]
+pub struct CheckMerkleRootExists<'info> {
+    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    #[account(mut)]
+    pub authority: Signer<'info>,
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
 
