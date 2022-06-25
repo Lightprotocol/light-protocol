@@ -25,7 +25,8 @@ use merkle_tree_program::{
     wrapped_state:: {MerkleTree},
 };
 use merkle_tree_program::instructions::sol_transfer;
-
+pub mod instructions;
+use crate::instructions::check_tx_integrity_hash;
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
 #[program]
@@ -104,6 +105,17 @@ pub mod verifier_program {
             cpi_ctx,
             merkle_tree_index[0].into(),
             root_hash.clone()
+        ).unwrap();
+
+        check_tx_integrity_hash(
+            recipient.to_vec(),
+            ext_amount.to_vec(),
+            ctx.accounts.signing_address.key().to_bytes().to_vec(),
+            relayer_fee.to_vec(),
+            tx_integrity_hash.to_vec(),
+            merkle_tree_index[0],
+            encrypted_utxos[..222].to_vec(),
+            merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index[0] as usize].0.to_vec(),
         ).unwrap();
 
         Ok(())
@@ -420,5 +432,7 @@ pub enum ErrorCode {
     #[msg("NotLastTransactionState")]
     NotLastTransactionState,
     #[msg("Tx is not a deposit")]
-    NotDeposit
+    NotDeposit,
+    #[msg("WrongTxIntegrityHash")]
+    WrongTxIntegrityHash
 }
