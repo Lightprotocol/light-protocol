@@ -25,7 +25,7 @@ pub fn check_tx_integrity_hash(
         encrypted_utxos,
     ]
     .concat();
-    // msg!("integrity_hash inputs: {:?}", input);
+    msg!("integrity_hash inputs: {:?}", input);
     let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
     msg!("hash computed {:?}", hash);
 

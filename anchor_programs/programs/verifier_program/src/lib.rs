@@ -12,7 +12,7 @@ use crate::groth16_verifier::{
     miller_loop::*,
     parsers::*,
 };
-
+use crate::merkle_tree_program::instructions::close_account;
 use ark_ec::bn::g2::G2HomProjective;
 use ark_ff::Fp2;
 use ark_std::One;
@@ -93,19 +93,6 @@ pub mod verifier_program {
             z: Fp2::one(),
         });
 
-        // check roothash exists
-        let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
-        let accounts = merkle_tree_program::cpi::accounts::CheckMerkleRootExists {
-            authority: ctx.accounts.signing_address.to_account_info(),
-            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-        };
-
-        let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
-        merkle_tree_program::cpi::check_root_hash_exists(
-            cpi_ctx,
-            merkle_tree_index[0].into(),
-            root_hash.clone()
-        ).unwrap();
 
         check_tx_integrity_hash(
             recipient.to_vec(),
@@ -237,33 +224,50 @@ pub mod verifier_program {
     pub fn last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
 
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+
+        let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree_program_id.key().to_bytes().as_ref()], ctx.program_id);
+        let bump = &[bump][..];
+        let seed = &merkle_tree_program_id.key().to_bytes()[..];
+        let seeds = &[&[seed, bump][..]];
         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
-            authority: ctx.accounts.signing_address.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
             nullifier_pda: ctx.accounts.nullifier0_pda.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             rent: ctx.accounts.rent.to_account_info(),
         };
 
-        let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
+        let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
         merkle_tree_program::cpi::initialize_nullifier(
             cpi_ctx,
             ctx.accounts.verifier_state.load()?.nullifier0
         ).unwrap();
 
-        let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
-            authority: ctx.accounts.signing_address.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
             nullifier_pda: ctx.accounts.nullifier1_pda.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             rent: ctx.accounts.rent.to_account_info(),
         };
 
-        let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
+        let cpi_ctx1 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts1, seeds);
         merkle_tree_program::cpi::initialize_nullifier(
             cpi_ctx1,
             ctx.accounts.verifier_state.load()?.nullifier1
         ).unwrap();
 
+
+        // check roothash exists
+        let accounts = merkle_tree_program::cpi::accounts::CheckMerkleRootExists {
+            authority: ctx.accounts.authority.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        };
+
+        let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+        merkle_tree_program::cpi::check_root_hash_exists(
+            cpi_ctx2,
+            ctx.accounts.verifier_state.load()?.merkle_tree_index.into(),
+            ctx.accounts.verifier_state.load()?.root_hash.clone()
+        ).unwrap();
         processor_last_transaction::process_last_transaction_deposit(ctx)
     }
 
@@ -271,31 +275,48 @@ pub mod verifier_program {
     // inserts nullifiers and Merkle tree leaves
     pub fn last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawal>) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+
+        let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree_program_id.key().to_bytes().as_ref()], ctx.program_id);
+        let bump = &[bump][..];
+        let seed = &merkle_tree_program_id.key().to_bytes()[..];
+        let seeds = &[&[seed, bump][..]];
         let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
-            authority: ctx.accounts.signing_address.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
             nullifier_pda: ctx.accounts.nullifier0_pda.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             rent: ctx.accounts.rent.to_account_info(),
         };
 
-        let cpi_ctx = CpiContext::new(merkle_tree_program_id.clone(), accounts);
+        let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
         merkle_tree_program::cpi::initialize_nullifier(
             cpi_ctx,
             ctx.accounts.verifier_state.load()?.nullifier0
         ).unwrap();
 
-        let merkle_tree_program_id1 = ctx.accounts.program_merkle_tree.to_account_info();
         let accounts1 = merkle_tree_program::cpi::accounts::InitializeNullifier {
-            authority: ctx.accounts.signing_address.to_account_info(),
+            authority: ctx.accounts.authority.to_account_info(),
             nullifier_pda: ctx.accounts.nullifier1_pda.to_account_info(),
             system_program: ctx.accounts.system_program.to_account_info(),
             rent: ctx.accounts.rent.to_account_info(),
         };
 
-        let cpi_ctx1 = CpiContext::new(merkle_tree_program_id1, accounts1);
+        let cpi_ctx1 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts1, seeds);
         merkle_tree_program::cpi::initialize_nullifier(
             cpi_ctx1,
             ctx.accounts.verifier_state.load()?.nullifier1
+        ).unwrap();
+
+        // check roothash exists
+        let accounts = merkle_tree_program::cpi::accounts::CheckMerkleRootExists {
+            authority: ctx.accounts.authority.to_account_info(),
+            merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        };
+
+        let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+        merkle_tree_program::cpi::check_root_hash_exists(
+            cpi_ctx2,
+            ctx.accounts.verifier_state.load()?.merkle_tree_index.into(),
+            ctx.accounts.verifier_state.load()?.root_hash.clone()
         ).unwrap();
 
         processor_last_transaction::process_last_transaction_withdrawal(ctx)
@@ -308,14 +329,20 @@ pub mod verifier_program {
         // account does not exist
         let external_amount: i64 = i64::from_le_bytes(verifier_state.ext_amount);
         // escrow is only applied for deposits
-        if external_amount < 0 {
+        if external_amount <= 0 {
             return err!(ErrorCode::NotDeposit);
         }
+        // TODO check whether time is expired or verifier state was just inited
+        // if yes check that signer such that user can only close after graceperiod
+        // if verifier_state.current_instruction_index != 0 && fee_escrow_state.creation_slot <  {
+        //
+        // }
 
         // transfer remaining funds after subtracting the fee
         // for the number of executed transactions to the user
         // TODO make fee per transaction configurable
-        let transfer_amount_relayer = verifier_state.current_instruction_index * 50_000;
+        // 7 ix per transaction -> verifier_state.current_instruction_index / 7 * 5000
+        let transfer_amount_relayer = (verifier_state.current_instruction_index / 7) * 5000;
         msg!("transfer_amount_relayer: {}", transfer_amount_relayer);
         sol_transfer(
             &fee_escrow_state.to_account_info(),
@@ -325,7 +352,7 @@ pub mod verifier_program {
         )?;
 
 
-        // transfer remaining funds after subtracting the fee
+        // Transfer remaining funds after subtracting the fee
         // for the number of executed transactions to the user
         let transfer_amount_user: u64 =
             fee_escrow_state.relayer_fee
@@ -340,9 +367,66 @@ pub mod verifier_program {
             transfer_amount_user.try_into().unwrap()
 
         )?;
+        // Close tmp account.
+        // Relayer has an incentive to close the account.
+        close_account(
+            &ctx.accounts.verifier_state.to_account_info(),
+            &ctx.accounts.signing_address.to_account_info(),
+        )?;
         Ok(())
 
     }
+
+    pub fn test_nullifier_insert(ctx: Context<TestNullifierInsert>, nullifer: [u8;32]) -> Result<()> {
+        let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+
+        let (address, bump) = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree_program_id.key().to_bytes().as_ref()], ctx.program_id);
+        msg!("find_program_address: {:?}" ,address);
+        msg!("ctx.accounts.authority: {:?}" ,ctx.accounts.authority.key());
+
+        let bump = &[bump][..];
+        let seed = &merkle_tree_program_id.key().to_bytes()[..];
+        let seeds = &[&[seed, bump][..]];
+        msg!("seeds: {:?}", seeds);
+        // authority.is_signer = true;
+        // msg!("authority1 {:?}", authority);
+        let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
+            authority: ctx.accounts.authority.to_account_info(),
+            nullifier_pda: ctx.accounts.nullifier0_pda.to_account_info(),
+            system_program: ctx.accounts.system_program.to_account_info(),
+            rent: ctx.accounts.rent.to_account_info(),
+        };
+
+        let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+        merkle_tree_program::cpi::initialize_nullifier(
+            cpi_ctx,
+            nullifer
+        ).unwrap();
+        Ok(())
+    }
+}
+use merkle_tree_program::utils::config::NF_SEED;
+#[derive(Accounts)]
+#[instruction(nullifier: [u8;32])]
+pub struct TestNullifierInsert<'info> {
+    #[account(
+        mut,
+        seeds = [nullifier.as_ref(), NF_SEED.as_ref()],
+        bump,
+        seeds::program = MerkleTreeProgram::id(),
+    )]
+    /// CHECK:` doc comment explaining why no checks through types are necessary
+    pub nullifier0_pda: UncheckedAccount<'info>,
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    /// CHECK:` should be a pda
+    // #[account(init, payer = signing_address, space=0)]
+    #[account(mut)]
+    pub authority: UncheckedAccount<'info>,
+    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    // #[account(mut)]
+    pub signing_address: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>
 }
 
 #[derive(Accounts)]
@@ -353,8 +437,8 @@ pub struct Compute<'info> {
         bump
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
+    #[account(mut, address=verifier_state.load()?.signing_address)]
+    pub signing_address: Signer<'info>
 }
 
 #[derive(Accounts)]
@@ -367,12 +451,11 @@ pub struct Compute<'info> {
 pub struct CreateVerifierState<'info> {
     #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
+    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
+    /// Is checked in the tx integrity hash
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(mut)]
-    pub merkle_tree: Account<'info, MerkleTree>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>
 }
 
 #[derive(Accounts)]
@@ -380,23 +463,27 @@ pub struct CreateVerifierState<'info> {
     tx_integrity_hash: [u8;32]
 )]
 pub struct CreateEscrowState<'info> {
-    #[account(init,seeds = [tx_integrity_hash.as_ref(), b"fee_escrow"], bump,  payer=signing_address, space= 256 as usize)]
+    #[account(init,seeds = [tx_integrity_hash.as_ref(), b"fee_escrow"], bump,  payer=signing_address, space= 128 as usize)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
+    #[account(init, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     /// CHECK: is ininitialized at this point the
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
+    /// User account which partially signed the tx to create the escrow such that the relayer
+    /// can executed all transactions.
     #[account(mut)]
     pub user: Signer<'info>,
-    pub system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>
 }
 
 #[derive(Accounts)]
 pub struct CloseFeeEscrowPda<'info> {
     #[account(mut, close = relayer)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    #[account(mut, close = relayer)]
+    /// init_if_needed covers the edgecase that verifierstate is not created and the user
+    /// wants the reclaim his funds. ASK NORBERT
+    #[account(mut/*init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize*/)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -412,12 +499,12 @@ pub struct CloseFeeEscrowPda<'info> {
 
 #[account]
 pub struct FeeEscrowState {
-    pub verifier_state_pubkey: Pubkey,
-    pub relayer_pubkey: Pubkey,
-    pub user_pubkey:    Pubkey,
-    pub tx_fee:        u64,// fees for tx (tx_fee = number_of_tx * 0.000005)
-    pub relayer_fee:   u64,// for relayer
-    pub creation_slot:  u64
+    pub verifier_state_pubkey:  Pubkey,
+    pub relayer_pubkey:         Pubkey,
+    pub user_pubkey:            Pubkey,
+    pub tx_fee:                 u64,// fees for tx (tx_fee = number_of_tx * 0.000005)
+    pub relayer_fee:            u64,// for relayer
+    pub creation_slot:          u64
 }
 
 

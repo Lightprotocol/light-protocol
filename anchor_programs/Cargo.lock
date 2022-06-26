@@ -544,6 +544,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "attacker_program"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "byteorder",
+ "merkle_tree_program",
+ "solana-program",
+]
+
+[[package]]
 name = "atty"
 version = "0.2.14"
 source = "registry+https://github.com/rust-lang/crates.io-index"

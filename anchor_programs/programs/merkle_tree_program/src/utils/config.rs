@@ -89,8 +89,10 @@ const MERKLE_TREE_ACC_BYTES_0: [u8; 32] =[
 ];
 #[constant]
 const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
-    123, 30, 128, 110, 93, 171, 2, 242, 20, 194, 175, 25, 246, 98, 182, 99, 31, 110, 119, 163, 68,
-    179, 244, 89, 176, 19, 93, 136, 149, 231, 179, 213,
+  140, 234, 203,  74, 143, 169,  95,  96,
+   18, 242, 129,  17, 143,  69, 231, 155,
+  105, 107, 222,  98, 104, 247, 190,  19,
+   59, 170,   0, 108, 196, 139,  42,  57
 ];
 pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
     [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
@@ -103,6 +105,17 @@ pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
 pub const MERKLE_TREE_SIGNER_AUTHORITY: [u8; 32] = [
     59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42, 153, 232, 210,
     107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225,
+];
+
+pub const REGISTERED_VERIFIER_KEY_ARRAY: [[u8;32]; 1]= [
+    REGISTERED_VERIFIER_KEY_0
+];
+
+pub const REGISTERED_VERIFIER_KEY_0 : [u8;32]= [
+   59,  42, 227,   2, 155,  13, 249,  77,
+    6,  97,  72, 159, 190, 119,  46, 110,
+  226,  42, 153, 232, 210, 107, 116, 255,
+   63, 213, 216,  18,  94, 128, 155, 225
 ];
 
 // account bytes

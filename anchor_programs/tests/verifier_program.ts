@@ -1,6 +1,8 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import { VerifierProgram } from "../target/types/verifier_program";
+import { AttackerProgram } from "../target/types/attacker_program";
+
 const { SystemProgram } = require('@solana/web3.js');
 import { findProgramAddressSync } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 import fs from 'fs';
@@ -281,6 +283,12 @@ const MERKLE_TREE_KP = solana.Keypair.fromSeed(MERKLE_TREE_ACC_BYTES_0);
 const MERKLE_TREE_KEY = MERKLE_TREE_KP.publicKey;
 
 const MERKLE_TREE_SIZE = 16658;
+
+const MERKLE_TREE_TOKEN_ACC_BYTES_0 = new Uint8Array([
+    123, 30, 128, 110, 93, 171, 2, 242, 20, 194, 175, 25, 246, 98, 182, 99, 31, 110, 119, 163, 68,
+    179, 244, 89, 176, 19, 93, 136, 149, 231, 179, 213,
+]);
+
 const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")
 export const DEFAULT_PROGRAMS = {
   systemProgram: solana.SystemProgram.programId,
@@ -302,6 +310,7 @@ describe("verifier_program", () => {
 
   const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
+  const attackerProgram = anchor.workspace.AttackerProgram as Program<AttackerProgram>;
   const [REGISTERED_VERIFIER_KEY] = solana.PublicKey.findProgramAddressSync(
       [verifierProgram.programId.toBuffer()],
       merkleTreeProgram.programId
@@ -311,7 +320,162 @@ describe("verifier_program", () => {
       [MERKLE_TREE_KEY.toBuffer()],
       merkleTreeProgram.programId
     )[0];
+  const MERKLE_TREE_PDA_TOKEN = solana.PublicKey.findProgramAddressSync(
+      [MERKLE_TREE_KEY.toBuffer(), anchor.utils.bytes.utf8.encode("MERKLE_TREE_PDA_TOKEN")],
+      merkleTreeProgram.programId
+    )[0];
+  console.log("MERKLE_TREE_PDA_TOKEN: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN.toBytes()))
+  const AUTHORITY = solana.PublicKey.findProgramAddressSync(
+      [merkleTreeProgram.programId.toBuffer()],
+      verifierProgram.programId)[0];
+  console.log("AUTHORITY ", AUTHORITY)
+/*
+it("Initialize Nullifier Test", async () => {
+    await newAccountWithLamports(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR
+    )
+    console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR)
+    await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
+    var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
+          ADMIN_AUTH_KEYPAIR.publicKey
+        )
+        console.log("ADMIN_AUTH_KEYPAIRAccountInfo: ", ADMIN_AUTH_KEYPAIRAccountInfo)
 
+    console.log("MERKLE_TREE_KP: ", verifierProgram.methods);
+    let nullifier0 = new Uint8Array(32).fill(2);
+    let nullifier0PdaPubkey = solana.PublicKey.findProgramAddressSync(
+        [Buffer.from(nullifier0), anchor.utils.bytes.utf8.encode("nf")],
+        merkleTreeProgram.programId)[0];
+    let authority = solana.PublicKey.findProgramAddressSync(
+        [merkleTreeProgram.programId.toBuffer()],
+        verifierProgram.programId)[0];
+        console.log("merkleTreeProgram.programId.toBuffer() ", Array.prototype.slice.call(merkleTreeProgram.programId.toBuffer()))
+        // , anchor.utils.bytes.utf8.encode("authority")
+        console.log("authority: ", Array.prototype.slice.call(authority.toBytes()))
+        console.log("authority: ", authority.toBase58())
+
+
+    // try calling from other program
+    try {
+      const tx = await attackerProgram.methods.testNullifierInsert(nullifier0).accounts({
+        authority: authority,
+        signingAddress: ADMIN_AUTH_KEY,
+        nullifier0Pda: nullifier0PdaPubkey,
+        programMerkleTree:  merkleTreeProgram.programId,
+        ...DEFAULT_PROGRAMS
+        // pub nullifier0_pda: UncheckedAccount<'info>,
+        //   pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+        //   /// CHECK:` should be a pda
+        //   #[account(mut)]
+        //   pub authority: AccountInfo<'info>,
+        //   #[account(mut)]
+        //   pub signing_address: Signer<'info>,
+        //   pub system_program: Program<'info, System>,
+        //   pub rent: Sysvar<'info, Rent>
+      }).preInstructions([
+        SystemProgram.transfer({
+          fromPubkey: ADMIN_AUTH_KEY,
+          toPubkey: authority,
+          lamports: await provider.connection.getMinimumBalanceForRentExemption(8),
+        })
+      ])
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc();
+
+    } catch(e) {
+      console.log("e: ", e)
+    }
+
+    try {
+      const tx = await merkleTreeProgram.methods.initializeNullifier(nullifier0).accounts({
+        authority: ADMIN_AUTH_KEY,
+        nullifierPda: nullifier0PdaPubkey,
+        programMerkleTree:  merkleTreeProgram.programId,
+        ...DEFAULT_PROGRAMS
+        // pub nullifier0_pda: UncheckedAccount<'info>,
+        //   pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+        //   /// CHECK:` should be a pda
+        //   #[account(mut)]
+        //   pub authority: AccountInfo<'info>,
+        //   #[account(mut)]
+        //   pub signing_address: Signer<'info>,
+        //   pub system_program: Program<'info, System>,
+        //   pub rent: Sysvar<'info, Rent>
+      })
+      // .preInstructions([
+      //   SystemProgram.transfer({
+      //     fromPubkey: ADMIN_AUTH_KEY,
+      //     toPubkey: authority,
+      //     lamports: await provider.connection.getMinimumBalanceForRentExemption(8),
+      //   })
+      // ])
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc();
+
+    } catch(e) {
+      console.log("e: ", e)
+      console.log("should fail")
+    }
+
+
+    try {
+      const tx = await verifierProgram.methods.testNullifierInsert(nullifier0).accounts({
+        authority: authority,
+        signingAddress: ADMIN_AUTH_KEY,
+        nullifier0Pda: nullifier0PdaPubkey,
+        programMerkleTree:  merkleTreeProgram.programId,
+        ...DEFAULT_PROGRAMS
+        // pub nullifier0_pda: UncheckedAccount<'info>,
+        //   pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+        //   /// CHECK:` should be a pda
+        //   #[account(mut)]
+        //   pub authority: AccountInfo<'info>,
+        //   #[account(mut)]
+        //   pub signing_address: Signer<'info>,
+        //   pub system_program: Program<'info, System>,
+        //   pub rent: Sysvar<'info, Rent>
+      }).preInstructions([
+        SystemProgram.transfer({
+          fromPubkey: ADMIN_AUTH_KEY,
+          toPubkey: authority,
+          lamports: await provider.connection.getMinimumBalanceForRentExemption(8),
+        })
+      ])
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc();
+
+    } catch(e) {
+      console.log("should not fail")
+      console.log("e: ", e)
+    }
+    console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
+    var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
+          nullifier0PdaPubkey
+        )
+    console.log("merkleTreeAccountInfo " ,merkleTreeAccountInfo)
+
+    // // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
+    // //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
+    // // )
+    // if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
+    //   throw "merkle tree pda size wrong after initializing";
+    //
+    // }
+    // if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
+    //   throw "merkle tree pda owner wrong after initializing";
+    // }
+    // var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
+    //       PRE_INSERTED_LEAVES_INDEX
+    //     )
+    // console.log("merkleTreeIndexAccountInfo. ", merkleTreeIndexAccountInfo)
+    // if (merkleTreeIndexAccountInfo === null) {
+    //   throw "merkleTreeIndexAccountInfo not initialized";
+    // }
+    console.log("process exit")
+    process.exit()
+  });
+  */
   it("Initialize Merkle Tree", async () => {
     await newAccountWithLamports(
       provider.connection,
@@ -330,6 +494,7 @@ describe("verifier_program", () => {
         authority: ADMIN_AUTH_KEY,
         merkleTree: MERKLE_TREE_KEY,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+        merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
         ...DEFAULT_PROGRAMS
       })
       .preInstructions([
@@ -345,17 +510,7 @@ describe("verifier_program", () => {
       .rpc();
       console.log("initializeNewMerkleTree: ", merkleTreeProgram.methods)
       console.log("PRE_INSERTED_LEAVES_INDEX: ", PRE_INSERTED_LEAVES_INDEX)
-      // const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeLeavesIndex(
-      //   new anchor.BN(0)
-      // ).accounts({
-      //   authority: ADMIN_AUTH_KEYPAIR.publicKey,
-      //   preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-      //   merkleTree: MERKLE_TREE_KEY,
-      //   systemProgram: DEFAULT_PROGRAMS.systemProgram,
-      //   rent: DEFAULT_PROGRAMS.rent
-      // })
-      // .signers([ADMIN_AUTH_KEYPAIR])
-      // .rpc();
+
     } catch(e) {
       console.log("e: ", e)
     }
@@ -490,21 +645,21 @@ describe("verifier_program", () => {
       leavesPdas,
       merkleTree
     });
-  });
-  */
+  });*/
+
 
 
   it("Dynamic Shielded transaction", async () => {
 
     // TODO create deterministically in  init
-    const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
+    // const merkleTreePdaToken = await newProgramOwnedAccount({connection: provider.connection, owner: merkleTreeProgram});
     var merkleTreePdaTokenAccount = await provider.connection.getAccountInfo(
-          merkleTreePdaToken.publicKey
+          MERKLE_TREE_PDA_TOKEN
         )
     console.log("merkleTreeProgram.programId: ", merkleTreeProgram.programId.toBase58());
 
     console.log("merkleTreePdaTokenAccount owner: ", merkleTreePdaTokenAccount.owner.toBase58());
-    console.log("merkleTreePdaTokenAccount lamports: ", merkleTreePdaTokenAccount.lamports);
+    console.log("merkleTreePdaTokenAccount lamports: ", MERKLE_TREE_PDA_TOKEN);
 
 
       const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
@@ -531,7 +686,7 @@ describe("verifier_program", () => {
           amount: 1_000_000_00,// amount
           connection: provider.connection,
           merkleTree,
-          merkleTreePdaToken,
+          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
           userAccount
         })
         console.log("{leavesPda0, outputUtxos0} ", res[0], res[1])
@@ -548,11 +703,11 @@ describe("verifier_program", () => {
       });
 
 
-      /*
-      * test withdrawal
-      *
-      *
-      */
+      // *
+      // * test withdrawal
+      // *
+      // *
+      // *
 
       var leavesPdasWithdrawal = []
       const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
@@ -608,18 +763,17 @@ describe("verifier_program", () => {
         nullifier1: ix_dataWithdrawal.nullifier1,
         leafLeft: ix_dataWithdrawal.leafLeft
       })
-      console.log("merkleTreePdaToken: ", merkleTreePdaToken.publicKey.toBase58())
+      console.log("merkleTreePdaToken: ", MERKLE_TREE_PDA_TOKEN)
       console.log("recipientWithdrawal: ", recipientWithdrawal.publicKey.toBase58())
       console.log("relayer: ", relayer.publicKey.toBase58())
       console.log("relayer_recipient: ", relayer_recipient.publicKey.toBase58())
-
       let resWithdrawalTransact = await transact({
         connection: provider.connection,
         ix_data: ix_dataWithdrawal,
         pdas: pdasWithdrawal,
-        origin: merkleTreePdaToken,
+        origin: MERKLE_TREE_PDA_TOKEN,
         signer: relayer,
-        recipient: recipientWithdrawal,
+        recipient: recipientWithdrawal.publicKey,
         relayer_recipient,
         verifierProgram,
         mode: "withdrawal"
@@ -657,6 +811,7 @@ describe("verifier_program", () => {
     let outputUtxos = [deposit_utxo1, deposit_utxo2 ]
 
     console.log("deposit_utxo1: ", deposit_utxo1)
+    console.log("merkleTreePdaToken: ", merkleTreePdaToken)
 
     const data = await light.getProof(
       inputUtxos,
@@ -664,7 +819,7 @@ describe("verifier_program", () => {
       merkleTree,
       deposit_utxo1.amount.add(deposit_utxo2.amount),
       U64(0),
-      merkleTreePdaToken.publicKey.toBase58(),
+      merkleTreePdaToken.toBase58(),
       burnerUserAccount.publicKey.toBase58(),
       'DEPOSIT',
       encryptionKeypair
@@ -686,7 +841,7 @@ describe("verifier_program", () => {
       pdas,
       origin: userAccount,
       signer: burnerUserAccount,
-      recipient: merkleTreePdaToken,
+      recipient: MERKLE_TREE_PDA_TOKEN,
       verifierProgram,
       batch_insert: true,
       mode: "deposit"
@@ -713,12 +868,20 @@ describe("verifier_program", () => {
         let tx_fee = 50_000 * PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 2* MERKLE_TREE_UPDATE_TX_COUNT;
         console.log("verifierStatePubkey: ", pdas.verifierStatePubkey)
         console.log("pubicKey: ", signer.publicKey)
-        var userAccountPriorLastTx = await connection.getAccountInfo(
-              origin.publicKey
-            )
+
+        var userAccountPriorLastTx;
+        if (mode === "deposit") {
+          userAccountPriorLastTx = await connection.getAccountInfo(
+                origin.publicKey
+              )
+        } else {
+          userAccountPriorLastTx = await connection.getAccountInfo(
+                origin
+              )
+        }
         let senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
         var recipientAccountPriorLastTx = await connection.getAccountInfo(
-              recipient.publicKey
+              recipient
             )
         let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
 
@@ -773,7 +936,7 @@ describe("verifier_program", () => {
                       merkleTree: MERKLE_TREE_KEY,
                       programMerkleTree:  merkleTreeProgram.programId,
                     }
-                  ).signers([signer]).rpc()
+                ).signers([signer]).rpc()
         } catch(e) {
           console.log(e)
           process.exit()
@@ -806,28 +969,50 @@ describe("verifier_program", () => {
                 )
             const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
             console.log(accountAfterUpdate)
+            try {
+              const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
+                    ).accounts(
+                        {
+                          signingAddress: signer.publicKey,
+                          verifierState: pdas.verifierStatePubkey,
+                          // merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+                          systemProgram: SystemProgram.programId,
+                          programMerkleTree: merkleTreeProgram.programId,
+                          rent: DEFAULT_PROGRAMS.rent,
+                          nullifier0Pda: pdas.nullifier0PdaPubkey,
+                          nullifier1Pda: pdas.nullifier1PdaPubkey,
+                          twoLeavesPda: pdas.leavesPdaPubkey,
+                          escrowPda: pdas.escrowPdaPubkey,
+                          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
+                          userAccount: origin.publicKey,
+                          merkleTree: MERKLE_TREE_KEY,
+                          feeEscrowState: pdas.feeEscrowStatePubkey,
+                          merkleTreeProgram:  merkleTreeProgram.programId,
+                          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+                          authority: AUTHORITY
+                        }
+                      ).preInstructions([
+                        SystemProgram.transfer({
+                          fromPubkey: signer.publicKey,
+                          toPubkey: AUTHORITY,
+                          lamports: (await provider.connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760, //(await provider.connection.getMinimumBalanceForRentExemption(256)),
+                        })
+                      ]).signers([signer]).rpc()
 
-            const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
-                  ).accounts(
-                      {
-                        signingAddress: signer.publicKey,
-                        verifierState: pdas.verifierStatePubkey,
-                        // merkleTreeTmpStorage:pdas.merkleTreeTmpState,
-                        systemProgram: SystemProgram.programId,
-                        programMerkleTree: merkleTreeProgram.programId,
-                        rent: DEFAULT_PROGRAMS.rent,
-                        nullifier0Pda: pdas.nullifier0PdaPubkey,
-                        nullifier1Pda: pdas.nullifier1PdaPubkey,
-                        twoLeavesPda: pdas.leavesPdaPubkey,
-                        escrowPda: pdas.escrowPdaPubkey,
-                        merkleTreePdaToken: recipient.publicKey,
-                        userAccount: origin.publicKey,
-                        merkleTree: MERKLE_TREE_KEY,
-                        feeEscrowState: pdas.feeEscrowStatePubkey,
-                        merkleTreeProgram:  merkleTreeProgram.programId,
-                        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX
-                      }
-                    ).signers([signer]).rpc()
+              } catch(e) {
+                console.log(e)
+                process.exit()
+              }
+              await checkLastTxSuccess({
+                connection,
+                pdas,
+                sender:origin.publicKey,
+                senderAccountBalancePriorLastTx,
+                recipient: recipient,
+                recipientBalancePriorLastTx,
+                ix_data,
+                mode
+              })
           } else if (mode== "withdrawal") {
             console.log(mode)
             try {
@@ -843,17 +1028,35 @@ describe("verifier_program", () => {
                           nullifier1Pda: pdas.nullifier1PdaPubkey,
                           twoLeavesPda: pdas.leavesPdaPubkey,
                           escrowPda: pdas.escrowPdaPubkey,
-                          merkleTreePdaToken: origin.publicKey,
+                          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
                           merkleTree: MERKLE_TREE_KEY,
                           merkleTreeProgram:  merkleTreeProgram.programId,
-                          recipient:  recipient.publicKey,
+                          recipient:  recipient,
                           relayerRecipient: relayer_recipient.publicKey,
-                          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX
+                          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+                          authority: AUTHORITY
                         }
-                      ).signers([signer]).rpc()
+                      ).preInstructions([
+                        SystemProgram.transfer({
+                          fromPubkey: signer.publicKey,
+                          toPubkey: AUTHORITY,
+                          lamports: (await provider.connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760,//(await provider.connection.getMinimumBalanceForRentExemption(256)),
+                        })
+                      ]).signers([signer]).rpc()
+
             } catch (e) {
               console.log(e)
             }
+            await checkLastTxSuccess({
+              connection,
+              pdas,
+              sender:MERKLE_TREE_PDA_TOKEN,
+              senderAccountBalancePriorLastTx,
+              recipient: recipient,
+              recipientBalancePriorLastTx,
+              ix_data,
+              mode
+            })
 
           } else {
             throw Error("mode not supplied");
@@ -864,16 +1067,7 @@ describe("verifier_program", () => {
           // const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
           console.log(leavesPdaAccountInfo)
 
-          await checkLastTxSuccess({
-            connection,
-            pdas,
-            sender:origin.publicKey,
-            senderAccountBalancePriorLastTx,
-            recipient: recipient.publicKey,
-            recipientBalancePriorLastTx,
-            ix_data,
-            mode
-          })
+
 
           return pdas.leavesPdaPubkey;
 

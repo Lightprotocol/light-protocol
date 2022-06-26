@@ -405,6 +405,14 @@ pub struct InitializeNewMerkleTree<'info> {
         space = 8 + 8
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    #[account(
+        init,
+        seeds = [merkle_tree.key().to_bytes().as_ref(), b"MERKLE_TREE_PDA_TOKEN"],
+        bump,
+        payer = authority,
+        space = 8
+    )]
+    pub merkle_tree_pda_token: Account<'info, MerkleTreePdaToken>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 
@@ -456,7 +464,7 @@ pub struct InitializeMerkleTreeUpdateState<'info> {
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
     /// CHECK:` should be consistent
-    #[account(mut)]
+    #[account(mut, address=merkle_tree_tmp_storage.load()?.relayer)]
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
     #[account(mut)]
@@ -467,19 +475,8 @@ pub struct UpdateMerkleTree<'info> {
 }
 
 #[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
-pub struct CheckMerkleRootExists<'info> {
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
 pub struct LastTransactionUpdateMerkleTree<'info> {
-    #[account(mut)]
+    #[account(mut, address=merkle_tree_tmp_storage.load()?.relayer)]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut, close = authority)]
@@ -489,10 +486,22 @@ pub struct LastTransactionUpdateMerkleTree<'info> {
     pub merkle_tree: AccountInfo<'info>,
 }
 
+
+#[derive(Accounts)]
+#[instruction(merkle_tree_index: u64)]
+pub struct CheckMerkleRootExists<'info> {
+    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
+    pub authority: Signer<'info>,
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
+    pub merkle_tree: AccountInfo<'info>,
+}
+
 #[derive(Accounts)]
 pub struct InsertTwoLeaves<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut)]
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary.
     #[account(mut)]
@@ -528,6 +537,7 @@ pub struct DepositSOL<'info> {
 #[derive(Accounts)]
 pub struct WithdrawSOL<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
     pub authority: Signer<'info>,
     /// CHECK:` doc comment explaining why no checks through types are necessary., owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av")
     #[account(mut)]
@@ -547,7 +557,7 @@ pub struct InitializeNullifier<'info> {
     )]
     pub nullifier_pda: Account<'info, Nullifier>,
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut)]
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -564,6 +574,11 @@ pub struct Nullifier {}
 #[account]
 pub struct PreInsertedLeavesIndex {
     pub next_index: u64
+}
+
+// keeps track of leaves which have been queued but not inserted into the merkle tree yet
+#[account]
+pub struct MerkleTreePdaToken {
 }
 
 /*
