@@ -2,8 +2,8 @@ use ark_ec;
 use ark_ff::Field;
 
 use crate::groth16_verifier::miller_loop::instructions::*;
-use crate::state::*;
-use crate::MillerLoopStateCompute;
+use crate::groth16_verifier::VerifierState;
+use crate::groth16_verifier::miller_loop::MillerLoopStateCompute;
 use anchor_lang::prelude::*;
 use ark_ec::bn::BnParameters;
 use std::cell::RefMut;

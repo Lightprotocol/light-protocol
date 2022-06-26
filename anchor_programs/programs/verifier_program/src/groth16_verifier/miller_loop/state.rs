@@ -3,7 +3,7 @@ use crate::groth16_verifier::parsers::*;
 use ark_ff::QuadExtField;
 use std::cell::RefMut;
 
-use crate::state::VerifierState;
+use crate::groth16_verifier::VerifierState;
 
 #[derive(Debug)]
 pub struct MillerLoopStateCompute {

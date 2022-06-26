@@ -4,9 +4,7 @@ use anchor_lang::prelude::Pubkey;
 use solana_program;
 use merkle_tree_program::{
     self,
-    program::MerkleTreeProgram,
-    utils::config::STORAGE_SEED,
-    wrapped_state:: {MerkleTree},
+    program::MerkleTreeProgram
 };
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 use merkle_tree_program::utils::config::NF_SEED;

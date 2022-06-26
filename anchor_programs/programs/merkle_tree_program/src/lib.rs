@@ -22,7 +22,7 @@ pub mod poseidon_merkle_tree;
 pub mod processor;
 pub mod state;
 pub mod utils;
-pub mod wrapped_state;
+// pub mod wrapped_state;
 // pub mod registry;
 // pub use registry::*;
 
@@ -55,8 +55,10 @@ use crate::poseidon_merkle_tree::{
         MerkleTree
     },
     processor::{
-        MerkleTreeProcessor,
-        pubkey_check
+        pubkey_check,
+        insert_root,
+        initialize_new_merkle_tree_from_bytes,
+
     },
     state_roots
 };
@@ -77,10 +79,9 @@ pub mod merkle_tree_program {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
-        let mut merkle_tree_processor =
-            MerkleTreeProcessor::new(Some(&merkle_tree_storage_acc))?;
-        merkle_tree_processor
-            .initialize_new_merkle_tree_from_bytes(&config::INIT_BYTES_MERKLE_TREE_18[..])?;
+        // let mut merkle_tree_processor =
+        //     MerkleTreeProcessor::new(Some(&merkle_tree_storage_acc))?;
+        initialize_new_merkle_tree_from_bytes(merkle_tree_storage_acc, &config::INIT_BYTES_MERKLE_TREE_18[..])?;
         Ok(())
     }
 
@@ -158,12 +159,12 @@ pub mod merkle_tree_program {
         msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
         msg!(
             "Lock ends at slot: {}",
-            merkle_tree_pda_data.time_locked + constant::LOCK_DURATION
+            merkle_tree_pda_data.time_locked + config::LOCK_DURATION
         );
 
         //lock
         if merkle_tree_pda_data.time_locked == 0
-            || merkle_tree_pda_data.time_locked + constant::LOCK_DURATION < current_slot
+            || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
         {
             merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
             merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
@@ -172,7 +173,7 @@ pub mod merkle_tree_program {
                 "Locked by: {:?}",
                 Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
             );
-        } else if merkle_tree_pda_data.time_locked + constant::LOCK_DURATION > current_slot {
+        } else if merkle_tree_pda_data.time_locked + config::LOCK_DURATION > current_slot {
             msg!("Contract is still locked.");
             return err!(ErrorCode::ContractStillLocked);
         } else {
@@ -213,10 +214,10 @@ pub mod merkle_tree_program {
         _bump: u64
     ) -> Result<()>{
         // doing checks after for mutability
-        let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
+        // let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
         // let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
         // let close_to_acc = &ctx.accounts.authority.to_account_info();
-        merkle_tree_processor.insert_root(&mut ctx)?;
+        insert_root(&mut ctx)?;
 
 
         let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
@@ -444,7 +445,7 @@ pub struct InitializeMerkleTreeLeavesIndex<'info> {
 pub struct InitializeMerkleTreeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    /// CHECK:`
     #[account(
         init,
         seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
@@ -542,7 +543,7 @@ pub struct WithdrawSOL<'info> {
     /// CHECK:` doc comment explaining why no checks through types are necessary., owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av")
     #[account(mut)]
     pub merkle_tree_token: AccountInfo<'info>,
-    // recipients are specified in additional accounts and checked in the verifier
+    // Recipients are specified in remaining accounts and checked in the verifier
 }
 
 #[derive(Accounts)]

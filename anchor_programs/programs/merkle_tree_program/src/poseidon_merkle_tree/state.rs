@@ -222,7 +222,7 @@ impl Pack for TwoLeavesBytesPda {
             node_left,
             node_right,
             merkle_tree_pubkey,
-            _encrypted_utxos,
+            encrypted_utxos,
         ) = array_refs![input, 1, 1, 8, 32, 32, 32, ENCRYPTED_UTXOS_LENGTH];
         //check that account was not initialized before
         //assert_eq!(is_initialized[0], 0);
@@ -236,7 +236,7 @@ impl Pack for TwoLeavesBytesPda {
             node_left: node_left.to_vec(),
             node_right: node_right.to_vec(),
             merkle_tree_pubkey: merkle_tree_pubkey.to_vec(),
-            encrypted_utxos: vec![0u8; ENCRYPTED_UTXOS_LENGTH],
+            encrypted_utxos: encrypted_utxos.to_vec(),
             left_leaf_index: usize::from_le_bytes(*left_leaf_index),
         })
     }

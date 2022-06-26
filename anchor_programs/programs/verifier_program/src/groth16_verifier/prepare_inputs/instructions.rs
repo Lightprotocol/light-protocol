@@ -1,7 +1,7 @@
 use crate::groth16_verifier::parsers::*;
-use crate::state::VerifierState;
+use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::*;
-use crate::ErrorCode;
+use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::BigInteger;
