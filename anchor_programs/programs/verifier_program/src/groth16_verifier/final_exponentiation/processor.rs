@@ -1,5 +1,5 @@
 use crate::groth16_verifier::parsers::*;
-use crate::state::VerifierState;
+use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
 use ark_ec::{
     PairingEngine,
@@ -714,7 +714,7 @@ pub fn cyclotomic_exp(
 mod tests {
     use super::*;
     use crate::groth16_verifier::parse_f_from_bytes;
-    use crate::state::VerifierState;
+    use crate::groth16_verifier::VerifierState;
     use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
     use solana_program::pubkey::Pubkey;
 

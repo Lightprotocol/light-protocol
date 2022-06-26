@@ -1,6 +1,6 @@
 use crate::groth16_verifier::miller_loop::state::*;
 use crate::groth16_verifier::parsers::*;
-use crate::state::VerifierState;
+use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::bn::BnParameters;
 use ark_ec::models::bn::g2::{addition_step, doubling_step, mul_by_char};

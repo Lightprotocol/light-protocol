@@ -1,21 +1,21 @@
-use crate::state::VerifierState;
+use crate::groth16_verifier::VerifierState;
+
 use anchor_lang::prelude::*;
 
 use merkle_tree_program::{
     program::MerkleTreeProgram,
     PreInsertedLeavesIndex,
-    wrapped_state::{ MerkleTree},
     utils::config::{
         STORAGE_SEED,
         NF_SEED,
         LEAVES_SEED,
         MERKLE_TREE_ACC_BYTES_ARRAY
     },
-    state::MerkleTreeTmpPda
 };
-use crate::FeeEscrowState;
+use crate::escrow::escrow_state::FeeEscrowState;
 
 use crate::utils::config:: {ESCROW_SEED};
+
 #[derive(Accounts)]
 pub struct LastTransactionDeposit<'info> {
     #[account(mut, address=verifier_state.load()?.signing_address)]
@@ -26,7 +26,7 @@ pub struct LastTransactionDeposit<'info> {
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
-    /// CHECK:` doc comment explaining why no checks through types are necessary
+    /// CHECK:` This is the nullifier account
     pub nullifier0_pda: UncheckedAccount<'info>,
     #[account(
         mut,

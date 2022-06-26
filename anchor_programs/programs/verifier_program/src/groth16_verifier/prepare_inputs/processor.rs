@@ -1,5 +1,5 @@
 use crate::groth16_verifier::prepare_inputs::instructions::*;
-use crate::VerifierState;
+use crate::groth16_verifier::VerifierState;
 use solana_program::msg;
 use solana_program::program_error::ProgramError;
 use std::cell::RefMut;
