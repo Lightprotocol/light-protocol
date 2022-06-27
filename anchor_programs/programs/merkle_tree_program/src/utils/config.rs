@@ -118,30 +118,11 @@ pub const REGISTERED_VERIFIER_KEY_0 : [u8;32]= [
    63, 213, 216,  18,  94, 128, 155, 225
 ];
 
-// account bytes
-pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
-pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
-pub const NULLIFIER_ACCOUNT_TYPE: u8 = 3;
-pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 4;
-pub const USER_ACCOUNT_TYPE: u8 = 5;
-pub const MERKLE_TREE_TMP_STORAGE_ACCOUNT_TYPE: u8 = 6;
-pub const UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE: u8 = 7;
+
 //
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 222;
-pub const NULLIFIERS_LENGTH: usize = 64;
 pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 395;
 
 pub const MERKLE_TREE_HEIGHT: u64 = 18;
 // Lock duration in slots (is renewed with every successful transaction)
 pub const LOCK_DURATION: u64 = 20;
-
-#[constant]
-pub const AUTHORITY_SEED: &[u8] = b"AUTHORITY_SEED";
-#[constant]
-pub const TREE_ROOT_SEED: &[u8] = b"TREE_ROOT_SEED";
-#[constant]
-pub const STORAGE_SEED: &[u8] = b"storage";
-#[constant]
-pub const LEAVES_SEED: &[u8] = b"leaves";
-#[constant]
-pub const NF_SEED: &[u8] = b"nf";

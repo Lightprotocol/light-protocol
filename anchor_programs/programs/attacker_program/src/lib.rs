@@ -7,7 +7,7 @@ use merkle_tree_program::{
     program::MerkleTreeProgram
 };
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
-use merkle_tree_program::utils::config::NF_SEED;
+use merkle_tree_program::utils::constants::NF_SEED;
 
 #[program]
 pub mod attacker_program {

@@ -15,52 +15,72 @@ security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
-// pub mod authority_config;
-pub mod constant;
-pub mod instructions;
 pub mod poseidon_merkle_tree;
-pub mod processor;
-pub mod state;
+pub use poseidon_merkle_tree::*;
+pub mod instructions;
+pub use instructions::*;
+pub mod errors;
+pub use errors::*;
 pub mod utils;
-// pub mod wrapped_state;
-// pub mod registry;
-// pub use registry::*;
 
+use crate::errors::ErrorCode;
 
 use anchor_lang::system_program;
 
-pub use crate::constant::*;
 
-use crate::state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::update_merkle_tree_lib::update_state::MerkleTreeTmpPda;
 
 
-use crate::config::{
+use crate::utils::config::{
+    MERKLE_TREE_ACC_BYTES_ARRAY,
     MERKLE_TREE_TMP_PDA_SIZE,
-    STORAGE_SEED,
-    ENCRYPTED_UTXOS_LENGTH,
     MERKLE_TREE_INIT_AUTHORITY,
+    ENCRYPTED_UTXOS_LENGTH,
+};
+use crate::utils::constants::{
+    STORAGE_SEED,
     LEAVES_PDA_ACCOUNT_TYPE,
     UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE,
     NF_SEED,
-    MERKLE_TREE_ACC_BYTES_ARRAY
 };
 
 use crate::utils::{
     create_pda::create_and_check_pda,
     config
 };
-use crate::poseidon_merkle_tree::{
-    state::{
-        TwoLeavesBytesPda,
-        MerkleTree
+use crate::instructions::{
+    insert_nullifier::{
+        InitializeNullifier
     },
-    processor::{
-        pubkey_check,
-        insert_root,
-        initialize_new_merkle_tree_from_bytes,
+    sol_transfer::{
+        WithdrawSOL,
+        process_sol_transfer
+    }
+};
 
+use crate::poseidon_merkle_tree::{
+    check_merkle_root_exists::{
+        process_check_root_hash_exists
     },
-    state_roots
+    insert_root::{
+        InsertRoot,
+        process_insert_root
+    },
+    insert_two_leaves::{
+        InsertTwoLeaves,
+        process_insert_two_leaves
+    },
+    update_merkle_tree::{
+        UpdateMerkleTree,
+        process_update_merkle_tree
+    },
+    initialize_new_merkle_tree::{
+        initialize_new_merkle_tree_from_bytes
+    },
+    initialize_update_state::{
+        InitializeUpdateState,
+        process_initialize_update_state
+    },
 };
 
 
@@ -79,146 +99,34 @@ pub mod merkle_tree_program {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
-        // let mut merkle_tree_processor =
-        //     MerkleTreeProcessor::new(Some(&merkle_tree_storage_acc))?;
-        initialize_new_merkle_tree_from_bytes(merkle_tree_storage_acc, &config::INIT_BYTES_MERKLE_TREE_18[..])?;
-        Ok(())
+        initialize_new_merkle_tree_from_bytes(merkle_tree_storage_acc, &config::INIT_BYTES_MERKLE_TREE_18[..])
     }
 
     pub fn initialize_merkle_tree_update_state(
-        ctx: Context<InitializeMerkleTreeUpdateState>,
+        ctx: Context<InitializeUpdateState>,
         merkle_tree_index: u64
     ) -> Result<()>{
-        // let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&ctx.accounts.two_leaves_pda.to_account_info().data.borrow())?;
-        msg!("InitializeMerkleTreeUpdateState");
-
-        // TODO check merkle tree index if not already done in contraints
-
-        let tmp_storage_pda = &mut ctx.accounts.merkle_tree_tmp_storage.load_init()?;
-        //increased by 2 because we're inserting 2 leaves at once
-        tmp_storage_pda.merkle_tree_index = merkle_tree_index.try_into().unwrap();
-        tmp_storage_pda.relayer = ctx.accounts.authority.key();
-        tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
-
-        tmp_storage_pda.current_instruction_index = 1;
-
-
-        // Checking that the number of remaining accounts is non zero and smaller than 16.
-        if ctx.remaining_accounts.len() == 0 || ctx.remaining_accounts.len() > 16 {
-            msg!("Submitted number of leaves: {}", ctx.remaining_accounts.len());
-            return err!(ErrorCode::InvalidNumberOfLeaves);
-        }
-
-        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-        tmp_storage_pda.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
-
-
-        let mut tmp_index = merkle_tree_pda_data.next_index;
-
-        // Copying leaves to tmp account.
-        for (index, account) in ctx.remaining_accounts.iter().enumerate() {
-            msg!("Copying leaves pair {}", index);
-            let leaves_pda_data = TwoLeavesBytesPda::unpack(&account.data.borrow())?;
-
-            // Checking that leaves are not inserted already.
-            if leaves_pda_data.account_type != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
-                msg!("Leaf pda state {} with address {:?} is already inserted",account.data.borrow()[1], *account.key);
-                return err!(ErrorCode::LeafAlreadyInserted);
-            }
-
-            // Checking that index is correct.
-            if index == 0 &&
-                leaves_pda_data.left_leaf_index != merkle_tree_pda_data.next_index
-
-             {
-                 msg!("Leaves pda at index {} has index {} but should have {}", index,
-                    leaves_pda_data.left_leaf_index,
-                    merkle_tree_pda_data.next_index
-                );
-                 return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
-            }
-
-            // Check that following leaves are correct and in the right order.
-            else if leaves_pda_data.left_leaf_index != tmp_index {
-                return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
-            }
-            // Copy leaves to tmp account.
-            tmp_storage_pda.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
-            tmp_storage_pda.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
-            msg!("tmp_storage.leaves[index][0] {:?}", tmp_storage_pda.leaves[index][0]);
-            msg!("tmp_storage.leaves[index][1] {:?}", tmp_storage_pda.leaves[index][1]);
-            tmp_storage_pda.number_of_leaves = (index + 1).try_into().unwrap();
-            tmp_index +=2;
-        }
-
-        // let ctx = get_lock(ctx)?;
-
-        let current_slot = <Clock as  solana_program::sysvar::Sysvar>::get()?.slot;
-        msg!("Current slot: {:?}", current_slot);
-
-        msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
-        msg!(
-            "Lock ends at slot: {}",
-            merkle_tree_pda_data.time_locked + config::LOCK_DURATION
-        );
-
-        //lock
-        if merkle_tree_pda_data.time_locked == 0
-            || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
-        {
-            merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
-            merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
-            msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
-            msg!(
-                "Locked by: {:?}",
-                Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
-            );
-        } else if merkle_tree_pda_data.time_locked + config::LOCK_DURATION > current_slot {
-            msg!("Contract is still locked.");
-            return err!(ErrorCode::ContractStillLocked);
-        } else {
-            merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
-            merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
-        }
-
-        // merkle_tree_pubkey_check(
-        //     *merkle_tree_pda.key,
-        //     tmp_storage_pda_data.merkle_tree_index,
-        //     *merkle_tree_pda.owner,
-        //     self.program_id,
-        // )?;
-        MerkleTree::pack_into_slice(
-            &merkle_tree_pda_data,
-            &mut ctx.accounts.merkle_tree.data.borrow_mut(),
-        );
-        // execute
-
-        Ok(())
+        process_initialize_update_state(
+            ctx,
+            merkle_tree_index
+        )
     }
 
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
         _bump: u64//data: Vec<u8>,
     ) -> Result<()>{
-        msg!("update_merkle_tree");
-
-        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
-        processor::process_instruction(
+        process_update_merkle_tree(
             &mut ctx
-        )?;
-        Ok(())
+        )
     }
 
-    pub fn last_transaction_update_merkle_tree<'a, 'b, 'c, 'info>(
-        mut ctx: Context<'a, 'b, 'c, 'info, LastTransactionUpdateMerkleTree<'info>>,
+    pub fn insert_root_merkle_tree<'a, 'b, 'c, 'info>(
+        mut ctx: Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
         _bump: u64
     ) -> Result<()>{
         // doing checks after for mutability
-        // let mut merkle_tree_processor = MerkleTreeProcessor::new(None)?;
-        // let close_acc = &ctx.accounts.merkle_tree_tmp_storage.to_account_info();
-        // let close_to_acc = &ctx.accounts.authority.to_account_info();
-        insert_root(&mut ctx)?;
-
+        process_insert_root(&mut ctx)?;
 
         let tmp_storage_pda = ctx.accounts.merkle_tree_tmp_storage.load_mut()?;
 
@@ -227,14 +135,6 @@ pub mod merkle_tree_program {
              msg!("Wrong state instruction index should be 56 is {}", tmp_storage_pda.current_instruction_index);
         }
 
-
-        // let mut tmp_storage_pda_data = MerkleTreeTmpPda::unpack(&tmp_storage_pda.data.borrow())?;
-        // processor::process_instruction(
-        //     &mut ctx
-        // )?;
-
-        // // Close tmp account.
-        // close_account(close_acc, close_to_acc).unwrap();
         // mark leaves as inserted
         // check that leaves are the same as in first tx
         for (index, account) in ctx.remaining_accounts.iter().enumerate() {
@@ -267,49 +167,20 @@ pub mod merkle_tree_program {
         next_index: u64,
         merkle_tree_pda_pubkey: [u8;32]
     ) -> Result<()>{
-        msg!("insert_two_leaves");
-
-        let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
-        let two_leaves_pda = ctx.accounts.two_leaves_pda.to_account_info();
-
-        msg!("Creating two_leaves_pda.");
-        create_and_check_pda(
-            &ctx.program_id,
-            &ctx.accounts.authority.to_account_info(),
-            &two_leaves_pda.to_account_info(),
-            &ctx.accounts.system_program.to_account_info(),
-            rent,
-            &nullifier,
-            &b"leaves"[..],
-            TWO_LEAVES_PDA_SIZE, //bytes
-            0,                   //lamports
-            true,                //rent_exempt
-        );
-        let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&two_leaves_pda.data.borrow())?;
-
-        leaf_pda_account_data.account_type = UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
-        //save leaves into pda account
-        leaf_pda_account_data.node_left = leaf_left.to_vec();
-        leaf_pda_account_data.node_right = leaf_right.to_vec();
-        //increased by 2 because we're inserting 2 leaves at once
-        leaf_pda_account_data.left_leaf_index = ctx.accounts.pre_inserted_leaves_index.next_index.try_into().unwrap();
-        leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
-        // anchor pads encryptedUtxos of length 222 to 254 with 32 zeros in front
-        msg!("encrypted_utxos: {:?}", encrypted_utxos.to_vec());
-        leaf_pda_account_data.encrypted_utxos = encrypted_utxos[0..222].to_vec();
-
-        TwoLeavesBytesPda::pack_into_slice(
-            &leaf_pda_account_data,
-            &mut two_leaves_pda.data.borrow_mut(),
-        );
-        ctx.accounts.pre_inserted_leaves_index.next_index += 2;
-        msg!("packed two_leaves_pda");
-        Ok(())
+        process_insert_two_leaves(
+            ctx,
+            leaf_left,
+            leaf_right,
+            encrypted_utxos,
+            nullifier,
+            next_index,
+            merkle_tree_pda_pubkey
+        )
     }
     /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()>{
         let mut new_data = data.clone();
         new_data.insert(0, 1);
-        processor::process_sol_transfer(
+        process_sol_transfer(
             ctx.program_id,
             &[
                 ctx.accounts.authority.to_account_info(),
@@ -334,7 +205,7 @@ pub mod merkle_tree_program {
         accounts.insert(0, ctx.accounts.authority.to_account_info());
         accounts.insert(1, ctx.accounts.merkle_tree_token.to_account_info());
 
-        processor::process_sol_transfer(
+        process_sol_transfer(
             ctx.program_id,
             &accounts.as_slice(),
             &new_data.as_slice(),
@@ -376,49 +247,28 @@ pub mod merkle_tree_program {
         root_hash: [u8;32]
     ) -> anchor_lang::Result<()>{
         msg!("Invoking check_root_hash_exists");
-        state_roots::check_root_hash_exists(
+        process_check_root_hash_exists(
             &ctx.accounts.merkle_tree.to_account_info(),
             &root_hash.to_vec(),
             &ctx.program_id,
             &Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
-            // merkle_tree_pda: &AccountInfo,
-            // root_bytes: &Vec<u8>,
-            // program_id: &Pubkey,
-            // merkle_tree_pda_pubkey: &Pubkey,
         );
         Ok(())
     }
 }
-
-
 #[derive(Accounts)]
-pub struct InitializeNewMerkleTree<'info> {
-    #[account(mut,address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
+#[instruction(merkle_tree_index: u64)]
+pub struct CheckMerkleRootExists<'info> {
+    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
     pub authority: Signer<'info>,
-    /// CHECK: it should be unpacked internally
-    #[account(mut)]
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
-    #[account(
-        init,
-        seeds = [merkle_tree.key().to_bytes().as_ref()],
-        bump,
-        payer = authority,
-        space = 8 + 8
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    #[account(
-        init,
-        seeds = [merkle_tree.key().to_bytes().as_ref(), b"MERKLE_TREE_PDA_TOKEN"],
-        bump,
-        payer = authority,
-        space = 8
-    )]
-    pub merkle_tree_pda_token: Account<'info, MerkleTreePdaToken>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-
 }
 
+// This is a helper instruction to initialize the leaves index for existing
+// merkle trees.
 #[derive(Accounts)]
 pub struct InitializeMerkleTreeLeavesIndex<'info> {
     #[account(mut)]
@@ -440,78 +290,14 @@ pub struct InitializeMerkleTreeLeavesIndex<'info> {
     pub rent: Sysvar<'info, Rent>
 }
 
-#[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
-pub struct InitializeMerkleTreeUpdateState<'info> {
-    #[account(mut)]
-    pub authority: Signer<'info>,
-    /// CHECK:`
-    #[account(
-        init,
-        seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
-        bump,
-        payer = authority,
-        space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
-    )]
-    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
-    /// CHECK: that the merkle tree is whitelisted
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
 
 
-#[derive(Accounts)]
-pub struct UpdateMerkleTree<'info> {
-    /// CHECK:` should be consistent
-    #[account(mut, address=merkle_tree_tmp_storage.load()?.relayer)]
-    pub authority: Signer<'info>,
-    /// CHECK:` that merkle tree is locked for this account
-    #[account(mut)]
-    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
-    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
-}
-
-#[derive(Accounts)]
-pub struct LastTransactionUpdateMerkleTree<'info> {
-    #[account(mut, address=merkle_tree_tmp_storage.load()?.relayer)]
-    pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut, close = authority)]
-    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
-    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
-}
 
 
-#[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
-pub struct CheckMerkleRootExists<'info> {
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
-    pub authority: Signer<'info>,
-    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
-}
 
-#[derive(Accounts)]
-pub struct InsertTwoLeaves<'info> {
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
-    pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(mut)]
-    pub two_leaves_pda: AccountInfo<'info>,
-    #[account(mut)]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
+
+
+
 /*
 // deposits are currently implemented in the verifier program
 #[derive(Accounts)]
@@ -535,52 +321,11 @@ pub struct DepositSOL<'info> {
     pub user_escrow: AccountInfo<'info>,
 }*/
 
-#[derive(Accounts)]
-pub struct WithdrawSOL<'info> {
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
-    pub authority: Signer<'info>,
-    /// CHECK:` doc comment explaining why no checks through types are necessary., owner= Pubkey::new(b"2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av")
-    #[account(mut)]
-    pub merkle_tree_token: AccountInfo<'info>,
-    // Recipients are specified in remaining accounts and checked in the verifier
-}
-
-#[derive(Accounts)]
-#[instruction(nullifier: [u8;32])]
-pub struct InitializeNullifier<'info> {
-    #[account(
-        init,
-        payer = authority,
-        seeds = [&(nullifier.as_slice()[0..32]), NF_SEED.as_ref()],
-        bump,
-        space = 8,
-    )]
-    pub nullifier_pda: Account<'info, Nullifier>,
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
-    pub authority: Signer<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
-
-// Nullfier pdas are derived from the nullifier
-// existence of a nullifier is the check to
-// prevent double spends.
-#[account]
-pub struct Nullifier {}
 
 
-// keeps track of leaves which have been queued but not inserted into the merkle tree yet
-#[account]
-pub struct PreInsertedLeavesIndex {
-    pub next_index: u64
-}
 
-// keeps track of leaves which have been queued but not inserted into the merkle tree yet
-#[account]
-pub struct MerkleTreePdaToken {
-}
+
+
 
 /*
 // not used right now because already inited merkle tree would not be compatible
@@ -613,34 +358,3 @@ pub struct LeavesPda {
     pub left_leaf_index: u64,
 }
 */
-
-
-#[error_code]
-pub enum ErrorCode {
-    #[msg("Merkle tree tmp account init failed wrong pda.")]
-    MtTmpPdaInitFailed,
-    #[msg("Merkle tree tmp account init failed.")]
-    MerkleTreeInitFailed,
-    #[msg("Contract is still locked.")]
-    ContractStillLocked,
-    #[msg("InvalidMerkleTree.")]
-    InvalidMerkleTree,
-    #[msg("InvalidMerkleTreeOwner.")]
-    InvalidMerkleTreeOwner,
-    #[msg("PubkeyCheckFailed")]
-    PubkeyCheckFailed,
-    #[msg("CloseAccountFailed")]
-    CloseAccountFailed,
-    #[msg("WithdrawalFailed")]
-    WithdrawalFailed,
-    #[msg("MerkleTreeUpdateNotInRootInsert")]
-    MerkleTreeUpdateNotInRootInsert,
-    #[msg("InvalidNumberOfLeaves")]
-    InvalidNumberOfLeaves,
-    #[msg("LeafAlreadyInserted")]
-    LeafAlreadyInserted,
-    #[msg("WrongLeavesLastTx")]
-    WrongLeavesLastTx,
-    #[msg("FirstLeavesPdaIncorrectIndex")]
-    FirstLeavesPdaIncorrectIndex
-}

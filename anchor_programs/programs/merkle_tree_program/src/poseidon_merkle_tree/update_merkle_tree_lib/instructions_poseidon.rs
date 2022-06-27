@@ -9,7 +9,7 @@ use ark_std::Zero;
 use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
 
-use crate::state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::update_merkle_tree_lib::update_state::MerkleTreeTmpPda;
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs

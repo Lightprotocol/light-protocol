@@ -5,12 +5,12 @@ use anchor_lang::prelude::*;
 use merkle_tree_program::{
     program::MerkleTreeProgram,
     PreInsertedLeavesIndex,
-    utils::config::{
+    utils::constants::{
         STORAGE_SEED,
         NF_SEED,
-        LEAVES_SEED,
-        MERKLE_TREE_ACC_BYTES_ARRAY
+        LEAVES_SEED
     },
+    utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
 };
 use crate::escrow::escrow_state::FeeEscrowState;
 

@@ -1,4 +1,5 @@
-use crate::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_ACCOUNT_TYPE};
+use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH};
+use crate::utils::constants::MERKLE_TREE_ACCOUNT_TYPE;
 use anchor_lang::solana_program::{
     msg,
     program_error::ProgramError,
@@ -7,7 +8,7 @@ use anchor_lang::solana_program::{
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::TryInto;
-use crate::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
+use crate::utils::constants::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
 #[allow(unused_variables)]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MerkleTree {
