@@ -3,7 +3,6 @@ use crate::last_transaction::instructions_last_transaction::{
     LastTransactionWithdrawal
 };
 use crate::errors::ErrorCode;
-use crate::*;
 use anchor_lang::prelude::*;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::BigInteger;

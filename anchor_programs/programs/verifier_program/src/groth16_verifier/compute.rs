@@ -7,7 +7,7 @@ use crate::groth16_verifier::{
     parsers::*,
     VerifierState,
 };
-use merkle_tree_program::utils::config::STORAGE_SEED;
+use merkle_tree_program::utils::constants::STORAGE_SEED;
 
 use crate::errors::ErrorCode;
 

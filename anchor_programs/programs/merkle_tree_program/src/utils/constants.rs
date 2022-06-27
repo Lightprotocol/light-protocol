@@ -1,5 +1,6 @@
 use crate::ENCRYPTED_UTXOS_LENGTH;
 // This file stores constants which do not have to be configured.
+use anchor_lang::constant;
 
 
 pub const ROOT_CHECK: u8 = 15;
@@ -18,3 +19,24 @@ pub const HASH_0: u8 = 0;
 pub const HASH_1: u8 = 1;
 pub const HASH_2: u8 = 2;
 pub const ROOT_INSERT: u8 = 241;
+
+#[constant]
+pub const AUTHORITY_SEED: &[u8] = b"AUTHORITY_SEED";
+#[constant]
+pub const TREE_ROOT_SEED: &[u8] = b"TREE_ROOT_SEED";
+#[constant]
+pub const STORAGE_SEED: &[u8] = b"storage";
+#[constant]
+pub const LEAVES_SEED: &[u8] = b"leaves";
+#[constant]
+pub const NF_SEED: &[u8] = b"nf";
+
+
+// account types
+pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
+pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
+pub const NULLIFIER_ACCOUNT_TYPE: u8 = 3;
+pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 4;
+pub const USER_ACCOUNT_TYPE: u8 = 5;
+pub const MERKLE_TREE_TMP_STORAGE_ACCOUNT_TYPE: u8 = 6;
+pub const UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE: u8 = 7;

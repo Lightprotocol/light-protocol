@@ -2,7 +2,7 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 
 use crate::poseidon_merkle_tree::state::MerkleTree;
-use crate::state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::update_merkle_tree_lib::update_state::MerkleTreeTmpPda;
 use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 use std::cell::RefMut;
 

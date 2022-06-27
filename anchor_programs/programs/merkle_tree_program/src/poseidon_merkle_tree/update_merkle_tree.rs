@@ -1,8 +1,9 @@
+use anchor_lang::prelude::*;
 use crate::instructions::{close_account, sol_transfer};
 use crate::poseidon_merkle_tree::processor::{
     compute_updated_merkle_tree,
 };
-use crate::constant::{
+use crate::utils::constants::{
     MERKLE_TREE_UPDATE_START,
     MERKLE_TREE_UPDATE_LEVEL,
     LOCK_START,
@@ -14,6 +15,7 @@ use crate::constant::{
 };
 use crate::utils::create_pda::create_and_check_pda;
 
+use crate::utils::config;
 use anchor_lang::solana_program::{
     account_info::{next_account_info, AccountInfo},
     msg,
@@ -21,14 +23,26 @@ use anchor_lang::solana_program::{
     sysvar::{rent::Rent, Sysvar},
     program_pack::Pack
 };
-use crate::UpdateMerkleTree;
-use anchor_lang::prelude::*;
-use crate::ErrorCode;
-use crate::MerkleTree;
+use crate::errors::ErrorCode;
+use crate::state::MerkleTree;
 use crate::poseidon_merkle_tree::processor::pubkey_check;
+use crate::MerkleTreeTmpPda;
+
+#[derive(Accounts)]
+pub struct UpdateMerkleTree<'info> {
+    /// CHECK:` should be consistent
+    #[account(mut, address=merkle_tree_tmp_storage.load()?.relayer)]
+    pub authority: Signer<'info>,
+    /// CHECK:` that merkle tree is locked for this account
+    #[account(mut)]
+    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
+    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_tmp_storage
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_tmp_storage.load()?.merkle_tree_index as usize].0))]
+    pub merkle_tree: AccountInfo<'info>,
+}
 
 #[allow(clippy::comparison_chain)]
-pub fn process_instruction(
+pub fn process_update_merkle_tree(
     ctx: &mut Context<UpdateMerkleTree>,
 ) -> Result<()>{
     let tmp_storage_pda_data = ctx.accounts.merkle_tree_tmp_storage.load()?.clone();
@@ -80,59 +94,4 @@ pub fn process_instruction(
     }
 
     Ok(())
-}
-
-
-pub fn process_sol_transfer(
-    program_id: &Pubkey,
-    accounts: &[AccountInfo],
-    instruction_data: &[u8],
-) -> Result<()>{
-    const DEPOSIT: u8 = 1;
-    const WITHDRAWAL: u8 = 2;
-    let account = &mut accounts.iter();
-    let signer_account = next_account_info(account)?;
-
-    msg!("instruction_data[0] {}", instruction_data[0]);
-
-    match instruction_data[0] {
-        DEPOSIT => {
-            let tmp_storage_pda = next_account_info(account)?;
-            let system_program_account = next_account_info(account)?;
-            let rent_sysvar_info = next_account_info(account)?;
-            let rent = &Rent::from_account_info(rent_sysvar_info)?;
-            let merkle_tree_pda_token = next_account_info(account)?;
-            let user_ecrow_acc = next_account_info(account)?;
-
-            let amount = u64::from_le_bytes(instruction_data[1..9].try_into().unwrap());
-            msg!("Depositing {}", amount);
-            create_and_check_pda(
-                program_id,
-                signer_account,
-                user_ecrow_acc,
-                system_program_account,
-                rent,
-                &tmp_storage_pda.key.to_bytes(),
-                &b"escrow"[..],
-                0,      //bytes
-                amount, // amount
-                true,   //rent_exempt
-            )?;
-            // Close escrow account to make deposit to shielded pool.
-            close_account(user_ecrow_acc, merkle_tree_pda_token)
-        }
-        WITHDRAWAL => {
-            let merkle_tree_pda_token = next_account_info(account)?;
-            // withdraws amounts to accounts
-            msg!("Entered withdrawal. {:?}", instruction_data[1..].chunks(8));
-            for amount_u8 in instruction_data[1..].chunks(8) {
-                let amount = u64::from_le_bytes(amount_u8.try_into().unwrap());
-                let to = next_account_info(account)?;
-                msg!("Withdrawing {}", amount);
-                sol_transfer(merkle_tree_pda_token, to, amount)?;
-            }
-            Ok(())
-        }
-        _ => err!(ErrorCode::WithdrawalFailed),
-    }
 }

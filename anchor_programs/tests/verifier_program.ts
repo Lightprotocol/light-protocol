@@ -1336,7 +1336,7 @@ it("Initialize Nullifier Test", async () => {
     let success = false;
     try {
       console.log("final tx to insert root")
-        await program.methods.lastTransactionUpdateMerkleTree(
+        await program.methods.insertRootMerkleTree(
           new anchor.BN(254))
         .accounts({
           authority: signer.publicKey,
@@ -1353,7 +1353,7 @@ it("Initialize Nullifier Test", async () => {
     for (var retry = 0; retry < 10; retry++) {
       try {
         console.log("final tx to insert root")
-          await program.methods.lastTransactionUpdateMerkleTree(
+          await program.methods.insertRootMerkleTree(
             new anchor.BN(254))
           .accounts({
             authority: signer.publicKey,
