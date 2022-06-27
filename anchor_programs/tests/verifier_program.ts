@@ -709,6 +709,9 @@ it("Initialize Nullifier Test", async () => {
       // *
       // *
 
+      // new lightTransaction
+      // generate utxos
+      // 
       var leavesPdasWithdrawal = []
       const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
       let deposit_utxo1 = utxos[0][0];
@@ -975,7 +978,7 @@ it("Initialize Nullifier Test", async () => {
                         {
                           signingAddress: signer.publicKey,
                           verifierState: pdas.verifierStatePubkey,
-                          // merkleTreeTmpStorage:pdas.merkleTreeTmpState,
+                          // merkleTreeUpdateState:pdas.merkleTreeTmpState,
                           systemProgram: SystemProgram.programId,
                           programMerkleTree: merkleTreeProgram.programId,
                           rent: DEFAULT_PROGRAMS.rent,
@@ -1074,131 +1077,7 @@ it("Initialize Nullifier Test", async () => {
 
 
   }
-  /*
-  async function test_leaves_insert({
-    connection,
-    ix_data,
-    pdas,
-    origin,
-    signer,
-    recipient,
-    verifierProgram,
-    relayer_recipient,
-    mode
-  }) {
-    console.log("here123")
-        // tx fee in lamports
-        let tx_fee = 50_000 * PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 2* MERKLE_TREE_UPDATE_TX_COUNT;
-        console.log("verifierStatePubkey: ", pdas.verifierStatePubkey)
-        console.log("pubicKey: ", signer.publicKey)
-        var userAccountPriorLastTx = await connection.getAccountInfo(
-              origin.publicKey
-            )
-        let senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
-        var recipientAccountPriorLastTx = await connection.getAccountInfo(
-              recipient.publicKey
-            )
-        let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
 
-        if (mode === "deposit") {
-          console.log("creating escrow")
-          // create escrow account
-          const tx = await verifierProgram.methods.createEscrowState(
-                ix_data.txIntegrityHash,
-                new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
-                ix_data.fee,
-                new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
-              ).accounts(
-                    {
-                      signingAddress: signer.publicKey,
-                      verifierState: pdas.verifierStatePubkey,
-                      systemProgram: SystemProgram.programId,
-                      feeEscrowState: pdas.feeEscrowStatePubkey,
-                      user:           origin.publicKey,
-                    }
-                  ).signers([signer, origin]).rpc();
-
-            await checkEscrowAccountCreated({
-              connection:provider.connection,
-              pdas,
-              ix_data,
-              user_pubkey: origin.publicKey,
-              relayer_pubkey: signer.publicKey,
-              tx_fee: new anchor.BN(tx_fee)//check doesn t work
-            });
-        }
-        const tx = await verifierProgram.methods.createVerifierState(
-              ix_data.proofAbc,
-              ix_data.rootHash,
-              ix_data.amount,
-              ix_data.txIntegrityHash,
-              ix_data.nullifier0,
-              ix_data.nullifier1,
-              ix_data.leafRight,
-              ix_data.leafLeft,
-              ix_data.recipient,
-              ix_data.extAmount,
-              ix_data.relayer,
-              ix_data.fee,
-              ix_data.encryptedUtxos,
-              ix_data.merkleTreeIndex
-              ).accounts(
-                  {
-                    signingAddress: signer.publicKey,
-                    verifierState: pdas.verifierStatePubkey,
-                    systemProgram: SystemProgram.programId,
-                  }
-                ).signers([signer]).rpc()
-          console.log("here2")
-
-          checkVerifierStateAccountCreated({
-            connection:connection,
-            pda: pdas.verifierStatePubkey,
-            ix_data
-          })
-          console.log("here3")
-          console.log("ix_data.leafLeft: ", ix_data.leafLeft);
-          console.log("ix_data.leafRight: ", ix_data.leafRight);
-          console.log("ix_data.nullifier0: ", ix_data.nullifier0);
-          console.log("merkleTreeProgram.methods: ", merkleTreeProgram.methods)
-          const tx1 = await merkleTreeProgram.methods.insertTwoLeaves(
-            ix_data.leafLeft,
-            ix_data.leafRight,
-            ix_data.encryptedUtxos,
-            ix_data.nullifier0,
-            new anchor.BN(2),
-            origin.publicKey.toBytes(),
-                ).accounts(
-                    {
-                      authority: signer.publicKey,
-                      // verifierState: pdas.verifierStatePubkey,
-                      twoLeavesPda: pdas.leavesPdaPubkey,
-                      systemProgram: SystemProgram.programId,
-                      rent: DEFAULT_PROGRAMS.rent,
-                    }
-                  ).signers([signer]).rpc()
-                  console.log("after leaves insert")
-
-            var leavesAccount = await connection.getAccountInfo(
-                  pdas.leavesPdaPubkey
-                )
-
-            if (leavesAccount.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-              throw "leaves insert wrong after initializing";
-            }
-            console.log("leavesAccount: ", leavesAccount)
-            let leavesAccountData = unpackLeavesAccount(leavesAccount.data)
-            checkRentExemption({
-              account: leavesAccount,
-              connection: provider.connection
-            })
-            console.log("leavesAccountData: ", leavesAccountData)
-
-            console.log("ix_data: ", Array.prototype.slice.call(ix_data.encryptedUtxos.slice(200)))
-            assert_eq(leavesAccountData.leafLeft, ix_data.leafLeft, "left leaf not inserted correctly")
-            assert_eq(leavesAccountData.leafRight, ix_data.leafRight, "right leaf not inserted correctly")
-            assert_eq(leavesAccountData.encryptedUtxos, ix_data.encryptedUtxos, "encryptedUtxos not inserted correctly")
-  }*/
 
   async function executeXComputeTransactions({number_of_transactions,signer,pdas, program}) {
     let arr = []
@@ -1260,7 +1139,7 @@ it("Initialize Nullifier Test", async () => {
         ).accounts(
             {
               authority: signer.publicKey,
-              merkleTreeTmpStorage: merkleTreeTmpState,
+              merkleTreeUpdateState: merkleTreeTmpState,
               systemProgram: SystemProgram.programId,
               rent: DEFAULT_PROGRAMS.rent,
               merkleTree: MERKLE_TREE_KEY
@@ -1303,8 +1182,7 @@ it("Initialize Nullifier Test", async () => {
         await program.methods.updateMerkleTree(new anchor.BN(i))
         .accounts({
           authority: signer.publicKey,
-          // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeTmpStorage: merkleTreeTmpState,
+          merkleTreeUpdateState: merkleTreeTmpState,
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
@@ -1312,8 +1190,7 @@ it("Initialize Nullifier Test", async () => {
       transaction.add(
         await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
           authority: signer.publicKey,
-          // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeTmpStorage: merkleTreeTmpState,
+          merkleTreeUpdateState: merkleTreeTmpState,
           merkleTree: MERKLE_TREE_KEY
         }).instruction()
       )
@@ -1340,7 +1217,7 @@ it("Initialize Nullifier Test", async () => {
           new anchor.BN(254))
         .accounts({
           authority: signer.publicKey,
-          merkleTreeTmpStorage: merkleTreeTmpState,
+          merkleTreeUpdateState: merkleTreeTmpState,
           merkleTree: MERKLE_TREE_KEY
         }).remainingAccounts(
           leavesPdas
@@ -1357,7 +1234,7 @@ it("Initialize Nullifier Test", async () => {
             new anchor.BN(254))
           .accounts({
             authority: signer.publicKey,
-            merkleTreeTmpStorage: merkleTreeTmpState,
+            merkleTreeUpdateState: merkleTreeTmpState,
             merkleTree: MERKLE_TREE_KEY
           }).remainingAccounts(
             leavesPdas
@@ -1376,7 +1253,7 @@ it("Initialize Nullifier Test", async () => {
           .accounts({
             authority: signer.publicKey,
             // verifierStateAuthority:pdas.verifierStatePubkey,
-            merkleTreeTmpStorage: merkleTreeTmpState,
+            merkleTreeUpdateState: merkleTreeTmpState,
             merkleTree: MERKLE_TREE_KEY
           }).instruction()
         )
@@ -1385,7 +1262,7 @@ it("Initialize Nullifier Test", async () => {
           await program.methods.updateMerkleTree(new anchor.BN(i)).accounts({
             authority: signer.publicKey,
             // verifierStateAuthority:pdas.verifierStatePubkey,
-            merkleTreeTmpStorage: merkleTreeTmpState,
+            merkleTreeUpdateState: merkleTreeTmpState,
             merkleTree: MERKLE_TREE_KEY
           }).instruction()
         )

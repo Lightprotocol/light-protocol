@@ -4,8 +4,7 @@ use crate::state::TwoLeavesBytesPda;
 use crate::config;
 use anchor_lang::solana_program::{
     msg,
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
+    program_pack::Pack,
 };
 use crate::utils::constants::TWO_LEAVES_PDA_SIZE;
 use crate::utils::create_pda::create_and_check_pda;
@@ -32,7 +31,6 @@ pub fn process_insert_two_leaves(
     leaf_right: [u8;32],
     encrypted_utxos: Vec<u8>,
     nullifier: [u8;32],
-    next_index: u64,
     merkle_tree_pda_pubkey: [u8;32]
 ) -> Result<()> {
     msg!("insert_two_leaves");
@@ -52,7 +50,7 @@ pub fn process_insert_two_leaves(
         TWO_LEAVES_PDA_SIZE, //bytes
         0,                   //lamports
         true,                //rent_exempt
-    );
+    )?;
     let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&two_leaves_pda.data.borrow())?;
 
     leaf_pda_account_data.account_type = UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;

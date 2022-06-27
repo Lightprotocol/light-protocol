@@ -5,7 +5,7 @@ use anchor_lang::solana_program;
 use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
-pub struct WithdrawSOL<'info> {
+pub struct WithdrawSol<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
     #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
     pub authority: Signer<'info>,
@@ -95,7 +95,6 @@ pub fn sol_transfer(
 
     Ok(())
 }
-use anchor_lang::error::Error;
 
 pub fn close_account(
     account: &AccountInfo,

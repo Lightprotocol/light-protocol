@@ -43,7 +43,7 @@ mod test {
             recipient: Pubkey::new(&[0; 32]),
             amount: [0; 32],
             nullifier_hash: [0; 32],
-            root_hash: [0; 32],
+            merkle_root: [0; 32],
             tx_integrity_hash: [0; 32], // is calculated on-chain from recipient, amount, signing_address,
             proof_a_bytes: [0; 64], //ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>,
             proof_b_bytes: [0; 128], //ark_ec::models::bn::g2::G2Affine<ark_bn254::Parameters>,

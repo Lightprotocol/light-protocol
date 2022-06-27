@@ -14,7 +14,7 @@ use ark_ff::PrimeField;
 #[derive(Accounts)]
 #[instruction(
     proof:              [u8;256],
-    root_hash:          [u8;32],
+    merkle_root:          [u8;32],
     amount:             [u8;32],
     tx_integrity_hash:  [u8;32]
 )]
@@ -31,7 +31,7 @@ pub struct CreateVerifierState<'info> {
 pub fn process_create_verifier_state(
         ctx: Context<CreateVerifierState>,
         proof: [u8; 256],
-        root_hash: [u8; 32],
+        merkle_root: [u8; 32],
         amount: [u8; 32],
         tx_integrity_hash: [u8; 32],
         nullifier0: [u8; 32],
@@ -46,42 +46,42 @@ pub fn process_create_verifier_state(
         merkle_tree_index: [u8; 1]
     ) -> Result<()> {
     // if not initialized this will run load_init
-    let tmp_account = &mut match ctx.accounts.verifier_state.load_mut() {
+    let verifier_state_data = &mut match ctx.accounts.verifier_state.load_mut() {
             Ok(res) => res,
             Err(_)  => ctx.accounts.verifier_state.load_init()?
     };
 
-    tmp_account.signing_address = ctx.accounts.signing_address.key();
-    tmp_account.root_hash = root_hash.clone();
-    tmp_account.amount = amount.clone();
-    tmp_account.merkle_tree_index = merkle_tree_index[0].clone();
-    tmp_account.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
-    tmp_account.recipient = Pubkey::new(&recipient).clone();
-    tmp_account.tx_integrity_hash = tx_integrity_hash.clone();
-    tmp_account.ext_amount = ext_amount.clone();
-    tmp_account.fee = relayer_fee.clone();//tx_fee.clone();
-    tmp_account.leaf_left = leaf_left;
-    tmp_account.leaf_right = leaf_right;
-    tmp_account.nullifier0 = nullifier0;
-    tmp_account.nullifier1 = nullifier1;
-    tmp_account.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
+    verifier_state_data.signing_address = ctx.accounts.signing_address.key();
+    verifier_state_data.merkle_root = merkle_root.clone();
+    verifier_state_data.amount = amount.clone();
+    verifier_state_data.merkle_tree_index = merkle_tree_index[0].clone();
+    verifier_state_data.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
+    verifier_state_data.recipient = Pubkey::new(&recipient).clone();
+    verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
+    verifier_state_data.ext_amount = ext_amount.clone();
+    verifier_state_data.fee = relayer_fee.clone();//tx_fee.clone();
+    verifier_state_data.leaf_left = leaf_left;
+    verifier_state_data.leaf_right = leaf_right;
+    verifier_state_data.nullifier0 = nullifier0;
+    verifier_state_data.nullifier1 = nullifier1;
+    verifier_state_data.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
 
     // initing pairs to prepared inputs
-    init_pairs_instruction(tmp_account)?;
-    _process_instruction(41, tmp_account, tmp_account.current_index as usize)?;
-    tmp_account.current_index = 1;
-    tmp_account.current_instruction_index = 1;
-    tmp_account.computing_prepared_inputs = true;
+    init_pairs_instruction(verifier_state_data)?;
+    _process_instruction(41, verifier_state_data, verifier_state_data.current_index as usize)?;
+    verifier_state_data.current_index = 1;
+    verifier_state_data.current_instruction_index = 1;
+    verifier_state_data.computing_prepared_inputs = true;
 
     // miller loop
-    tmp_account.proof_a_bytes = proof[0..64].try_into().unwrap();
-    tmp_account.proof_b_bytes = proof[64..64 + 128].try_into().unwrap();
-    tmp_account.proof_c_bytes = proof[64 + 128..256].try_into().unwrap();
-    tmp_account.ml_max_compute = 1_350_000;
-    tmp_account.f_bytes[0] = 1;
-    let proof_b = parse_proof_b_from_bytes(&tmp_account.proof_b_bytes.to_vec());
+    verifier_state_data.proof_a_bytes = proof[0..64].try_into().unwrap();
+    verifier_state_data.proof_b_bytes = proof[64..64 + 128].try_into().unwrap();
+    verifier_state_data.proof_c_bytes = proof[64 + 128..256].try_into().unwrap();
+    verifier_state_data.ml_max_compute = 1_350_000;
+    verifier_state_data.f_bytes[0] = 1;
+    let proof_b = parse_proof_b_from_bytes(&verifier_state_data.proof_b_bytes.to_vec());
 
-    tmp_account.r_bytes = parse_r_to_bytes(G2HomProjective {
+    verifier_state_data.r_bytes = parse_r_to_bytes(G2HomProjective {
         x: proof_b.x,
         y: proof_b.y,
         z: Fp2::one(),

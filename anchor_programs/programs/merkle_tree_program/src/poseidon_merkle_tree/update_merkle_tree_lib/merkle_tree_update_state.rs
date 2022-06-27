@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
-pub struct MerkleTreeTmpPda {
+pub struct MerkleTreeUpdateState {
     pub node_left: [u8;32],
     pub node_right: [u8;32],
     pub leaf_left: [u8;32],

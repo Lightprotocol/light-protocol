@@ -9,16 +9,16 @@ use ark_ff::BigInteger;
 use ark_ff::FpParameters;
 use ark_ff::{bytes::FromBytes, BigInteger256};
 use merkle_tree_program;
-use solana_program::{msg, pubkey::Pubkey};
+use solana_program::msg;
 use std::cell::RefMut;
 use merkle_tree_program::instructions::{
     sol_transfer,
 };
 use crate::groth16_verifier::VerifierState;
 
-use crate::last_transaction::instructions::{
+use crate::last_transaction::cpi_instructions::{
     initialize_nullifier_cpi,
-    check_root_hash_exists_cpi,
+    check_merkle_root_exists_cpi,
     insert_two_leaves_cpi,
     withdraw_sol_cpi
 };
@@ -47,7 +47,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.fee_escrow_state.to_account_info(),
         &ctx.accounts.merkle_tree_pda_token.to_account_info(),
         pub_amount_checked
-    );
+    )?;
 
 
     let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
@@ -72,13 +72,13 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         verifier_state.nullifier1
     )?;
 
-    check_root_hash_exists_cpi(
+    check_merkle_root_exists_cpi(
         &ctx.program_id,
         &merkle_tree_program_id,
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.merkle_tree.to_account_info(),
         verifier_state.merkle_tree_index.into(),
-        verifier_state.root_hash.clone()
+        verifier_state.merkle_root.clone()
     )?;
 
     insert_two_leaves_cpi(
@@ -87,7 +87,6 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.two_leaves_pda.to_account_info(),
         &ctx.accounts.pre_inserted_leaves_index.to_account_info(),
-        &mut ctx.accounts.pre_inserted_leaves_index,
         &ctx.accounts.system_program.to_account_info(),
         &ctx.accounts.rent.to_account_info(),
         verifier_state.nullifier0,
@@ -161,13 +160,13 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         verifier_state.nullifier1
     )?;
 
-    check_root_hash_exists_cpi(
+    check_merkle_root_exists_cpi(
         &ctx.program_id,
         &merkle_tree_program_id,
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.merkle_tree.to_account_info(),
         verifier_state.merkle_tree_index.into(),
-        verifier_state.root_hash.clone()
+        verifier_state.merkle_root.clone()
     )?;
     // Inserting leaves
     insert_two_leaves_cpi(
@@ -176,7 +175,6 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.two_leaves_pda.to_account_info(),
         &ctx.accounts.pre_inserted_leaves_index.to_account_info(),
-        &mut ctx.accounts.pre_inserted_leaves_index,
         &ctx.accounts.system_program.to_account_info(),
         &ctx.accounts.rent.to_account_info(),
         verifier_state.nullifier0,

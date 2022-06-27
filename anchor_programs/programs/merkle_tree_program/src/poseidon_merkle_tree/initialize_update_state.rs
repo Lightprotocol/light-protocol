@@ -3,15 +3,14 @@ use crate::state::MerkleTree;
 use crate::utils::constants::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
 use crate::state::TwoLeavesBytesPda;
 use crate::utils::config::MERKLE_TREE_TMP_PDA_SIZE;
-use crate::MerkleTreeTmpPda;
+use crate::MerkleTreeUpdateState;
 use crate::utils::constants::STORAGE_SEED;
 use crate::utils::config;
 use crate::errors::ErrorCode;
 
 use anchor_lang::solana_program::{
     msg,
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
+    program_pack::Pack,
 };
 #[derive(Accounts)]
 #[instruction(merkle_tree_index: u64)]
@@ -26,7 +25,7 @@ pub struct InitializeUpdateState<'info> {
         payer = authority,
         space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
     )]
-    pub merkle_tree_tmp_storage: AccountLoader<'info ,MerkleTreeTmpPda>,
+    pub merkle_tree_update_state: AccountLoader<'info ,MerkleTreeUpdateState>,
     /// CHECK: that the merkle tree is whitelisted
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
@@ -43,13 +42,13 @@ pub fn process_initialize_update_state(
 
     // TODO check merkle tree index if not already done in contraints
 
-    let tmp_storage_pda = &mut ctx.accounts.merkle_tree_tmp_storage.load_init()?;
+    let verifier_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
     //increased by 2 because we're inserting 2 leaves at once
-    tmp_storage_pda.merkle_tree_index = merkle_tree_index.try_into().unwrap();
-    tmp_storage_pda.relayer = ctx.accounts.authority.key();
-    tmp_storage_pda.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
+    verifier_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
+    verifier_state_data.relayer = ctx.accounts.authority.key();
+    verifier_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
 
-    tmp_storage_pda.current_instruction_index = 1;
+    verifier_state_data.current_instruction_index = 1;
 
 
     // Checking that the number of remaining accounts is non zero and smaller than 16.
@@ -59,7 +58,7 @@ pub fn process_initialize_update_state(
     }
 
     let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-    tmp_storage_pda.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
+    verifier_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
 
 
     let mut tmp_index = merkle_tree_pda_data.next_index;
@@ -92,11 +91,11 @@ pub fn process_initialize_update_state(
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
         // Copy leaves to tmp account.
-        tmp_storage_pda.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
-        tmp_storage_pda.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
-        msg!("tmp_storage.leaves[index][0] {:?}", tmp_storage_pda.leaves[index][0]);
-        msg!("tmp_storage.leaves[index][1] {:?}", tmp_storage_pda.leaves[index][1]);
-        tmp_storage_pda.number_of_leaves = (index + 1).try_into().unwrap();
+        verifier_state_data.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
+        verifier_state_data.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
+        msg!("tmp_storage.leaves[index][0] {:?}", verifier_state_data.leaves[index][0]);
+        msg!("tmp_storage.leaves[index][1] {:?}", verifier_state_data.leaves[index][1]);
+        verifier_state_data.number_of_leaves = (index + 1).try_into().unwrap();
         tmp_index +=2;
     }
 
@@ -116,7 +115,7 @@ pub fn process_initialize_update_state(
         || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
     {
         merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
-        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
+        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key().to_bytes().to_vec();
         msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
         msg!(
             "Locked by: {:?}",
@@ -127,7 +126,7 @@ pub fn process_initialize_update_state(
         return err!(ErrorCode::ContractStillLocked);
     } else {
         merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
-        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_tmp_storage.key().to_bytes().to_vec();
+        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key().to_bytes().to_vec();
     }
 
     MerkleTree::pack_into_slice(

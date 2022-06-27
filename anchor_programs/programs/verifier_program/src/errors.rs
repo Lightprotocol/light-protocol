@@ -13,5 +13,7 @@ pub enum ErrorCode {
     #[msg("Tx is not a deposit")]
     NotDeposit,
     #[msg("WrongTxIntegrityHash")]
-    WrongTxIntegrityHash
+    WrongTxIntegrityHash,
+    #[msg("Closing escrow state failed relayer not timed out.")]
+    NotTimedOut
 }

@@ -35,7 +35,7 @@ pub fn init_pairs_instruction<'info>(tmp_account: &mut RefMut<'_, VerifierState>
     ];
 
     let public_inputs: [Fp256<ark_ed_on_bn254::FqParameters>; 7] = [
-        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.root_hash[..])
+        <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.merkle_root[..])
             .unwrap(),
         <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(&tmp_account.amount[..]).unwrap(),
         <Fp256<ark_ed_on_bn254::FqParameters> as FromBytes>::read(

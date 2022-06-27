@@ -1,7 +1,4 @@
-use ark_ed_on_bn254::Fq;
 use solana_program;
-use anchor_lang::AnchorSerialize;
-use ark_ff::PrimeField;
 use anchor_lang::prelude::*;
 use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
 use crate::merkle_tree_program::PreInsertedLeavesIndex;
@@ -32,13 +29,13 @@ pub fn initialize_nullifier_cpi<'a, 'b>(
     )
 }
 
-pub fn check_root_hash_exists_cpi<'a, 'b>(
+pub fn check_merkle_root_exists_cpi<'a, 'b>(
     program_id:             &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority:              &'b AccountInfo<'a>,
     merkle_tree:            &'b AccountInfo<'a>,
     merkle_tree_index:      u8,
-    root_hash:              [u8;32]
+    merkle_root:              [u8;32]
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
@@ -50,10 +47,10 @@ pub fn check_root_hash_exists_cpi<'a, 'b>(
     };
 
     let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    merkle_tree_program::cpi::check_root_hash_exists(
+    merkle_tree_program::cpi::check_merkle_root_exists(
         cpi_ctx2,
         merkle_tree_index.into(),
-        root_hash
+        merkle_root
     )
 }
 
@@ -69,7 +66,7 @@ pub fn withdraw_sol_cpi<'a, 'b>(
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
-    let accounts = merkle_tree_program::cpi::accounts::WithdrawSOL {
+    let accounts = merkle_tree_program::cpi::accounts::WithdrawSol {
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
     };
@@ -87,7 +84,6 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     authority:                          &'b AccountInfo<'a>,
     two_leaves_pda:                     &'b AccountInfo<'a>,
     pre_inserted_leaves_index_account:  &'b AccountInfo<'a>,
-    pre_inserted_leaves_index:          &'b mut anchor_lang::prelude::Account<'a, PreInsertedLeavesIndex>,
     system_program:                     &'b AccountInfo<'a>,
     rent:                               &'b AccountInfo<'a>,
     nullifier:                          [u8;32],
@@ -107,15 +103,13 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         pre_inserted_leaves_index: pre_inserted_leaves_index_account.clone()
     };
 
-    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    pre_inserted_leaves_index.next_index+=2;
+    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::insert_two_leaves(
         cpi_ctx,
         leaf_left,
         leaf_right,
         [encrypted_utxos.to_vec(),vec![0u8;34]].concat(),
         nullifier,
-        pre_inserted_leaves_index.next_index,
         merkle_tree_tmp_account_bytes,
     )
 }

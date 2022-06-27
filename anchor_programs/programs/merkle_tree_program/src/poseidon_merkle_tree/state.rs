@@ -8,7 +8,7 @@ use anchor_lang::solana_program::{
 use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
 use byteorder::{ByteOrder, LittleEndian};
 use std::convert::TryInto;
-use crate::utils::constants::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
+
 #[allow(unused_variables)]
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct MerkleTree {

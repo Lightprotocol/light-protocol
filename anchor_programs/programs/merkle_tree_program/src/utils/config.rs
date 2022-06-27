@@ -96,12 +96,15 @@ const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
 ];
 pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
     [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
+
+// Is used to init new merkle trees
 #[constant]
 pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
     2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,
     253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
 ];
 
+// Is used for CPI
 pub const MERKLE_TREE_SIGNER_AUTHORITY: [u8; 32] = [
     59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42, 153, 232, 210,
     107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225,

@@ -9,7 +9,7 @@ use ark_std::Zero;
 use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
 
-use crate::poseidon_merkle_tree::update_merkle_tree_lib::update_state::MerkleTreeTmpPda;
+use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
@@ -23,7 +23,7 @@ impl Rounds for PoseidonCircomRounds3 {
     const WIDTH: usize = 3;
 }
 
-pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
+pub fn poseidon_0(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()> {
     let mut current_round_index = 0;
     let mut current_round = 0;
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
@@ -34,8 +34,8 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
     let mut state_new1 = prepare_inputs(
         &params,
-        &account_struct_data.node_left,
-        &account_struct_data.node_right,
+        &verifier_state_data.node_left,
+        &verifier_state_data.node_right,
     )
     .unwrap();
     state_new1 = permute_custom_split(&params, state_new1, current_round, 4).unwrap();
@@ -56,27 +56,27 @@ pub fn poseidon_0(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
 
-    account_struct_data.current_round_index = current_round_index.try_into().unwrap();
-    account_struct_data.current_round = current_round.try_into().unwrap();
-    // account_struct_data.current_instruction_index  +=1;
+    verifier_state_data.current_round_index = current_round_index.try_into().unwrap();
+    verifier_state_data.current_round = current_round.try_into().unwrap();
+    // verifier_state_data.current_instruction_index  +=1;
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state.try_into().unwrap();
+    verifier_state_data.state = tmp_state.try_into().unwrap();
 
     Ok(())
 }
 
-pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
-    let mut current_round_index = account_struct_data.current_round_index;
-    let mut current_round = account_struct_data.current_round;
+pub fn poseidon_1(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()> {
+    let mut current_round_index = verifier_state_data.current_round_index;
+    let mut current_round = verifier_state_data.current_round;
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
 
     let mut state_new1 = Vec::new();
-    for i in account_struct_data.state.chunks(32) {
+    for i in verifier_state_data.state.chunks(32) {
         state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
 
@@ -93,9 +93,9 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     for (i, input_state) in state_final.iter_mut().enumerate() {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
-    account_struct_data.current_round_index = current_round_index;
-    account_struct_data.current_round = current_round;
-    // account_struct_data.current_instruction_index +=1;
+    verifier_state_data.current_round_index = current_round_index;
+    verifier_state_data.current_round = current_round;
+    // verifier_state_data.current_instruction_index +=1;
 
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
@@ -103,15 +103,15 @@ pub fn poseidon_1(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state.try_into().unwrap();
+    verifier_state_data.state = tmp_state.try_into().unwrap();
 
 
     Ok(())
 }
 
-pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
-    let mut current_round_index: usize = account_struct_data.current_round_index.try_into().unwrap();
-    let mut current_round: usize = account_struct_data.current_round.try_into().unwrap();
+pub fn poseidon_2(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()> {
+    let mut current_round_index: usize = verifier_state_data.current_round_index.try_into().unwrap();
+    let mut current_round: usize = verifier_state_data.current_round.try_into().unwrap();
 
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
@@ -120,7 +120,7 @@ pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
     let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
 
     let mut state_new1 = Vec::new();
-    for i in account_struct_data.state.chunks(32) {
+    for i in verifier_state_data.state.chunks(32) {
         state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
     }
     state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
@@ -154,14 +154,14 @@ pub fn poseidon_2(account_struct_data: &mut MerkleTreeTmpPda) -> Result<()> {
         <Fq as ToBytes>::write(&state_new1[i], &mut input_state[..])?;
     }
 
-    // account_struct_data.current_instruction_index +=1;
+    // verifier_state_data.current_instruction_index +=1;
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
             tmp_state[i * 32 + j] = inner_elem.clone();
         }
     }
-    account_struct_data.state = tmp_state.try_into().unwrap();
+    verifier_state_data.state = tmp_state.try_into().unwrap();
 
     Ok(())
 }
@@ -244,7 +244,7 @@ pub fn permute_custom_split(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::poseidon_merkle_tree::state::MerkleTreeTmpPda;
+    use crate::poseidon_merkle_tree::state::MerkleTreeUpdateState;
     use ark_ff::{BigInteger, Fp256, PrimeField};
     use ark_std::{test_rng, UniformRand};
     use arkworks_gadgets::poseidon::circom::CircomCRH;
@@ -260,7 +260,7 @@ mod tests {
     const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 12] = [0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 3];
 
     //defining processor function for testing
-    pub fn processor_poseidon(id: u8, account_struct: &mut MerkleTreeTmpPda) {
+    pub fn processor_poseidon(id: u8, account_struct: &mut MerkleTreeUpdateState) {
         // if id == 0 {
         //     permute_instruction_first(
         //         &mut account_struct.state,
@@ -293,11 +293,11 @@ mod tests {
         //     .unwrap();
         // }
                 if id == 0 {
-            poseidon_0(account_struct_data)?;
+            poseidon_0(verifier_state_data)?;
         } else if id == 1 {
-            poseidon_1(account_struct_data)?;
+            poseidon_1(verifier_state_data)?;
         } else if id == 2 {
-            poseidon_2(account_struct_data)?;
+            poseidon_2(verifier_state_data)?;
         }
         Ok(())
     }
@@ -329,7 +329,7 @@ mod tests {
             <Fq as ToBytes>::write(&poseidon_res, &mut out_bytes[..]).unwrap();
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = MerkleTreeTmpPda {
+            let mut account_struct = MerkleTreeUpdateState {
                 is_initialized: true,
                 merkle_tree_index: 0,
                 state: vec![vec![0u8; 32]; 3],
@@ -386,7 +386,7 @@ mod tests {
                 .to_bytes_le();
 
             //initing struct which similates onchain account for instructions
-            let mut account_struct = MerkleTreeTmpPda {
+            let mut account_struct = MerkleTreeUpdateState {
                 is_initialized: true,
                 merkle_tree_index: 0u8,
                 state: vec![vec![0u8; 32]; 3],

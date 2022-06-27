@@ -9,7 +9,7 @@ pub struct VerifierState {
     pub recipient: Pubkey,
     pub amount: [u8; 32],
     pub nullifier_hash: [u8; 32],
-    pub root_hash: [u8; 32],
+    pub merkle_root: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
     pub proof_a_bytes: [u8; 64],
     pub proof_b_bytes: [u8; 128],
