@@ -5,7 +5,6 @@ use crate::errors::ErrorCode;
 
 use anchor_lang::solana_program::{
     account_info::AccountInfo,
-    clock::Clock,
     msg,
     program_pack::Pack,
     pubkey::Pubkey,

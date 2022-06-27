@@ -8,12 +8,11 @@ use anchor_lang::solana_program::{
 };
 use arrayref::{array_ref, array_refs};
 
-use crate::utils::config;
 // max roots that can be checked within one ix memory budget.
 const ROOT_HISTORY_SIZE: u64 = 593;
 
 
-pub fn process_check_root_hash_exists(
+pub fn process_check_merkle_root_exists(
     merkle_tree_pda: &AccountInfo,
     root_bytes: &Vec<u8>,
     program_id: &Pubkey,

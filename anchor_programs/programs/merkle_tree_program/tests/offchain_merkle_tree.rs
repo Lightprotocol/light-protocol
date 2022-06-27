@@ -30,7 +30,7 @@ mod tests {
     use std::convert::TryInto;
 
     use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
-    use merkle_tree_program::state::MerkleTreeTmpPda;
+    use merkle_tree_program::state::MerkleTreeUpdateState;
 
     use ark_std::One;
 
@@ -151,7 +151,7 @@ mod tests {
 
         pub fn verify(
             &self,
-            root_hash: &Vec<u8>,
+            merkle_root: &Vec<u8>,
             claimed_leaf_hash: &Vec<u8>,
         ) -> Result<bool, Error> {
             // calculate leaf hash assumed to be calculated already
@@ -193,7 +193,7 @@ mod tests {
             }
 
             // check if final hash is root
-            if &curr_path_node != root_hash {
+            if &curr_path_node != merkle_root {
                 return Ok(false);
             }
 
@@ -202,7 +202,7 @@ mod tests {
 
         pub fn convert_path_to_circuit_ready_merkle_proof(
             &self,
-            root_hash: &Vec<u8>,
+            merkle_root: &Vec<u8>,
             claimed_leaf_hash: &Vec<u8>,
         ) -> Result<Vec<(bool, Vec<u8>)>, Error> {
             let mut res: Vec<(bool, Vec<u8>)> = Vec::new();
@@ -890,7 +890,7 @@ mod tests {
         let mut filled_leaves = Vec::new();
         let mut j = 0;
         for i in 0..1 {
-            let mut tmp_pda = MerkleTreeTmpPda {
+            let mut tmp_pda = MerkleTreeUpdateState {
                 found_root: 1u8,
                 node_left: [0u8; 32],
                 node_right: [0u8; 32],
@@ -915,7 +915,7 @@ mod tests {
 
             };
             let tmp = RefCell::new(tmp_pda);
-            let mut hash_tmp_account: RefMut<'_, MerkleTreeTmpPda> = tmp.borrow_mut();
+            let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
 
             let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
 
@@ -947,10 +947,10 @@ mod tests {
               248, 217,  34,  35, 109,  44, 243,  26
             ];
 
-            println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
-            println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
-            hash_tmp_account.node_left = new_leaf_hash_bytes.clone();
-            hash_tmp_account.node_right = new_leaf_hash_bytes_1.clone();
+            println!("verifier_state_data.node_left: {:?}", new_leaf_hash_bytes);
+            println!("verifier_state_data.node_right: {:?}", new_leaf_hash_bytes_1);
+            verifier_state_data.node_left = new_leaf_hash_bytes.clone();
+            verifier_state_data.node_right = new_leaf_hash_bytes_1.clone();
             filled_leaves.push(new_leaf_hash_bytes.clone());
             filled_leaves.push(new_leaf_hash_bytes_1.clone());
 
@@ -958,34 +958,34 @@ mod tests {
             for i in config::INSERT_INSTRUCTION_ORDER_18 {
                 processor::_process_instruction(
                     i,
-                    &mut hash_tmp_account,
+                    &mut verifier_state_data,
                     &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
                 );
                 println!(
-                    "tmp_storage_account.state[0..32]: {:?}",
-                    hash_tmp_account.state[0..32].to_vec()
+                    "verifier_state_data.state[0..32]: {:?}",
+                    verifier_state_data.state[0..32].to_vec()
                 );
-                // assert_eq!(hash_tmp_account.changed_state, true);
+                // assert_eq!(verifier_state_data.changed_state, true);
                 if vec![
                     46, 249, 231, 68, 228, 157, 60, 58, 59, 174, 47, 106, 74, 47, 118, 145, 47, 97,
                     124, 204, 19, 185, 250, 79, 31, 239, 247, 99, 135, 127, 84, 12,
-                ] == hash_tmp_account.state[0..32].to_vec()
+                ] == verifier_state_data.state[0..32].to_vec()
                 {
                     println!(
                         "found match at instruction: {}",
-                        hash_tmp_account.current_instruction_index
+                        verifier_state_data.current_instruction_index
                     );
                     panic!("");
                 }
             }
-            instructions::insert_last_double(&mut smt, &mut hash_tmp_account);
+            instructions::insert_last_double(&mut smt, &mut verifier_state_data);
 
             tree.update(j, &new_leaf_hash_bytes.to_vec());
             tree.update(j + 1, &new_leaf_hash_bytes_1.to_vec());
             let proof = tree.generate_proof(j + 1).unwrap();
 
             //println!("merkle proof: {:?}", proof);
-            //assert_eq!(hash_tmp_account.state[0], tree.root());
+            //assert_eq!(verifier_state_data.state[0], tree.root());
             println!("i: {}", i);
             proof.verify(&tree.root(), &new_leaf_hash_bytes_1.to_vec());
             assert_eq!(smt.roots, tree.root());
@@ -1047,7 +1047,7 @@ mod tests {
 
         let mut j = 0;
         for i in 0..iterations {
-            let mut tmp_pda = MerkleTreeTmpPda {
+            let mut tmp_pda = MerkleTreeUpdateState {
                 found_root: 1u8,
                 node_left: [0u8; 32],
                 node_right: [0u8; 32],
@@ -1072,7 +1072,7 @@ mod tests {
 
             };
             let tmp = RefCell::new(tmp_pda);
-            let mut hash_tmp_account: RefMut<'_, MerkleTreeTmpPda> = tmp.borrow_mut();
+            let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
 
             let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
 
@@ -1093,10 +1093,10 @@ mod tests {
             // new_leaf_hash_bytes = [2u8; 32];
             // let new_leaf_hash_bytes_1 =[1u8; 32];
 
-            println!("hash_tmp_account.node_left: {:?}", new_leaf_hash_bytes);
-            println!("hash_tmp_account.node_right: {:?}", new_leaf_hash_bytes_1);
-            hash_tmp_account.node_left = filled_leaves[i][0];
-            hash_tmp_account.node_right = filled_leaves[i][1];
+            println!("verifier_state_data.node_left: {:?}", new_leaf_hash_bytes);
+            println!("verifier_state_data.node_right: {:?}", new_leaf_hash_bytes_1);
+            verifier_state_data.node_left = filled_leaves[i][0];
+            verifier_state_data.node_right = filled_leaves[i][1];
             // filled_leaves[i] = [new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()];
 
 
@@ -1104,15 +1104,15 @@ mod tests {
             for i in INSERT_INSTRUCTION_ORDER_18 {
                 double_process_instruction(
                     i,
-                    &mut hash_tmp_account,
+                    &mut verifier_state_data,
                     &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
                 );
                 println!(
-                    "tmp_storage_account.state[0..32]: {:?}",
-                    hash_tmp_account.state[0..32].to_vec()
+                    "verifier_state_data.state[0..32]: {:?}",
+                    verifier_state_data.state[0..32].to_vec()
                 );
             }
-            insert_last_double(&mut smt, &mut hash_tmp_account);
+            insert_last_double(&mut smt, &mut verifier_state_data);
             println!("smt.roots {:?}", smt.roots);
 
 
@@ -1121,7 +1121,7 @@ mod tests {
             // let proof = tree.generate_proof(j + 1).unwrap();
             //
             // //println!("merkle proof: {:?}", proof);
-            // //assert_eq!(hash_tmp_account.state[0], tree.root());
+            // //assert_eq!(verifier_state_data.state[0], tree.root());
             // println!("i: {}", i);
             // proof.verify(&tree.root(), &new_leaf_hash_bytes_1.to_vec());
             // assert_eq!(smt.roots[0..32], tree.root());
@@ -1130,7 +1130,7 @@ mod tests {
         }
         // starting batch insert
 
-        let mut tmp_pda = MerkleTreeTmpPda {
+        let mut tmp_pda = MerkleTreeUpdateState {
             found_root: 1u8,
             node_left: [0u8; 32],
             node_right: [0u8; 32],
@@ -1155,28 +1155,28 @@ mod tests {
 
         };
         let tmp = RefCell::new(tmp_pda);
-        let mut hash_tmp_account: RefMut<'_, MerkleTreeTmpPda> = tmp.borrow_mut();
+        let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
 
 
         println!("filled_leaves: {:?}",filled_leaves );
         //assert_eq!(true, false,"will fail because no data is incjected");
         let mut counter = 0;
-        while hash_tmp_account.current_instruction_index != 56  {
+        while verifier_state_data.current_instruction_index != 56  {
             processor::_process_instruction(
-                config::INSERT_INSTRUCTION_ORDER_18[hash_tmp_account.current_instruction_index as usize],
-                &mut hash_tmp_account,
+                config::INSERT_INSTRUCTION_ORDER_18[verifier_state_data.current_instruction_index as usize],
+                &mut verifier_state_data,
                 &mut smt_batch, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
             );
-            hash_tmp_account.current_instruction_index +=1;
+            verifier_state_data.current_instruction_index +=1;
             counter +=1;
-            println!("counter {} current_instruction_index {}",counter, hash_tmp_account.current_instruction_index );
-            println!("insert_leaves_index {} number_of_leaves {}",hash_tmp_account.insert_leaves_index, hash_tmp_account.number_of_leaves );
+            println!("counter {} current_instruction_index {}",counter, verifier_state_data.current_instruction_index );
+            println!("insert_leaves_index {} number_of_leaves {}",verifier_state_data.insert_leaves_index, verifier_state_data.number_of_leaves );
 
         }
 
-        instructions::insert_last_double(&mut smt_batch, &mut hash_tmp_account);
+        instructions::insert_last_double(&mut smt_batch, &mut verifier_state_data);
 
-        println!("current_level_hash {:?}", hash_tmp_account.current_level_hash);
+        println!("current_level_hash {:?}", verifier_state_data.current_level_hash);
         println!("smt.roots {:?}", smt.roots);
 
         assert_eq!(smt.roots, smt_batch.roots);
@@ -1202,39 +1202,39 @@ mod tests {
     /*
     pub fn batch_process_instruction(
         id: u8,
-        tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+        verifier_state_data: &mut MerkleTreeUpdateState,
         merkle_tree_pda_data: &mut merkle_tree_program::poseidon_merkle_tree::state::MerkleTree,
     ) {
         println!("executing instruction {}", id);
         if id == HASH_0 {
-            poseidon_0(tmp_storage_pda_data);
+            poseidon_0(verifier_state_data);
         } else if id == HASH_1 {
-            poseidon_1(tmp_storage_pda_data);
+            poseidon_1(verifier_state_data);
         } else if id == HASH_2 {
-            poseidon_2(tmp_storage_pda_data);
+            poseidon_2(verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_LEVEL {
-            batched_instructions::batched_instructions::insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data);
+            batched_instructions::batched_instructions::insert_1_inner_loop(merkle_tree_pda_data, verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_START {
-            batched_instructions::batched_instructions::insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data);
+            batched_instructions::batched_instructions::insert_0_double(merkle_tree_pda_data, verifier_state_data);
         }
     }*/
 
     pub fn double_process_instruction(
         id: u8,
-        tmp_storage_pda_data: &mut MerkleTreeTmpPda,
+        verifier_state_data: &mut MerkleTreeUpdateState,
         merkle_tree_pda_data: &mut merkle_tree_program::poseidon_merkle_tree::state::MerkleTree,
     ) {
         println!("executing instruction {}", id);
         if id == HASH_0 {
-            poseidon_0(tmp_storage_pda_data);
+            poseidon_0(verifier_state_data);
         } else if id == HASH_1 {
-            poseidon_1(tmp_storage_pda_data);
+            poseidon_1(verifier_state_data);
         } else if id == HASH_2 {
-            poseidon_2(tmp_storage_pda_data);
+            poseidon_2(verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_LEVEL {
-            merkle_tree_update_instructions::instructions::insert_1_inner_loop(merkle_tree_pda_data, tmp_storage_pda_data);
+            merkle_tree_update_instructions::instructions::insert_1_inner_loop(merkle_tree_pda_data, verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_START {
-            merkle_tree_update_instructions::instructions::insert_0_double(merkle_tree_pda_data, tmp_storage_pda_data);
+            merkle_tree_update_instructions::instructions::insert_0_double(merkle_tree_pda_data, verifier_state_data);
         }
     }
 

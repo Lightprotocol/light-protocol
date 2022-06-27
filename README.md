@@ -4,7 +4,7 @@
 
 *Requirements:*
 - solana cli v1.9.16 or higher
-  - solana-install init 1.9.16 
+  - solana-install init 1.9.16
   - ``sh -c "$(curl -sSfL https://release.solana.com/v1.9.16/install)"``
 
 - anchor cli
@@ -88,12 +88,12 @@ Accounts:
 
 
 
-##Current State
+## Current State
 
 The following implementations are ready for review. The protocol logic and access control is not.
 
 
-###Poseidon Hash
+### Poseidon Hash
 
 The implementation is the same for only more permutations are executed within one transactions.
 

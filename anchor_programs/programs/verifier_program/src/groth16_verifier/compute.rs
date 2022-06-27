@@ -9,8 +9,6 @@ use crate::groth16_verifier::{
 };
 use merkle_tree_program::utils::constants::STORAGE_SEED;
 
-use crate::errors::ErrorCode;
-
 #[derive(Accounts)]
 pub struct Compute<'info> {
     #[account(
@@ -24,55 +22,55 @@ pub struct Compute<'info> {
 }
 
 pub fn process_compute(ctx: Context<Compute>) -> Result<()> {
-    let tmp_account = &mut ctx.accounts.verifier_state.load_mut()?;
+    let verifier_state_data = &mut ctx.accounts.verifier_state.load_mut()?;
 
-    if tmp_account.computing_prepared_inputs
+    if verifier_state_data.computing_prepared_inputs
     {
         msg!(
-            "CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]: {}",
-            CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]
+            "CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]: {}",
+            CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]
         );
         _process_instruction(
-            IX_ORDER[tmp_account.current_instruction_index as usize],
-            tmp_account,
-            usize::from(CURRENT_INDEX_ARRAY[tmp_account.current_index as usize]),
+            IX_ORDER[verifier_state_data.current_instruction_index as usize],
+            verifier_state_data,
+            usize::from(CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]),
         )?;
-        tmp_account.current_index += 1;
-    } else if tmp_account.computing_miller_loop {
-        tmp_account.ml_max_compute = 1_300_000;
+        verifier_state_data.current_index += 1;
+    } else if verifier_state_data.computing_miller_loop {
+        verifier_state_data.ml_max_compute = 1_300_000;
 
         msg!(
             "computing miller_loop {}",
-            tmp_account.current_instruction_index
+            verifier_state_data.current_instruction_index
         );
-        miller_loop_process_instruction(tmp_account);
+        miller_loop_process_instruction(verifier_state_data);
     } else {
-        if !tmp_account.computing_final_exponentiation {
+        if !verifier_state_data.computing_final_exponentiation {
             msg!("Initializing for final_exponentiation.");
-            tmp_account.computing_final_exponentiation = true;
-            let mut f1 = parse_f_from_bytes(&tmp_account.f_bytes.to_vec());
+            verifier_state_data.computing_final_exponentiation = true;
+            let mut f1 = parse_f_from_bytes(&verifier_state_data.f_bytes.to_vec());
             f1.conjugate();
-            tmp_account.f_bytes1 = parse_f_to_bytes(f1);
+            verifier_state_data.f_bytes1 = parse_f_to_bytes(f1);
             // Initializing temporary storage for final_exponentiation
             // with fqk::zero() which is equivalent to [[1], [0;383]].concat()
-            tmp_account.f_bytes2[0] = 1;
-            tmp_account.f_bytes3[0] = 1;
-            tmp_account.f_bytes4[0] = 1;
-            tmp_account.f_bytes5[0] = 1;
-            tmp_account.i_bytes[0] = 1;
+            verifier_state_data.f_bytes2[0] = 1;
+            verifier_state_data.f_bytes3[0] = 1;
+            verifier_state_data.f_bytes4[0] = 1;
+            verifier_state_data.f_bytes5[0] = 1;
+            verifier_state_data.i_bytes[0] = 1;
             // Skipping the first loop iteration since the naf_vec is zero.
-            tmp_account.outer_loop = 1;
+            verifier_state_data.outer_loop = 1;
             // Adjusting max compute limite to 1.2m, we still need some buffer
             // for overhead and varying compute costs depending on the numbers.
-            tmp_account.fe_max_compute = 1_200_000;
+            verifier_state_data.fe_max_compute = 1_200_000;
             // Adding compute costs for packing the initialized fs.
-            tmp_account.current_compute+=150_000;
+            verifier_state_data.current_compute+=150_000;
         }
 
         msg!("Computing final_exponentiation");
-        final_exponentiation_process_instruction(tmp_account);
+        final_exponentiation_process_instruction(verifier_state_data);
     }
 
-    tmp_account.current_instruction_index += 1;
+    verifier_state_data.current_instruction_index += 1;
     Ok(())
 }

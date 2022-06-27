@@ -1,6 +1,11 @@
 use anchor_lang::prelude::*;
 use crate::groth16_verifier::VerifierState;
 use crate::escrow::escrow_state::FeeEscrowState;
+use anchor_lang::solana_program::{
+    clock::Clock,
+    msg,
+    sysvar::Sysvar,
+};
 
 #[derive(Accounts)]
 #[instruction(
@@ -23,7 +28,7 @@ pub struct CreateEscrowState<'info> {
 
 pub fn process_create_escrow_state(
         ctx: Context<CreateEscrowState>,
-        tx_integrity_hash: [u8; 32],
+        _tx_integrity_hash: [u8; 32],
         tx_fee: u64,
         relayer_fee: [u8;8],
         amount: u64
@@ -38,7 +43,7 @@ pub fn process_create_escrow_state(
     fee_escrow_state.user_pubkey = ctx.accounts.user.key();
     fee_escrow_state.tx_fee = tx_fee;//u64::from_le_bytes(tx_fee.try_into().unwrap()).clone();// fees for tx (tx_fee = number_of_tx * 0.000005)
     fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();// for relayer
-    // fee_escrow_state.creation_slot = anchor_lang::prelude::Clock::slot;
+    fee_escrow_state.creation_slot = <Clock as Sysvar>::get()?.slot;
 
     let cpi_ctx1 = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),

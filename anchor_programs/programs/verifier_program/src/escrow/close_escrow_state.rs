@@ -4,6 +4,15 @@ use merkle_tree_program::instructions::sol_transfer;
 use crate::merkle_tree_program::instructions::close_account;
 use crate::errors::ErrorCode;
 use crate::escrow::escrow_state::FeeEscrowState;
+use crate::utils::config::{
+    TIMEOUT_ESCROW,
+    FEE_PER_INSTRUCTION
+};
+
+use anchor_lang::solana_program::{
+    sysvar::Sysvar,
+    clock::Clock,
+};
 
 #[derive(Accounts)]
 pub struct CloseFeeEscrowPda<'info> {
@@ -37,17 +46,23 @@ pub fn process_close_fee_escrow(
     if external_amount <= 0 {
         return err!(ErrorCode::NotDeposit);
     }
-    // TODO check whether time is expired or verifier state was just inited
-    // if yes check that signer such that user can only close after graceperiod
-    // if verifier_state.current_instruction_index != 0 && fee_escrow_state.creation_slot <  {
-    //
-    // }
+
+    // if yes check that signer such that user can only close after timeout
+    if verifier_state.current_instruction_index != 0 &&
+        fee_escrow_state.creation_slot + TIMEOUT_ESCROW < <Clock as Sysvar>::get()?.slot &&
+        ctx.accounts.signing_address.key() != Pubkey::new(&[0u8;32])
+         {
+
+        if ctx.accounts.signing_address.key() != verifier_state.signing_address {
+            return err!(ErrorCode::NotTimedOut);
+        }
+    }
 
     // transfer remaining funds after subtracting the fee
     // for the number of executed transactions to the user
     // TODO make fee per transaction configurable
     // 7 ix per transaction -> verifier_state.current_instruction_index / 7 * 5000
-    let transfer_amount_relayer = (verifier_state.current_instruction_index / 7) * 5000;
+    let transfer_amount_relayer = verifier_state.current_instruction_index * FEE_PER_INSTRUCTION;
     msg!("transfer_amount_relayer: {}", transfer_amount_relayer);
     sol_transfer(
         &fee_escrow_state.to_account_info(),
