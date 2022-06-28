@@ -2,14 +2,12 @@ use crate::ENCRYPTED_UTXOS_LENGTH;
 // This file stores constants which do not have to be configured.
 use anchor_lang::constant;
 
-
 pub const ROOT_CHECK: u8 = 15;
 pub const TWO_LEAVES_PDA_SIZE: u64 = 106 + ENCRYPTED_UTXOS_LENGTH as u64;
 //instruction order
 pub const IX_ORDER: [u8; 57] = [
-    34, 14, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
-    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2,
-    0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 241
+    34, 14, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 241,
 ];
 // Identitifiers for instructions
 pub const MERKLE_TREE_UPDATE_START: u8 = 14;
@@ -30,7 +28,6 @@ pub const STORAGE_SEED: &[u8] = b"storage";
 pub const LEAVES_SEED: &[u8] = b"leaves";
 #[constant]
 pub const NF_SEED: &[u8] = b"nf";
-
 
 // account types
 pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;

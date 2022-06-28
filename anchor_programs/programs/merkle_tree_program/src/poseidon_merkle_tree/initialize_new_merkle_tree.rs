@@ -1,13 +1,10 @@
-use anchor_lang::prelude::*;
-use crate::state::InitMerkleTreeBytes;
 use crate::config::MERKLE_TREE_INIT_AUTHORITY;
 use crate::errors::ErrorCode;
+use crate::state::InitMerkleTreeBytes;
+use anchor_lang::prelude::*;
 
 use anchor_lang::solana_program::{
-    account_info::AccountInfo,
-    msg,
-    program_pack::Pack,
-    pubkey::Pubkey,
+    account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
 };
 
 #[derive(Accounts)]
@@ -34,27 +31,24 @@ pub struct InitializeNewMerkleTree<'info> {
     )]
     pub merkle_tree_pda_token: Account<'info, MerkleTreePdaToken>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
-
+    pub rent: Sysvar<'info, Rent>,
 }
 
 // keeps track of leaves which have been queued but not inserted into the merkle tree yet
 #[account]
-pub struct MerkleTreePdaToken {
-}
+pub struct MerkleTreePdaToken {}
 
 // keeps track of leaves which have been queued but not inserted into the merkle tree yet
 #[account]
 pub struct PreInsertedLeavesIndex {
-    pub next_index: u64
+    pub next_index: u64,
 }
-
 
 #[allow(clippy::manual_memcpy)]
 pub fn initialize_new_merkle_tree_from_bytes(
     merkle_tree_pda: AccountInfo,
     init_bytes: &[u8],
-) -> Result<()>  {
+) -> Result<()> {
     let mut unpacked_init_merkle_tree =
         InitMerkleTreeBytes::unpack(&merkle_tree_pda.data.borrow())?;
 

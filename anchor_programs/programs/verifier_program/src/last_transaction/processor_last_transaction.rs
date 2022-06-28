@@ -1,26 +1,20 @@
-use crate::last_transaction::instructions_last_transaction::{
-    LastTransactionDeposit,
-    LastTransactionWithdrawal
-};
 use crate::errors::ErrorCode;
+use crate::groth16_verifier::VerifierState;
+use crate::last_transaction::instructions_last_transaction::{
+    LastTransactionDeposit, LastTransactionWithdrawal,
+};
 use anchor_lang::prelude::*;
 use ark_ed_on_bn254::FqParameters;
 use ark_ff::BigInteger;
 use ark_ff::FpParameters;
 use ark_ff::{bytes::FromBytes, BigInteger256};
 use merkle_tree_program;
+use merkle_tree_program::instructions::sol_transfer;
 use solana_program::msg;
 use std::cell::RefMut;
-use merkle_tree_program::instructions::{
-    sol_transfer,
-};
-use crate::groth16_verifier::VerifierState;
 
 use crate::last_transaction::cpi_instructions::{
-    initialize_nullifier_cpi,
-    check_merkle_root_exists_cpi,
-    insert_two_leaves_cpi,
-    withdraw_sol_cpi
+    check_merkle_root_exists_cpi, initialize_nullifier_cpi, insert_two_leaves_cpi, withdraw_sol_cpi,
 };
 
 pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
@@ -46,9 +40,8 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
     sol_transfer(
         &ctx.accounts.fee_escrow_state.to_account_info(),
         &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-        pub_amount_checked
+        pub_amount_checked,
     )?;
-
 
     let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
 
@@ -59,7 +52,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.nullifier0_pda.to_account_info(),
         &ctx.accounts.system_program.to_account_info().clone(),
         &ctx.accounts.rent.to_account_info().clone(),
-        verifier_state.nullifier0
+        verifier_state.nullifier0,
     )?;
 
     initialize_nullifier_cpi(
@@ -69,7 +62,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.nullifier1_pda.to_account_info(),
         &ctx.accounts.system_program.to_account_info().clone(),
         &ctx.accounts.rent.to_account_info().clone(),
-        verifier_state.nullifier1
+        verifier_state.nullifier1,
     )?;
 
     check_merkle_root_exists_cpi(
@@ -78,7 +71,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.merkle_tree.to_account_info(),
         verifier_state.merkle_tree_index.into(),
-        verifier_state.merkle_root.clone()
+        verifier_state.merkle_root.clone(),
     )?;
 
     insert_two_leaves_cpi(
@@ -93,11 +86,10 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         verifier_state.leaf_left,
         verifier_state.leaf_right,
         ctx.accounts.merkle_tree.key().to_bytes(),
-        verifier_state.encrypted_utxos
+        verifier_state.encrypted_utxos,
     )?;
     Ok(())
 }
-
 
 pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawal>) -> Result<()> {
     let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
@@ -122,7 +114,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
             &ctx.accounts.authority.to_account_info(),
             &ctx.accounts.merkle_tree_pda_token.to_account_info(),
             &ctx.accounts.recipient.to_account_info(),
-            pub_amount_checked
+            pub_amount_checked,
         )?;
     } else {
         panic!("Spl-Token transfers not implemented yet");
@@ -136,7 +128,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
                 &ctx.accounts.authority.to_account_info(),
                 &ctx.accounts.merkle_tree_pda_token.to_account_info(),
                 &ctx.accounts.recipient.to_account_info(),
-                relayer_fee
+                relayer_fee,
             )?;
         }
     }
@@ -148,7 +140,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         &ctx.accounts.nullifier0_pda.to_account_info(),
         &ctx.accounts.system_program.to_account_info().clone(),
         &ctx.accounts.rent.to_account_info().clone(),
-        verifier_state.nullifier0
+        verifier_state.nullifier0,
     )?;
     initialize_nullifier_cpi(
         &ctx.program_id,
@@ -157,7 +149,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         &ctx.accounts.nullifier1_pda.to_account_info(),
         &ctx.accounts.system_program.to_account_info().clone(),
         &ctx.accounts.rent.to_account_info().clone(),
-        verifier_state.nullifier1
+        verifier_state.nullifier1,
     )?;
 
     check_merkle_root_exists_cpi(
@@ -166,7 +158,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         &ctx.accounts.authority.to_account_info(),
         &ctx.accounts.merkle_tree.to_account_info(),
         verifier_state.merkle_tree_index.into(),
-        verifier_state.merkle_root.clone()
+        verifier_state.merkle_root.clone(),
     )?;
     // Inserting leaves
     insert_two_leaves_cpi(
@@ -181,11 +173,10 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         verifier_state.leaf_left,
         verifier_state.leaf_right,
         ctx.accounts.merkle_tree.key().to_bytes(),
-        verifier_state.encrypted_utxos
+        verifier_state.encrypted_utxos,
     )?;
     Ok(())
 }
-
 
 #[allow(clippy::comparison_chain)]
 pub fn check_external_amount(verifier_state: &mut RefMut<'_, VerifierState>) -> Result<(u64, u64)> {

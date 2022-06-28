@@ -16,7 +16,10 @@ pub fn _process_instruction(
     msg!("res_x_range: {:?}", account.res_x_range);
     msg!("g_ic_x_range: {:?}", account.g_ic_x_range);
     msg!("current_index: {:?}", account.current_index);
-    msg!("CURRENT_INDEX_ARRAY: {:?}", CURRENT_INDEX_ARRAY[account.current_index as usize]);
+    msg!(
+        "CURRENT_INDEX_ARRAY: {:?}",
+        CURRENT_INDEX_ARRAY[account.current_index as usize]
+    );
 
     if id == 41 {
         let mut account_res_x_range = account.res_x_range;
@@ -62,7 +65,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -119,7 +122,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -176,7 +179,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -233,7 +236,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -258,8 +261,7 @@ pub fn _process_instruction(
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
         account.res_z_range = account_res_z_range;
-    }
-    else if id == 46 {
+    } else if id == 46 {
         let mut account_res_x_range = account.res_x_range;
         let mut account_res_y_range = account.res_y_range;
         let mut account_res_z_range = account.res_z_range;
@@ -291,7 +293,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -348,7 +350,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         let mut account_g_ic_x_range = account.g_ic_x_range;
         let mut account_g_ic_y_range = account.g_ic_y_range;
@@ -405,7 +407,7 @@ pub fn _process_instruction(
             current_index,
             FILLING_ROUNDS,
         )?; // 1 of 256
-        account.current_index += (FILLING_ROUNDS/4) + 1;
+        account.current_index += (FILLING_ROUNDS / 4) + 1;
 
         account.res_x_range = account_res_x_range;
         account.res_y_range = account_res_y_range;
@@ -474,13 +476,8 @@ pub fn _process_instruction(
 pub const IX_ORDER: [u8; 43] = [
     1, //init data starts
     //prepare inputs for verification
-    42, 42, 42, 42,42, 62,
-    43,43, 43, 43, 43, 63,
-    44, 44,44, 44, 44, 64,
-    45,45, 45, 45, 45, 65,
-    46, 46, 46, 46, 46,66,
-    47, 47, 47, 47,47, 67,
-    48,48, 48, 48, 48, 68,
+    42, 42, 42, 42, 42, 62, 43, 43, 43, 43, 43, 63, 44, 44, 44, 44, 44, 64, 45, 45, 45, 45, 45, 65,
+    46, 46, 46, 46, 46, 66, 47, 47, 47, 47, 47, 67, 48, 48, 48, 48, 48, 68,
 ];
 // The current_index informs the maths_instruction where exactly in the 256* loop we are at any given time.
 // This is needed because we have to skip leading zeroes and can't keep

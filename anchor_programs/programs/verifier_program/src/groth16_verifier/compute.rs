@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::groth16_verifier::{
-    prepare_inputs::*,
-    final_exponentiation_process_instruction,
-    miller_loop::*,
-    parsers::*,
+    final_exponentiation_process_instruction, miller_loop::*, parsers::*, prepare_inputs::*,
     VerifierState,
 };
 use merkle_tree_program::utils::constants::STORAGE_SEED;
@@ -18,7 +15,7 @@ pub struct Compute<'info> {
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut, address=verifier_state.load()?.signing_address)]
-    pub signing_address: Signer<'info>
+    pub signing_address: Signer<'info>,
 }
 
 pub fn process_compute(ctx: Context<Compute>) -> Result<()> {
@@ -44,7 +41,8 @@ pub fn process_compute(ctx: Context<Compute>) -> Result<()> {
         );
         miller_loop_process_instruction(verifier_state_data);
     } else if verifier_state_data.computing_final_exponentiation {
-        msg!("Computing final_exponentiation {}",
+        msg!(
+            "Computing final_exponentiation {}",
             verifier_state_data.current_instruction_index
         );
         // Adjusting max compute limite to 1.2m, we still need some buffer

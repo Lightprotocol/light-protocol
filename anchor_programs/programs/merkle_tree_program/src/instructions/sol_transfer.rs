@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
 use crate::config;
-use anchor_lang::solana_program;
 use crate::errors::ErrorCode;
+use anchor_lang::prelude::*;
+use anchor_lang::solana_program;
 
 #[derive(Accounts)]
 #[instruction(data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64)]
@@ -17,10 +17,7 @@ pub struct WithdrawSol<'info> {
 
 /// Transferring sol from the merkle_tree_token_pda to recipients which are passed-in
 /// as remaining accounts.
-pub fn process_sol_transfer(
-    accounts: &[AccountInfo],
-    instruction_data: &[u8]
-) -> Result<()>{
+pub fn process_sol_transfer(accounts: &[AccountInfo], instruction_data: &[u8]) -> Result<()> {
     let account = &mut accounts.iter();
     let merkle_tree_pda_token = next_account_info(account)?;
     // withdraws amounts to accounts
@@ -61,10 +58,7 @@ pub fn sol_transfer(
     Ok(())
 }
 
-pub fn close_account(
-    account: &AccountInfo,
-    dest_account: &AccountInfo,
-) -> Result<()> {
+pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Result<()> {
     //close account by draining lamports
     let dest_starting_lamports = dest_account.lamports();
     **dest_account.lamports.borrow_mut() = dest_starting_lamports

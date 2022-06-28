@@ -27,5 +27,5 @@ pub enum ErrorCode {
     #[msg("WrongLeavesLastTx")]
     WrongLeavesLastTx,
     #[msg("FirstLeavesPdaIncorrectIndex")]
-    FirstLeavesPdaIncorrectIndex
+    FirstLeavesPdaIncorrectIndex,
 }

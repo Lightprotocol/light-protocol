@@ -1,10 +1,5 @@
 use anchor_lang::prelude::*;
 
-
-
-
-
-
 /*
 pub fn token_transfer<'a, 'b>(
     token_program: &'b AccountInfo<'a>,

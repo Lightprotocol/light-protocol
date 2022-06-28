@@ -1,4 +1,4 @@
-use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH};
+use crate::utils::config::ENCRYPTED_UTXOS_LENGTH;
 use crate::utils::constants::MERKLE_TREE_ACCOUNT_TYPE;
 use anchor_lang::solana_program::{
     msg,
@@ -24,7 +24,6 @@ pub struct MerkleTree {
     pub inserted_root: bool,
     pub pubkey_locked: Vec<u8>,
     pub time_locked: u64,
-
 }
 impl Sealed for MerkleTree {}
 impl IsInitialized for MerkleTree {

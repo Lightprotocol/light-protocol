@@ -2,19 +2,15 @@ use crate::groth16_verifier::VerifierState;
 
 use anchor_lang::prelude::*;
 
+use crate::escrow::escrow_state::FeeEscrowState;
 use merkle_tree_program::{
     program::MerkleTreeProgram,
+    utils::config::MERKLE_TREE_ACC_BYTES_ARRAY,
+    utils::constants::{LEAVES_SEED, NF_SEED, STORAGE_SEED},
     PreInsertedLeavesIndex,
-    utils::constants::{
-        STORAGE_SEED,
-        NF_SEED,
-        LEAVES_SEED
-    },
-    utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
 };
-use crate::escrow::escrow_state::FeeEscrowState;
 
-use crate::utils::config::{ESCROW_SEED};
+use crate::utils::config::ESCROW_SEED;
 
 #[derive(Accounts)]
 pub struct LastTransactionDeposit<'info> {
@@ -26,7 +22,7 @@ pub struct LastTransactionDeposit<'info> {
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
-    /// CHECK:` This is the nullifier account
+    /// CHECK:` Nullifier account which will be initialized via cpi.
     pub nullifier0_pda: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -34,7 +30,7 @@ pub struct LastTransactionDeposit<'info> {
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
-    /// CHECK:` doc comment explaining why no checks through types are necessary
+    /// CHECK:` Nullifier account which will be initialized via cpi.
     pub nullifier1_pda: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -42,7 +38,7 @@ pub struct LastTransactionDeposit<'info> {
         bump,
         seeds::program = MerkleTreeProgram::id(),
     )]
-    /// CHECK:` doc comment explaining why no checks through types are necessary
+    /// CHECK:` Leaves account which will be initialized via cpi.
     pub two_leaves_pda: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -74,8 +70,7 @@ pub struct LastTransactionDeposit<'info> {
     pub authority: UncheckedAccount<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>
-
+    pub merkle_tree: AccountInfo<'info>,
 }
 
 #[derive(Accounts)]
@@ -134,5 +129,5 @@ pub struct LastTransactionWithdrawal<'info> {
     pub authority: UncheckedAccount<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>
+    pub merkle_tree: AccountInfo<'info>,
 }

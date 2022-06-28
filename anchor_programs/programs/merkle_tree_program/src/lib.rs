@@ -22,49 +22,22 @@ pub mod utils;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::config::{
-    MERKLE_TREE_INIT_AUTHORITY,
-    ENCRYPTED_UTXOS_LENGTH,
-};
+use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 
-use crate::utils::{
-    config
-};
 use crate::instructions::{
-    insert_nullifier::{
-        InitializeNullifier
-    },
-    sol_transfer::{
-        WithdrawSol,
-        process_sol_transfer
-    }
+    insert_nullifier::InitializeNullifier,
+    sol_transfer::{process_sol_transfer, WithdrawSol},
 };
+use crate::utils::config;
 
 use crate::poseidon_merkle_tree::{
-    check_merkle_root_exists::{
-        process_check_merkle_root_exists
-    },
-    insert_root::{
-        InsertRoot,
-        process_insert_root
-    },
-    insert_two_leaves::{
-        InsertTwoLeaves,
-        process_insert_two_leaves
-    },
-    update_merkle_tree::{
-        UpdateMerkleTree,
-        process_update_merkle_tree
-    },
-    initialize_new_merkle_tree::{
-        initialize_new_merkle_tree_from_bytes
-    },
-    initialize_update_state::{
-        InitializeUpdateState,
-        process_initialize_update_state
-    },
+    check_merkle_root_exists::process_check_merkle_root_exists,
+    initialize_new_merkle_tree::initialize_new_merkle_tree_from_bytes,
+    initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
+    insert_root::{process_insert_root, InsertRoot},
+    insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
+    update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
 };
-
 
 #[program]
 pub mod merkle_tree_program {
@@ -72,7 +45,7 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the init authority.
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()>{
+    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
         let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
         let rent = Rent::get()?;
 
@@ -83,7 +56,10 @@ pub mod merkle_tree_program {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
-        initialize_new_merkle_tree_from_bytes(merkle_tree_storage_acc, &config::INIT_BYTES_MERKLE_TREE_18[..])
+        initialize_new_merkle_tree_from_bytes(
+            merkle_tree_storage_acc,
+            &config::INIT_BYTES_MERKLE_TREE_18[..],
+        )
     }
 
     /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted
@@ -95,39 +71,33 @@ pub mod merkle_tree_program {
     /// with the insert root merkle tree instruction.
     pub fn initialize_merkle_tree_update_state(
         ctx: Context<InitializeUpdateState>,
-        merkle_tree_index: u64
-    ) -> Result<()>{
-        process_initialize_update_state(
-            ctx,
-            merkle_tree_index
-        )
+        merkle_tree_index: u64,
+    ) -> Result<()> {
+        process_initialize_update_state(ctx, merkle_tree_index)
     }
     /// Computes poseidon hashes to update the Merkle tree.
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
-        _bump: u64//data: Vec<u8>,
-    ) -> Result<()>{
-        process_update_merkle_tree(
-            &mut ctx
-        )
+        _bump: u64, //data: Vec<u8>,
+    ) -> Result<()> {
+        process_update_merkle_tree(&mut ctx)
     }
     /// This is the last step of a Merkle tree update which inserts the prior computed Merkle tree
     /// root. Additionally, all inserted leaves are marked as inserted.
     pub fn insert_root_merkle_tree<'a, 'b, 'c, 'info>(
         mut ctx: Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
-        _bump: u64
-    ) -> Result<()>{
+        _bump: u64,
+    ) -> Result<()> {
         process_insert_root(&mut ctx)
     }
 
     /// Closes the Merkle tree update state.
     /// A relayer can only close its own update state account.
     pub fn close_merkle_tree_update_state(
-        _ctx: Context<CloseUpdateState>
-    ) -> anchor_lang::Result<()>{
+        _ctx: Context<CloseUpdateState>,
+    ) -> anchor_lang::Result<()> {
         Ok(())
     }
-
 
     /// Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.
     /// The inserted leaves are not part of the Merkle tree yet and marked accordingly.
@@ -136,19 +106,19 @@ pub mod merkle_tree_program {
     pub fn insert_two_leaves<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeaves<'info>>,
         _index: u64,
-        leaf_left: [u8;32],
-        leaf_right: [u8;32],
+        leaf_left: [u8; 32],
+        leaf_right: [u8; 32],
         encrypted_utxos: Vec<u8>,
-        nullifier: [u8;32],
-        merkle_tree_pda_pubkey: [u8;32]
-    ) -> Result<()>{
+        nullifier: [u8; 32],
+        merkle_tree_pda_pubkey: [u8; 32],
+    ) -> Result<()> {
         process_insert_two_leaves(
             ctx,
             leaf_left,
             leaf_right,
             encrypted_utxos,
             nullifier,
-            merkle_tree_pda_pubkey
+            merkle_tree_pda_pubkey,
         )
     }
     /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()>{
@@ -174,31 +144,30 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn withdraw_sol<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSol<'info>>,
-        data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64
-    ) -> Result<()>{
-
+        data: Vec<u8>,
+        _verifier_index: u64,
+        _merkle_tree_index: u64,
+    ) -> Result<()> {
         let mut accounts = ctx.remaining_accounts.to_vec();
         accounts.insert(0, ctx.accounts.merkle_tree_token.to_account_info());
 
-        process_sol_transfer(
-            &accounts.as_slice(),
-            &data.as_slice()
-        )
+        process_sol_transfer(&accounts.as_slice(), &data.as_slice())
     }
 
     /// Creates and initializes a nullifier pda.
     /// Can only be called from a registered verifier program.
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
-        _nullifier: [u8; 32], _index: u64
-    ) -> anchor_lang::Result<()>{
+        _nullifier: [u8; 32],
+        _index: u64,
+    ) -> anchor_lang::Result<()> {
         Ok(())
     }
 
-
     pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>, _bump: u64
-    ) -> anchor_lang::Result<()>{
+        _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>,
+        _bump: u64,
+    ) -> anchor_lang::Result<()> {
         Ok(())
     }
 
@@ -208,14 +177,14 @@ pub mod merkle_tree_program {
     pub fn check_merkle_root_exists<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, CheckMerkleRootExists<'info>>,
         merkle_tree_index: u64,
-        merkle_root: [u8;32]
-    ) -> anchor_lang::Result<()>{
+        merkle_root: [u8; 32],
+    ) -> anchor_lang::Result<()> {
         msg!("Invoking check_merkle_root_exists");
         process_check_merkle_root_exists(
             &ctx.accounts.merkle_tree.to_account_info(),
             &merkle_root.to_vec(),
             &ctx.program_id,
-            &Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0)
+            &Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0),
         )?;
         Ok(())
     }
@@ -252,5 +221,5 @@ pub struct InitializeMerkleTreeLeavesIndex<'info> {
     #[account(mut, address=Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[0].0))]
     pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub rent: Sysvar<'info, Rent>,
 }
