@@ -14,7 +14,7 @@ use merkle_tree_program::{
 };
 use crate::escrow::escrow_state::FeeEscrowState;
 
-use crate::utils::config:: {ESCROW_SEED};
+use crate::utils::config::{ESCROW_SEED};
 
 #[derive(Accounts)]
 pub struct LastTransactionDeposit<'info> {
@@ -62,15 +62,15 @@ pub struct LastTransactionDeposit<'info> {
     pub rent: Sysvar<'info, Rent>,
     // merkle tree account liquidity pool pda
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].1))]
-    /// CHECK: doc comment explaining why no checks through types are necessary.
+    /// CHECK: The pda which serves as liquidity pool for a registered merkle tree.
     pub merkle_tree_pda_token: AccountInfo<'info>,
-    // account from which funds are transferred
-    #[account(mut, close = signing_address)]
+    /// account from which funds are transferred
+    #[account(mut, constraint= verifier_state.key() == fee_escrow_state.verifier_state_pubkey,close = signing_address)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    #[account(mut)]
+    #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut)]
+    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
@@ -130,7 +130,7 @@ pub struct LastTransactionWithdrawal<'info> {
     #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut)]
+    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]

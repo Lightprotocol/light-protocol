@@ -14,7 +14,7 @@ use ark_ff::PrimeField;
 #[derive(Accounts)]
 #[instruction(
     proof:              [u8;256],
-    merkle_root:          [u8;32],
+    merkle_root:        [u8;32],
     amount:             [u8;32],
     tx_integrity_hash:  [u8;32]
 )]
@@ -46,6 +46,7 @@ pub fn process_create_verifier_state(
         merkle_tree_index: [u8; 1]
     ) -> Result<()> {
     // if not initialized this will run load_init
+    // TODO try if this will actually ever fail
     let verifier_state_data = &mut match ctx.accounts.verifier_state.load_mut() {
             Ok(res) => {
                     if res.signing_address == ctx.accounts.signing_address.key() {
@@ -56,7 +57,10 @@ pub fn process_create_verifier_state(
                 },
             Err(_)  => ctx.accounts.verifier_state.load_init()
     }?;
-
+    // Verifier state accounts should only be initialized once.
+    if verifier_state_data.current_instruction_index > 0 {
+        return err!(ErrorCode::VerifierStateAlreadyInitialized);
+    }
     verifier_state_data.signing_address = ctx.accounts.signing_address.key();
     verifier_state_data.merkle_root = merkle_root.clone();
     verifier_state_data.amount = amount.clone();

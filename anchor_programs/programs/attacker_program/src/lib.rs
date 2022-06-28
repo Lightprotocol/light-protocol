@@ -36,7 +36,8 @@ pub mod attacker_program {
         let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
         merkle_tree_program::cpi::initialize_nullifier(
             cpi_ctx,
-            nullifer
+            nullifer,
+            064
         ).unwrap();
         Ok(())
     }

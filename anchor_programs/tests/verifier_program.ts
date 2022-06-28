@@ -308,7 +308,7 @@ describe("verifier_program", () => {
       [verifierProgram.programId.toBuffer()],
       merkleTreeProgram.programId
     );
-  const [AUTHORITY_CONFIG_KEY] = solana.PublicKey.findProgramAddressSync([Buffer.from(AUTHORITY_SEED)], merkleTreeProgram.programId);
+  // const [AUTHORITY_CONFIG_KEY] = solana.PublicKey.findProgramAddressSync([Buffer.from(AUTHORITY_SEED)], merkleTreeProgram.programId);
   const PRE_INSERTED_LEAVES_INDEX = solana.PublicKey.findProgramAddressSync(
       [MERKLE_TREE_KEY.toBuffer()],
       merkleTreeProgram.programId
@@ -1414,9 +1414,7 @@ it("Initialize Nullifier Test", async () => {
       assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).toString(), "amount not transferred correctly");
 
     } else if (mode == "withdrawal") {
-      var senderAccount = await provider.connection.getAccountInfo(
-            sender
-          )
+      var senderAccount = await provider.connection.getAccountInfo(sender)
       console.log("senderAccount: ", senderAccount)
       console.log("senderAccountBalancePriorLastTx: ", senderAccountBalancePriorLastTx)
 

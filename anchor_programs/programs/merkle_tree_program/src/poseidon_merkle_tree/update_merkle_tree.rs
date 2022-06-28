@@ -9,10 +9,11 @@ use anchor_lang::solana_program::{
     pubkey::Pubkey,
     program_pack::Pack
 };
-use crate::utils::constants::IX_ORDER;
+use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::state::MerkleTree;
 use crate::poseidon_merkle_tree::processor::pubkey_check;
 use crate::MerkleTreeUpdateState;
+
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
@@ -20,7 +21,9 @@ pub struct UpdateMerkleTree<'info> {
     #[account(mut, address=merkle_tree_update_state.load()?.relayer)]
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
-    #[account(mut)]
+    #[account(mut, seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()], bump,
+        constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key()
+    )]
     pub merkle_tree_update_state: AccountLoader<'info ,MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_update_state.load()?.merkle_tree_index as usize].0))]

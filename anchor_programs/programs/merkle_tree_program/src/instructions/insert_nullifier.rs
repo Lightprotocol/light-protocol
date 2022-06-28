@@ -3,14 +3,13 @@ use crate::utils::constants::NF_SEED;
 use crate::config;
 use anchor_lang::solana_program;
 
-// Nullfier pdas are derived from the nullifier
-// existence of a nullifier is the check to
-// prevent double spends.
+/// Nullfier pdas are derived from the nullifier
+/// existence of a nullifier is the check to prevent double spends.
 #[account]
 pub struct Nullifier {}
 
 #[derive(Accounts)]
-#[instruction(nullifier: [u8;32])]
+#[instruction(nullifier: [u8;32], index: u64)]
 pub struct InitializeNullifier<'info> {
     #[account(
         init,
@@ -20,8 +19,8 @@ pub struct InitializeNullifier<'info> {
         space = 8,
     )]
     pub nullifier_pda: Account<'info, Nullifier>,
-    /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
+    /// CHECK:` Signer is registered verifier program.
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[index as usize]))]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
