@@ -17,5 +17,7 @@ pub enum ErrorCode {
     #[msg("Closing escrow state failed relayer not timed out.")]
     NotTimedOut,
     #[msg("WrongSigner")]
-    WrongSigner
+    WrongSigner,
+    #[msg("VerifierStateAlreadyInitialized")]
+    VerifierStateAlreadyInitialized
 }

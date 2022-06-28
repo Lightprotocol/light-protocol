@@ -12,6 +12,7 @@ use anchor_lang::solana_program::{
     msg,
     program_pack::Pack,
 };
+
 #[derive(Accounts)]
 #[instruction(merkle_tree_index: u64)]
 pub struct InitializeUpdateState<'info> {
@@ -26,7 +27,7 @@ pub struct InitializeUpdateState<'info> {
         space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
     )]
     pub merkle_tree_update_state: AccountLoader<'info ,MerkleTreeUpdateState>,
-    /// CHECK: that the merkle tree is whitelisted
+    /// CHECK: that the merkle tree is registered.
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
@@ -40,10 +41,7 @@ pub fn process_initialize_update_state(
     ) -> Result<()> {
     msg!("InitializeUpdateState");
 
-    // TODO check merkle tree index if not already done in contraints
-
     let verifier_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
-    //increased by 2 because we're inserting 2 leaves at once
     verifier_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
     verifier_state_data.relayer = ctx.accounts.authority.key();
     verifier_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
@@ -62,7 +60,13 @@ pub fn process_initialize_update_state(
 
 
     let mut tmp_index = merkle_tree_pda_data.next_index;
-
+    // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their
+    // number.
+    // Checks are:
+    //             - are not inserted yet
+    //             - belong to merkle_tree
+    //             - the lowest index is the next index of the merkle_tree
+    //             - indices increases incrementally by 2 for subsequent leaves
     // Copying leaves to tmp account.
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Copying leaves pair {}", index);
@@ -70,7 +74,13 @@ pub fn process_initialize_update_state(
 
         // Checking that leaves are not inserted already.
         if leaves_pda_data.account_type != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
-            msg!("Leaf pda state {} with address {:?} is already inserted",account.data.borrow()[1], *account.key);
+            msg!("Leaf pda state {} with address {:?} is already inserted",leaves_pda_data.account_type, *account.key);
+            return err!(ErrorCode::LeafAlreadyInserted);
+        }
+
+        // Checking that the Merkle tree is the same as in leaves account.
+        if Pubkey::new(&leaves_pda_data.merkle_tree_pubkey) != ctx.accounts.merkle_tree.key() {
+            msg!("Leaf pda state {} with address {:?} is already inserted",Pubkey::new(&leaves_pda_data.merkle_tree_pubkey), ctx.accounts.merkle_tree.key());
             return err!(ErrorCode::LeafAlreadyInserted);
         }
 
@@ -93,13 +103,12 @@ pub fn process_initialize_update_state(
         // Copy leaves to tmp account.
         verifier_state_data.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
         verifier_state_data.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
-        msg!("tmp_storage.leaves[index][0] {:?}", verifier_state_data.leaves[index][0]);
-        msg!("tmp_storage.leaves[index][1] {:?}", verifier_state_data.leaves[index][1]);
         verifier_state_data.number_of_leaves = (index + 1).try_into().unwrap();
         tmp_index +=2;
     }
 
-    // let ctx = get_lock(ctx)?;
+    // Get Merkle tree lock with update state account.
+    // The lock lasts config::LOCK_DURATION and is renewed every transaction.
 
     let current_slot = <Clock as  solana_program::sysvar::Sysvar>::get()?.slot;
     msg!("Current slot: {:?}", current_slot);
@@ -110,7 +119,6 @@ pub fn process_initialize_update_state(
         merkle_tree_pda_data.time_locked + config::LOCK_DURATION
     );
 
-    //lock
     if merkle_tree_pda_data.time_locked == 0
         || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
     {

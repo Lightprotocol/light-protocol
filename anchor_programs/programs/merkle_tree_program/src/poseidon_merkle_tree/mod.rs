@@ -20,3 +20,6 @@ pub use update_merkle_tree::*;
 
 pub mod insert_two_leaves;
 pub use insert_two_leaves::*;
+
+pub mod close_update_state;
+pub use close_update_state::*;

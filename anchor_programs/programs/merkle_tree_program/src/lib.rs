@@ -20,18 +20,11 @@ pub mod errors;
 pub use errors::*;
 pub mod utils;
 
-use crate::errors::ErrorCode;
-
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
-
 
 use crate::utils::config::{
     MERKLE_TREE_INIT_AUTHORITY,
     ENCRYPTED_UTXOS_LENGTH,
-};
-use crate::utils::constants::{
-    LEAVES_PDA_ACCOUNT_TYPE,
-    UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE,
 };
 
 use crate::utils::{
@@ -124,39 +117,17 @@ pub mod merkle_tree_program {
         mut ctx: Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
         _bump: u64
     ) -> Result<()>{
-        // Doing checks after for mutability.
-        // If any check fails the whole transaction fails.
-        process_insert_root(&mut ctx)?;
+        process_insert_root(&mut ctx)
+    }
 
-        let merkle_tree_update_state_data = ctx.accounts.merkle_tree_update_state.load_mut()?;
-
-        msg!("inserting merkle tree root");
-         if merkle_tree_update_state_data.current_instruction_index != 56 {
-             msg!("Wrong state instruction index should be 56 is {}", merkle_tree_update_state_data.current_instruction_index);
-        }
-
-        // mark leaves as inserted
-        // check that leaves are the same as in first tx
-        for (index, account) in ctx.remaining_accounts.iter().enumerate() {
-            msg!("Checking leaves pair {}", index);
-            if index >= merkle_tree_update_state_data.number_of_leaves.into() {
-                msg!("Submitted to many remaining accounts {}", ctx.remaining_accounts.len());
-                return err!(ErrorCode::WrongLeavesLastTx);
-            }
-            if merkle_tree_update_state_data.leaves[index][0][..] != account.data.borrow()[10..42] {
-                msg!("Wrong leaf in position {}", index);
-                return err!(ErrorCode::WrongLeavesLastTx);
-            }
-            if account.data.borrow()[1] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
-                msg!("Leaf pda with address {:?} is already inserted", *account.key);
-                return err!(ErrorCode::LeafAlreadyInserted);
-            }
-            // mark leaves pda as inserted
-            account.data.borrow_mut()[1] = LEAVES_PDA_ACCOUNT_TYPE;
-        }
-
+    /// Closes the Merkle tree update state.
+    /// A relayer can only close its own update state account.
+    pub fn close_merkle_tree_update_state(
+        _ctx: Context<CloseUpdateState>
+    ) -> anchor_lang::Result<()>{
         Ok(())
     }
+
 
     /// Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.
     /// The inserted leaves are not part of the Merkle tree yet and marked accordingly.
@@ -164,6 +135,7 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn insert_two_leaves<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeaves<'info>>,
+        _index: u64,
         leaf_left: [u8;32],
         leaf_right: [u8;32],
         encrypted_utxos: Vec<u8>,
@@ -202,28 +174,23 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn withdraw_sol<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSol<'info>>,
-        data: Vec<u8>,
+        data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64
     ) -> Result<()>{
-        let mut new_data = data.clone();
-        new_data.insert(0, 2);
 
         let mut accounts = ctx.remaining_accounts.to_vec();
-        accounts.insert(0, ctx.accounts.authority.to_account_info());
-        accounts.insert(1, ctx.accounts.merkle_tree_token.to_account_info());
+        accounts.insert(0, ctx.accounts.merkle_tree_token.to_account_info());
 
         process_sol_transfer(
-            ctx.program_id,
             &accounts.as_slice(),
-            &new_data.as_slice(),
-        )?;
-        Ok(())
+            &data.as_slice()
+        )
     }
 
     /// Creates and initializes a nullifier pda.
     /// Can only be called from a registered verifier program.
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
-        _nullifier: [u8; 32],
+        _nullifier: [u8; 32], _index: u64
     ) -> anchor_lang::Result<()>{
         Ok(())
     }
@@ -258,7 +225,7 @@ pub mod merkle_tree_program {
 #[instruction(merkle_tree_index: u64)]
 pub struct CheckMerkleRootExists<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[0]))]
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[merkle_tree_index as usize]))]
     pub authority: Signer<'info>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]

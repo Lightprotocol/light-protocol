@@ -92,7 +92,7 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         verifier_state.nullifier0,
         verifier_state.leaf_left,
         verifier_state.leaf_right,
-        verifier_state.merkle_tree_tmp_account.to_bytes(),
+        ctx.accounts.merkle_tree.key().to_bytes(),
         verifier_state.encrypted_utxos
     )?;
     Ok(())
@@ -180,7 +180,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         verifier_state.nullifier0,
         verifier_state.leaf_left,
         verifier_state.leaf_right,
-        verifier_state.merkle_tree_tmp_account.to_bytes(),
+        ctx.accounts.merkle_tree.key().to_bytes(),
         verifier_state.encrypted_utxos
     )?;
     Ok(())

@@ -24,7 +24,8 @@ pub fn initialize_nullifier_cpi<'a, 'b>(
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::initialize_nullifier(
         cpi_ctx,
-        nullifier
+        nullifier,
+        0u64
     )
 }
 
@@ -73,7 +74,7 @@ pub fn withdraw_sol_cpi<'a, 'b>(
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(vec![recipient.clone()]);
     let amount = pub_amount_checked.to_le_bytes().to_vec();
-    merkle_tree_program::cpi::withdraw_sol(cpi_ctx, amount)
+    merkle_tree_program::cpi::withdraw_sol(cpi_ctx, amount, 0u64, 0u64)
 }
 
 
@@ -105,6 +106,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::insert_two_leaves(
         cpi_ctx,
+        0u64,
         leaf_left,
         leaf_right,
         [encrypted_utxos.to_vec(),vec![0u8;34]].concat(),
