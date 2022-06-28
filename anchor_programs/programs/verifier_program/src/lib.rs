@@ -1,5 +1,3 @@
-
-
 /*
 use solana_security_txt::security_txt;
 
@@ -12,50 +10,34 @@ security_txt! {
 }
 */
 
-pub mod groth16_verifier;
-pub mod utils;
-pub mod last_transaction;
 pub mod errors;
 pub mod escrow;
-pub use groth16_verifier::*;
-pub use escrow::*;
+pub mod groth16_verifier;
+pub mod last_transaction;
+pub mod utils;
 pub use errors::*;
+pub use escrow::*;
+pub use groth16_verifier::*;
 pub use last_transaction::*;
 
 use crate::last_transaction::{
-    instructions_last_transaction::{
-        LastTransactionDeposit,
-        LastTransactionWithdrawal
-    },
+    instructions_last_transaction::{LastTransactionDeposit, LastTransactionWithdrawal},
     processor_last_transaction::{
-        process_last_transaction_deposit,
-        process_last_transaction_withdrawal
-    }
+        process_last_transaction_deposit, process_last_transaction_withdrawal,
+    },
 };
 
 use crate::escrow::{
-    close_escrow_state::{
-        CloseFeeEscrowPda,
-        process_close_fee_escrow
-    },
-    create_escrow_state::{
-        CreateEscrowState,
-        process_create_escrow_state
-    }
+    close_escrow_state::{process_close_fee_escrow, CloseFeeEscrowPda},
+    create_escrow_state::{process_create_escrow_state, CreateEscrowState},
 };
 
 use crate::groth16_verifier::{
-    process_compute,
-    Compute,
-    process_create_verifier_state,
-    VerifierState,
-    CreateVerifierState
+    process_compute, process_create_verifier_state, Compute, CreateVerifierState, VerifierState,
 };
 
 use anchor_lang::prelude::*;
-use merkle_tree_program::{
-    self
-};
+use merkle_tree_program::{self};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
@@ -71,16 +53,10 @@ pub mod verifier_program {
         ctx: Context<CreateEscrowState>,
         tx_integrity_hash: [u8; 32],
         tx_fee: u64,
-        relayer_fee: [u8;8],
-        amount: u64
+        relayer_fee: [u8; 8],
+        amount: u64,
     ) -> Result<()> {
-        process_create_escrow_state(
-            ctx,
-            tx_integrity_hash,
-            tx_fee,
-            relayer_fee,
-            amount
-        )
+        process_create_escrow_state(ctx, tx_integrity_hash, tx_fee, relayer_fee, amount)
     }
 
     /// Allows the user or relayer to close the escrow pda.
@@ -113,7 +89,7 @@ pub mod verifier_program {
         _relayer: [u8; 32],
         relayer_fee: [u8; 8],
         encrypted_utxos: [u8; 256],
-        merkle_tree_index: [u8; 1]
+        merkle_tree_index: [u8; 1],
     ) -> Result<()> {
         process_create_verifier_state(
             ctx,
@@ -130,7 +106,7 @@ pub mod verifier_program {
             _relayer,
             relayer_fee,
             encrypted_utxos,
-            merkle_tree_index
+            merkle_tree_index,
         )
     }
 

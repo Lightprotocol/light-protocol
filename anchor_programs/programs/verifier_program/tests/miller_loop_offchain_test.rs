@@ -1,11 +1,5 @@
 #[cfg(test)]
 mod test {
-    use ark_ff::QuadExtField;
-    use ark_groth16::prepare_verifying_key;
-    use serde_json::{Result, Value};
-    use std::convert::TryInto;
-    use std::fs;
-    use verifier_program::groth16_verifier::miller_loop_onchain;
     use ark_bn254::Fr;
     use ark_ec::bn::g2::G2HomProjective;
     use ark_ec::ProjectiveCurve;
@@ -13,11 +7,17 @@ mod test {
     use ark_ff::Fp2;
     use ark_ff::Fp256;
     use ark_ff::One;
+    use ark_ff::QuadExtField;
     use ark_groth16::prepare_inputs;
+    use ark_groth16::prepare_verifying_key;
+    use serde_json::{Result, Value};
     use solana_program::pubkey::Pubkey;
     use std::borrow::Borrow;
     use std::cell::{RefCell, RefMut};
+    use std::convert::TryInto;
+    use std::fs;
     use verifier_program::groth16_verifier::miller_loop::{instructions::*, state::*};
+    use verifier_program::groth16_verifier::miller_loop_onchain;
     use verifier_program::groth16_verifier::parsers::*;
     use verifier_program::state::VerifierState;
 
@@ -106,10 +106,10 @@ mod test {
             merkle_tree_index: 0,
             found_root: 0,
             current_instruction_index_prepare_inputs: 0,
-            encrypted_utxos: [0u8;222],
+            encrypted_utxos: [0u8; 222],
             last_transaction: false,
-            merkle_tree_instruction_index:0,
-            updating_merkle_tree:false,
+            merkle_tree_instruction_index: 0,
+            updating_merkle_tree: false,
         }
     }
 
@@ -144,10 +144,13 @@ mod test {
             );
 
         println!("here");
-        let f = <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
-        let mut prepared_inputs_bytes = [0u8;64];
-        parse_x_group_affine_to_bytes((prepared_inputs).into_affine().into(), &mut prepared_inputs_bytes);
-
+        let f =
+            <ark_ec::models::bn::Bn<ark_bn254::Parameters> as ark_ec::PairingEngine>::Fqk::one();
+        let mut prepared_inputs_bytes = [0u8; 64];
+        parse_x_group_affine_to_bytes(
+            (prepared_inputs).into_affine().into(),
+            &mut prepared_inputs_bytes,
+        );
 
         let tmp = RefCell::new(new_verifier_state());
         let mut tmp_account: RefMut<'_, VerifierState> = tmp.borrow_mut();
@@ -160,7 +163,7 @@ mod test {
             x: proof_b.x,
             y: proof_b.y,
             z: Fp2::one(),
-            });
+        });
         let mut tmp_account_compute = MillerLoopStateCompute::new(&tmp_account);
         tmp_account_compute.f = f;
         println!("initing tmp_account_compute {:?}", tmp_account_compute);
@@ -169,12 +172,8 @@ mod test {
         // let proof_b = parse_proof_b_from_bytes(&ix_data[288..416].to_vec());
         // let proof_c = parse_x_group_affine_from_bytes(&ix_data[416..480].to_vec());
         let mut total_steps = 0;
-        for i in 0..46{
-            total_steps +=
-                miller_loop_onchain(
-                    &mut tmp_account,
-                    &mut tmp_account_compute
-                );
+        for i in 0..46 {
+            total_steps += miller_loop_onchain(&mut tmp_account, &mut tmp_account_compute);
             println!("initing tmp_account_compute {:?}", tmp_account_compute);
 
             println!("-----------------------------------------");
@@ -183,18 +182,28 @@ mod test {
             println!("outer_first_loop: {} ", tmp_account.outer_first_loop);
             println!("outer_second_loop: {} ", tmp_account.outer_second_loop);
             println!("outer_third_loop: {} ", tmp_account.outer_third_loop);
-            println!("square_in_place_executed: {} ", tmp_account.square_in_place_executed);
-            println!("first_inner_loop_index: {} ", tmp_account.first_inner_loop_index);
-            println!("second_inner_loop_index: {} \n", tmp_account.second_inner_loop_index);
-
-
+            println!(
+                "square_in_place_executed: {} ",
+                tmp_account.square_in_place_executed
+            );
+            println!(
+                "first_inner_loop_index: {} ",
+                tmp_account.first_inner_loop_index
+            );
+            println!(
+                "second_inner_loop_index: {} \n",
+                tmp_account.second_inner_loop_index
+            );
         }
 
         println!("total_steps: {} ", total_steps);
 
         assert_eq!(miller_output_ref, tmp_account_compute.f);
 
-        println!("final f bytes: {:?}", parse_f_to_bytes(tmp_account_compute.f));
+        println!(
+            "final f bytes: {:?}",
+            parse_f_to_bytes(tmp_account_compute.f)
+        );
     }
 
     #[test]

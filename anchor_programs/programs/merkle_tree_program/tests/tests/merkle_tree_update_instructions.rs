@@ -1,4 +1,3 @@
-
 #[cfg(test)]
 #[allow(dead_code)]
 pub mod instructions {
@@ -56,7 +55,8 @@ pub mod instructions {
             verifier_state_data.current_level_hash
         );
         if verifier_state_data.current_level != 0 {
-            verifier_state_data.current_level_hash = verifier_state_data.state[0..32].try_into().unwrap();
+            verifier_state_data.current_level_hash =
+                verifier_state_data.state[0..32].try_into().unwrap();
         }
 
         if verifier_state_data.current_index % 2 == 0 {
@@ -65,13 +65,19 @@ pub mod instructions {
                 verifier_state_data.current_level_hash
             );
             verifier_state_data.node_left = verifier_state_data.current_level_hash.clone();
-            verifier_state_data.node_right = ZERO_BYTES_MERKLE_TREE_18
-                [verifier_state_data.current_level as usize * 32..(verifier_state_data.current_level as usize * 32 + 32)].try_into().unwrap();
+            verifier_state_data.node_right =
+                ZERO_BYTES_MERKLE_TREE_18[verifier_state_data.current_level as usize * 32
+                    ..(verifier_state_data.current_level as usize * 32 + 32)]
+                    .try_into()
+                    .unwrap();
             merkle_tree_account.filled_subtrees[verifier_state_data.current_level as usize] =
                 verifier_state_data.current_level_hash.clone().to_vec();
         } else {
-            verifier_state_data.node_left =
-                merkle_tree_account.filled_subtrees[verifier_state_data.current_level as usize].clone().try_into().unwrap();
+            verifier_state_data.node_left = merkle_tree_account.filled_subtrees
+                [verifier_state_data.current_level as usize]
+                .clone()
+                .try_into()
+                .unwrap();
             verifier_state_data.node_right = verifier_state_data.current_level_hash.clone();
         }
         verifier_state_data.current_index /= 2;
@@ -93,14 +99,19 @@ pub mod instructions {
         merkle_tree_account: &mut MerkleTree,
         verifier_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
     ) -> Result<(), ProgramError> {
-        merkle_tree_account.current_root_index =
-            ((merkle_tree_account.current_root_index + 1) % merkle_tree_account.root_history_size).try_into().unwrap();
+        merkle_tree_account.current_root_index = ((merkle_tree_account.current_root_index + 1)
+            % merkle_tree_account.root_history_size)
+            .try_into()
+            .unwrap();
         merkle_tree_account.next_index += 2;
         msg!(
             "merkle_tree_account.next_index {:?}",
             merkle_tree_account.next_index
         );
-        msg!("verifier_state_data.state[0..32].to_vec() {:?}", verifier_state_data.state[0..32].to_vec());
+        msg!(
+            "verifier_state_data.state[0..32].to_vec() {:?}",
+            verifier_state_data.state[0..32].to_vec()
+        );
         //roots unpacks only the current root and write only this one
         merkle_tree_account.roots = verifier_state_data.state[0..32].to_vec();
         merkle_tree_account.inserted_root = true;

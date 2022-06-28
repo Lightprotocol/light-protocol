@@ -19,5 +19,5 @@ pub enum ErrorCode {
     #[msg("WrongSigner")]
     WrongSigner,
     #[msg("VerifierStateAlreadyInitialized")]
-    VerifierStateAlreadyInitialized
+    VerifierStateAlreadyInitialized,
 }

@@ -1,11 +1,7 @@
-
-use anchor_lang::prelude::*;
 use anchor_lang::prelude::Pubkey;
+use anchor_lang::prelude::*;
+use merkle_tree_program::{self, program::MerkleTreeProgram};
 use solana_program;
-use merkle_tree_program::{
-    self,
-    program::MerkleTreeProgram
-};
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 use merkle_tree_program::utils::constants::NF_SEED;
 
@@ -13,12 +9,18 @@ use merkle_tree_program::utils::constants::NF_SEED;
 pub mod attacker_program {
     use super::*;
 
-    pub fn test_nullifier_insert(ctx: Context<TestNullifierInsert>, nullifer: [u8;32]) -> Result<()> {
+    pub fn test_nullifier_insert(
+        ctx: Context<TestNullifierInsert>,
+        nullifer: [u8; 32],
+    ) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
 
-        let (address, bump) = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree_program_id.key().to_bytes().as_ref()], ctx.program_id);
-        msg!("find_program_address: {:?}" ,address);
-        msg!("ctx.accounts.authority: {:?}" ,ctx.accounts.authority.key());
+        let (address, bump) = solana_program::pubkey::Pubkey::find_program_address(
+            &[merkle_tree_program_id.key().to_bytes().as_ref()],
+            ctx.program_id,
+        );
+        msg!("find_program_address: {:?}", address);
+        msg!("ctx.accounts.authority: {:?}", ctx.accounts.authority.key());
 
         let bump = &[bump][..];
         let seed = &merkle_tree_program_id.key().to_bytes()[..];
@@ -34,11 +36,7 @@ pub mod attacker_program {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-        merkle_tree_program::cpi::initialize_nullifier(
-            cpi_ctx,
-            nullifer,
-            064
-        ).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifer, 064).unwrap();
         Ok(())
     }
 }
@@ -63,7 +61,7 @@ pub struct TestNullifierInsert<'info> {
     // #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub rent: Sysvar<'info, Rent>,
 }
 
 #[error_code]
@@ -79,5 +77,5 @@ pub enum ErrorCode {
     #[msg("Tx is not a deposit")]
     NotDeposit,
     #[msg("WrongTxIntegrityHash")]
-    WrongTxIntegrityHash
+    WrongTxIntegrityHash,
 }

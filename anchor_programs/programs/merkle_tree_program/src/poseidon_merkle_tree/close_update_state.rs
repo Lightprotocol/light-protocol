@@ -1,6 +1,6 @@
-use anchor_lang::prelude::*;
-use crate::MerkleTreeUpdateState;
 use crate::utils::constants::STORAGE_SEED;
+use crate::MerkleTreeUpdateState;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(merkle_tree_index: u64)]
@@ -14,5 +14,5 @@ pub struct CloseUpdateState<'info> {
         bump,
         close=authority
     )]
-    pub merkle_tree_update_state: AccountLoader<'info ,MerkleTreeUpdateState>
+    pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
 }

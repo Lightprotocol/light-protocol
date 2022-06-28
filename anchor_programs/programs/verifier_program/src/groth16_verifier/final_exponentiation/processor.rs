@@ -1,11 +1,8 @@
 use crate::groth16_verifier::parsers::*;
 use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::ALPHA_G1_BETA_G2;
-use ark_ec::{
-    PairingEngine,
-    models::bn::Bn
-};
 use ark_bn254::Parameters;
+use ark_ec::{models::bn::Bn, PairingEngine};
 use ark_ff::Field;
 use ark_std::Zero;
 use solana_program::msg;
@@ -69,97 +66,64 @@ impl FinalExponentiationComputeState {
         FinalExponentiationComputeState {
             f: f,
             f1: f1,
-            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
         }
     }
 
     pub fn new_state() -> FinalExponentiationComputeState {
         FinalExponentiationComputeState {
-            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
+            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
         }
     }
 
     pub fn reset(&mut self) -> FinalExponentiationComputeState {
         FinalExponentiationComputeState {
-            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
-            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(
-            ),
+            f: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f1: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f2: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f3: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f4: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            f5: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
+            i: <Bn<Parameters> as PairingEngine>::Fqk::zero(),
         }
     }
 
     pub fn pack(&self, state: &mut VerifierState) {
-        if self.f
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes = parse_f_to_bytes(self.f);
         }
 
-        if self.f1
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f1 != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes1 = parse_f_to_bytes(self.f1);
         }
 
-        if self.f2
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f2 != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes2 = parse_f_to_bytes(self.f2);
         }
 
-        if self.f3
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f3 != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes3 = parse_f_to_bytes(self.f3);
         }
 
-        if self.f4
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f4 != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes4 = parse_f_to_bytes(self.f4);
         }
 
-        if self.f5
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.f5 != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.f_bytes5 = parse_f_to_bytes(self.f5);
         }
 
-        if self.i
-            != <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if self.i != <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             state.i_bytes = parse_f_to_bytes(self.i);
         }
         state.current_compute = 0;
@@ -170,9 +134,7 @@ impl FinalExponentiationComputeState {
         f: &mut <Bn<Parameters> as PairingEngine>::Fqk,
         f_bytes: [u8; 384],
     ) {
-        if *f
-            == <Bn<Parameters> as PairingEngine>::Fqk::zero()
-        {
+        if *f == <Bn<Parameters> as PairingEngine>::Fqk::zero() {
             *f = parse_f_from_bytes(&f_bytes.to_vec());
             // unpacking + packing
             *current_compute += 25268 + 14321;
@@ -182,10 +144,7 @@ impl FinalExponentiationComputeState {
     pub fn final_exponentiation(
         &mut self,
         state: &mut VerifierState,
-    ) -> Result<
-        Option<<Bn<Parameters> as PairingEngine>::Fqk>,
-        (),
-    > {
+    ) -> Result<Option<<Bn<Parameters> as PairingEngine>::Fqk>, ()> {
         // Easy part: result = elt^((q^6-1)*(q^2+1)).
         // Follows, e.g., Beuchat et al page 9, by computing result as follows:
         //   elt^((q^6-1)*(q^2+1)) = (conj(elt) * elt^(-1))^(q^2+1)
@@ -206,7 +165,6 @@ impl FinalExponentiationComputeState {
             self.f = self.f.inverse().unwrap(); //.map(|mut f2| {
 
             state.fe_instruction_index += 1;
-
         }
 
         if state.fe_instruction_index == 1 && state.check_compute_units() {
@@ -230,7 +188,6 @@ impl FinalExponentiationComputeState {
             self.f1 = self.f1 * self.f;
 
             state.fe_instruction_index += 1;
-
         }
 
         if state.fe_instruction_index == 2 && state.check_compute_units() {
@@ -282,7 +239,6 @@ impl FinalExponentiationComputeState {
             // r = f^((p^6 - 1)(p^2 + 1))
             self.f1 *= self.f;
             state.fe_instruction_index += 1;
-
         }
 
         // Hard part follows Laura Fuentes-Castaneda et al. "Faster hashing to G2"
@@ -394,7 +350,6 @@ impl FinalExponentiationComputeState {
             }
             self.f4 = self.f3.cyclotomic_square();
             state.fe_instruction_index += 1;
-
         }
 
         if state.fe_instruction_index == 11 && state.check_compute_units() {
@@ -515,7 +470,6 @@ impl FinalExponentiationComputeState {
 
             self.f3 = self.f3 * &self.f1;
             state.fe_instruction_index += 1;
-
         }
         if state.fe_instruction_index == 17 && state.check_compute_units() {
             FinalExponentiationComputeState::unpack(
@@ -530,7 +484,6 @@ impl FinalExponentiationComputeState {
             self.f = self.f2;
             self.f.frobenius_map(1);
             state.fe_instruction_index += 1;
-
         }
 
         if state.fe_instruction_index == 18 && state.check_compute_units() {
@@ -551,7 +504,6 @@ impl FinalExponentiationComputeState {
 
             self.f3 = self.f * &self.f3;
             state.fe_instruction_index += 1;
-
         }
 
         if state.fe_instruction_index == 19 && state.check_compute_units() {
@@ -607,8 +559,6 @@ impl FinalExponentiationComputeState {
 
             self.f2 = self.f1 * &self.f2;
             state.fe_instruction_index += 1;
-
-
         }
 
         if state.fe_instruction_index == 22 && state.check_compute_units() {
@@ -623,8 +573,6 @@ impl FinalExponentiationComputeState {
             }
             self.f2.frobenius_map(3);
             state.fe_instruction_index += 1;
-
-
         }
 
         if state.fe_instruction_index == 23 && state.check_compute_units() {
@@ -684,8 +632,6 @@ pub fn cyclotomic_exp(
         }
 
         if NAF_VEC[i] != 0 {
-
-
             if NAF_VEC[i] > 0 {
                 *res *= fe;
             } else {
@@ -804,10 +750,10 @@ mod tests {
                 merkle_tree_index: 0,
                 found_root: 0,
                 current_instruction_index_prepare_inputs: 0,
-                encrypted_utxos: [0u8;222],
+                encrypted_utxos: [0u8; 222],
                 last_transaction: false,
-                merkle_tree_instruction_index:0,
-                updating_merkle_tree:false,
+                merkle_tree_instruction_index: 0,
+                updating_merkle_tree: false,
             }
         }
     }
@@ -838,7 +784,7 @@ mod tests {
         ];
         let mut state = VerifierState::new(miller_loop_bytes);
         let f = parse_f_from_bytes(&miller_loop_bytes.to_vec());
-        let res_origin = <Bn::<Parameters> as PairingEngine>::final_exponentiation(&f).unwrap();
+        let res_origin = <Bn<Parameters> as PairingEngine>::final_exponentiation(&f).unwrap();
 
         let mut compute_state = FinalExponentiationComputeState::new(&state);
 
@@ -877,5 +823,4 @@ mod tests {
         assert_eq!(compute_state.f1,Bn::<Parameters>::exp_by_neg_x(f));
 
     }*/
-
 }

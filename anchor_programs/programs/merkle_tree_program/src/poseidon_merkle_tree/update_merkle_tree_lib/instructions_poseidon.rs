@@ -85,7 +85,9 @@ pub fn poseidon_1(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
             current_round_index.try_into().unwrap(),
         );
         let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
-        state_new1 = permute_custom_split(&params, state_new1, current_round.try_into().unwrap(), 6).unwrap();
+        state_new1 =
+            permute_custom_split(&params, state_new1, current_round.try_into().unwrap(), 6)
+                .unwrap();
         current_round += 6;
         current_round_index += 1;
     }
@@ -105,12 +107,12 @@ pub fn poseidon_1(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
     }
     verifier_state_data.state = tmp_state.try_into().unwrap();
 
-
     Ok(())
 }
 
 pub fn poseidon_2(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()> {
-    let mut current_round_index: usize = verifier_state_data.current_round_index.try_into().unwrap();
+    let mut current_round_index: usize =
+        verifier_state_data.current_round_index.try_into().unwrap();
     let mut current_round: usize = verifier_state_data.current_round.try_into().unwrap();
 
     let mds = poseidon_round_constants_split::get_mds_poseidon_circom_bn254_x5_3();

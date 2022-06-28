@@ -1,18 +1,12 @@
 use anchor_lang::prelude::*;
 
-use crate::state::TwoLeavesBytesPda;
 use crate::config;
-use anchor_lang::solana_program::{
-    msg,
-    program_pack::Pack,
-};
+use crate::state::TwoLeavesBytesPda;
 use crate::utils::constants::TWO_LEAVES_PDA_SIZE;
+use crate::utils::constants::{LEAVES_SEED, UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE};
 use crate::utils::create_pda::create_and_check_pda;
 use crate::PreInsertedLeavesIndex;
-use crate::utils::constants::{
-    UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE,
-    LEAVES_SEED
-};
+use anchor_lang::solana_program::{msg, program_pack::Pack};
 
 #[derive(Accounts)]
 #[instruction(
@@ -40,11 +34,11 @@ pub struct InsertTwoLeaves<'info> {
 
 pub fn process_insert_two_leaves(
     ctx: Context<InsertTwoLeaves>,
-    leaf_left: [u8;32],
-    leaf_right: [u8;32],
+    leaf_left: [u8; 32],
+    leaf_right: [u8; 32],
     encrypted_utxos: Vec<u8>,
-    nullifier: [u8;32],
-    merkle_tree_pda_pubkey: [u8;32]
+    nullifier: [u8; 32],
+    merkle_tree_pda_pubkey: [u8; 32],
 ) -> Result<()> {
     msg!("insert_two_leaves");
 
@@ -70,7 +64,12 @@ pub fn process_insert_two_leaves(
     //save leaves into pda account
     leaf_pda_account_data.node_left = leaf_left.to_vec();
     leaf_pda_account_data.node_right = leaf_right.to_vec();
-    leaf_pda_account_data.left_leaf_index = ctx.accounts.pre_inserted_leaves_index.next_index.try_into().unwrap();
+    leaf_pda_account_data.left_leaf_index = ctx
+        .accounts
+        .pre_inserted_leaves_index
+        .next_index
+        .try_into()
+        .unwrap();
     leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
     // Padded encryptedUtxos of length 222 to length 256 for anchor uses serde which is
     // not implemented for [u8;222].

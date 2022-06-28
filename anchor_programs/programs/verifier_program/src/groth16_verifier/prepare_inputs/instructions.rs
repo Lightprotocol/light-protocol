@@ -1,7 +1,7 @@
+use crate::errors::ErrorCode;
 use crate::groth16_verifier::parsers::*;
 use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::*;
-use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 use ark_ec::{AffineCurve, ProjectiveCurve};
 use ark_ff::BigInteger;
@@ -141,7 +141,6 @@ pub fn maths_instruction(
     // The current processor merges 4 rounds into one ix to efficiently use the compute budget.
     let mut index_in = current_index;
     for m in 0u64..rounds {
-
         // If i.e. two leading zeroes exists (skipped == 2), 2 ix will be skipped (0,1).
         if index_in < skipped {
             // parse_group_projective_to_bytes_254(res, res_x_range, res_y_range, res_z_range);

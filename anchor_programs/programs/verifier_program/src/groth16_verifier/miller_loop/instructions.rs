@@ -4,21 +4,14 @@ use crate::groth16_verifier::VerifierState;
 use crate::utils::prepared_verifying_key::*;
 use ark_ec::bn::BnParameters;
 use ark_ec::models::bn::g2::{addition_step, doubling_step, mul_by_char};
-use ark_ff::{
-    Field,
-    Fp2ParamsWrapper,
-    QuadExtField
-};
+use ark_ff::{Field, Fp2ParamsWrapper, QuadExtField};
 
+use ark_bn254::{Fq2Parameters, Parameters};
 use ark_std::One;
 use ark_std::Zero;
 use solana_program::msg;
 use std::cell::RefMut;
 use std::convert::TryInto;
-use ark_bn254::{
-    Parameters,
-    Fq2Parameters
-};
 
 pub fn get_coeff(
     pair_index: u64,
@@ -73,9 +66,8 @@ pub fn get_b_coeffs(
         .inverse()
         .unwrap();
 
-    for i in (1..Parameters::ATE_LOOP_COUNT.len()
-        - (tmp_account.outer_first_loop_coeff as usize))
-        .rev()
+    for i in
+        (1..Parameters::ATE_LOOP_COUNT.len() - (tmp_account.outer_first_loop_coeff as usize)).rev()
     {
         if tmp_account.inner_first_coeff == 0 {
             *current_compute += 140_000;
@@ -153,26 +145,19 @@ pub fn get_b_coeffs(
         tmp_account.outer_second_coeff = 1;
 
         tmp_account.coeff_index[0] += 1;
-        return Some(addition_step::<Parameters>(
-            &mut tmp_account_compute.r,
-            &q1,
-        ));
+        return Some(addition_step::<Parameters>(&mut tmp_account_compute.r, &q1));
     }
     *current_compute += 200_000;
     msg!("mul_by_char + addition_step");
     if *current_compute >= tmp_account.ml_max_compute {
         return None;
     }
-    let mut q2 = mul_by_char::<Parameters>(parse_proof_b_from_bytes(
-        &tmp_account.q1_bytes.to_vec(),
-    ));
+    let mut q2 =
+        mul_by_char::<Parameters>(parse_proof_b_from_bytes(&tmp_account.q1_bytes.to_vec()));
     q2.y = -q2.y;
     tmp_account.coeff_index[0] += 1;
 
-    return Some(addition_step::<Parameters>(
-        &mut tmp_account_compute.r,
-        &q2,
-    ));
+    return Some(addition_step::<Parameters>(&mut tmp_account_compute.r, &q2));
 }
 #[allow(unused_assignments)]
 pub fn get_gamma_g2(

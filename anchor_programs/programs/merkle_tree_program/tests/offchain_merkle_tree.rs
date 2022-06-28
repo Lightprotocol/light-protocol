@@ -7,6 +7,11 @@ mod tests {
     // use batched_instructions::batched_instructions::*;
     mod merkle_tree_update_instructions;
     use crate::tests::merkle_tree_update_instructions::instructions::insert_last_double;
+    use anchor_lang::prelude::Pubkey;
+    use ark_crypto_primitives::{
+        crh::{TwoToOneCRH, CRH},
+        Error,
+    };
     use ark_ed_on_bn254;
     use ark_ed_on_bn254::Fq;
     use ark_ff::bytes::{FromBytes, ToBytes};
@@ -14,11 +19,6 @@ mod tests {
     use ark_ff::Fp256;
     use ark_serialize::{Read, Write};
     use ark_std::vec::Vec;
-    use anchor_lang::prelude::Pubkey;
-    use ark_crypto_primitives::{
-        crh::{TwoToOneCRH, CRH},
-        Error,
-    };
     use ark_std::{test_rng, UniformRand};
     use arkworks_gadgets::poseidon::{
         circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
@@ -909,10 +909,9 @@ mod tests {
                 current_level: 0u64,
                 current_instruction_index: 0u64,
                 insert_leaves_index: 0,
-                leaves: [[[0u8; 32];2]; 16],
+                leaves: [[[0u8; 32]; 2]; 16],
                 number_of_leaves: 1,
                 tmp_leaves_index: 0,
-
             };
             let tmp = RefCell::new(tmp_pda);
             let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
@@ -934,21 +933,20 @@ mod tests {
                 &mut new_leaf_hash_bytes_1[..],
             );
             new_leaf_hash_bytes = [
-               57,  24,  41, 168,  10, 168, 189, 194,
-               28, 160, 102, 106, 133, 126,   1, 176,
-               57, 135, 149,  17, 244,  94,  14, 192,
-              145, 194,  99,  29,  99, 197,  62,  26
+                57, 24, 41, 168, 10, 168, 189, 194, 28, 160, 102, 106, 133, 126, 1, 176, 57, 135,
+                149, 17, 244, 94, 14, 192, 145, 194, 99, 29, 99, 197, 62, 26,
             ];
 
             let new_leaf_hash_bytes_1 = [
-              189,  60, 106, 120, 188,  56, 192,  72,
-               29,  94, 143, 252,  64,  27, 223, 173,
-              186, 113, 128, 118, 165, 216,   9, 228,
-              248, 217,  34,  35, 109,  44, 243,  26
+                189, 60, 106, 120, 188, 56, 192, 72, 29, 94, 143, 252, 64, 27, 223, 173, 186, 113,
+                128, 118, 165, 216, 9, 228, 248, 217, 34, 35, 109, 44, 243, 26,
             ];
 
             println!("verifier_state_data.node_left: {:?}", new_leaf_hash_bytes);
-            println!("verifier_state_data.node_right: {:?}", new_leaf_hash_bytes_1);
+            println!(
+                "verifier_state_data.node_right: {:?}",
+                new_leaf_hash_bytes_1
+            );
             verifier_state_data.node_left = new_leaf_hash_bytes.clone();
             verifier_state_data.node_right = new_leaf_hash_bytes_1.clone();
             filled_leaves.push(new_leaf_hash_bytes.clone());
@@ -997,9 +995,9 @@ mod tests {
 
     use merkle_tree_program::poseidon_merkle_tree::state;
     pub const INSERT_INSTRUCTION_ORDER_18: [u8; 73] = [
-        34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
-        25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25,
-        0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
+        34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1,
+        2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1,
+        2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
     ];
     #[test]
     fn batch_updat_smt_test() {
@@ -1033,17 +1031,32 @@ mod tests {
         println!("init successful");
         let mut rng = test_rng();
 
+        let mut filled_leaves = [[[0u8; 32]; 2]; 16];
+        filled_leaves[0][0] = vec![
+            122, 211, 19, 11, 66, 4, 220, 94, 97, 4, 55, 167, 17, 188, 163, 24, 95, 226, 42, 95,
+            245, 35, 100, 234, 210, 0, 177, 23, 6, 54, 141, 36,
+        ]
+        .try_into()
+        .unwrap();
 
-        let mut filled_leaves = [[[0u8; 32];2]; 16];
-        filled_leaves[0][0]= vec![122, 211, 19, 11, 66, 4, 220, 94, 97, 4, 55, 167, 17, 188, 163, 24, 95, 226, 42, 95, 245, 35, 100, 234, 210, 0, 177, 23, 6, 54, 141, 36]
-.try_into().unwrap();
-
-         filled_leaves[0][1]= vec![221, 219, 197, 254, 66, 250, 66, 161, 9, 62, 220, 57, 202, 115, 205, 232, 199, 222, 131, 2, 116, 138, 212, 25, 104, 209, 32, 254, 20, 161, 49, 47]
-.try_into().unwrap();
-        filled_leaves[1][0]= vec![177, 178, 52, 116, 232, 152, 188, 86, 170, 183, 5, 59, 51, 142, 44, 62, 78, 105, 95, 4, 247, 13, 250, 27, 153, 208, 63, 76, 70, 159, 54, 10]
-.try_into().unwrap();
-        filled_leaves[1][1]= vec![218, 210, 112, 195, 148, 121, 95, 46, 107, 224, 46, 89, 100, 236, 202, 218, 164, 24, 16, 25, 13, 235, 6, 65, 239, 70, 165, 32, 152, 43, 73, 18]
-.try_into().unwrap();
+        filled_leaves[0][1] = vec![
+            221, 219, 197, 254, 66, 250, 66, 161, 9, 62, 220, 57, 202, 115, 205, 232, 199, 222,
+            131, 2, 116, 138, 212, 25, 104, 209, 32, 254, 20, 161, 49, 47,
+        ]
+        .try_into()
+        .unwrap();
+        filled_leaves[1][0] = vec![
+            177, 178, 52, 116, 232, 152, 188, 86, 170, 183, 5, 59, 51, 142, 44, 62, 78, 105, 95, 4,
+            247, 13, 250, 27, 153, 208, 63, 76, 70, 159, 54, 10,
+        ]
+        .try_into()
+        .unwrap();
+        filled_leaves[1][1] = vec![
+            218, 210, 112, 195, 148, 121, 95, 46, 107, 224, 46, 89, 100, 236, 202, 218, 164, 24,
+            16, 25, 13, 235, 6, 65, 239, 70, 165, 32, 152, 43, 73, 18,
+        ]
+        .try_into()
+        .unwrap();
 
         let mut j = 0;
         for i in 0..iterations {
@@ -1066,10 +1079,9 @@ mod tests {
                 current_level: 0u64,
                 current_instruction_index: 0u64,
                 insert_leaves_index: 0,
-                leaves: [[[0u8; 32];2]; 16],
+                leaves: [[[0u8; 32]; 2]; 16],
                 number_of_leaves: 1,
                 tmp_leaves_index: 0,
-
             };
             let tmp = RefCell::new(tmp_pda);
             let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
@@ -1094,11 +1106,13 @@ mod tests {
             // let new_leaf_hash_bytes_1 =[1u8; 32];
 
             println!("verifier_state_data.node_left: {:?}", new_leaf_hash_bytes);
-            println!("verifier_state_data.node_right: {:?}", new_leaf_hash_bytes_1);
+            println!(
+                "verifier_state_data.node_right: {:?}",
+                new_leaf_hash_bytes_1
+            );
             verifier_state_data.node_left = filled_leaves[i][0];
             verifier_state_data.node_right = filled_leaves[i][1];
             // filled_leaves[i] = [new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()];
-
 
             //assert_eq!(true, false,"will fail because no data is incjected");
             for i in INSERT_INSTRUCTION_ORDER_18 {
@@ -1114,7 +1128,6 @@ mod tests {
             }
             insert_last_double(&mut smt, &mut verifier_state_data);
             println!("smt.roots {:?}", smt.roots);
-
 
             // tree.update(j, &filled_leaves[i][0].to_vec());
             // tree.update(j + 1, &filled_leaves[i][1].to_vec());
@@ -1152,36 +1165,46 @@ mod tests {
             leaves: filled_leaves,
             number_of_leaves: iterations.try_into().unwrap(),
             tmp_leaves_index: 0,
-
         };
         let tmp = RefCell::new(tmp_pda);
         let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
 
-
-        println!("filled_leaves: {:?}",filled_leaves );
+        println!("filled_leaves: {:?}", filled_leaves);
         //assert_eq!(true, false,"will fail because no data is incjected");
         let mut counter = 0;
-        while verifier_state_data.current_instruction_index != 56  {
+        while verifier_state_data.current_instruction_index != 56 {
             processor::_process_instruction(
-                config::INSERT_INSTRUCTION_ORDER_18[verifier_state_data.current_instruction_index as usize],
+                config::INSERT_INSTRUCTION_ORDER_18
+                    [verifier_state_data.current_instruction_index as usize],
                 &mut verifier_state_data,
                 &mut smt_batch, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
             );
-            verifier_state_data.current_instruction_index +=1;
-            counter +=1;
-            println!("counter {} current_instruction_index {}",counter, verifier_state_data.current_instruction_index );
-            println!("insert_leaves_index {} number_of_leaves {}",verifier_state_data.insert_leaves_index, verifier_state_data.number_of_leaves );
-
+            verifier_state_data.current_instruction_index += 1;
+            counter += 1;
+            println!(
+                "counter {} current_instruction_index {}",
+                counter, verifier_state_data.current_instruction_index
+            );
+            println!(
+                "insert_leaves_index {} number_of_leaves {}",
+                verifier_state_data.insert_leaves_index, verifier_state_data.number_of_leaves
+            );
         }
 
         instructions::insert_last_double(&mut smt_batch, &mut verifier_state_data);
 
-        println!("current_level_hash {:?}", verifier_state_data.current_level_hash);
+        println!(
+            "current_level_hash {:?}",
+            verifier_state_data.current_level_hash
+        );
         println!("smt.roots {:?}", smt.roots);
 
         assert_eq!(smt.roots, smt_batch.roots);
         assert_eq!(
-            vec![194,152,246,84,243,21,82,3,176,169,72,89,231,239,92,186,47,95,68,136,112,218,43,168,139,62,46,131,15,210,192,20],
+            vec![
+                194, 152, 246, 84, 243, 21, 82, 3, 176, 169, 72, 89, 231, 239, 92, 186, 47, 95, 68,
+                136, 112, 218, 43, 168, 139, 62, 46, 131, 15, 210, 192, 20
+            ],
             smt.roots
         );
     }
@@ -1232,10 +1255,15 @@ mod tests {
         } else if id == HASH_2 {
             poseidon_2(verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_LEVEL {
-            merkle_tree_update_instructions::instructions::insert_1_inner_loop(merkle_tree_pda_data, verifier_state_data);
+            merkle_tree_update_instructions::instructions::insert_1_inner_loop(
+                merkle_tree_pda_data,
+                verifier_state_data,
+            );
         } else if id == MERKLE_TREE_UPDATE_START {
-            merkle_tree_update_instructions::instructions::insert_0_double(merkle_tree_pda_data, verifier_state_data);
+            merkle_tree_update_instructions::instructions::insert_0_double(
+                merkle_tree_pda_data,
+                verifier_state_data,
+            );
         }
     }
-
 }
