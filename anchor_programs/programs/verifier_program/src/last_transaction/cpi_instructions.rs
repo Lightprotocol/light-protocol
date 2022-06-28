@@ -1,7 +1,6 @@
 use solana_program;
 use anchor_lang::prelude::*;
 use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
-use crate::merkle_tree_program::PreInsertedLeavesIndex;
 
 pub fn initialize_nullifier_cpi<'a, 'b>(
     program_id:             &Pubkey,

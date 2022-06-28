@@ -21,6 +21,5 @@ pub struct MerkleTreeUpdateState {
     pub leaves: [[[u8;32]; 2];16],
     pub merkle_tree_index: u8,
     pub number_of_leaves: u8,
-    pub insert_leaves_index: u8,
-    pub found_root: u8,
+    pub insert_leaves_index: u8
 }

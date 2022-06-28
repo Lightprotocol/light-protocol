@@ -22,8 +22,9 @@ pub struct MerkleTree {
     pub current_total_deposits: u64,
     pub inserted_leaf: bool,
     pub inserted_root: bool,
-    pub time_locked: u64,
     pub pubkey_locked: Vec<u8>,
+    pub time_locked: u64,
+
 }
 impl Sealed for MerkleTree {}
 impl IsInitialized for MerkleTree {
