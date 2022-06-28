@@ -91,7 +91,6 @@ pub struct VerifierState {
     pub computing_final_exponentiation: bool,
     pub updating_merkle_tree: bool,
     pub merkle_tree_index: u8,
-    pub found_root: u8,
 }
 
 impl VerifierState {

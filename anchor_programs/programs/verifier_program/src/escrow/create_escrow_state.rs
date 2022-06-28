@@ -35,6 +35,10 @@ pub fn process_create_escrow_state(
     ) -> Result<()> {
     msg!("starting initializing escrow account");
 
+    // init verifier state with signer
+    let verifier_state_data = &mut ctx.accounts.verifier_state.load_init()?;
+    verifier_state_data.signing_address = ctx.accounts.signing_address.key().clone();
+
     // init escrow account
     let fee_escrow_state = &mut ctx.accounts.fee_escrow_state;
 

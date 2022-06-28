@@ -15,5 +15,7 @@ pub enum ErrorCode {
     #[msg("WrongTxIntegrityHash")]
     WrongTxIntegrityHash,
     #[msg("Closing escrow state failed relayer not timed out.")]
-    NotTimedOut
+    NotTimedOut,
+    #[msg("WrongSigner")]
+    WrongSigner
 }

@@ -47,9 +47,15 @@ pub fn process_create_verifier_state(
     ) -> Result<()> {
     // if not initialized this will run load_init
     let verifier_state_data = &mut match ctx.accounts.verifier_state.load_mut() {
-            Ok(res) => res,
-            Err(_)  => ctx.accounts.verifier_state.load_init()?
-    };
+            Ok(res) => {
+                    if res.signing_address == ctx.accounts.signing_address.key() {
+                        Ok(res)
+                    } else {
+                        err!(ErrorCode::WrongSigner)
+                    }
+                },
+            Err(_)  => ctx.accounts.verifier_state.load_init()
+    }?;
 
     verifier_state_data.signing_address = ctx.accounts.signing_address.key();
     verifier_state_data.merkle_root = merkle_root.clone();
@@ -89,13 +95,13 @@ pub fn process_create_verifier_state(
 
 
     check_tx_integrity_hash(
-        recipient.to_vec(),
-        ext_amount.to_vec(),
-        ctx.accounts.signing_address.key().to_bytes().to_vec(),
-        relayer_fee.to_vec(),
-        tx_integrity_hash.to_vec(),
-        merkle_tree_index[0],
-        encrypted_utxos[..222].to_vec(),
+        verifier_state_data.recipient.to_bytes().to_vec(),
+        verifier_state_data.ext_amount.to_vec(),
+        verifier_state_data.signing_address.key().to_bytes().to_vec(),
+        verifier_state_data.fee.to_vec(),
+        verifier_state_data.tx_integrity_hash.to_vec(),
+        verifier_state_data.merkle_tree_index,
+        verifier_state_data.encrypted_utxos[..222].to_vec(),
         merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index[0] as usize].0.to_vec(),
     )
 }
