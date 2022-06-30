@@ -19,6 +19,7 @@ default = []
 anchor-lang = { version = "0.24.1", features = ["init-if-needed"] }
 byteorder = "1.3"
 merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
+verifier_program = { path = "../verifier_program"}
 
 # #solana
 solana-program = "1.9.16"

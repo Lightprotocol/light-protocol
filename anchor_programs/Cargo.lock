@@ -551,6 +551,7 @@ dependencies = [
  "byteorder",
  "merkle_tree_program",
  "solana-program",
+ "verifier_program",
 ]
 
 [[package]]

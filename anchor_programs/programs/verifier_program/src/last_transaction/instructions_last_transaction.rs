@@ -107,14 +107,12 @@ pub struct LastTransactionWithdrawal<'info> {
         bump, close= signing_address
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    //
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].1))]
-    /// CHECK:` Merkle tree account liquidity pool pda.Should be registered in Merkle tree corresponding to the merkle tree address.
+    /// CHECK:` Merkle tree account liquidity pool pda. Should be registered in Merkle tree corresponding to the merkle tree address.
     pub merkle_tree_pda_token: AccountInfo<'info>,
     #[account(mut, address=verifier_state.load()?.recipient)]
     /// CHECK:` doc comment explaining why no checks through types are necessary.

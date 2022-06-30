@@ -28,8 +28,8 @@ use crate::last_transaction::{
 };
 
 use crate::escrow::{
-    close_escrow_state::{process_close_fee_escrow, CloseFeeEscrowPda},
-    create_escrow_state::{process_create_escrow_state, CreateEscrowState},
+    close_escrow_state::{process_close_escrow, CloseFeeEscrowPda},
+    create_escrow_state::{process_create_escrow, CreateEscrowState},
 };
 
 use crate::groth16_verifier::{
@@ -49,14 +49,14 @@ pub mod verifier_program {
     /// The escrow amount consists out of the transaction fees the relayer incurs as costs (tx_fee)
     /// plus the relayer fee the relayer charges (relayer fee)
     /// plus the amount the user wants to shield (amount).
-    pub fn create_escrow_state(
+    pub fn create_escrow(
         ctx: Context<CreateEscrowState>,
         tx_integrity_hash: [u8; 32],
         tx_fee: u64,
         relayer_fee: [u8; 8],
         amount: u64,
     ) -> Result<()> {
-        process_create_escrow_state(ctx, tx_integrity_hash, tx_fee, relayer_fee, amount)
+        process_create_escrow(ctx, tx_integrity_hash, tx_fee, relayer_fee, amount)
     }
 
     /// Allows the user or relayer to close the escrow pda.
@@ -65,8 +65,8 @@ pub mod verifier_program {
     /// sent. The relayer does not collect the relayer fee thus does not make a profit.
     /// Users can close the account either before the relayer started sending transactions or
     /// after a timeout period.
-    pub fn close_fee_escrow_pda(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
-        process_close_fee_escrow(ctx)
+    pub fn close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
+        process_close_escrow(ctx)
     }
 
     /// This instruction is the first step of a shieled transaction.

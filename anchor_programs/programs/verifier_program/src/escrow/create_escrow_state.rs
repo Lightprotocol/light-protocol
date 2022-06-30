@@ -22,9 +22,9 @@ pub struct CreateEscrowState<'info> {
     pub system_program: Program<'info, System>,
 }
 
-pub fn process_create_escrow_state(
+pub fn process_create_escrow(
     ctx: Context<CreateEscrowState>,
-    _tx_integrity_hash: [u8; 32],
+    tx_integrity_hash: [u8; 32],
     tx_fee: u64,
     relayer_fee: [u8; 8],
     amount: u64,
@@ -34,6 +34,9 @@ pub fn process_create_escrow_state(
     // init verifier state with signer
     let verifier_state_data = &mut ctx.accounts.verifier_state.load_init()?;
     verifier_state_data.signing_address = ctx.accounts.signing_address.key().clone();
+    verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
+    let ext_amount: i64 = amount.try_into().unwrap();
+    verifier_state_data.ext_amount = ext_amount.to_le_bytes();
 
     // init escrow account
     let fee_escrow_state = &mut ctx.accounts.fee_escrow_state;
@@ -45,6 +48,7 @@ pub fn process_create_escrow_state(
     fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone(); // for relayer
     fee_escrow_state.creation_slot = <Clock as Sysvar>::get()?.slot;
 
+    let escrow_amount = amount + fee_escrow_state.tx_fee + fee_escrow_state.relayer_fee;
     let cpi_ctx1 = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
         anchor_lang::system_program::Transfer {
@@ -52,7 +56,7 @@ pub fn process_create_escrow_state(
             to: ctx.accounts.fee_escrow_state.to_account_info(),
         },
     );
-    anchor_lang::system_program::transfer(cpi_ctx1, amount)?;
+    anchor_lang::system_program::transfer(cpi_ctx1, escrow_amount)?;
     msg!(" initialized escrow account");
     Ok(())
 }
