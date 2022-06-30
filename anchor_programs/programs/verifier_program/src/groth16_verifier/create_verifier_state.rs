@@ -61,13 +61,13 @@ pub fn process_create_verifier_state(
     if verifier_state_data.current_instruction_index > 0 {
         return err!(ErrorCode::VerifierStateAlreadyInitialized);
     }
-    verifier_state_data.signing_address = ctx.accounts.signing_address.key();
+    
+    verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
     verifier_state_data.merkle_root = merkle_root.clone();
     verifier_state_data.amount = amount.clone();
     verifier_state_data.merkle_tree_index = merkle_tree_index[0].clone();
     verifier_state_data.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
     verifier_state_data.recipient = Pubkey::new(&recipient).clone();
-    verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
     verifier_state_data.ext_amount = ext_amount.clone();
     verifier_state_data.fee = relayer_fee.clone(); //tx_fee.clone();
     verifier_state_data.leaf_left = leaf_left;

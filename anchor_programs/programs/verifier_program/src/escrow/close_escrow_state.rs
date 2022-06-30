@@ -10,11 +10,9 @@ use anchor_lang::solana_program::{clock::Clock, sysvar::Sysvar};
 
 #[derive(Accounts)]
 pub struct CloseFeeEscrowPda<'info> {
-    #[account(mut, close = relayer)]
+    #[account(mut, seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), b"fee_escrow"], bump, close = relayer)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    /// init_if_needed covers the edgecase that verifierstate is not created and the user
-    /// wants the reclaim his funds. ASK NORBERT
-    #[account(mut/*init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize*/)]
+    #[account(mut, seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), b"storage"], bump, close = relayer)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -27,14 +25,14 @@ pub struct CloseFeeEscrowPda<'info> {
     pub relayer: AccountInfo<'info>,
 }
 
-pub fn process_close_fee_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
+pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
     let fee_escrow_state = &ctx.accounts.fee_escrow_state;
     let verifier_state = &mut ctx.accounts.verifier_state.load()?;
     // this might be unsafe maybe the check doesn't matter anyway because for a withdrawal this
     // account does not exist
     let external_amount: i64 = i64::from_le_bytes(verifier_state.ext_amount);
     // escrow is only applied for deposits
-    if external_amount <= 0 {
+    if external_amount < 0 {
         return err!(ErrorCode::NotDeposit);
     }
 
