@@ -187,23 +187,23 @@ export async function checkLastTxSuccess({
 
   if (mode == "deposit") {
 
-    console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
-    assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
-
-    console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
-    console.log(`Balance now ${recipientAccount.lamports} balance beginning ${(I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString()}`)
+    // console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
+    // // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
+    //
+    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
+    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${(I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString()}`)
     assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).toString(), "amount not transferred correctly");
 
   } else if (mode == "withdrawal") {
     var senderAccount = await connection.getAccountInfo(sender)
-    console.log("senderAccount: ", senderAccount)
-    console.log("senderAccountBalancePriorLastTx: ", senderAccountBalancePriorLastTx)
-
-    console.log(`Balance now ${senderAccount.lamports} balance beginning ${I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0)).sub(I64(relayerFee))} ${I64.readLE(ix_data.extAmount, 0)} ${I64(relayerFee)}`)
+    // console.log("senderAccount: ", senderAccount)
+    // console.log("senderAccountBalancePriorLastTx: ", senderAccountBalancePriorLastTx)
+    //
+    // console.log(`Balance now ${senderAccount.lamports} balance beginning ${I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0)).sub(I64(relayerFee))} ${I64.readLE(ix_data.extAmount, 0)} ${I64(relayerFee)}`)
     assert(senderAccount.lamports == ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
 
     var recipientAccount = await connection.getAccountInfo(recipient)
-    console.log(`Balance now ${recipientAccount.lamports} balance beginning ${I64(recipientBalancePriorLastTx).toString()}`)
+    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${I64(recipientBalancePriorLastTx).toString()}`)
 
     // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${((I64(recipientBalancePriorLastTx).sub(I64.readLE(ix_data.extAmount, 0))).add(I64(relayerFee))).toString()}`)
     assert(recipientAccount.lamports == ((I64(recipientBalancePriorLastTx).sub(I64.readLE(ix_data.extAmount, 0))).add(I64(relayerFee))).toString(), "amount not transferred correctly");
@@ -212,6 +212,18 @@ export async function checkLastTxSuccess({
     throw Error("mode not supplied");
   }
 }
+
+/*
+*
+* Checks:
+* owner
+* relayer saved as signer
+* merkle tree saved
+* number of leaves saved correctly
+* current instruction index is correct
+* merkle tree is locked by updateState account
+* lock has been taken less than 5 slots ago
+*/
 
 export async function checkMerkleTreeUpdateStateCreated({
     connection,
@@ -235,7 +247,6 @@ export async function checkMerkleTreeUpdateStateCreated({
   assert(merkleTreeUpdateStateData.relayer.toBase58() == relayer.toBase58(), "The incorrect signer has been saved")
   assert(merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58()== MerkleTree.toBase58(), "the incorrect merkle tree pubkey was saved")
   assert(merkleTreeUpdateStateData.numberOfLeaves== leavesPdas.length, "The incorrect number of leaves was saved")
-  console.log(`Current instruction index is ${merkleTreeUpdateStateData.currentInstructionIndex} should be ${current_instruction_index}`)
   assert(merkleTreeUpdateStateData.currentInstructionIndex== current_instruction_index, "The instruction index is wrong")
   assert(new solana.PublicKey(MerkleTreeAccountInfo.data.slice(16658-40,16658-8)).toBase58()== merkleTreeUpdateState.toBase58());
   assert(U64.readLE(MerkleTreeAccountInfo.data.slice(16658-8,16658), 0) >= (await connection.getSlot()) - 5, "Lock has not been taken at this or in the 5 prior slots");
@@ -263,19 +274,18 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   assert(U64.readLE(merkleTreeAccount.data.slice(16658-8,16658), 0) == 0, "Lock has not been taken within prior  20 slots");
 
   let merkle_tree_prior_leaves_index = U64.readLE(merkleTreeAccountPrior.data.slice(594, 594 + 8),0);
-  console.log("merkle_tree_prior_leaves_index: ", merkle_tree_prior_leaves_index)
   let merkle_tree_prior_current_root_index = U64.readLE(merkleTreeAccountPrior.data.slice(594 - 8, 594),0).toNumber()
 
   let current_root_index = U64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
-  console.log("merkle_tree_prior_current_root_index: ", merkle_tree_prior_current_root_index)
-  console.log("current_root_index: ", current_root_index)
+  // console.log("merkle_tree_prior_current_root_index: ", merkle_tree_prior_current_root_index)
+  // console.log("current_root_index: ", current_root_index)
   assert(merkle_tree_prior_current_root_index + 1 == current_root_index)
   let current_root_start_range = 610 + current_root_index * 32;
   let current_root_end_range = 610 + (current_root_index + 1) * 32;
-  console.log(`root: ${BigNumber.from(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range).reverse()).toHexString()}`)
-
-  console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
-  `)
+  // console.log(`root: ${BigNumber.from(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range).reverse()).toHexString()}`)
+  //
+  // console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
+  // `)
   // index has increased by numberOfLeaves
   console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
   assert(merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())

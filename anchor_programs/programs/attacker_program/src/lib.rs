@@ -41,12 +41,12 @@ pub mod attacker_program {
         };
 
         let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifer, 064).unwrap();
+        merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifer, 0u64).unwrap();
         Ok(())
     }
 
     pub fn test_check_merkle_root_exists(
-        ctx: Context<TestNullifierInsert>,
+        ctx: Context<TestNullifierInsert>, _nullifier0: [u8;32]
     ) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let program_id = ctx.program_id;
@@ -58,28 +58,34 @@ pub mod attacker_program {
         //     0u8,
         //     [0u8;32],
         // )?;
-        let merkle_root = [0u8;32];
-        let merkle_tree_index = 0u8;
+        let merkle_root = [
+            2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,
+            253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
+        ];//[1u8;32];
+        let merkle_tree_index = 0u64;
         let (seed, bump) = get_seeds(program_id, &merkle_tree_program_id)?;
         let bump = &[bump];
         let seeds = &[&[seed.as_slice(), bump][..]];
+        msg!("ctx.accounts.authority.to_account_info(): {:?}", ctx.accounts.authority.to_account_info());
+        msg!("ctx.accounts.merkle_tree.to_account_info(): {:?}", ctx.accounts.merkle_tree.to_account_info());
+        msg!("seeds: {:?}", seeds);
 
         let accounts = merkle_tree_program::cpi::accounts::CheckMerkleRootExists {
             authority: ctx.accounts.authority.to_account_info(),
             merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
         };
+        msg!("here");
 
         let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
         merkle_tree_program::cpi::check_merkle_root_exists(
             cpi_ctx2,
-            merkle_tree_index.into(),
+            merkle_tree_index,
             merkle_root,
-        );
-        Ok(())
+        )
     }
 
     pub fn test_insert_two_leaves(
-        ctx: Context<TestNullifierInsert>,
+        ctx: Context<TestNullifierInsert>, _nullifier0: [u8;32]
     ) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let program_id = ctx.program_id;
@@ -121,7 +127,7 @@ pub mod attacker_program {
     }
     /// Should fail because of the pda cannot be used from another contract
     pub fn test_withdraw_sol(
-        ctx: Context<TestNullifierInsert>,
+        ctx: Context<TestNullifierInsert>, _nullifier0: [u8;32]
     ) -> Result<()> {
         let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
         let program_id = ctx.program_id;

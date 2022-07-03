@@ -22,7 +22,9 @@ pub fn initialize_nullifier_cpi<'a, 'b>(
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier, 0u64)
+    let res = merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier, 0u64);
+    msg!("res: {:?}",res);
+    res
 }
 
 pub fn check_merkle_root_exists_cpi<'a, 'b>(

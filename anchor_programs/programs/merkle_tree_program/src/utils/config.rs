@@ -88,8 +88,26 @@ const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
     140, 234, 203, 74, 143, 169, 95, 96, 18, 242, 129, 17, 143, 69, 231, 155, 105, 107, 222, 98,
     104, 247, 190, 19, 59, 170, 0, 108, 196, 139, 42, 57,
 ];
-pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 1] =
-    [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0)];
+
+const MERKLE_TREE_ACC_BYTES_1: [u8; 32] = [
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1
+];
+#[constant]
+const MERKLE_TREE_TOKEN_ACC_BYTES_1: [u8; 32] = [
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1, 1, 1, 1, 1,
+  1, 1, 1, 1, 1
+];
+
+
+pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 2] =
+    [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0),
+    (MERKLE_TREE_ACC_BYTES_1, MERKLE_TREE_TOKEN_ACC_BYTES_1)
+    ];
 
 // Is used to init new merkle trees
 #[constant]

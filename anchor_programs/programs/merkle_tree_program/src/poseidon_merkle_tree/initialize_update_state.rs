@@ -36,7 +36,12 @@ pub fn process_initialize_update_state(
     merkle_tree_index: u64,
 ) -> Result<()> {
     msg!("InitializeUpdateState");
+    msg!("merkle_tree_index: {}", merkle_tree_index);
 
+    // if ctx.accounts.merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0) {
+    //     msg!("merkle_tree_index: {}", merkle_tree_index);
+    //     return err!(ErrorCode::MtTmpPdaInitFailed);
+    // }
     let verifier_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
     verifier_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
     verifier_state_data.relayer = ctx.accounts.authority.key();

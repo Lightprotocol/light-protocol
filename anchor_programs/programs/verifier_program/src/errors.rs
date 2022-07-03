@@ -20,4 +20,6 @@ pub enum ErrorCode {
     WrongSigner,
     #[msg("VerifierStateAlreadyInitialized")]
     VerifierStateAlreadyInitialized,
+    #[msg("Nullifier already exists")]
+    NullifierAlreadyExists,
 }

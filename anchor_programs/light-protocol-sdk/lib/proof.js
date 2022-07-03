@@ -129,8 +129,6 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree, extern
         };
         var proofJson;
         var publicInputsJson;
-        console.log('inputUtxos.length', inputUtxos.length);
-        console.log('outputUtxos.length', outputUtxos.length);
         yield (0, timeoutPromise_1.timeoutPromise)(40, (0, prove_1.prove)(input, `./artifacts/circuits/transaction${inputUtxos.length}`))
             .then((r) => {
             proofJson = r.proofJson;
