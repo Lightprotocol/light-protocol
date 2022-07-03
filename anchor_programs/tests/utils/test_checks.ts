@@ -50,7 +50,6 @@ export async function checkEscrowAccountCreated({
   assert(accountAfterUpdate.relayerPubkey.toBase58() == relayer_pubkey.toBase58(), "relayer_pubkey insert wrong");
   assert(accountAfterUpdate.verifierStatePubkey.toBase58() == pdas.verifierStatePubkey.toBase58(), "verifierStatePubkey insert wrong");
   assert(accountAfterUpdate.userPubkey.toBase58() == user_pubkey.toBase58(), "user_pubkey insert wrong");
-  assert(accountAfterUpdate.userPubkey.toBase58() == user_pubkey.toBase58(), "user_pubkey insert wrong");
   assert(Number(accountAfterUpdate.creationSlot) <= await connection.getSlot(), "Slot set wrong");
   assert(Number(accountAfterUpdate.creationSlot) > (await connection.getSlot()) - 5, "Slot set outside of 5 block tolerance");
 
@@ -59,8 +58,6 @@ export async function checkEscrowAccountCreated({
   )
   const verifierStateInfoUpdate = verifierProgram.account.verifierState._coder.accounts.decode('VerifierState', verifierStateInfo.data);
   assert(verifierStateInfoUpdate.signingAddress.toBase58() == relayer_pubkey.toBase58(), "relayer_pubkey insert wrong");
-
-  console.log("checkEscrowAccountCreated success")
 }
 
 export async function checkVerifierStateAccountCreated({connection, pda, ix_data, relayer_pubkey}) {

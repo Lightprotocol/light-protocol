@@ -27,7 +27,7 @@ import {
 
 import {
     DEFAULT_PROGRAMS,
-} from "../verifier_program"
+} from "./constants"
 const PREPARED_INPUTS_TX_COUNT = 42
 const MILLER_LOOP_TX_COUNT = 42
 const FINAL_EXPONENTIATION_TX_COUNT = 19
@@ -452,26 +452,21 @@ let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
     [Buffer.from(new Uint8Array(signer.publicKey.toBytes())), anchor.utils.bytes.utf8.encode("storage")],
     merkleTreeProgram.programId)[0];
 
-try {
 
-  const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
-      new anchor.BN(0) // merkle tree index
-      ).accounts(
-          {
-            authority: signer.publicKey,
-            merkleTreeUpdateState: merkleTreeUpdateState,
-            systemProgram: SystemProgram.programId,
-            rent: DEFAULT_PROGRAMS.rent,
-            merkleTree: merkle_tree_pubkey
-          }
-        ).remainingAccounts(
-          leavesPdas
-        ).signers([signer]).rpc()
-}catch (e) {
-  console.log("e: ", e);
-  console.log("process.exit()")
-  process.exit()
-}
+const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+    new anchor.BN(0) // merkle tree index
+    ).accounts(
+        {
+          authority: signer.publicKey,
+          merkleTreeUpdateState: merkleTreeUpdateState,
+          systemProgram: SystemProgram.programId,
+          rent: DEFAULT_PROGRAMS.rent,
+          merkleTree: merkle_tree_pubkey
+        }
+      ).remainingAccounts(
+        leavesPdas
+      ).signers([signer]).rpc()
+
 await checkMerkleTreeUpdateStateCreated({
   connection: connection,
   merkleTreeUpdateState,

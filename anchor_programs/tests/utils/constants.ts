@@ -7,6 +7,17 @@ export const MERKLE_TREE_SIGNER_AUTHORITY = new solana.PublicKey([59, 42, 227, 2
 export const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
 export const TYPE_SEED = {defined: "&[u8]"};
 export const TYPE_INIT_DATA = { array: [ 'u8', 642 ] };
+// const constants:any = {};
+// import { MerkleTreeProgram, IDL } from "../target/types/merkle_tree_program";
+
+// IDL.constants.map((item) => {
+//   if(_.isEqual(item.type, TYPE_SEED)) {
+//     constants[item.name] = item.value.replace("b\"", "").replace("\"", "");
+//   } else //if(_.isEqual(item.type, TYPE_PUBKEY) || _.isEqual(item.type, TYPE_INIT_DATA))
+//   {
+//     constants[item.name] = JSON.parse(item.value)
+//   }
+// });
 
 export const PRIVATE_KEY = [
   17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,

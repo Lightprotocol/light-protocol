@@ -75,6 +75,7 @@ pub mod merkle_tree_program {
     ) -> Result<()> {
         process_initialize_update_state(ctx, merkle_tree_index)
     }
+
     /// Computes poseidon hashes to update the Merkle tree.
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
@@ -82,6 +83,7 @@ pub mod merkle_tree_program {
     ) -> Result<()> {
         process_update_merkle_tree(&mut ctx)
     }
+
     /// This is the last step of a Merkle tree update which inserts the prior computed Merkle tree
     /// root. Additionally, all inserted leaves are marked as inserted.
     pub fn insert_root_merkle_tree<'a, 'b, 'c, 'info>(
@@ -164,6 +166,8 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    /// Generates a leaves index account for already existing Merkle trees.
+    /// Can only be called by the init authority.
     pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
         _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>,
         _bump: u64,
@@ -196,7 +200,7 @@ pub struct CheckMerkleRootExists<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
     #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[merkle_tree_index as usize]))]
     pub authority: Signer<'info>,
-    /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
+    /// CHECK:` that the merkle tree is whitelisted.
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
