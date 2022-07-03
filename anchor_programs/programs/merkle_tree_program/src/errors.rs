@@ -28,4 +28,6 @@ pub enum ErrorCode {
     WrongLeavesLastTx,
     #[msg("FirstLeavesPdaIncorrectIndex")]
     FirstLeavesPdaIncorrectIndex,
+    #[msg("NullifierAlreadyExists")]
+    NullifierAlreadyExists
 }

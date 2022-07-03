@@ -119,12 +119,7 @@ export function getPdaAddresses({tx_integrity_hash,
         merkleTreeProgram.programId)[0],
     nullifier1PdaPubkey: solana.PublicKey.findProgramAddressSync(
         [Buffer.from(new Uint8Array(nullifier1)), anchor.utils.bytes.utf8.encode("nf")],
-        merkleTreeProgram.programId)[0],
-    escrowPdaPubkey: solana.PublicKey.findProgramAddressSync(
-        [Buffer.from(solana.PublicKey.findProgramAddressSync(
-            [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("storage")],
-            verifierProgram.programId)[0].toBytes()), anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgram.programId)[0],
+        merkleTreeProgram.programId)[0]
   }
 }
 

@@ -61,7 +61,7 @@ pub fn process_create_verifier_state(
     if verifier_state_data.current_instruction_index > 0 {
         return err!(ErrorCode::VerifierStateAlreadyInitialized);
     }
-    
+    verifier_state_data.signing_address = ctx.accounts.signing_address.key();
     verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
     verifier_state_data.merkle_root = merkle_root.clone();
     verifier_state_data.amount = amount.clone();

@@ -46,13 +46,7 @@ pub struct LastTransactionDeposit<'info> {
         bump, close = signing_address
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-    #[account(
-        mut,
-        seeds = [verifier_state.key().as_ref(), ESCROW_SEED.as_ref()],
-        bump
-    )]
-    /// CHECK:` doc comment explaining why no checks through types are necessary
-    pub escrow_pda: UncheckedAccount<'info>,
+
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -60,17 +54,18 @@ pub struct LastTransactionDeposit<'info> {
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].1))]
     /// CHECK: The pda which serves as liquidity pool for a registered merkle tree.
     pub merkle_tree_pda_token: AccountInfo<'info>,
+    /// CHECK: Is the same as in integrity hash.
+    #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
+    pub merkle_tree: AccountInfo<'info>,
     /// account from which funds are transferred
-    #[account(mut, constraint= verifier_state.key() == fee_escrow_state.verifier_state_pubkey,close = signing_address)]
+    #[account(mut, seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), ESCROW_SEED.as_ref()], bump, constraint= verifier_state.key() == fee_escrow_state.verifier_state_pubkey,close = signing_address)]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
     #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
-    /// CHECK: Is the same as in integrity hash.
-    #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
-    pub merkle_tree: AccountInfo<'info>,
+
 }
 
 #[derive(Accounts)]
@@ -115,12 +110,12 @@ pub struct LastTransactionWithdrawal<'info> {
     /// CHECK:` Merkle tree account liquidity pool pda. Should be registered in Merkle tree corresponding to the merkle tree address.
     pub merkle_tree_pda_token: AccountInfo<'info>,
     #[account(mut, address=verifier_state.load()?.recipient)]
-    /// CHECK:` doc comment explaining why no checks through types are necessary.
+    /// CHECK:` that it is the same recipient as in tx integrity hash
     pub recipient: AccountInfo<'info>,
     #[account(mut)]
     /// CHECK:` Is not checked the relayer has complete freedom.
     pub relayer_recipient: AccountInfo<'info>,
-    #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0], &MerkleTreeProgram::id()).0)]
+    #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]

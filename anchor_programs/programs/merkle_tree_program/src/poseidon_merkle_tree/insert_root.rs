@@ -30,7 +30,7 @@ pub struct InsertRoot<'info> {
         seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
         bump,
         constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key(),
-        constraint= IX_ORDER[merkle_tree_update_state.load()?.current_instruction_index as usize] == ROOT_INSERT,
+        constraint= IX_ORDER[merkle_tree_update_state.load()?.current_instruction_index as usize] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
         close = authority
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,

@@ -38,7 +38,7 @@ pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
 
     // if yes check that signer such that user can only close after timeout
     if verifier_state.current_instruction_index != 0
-        && fee_escrow_state.creation_slot + TIMEOUT_ESCROW < <Clock as Sysvar>::get()?.slot
+        && fee_escrow_state.creation_slot + TIMEOUT_ESCROW > <Clock as Sysvar>::get()?.slot
         && ctx.accounts.signing_address.key() != Pubkey::new(&[0u8; 32])
     {
         if ctx.accounts.signing_address.key() != verifier_state.signing_address {
@@ -54,7 +54,7 @@ pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
     msg!("transfer_amount_relayer: {}", transfer_amount_relayer);
     sol_transfer(
         &fee_escrow_state.to_account_info(),
-        &ctx.accounts.user.to_account_info(),
+        &ctx.accounts.relayer.to_account_info(),
         transfer_amount_relayer.try_into().unwrap(),
     )?;
 
@@ -74,7 +74,7 @@ pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
     // Relayer has an incentive to close the account.
     close_account(
         &ctx.accounts.verifier_state.to_account_info(),
-        &ctx.accounts.signing_address.to_account_info(),
+        &ctx.accounts.relayer.to_account_info(),
     )?;
     Ok(())
 }
