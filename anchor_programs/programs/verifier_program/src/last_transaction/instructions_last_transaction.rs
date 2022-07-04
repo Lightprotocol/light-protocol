@@ -58,9 +58,16 @@ pub struct LastTransactionDeposit<'info> {
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
     /// account from which funds are transferred
-    #[account(mut, seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), ESCROW_SEED.as_ref()], bump, constraint= verifier_state.key() == fee_escrow_state.verifier_state_pubkey,close = signing_address)]
+    #[account(
+        mut,
+        seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), ESCROW_SEED.as_ref()], bump,
+        constraint= verifier_state.key() == fee_escrow_state.verifier_state_pubkey,
+        close = signing_address
+    )]
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
-    #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
+    #[account(
+        mut,
+        address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
@@ -103,7 +110,6 @@ pub struct LastTransactionWithdrawal<'info> {
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    /// CHECK: This is not dangerous because we don't read or write from this account
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].1))]

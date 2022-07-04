@@ -44,11 +44,11 @@ pub fn process_create_escrow(
     fee_escrow_state.verifier_state_pubkey = ctx.accounts.verifier_state.key();
     fee_escrow_state.relayer_pubkey = ctx.accounts.signing_address.key();
     fee_escrow_state.user_pubkey = ctx.accounts.user.key();
-    fee_escrow_state.tx_fee = tx_fee; //u64::from_le_bytes(tx_fee.try_into().unwrap()).clone();// fees for tx (tx_fee = number_of_tx * 0.000005)
-    fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone(); // for relayer
+    fee_escrow_state.tx_fee = tx_fee;
+    fee_escrow_state.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
     fee_escrow_state.creation_slot = <Clock as Sysvar>::get()?.slot;
 
-    let escrow_amount = amount + fee_escrow_state.tx_fee + fee_escrow_state.relayer_fee;
+    let escrow_amount = amount.checked_add(fee_escrow_state.tx_fee.checked_add(fee_escrow_state.relayer_fee).unwrap()).unwrap();
     let cpi_ctx1 = CpiContext::new(
         ctx.accounts.system_program.to_account_info(),
         anchor_lang::system_program::Transfer {
@@ -57,6 +57,5 @@ pub fn process_create_escrow(
         },
     );
     anchor_lang::system_program::transfer(cpi_ctx1, escrow_amount)?;
-    msg!(" initialized escrow account");
     Ok(())
 }

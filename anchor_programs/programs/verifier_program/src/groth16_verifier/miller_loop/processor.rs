@@ -4,7 +4,7 @@ use ark_ff::Field;
 use crate::groth16_verifier::miller_loop::instructions::*;
 use crate::groth16_verifier::miller_loop::MillerLoopStateCompute;
 use crate::groth16_verifier::VerifierState;
-use crate::{parse_f_from_bytes, parse_f_to_bytes};
+use crate::parse_f_to_bytes;
 use anchor_lang::prelude::*;
 use ark_ec::bn::BnParameters;
 use std::cell::RefMut;

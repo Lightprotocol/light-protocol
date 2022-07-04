@@ -20,8 +20,7 @@ use crate::utils::constants::{
 pub struct InsertRoot<'info> {
     #[account(mut, address=merkle_tree_update_state.load()?.relayer)]
     pub authority: Signer<'info>,
-    /// CHECK:`  and
-    /// merkle_tree_update_state is derived correctly
+    /// CHECK:` merkle_tree_update_state is derived correctly
     /// Merkle tree is locked by merkle_tree_update_state
     /// Is in correct instruction for root insert thus Merkle Tree update has been completed.
     /// The account is closed to the authority at the end of the instruction.
@@ -41,38 +40,22 @@ pub struct InsertRoot<'info> {
 
 pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
+    let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
     msg!(
         "Root insert Instruction: {}",
         IX_ORDER[merkle_tree_update_state_data.current_instruction_index as usize]
     );
-    //  moved to constraint
-    //  if merkle_tree_update_state_data.current_instruction_index != 56 {
-    //      msg!("Wrong state instruction index should be 56 is {}", merkle_tree_update_state_data.current_instruction_index);
-    // }
-    //
-    // if IX_ORDER[merkle_tree_update_state_data.current_instruction_index as usize] != ROOT_INSERT {
-    //     msg!("Merkle Tree update not completed yet, cannot insert root.");
-    //     return err!(ErrorCode::MerkleTreeUpdateNotInRootInsert);
-    // }
-
-    let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
     msg!(
         "Pubkey::new(&merkle_tree_pda_data.pubkey_locked): {:?}",
         Pubkey::new(&merkle_tree_pda_data.pubkey_locked)
     );
+
     msg!(
         "ctx.accounts.merkle_tree_update_state.key(): {:?}",
         ctx.accounts.merkle_tree_update_state.key()
     );
-
-    // Checking if signer locked moved to constraints
-    // pubkey_check(
-    //     ctx.accounts.merkle_tree_update_state.key(),
-    //     Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
-    //     String::from("Merkle tree locked by another account."),
-    // )?;
 
     // insert root into merkle tree
     insert_last_double(&mut merkle_tree_pda_data, merkle_tree_update_state_data)?;
@@ -87,7 +70,7 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
     // check that leaves are the same as in first tx
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Checking leaves pair {}", index);
-        let leaves_pda_data = TwoLeavesBytesPda::unpack(&account.data.borrow())?;
+        let mut leaves_pda_data = TwoLeavesBytesPda::unpack(&account.data.borrow())?;
         if index >= merkle_tree_update_state_data.number_of_leaves.into() {
             msg!(
                 "Submitted to many remaining accounts {}",
@@ -97,6 +80,10 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
         }
         if merkle_tree_update_state_data.leaves[index][0][..] != account.data.borrow()[10..42] {
             msg!("Wrong leaf in position {}", index);
+            return err!(ErrorCode::WrongLeavesLastTx);
+        }
+        if  account.owner != ctx.program_id {
+            msg!("Wrong owner {}", index);
             return err!(ErrorCode::WrongLeavesLastTx);
         }
         if account.data.borrow()[1] != UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE {
@@ -120,7 +107,11 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
             account.data.borrow_mut()[1]
         );
         // mark leaves pda as inserted
-        account.data.borrow_mut()[1] = LEAVES_PDA_ACCOUNT_TYPE;
+        leaves_pda_data.account_type = LEAVES_PDA_ACCOUNT_TYPE;
+        TwoLeavesBytesPda::pack_into_slice(
+            &leaves_pda_data,
+            &mut account.data.borrow_mut(),
+        );
     }
 
     MerkleTree::pack_into_slice(

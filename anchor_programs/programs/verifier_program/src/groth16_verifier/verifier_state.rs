@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
 
+// size 5063 bytes
 #[account(zero_copy)]
 pub struct VerifierState {
     pub current_instruction_index: u64,

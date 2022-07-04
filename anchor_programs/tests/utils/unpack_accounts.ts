@@ -4,11 +4,7 @@ import * as anchor from "@project-serum/anchor";
 import fs from 'fs';
 export const read_and_parse_instruction_data_bytes = ()  => {
   let file = fs.readFileSync('tests/deposit.txt','utf8');
-  // let file = await fs.readFile("deposit.txt", function(err, fd) {
-  //  if (err) {
-  //     return console.error(err);
-  //  }
-   console.log("File opened successfully!");
+
    var data = JSON.parse(file.toString());
    var partsOfStr = data.bytes[0].split(',');
    let bytes = []

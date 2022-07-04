@@ -22,7 +22,6 @@ pub struct CreateVerifierState<'info> {
     #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
-    /// Is checked in the tx integrity hash
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,

@@ -246,14 +246,3 @@ pub fn check_external_amount(verifier_state: &mut RefMut<'_, VerifierState>) -> 
         Err(ErrorCode::WrongPubAmount.into())
     }
 }
-
-pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Result<()> {
-    //close account by draining lamports
-    let dest_starting_lamports = dest_account.lamports();
-    **dest_account.lamports.borrow_mut() = dest_starting_lamports
-        .checked_add(account.lamports())
-        .unwrap();
-    // .ok_or(Err(ErrorCode::WrongPubAmount.into()))?;
-    **account.lamports.borrow_mut() = 0;
-    Ok(())
-}

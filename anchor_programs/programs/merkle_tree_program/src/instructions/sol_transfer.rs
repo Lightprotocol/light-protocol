@@ -2,6 +2,7 @@ use crate::config;
 use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program;
+use std::ops::DerefMut;
 
 #[derive(Accounts)]
 #[instruction(data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64)]
@@ -65,5 +66,9 @@ pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Resul
         .checked_add(account.lamports())
         .ok_or(ErrorCode::CloseAccountFailed)?;
     **account.lamports.borrow_mut() = 0;
+    let mut data = account.try_borrow_mut_data()?;
+    for byte in data.deref_mut().iter_mut() {
+        *byte = 0;
+    }
     Ok(())
 }
