@@ -33,12 +33,20 @@ use crate::utils::config;
 
 use crate::poseidon_merkle_tree::{
     check_merkle_root_exists::process_check_merkle_root_exists,
-    initialize_new_merkle_tree::initialize_new_merkle_tree_from_bytes,
+    initialize_new_merkle_tree_sol::{
+        process_initialize_new_merkle_tree_sol,
+        InitializeNewMerkleTreeSol
+    },
+    initialize_new_merkle_tree_spl::{
+        process_initialize_new_merkle_tree_spl,
+        InitializeNewMerkleTreeSpl
+    },
     initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
     insert_root::{process_insert_root, InsertRoot},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
     update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
 };
+use crate::utils::create_pda::create_and_check_pda;
 
 #[program]
 pub mod merkle_tree_program {
@@ -46,7 +54,7 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the init authority.
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
+    pub fn initialize_new_merkle_tree_sol(ctx: Context<InitializeNewMerkleTreeSol>) -> Result<()> {
         let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
         let rent = Rent::get()?;
 
@@ -57,10 +65,36 @@ pub mod merkle_tree_program {
             msg!("Account is not rent exempt.");
             return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
         }
-        initialize_new_merkle_tree_from_bytes(
+        process_initialize_new_merkle_tree_sol(
             merkle_tree_storage_acc,
             &config::INIT_BYTES_MERKLE_TREE_18[..],
         )
+
+    }
+
+    /// Initializes a new Merkle tree from config bytes.
+    /// Can only be called from the init authority.
+    pub fn initialize_new_merkle_tree_spl(ctx: Context<InitializeNewMerkleTreeSpl>) -> Result<()> {
+        let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
+        let rent = Rent::get()?;
+
+        // create_and_check_pda(
+        //     &ctx.program_id,
+        //     &ctx.accounts.authority.to_account_info(),
+        //     &ctx.accounts.merkle_tree.to_account_info(),
+        //     &ctx.accounts.system_program.to_account_info(),
+        //     &rent,
+        //     &ctx.accounts.mint.key().to_bytes(),
+        //     &b"tree"[..],
+        //     utils::constants::MERKLE_TREE_SIZE.try_into().unwrap(),       //bytes
+        //     0,                      //lamports
+        //     true,                   //rent_exempt
+        // )?;
+        process_initialize_new_merkle_tree_spl(
+            merkle_tree_storage_acc,
+            &config::INIT_BYTES_MERKLE_TREE_18[..],
+        )
+
     }
 
     /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted

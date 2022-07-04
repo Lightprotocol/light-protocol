@@ -108,7 +108,7 @@ describe("verifier_program", () => {
 
 
       try {
-        const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+        const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
           authority: signer.publicKey,
           merkleTree: MERKLE_TREE_KEY,
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -146,7 +146,7 @@ describe("verifier_program", () => {
         )
 
     try {
-      const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
         authority: ADMIN_AUTH_KEY,
         merkleTree: MERKLE_TREE_KEY,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -196,7 +196,7 @@ describe("verifier_program", () => {
         merkleTreeProgram.programId
       )[0];
     try {
-      const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
         authority: ADMIN_AUTH_KEY,
         merkleTree: UNREGISTERED_MERKLE_TREE.publicKey,
         preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,
@@ -221,63 +221,162 @@ describe("verifier_program", () => {
 
   it("Test withdraw sol Merkle tree program", async () => {
     const signer = await newAccountWithLamports(provider.connection)
-
     // UNREGISTERED_MERKLE_TREE = new anchor.web3.Account()
 
-    await provider.connection.requestAirdrop(signer, 1_000_000_000_000)
+    await provider.connection.requestAirdrop(signer.publicKey, 1_000_000_000_000)
     var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
           ADMIN_AUTH_KEYPAIR.publicKey
       )
     let mintA
     // create new token
     try {
-    mintA = await token.Token.createMint(
-        connection,
-        owner,
-        owner.publicKey,
+    console.log()
+    mintA = await token.createMint(
+        provider.connection,
+        signer,
+        signer.publicKey,
         null,
-        2,
-        token.TOKEN_PROGRAM_ID,
-      );
+        2
+    );
   } catch(e) {
     console.log(e)
   }
 
     // create associated token account
-    tokenAccountA = await mintA.createAccount(owner.publicKey);
-    await mintA.mintTo(tokenAccountA, owner, [], 1);
+    // tokenAccountA = await mintA.createAccount(owner.publicKey);
+
+    const fromTokenAccount = await token.getOrCreateAssociatedTokenAccount(
+        provider.connection,
+        signer,
+        mintA,
+        signer.publicKey
+    );
+    await token.mintTo(
+      provider.connection,
+      signer,
+      mintA,
+      fromTokenAccount.address,
+      signer.publicKey,
+      1,
+      []
+    );
+    let mintedInfo = await token.getAccount(
+      provider.connection,
+      fromTokenAccount.address,
+      token.TOKEN_PROGRAM_ID
+    );
+    console.log("info.amount =", mintedInfo.amount)
+
     // set Merkle tree token authority as authority
 
     // deposit token to Merkle tree account
 
     // create new Merkle tree for new token
+      let merkle_tree = await solana.PublicKey.createWithSeed(
+        ADMIN_AUTH_KEY,
+        "usdc",
+        merkleTreeProgram.programId,
+      );
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        merkleTreeProgram.programId
+      )[0];
+    // console.log("Seeds: ", anchor.utils.bytes.utf8.encode("spl"))
+    // console.log("tokenAuthority: ", tokenAuthority.toBase58())
+    // console.log("merkle_tree: ", merkle_tree.toBase58())
+    let merkle_tree_pda_token = solana.PublicKey.findProgramAddressSync(
+        [merkle_tree.toBuffer(), anchor.utils.bytes.utf8.encode("merkle_tree_pda_token")],
+        merkleTreeProgram.programId
+      )[0];
+    console.log("merkle_tree: ", Array.prototype.slice.call(merkle_tree.toBytes()))
+    console.log("merkle_tree_pda_token: ", Array.prototype.slice.call(merkle_tree_pda_token.toBytes()))
+
+    const pre_inserted_leaves_index = solana.PublicKey.findProgramAddressSync(
+        [merkle_tree.toBuffer()],
+        merkleTreeProgram.programId
+      )[0];
+    // console.log("pre_inserted_leaves_index: ", pre_inserted_leaves_index.toBase58())
+    //
+    // console.log("here: ", token.TOKEN_PROGRAM_ID.toBase58())
+    // console.log("systemProgram: ", DEFAULT_PROGRAMS.systemProgram.toBase58())
 
     try {
-      const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
-        authority: ADMIN_AUTH_KEY,
-        merkleTree: MERKLE_TREE_KEY,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
-        ...DEFAULT_PROGRAMS
+      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSpl(
+      ).accounts({
+        authority: ADMIN_AUTH_KEYPAIR.publicKey,
+        merkleTree: merkle_tree,
+        preInsertedLeavesIndex: pre_inserted_leaves_index,
+        merkleTreePdaToken: merkle_tree_pda_token,
+        tokenProgram:token.TOKEN_PROGRAM_ID,
+        systemProgram: DEFAULT_PROGRAMS.systemProgram,
+        mint: mintA,
+        tokenAuthority: tokenAuthority,
+        rent: DEFAULT_PROGRAMS.rent
       })
       .preInstructions([
-        SystemProgram.createAccount({
+        SystemProgram.createAccountWithSeed({
+          basePubkey:ADMIN_AUTH_KEY,
+          seed: anchor.utils.bytes.utf8.encode("usdc"),
           fromPubkey: ADMIN_AUTH_KEY,
-          newAccountPubkey: MERKLE_TREE_KEY,
+          newAccountPubkey: merkle_tree,
           space: MERKLE_TREE_SIZE,
           lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
           programId: merkleTreeProgram.programId,
         })
       ])
-      .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
+      .signers([ADMIN_AUTH_KEYPAIR])
       .rpc();
 
     } catch(e) {
       console.log("e: ", e)
     }
-    var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
-          MERKLE_TREE_KEY
-        )
+
+    await token.transfer(
+        provider.connection,
+        signer,
+        fromTokenAccount.address,
+        merkle_tree_pda_token,
+        signer.publicKey,
+        1,
+        []
+    );
+  let merkle_tree_pda_tokenInfo = await token.getAccount(
+    provider.connection,
+    merkle_tree_pda_token,
+    token.TOKEN_PROGRAM_ID
+  );
+  console.log("info.amount.toNumber() 0 =", merkle_tree_pda_tokenInfo.amount)
+  assert(merkle_tree_pda_tokenInfo.amount, 1)
+  // withdraw again
+
+  let amount = new Uint8Array(8);
+  amount[0]=1;
+  try {
+    const tx = await merkleTreeProgram.methods.withdrawSpl(
+      Buffer.from(amount),
+      new anchor.BN(0),
+      new anchor.BN(1),
+    ).accounts({
+      authority: signer.publicKey,
+      tokenAuthority: tokenAuthority,
+      merkleTreeToken: merkle_tree_pda_token,
+      token_program:token.TOKEN_PROGRAM_ID,
+    }).remainingAccounts([
+      { isSigner: false, isWritable: true, pubkey:fromTokenAccount.address }
+    ])
+    .signers([signer])
+    .rpc();
+
+  } catch(e) {
+    console.log("e: ", e)
+  }
+  let receivedTokenInfo = await token.getAccount(
+    provider.connection,
+    fromTokenAccount.address,
+    token.TOKEN_PROGRAM_ID
+  );
+  console.log(receivedTokenInfo.amount)
+  assert(receivedTokenInfo.amount == 1);
     // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
     //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
     // )
@@ -285,7 +384,7 @@ describe("verifier_program", () => {
     // var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
     //       PRE_INSERTED_LEAVES_INDEX
     //     )
-    assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
+    // assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
 
 
   });
@@ -819,7 +918,7 @@ describe("verifier_program", () => {
   // Creates an escrow, verifier state, executes 10 deposit transactions,
   // tries to close the escrow with user account (should fail),
   // and closes the escrow with relayer account.
-  it("Open and close escrow after 10 tx", async () => {
+  it.skip("Open and close escrow after 10 tx", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
@@ -2553,7 +2652,7 @@ describe("verifier_program", () => {
       }
     })
 
-    it.skip("16 shielded transactions, 1 unshielding transaction", async () => {
+  it.skip("16 shielded transactions, 1 unshielding transaction", async () => {
         const userAccount = await newAccountWithLamports(provider.connection)
         const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 

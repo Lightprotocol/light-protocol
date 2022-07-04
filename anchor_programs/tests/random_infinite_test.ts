@@ -198,7 +198,7 @@ it("Initialize Merkle Tree", async () => {
       )
 
   try {
-    const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+    const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
       authority: ADMIN_AUTH_KEY,
       merkleTree: MERKLE_TREE_KEY,
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -248,7 +248,7 @@ it("Initialize Merkle Tree", async () => {
       merkleTreeProgram.programId
     )[0];
   try {
-    const tx = await merkleTreeProgram.methods.initializeNewMerkleTree().accounts({
+    const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
       authority: ADMIN_AUTH_KEY,
       merkleTree: UNREGISTERED_MERKLE_TREE.publicKey,
       preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,

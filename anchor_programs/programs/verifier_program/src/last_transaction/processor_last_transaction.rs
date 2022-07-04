@@ -15,6 +15,7 @@ use std::cell::RefMut;
 
 use crate::last_transaction::cpi_instructions::{
     check_merkle_root_exists_cpi, initialize_nullifier_cpi, insert_two_leaves_cpi, withdraw_sol_cpi,
+    withdraw_spl_cpi
 };
 
 pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
@@ -126,7 +127,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
             &ctx.accounts.token_authority.to_account_info(),
             &ctx.accounts.token_program.to_account_info(),
             pub_amount_checked,
-            verifier_state.merkle_tree_index
+            verifier_state.merkle_tree_index.into()
         )?;
     }
 
@@ -150,7 +151,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
                 &ctx.accounts.token_authority.to_account_info(),
                 &ctx.accounts.token_program.to_account_info(),
                 pub_amount_checked,
-                verifier_state.merkle_tree_index
+                verifier_state.merkle_tree_index.into()
             )?;
         }
     }
