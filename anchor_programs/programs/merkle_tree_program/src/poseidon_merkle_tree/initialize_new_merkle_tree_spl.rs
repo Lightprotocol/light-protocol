@@ -6,14 +6,14 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
     account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
 };
-use anchor_spl::token::{self,Mint,Token, TokenAccount};
+use anchor_spl::token::{Mint,Token, TokenAccount};
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTreeSpl<'info> {
     #[account(mut,address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
-    #[account(mut)]
+    #[account(mut,rent_exempt = enforce)]
     pub merkle_tree: AccountInfo<'info>,
     #[account(
         init,

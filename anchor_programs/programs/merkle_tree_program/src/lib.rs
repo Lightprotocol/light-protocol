@@ -46,7 +46,6 @@ use crate::poseidon_merkle_tree::{
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
     update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
 };
-use crate::utils::create_pda::create_and_check_pda;
 
 #[program]
 pub mod merkle_tree_program {
@@ -76,20 +75,7 @@ pub mod merkle_tree_program {
     /// Can only be called from the init authority.
     pub fn initialize_new_merkle_tree_spl(ctx: Context<InitializeNewMerkleTreeSpl>) -> Result<()> {
         let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
-        let rent = Rent::get()?;
 
-        // create_and_check_pda(
-        //     &ctx.program_id,
-        //     &ctx.accounts.authority.to_account_info(),
-        //     &ctx.accounts.merkle_tree.to_account_info(),
-        //     &ctx.accounts.system_program.to_account_info(),
-        //     &rent,
-        //     &ctx.accounts.mint.key().to_bytes(),
-        //     &b"tree"[..],
-        //     utils::constants::MERKLE_TREE_SIZE.try_into().unwrap(),       //bytes
-        //     0,                      //lamports
-        //     true,                   //rent_exempt
-        // )?;
         process_initialize_new_merkle_tree_spl(
             merkle_tree_storage_acc,
             &config::INIT_BYTES_MERKLE_TREE_18[..],

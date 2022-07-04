@@ -12,7 +12,7 @@ pub struct InitializeNewMerkleTreeSol<'info> {
     #[account(mut,address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
-    #[account(mut)]
+    #[account(mut,rent_exempt = enforce)]
     pub merkle_tree: AccountInfo<'info>,
     #[account(
         init,

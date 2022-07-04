@@ -554,5 +554,158 @@ it("Merkle Tree update test", async () => {
     })
   })
 
+  it("Try 17 shielded transactions", async () => {
+      const userAccount = await newAccountWithLamports(provider.connection)
+      const recipientWithdrawal = await newAccountWithLamports(provider.connection)
+
+      var leavesPdas = []
+      var utxos = []
+
+      //
+      // *
+      // * test deposit
+      // *
+      //
+
+      let merkleTree = await light.buildMerkelTree(provider.connection);
+
+      let Keypair = new light.Keypair()
+
+      for (var i= 0; i < 2; i++) {
+        let res = await deposit({
+          Keypair,
+          encryptionKeypair,
+          amount: 1_000_000_00,// amount
+          connection: provider.connection,
+          merkleTree,
+          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
+          userAccount,
+          verifierProgram,
+          merkleTreeProgram,
+          authority: AUTHORITY,
+          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+          merkle_tree_pubkey: MERKLE_TREE_KEY,
+          provider,
+          relayerFee
+        })
+        leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
+        utxos.push(res[1])
+      }
+      // try {
+      //   await executeUpdateMerkleTreeTransactions({
+      //     connection: provider.connection,
+      //     signer:userAccount,
+      //     merkleTreeProgram: merkleTreeProgram,
+      //     leavesPdas,
+      //     merkleTree,
+      //     merkle_tree_pubkey: MERKLE_TREE_KEY,
+      //     provider
+      //   });
+      // } catch(e) {
+      //   assert(e.error.errorCode.code == 'InvalidNumberOfLeaves')
+      // }
+      // leavesPdas.pop()
+      await executeUpdateMerkleTreeTransactions({
+        connection: provider.connection,
+        signer:userAccount,
+        merkleTreeProgram: merkleTreeProgram,
+        leavesPdas,
+        merkleTree,
+        merkle_tree_pubkey: MERKLE_TREE_KEY,
+        provider
+      });
+
+      // *
+      // * test withdrawal
+      // *
+      // *
+      // *
+
+      // new lightTransaction
+      // generate utxos
+      //
+      var leavesPdasWithdrawal = []
+      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+      let deposit_utxo1 = utxos[0][0];
+      let deposit_utxo2 = utxos[0][1];
+      deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
+      deposit_utxo2.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo2.getCommitment()._hex)
+
+      let relayer = await newAccountWithLamports(provider.connection);
+      let relayer_recipient = new anchor.web3.Account();
+
+      let inputUtxosWithdrawal = []
+      if (deposit_utxo1.index == 1) {
+        inputUtxosWithdrawal = [deposit_utxo1, new light.Utxo()] // 38241198
+      } else {
+        inputUtxosWithdrawal = [deposit_utxo2, new light.Utxo()] // 38241198
+      }
+      let outputUtxosWithdrawal = [new light.Utxo(), new light.Utxo() ]
+
+      const externalAmountBigNumber: BigNumber = BigNumber.from(relayerFee.toString())
+      .add(
+        outputUtxosWithdrawal.reduce(
+          (sum, utxo) => sum.add(utxo.amount),
+          BigNumber.from(0),
+        ),
+      )
+      .sub(
+        inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
+      )
+      console.log("externalAmountBigNumber ", externalAmountBigNumber.toString())
+      var dataWithdrawal = await light.getProof(
+        inputUtxosWithdrawal,
+        outputUtxosWithdrawal,
+        merkleTreeWithdrawal,
+        externalAmountBigNumber,
+        relayerFee,
+        recipientWithdrawal.publicKey.toBase58(),
+        relayer.publicKey.toBase58(),
+        'WITHDRAWAL',
+        encryptionKeypair
+      )
+
+      let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
+      let pdasWithdrawal = getPdaAddresses({
+        tx_integrity_hash: ix_dataWithdrawal.txIntegrityHash,
+        nullifier0: ix_dataWithdrawal.nullifier0,
+        nullifier1: ix_dataWithdrawal.nullifier1,
+        leafLeft: ix_dataWithdrawal.leafLeft,
+        merkleTreeProgram,
+        verifierProgram
+      })
+      let resWithdrawalTransact = await transact({
+        connection: provider.connection,
+        ix_data: ix_dataWithdrawal,
+        pdas: pdasWithdrawal,
+        origin: MERKLE_TREE_PDA_TOKEN,
+        signer: relayer,
+        recipient: recipientWithdrawal.publicKey,
+        relayer_recipient,
+        mode: "withdrawal",
+        verifierProgram,
+        merkleTreeProgram,
+        authority: AUTHORITY,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+        merkle_tree_pubkey: MERKLE_TREE_KEY,
+        provider,
+        relayerFee
+      })
+      leavesPdasWithdrawal.push({
+        isSigner: false,
+        isWritable: true,
+        pubkey: resWithdrawalTransact
+      })
+      await executeUpdateMerkleTreeTransactions({
+        connection: provider.connection,
+        signer:relayer,
+        merkleTreeProgram,
+        leavesPdas: leavesPdasWithdrawal,
+        merkleTree: merkleTreeWithdrawal,
+        merkle_tree_pubkey: MERKLE_TREE_KEY,
+        provider
+      });
+    })
+
 
 });

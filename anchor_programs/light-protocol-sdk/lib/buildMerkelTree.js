@@ -27,18 +27,26 @@ const buildMerkelTree = function (connection) {
         let leaves_to_sort = [];
         /// Slices some data from the leaves
         leave_accounts.map((acc) => {
+          // skip leaves which are not inserted yet
+          console.log("acc.account.data[1]: ", acc.account.data[1])
+          console.log("index: ", U64(acc.account.data.slice(2, 10)).toString())
+
+          if(acc.account.data[1] == 4){
             leaves_to_sort.push({
                 index: U64(acc.account.data.slice(2, 10)).toString(),
                 leaves: acc.account.data.slice(10, 74),
             });
+          }
         });
         /// Sorts leaves and substracts float of index a by index b
         leaves_to_sort.sort((a, b) => parseFloat(a.index) - parseFloat(b.index));
         const leaves = [];
-        /// Creates two leaves for each of the sorted leaves by slicing different parts
-        for (let i = 0; i < leave_accounts.length; i++) {
-            leaves.push((0, toFixedHex_1.toFixedHex)(leaves_to_sort[i].leaves.slice(0, 32).reverse()));
-            leaves.push((0, toFixedHex_1.toFixedHex)(leaves_to_sort[i].leaves.slice(32, 64).reverse()));
+        if (leaves_to_sort.length > 0) {
+          /// Creates two leaves for each of the sorted leaves by slicing different parts
+          for (let i = 0; i < leaves_to_sort.length; i++) {
+              leaves.push((0, toFixedHex_1.toFixedHex)(leaves_to_sort[i].leaves.slice(0, 32).reverse()));
+              leaves.push((0, toFixedHex_1.toFixedHex)(leaves_to_sort[i].leaves.slice(32, 64).reverse()));
+          }
         }
         return new merkelTree_1.default(constants_1.MERKLE_TREE_HEIGHT, leaves, {
         // hashFunction: poseidonHash2,
