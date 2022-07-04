@@ -38,13 +38,14 @@ pub fn miller_loop_onchain(
         if i != ark_bn254::Parameters::ATE_LOOP_COUNT.len() - 1
             && verifier_state_data.square_in_place_executed == 0
         {
-            miller_loop_compute.f.square_in_place();
-
             total_compute += 80_000;
-            verifier_state_data.square_in_place_executed = 1;
             if total_compute >= verifier_state_data.ml_max_compute {
                 return total_compute;
             }
+            miller_loop_compute.f.square_in_place();
+
+            verifier_state_data.square_in_place_executed = 1;
+
         }
 
         // first_inner_loop_index

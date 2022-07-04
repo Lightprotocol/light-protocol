@@ -19,7 +19,7 @@ mod test {
     use verifier_program::groth16_verifier::miller_loop::{instructions::*, state::*};
     use verifier_program::groth16_verifier::miller_loop_onchain;
     use verifier_program::groth16_verifier::parsers::*;
-    use verifier_program::state::VerifierState;
+    use verifier_program::groth16_verifier::VerifierState;
 
     pub fn new_verifier_state() -> VerifierState {
         VerifierState {
@@ -104,7 +104,6 @@ mod test {
             computing_final_exponentiation: true,
 
             merkle_tree_index: 0,
-            found_root: 0,
             current_instruction_index_prepare_inputs: 0,
             encrypted_utxos: [0u8; 222],
             last_transaction: false,
