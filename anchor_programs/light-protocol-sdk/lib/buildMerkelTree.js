@@ -28,9 +28,6 @@ const buildMerkelTree = function (connection) {
         /// Slices some data from the leaves
         leave_accounts.map((acc) => {
           // skip leaves which are not inserted yet
-          console.log("acc.account.data[1]: ", acc.account.data[1])
-          console.log("index: ", U64(acc.account.data.slice(2, 10)).toString())
-
           if(acc.account.data[1] == 4){
             leaves_to_sort.push({
                 index: U64(acc.account.data.slice(2, 10)).toString(),
