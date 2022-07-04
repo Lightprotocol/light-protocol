@@ -192,6 +192,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "anchor-spl"
+version = "0.24.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0188c33b4a3c124c4e593f2b440415aaea70a7650fac6ba0772395385d71c003"
+dependencies = [
+ "anchor-lang",
+ "solana-program",
+ "spl-associated-token-account",
+ "spl-token",
+]
+
+[[package]]
 name = "anchor-syn"
 version = "0.24.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1750,6 +1762,7 @@ name = "merkle_tree_program"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",
+ "anchor-spl",
  "ark-bn254",
  "ark-crypto-primitives",
  "ark-ec",
@@ -3102,6 +3115,17 @@ name = "spin"
 version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6e63cff320ae2c57904679ba7cb63280a3dc4613885beafb148ee7bf9aa9042d"
+
+[[package]]
+name = "spl-associated-token-account"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2b013067447a1396303ddfc294f36e3d260a32f8a16c501c295bcdc7de39b490"
+dependencies = [
+ "borsh",
+ "solana-program",
+ "spl-token",
+]
 
 [[package]]
 name = "spl-token"

@@ -1,7 +1,7 @@
 use crate::groth16_verifier::VerifierState;
 
 use anchor_lang::prelude::*;
-
+use anchor_spl::token::Token;
 use crate::escrow::escrow_state::FeeEscrowState;
 use merkle_tree_program::{
     program::MerkleTreeProgram,
@@ -46,7 +46,6 @@ pub struct LastTransactionDeposit<'info> {
         bump, close = signing_address
     )]
     pub verifier_state: AccountLoader<'info, VerifierState>,
-
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -58,6 +57,7 @@ pub struct LastTransactionDeposit<'info> {
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
     /// account from which funds are transferred
+    /// is the token authority in case of spl transfers
     #[account(
         mut,
         seeds = [verifier_state.load()?.tx_integrity_hash.as_ref(), ESCROW_SEED.as_ref()], bump,
@@ -72,7 +72,9 @@ pub struct LastTransactionDeposit<'info> {
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
-
+    /// CHECK: this account holds the tokens which are transferred to Merkle tree pda.
+    pub token_escrow: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>
 }
 
 #[derive(Accounts)]
@@ -129,4 +131,9 @@ pub struct LastTransactionWithdrawal<'info> {
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[verifier_state.load()?.merkle_tree_index as usize].0))]
     pub merkle_tree: AccountInfo<'info>,
+    /// CHECK: This account is checked in the cpi to withdraw spl tokens
+    /// a check at this point is omitted to allow the submission of a dummy account for sol withdrawals.
+    #[account(mut)]
+    pub token_authority: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>
 }

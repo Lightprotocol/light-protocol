@@ -117,7 +117,17 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
             pub_amount_checked,
         )?;
     } else {
-        panic!("Spl-Token transfers not implemented yet");
+        withdraw_spl_cpi(
+            &ctx.program_id,
+            &merkle_tree_program_id,
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+            &ctx.accounts.recipient.to_account_info(),
+            &ctx.accounts.token_authority.to_account_info(),
+            &ctx.accounts.token_program.to_account_info(),
+            pub_amount_checked,
+            verifier_state.merkle_tree_index
+        )?;
     }
 
     if relayer_fee > 0 {
@@ -129,6 +139,18 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
                 &ctx.accounts.merkle_tree_pda_token.to_account_info(),
                 &ctx.accounts.recipient.to_account_info(),
                 relayer_fee,
+            )?;
+        } else {
+            withdraw_spl_cpi(
+                &ctx.program_id,
+                &merkle_tree_program_id,
+                &ctx.accounts.authority.to_account_info(),
+                &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+                &ctx.accounts.recipient.to_account_info(),
+                &ctx.accounts.token_authority.to_account_info(),
+                &ctx.accounts.token_program.to_account_info(),
+                pub_amount_checked,
+                verifier_state.merkle_tree_index
             )?;
         }
     }
