@@ -22,6 +22,8 @@ merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
 
 #solana
 solana-program = "1.9.16"
+anchor-spl = "0.24.2"
+
 arrayref = "0.3.6"
 borsh = "0.9.1"
 getrandom = { version = "0.2.2", features = ["custom"] }

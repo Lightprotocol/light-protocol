@@ -8,7 +8,7 @@ use anchor_lang::solana_program::{
 };
 
 #[derive(Accounts)]
-pub struct InitializeNewMerkleTree<'info> {
+pub struct InitializeNewMerkleTreeSol<'info> {
     #[account(mut,address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
@@ -31,8 +31,6 @@ pub struct InitializeNewMerkleTree<'info> {
     )]
     pub merkle_tree_pda_token: Account<'info, MerkleTreePdaToken>,
     pub system_program: Program<'info, System>,
-    pub system_program: Program<'info, System>,
-
     pub rent: Sysvar<'info, Rent>,
 }
 
@@ -47,7 +45,7 @@ pub struct PreInsertedLeavesIndex {
 }
 
 #[allow(clippy::manual_memcpy)]
-pub fn initialize_new_merkle_tree_from_bytes(
+pub fn process_initialize_new_merkle_tree_sol(
     merkle_tree_pda: AccountInfo,
     init_bytes: &[u8],
 ) -> Result<()> {
