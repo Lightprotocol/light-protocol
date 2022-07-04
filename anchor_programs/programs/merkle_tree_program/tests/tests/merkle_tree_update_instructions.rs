@@ -4,7 +4,7 @@ pub mod instructions {
     use anchor_lang::solana_program::{msg, program_error::ProgramError};
 
     use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree;
-    use merkle_tree_program::state::MerkleTreeUpdateState;
+    use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::MerkleTreeUpdateState;
     use merkle_tree_program::utils::config::ZERO_BYTES_MERKLE_TREE_18;
     use std::cell::RefMut;
 
