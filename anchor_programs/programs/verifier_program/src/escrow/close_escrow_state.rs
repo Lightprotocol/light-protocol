@@ -1,7 +1,6 @@
 use crate::errors::ErrorCode;
 use crate::escrow::escrow_state::FeeEscrowState;
 use crate::groth16_verifier::VerifierState;
-use crate::merkle_tree_program::instructions::close_account;
 use crate::utils::config::{FEE_PER_INSTRUCTION, TIMEOUT_ESCROW};
 use anchor_lang::prelude::*;
 use merkle_tree_program::instructions::sol_transfer;
@@ -48,7 +47,6 @@ pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
 
     // transfer remaining funds after subtracting the fee
     // for the number of executed transactions to the user
-    // TODO make fee per transaction configurable
     // 7 ix per transaction -> verifier_state.current_instruction_index / 7 * 5000
     let transfer_amount_relayer = verifier_state.current_instruction_index * FEE_PER_INSTRUCTION;
     msg!("transfer_amount_relayer: {}", transfer_amount_relayer);
@@ -70,11 +68,6 @@ pub fn process_close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
         &ctx.accounts.user.to_account_info(),
         transfer_amount_user.try_into().unwrap(),
     )?;
-    // Close tmp account.
-    // Relayer has an incentive to close the account.
-    close_account(
-        &ctx.accounts.verifier_state.to_account_info(),
-        &ctx.accounts.relayer.to_account_info(),
-    )?;
+
     Ok(())
 }

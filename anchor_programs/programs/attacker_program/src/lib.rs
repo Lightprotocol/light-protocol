@@ -155,7 +155,7 @@ pub mod attacker_program {
 
         let (seed, bump) = get_seeds(program_id, &merkle_tree_program_id)?;
         let bump = &[bump];
-        let seeds = &[&[seed.as_slice(), bump][..]];
+        let _seeds = &[&[seed.as_slice(), bump][..]];
 
         let accounts = merkle_tree_program::cpi::accounts::WithdrawSol {
             authority: ctx.accounts.signing_address.to_account_info(),

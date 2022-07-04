@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 
 use crate::groth16_verifier::{
-    final_exponentiation_process_instruction, miller_loop::*, parsers::*, prepare_inputs::*,
+    final_exponentiation_process_instruction, miller_loop::*, prepare_inputs::*,
     VerifierState,
 };
 use merkle_tree_program::utils::constants::STORAGE_SEED;

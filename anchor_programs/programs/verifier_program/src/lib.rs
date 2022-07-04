@@ -37,7 +37,6 @@ use crate::groth16_verifier::{
 };
 
 use anchor_lang::prelude::*;
-use merkle_tree_program::{self};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 
