@@ -27,6 +27,7 @@ use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 use crate::instructions::{
     insert_nullifier::InitializeNullifier,
     sol_transfer::{process_sol_transfer, WithdrawSol},
+    spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 use crate::utils::config;
 
@@ -123,23 +124,6 @@ pub mod merkle_tree_program {
             merkle_tree_pda_pubkey,
         )
     }
-    /*pub fn deposit_sol(ctx: Context<DepositSOL>, data: Vec<u8>) -> Result<()>{
-        let mut new_data = data.clone();
-        new_data.insert(0, 1);
-        process_sol_transfer(
-            ctx.program_id,
-            &[
-                ctx.accounts.authority.to_account_info(),
-                ctx.accounts.tmp_storage.to_account_info(),
-                ctx.accounts.system_program.to_account_info(),
-                ctx.accounts.rent.to_account_info(),
-                ctx.accounts.merkle_tree_token.to_account_info(),
-                ctx.accounts.user_escrow.to_account_info(),
-            ],
-            &new_data.as_slice()
-        )?;
-        Ok(())
-    }*/
 
     /// Withdraws sol from a liquidity pool.
     /// An arbitrary number of recipients can be passed in with remaining accounts.
@@ -155,6 +139,19 @@ pub mod merkle_tree_program {
 
         process_sol_transfer(&accounts.as_slice(), &data.as_slice())
     }
+
+    /// Withdraws spl tokens from a liquidity pool.
+    /// An arbitrary number of recipients can be passed in with remaining accounts.
+    /// Can only be called from a registered verifier program.
+    pub fn withdraw_spl<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, WithdrawSpl<'info>>,
+        data: Vec<u8>,
+        _verifier_index: u64,
+        _merkle_tree_index: u64,
+    ) -> Result<()> {
+        process_spl_transfer(ctx, &data.as_slice())
+    }
+
 
     /// Creates and initializes a nullifier pda.
     /// Can only be called from a registered verifier program.

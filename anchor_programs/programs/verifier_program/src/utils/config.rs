@@ -22,3 +22,5 @@ pub const ESCROW_SEED: &[u8] = b"fee_escrow";
 pub const TIMEOUT_ESCROW: u64 = 300;
 
 pub const FEE_PER_INSTRUCTION: u64 = 5000;
+
+pub const VERIFIER_INDEX:u64 = 0;

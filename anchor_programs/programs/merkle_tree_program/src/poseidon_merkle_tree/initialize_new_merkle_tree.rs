@@ -31,6 +31,8 @@ pub struct InitializeNewMerkleTree<'info> {
     )]
     pub merkle_tree_pda_token: Account<'info, MerkleTreePdaToken>,
     pub system_program: Program<'info, System>,
+    pub system_program: Program<'info, System>,
+
     pub rent: Sysvar<'info, Rent>,
 }
 

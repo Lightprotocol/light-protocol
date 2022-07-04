@@ -1,6 +1,10 @@
 use anchor_lang::prelude::*;
-use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
+use merkle_tree_program::utils::config::{
+    ENCRYPTED_UTXOS_LENGTH
+};
+use crate::utils::config::VERIFIER_INDEX;
 use solana_program;
+
 
 pub fn initialize_nullifier_cpi<'a, 'b>(
     program_id: &Pubkey,
@@ -72,7 +76,35 @@ pub fn withdraw_sol_cpi<'a, 'b>(
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(vec![recipient.clone()]);
     let amount = pub_amount_checked.to_le_bytes().to_vec();
-    merkle_tree_program::cpi::withdraw_sol(cpi_ctx, amount, 0u64, 0u64)
+    merkle_tree_program::cpi::withdraw_sol(cpi_ctx, amount, VERIFIER_INDEX, 0u64)
+}
+
+pub fn withdraw_spl_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    merkle_tree_program_id: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    merkle_tree_token: &'b AccountInfo<'a>,
+    recipient: &'b AccountInfo<'a>,
+    token_authority: &'b AccountInfo<'a>,
+    token_program: &'b AccountInfo<'a>,
+    pub_amount_checked: u64,
+    merkle_tree_index: u64
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
+    let bump = &[bump];
+    let seeds = &[&[seed.as_slice(), bump][..]];
+
+    let accounts = merkle_tree_program::cpi::accounts::WithdrawSpl {
+        authority:          authority.clone(),
+        merkle_tree_token:  merkle_tree_token.clone(),
+        token_authority:    token_authority.clone(),
+        token_program:      token_program.clone()
+    };
+
+    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    cpi_ctx = cpi_ctx.with_remaining_accounts(vec![recipient.clone()]);
+    let amount = pub_amount_checked.to_le_bytes().to_vec();
+    merkle_tree_program::cpi::withdraw_spl(cpi_ctx, amount, VERIFIER_INDEX, merkle_tree_index)
 }
 
 pub fn insert_two_leaves_cpi<'a, 'b>(
