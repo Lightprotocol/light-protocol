@@ -33,7 +33,7 @@ pub fn process_compute(ctx: Context<Compute>) -> Result<()> {
         )?;
         verifier_state_data.current_index += 1;
     } else if verifier_state_data.computing_miller_loop {
-        verifier_state_data.ml_max_compute = 1_400_000;
+        verifier_state_data.ml_max_compute = 1_350_000;
 
         msg!(
             "computing miller_loop {}",

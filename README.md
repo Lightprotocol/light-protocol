@@ -3,7 +3,7 @@
 ## Tests
 
 *Requirements:*
-- solana cli v1.9.16 or higher
+- solana cli v1.9.16 or higher (above 1.10.25 doesn't work right now because additional compute budget needs to be requested with an extra instruction)
   - ``sh -c "$(curl -sSfL https://release.solana.com/v1.9.16/install)"``
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
@@ -15,6 +15,7 @@
 - ``cargo test``
 
 *Anchor tests:*
+(runs merkle tree tests located in tests/merkle_tree_program.ts)
 - ``npm install``
 - ``anchor test``
 
@@ -23,10 +24,89 @@ For repeated tests ``anchor test --skip-build`` is useful.
 Check logs in anchor_programs/.anchor/program-logs
 
 ### Current State
-Both programs are not secure and are missing basic account and other security checks.
 
-Only Groth16 ZKP verification and poseidon hashes are fully implemented right now.
+The current user flow is separated in two actions:
+- first verifying a proof plus executing protocol logic (moving funds, storing commitments onchain among others)
+- second inserting those commitments as batches into the Merkle tree
 
+The second flow is finished and ready for audit. It consists out of the
+following functions in the merkle_tree_program directory:
+- initialize_merkle_tree_update_state
+- update_merkle_tree
+- insert_root_merkle_tree
+- close_merkle_tree_update_state (in case something goes wrong the update state account can be closed by the relayer)
+
+The anchor tests currently run only the merkle_tree_program tests.
+
+In general, both programs are finished and tested except for the spl token deposits and withdrawals.
+I am about to finish those up in the coming days which might impact the verifier program.
+
+The Merkle tree program is not affected this except the two functions initialize_new_merkle_tree_spl and withdraw_spl.
+
+
+### Batched Merkle tree updates
+
+**Problem:**
+
+We need to writelock our Merkle tree during updating. Due to Solana network conditions this writelock can last for several minutes. In case the update fails the tree remains locked for an even longer time. This can quickly lead to a lot of backlog and failing transactions.
+
+**Solution:**
+
+Users don’t update the Merkle tree themselves but only validate their proof and store leaves on chain. Anytime a crank can be executed to insert several leaves at once into the Merkle tree. This way spikes in usage can be absorbed since funds can always be spent, just funds in change utxos remain frozen until the next time the update is executed.
+
+**Current flow:**
+
+- **User:** send data → verify ZKP → update Merkle tree → transfer funds, emit nullifiers, insert Merkle tree leaves and root
+
+**New flow:**
+
+- **User:** send data → verify ZKP → transfer funds, emit nullifiers, and queue Merkle tree leaves (marked as account type 7), a new account called PreInsertedLeavesIndex saves the current queued leaves index
+- **Crank:** update Merkle tree → insert new Merkle root and mark leaves as inserted (account type 4)
+
+**Algorithm:**
+
+leaves are marked by modifying the account type to a different number which represents uninserted leaves
+
+clone instructions to test repo
+
+I need a function to calculate how many transactions I need to send to conduct a batch update.
+
+1. insert all leaves into tmp account
+    1. all leaves are saved in an array
+    2. upper limit per 16 leaves
+    3. pass-in leaves accounts as remaining accounts, loop over those to copy
+2. insert 2 leaves (calculate the first hash)
+    1. tmp account leaves index +=2
+3. update tree until getting a zero value on the right
+    1. increase leaves_insert_index if one is inserted
+    2. reset instruction index
+    3. increase leaves index in tmp account
+4. repeat until no more leaves to insert
+5. update the rest of the tree
+    1. at root insert merkle tree leaves index = tmp account leaves index
+    2. fees are taken from leaves accounts
+    3. at the end mark leaves as inserted
+
+**Security Claims**
+
+    **CreateUpdateState**
+    1. leaves can only be inserted in the correct index order
+    2. leaves cannot be inserted twice
+    3. leaves are queued for a specific tree and can only be inserted in that tree
+    4. lock is taken and cannot be taken again before expiry
+    5. Merkle tree is registered
+
+    **Update**
+    6. signer is consistent
+    7. is locked by update state account
+    8. merkle tree is consistent
+
+    **Last Tx**
+    9. same leaves as in first tx are marked as inserted
+    10. is in correct state
+    11. is locked by update state account
+    12. merkle tree is consistent
+    13. signer is consistent
 
 ### The architecture changes are the following:
 - one Merkle tree program which can only be invoked by registered verifier programs (currently hardcoded)
