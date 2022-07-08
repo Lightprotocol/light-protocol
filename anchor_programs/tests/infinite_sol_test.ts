@@ -185,13 +185,15 @@ describe("verifier_program", () => {
       [merkleTreeProgram.programId.toBuffer()],
       verifierProgram.programId)[0];
 
-
+  var RENT_ESCROW
 
 it("Initialize Merkle Tree", async () => {
   await newAccountWithLamports(
     provider.connection,
     ADMIN_AUTH_KEYPAIR
   )
+  RENT_ESCROW = await provider.connection.getMinimumBalanceForRentExemption(256);
+
   await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
   var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
         ADMIN_AUTH_KEYPAIR.publicKey
@@ -275,7 +277,7 @@ it("Initialize Merkle Tree", async () => {
 it("Dynamic Shielded transaction", async () => {
     const userAccount = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
     while(true) {
-      const recipientWithdrawal = await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
+      const recipientWithdrawal = new anchor.web3.Account();//await newAccountWithLamports(provider.connection) // new anchor.web3.Account()
 
       var leavesPdas = []
       var utxos = []
@@ -286,16 +288,19 @@ it("Dynamic Shielded transaction", async () => {
       // *
       //
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
-      let relayerFee = U64(Math.floor(Math.random() * 80_000) + 10_000);
-      console.log("relayerFee: ", relayerFee)
+      let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
+      // below 900k gives errors of leaving an account non rentexempt
+      let relayerFee = U64(Math.floor(Math.random() * 80_000) + 900_000);
+      console.log("relayerFee: ", relayerFee.toString())
       let Keypair = new light.Keypair()
       let nr_leaves = Math.floor(Math.random() * 16);
+      console.log("nr_leaves: ", nr_leaves)
       for (var i= 0; i < nr_leaves; i++) {
+        console.log("i: ", i, ": ", nr_leaves)
         let res = await deposit({
           Keypair,
           encryptionKeypair,
-          amount: Math.floor(Math.random() * 1_000_000_000) + 100_000,// amount
+          amount: Math.floor(Math.random() * 1_000_000_000) + relayerFee.toNumber(),// amount
           connection: provider.connection,
           merkleTree,
           merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
@@ -306,7 +311,9 @@ it("Dynamic Shielded transaction", async () => {
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
           provider,
-          relayerFee
+          relayerFee,
+          lastTx: true,
+          rent: RENT_ESCROW
         })
         leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
         utxos.push(res[1])
@@ -333,7 +340,7 @@ it("Dynamic Shielded transaction", async () => {
       // generate utxos
       //
       var leavesPdasWithdrawal = []
-      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
       let spendUtxoIndex = Math.floor(Math.random() * nr_leaves)
       let deposit_utxo1 = utxos[spendUtxoIndex][0];
       let deposit_utxo2 = utxos[spendUtxoIndex][1];
@@ -366,6 +373,8 @@ it("Dynamic Shielded transaction", async () => {
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         externalAmountBigNumber,
         relayerFee,
         recipientWithdrawal.publicKey.toBase58(),
@@ -383,23 +392,35 @@ it("Dynamic Shielded transaction", async () => {
         merkleTreeProgram,
         verifierProgram
       })
-      let resWithdrawalTransact = await transact({
-        connection: provider.connection,
-        ix_data: ix_dataWithdrawal,
-        pdas: pdasWithdrawal,
-        origin: MERKLE_TREE_PDA_TOKEN,
-        signer: relayer,
-        recipient: recipientWithdrawal.publicKey,
-        relayer_recipient,
-        mode: "withdrawal",
-        verifierProgram,
-        merkleTreeProgram,
-        authority: AUTHORITY,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        merkle_tree_pubkey: MERKLE_TREE_KEY,
-        provider,
-        relayerFee
-      })
+      let balanceWithdrawal = await provider.connection.getAccountInfo(MERKLE_TREE_PDA_TOKEN)
+      console.log("balanceWithdrawal.lamports ", balanceWithdrawal.lamports)
+      let recipientWithdrawal1 = await provider.connection.getAccountInfo(recipientWithdrawal.publicKey)
+      console.log("recipientWithdrawal1.lamports ", recipientWithdrawal1)
+      let relayer_recipientWithdrawal1 = await provider.connection.getAccountInfo(relayer_recipient.publicKey)
+      console.log("recipientWithdrawal1.lamports ", relayer_recipientWithdrawal1)
+      let resWithdrawalTransact
+      try {
+        resWithdrawalTransact = await transact({
+          connection: provider.connection,
+          ix_data: ix_dataWithdrawal,
+          pdas: pdasWithdrawal,
+          origin: MERKLE_TREE_PDA_TOKEN,
+          signer: relayer,
+          recipient: recipientWithdrawal.publicKey,
+          relayer_recipient,
+          mode: "withdrawal",
+          verifierProgram,
+          merkleTreeProgram,
+          authority: AUTHORITY,
+          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+          merkle_tree_pubkey: MERKLE_TREE_KEY,
+          provider,
+          relayerFee
+        })
+      } catch(e) {
+        console.log("withdrawal: ", e)
+      }
+
       leavesPdasWithdrawal.push({
         isSigner: false,
         isWritable: true,

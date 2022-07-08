@@ -15,7 +15,14 @@
 - ``cargo test``
 
 *Anchor tests:*
-(runs merkle tree tests located in tests/merkle_tree_program.ts)
+
+Tests are located in tests/. There are four test files with one for the
+merkle tree program, one for the verifier program, and one each to run
+a longer test with random values for transactions with native sol and spl tokens
+each (infinite_sol_test, infinite_spl_test).
+By default anchor test runs the verifier_program test. The test files can be
+switched manually at the bottom of Anchor.toml.
+
 - ``npm install``
 - ``anchor test``
 
@@ -25,9 +32,20 @@ Check logs in anchor_programs/.anchor/program-logs
 
 ### Current State
 
+Both programs are ready for audit.
+
 The current user flow is separated in two actions:
 - first verifying a proof plus executing protocol logic (moving funds, storing commitments onchain among others)
 - second inserting those commitments as batches into the Merkle tree
+
+The verifier program verifies a ZKP, inserts nullifiers, transfers funds, and
+inserts merkle tree leaves. It works exactly the same way as in the last version
+of Lightprotocol except that leaves are only saved on chain but not inserted
+into the Merkle tree yet. The insertion of these leaves takes place in the second step
+and can be batched.
+- createVerifierState (sends data, verifies tx txIntegrityHash)
+- compute (verifies ZKP)
+- lastTx (executes protocol logic atomically)
 
 The second flow is finished and ready for audit. It consists out of the
 following functions in the merkle_tree_program directory:
@@ -36,12 +54,10 @@ following functions in the merkle_tree_program directory:
 - insert_root_merkle_tree
 - close_merkle_tree_update_state (in case something goes wrong the update state account can be closed by the relayer)
 
-The anchor tests currently run only the merkle_tree_program tests.
 
-In general, both programs are finished and tested except for the spl token deposits and withdrawals.
-I am about to finish those up in the coming days which might impact the verifier program.
-
-The Merkle tree program is not affected this except the two functions initialize_new_merkle_tree_spl and withdraw_spl.
+The attacker program is a helper to try to call the merkle tree library functions
+from another program which should not have access to these.
+This program is used in the tests called "Cpi authority test", part of the verifier program tests.
 
 
 ### Batched Merkle tree updates

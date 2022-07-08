@@ -15,24 +15,10 @@ pub fn process_check_merkle_root_exists(
     merkle_tree_pda: &AccountInfo,
     root_bytes: &Vec<u8>,
     program_id: &Pubkey,
-    merkle_tree_pda_pubkey: &Pubkey,
 ) -> Result<u8, ProgramError> {
     let merkle_tree_pda_data = MerkleTreeRoots::unpack(&merkle_tree_pda.data.borrow()).unwrap();
     msg!("Passed-in merkle_tree_pda pubkey: {:?}", *merkle_tree_pda);
-    msg!(
-        "Checks against hardcoded merkle_tree_pda pubkey: {:?}",
-        merkle_tree_pda_pubkey
-    );
 
-    //     != solana_program::pubkey::Pubkey::new(
-    //         &MERKLE_TREE_ACC_BYTES_ARRAY
-    //             [merkle_tree_pda_pubkey]
-    //         .0,
-    //     )
-    // {
-    //     msg!("Merkle tree account pubkey is incorrect.");
-    //     return Err(ProgramError::InvalidArgument);
-    // }
 
     if *merkle_tree_pda.owner != *program_id {
         msg!("Merkle tree account owner is incorrect.");

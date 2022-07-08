@@ -18,7 +18,7 @@ pub fn _process_instruction(
     msg!("current_index: {:?}", account.current_index);
     msg!(
         "CURRENT_INDEX_ARRAY: {:?}",
-        CURRENT_INDEX_ARRAY[account.current_index as usize]
+        CURRENT_INDEX_ARRAY[usize::try_from(account.current_index).unwrap()]
     );
 
     if id == 41 {

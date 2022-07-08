@@ -17,7 +17,7 @@ pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
 ];
 
 pub const STORAGE_SEED: &[u8] = b"storage";
-pub const ESCROW_SEED: &[u8] = b"fee_escrow";
+pub const ESCROW_SEED: &[u8] = b"escrow";
 
 pub const TIMEOUT_ESCROW: u64 = 300;
 

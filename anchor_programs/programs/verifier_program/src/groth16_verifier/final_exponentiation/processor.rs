@@ -616,7 +616,7 @@ pub fn cyclotomic_exp(
     // let naf = crate::biginteger::arithmetic::find_wnaf(exponent.as_ref());
 
     // Skip first iteration for it is the assignment
-    for i in (state.outer_loop as usize)..63 {
+    for i in (usize::try_from(state.outer_loop).unwrap())..63 {
         if !state.check_compute_units() {
             return false;
         }

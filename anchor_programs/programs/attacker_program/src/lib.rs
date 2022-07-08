@@ -79,6 +79,7 @@ pub mod attacker_program {
         let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
         merkle_tree_program::cpi::check_merkle_root_exists(
             cpi_ctx2,
+            0u64,
             merkle_tree_index,
             merkle_root,
         )

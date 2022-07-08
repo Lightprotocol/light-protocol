@@ -27,7 +27,7 @@ const nacl = require('tweetnacl');
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 const newKeypair = () => nacl.box.keyPair();
 //
-const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair) {
+const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair) {
     return __awaiter(this, void 0, void 0, function* () {
         /// mixes the input utxos
         /// mixes the output utxos
@@ -97,7 +97,7 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree, extern
             extAmount: z,
             relayer: new solana.PublicKey(relayer).toBytes(),
             fee: feesLE,
-            merkleTreePubkeyBytes: new solana.PublicKey(constants_1.REACT_APP_MERKLE_TREE_PDA_PUBKEY).toBytes(),
+            merkleTreePubkeyBytes: merkleTreePubkeyBytes,
             encryptedOutput1: encryptedOutputs[0],
             encryptedOutput2: encryptedOutputs[1],
             nonce1: nonces[0],
@@ -105,7 +105,7 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree, extern
             senderThrowAwayPubkey1: senderThrowAwayKeypairs[0].publicKey,
             senderThrowAwayPubkey2: senderThrowAwayKeypairs[1].publicKey,
         };
-        const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.extAmount, extData.relayer, extData.fee, extData.merkleTreePubkeyBytes, extData.encryptedOutput1, extData.encryptedOutput2, extData.nonce1, extData.nonce2, extData.senderThrowAwayPubkey1, extData.senderThrowAwayPubkey2);
+        const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.extAmount, extData.relayer, extData.fee,merkleTreeIndex, extData.merkleTreePubkeyBytes, extData.encryptedOutput1, extData.encryptedOutput2, extData.nonce1, extData.nonce2, extData.senderThrowAwayPubkey1, extData.senderThrowAwayPubkey2);
         let input = {
             root: merkelTree.root(),
             inputNullifier: inputUtxos.map((x) => x.getNullifier()),

@@ -20,7 +20,7 @@ pub struct UpdateMerkleTree<'info> {
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_update_state.load()?.merkle_tree_index as usize].0))]
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_update_state.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
 
@@ -52,7 +52,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
 
         if merkle_tree_update_state_data.current_instruction_index == 1 {
             compute_updated_merkle_tree(
-                IX_ORDER[merkle_tree_update_state_data.current_instruction_index as usize],
+                IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
                 merkle_tree_update_state_data,
                 &mut merkle_tree_pda_data,
             )?;
@@ -65,7 +65,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         );
 
         compute_updated_merkle_tree(
-            IX_ORDER[merkle_tree_update_state_data.current_instruction_index as usize],
+            IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
             merkle_tree_update_state_data,
             &mut merkle_tree_pda_data,
         )?;

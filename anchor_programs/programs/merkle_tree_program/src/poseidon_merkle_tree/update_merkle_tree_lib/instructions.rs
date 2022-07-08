@@ -30,9 +30,9 @@ pub fn insert_0_double(
         return Err(ProgramError::InvalidInstructionData);
     }
     verifier_state_data.node_left =
-        verifier_state_data.leaves[verifier_state_data.insert_leaves_index as usize][0];
+        verifier_state_data.leaves[usize::try_from(verifier_state_data.insert_leaves_index).unwrap()][0];
     verifier_state_data.node_right =
-        verifier_state_data.leaves[verifier_state_data.insert_leaves_index as usize][1];
+        verifier_state_data.leaves[usize::try_from(verifier_state_data.insert_leaves_index).unwrap()][1];
     println!(
         "verifier_state_data.node_left {:?}",
         verifier_state_data.node_left
@@ -88,11 +88,11 @@ pub fn insert_1_inner_loop(
 
         verifier_state_data.node_left = verifier_state_data.current_level_hash.clone();
         verifier_state_data.node_right =
-            ZERO_BYTES_MERKLE_TREE_18[verifier_state_data.current_level as usize * 32
-                ..(verifier_state_data.current_level as usize * 32 + 32)]
+            ZERO_BYTES_MERKLE_TREE_18[usize::try_from(verifier_state_data.current_level).unwrap() * 32
+                ..(usize::try_from(verifier_state_data.current_level).unwrap() * 32 + 32)]
                 .try_into()
                 .unwrap();
-        merkle_tree_account.filled_subtrees[verifier_state_data.current_level as usize] =
+        merkle_tree_account.filled_subtrees[usize::try_from(verifier_state_data.current_level).unwrap()] =
             verifier_state_data.current_level_hash.clone().to_vec();
         // check if there is another queued leaves pair
         if verifier_state_data.insert_leaves_index < verifier_state_data.number_of_leaves {
@@ -113,7 +113,7 @@ pub fn insert_1_inner_loop(
         }
     } else {
         verifier_state_data.node_left = merkle_tree_account.filled_subtrees
-            [verifier_state_data.current_level as usize]
+            [usize::try_from(verifier_state_data.current_level).unwrap()]
             .clone()
             .try_into()
             .unwrap();

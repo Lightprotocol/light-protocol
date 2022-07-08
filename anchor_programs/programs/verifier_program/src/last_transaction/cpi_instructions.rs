@@ -4,6 +4,7 @@ use merkle_tree_program::utils::config::{
 };
 use crate::utils::config::VERIFIER_INDEX;
 use solana_program;
+use anchor_spl::token::{Transfer, CloseAccount};
 
 
 pub fn initialize_nullifier_cpi<'a, 'b>(
@@ -27,7 +28,6 @@ pub fn initialize_nullifier_cpi<'a, 'b>(
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     let res = merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier, 0u64);
-    msg!("res: {:?}",res);
     res
 }
 
@@ -51,6 +51,7 @@ pub fn check_merkle_root_exists_cpi<'a, 'b>(
     let cpi_ctx2 = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::check_merkle_root_exists(
         cpi_ctx2,
+        0u64,
         merkle_tree_index.into(),
         merkle_root,
     )
@@ -77,6 +78,7 @@ pub fn withdraw_sol_cpi<'a, 'b>(
     cpi_ctx = cpi_ctx.with_remaining_accounts(vec![recipient.clone()]);
     let amount = pub_amount_checked.to_le_bytes().to_vec();
     merkle_tree_program::cpi::withdraw_sol(cpi_ctx, amount, VERIFIER_INDEX, 0u64)
+
 }
 
 pub fn withdraw_spl_cpi<'a, 'b>(
@@ -142,6 +144,39 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         nullifier,
         merkle_tree_tmp_account_bytes,
     )
+}
+
+/// Deposits spl tokens and closes the spl escrow account.
+pub fn deposit_spl_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    merkle_tree_program_id: &'b AccountInfo<'a>,
+    relayer: &'b AccountInfo<'a>,
+    authority: &'b AccountInfo<'a>,
+    escrow_pda: &'b AccountInfo<'a>,
+    merkle_tree_token_pda: &'b AccountInfo<'a>,
+    token_program: &'b AccountInfo<'a>,
+    amount: u64,
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
+    let bump = &[bump];
+    let seeds = &[&[seed.as_slice(), bump][..]];
+
+    let accounts = Transfer {
+        from:       escrow_pda.clone(),
+        to:         merkle_tree_token_pda.clone(),
+        authority:  authority.clone()
+    };
+    let cpi_ctx = CpiContext::new_with_signer(token_program.clone(), accounts, seeds);
+    anchor_spl::token::transfer(cpi_ctx, amount)?;
+
+    let accounts_close = CloseAccount {
+        account:        escrow_pda.clone(),
+        destination:    relayer.clone(),
+        authority:      authority.clone()
+    };
+
+    let cpi_ctx_close = CpiContext::new_with_signer(token_program.clone(), accounts_close, seeds);
+    anchor_spl::token::close_account(cpi_ctx_close)
 }
 
 pub fn get_seeds<'a>(

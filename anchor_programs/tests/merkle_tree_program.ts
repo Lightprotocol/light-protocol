@@ -57,7 +57,7 @@ import {
 var UNREGISTERED_MERKLE_TREE;
 var UNREGISTERED_MERKLE_TREE_PDA_TOKEN;
 var UNREGISTERED_PRE_INSERTED_LEAVES_INDEX;
-
+var RENT_ESCROW
 
 // Security Claims
 // CreateUpdateState
@@ -110,6 +110,8 @@ it("Initialize Merkle Tree", async () => {
     provider.connection,
     ADMIN_AUTH_KEYPAIR
   )
+  RENT_ESCROW = await provider.connection.getMinimumBalanceForRentExemption(256);
+
   await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
   var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
         ADMIN_AUTH_KEYPAIR.publicKey
@@ -201,7 +203,7 @@ it("Merkle Tree update test", async () => {
     // *
     //
 
-    let merkleTree = await light.buildMerkelTree(provider.connection);
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
     let Keypair = new light.Keypair()
 
@@ -220,12 +222,13 @@ it("Merkle Tree update test", async () => {
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
         merkle_tree_pubkey: MERKLE_TREE_KEY,
         provider,
-        relayerFee
+        relayerFee,
+        rent: RENT_ESCROW
       })
       leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
       utxos.push(res[1])
     }
-    let merkleTreeWithdrawal = await light.buildMerkelTree(connection);
+    let merkleTreeWithdrawal = await light.buildMerkelTree(connection, MERKLE_TREE_KEY.toBytes());
 
     const signer = await newAccountWithLamports(provider.connection)
     let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
@@ -529,7 +532,7 @@ it("Merkle Tree update test", async () => {
     var merkleTreeAccountPrior = await connection.getAccountInfo(
       merkle_tree_pubkey
     )
-    merkleTree = await light.buildMerkelTree(provider.connection);
+    merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
 
     // insert correctly
@@ -554,7 +557,7 @@ it("Merkle Tree update test", async () => {
     })
   })
 
-  it("Try 17 shielded transactions", async () => {
+it("Shielded transactions", async () => {
       const userAccount = await newAccountWithLamports(provider.connection)
       const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
@@ -567,7 +570,7 @@ it("Merkle Tree update test", async () => {
       // *
       //
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
+      let merkleTree = await light.buildMerkelTree(provider.connection,MERKLE_TREE_KEY.toBytes());
 
       let Keypair = new light.Keypair()
 
@@ -586,25 +589,13 @@ it("Merkle Tree update test", async () => {
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
           provider,
-          relayerFee
+          relayerFee,
+          rent: RENT_ESCROW
         })
         leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
         utxos.push(res[1])
       }
-      // try {
-      //   await executeUpdateMerkleTreeTransactions({
-      //     connection: provider.connection,
-      //     signer:userAccount,
-      //     merkleTreeProgram: merkleTreeProgram,
-      //     leavesPdas,
-      //     merkleTree,
-      //     merkle_tree_pubkey: MERKLE_TREE_KEY,
-      //     provider
-      //   });
-      // } catch(e) {
-      //   assert(e.error.errorCode.code == 'InvalidNumberOfLeaves')
-      // }
-      // leavesPdas.pop()
+
       await executeUpdateMerkleTreeTransactions({
         connection: provider.connection,
         signer:userAccount,
@@ -625,7 +616,7 @@ it("Merkle Tree update test", async () => {
       // generate utxos
       //
       var leavesPdasWithdrawal = []
-      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
       let deposit_utxo1 = utxos[0][0];
       let deposit_utxo2 = utxos[0][1];
       deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
@@ -657,6 +648,8 @@ it("Merkle Tree update test", async () => {
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         externalAmountBigNumber,
         relayerFee,
         recipientWithdrawal.publicKey.toBase58(),
