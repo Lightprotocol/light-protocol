@@ -23,13 +23,13 @@ pub fn process_compute(ctx: Context<Compute>) -> Result<()> {
 
     if verifier_state_data.computing_prepared_inputs {
         msg!(
-            "CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]: {}",
-            CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]
+            "CURRENT_INDEX_ARRAY[verifier_state_data.current_index]: {}",
+            CURRENT_INDEX_ARRAY[usize::try_from(verifier_state_data.current_index).unwrap()]
         );
         _process_instruction(
-            IX_ORDER[verifier_state_data.current_instruction_index as usize],
+            IX_ORDER[usize::try_from(verifier_state_data.current_instruction_index).unwrap()],
             verifier_state_data,
-            usize::from(CURRENT_INDEX_ARRAY[verifier_state_data.current_index as usize]),
+            usize::from(CURRENT_INDEX_ARRAY[usize::try_from(verifier_state_data.current_index).unwrap()]),
         )?;
         verifier_state_data.current_index += 1;
     } else if verifier_state_data.computing_miller_loop {

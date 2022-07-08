@@ -5,6 +5,7 @@ import { BigNumber, providers } from 'ethers'
 const light = require('../../light-protocol-sdk');
 import * as anchor from "@project-serum/anchor";
 const { SystemProgram } = require('@solana/web3.js');
+const token = require('@solana/spl-token')
 
 import {
   read_and_parse_instruction_data_bytes,
@@ -100,11 +101,14 @@ export const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) 
 export async function deposit({
   Keypair,
   encryptionKeypair,
+  MINT,
   amount, // 1_000_000_00
   connection,
   merkleTree,
+  merkleTreeIndex,
   merkleTreePdaToken,
   userAccount,
+  userAccountToken,
   verifierProgram,
   merkleTreeProgram,
   authority,
@@ -112,7 +116,9 @@ export async function deposit({
   merkle_tree_pubkey,
   provider,
   relayerFee,
-  lastTx
+  lastTx = true,
+  is_token = false,
+  rent
 }) {
   const burnerUserAccount = await newAccountWithLamports(connection)
 
@@ -121,11 +127,18 @@ export async function deposit({
 
   let inputUtxos = [new light.Utxo(), new light.Utxo()]
   let outputUtxos = [deposit_utxo1, deposit_utxo2 ]
-
+  var merkleTreeIndex
+  if (!is_token) {
+    merkleTreeIndex = 0
+  } else if (is_token) {
+    merkleTreeIndex = 1
+  }
   const data = await light.getProof(
     inputUtxos,
     outputUtxos,
     merkleTree,
+    merkleTreeIndex,
+    merkle_tree_pubkey.toBytes(),
     deposit_utxo1.amount.add(deposit_utxo2.amount),
     U64(0),
     merkleTreePdaToken.toBase58(),
@@ -134,7 +147,6 @@ export async function deposit({
     encryptionKeypair
   )
   let ix_data = parse_instruction_data_bytes(data);
-
   let pdas = getPdaAddresses({
     tx_integrity_hash: ix_data.txIntegrityHash,
     nullifier0: ix_data.nullifier0,
@@ -143,12 +155,24 @@ export async function deposit({
     merkleTreeProgram,
     verifierProgram
   })
-
+  if (is_token == true) {
+    await token.approve(
+      provider.connection,
+      userAccount,
+      userAccountToken,
+      authority, //delegate
+      userAccount.publicKey, // owner
+      I64.readLE(ix_data.extAmount,0).toNumber(), // amount
+      []
+    )
+  }
   let leavesPda = await transact({
     connection: connection,
+    MINT,
     ix_data,
     pdas,
     origin: userAccount,
+    origin_token: userAccountToken,
     signer: burnerUserAccount,
     recipient: merkleTreePdaToken,
     batch_insert: true,
@@ -161,7 +185,10 @@ export async function deposit({
     merkle_tree_pubkey,
     provider,
     relayerFee,
-    lastTx
+    lastTx,
+    is_token,
+    createEscrow: true,
+    rent
   })
 
   return [leavesPda, outputUtxos, burnerUserAccount, pdas];
@@ -172,6 +199,8 @@ export async function transact({
   ix_data,
   pdas,
   origin,
+  origin_token,
+  MINT,
   signer,
   recipient,
   relayer_recipient,
@@ -184,44 +213,83 @@ export async function transact({
   merkle_tree_pubkey,
   provider,
   relayerFee,
-  lastTx
+  lastTx,
+  createEscrow = true,
+  is_token,
+  rent
 }) {
   if (lastTx == undefined) {
     lastTx = true
+  }
+  if (is_token == undefined) {
+    is_token = false
   }
   // tx fee in lamports
   let tx_fee = 5000 * PREPARED_INPUTS_TX_COUNT + MILLER_LOOP_TX_COUNT + FINAL_EXPONENTIATION_TX_COUNT + 2* MERKLE_TREE_UPDATE_TX_COUNT;
   var userAccountPriorLastTx;
   let senderAccountBalancePriorLastTx
-  if (mode === "deposit") {
+  let escrowTokenAccount
+  let recipientBalancePriorLastTx
+
+  console.log("mode: " ,mode, "is_token: ", is_token);
+
+  if (mode === "deposit"&& is_token == false) {
     userAccountPriorLastTx = await connection.getAccountInfo(
           origin.publicKey
         )
     senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
+    var recipientAccountPriorLastTx = await connection.getAccountInfo(
+          recipient
+        )
+    recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
 
-  } else if (mode === "withdrawal") {
+  } else if (mode === "deposit"&& is_token == true) {
+    senderAccountBalancePriorLastTx = (await token.getAccount(
+      provider.connection,
+      origin_token,
+      token.TOKEN_PROGRAM_ID
+    )).amount;
+    recipientBalancePriorLastTx = (await token.getAccount(
+      provider.connection,
+      recipient,
+      token.TOKEN_PROGRAM_ID
+    )).amount;
+  } else if (mode === "withdrawal"&& is_token == false) {
+
     userAccountPriorLastTx = await connection.getAccountInfo(
           origin
         )
-    senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
 
+    senderAccountBalancePriorLastTx = userAccountPriorLastTx.lamports;
+    var recipientAccountPriorLastTx = await connection.getAccountInfo(
+          recipient
+        )
+
+    recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
+
+  } else if (mode === "withdrawal"&& is_token == true) {
+
+    senderAccountBalancePriorLastTx = (await token.getAccount(
+      provider.connection,
+      origin_token,
+      token.TOKEN_PROGRAM_ID
+    )).amount;
+    recipientBalancePriorLastTx = (await token.getAccount(
+      provider.connection,
+      recipient,
+      token.TOKEN_PROGRAM_ID
+    )).amount;
   }
 
-
-  var recipientAccountPriorLastTx = await connection.getAccountInfo(
-        recipient
-      )
-
-  let recipientBalancePriorLastTx = recipientAccountPriorLastTx != null ? recipientAccountPriorLastTx.lamports : 0;
-
-  if (mode === "deposit") {
+  if (mode === "deposit"&& createEscrow == true && is_token == false) {
     console.log("creating escrow")
     // create escrow account
     const tx = await verifierProgram.methods.createEscrow(
           ix_data.txIntegrityHash,
           new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
           ix_data.fee,
-          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+          new anchor.BN(0)
         ).accounts(
               {
                 signingAddress: signer.publicKey,
@@ -229,6 +297,9 @@ export async function transact({
                 systemProgram: SystemProgram.programId,
                 feeEscrowState: pdas.feeEscrowStatePubkey,
                 user:           origin.publicKey,
+                systemProgram: SystemProgram.programId,
+                token_program: token.TOKEN_PROGRAM_ID,
+                tokenAuthority: authority
               }
             ).signers([signer, origin]).rpc();
 
@@ -239,11 +310,66 @@ export async function transact({
         user_pubkey: origin.publicKey,
         relayer_pubkey: signer.publicKey,
         tx_fee: new anchor.BN(tx_fee),//check doesn t work
-        verifierProgram
+        verifierProgram,
+        rent
       });
+  } else if (mode === "deposit"&& createEscrow == true && is_token == true) {
+    escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      signer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        verifierProgram.programId
+      )[0];
+    let amount = U64.readLE(ix_data.extAmount, 0).toNumber()
+
+     try {
+       const tx = await verifierProgram.methods.createEscrow(
+             ix_data.txIntegrityHash,
+             new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+             ix_data.fee,
+             new anchor.BN(amount),
+             new anchor.BN(1)
+       ).accounts(
+           {
+             feeEscrowState: pdas.feeEscrowStatePubkey,
+             verifierState:  pdas.verifierStatePubkey,
+             signingAddress: signer.publicKey,
+             user:           origin.publicKey,
+             systemProgram:  SystemProgram.programId,
+             tokenProgram:  token.TOKEN_PROGRAM_ID,
+             tokenAuthority: authority//tokenAuthority
+           }
+         ).remainingAccounts([
+           { isSigner: false, isWritable: true, pubkey: origin_token},
+           { isSigner: false, isWritable: true, pubkey:escrowTokenAccount }
+         ]).preInstructions([
+           SystemProgram.createAccountWithSeed({
+             basePubkey:signer.publicKey,
+             seed: anchor.utils.bytes.utf8.encode("escrow"),
+             fromPubkey: signer.publicKey,
+             newAccountPubkey: escrowTokenAccount,
+             space: token.ACCOUNT_SIZE,
+             lamports: await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE),
+             programId: token.TOKEN_PROGRAM_ID
+           }),
+           token.createInitializeAccountInstruction(
+            escrowTokenAccount, //new account
+            MINT, // mint
+            authority,
+            tokenAuthority, //owner
+          )
+        ]).signers([signer, origin]).transaction();
+        tx.instructions[1].programId = token.TOKEN_PROGRAM_ID
+        await provider.sendAndConfirm(tx, [signer, origin]);
+     } catch (e) {
+       console.log("e createEscrow", e)
+     }
   }
   try  {
-    const tx = await verifierProgram.methods.createVerifierState(
+      const tx = await verifierProgram.methods.createVerifierState(
           ix_data.proofAbc,
           ix_data.rootHash,
           ix_data.amount,
@@ -267,6 +393,7 @@ export async function transact({
                 programMerkleTree:  merkleTreeProgram.programId,
               }
           ).signers([signer]).rpc()
+
   } catch(e) {
     console.log(e)
     process.exit()
@@ -295,21 +422,31 @@ export async function transact({
   })
 
   console.log("Compute Instructions Executed");
+  let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("spl")],
+      merkleTreeProgram.programId
+    )[0];
 
+  if (mode == "deposit" && lastTx && is_token == true) {
+    console.log(`mode ${mode}, token: ${is_token}`)
 
-  if (mode == "deposit" && lastTx) {
-    console.log(mode)
+    let escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      signer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
     var userAccountInfo = await connection.getAccountInfo(
           pdas.feeEscrowStatePubkey
-        )
+    )
+
     const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
+    try {
 
     const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
           ).accounts(
               {
                 signingAddress: signer.publicKey,
                 verifierState: pdas.verifierStatePubkey,
-                // merkleTreeUpdateState:pdas.merkleTreeUpdateState,
                 systemProgram: SystemProgram.programId,
                 programMerkleTree: merkleTreeProgram.programId,
                 rent: DEFAULT_PROGRAMS.rent,
@@ -325,14 +462,75 @@ export async function transact({
                 preInsertedLeavesIndex: preInsertedLeavesIndex,
                 authority: authority
               }
-            ).preInstructions([
+            ).remainingAccounts([
+              { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },       //
+            ]).preInstructions([
               SystemProgram.transfer({
                 fromPubkey: signer.publicKey,
                 toPubkey: authority,
                 lamports: (await connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760, //(await connection.getMinimumBalanceForRentExemption(256)),
               })
             ]).signers([signer]).rpc()
+      } catch(e){
+        console.log(e)
+      }
+      console.log("checkLastTxSuccess")
+      await checkLastTxSuccess({
+        connection,
+        pdas,
+        sender: pdas.feeEscrowStatePubkey,
+        senderAccountBalancePriorLastTx,
+        relayer: signer.publicKey,
+        recipient: recipient,
+        recipientBalancePriorLastTx,
+        ix_data,
+        mode,
+        merkleTreeProgram,
+        pre_inserted_leaves_index: preInsertedLeavesIndex,
+        relayerFee,
+        is_token: true,
+        escrowTokenAccount
+      })
+  } else if (mode == "deposit" && lastTx) {
+    console.log(mode)
+    var userAccountInfo = await connection.getAccountInfo(
+          pdas.feeEscrowStatePubkey
+        )
+    const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
+    try {
+      const txLastTransaction = await verifierProgram.methods.lastTransactionDeposit(
+            ).accounts(
+                {
+                  signingAddress: signer.publicKey,
+                  verifierState: pdas.verifierStatePubkey,
+                  // merkleTreeUpdateState:pdas.merkleTreeUpdateState,
+                  systemProgram: SystemProgram.programId,
+                  programMerkleTree: merkleTreeProgram.programId,
+                  rent: DEFAULT_PROGRAMS.rent,
+                  nullifier0Pda: pdas.nullifier0PdaPubkey,
+                  nullifier1Pda: pdas.nullifier1PdaPubkey,
+                  twoLeavesPda: pdas.leavesPdaPubkey,
+                  escrowPda: pdas.escrowPdaPubkey,
+                  merkleTreePdaToken: recipient,
+                  userAccount: origin.publicKey,
+                  merkleTree: merkle_tree_pubkey,
+                  feeEscrowState: pdas.feeEscrowStatePubkey,
+                  merkleTreeProgram:  merkleTreeProgram.programId,
+                  preInsertedLeavesIndex: preInsertedLeavesIndex,
+                  authority: authority
+                }
+              ).preInstructions([
+                SystemProgram.transfer({
+                  fromPubkey: signer.publicKey,
+                  toPubkey: authority,
+                  lamports: (await connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760, //(await connection.getMinimumBalanceForRentExemption(256)),
+                })
+              ]).signers([signer]).rpc()
 
+
+    } catch(e) {
+      console.log(e)
+    }
 
       await checkLastTxSuccess({
         connection,
@@ -348,26 +546,36 @@ export async function transact({
         pre_inserted_leaves_index: preInsertedLeavesIndex,
         relayerFee
       })
-  } else if (mode== "withdrawal" && lastTx) {
-    console.log(mode)
+  } else if (mode== "withdrawal" && lastTx && is_token == true) {
 
+    let relayerAccountBalancePriorLastTx = (await token.getAccount(
+      connection,
+      relayer_recipient,
+      token.TOKEN_PROGRAM_ID
+    )).amount;
+
+    console.log(mode, is_token)
+
+    try {
     const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
       ).accounts(
           {
             signingAddress: signer.publicKey,
-            verifierState: pdas.verifierStatePubkey,
-            systemProgram: SystemProgram.programId,
-            programMerkleTree: merkleTreeProgram.programId,
-            rent: DEFAULT_PROGRAMS.rent,
             nullifier0Pda: pdas.nullifier0PdaPubkey,
             nullifier1Pda: pdas.nullifier1PdaPubkey,
             twoLeavesPda: pdas.leavesPdaPubkey,
-            merkleTreePdaToken: origin,
+            verifierState: pdas.verifierStatePubkey,
+            programMerkleTree: merkleTreeProgram.programId,
+            systemProgram: SystemProgram.programId,
+            rent: DEFAULT_PROGRAMS.rent,
+            merkleTreePdaToken: origin_token,
             merkleTree: merkle_tree_pubkey,
             recipient:  recipient,
-            relayerRecipient: relayer_recipient.publicKey,
+            relayerRecipient: relayer_recipient,
             preInsertedLeavesIndex: preInsertedLeavesIndex,
-            authority: authority
+            authority: authority,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -376,26 +584,80 @@ export async function transact({
             lamports: (await connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760,//(await connection.getMinimumBalanceForRentExemption(256)),
           })
         ]).signers([signer]).rpc()
+        console.log("success")
+      } catch(e) {
+        console.log(e)
+      }
+      await checkLastTxSuccess({
+        connection,
+        pdas,
+        sender:origin_token,
+        relayer:relayer_recipient,
+        relayerAccountBalancePriorLastTx,
+        senderAccountBalancePriorLastTx,
+        recipient: recipient,
+        recipientBalancePriorLastTx,
+        ix_data,
+        mode,
+        merkleTreeProgram,
+        pre_inserted_leaves_index: preInsertedLeavesIndex,
+        relayerFee,
+        is_token: true
+      })
 
+    console.log("token withdrawal success")
 
-    await checkLastTxSuccess({
-      connection,
-      pdas,
-      sender:origin,
-      relayer:signer.publicKey,
-      senderAccountBalancePriorLastTx,
-      recipient: recipient,
-      recipientBalancePriorLastTx,
-      ix_data,
-      mode,
-      merkleTreeProgram,
-      pre_inserted_leaves_index: preInsertedLeavesIndex,
-      relayerFee
-    })
-    console.log("withdrawal success")
+  } else if (mode== "withdrawal" && lastTx) {
+      console.log(mode)
+      let relayerAccountBalancePriorLastTx = (await connection.getAccountInfo(signer.publicKey)).lamports
+      const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
+        ).accounts(
+            {
+              signingAddress: signer.publicKey,
+              verifierState: pdas.verifierStatePubkey,
+              systemProgram: SystemProgram.programId,
+              programMerkleTree: merkleTreeProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              nullifier0Pda: pdas.nullifier0PdaPubkey,
+              nullifier1Pda: pdas.nullifier1PdaPubkey,
+              twoLeavesPda: pdas.leavesPdaPubkey,
+              merkleTreePdaToken: origin,
+              merkleTree: merkle_tree_pubkey,
+              recipient:  recipient,
+              relayerRecipient: relayer_recipient.publicKey,
+              preInsertedLeavesIndex: preInsertedLeavesIndex,
+              authority: authority,
+              tokenAuthority,
+              tokenProgram: token.TOKEN_PROGRAM_ID
+            }
+          ).preInstructions([
+            SystemProgram.transfer({
+              fromPubkey: signer.publicKey,
+              toPubkey: authority,
+              lamports: (await connection.getMinimumBalanceForRentExemption(8)) * 2 + 3173760,//(await connection.getMinimumBalanceForRentExemption(256)),
+            })
+          ]).signers([signer]).transaction()
+        await provider.sendAndConfirm(txLastTransaction, [signer])
 
-  } else {
-    console.log("mode not supplied");
+      await checkLastTxSuccess({
+        connection,
+        pdas,
+        sender:origin,
+        relayer:signer.publicKey,
+        senderAccountBalancePriorLastTx,
+        recipient: recipient,
+        recipientBalancePriorLastTx,
+        ix_data,
+        mode,
+        merkleTreeProgram,
+        pre_inserted_leaves_index: preInsertedLeavesIndex,
+        relayerFee,
+        relayerAccountBalancePriorLastTx
+      })
+      console.log("withdrawal success")
+
+    } else {
+    console.log("lastTx ", lastTx);
   }
 
   return pdas.leavesPdaPubkey;
@@ -431,8 +693,7 @@ export async function executeXComputeTransactions({
     }
     await Promise.all(arr.map(async (tx, index) => {
     await provider.sendAndConfirm(tx.tx, tx.signers);
-    }));
-
+  }));
 }
 
 export async function executeUpdateMerkleTreeTransactions({
@@ -440,6 +701,7 @@ export async function executeUpdateMerkleTreeTransactions({
   merkleTreeProgram,
   leavesPdas,
   merkleTree,
+  merkleTreeIndex,
   merkle_tree_pubkey,
   connection,
   provider
@@ -454,7 +716,7 @@ let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
 
 
 const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
-    new anchor.BN(0) // merkle tree index
+    new anchor.BN(merkleTreeIndex) // merkle tree index
     ).accounts(
         {
           authority: signer.publicKey,
@@ -467,15 +729,15 @@ const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
         leavesPdas
       ).signers([signer]).rpc()
 
-await checkMerkleTreeUpdateStateCreated({
-  connection: connection,
-  merkleTreeUpdateState,
-  MerkleTree: merkle_tree_pubkey,
-  relayer: signer.publicKey,
-  leavesPdas,
-  current_instruction_index: 1,
-  merkleTreeProgram
-})
+  await checkMerkleTreeUpdateStateCreated({
+    connection: connection,
+    merkleTreeUpdateState,
+    MerkleTree: merkle_tree_pubkey,
+    relayer: signer.publicKey,
+    leavesPdas,
+    current_instruction_index: 1,
+    merkleTreeProgram
+  })
 
   await executeMerkleTreeUpdateTransactions({
     signer,
@@ -509,64 +771,7 @@ await checkMerkleTreeUpdateStateCreated({
       ).signers([signer]).rpc()
   } catch (e) {
     console.log(e)
-    // sending 10 additional tx to finish the merkle tree update
   }
-  /*
-  for (var retry = 0; retry < 10; retry++) {
-    try {
-      console.log("final tx to insert root")
-        await merkleTreeProgram.methods.insertRootMerkleTree(
-          new anchor.BN(254))
-        .accounts({
-          authority: signer.publicKey,
-          merkleTreeUpdateState: merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey
-        }).remainingAccounts(
-          leavesPdas
-        ).signers([signer]).rpc()
-        break;
-    } catch (e) {
-      console.log(e)
-      // sending 10 additional tx to finish the merkle tree update
-    }
-    let arr_retry = []
-    for(let ix_id = 0; ix_id < 10; ix_id ++) {
-
-      const transaction = new solana.Transaction();
-      transaction.add(
-        await merkleTreeProgram.methods.updateMerkleTree(new anchor.BN(i))
-        .accounts({
-          authority: signer.publicKey,
-          // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeUpdateState: merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey
-        }).instruction()
-      )
-      i+=1;
-      transaction.add(
-        await merkleTreeProgram.methods.updateMerkleTree(new anchor.BN(i)).accounts({
-          authority: signer.publicKey,
-          // verifierStateAuthority:pdas.verifierStatePubkey,
-          merkleTreeUpdateState: merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey
-        }).instruction()
-      )
-      i+=1;
-
-      arr_retry.push({tx:transaction, signers: [signer]})
-    }
-    console.log(`created ${arr.length} Merkle tree update tx`);
-
-
-    await Promise.all(arr_retry.map(async (tx, index) => {
-      try {
-        await provider.sendAndConfirm(tx.tx, tx.signers);
-      } catch (e) {
-        console.log("e: ", e)
-      }
-    }));
-  }
-  */
 
   await checkMerkleTreeBatchUpdateSuccess({
     connection: connection,
@@ -621,4 +826,79 @@ export async function executeMerkleTreeUpdateTransactions({
     await provider.sendAndConfirm(tx.tx, tx.signers);
 
   }));
+}
+export async function createVerifierState({
+  provider,
+  ix_data,
+  relayer,
+  pdas,
+  merkleTree,
+  merkleTreeProgram,
+  verifierProgram
+}) {
+  try  {
+    const tx = await verifierProgram.methods.createVerifierState(
+      ix_data.proofAbc,
+      ix_data.rootHash,
+      ix_data.amount,
+      ix_data.txIntegrityHash,
+      ix_data.nullifier0,
+      ix_data.nullifier1,
+      ix_data.leafRight,
+      ix_data.leafLeft,
+      ix_data.recipient,
+      ix_data.extAmount,
+      ix_data.relayer,
+      ix_data.fee,
+      ix_data.encryptedUtxos,
+      ix_data.merkleTreeIndex
+    ).accounts(
+      {
+        signingAddress: relayer.publicKey,
+        verifierState: pdas.verifierStatePubkey,
+        systemProgram: SystemProgram.programId,
+        merkleTree,
+        programMerkleTree:  merkleTreeProgram.programId,
+      }
+    ).signers([relayer]).transaction()
+    await provider.sendAndConfirm(tx, [relayer])
+  } catch(e) {
+    console.log(e)
+    process.exit()
+  }
+
+  checkVerifierStateAccountCreated({
+    connection: provider.connection,
+    pda: pdas.verifierStatePubkey,
+    ix_data,
+    relayer_pubkey:relayer.publicKey
+  })
+
+}
+export async function newAccountWithTokens ({
+  connection,
+  MINT,
+  ADMIN_AUTH_KEYPAIR,
+  userAccount,
+  amount
+}) {
+
+  var tokenAccount = await token.getOrCreateAssociatedTokenAccount(
+     connection,
+     userAccount,
+     MINT,
+     userAccount.publicKey
+ );
+
+ await token.mintTo(
+   connection,
+   ADMIN_AUTH_KEYPAIR,
+   MINT,
+   tokenAccount.address,
+   ADMIN_AUTH_KEYPAIR.publicKey,
+   amount,
+   []
+ );
+
+ return tokenAccount.address;
 }

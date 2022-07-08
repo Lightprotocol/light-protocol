@@ -3,6 +3,7 @@ const {U64, I64} = require('n64');
 import { assert, expect } from "chai";
 import { BigNumber, providers } from 'ethers'
 const light = require('../../light-protocol-sdk');
+const token = require('@solana/spl-token')
 
 import {
   read_and_parse_instruction_data_bytes,
@@ -38,13 +39,34 @@ export async function checkEscrowAccountCreated({
   relayer_pubkey,
   ix_data,
   tx_fee,
-  verifierProgram
+  verifierProgram,
+  is_token = false,
+  escrowTokenAccount,
+  rent
 }) {
-  var userAccountInfo = await connection.getAccountInfo(
+  var escrowAccountInfo = await connection.getAccountInfo(
     pdas.feeEscrowStatePubkey
   )
-  const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', userAccountInfo.data);
-  assert(userAccountInfo.lamports, U64.readLE(ix_data.extAmount, 0).toString(), "incorrect amount transferred");
+  const accountAfterUpdate = verifierProgram.account.verifierState._coder.accounts.decode('FeeEscrowState', escrowAccountInfo.data);
+  if (!is_token) {
+    // console.log(`${(escrowAccountInfo.lamports ).toString()} rent ${rent} tx_fee ${tx_fee} ${U64.readLE(ix_data.extAmount, 0).toString()}`)
+    //
+    // console.log(`${(escrowAccountInfo.lamports - rent - tx_fee).toString()} ${U64.readLE(ix_data.extAmount, 0).toString()}`)
+    assert((escrowAccountInfo.lamports - rent - tx_fee).toString() == U64.readLE(ix_data.extAmount, 0).toString(), "incorrect amount transferred");
+  } else {
+    // console.log(` ${escrowAccountInfo.lamports - rent}, ${tx_fee}`)
+    // console.log(` ${escrowAccountInfo.lamports} rent ${ rent}, ${tx_fee}`)
+assert((escrowAccountInfo.lamports - rent).toString() == tx_fee.toString(), "incorrect tx fee transferred");
+
+    let escrowTokenAccountInfo = await token.getAccount(
+      connection,
+      escrowTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+    assert(escrowTokenAccountInfo.amount.toString() ==  U64.readLE(ix_data.extAmount, 0).toString());
+  }
+
+  // console.log(`accountAfterUpdate.txFee.toString(): ${accountAfterUpdate.txFee.toString()} vs ${tx_fee.toString()}`)
   assert(accountAfterUpdate.txFee.toString() == tx_fee.toString(), "tx_fee insert wrong");
   assert(accountAfterUpdate.relayerFee.toString() == U64.readLE(ix_data.fee, 0).toString(), "relayer_fee insert wrong");
   assert(accountAfterUpdate.relayerPubkey.toBase58() == relayer_pubkey.toBase58(), "relayer_pubkey insert wrong");
@@ -127,7 +149,9 @@ export async function checkLastTxSuccess({
   ix_data,
   mode,
   pre_inserted_leaves_index,
-  relayerFee
+  relayerFee,
+  is_token = false,
+  escrowTokenAccount
 }){
   var verifierStateAccount = await connection.getAccountInfo(
     pdas.verifierStatePubkey
@@ -179,32 +203,91 @@ export async function checkLastTxSuccess({
 
   assert(Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) == Number(leavesAccountData.leafIndex) + 2)
 
-  var senderAccount = await connection.getAccountInfo(sender)
-  var recipientAccount = await connection.getAccountInfo(recipient)
 
-  if (mode == "deposit") {
-
-    // console.log(`Balance now ${senderAccount.lamports} balance beginning ${senderAccountBalancePriorLastTx}`)
-    // // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
-    //
-    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${recipientBalancePriorLastTx}`)
-    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${(I64(recipientBalancePriorLastTx) + I64.readLE(ix_data.extAmount, 0)).toString()}`)
+  if (mode == "deposit" && is_token == false) {
+    var recipientAccount = await connection.getAccountInfo(recipient)
     assert(recipientAccount.lamports == (I64(recipientBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).toString(), "amount not transferred correctly");
 
-  } else if (mode == "withdrawal") {
+  } else if (mode == "deposit" && is_token == true) {
+
+    var feeEscrowTokenAccount = await connection.getAccountInfo(
+      escrowTokenAccount
+    )
+    assert(feeEscrowTokenAccount == null, "Shielded transaction failed feeEscrowTokenAccount is not closed")
+
+      var recipientAccount = await token.getAccount(
+      connection,
+      recipient,
+      token.TOKEN_PROGRAM_ID
+    );
+
+    // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
+    // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(ix_data.extAmount, 0)).toString(), "amount not transferred correctly");
+
+    // console.log(`Balance now ${recipientAccount.amount} balance beginning ${recipientBalancePriorLastTx}`)
+    // console.log(`Balance now ${recipientAccount.amount} balance beginning ${(I64(Number(recipientBalancePriorLastTx)) + I64.readLE(ix_data.extAmount, 0)).toString()}`)
+    assert(recipientAccount.amount == (I64(Number(recipientBalancePriorLastTx)).add(I64.readLE(ix_data.extAmount, 0))).toString(), "amount not transferred correctly");
+
+  } else if (mode == "withdrawal" && is_token == false) {
     var senderAccount = await connection.getAccountInfo(sender)
-    // console.log("senderAccount: ", senderAccount)
-    // console.log("senderAccountBalancePriorLastTx: ", senderAccountBalancePriorLastTx)
-    //
-    // console.log(`Balance now ${senderAccount.lamports} balance beginning ${I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0)).sub(I64(relayerFee))} ${I64.readLE(ix_data.extAmount, 0)} ${I64(relayerFee)}`)
+    var recipientAccount = await connection.getAccountInfo(recipient)
+    // console.log("senderAccount.lamports: ", senderAccount.lamports)
+    // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
+    // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).sub(I64(relayerFee))).toString())
+
     assert(senderAccount.lamports == ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(ix_data.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
 
     var recipientAccount = await connection.getAccountInfo(recipient)
-    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${I64(recipientBalancePriorLastTx).toString()}`)
+    // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(recipientBalancePriorLastTx)).sub(I64.readLE(ix_data.extAmount, 0))).add(I64(relayerFee))).toString()}
+    // Number(recipientBalancePriorLastTx): ${Number(recipientBalancePriorLastTx)}
+    // relayerFee: ${Number(relayerFee)}
+    // `)
+    assert(recipientAccount.lamports == ((I64(Number(recipientBalancePriorLastTx)).sub(I64.readLE(ix_data.extAmount, 0)))).toString(), "amount not transferred correctly");
+    // var relayerAccount = await connection.getAccountInfo(
+    //   relayer
+    // )
+    // console.log("relayer: ", relayer.toBase58())
+    // let rent_verifier = await connection.getMinimumBalanceForRentExemption(5120)
+    // // let rent_escrow = await connection.getMinimumBalanceForRentExemption(256)
+    // let rent_nullifier = await connection.getMinimumBalanceForRentExemption(0)
+    // let rent_leaves = await connection.getMinimumBalanceForRentExemption(256)
+    // console.log("rent_verifier: ", rent_verifier)
+    // console.log("rent_nullifier: ", rent_nullifier)
+    // console.log("rent_leaves: ", rent_leaves)
+    //
+    // let expectedBalanceRelayer = I64(relayerFee)
+    //   .add(I64(Number(relayerAccountBalancePriorLastTx)))
+    //   .add(I64(Number(rent_verifier)))
+    //   // .add(I64(Number(rent_escrow)))
+    //   .sub(I64(Number(rent_nullifier)))
+    //   .sub(I64(Number(rent_nullifier)))
+    //   .sub(I64(Number(rent_leaves)))
+    // console.log("relayerAccountBalancePriorLastTx: ", relayerAccountBalancePriorLastTx)
+    // console.log(`${relayerAccount.lamports } == ${expectedBalanceRelayer}`)
+    // assert(relayerAccount.lamports == expectedBalanceRelayer.toString())
 
-    // console.log(`Balance now ${recipientAccount.lamports} balance beginning ${((I64(recipientBalancePriorLastTx).sub(I64.readLE(ix_data.extAmount, 0))).add(I64(relayerFee))).toString()}`)
-    assert(recipientAccount.lamports == ((I64(recipientBalancePriorLastTx).sub(I64.readLE(ix_data.extAmount, 0))).add(I64(relayerFee))).toString(), "amount not transferred correctly");
+  }  else if (mode == "withdrawal" && is_token == true) {
+    var senderAccount = await token.getAccount(
+      connection,
+      sender,
+      token.TOKEN_PROGRAM_ID
+    );
+    var recipientAccount = await token.getAccount(
+      connection,
+      recipient,
+      token.TOKEN_PROGRAM_ID
+    );
 
+    var relayerAccount = await token.getAccount(
+      connection,
+      relayer,
+      token.TOKEN_PROGRAM_ID
+    );
+    assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(ix_data.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+    // console.log(`${recipientAccount.amount}, ${Number(recipientBalancePriorLastTx)} ${I64.readLE(ix_data.extAmount, 0)} ${I64(relayerFee)}`)
+    assert(recipientAccount.amount == ((I64(Number(recipientBalancePriorLastTx)).sub(I64.readLE(ix_data.extAmount, 0)))).toString(), "amount not transferred correctly");
+    // console.log(`relayerAccount.amount ${relayerAccount.amount} == I64(relayerFee) ${I64(relayerFee)} + ${relayerAccountBalancePriorLastTx}`)
+    assert(relayerAccount.amount == (I64(relayerFee).add(I64(Number(relayerAccountBalancePriorLastTx)))).toString())
   } else {
     throw Error("mode not supplied");
   }
@@ -284,7 +367,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   // console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}
   // `)
   // index has increased by numberOfLeaves
-  console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
+  // console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
   assert(merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString() == U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
 
   let leavesPdasPubkeys = []
@@ -314,7 +397,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkleTree.root().toHexString()
   )
   // Comparing locally generated root with merkle tree built from leaves fetched from chain.
-  assert(merkleTree.root().toHexString() == (await light.buildMerkelTree(connection)).root().toHexString());
+  assert(merkleTree.root().toHexString() == (await light.buildMerkelTree(connection, merkle_tree_pubkey.toBytes())).root().toHexString());
 
 }
 

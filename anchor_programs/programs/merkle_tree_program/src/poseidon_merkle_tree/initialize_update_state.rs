@@ -25,7 +25,7 @@ pub struct InitializeUpdateState<'info> {
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK: that the merkle tree is registered.
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountInfo<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
@@ -38,10 +38,6 @@ pub fn process_initialize_update_state(
     msg!("InitializeUpdateState");
     msg!("merkle_tree_index: {}", merkle_tree_index);
 
-    // if ctx.accounts.merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0) {
-    //     msg!("merkle_tree_index: {}", merkle_tree_index);
-    //     return err!(ErrorCode::MtTmpPdaInitFailed);
-    // }
     let verifier_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
     verifier_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
     verifier_state_data.relayer = ctx.accounts.authority.key();
@@ -91,7 +87,7 @@ pub fn process_initialize_update_state(
                 Pubkey::new(&leaves_pda_data.merkle_tree_pubkey),
                 ctx.accounts.merkle_tree.key()
             );
-            return err!(ErrorCode::LeafAlreadyInserted);
+            return err!(ErrorCode::LeavesOfWrongTree);
         }
 
         // Checking that index is correct.

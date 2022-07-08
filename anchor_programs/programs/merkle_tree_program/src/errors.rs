@@ -29,5 +29,8 @@ pub enum ErrorCode {
     #[msg("FirstLeavesPdaIncorrectIndex")]
     FirstLeavesPdaIncorrectIndex,
     #[msg("NullifierAlreadyExists")]
-    NullifierAlreadyExists
+    NullifierAlreadyExists,
+    #[msg("LeavesOfWrongTree")]
+    LeavesOfWrongTree
+
 }

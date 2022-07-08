@@ -15,10 +15,10 @@ use std::cell::RefMut;
 
 use crate::last_transaction::cpi_instructions::{
     check_merkle_root_exists_cpi, initialize_nullifier_cpi, insert_two_leaves_cpi, withdraw_sol_cpi,
-    withdraw_spl_cpi
+    withdraw_spl_cpi, deposit_spl_cpi
 };
 
-pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
+pub fn process_last_transaction_deposit<'info>(ctx: Context<'_, '_, '_, 'info, LastTransactionDeposit<'info>>) -> Result<()> {
     let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
 
     if !verifier_state.last_transaction {
@@ -36,15 +36,40 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         );
         return err!(ErrorCode::NotLastTransactionState);
     }
+
     // Deposit
-    msg!("starting sol transfer");
-    sol_transfer(
-        &ctx.accounts.fee_escrow_state.to_account_info(),
-        &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-        pub_amount_checked,
-    )?;
+    if verifier_state.merkle_tree_index == 0 {
+        msg!("starting sol transfer");
+
+        sol_transfer(
+            &ctx.accounts.fee_escrow_state.to_account_info(),
+            &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+            pub_amount_checked,
+        )?;
+    } else {
+        msg!("starting spl transfer");
+        let address= solana_program::pubkey::Pubkey::create_with_seed(
+            &ctx.accounts.signing_address.key(),
+            "escrow",
+            &ctx.accounts.token_program.key()).unwrap();
+
+        if ctx.remaining_accounts[0].key() != address {
+            return err!(ErrorCode::IncorrectTokenEscrowAcc);
+        }
+        deposit_spl_cpi(
+            &ctx.program_id,
+            &ctx.accounts.program_merkle_tree.to_account_info(),
+            &ctx.accounts.signing_address.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.remaining_accounts[0].to_account_info(),
+            &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+            &ctx.accounts.token_program.to_account_info(),
+            pub_amount_checked
+        )?;
+    }
 
     let merkle_tree_program_id = ctx.accounts.program_merkle_tree.to_account_info();
+
 
     initialize_nullifier_cpi(
         &ctx.program_id,
@@ -89,6 +114,8 @@ pub fn process_last_transaction_deposit(ctx: Context<LastTransactionDeposit>) ->
         ctx.accounts.merkle_tree.key().to_bytes(),
         verifier_state.encrypted_utxos,
     )?;
+
+
     Ok(())
 }
 
@@ -118,17 +145,17 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
             pub_amount_checked,
         )?;
     } else {
-        // withdraw_spl_cpi(
-        //     &ctx.program_id,
-        //     &merkle_tree_program_id,
-        //     &ctx.accounts.authority.to_account_info(),
-        //     &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-        //     &ctx.accounts.recipient.to_account_info(),
-        //     &ctx.accounts.token_authority.to_account_info(),
-        //     &ctx.accounts.token_program.to_account_info(),
-        //     pub_amount_checked,
-        //     verifier_state.merkle_tree_index.into()
-        // )?;
+        withdraw_spl_cpi(
+            &ctx.program_id,
+            &merkle_tree_program_id,
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+            &ctx.accounts.recipient.to_account_info(),
+            &ctx.accounts.token_authority.to_account_info(),
+            &ctx.accounts.token_program.to_account_info(),
+            pub_amount_checked,
+            verifier_state.merkle_tree_index.into()
+        )?;
     }
 
     if relayer_fee > 0 {
@@ -138,21 +165,21 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
                 &merkle_tree_program_id,
                 &ctx.accounts.authority.to_account_info(),
                 &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-                &ctx.accounts.recipient.to_account_info(),
+                &ctx.accounts.relayer_recipient.to_account_info(),
                 relayer_fee,
             )?;
         } else {
-            // withdraw_spl_cpi(
-            //     &ctx.program_id,
-            //     &merkle_tree_program_id,
-            //     &ctx.accounts.authority.to_account_info(),
-            //     &ctx.accounts.merkle_tree_pda_token.to_account_info(),
-            //     &ctx.accounts.recipient.to_account_info(),
-            //     &ctx.accounts.token_authority.to_account_info(),
-            //     &ctx.accounts.token_program.to_account_info(),
-            //     pub_amount_checked,
-            //     verifier_state.merkle_tree_index.into()
-            // )?;
+            withdraw_spl_cpi(
+                &ctx.program_id,
+                &merkle_tree_program_id,
+                &ctx.accounts.authority.to_account_info(),
+                &ctx.accounts.merkle_tree_pda_token.to_account_info(),
+                &ctx.accounts.relayer_recipient.to_account_info(),
+                &ctx.accounts.token_authority.to_account_info(),
+                &ctx.accounts.token_program.to_account_info(),
+                relayer_fee,
+                verifier_state.merkle_tree_index.into()
+            )?;
         }
     }
 

@@ -22,4 +22,8 @@ pub enum ErrorCode {
     VerifierStateAlreadyInitialized,
     #[msg("Nullifier already exists")]
     NullifierAlreadyExists,
+    #[msg("Token escrow account is incorrect.")]
+    IncorrectTokenEscrowAcc,
+    #[msg("WrongUserTokenPda")]
+    WrongUserTokenPda
 }

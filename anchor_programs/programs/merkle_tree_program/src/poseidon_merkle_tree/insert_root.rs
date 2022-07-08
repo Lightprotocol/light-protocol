@@ -29,12 +29,12 @@ pub struct InsertRoot<'info> {
         seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
         bump,
         constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key(),
-        constraint= IX_ORDER[merkle_tree_update_state.load()?.current_instruction_index as usize] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
+        constraint= IX_ORDER[usize::try_from(merkle_tree_update_state.load()?.current_instruction_index).unwrap()] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
         close = authority
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state.
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_update_state.load()?.merkle_tree_index as usize].0))]
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_update_state.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
 
@@ -44,7 +44,7 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
 
     msg!(
         "Root insert Instruction: {}",
-        IX_ORDER[merkle_tree_update_state_data.current_instruction_index as usize]
+        IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()]
     );
 
     msg!(

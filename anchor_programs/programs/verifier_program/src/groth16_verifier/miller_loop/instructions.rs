@@ -67,7 +67,7 @@ pub fn get_b_coeffs(
         .unwrap();
 
     for i in
-        (1..Parameters::ATE_LOOP_COUNT.len() - (tmp_account.outer_first_loop_coeff as usize)).rev()
+        (1..Parameters::ATE_LOOP_COUNT.len() - usize::try_from(tmp_account.outer_first_loop_coeff).unwrap()).rev()
     {
         if tmp_account.inner_first_coeff == 0 {
             *current_compute += 140_000;

@@ -19,7 +19,7 @@ use ark_std::One;
     tx_integrity_hash:  [u8;32]
 )]
 pub struct CreateVerifierState<'info> {
-    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024 as usize)]
+    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
     pub verifier_state: AccountLoader<'info, VerifierState>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
@@ -44,11 +44,15 @@ pub fn process_create_verifier_state(
     encrypted_utxos: [u8; 256],
     merkle_tree_index: [u8; 1],
 ) -> Result<()> {
-    // if not initialized this will run load_init
-    // TODO try if this will actually ever fail
+    // If not initialized this will run load_init.
     let verifier_state_data = &mut match ctx.accounts.verifier_state.load_mut() {
         Ok(res) => {
-            if res.signing_address == ctx.accounts.signing_address.key() {
+            // Checking that all values are the same as in create escrow.
+            if res.signing_address == ctx.accounts.signing_address.key() &&
+                res.merkle_tree_index == merkle_tree_index[0] &&
+                res.ext_amount == ext_amount &&
+                res.tx_integrity_hash == tx_integrity_hash &&
+                res.relayer_fee == u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone() {
                 Ok(res)
             } else {
                 err!(ErrorCode::WrongSigner)
@@ -68,19 +72,19 @@ pub fn process_create_verifier_state(
     verifier_state_data.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
     verifier_state_data.recipient = Pubkey::new(&recipient).clone();
     verifier_state_data.ext_amount = ext_amount.clone();
-    verifier_state_data.fee = relayer_fee.clone(); //tx_fee.clone();
+    verifier_state_data.fee = relayer_fee.clone();
     verifier_state_data.leaf_left = leaf_left;
     verifier_state_data.leaf_right = leaf_right;
     verifier_state_data.nullifier0 = nullifier0;
     verifier_state_data.nullifier1 = nullifier1;
     verifier_state_data.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
 
-    // initing pairs to prepared inputs
+    // Initing pairs to prepare inputs.
     init_pairs_instruction(verifier_state_data)?;
     _process_instruction(
         41,
         verifier_state_data,
-        verifier_state_data.current_index as usize,
+        usize::try_from(verifier_state_data.current_index).unwrap(),
     )?;
     verifier_state_data.current_index = 1;
     verifier_state_data.current_instruction_index = 1;
@@ -113,7 +117,7 @@ pub fn process_create_verifier_state(
         verifier_state_data.merkle_tree_index,
         verifier_state_data.encrypted_utxos[..222].to_vec(),
         merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
-            [merkle_tree_index[0] as usize]
+            [usize::try_from(verifier_state_data.merkle_tree_index).unwrap()]
             .0
             .to_vec(),
     )

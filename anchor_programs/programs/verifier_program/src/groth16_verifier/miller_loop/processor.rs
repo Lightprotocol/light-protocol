@@ -32,7 +32,7 @@ pub fn miller_loop_onchain(
     let mut total_compute: u64 = 0;
 
     for i in (1..ark_bn254::Parameters::ATE_LOOP_COUNT.len()
-        - (verifier_state_data.outer_first_loop as usize))
+        - usize::try_from(verifier_state_data.outer_first_loop).unwrap())
         .rev()
     {
         if i != ark_bn254::Parameters::ATE_LOOP_COUNT.len() - 1
@@ -50,7 +50,7 @@ pub fn miller_loop_onchain(
 
         // first_inner_loop_index
         for pair_index in verifier_state_data.first_inner_loop_index..3 {
-            let current_pair = miller_loop_compute.pairs_0[pair_index as usize];
+            let current_pair = miller_loop_compute.pairs_0[usize::try_from(pair_index).unwrap()];
 
             let current_coeff = match miller_loop_compute.current_coeff {
                 Some(coeff) => Some(coeff),
@@ -79,12 +79,12 @@ pub fn miller_loop_onchain(
             verifier_state_data.first_inner_loop_index += 1;
         }
 
-        let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[i as usize - 1];
+        let bit = ark_bn254::Parameters::ATE_LOOP_COUNT[usize::try_from(i).unwrap()- 1];
 
         match bit {
             1 => {
                 for pair_index in verifier_state_data.second_inner_loop_index..3 {
-                    let current_pair = miller_loop_compute.pairs_0[pair_index as usize];
+                    let current_pair = miller_loop_compute.pairs_0[usize::try_from(pair_index).unwrap()];
                     let current_coeff = match miller_loop_compute.current_coeff {
                         Some(coeff) => Some(coeff),
                         None => get_coeff(
@@ -117,7 +117,7 @@ pub fn miller_loop_onchain(
             }
             -1 => {
                 for pair_index in verifier_state_data.second_inner_loop_index..3 {
-                    let current_pair = miller_loop_compute.pairs_0[pair_index as usize];
+                    let current_pair = miller_loop_compute.pairs_0[usize::try_from(pair_index).unwrap()];
                     let current_coeff = match miller_loop_compute.current_coeff {
                         Some(coeff) => Some(coeff),
                         None => get_coeff(
@@ -165,7 +165,7 @@ pub fn miller_loop_onchain(
     }
 
     for pair_index in verifier_state_data.outer_second_loop..3 {
-        let current_pair = miller_loop_compute.pairs_0[pair_index as usize];
+        let current_pair = miller_loop_compute.pairs_0[usize::try_from(pair_index).unwrap()];
 
         let current_coeff = match miller_loop_compute.current_coeff {
             Some(coeff) => Some(coeff),
@@ -196,7 +196,7 @@ pub fn miller_loop_onchain(
     }
 
     for pair_index in verifier_state_data.outer_third_loop..3 {
-        let current_pair = miller_loop_compute.pairs_0[pair_index as usize];
+        let current_pair = miller_loop_compute.pairs_0[usize::try_from(pair_index).unwrap()];
         let current_coeff = match miller_loop_compute.current_coeff {
             Some(coeff) => Some(coeff),
             None => get_coeff(

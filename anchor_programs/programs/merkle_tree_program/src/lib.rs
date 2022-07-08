@@ -197,28 +197,28 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn check_merkle_root_exists<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, CheckMerkleRootExists<'info>>,
-        merkle_tree_index: u64,
+        _verifer_index: u64,
+        _merkle_tree_index: u64,
         merkle_root: [u8; 32],
     ) -> anchor_lang::Result<()> {
         msg!("Invoking check_merkle_root_exists");
         process_check_merkle_root_exists(
             &ctx.accounts.merkle_tree.to_account_info(),
             &merkle_root.to_vec(),
-            &ctx.program_id,
-            &Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0),
+            &ctx.program_id
         )?;
         Ok(())
     }
 }
 
 #[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
+#[instruction(verifer_index: u64, merkle_tree_index: u64)]
 pub struct CheckMerkleRootExists<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[merkle_tree_index as usize]))]
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(verifer_index).unwrap()]))]
     pub authority: Signer<'info>,
     /// CHECK:` that the merkle tree is whitelisted.
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[merkle_tree_index as usize].0))]
+    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountInfo<'info>,
 }
 

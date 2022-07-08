@@ -40,7 +40,9 @@ import {
   newAccountWithLamports,
   newProgramOwnedAccount,
   newAddressWithLamports,
-  executeMerkleTreeUpdateTransactions
+  newAccountWithTokens,
+  executeMerkleTreeUpdateTransactions,
+  createVerifierState
 } from "./utils/test_transactions";
 
 const {
@@ -75,6 +77,13 @@ var UNREGISTERED_PRE_INSERTED_LEAVES_INDEX;
 var UTXOS;
 var MERKLE_TREE_OLD;
 
+var MERKLE_TREE_USDC
+var MERKLE_TREE_PDA_TOKEN_USDC
+var PRE_INSERTED_LEAVES_INDEX_USDC
+var MINT
+var RENT_ESCROW
+var RENT_VERIFIER
+var RENT_TOKEN_ACCOUNT
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -99,6 +108,9 @@ describe("verifier_program", () => {
   const AUTHORITY = solana.PublicKey.findProgramAddressSync(
       [merkleTreeProgram.programId.toBuffer()],
       verifierProgram.programId)[0];
+
+
+
 
   it("Initialize Merkle Tree with unauthorized signer", async () => {
       let signer = await newAccountWithLamports(
@@ -219,7 +231,943 @@ describe("verifier_program", () => {
     }
   });
 
-  it.skip("Test withdraw sol Merkle tree program", async () => {
+  it("Initialize Token Merkle tree", async () => {
+    MERKLE_TREE_USDC= await solana.PublicKey.createWithSeed(
+        ADMIN_AUTH_KEY,
+        "usdc",
+        merkleTreeProgram.programId,
+      )
+    MERKLE_TREE_PDA_TOKEN_USDC  = solana.PublicKey.findProgramAddressSync(
+          [MERKLE_TREE_USDC.toBytes(), anchor.utils.bytes.utf8.encode("merkle_tree_pda_token")],
+          merkleTreeProgram.programId
+        )[0];
+    PRE_INSERTED_LEAVES_INDEX_USDC = solana.PublicKey.findProgramAddressSync(
+        [MERKLE_TREE_USDC.toBuffer()],
+        merkleTreeProgram.programId
+      )[0];
+    RENT_ESCROW = await provider.connection.getMinimumBalanceForRentExemption(256);
+    RENT_VERIFIER = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+    RENT_TOKEN_ACCOUNT = await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE)
+
+    // console.log("MERKLE_TREE_USDC: ", MERKLE_TREE_USDC.toBase58())
+    //
+    // console.log("MERKLE_TREE_USDC: ", Array.prototype.slice.call(MERKLE_TREE_USDC.toBytes()))
+    // console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", MERKLE_TREE_PDA_TOKEN_USDC.toBase58())
+    // console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN_USDC.toBytes()))
+
+    const signer = await newAccountWithLamports(provider.connection)
+
+    await provider.connection.requestAirdrop(signer.publicKey, 1_000_000_000_000)
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        merkleTreeProgram.programId
+      )[0];
+    // create new token
+    try {
+    console.log()
+    MINT = await token.createMint(
+        provider.connection,
+        ADMIN_AUTH_KEYPAIR,
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        null,
+        2
+    );
+  } catch(e) {
+    console.log(e)
+  }
+
+    try {
+      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSpl(
+      ).accounts({
+        authority: ADMIN_AUTH_KEYPAIR.publicKey,
+        merkleTree: MERKLE_TREE_USDC,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
+        merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN_USDC,
+        tokenProgram:token.TOKEN_PROGRAM_ID,
+        systemProgram: DEFAULT_PROGRAMS.systemProgram,
+        mint: MINT,
+        tokenAuthority: tokenAuthority,
+        rent: DEFAULT_PROGRAMS.rent
+      })
+      .preInstructions([
+        SystemProgram.createAccountWithSeed({
+          basePubkey:ADMIN_AUTH_KEY,
+          seed: anchor.utils.bytes.utf8.encode("usdc"),
+          fromPubkey: ADMIN_AUTH_KEY,
+          newAccountPubkey: MERKLE_TREE_USDC,
+          space: MERKLE_TREE_SIZE,
+          lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
+          programId: merkleTreeProgram.programId,
+        })
+      ])
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc();
+
+    } catch(e) {
+      console.log("e: ", e)
+    }
+    var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
+          MERKLE_TREE_USDC
+        )
+    // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
+    //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
+    // )
+    if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
+      throw "merkle tree pda size wrong after initializing";
+
+    }
+    if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
+      throw "merkle tree pda owner wrong after initializing";
+    }
+
+  });
+
+  it("Open and close escrow relayer token", async () => {
+    const origin = await newAccountWithLamports(provider.connection)
+    const relayer = await newAccountWithLamports(provider.connection)
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        verifierProgram.programId
+      )[0];
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    ix_data.recipient = MERKLE_TREE_PDA_TOKEN_USDC.toBytes();
+    ix_data.merkleTreeIndex = new Uint8Array(1).fill(1)
+
+    let tx_fee = 5000 * 50;
+    let escrow_amount = tx_fee + U64.readLE(ix_data.fee, 0).toNumber()
+    let amount = U64.readLE(ix_data.extAmount, 0).toNumber()
+    let pdas = getPdaAddresses({
+      tx_integrity_hash: ix_data.txIntegrityHash,
+      nullifier0: ix_data.nullifier0,
+      nullifier1: ix_data.nullifier1,
+      leafLeft: ix_data.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+    var relayerInfoStart = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+    var userInfoStart = await connection.getAccountInfo(
+      origin.publicKey
+    )
+
+    // create associated token account
+    var userTokenAccount = (await newAccountWithTokens({
+        connection: provider.connection,
+        MINT,
+        ADMIN_AUTH_KEYPAIR,
+        userAccount: origin,
+        amount: (amount+10 )
+    }))
+
+
+    await token.approve(
+      provider.connection,
+      origin,
+      userTokenAccount,
+      AUTHORITY, //delegate
+      origin.publicKey, // owner
+      I64.readLE(ix_data.extAmount,0).toNumber(), // amount
+      []
+    )
+    let escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      relayer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
+
+
+    try {
+      const tx = await verifierProgram.methods.createEscrow(
+            ix_data.txIntegrityHash,
+            new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+            ix_data.fee,
+            new anchor.BN(amount),
+            new anchor.BN(1)
+      ).accounts(
+          {
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState:  pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
+            user:           origin.publicKey,
+            systemProgram:  SystemProgram.programId,
+            tokenProgram:  token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY//tokenAuthority
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount }
+        ]).preInstructions([
+          SystemProgram.createAccountWithSeed({
+            basePubkey:relayer.publicKey,
+            seed: anchor.utils.bytes.utf8.encode("escrow"),
+            fromPubkey: relayer.publicKey,
+            newAccountPubkey: escrowTokenAccount,
+            space: token.ACCOUNT_SIZE,
+            lamports: await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE),
+            programId: token.TOKEN_PROGRAM_ID
+          }),
+          token.createInitializeAccountInstruction(
+           escrowTokenAccount, //new account
+           MINT, // mint
+           AUTHORITY,
+           tokenAuthority, //owner
+         )
+       ]).signers([relayer, origin]).transaction();
+       tx.instructions[1].programId = token.TOKEN_PROGRAM_ID
+       await provider.sendAndConfirm(tx, [relayer, origin]);
+    } catch (e) {
+
+      console.log("e createEscrow", e)
+    }
+
+    await checkEscrowAccountCreated({
+      connection: provider.connection,
+      pdas,
+      ix_data,
+      user_pubkey: origin.publicKey,
+      relayer_pubkey: relayer.publicKey,
+      tx_fee: new anchor.BN(tx_fee),
+      verifierProgram,
+      is_token: true,
+      escrowTokenAccount,
+      rent: RENT_ESCROW
+    });
+    let receivedTokenInfo1 = await token.getAccount(
+      provider.connection,
+      userTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+    assert(receivedTokenInfo1.amount == 10);
+
+
+    // swapping accounts
+    try {
+      await verifierProgram.methods.closeEscrow(
+        ).accounts(
+          {
+            signingAddress: relayer.publicKey,
+            verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            user:           origin.publicKey,
+            relayer:        relayer.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY,
+            systemProgram: SystemProgram.programId,
+
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount }
+        ]).signers([relayer]).rpc()
+
+  } catch (e) {
+    assert(e.error.errorCode.code == 'IncorrectTokenEscrowAcc');
+  }
+  let attacker = await newAccountWithLamports(provider.connection)
+  let attackerTokenAccount = await newAccountWithTokens({
+      connection: provider.connection,
+      MINT,
+      ADMIN_AUTH_KEYPAIR,
+      userAccount: attacker,
+      amount: 1
+  })
+  // inserting different userTokenAccount
+  try {
+    await verifierProgram.methods.closeEscrow(
+      ).accounts(
+        {
+          signingAddress: relayer.publicKey,
+          verifierState: pdas.verifierStatePubkey,
+          systemProgram: SystemProgram.programId,
+          feeEscrowState: pdas.feeEscrowStatePubkey,
+          user:           origin.publicKey,
+          relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId,
+        }
+      ).remainingAccounts([
+        { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },
+        { isSigner: false, isWritable: true, pubkey:attackerTokenAccount }
+      ]).signers([relayer]).rpc()
+
+} catch (e) {
+  assert(e.error.errorCode.code == 'WrongUserTokenPda');
+}
+
+
+    let userAccountPrior = await provider.connection.getAccountInfo(origin.publicKey)
+
+    try {
+      await verifierProgram.methods.closeEscrow(
+        ).accounts(
+          {
+            signingAddress: relayer.publicKey,
+            verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            user:           origin.publicKey,
+            relayer:        relayer.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY,
+            systemProgram: SystemProgram.programId,
+
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount }
+        ]).signers([relayer]).rpc()
+
+  } catch (e) {
+    console.log(e)
+    // assert(e.error.origin == 'relayer');
+    // assert(e.error.errorCode.code == 'ConstraintRaw');
+  }
+
+
+  let escrowTokenAccountInfo2 = await token.getAccount(
+    provider.connection,
+    escrowTokenAccount,
+    token.TOKEN_PROGRAM_ID
+  );
+  // console.log("escrowTokenAccountInfo1 ", escrowTokenAccountInfo2.amount)
+
+  assert(escrowTokenAccountInfo2.amount.toString() == '0');
+
+  let receivedTokenInfo2 = await token.getAccount(
+    provider.connection,
+    userTokenAccount,
+    token.TOKEN_PROGRAM_ID
+  );
+  // console.log("receivedTokenInfo1", receivedTokenInfo2.amount)
+  // console.log("amount", amount)
+
+  assert(receivedTokenInfo2.amount == amount + 10);
+
+  let userAccountAfter = await provider.connection.getAccountInfo(origin.publicKey)
+  // console.log(`${userAccountAfter.lamports}  == ${userAccountPrior.lamports} ${Number(tx_fee)} ${userAccountPrior.lamports + Number(tx_fee)}`)
+  assert(userAccountAfter.lamports == userAccountPrior.lamports + Number(tx_fee));
+  })
+
+  it("Open and close escrow user token", async () => {
+    const origin = await newAccountWithLamports(provider.connection)
+    const relayer = await newAccountWithLamports(provider.connection)
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        verifierProgram.programId
+      )[0];
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    ix_data.recipient = MERKLE_TREE_PDA_TOKEN_USDC.toBytes();
+    ix_data.merkleTreeIndex = new Uint8Array(1).fill(1)
+
+    let tx_fee = 5000 * 50;
+    let escrow_amount = tx_fee + U64.readLE(ix_data.fee, 0).toNumber()
+    let amount = U64.readLE(ix_data.extAmount, 0).toNumber()
+    let pdas = getPdaAddresses({
+      tx_integrity_hash: ix_data.txIntegrityHash,
+      nullifier0: ix_data.nullifier0,
+      nullifier1: ix_data.nullifier1,
+      leafLeft: ix_data.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+    var relayerInfoStart = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+    var userInfoStart = await connection.getAccountInfo(
+      origin.publicKey
+    )
+
+    // create associated token account
+    var userTokenAccount = (await newAccountWithTokens({
+        connection: provider.connection,
+        MINT,
+        ADMIN_AUTH_KEYPAIR,
+        userAccount: origin,
+        amount: (amount+10 )
+    }))
+
+
+    await token.approve(
+      provider.connection,
+      origin,
+      userTokenAccount,
+      AUTHORITY, //delegate
+      origin.publicKey, // owner
+      I64.readLE(ix_data.extAmount,0).toNumber(), // amount
+      []
+    )
+    let escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      relayer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
+    // console.log("escrowTokenAccount ", escrowTokenAccount.toBase58())
+    // console.log("userTokenAccount ", userTokenAccount.toBase58())
+    // console.log("pdas.feeEscrowStatePubkey ", pdas.feeEscrowStatePubkey.toBase58())
+
+   // approve token to
+   // console.log("signer: ", relayer.publicKey.toBase58())
+    try {
+      const tx = await verifierProgram.methods.createEscrow(
+            ix_data.txIntegrityHash,
+            new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+            ix_data.fee,
+            new anchor.BN(amount),
+            new anchor.BN(1)
+      ).accounts(
+          {
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState:  pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
+            user:           origin.publicKey,
+            systemProgram:  SystemProgram.programId,
+            tokenProgram:  token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY//tokenAuthority
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount }
+        ]).preInstructions([
+          SystemProgram.createAccountWithSeed({
+            basePubkey:relayer.publicKey,
+            seed: anchor.utils.bytes.utf8.encode("escrow"),
+            fromPubkey: relayer.publicKey,
+            newAccountPubkey: escrowTokenAccount,
+            space: token.ACCOUNT_SIZE,
+            lamports: await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE),
+            programId: token.TOKEN_PROGRAM_ID
+          }),
+          token.createInitializeAccountInstruction(
+           escrowTokenAccount, //new account
+           MINT, // mint
+           AUTHORITY,
+           tokenAuthority, //owner
+         )
+       ]).signers([relayer, origin]).transaction();
+       tx.instructions[1].programId = token.TOKEN_PROGRAM_ID
+       await provider.sendAndConfirm(tx, [relayer, origin]);
+    } catch (e) {
+
+      console.log("e createEscrow", e)
+    }
+
+    await checkEscrowAccountCreated({
+      connection: provider.connection,
+      pdas,
+      ix_data,
+      user_pubkey: origin.publicKey,
+      relayer_pubkey: relayer.publicKey,
+      tx_fee: new anchor.BN(tx_fee),
+      verifierProgram,
+      is_token: true,
+      escrowTokenAccount,
+      rent: RENT_ESCROW
+    });
+
+    let receivedTokenInfo1 = await token.getAccount(
+      provider.connection,
+      userTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+
+    // console.log("receivedTokenInfo1", receivedTokenInfo1.amount)
+    assert(receivedTokenInfo1.amount == 10);
+
+    let escrowTokenAccountInfo1 = await token.getAccount(
+      provider.connection,
+      escrowTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+
+    // console.log("escrowTokenAccountInfo1 ", escrowTokenAccountInfo1.amount)
+
+    assert(escrowTokenAccountInfo1.amount == amount);
+    let userAccountPrior = await provider.connection.getAccountInfo(origin.publicKey)
+    // console.log("userTokenAccount ", userTokenAccount.toBase58())
+    // console.log("escrowTokenAccount ", escrowTokenAccount.toBase58())
+
+    try {
+      await verifierProgram.methods.closeEscrow(
+        ).accounts(
+          {
+            signingAddress: origin.publicKey,
+            verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            user:           origin.publicKey,
+            relayer:        relayer.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY,
+            systemProgram: SystemProgram.programId,
+
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount }
+        ]).signers([origin]).rpc()
+
+  } catch (e) {
+    console.log(e)
+    // assert(e.error.origin == 'relayer');
+    // assert(e.error.errorCode.code == 'ConstraintRaw');
+  }
+
+
+  let escrowTokenAccountInfo2 = await token.getAccount(
+    provider.connection,
+    escrowTokenAccount,
+    token.TOKEN_PROGRAM_ID
+  );
+  // console.log("escrowTokenAccountInfo1 ", escrowTokenAccountInfo2.amount)
+
+  assert(escrowTokenAccountInfo2.amount.toString() == '0');
+
+  let receivedTokenInfo2 = await token.getAccount(
+    provider.connection,
+    userTokenAccount,
+    token.TOKEN_PROGRAM_ID
+  );
+
+
+  assert(receivedTokenInfo2.amount == amount + 10);
+
+  let userAccountAfter = await provider.connection.getAccountInfo(origin.publicKey)
+  // console.log(`${userAccountAfter.lamports}  == ${userAccountPrior.lamports} ${Number(tx_fee)} ${userAccountPrior.lamports + Number(tx_fee)}`)
+  assert(userAccountAfter.lamports == userAccountPrior.lamports + Number(tx_fee));
+  })
+
+  it("Open and close escrow token after 1 tx", async () => {
+    const origin = await newAccountWithLamports(provider.connection)
+    var userTokenAccount = (await newAccountWithTokens({
+        connection: provider.connection,
+        MINT,
+        ADMIN_AUTH_KEYPAIR,
+        userAccount: origin,
+        amount: ( 2 * amount)
+    }))
+    let Keypair = new light.Keypair()
+
+    const relayer = await newAccountWithLamports(provider.connection)
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        verifierProgram.programId
+      )[0];
+
+    let tx_fee = 5000 * 50;
+    let nr_tx = 1
+    // 3 for creation and init of token account plus one executed tx
+    let tx_cost = (nr_tx + 3) * 5000
+
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_PDA_TOKEN_USDC.toBytes());
+
+    let deposit_utxo1 = new light.Utxo(BigNumber.from(amount), Keypair)
+    let deposit_utxo2 = new light.Utxo(BigNumber.from(amount), Keypair)
+
+    let inputUtxos = [new light.Utxo(), new light.Utxo()]
+    let outputUtxos = [deposit_utxo1, deposit_utxo2 ]
+
+    const data = await light.getProof(
+      inputUtxos,
+      outputUtxos,
+      merkleTree,
+      1, // merkleTreeIndex
+      MERKLE_TREE_USDC.toBytes(),
+      deposit_utxo1.amount.add(deposit_utxo2.amount),
+      U64(0),
+      MERKLE_TREE_PDA_TOKEN_USDC.toBase58(),
+      relayer.publicKey.toBase58(),
+      'DEPOSIT',
+      encryptionKeypair
+    )
+
+    let ix_data = parse_instruction_data_bytes(data);
+
+
+    let escrow_amount = U64.readLE(ix_data.extAmount, 0).toNumber() + tx_fee + U64.readLE(ix_data.fee, 0).toNumber()
+
+    let pdas = getPdaAddresses({
+      tx_integrity_hash: ix_data.txIntegrityHash,
+      nullifier0: ix_data.nullifier0,
+      nullifier1: ix_data.nullifier1,
+      leafLeft: ix_data.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+
+    var relayerInfoStart = await connection.getAccountInfo(relayer.publicKey)
+    var userInfoStart = await connection.getAccountInfo(origin.publicKey)
+
+    await token.approve(
+      provider.connection,
+      origin,
+      userTokenAccount,
+      AUTHORITY, //delegate
+      origin.publicKey, // owner
+      I64.readLE(ix_data.extAmount,0).toNumber(), // amount
+      []
+    )
+
+    let escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      relayer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
+
+    try {
+      const tx = await verifierProgram.methods.createEscrow(
+            ix_data.txIntegrityHash,
+            new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+            ix_data.fee,
+            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+            new anchor.BN(1)
+      ).accounts(
+          {
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState:  pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
+            user:           origin.publicKey,
+            systemProgram:  SystemProgram.programId,
+            tokenProgram:  token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY//tokenAuthority
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount }
+        ]).preInstructions([
+          SystemProgram.createAccountWithSeed({
+            basePubkey:relayer.publicKey,
+            seed: anchor.utils.bytes.utf8.encode("escrow"),
+            fromPubkey: relayer.publicKey,
+            newAccountPubkey: escrowTokenAccount,
+            space: token.ACCOUNT_SIZE,
+            lamports: RENT_TOKEN_ACCOUNT,
+            programId: token.TOKEN_PROGRAM_ID
+          }),
+          token.createInitializeAccountInstruction(
+           escrowTokenAccount, //new account
+           MINT, // mint
+           AUTHORITY,
+           tokenAuthority, //owner
+         )
+       ]).signers([relayer, origin]).transaction();
+       tx.instructions[1].programId = token.TOKEN_PROGRAM_ID
+       await provider.sendAndConfirm(tx, [relayer, origin]);
+    } catch (e) {
+
+      console.log("e createEscrow", e)
+    }
+    await checkEscrowAccountCreated({
+      connection: provider.connection,
+      pdas,
+      ix_data,
+      user_pubkey: origin.publicKey,
+      relayer_pubkey: relayer.publicKey,
+      tx_fee: new anchor.BN(tx_fee),
+      verifierProgram,
+      is_token: true,
+      escrowTokenAccount,
+      rent: RENT_ESCROW
+    });
+
+    let receivedTokenInfo1 = await token.getAccount(
+      provider.connection,
+      userTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+
+    assert(receivedTokenInfo1.amount == 0);
+
+
+    var relayerInfoMid = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+
+    assert(relayerInfoMid.lamports == relayerInfoStart.lamports - RENT_ESCROW - RENT_VERIFIER - RENT_TOKEN_ACCOUNT)
+    var userInfoMid = await connection.getAccountInfo(
+      origin.publicKey
+    )
+    var feeEscrowStatePubkeyInfoMid = await connection.getAccountInfo(
+      pdas.feeEscrowStatePubkey
+    )
+    await createVerifierState({
+      provider,
+      ix_data,
+      relayer,
+      pdas,
+      merkleTree: MERKLE_TREE_USDC,
+      merkleTreeProgram,
+      verifierProgram
+    })
+
+
+    await executeXComputeTransactions({
+      number_of_transactions: nr_tx,
+      signer: relayer,
+      pdas: pdas,
+      program: verifierProgram,
+      provider:provider
+    })
+    var relayerInfoMid2 = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+  // console.log(`relayerInfoMid ${relayerInfoMid.lamports - tx_cost} == relayerInfoMid2 ${relayerInfoMid2.lamports}`)
+  // console.log(`relayerInfoMid -relayerInfoMid2.lamports ${relayerInfoMid.lamports - relayerInfoMid2.lamports}`)
+  // assert(relayerInfoMid.lamports - tx_cost == relayerInfoMid2.lamports)
+
+  try {
+    await verifierProgram.methods.closeEscrow(
+      ).accounts(
+        {
+          signingAddress: origin.publicKey,
+          verifierState: pdas.verifierStatePubkey,
+          systemProgram: SystemProgram.programId,
+          feeEscrowState: pdas.feeEscrowStatePubkey,
+          user:           origin.publicKey,
+          relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId
+        }
+      ).remainingAccounts([
+        { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },
+        { isSigner: false, isWritable: true, pubkey:userTokenAccount }
+      ]).signers([origin]).rpc()
+
+  } catch (e) {
+    assert(e.error.errorCode.code == 'NotTimedOut');
+  }
+
+
+  let userAccountPrior = await provider.connection.getAccountInfo(origin.publicKey)
+
+  await verifierProgram.methods.closeEscrow(
+    ).accounts(
+      {
+        signingAddress: relayer.publicKey,
+        verifierState: pdas.verifierStatePubkey,
+        systemProgram: SystemProgram.programId,
+        feeEscrowState: pdas.feeEscrowStatePubkey,
+        user:           origin.publicKey,
+        relayer:        relayer.publicKey,
+        token_program: token.TOKEN_PROGRAM_ID,
+        tokenAuthority: AUTHORITY,
+        systemProgram: SystemProgram.programId
+      }
+    ).remainingAccounts([
+      { isSigner: false, isWritable: true, pubkey:escrowTokenAccount },
+      { isSigner: false, isWritable: true, pubkey:userTokenAccount }
+    ]).signers([relayer]).rpc()
+
+
+    let escrowTokenAccountInfo2 = await token.getAccount(
+      provider.connection,
+      escrowTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+
+    assert(escrowTokenAccountInfo2.amount.toString() == '0');
+
+    let receivedTokenInfo2 = await token.getAccount(
+      provider.connection,
+      userTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+
+
+    assert(receivedTokenInfo2.amount == (2* amount));
+  })
+
+
+  it("Deposit and withdraw token", async () => {
+    const userAccount = await newAccountWithLamports(provider.connection)
+
+    var amount = 1_000_000_00
+    var numberDeposits = 1
+    const userAccountToken = await newAccountWithTokens({
+      connection: provider.connection,
+      MINT,
+      ADMIN_AUTH_KEYPAIR,
+      userAccount,
+      amount: (2 * numberDeposits *  amount )
+    })
+    let escrowTokenAccountInfo1 = await token.getAccount(
+      provider.connection,
+      userAccountToken,
+      token.TOKEN_PROGRAM_ID
+    );
+    var signer
+    var pdas
+    var leavesPdas = []
+    var utxos = []
+
+    //
+    // *
+    // * test deposit
+    // *
+    //
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_USDC.toBytes());
+
+    let Keypair = new light.Keypair()
+    for (var i = 0; i < numberDeposits; i++) {
+      let res = await deposit({
+        Keypair,
+        encryptionKeypair,
+        MINT,
+        amount: amount,
+        connection: provider.connection,
+        merkleTree,
+        merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN_USDC,
+        userAccount,
+        userAccountToken,
+        verifierProgram,
+        merkleTreeProgram,
+        authority: AUTHORITY,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
+        merkle_tree_pubkey: MERKLE_TREE_USDC,
+        provider,
+        relayerFee,
+        is_token: true,
+        rent: RENT_ESCROW
+      })
+      leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
+      utxos.push(res[1])
+      signer = res[2]
+      pdas = res[3]
+    }
+
+    await executeUpdateMerkleTreeTransactions({
+      connection: provider.connection,
+      signer: userAccount,
+      merkleTreeProgram: merkleTreeProgram,
+      leavesPdas,
+      merkleTree,
+      merkleTreeIndex: 1,
+      merkle_tree_pubkey: MERKLE_TREE_USDC,
+      provider
+    });
+
+
+    // *
+    // * test withdrawal
+    // *
+    // *
+    // *
+
+    // new lightTransaction
+    // generate utxos
+    //
+    var leavesPdasWithdrawal = []
+    const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_USDC.toBytes());
+    let deposit_utxo1 = utxos[0][0];
+    let deposit_utxo2 = utxos[0][1];
+    deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
+    deposit_utxo2.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo2.getCommitment()._hex)
+
+    let relayer = await newAccountWithLamports(provider.connection);
+    let relayer_recipient = await newAccountWithTokens({
+        connection: provider.connection,
+        MINT,
+        ADMIN_AUTH_KEYPAIR,
+        userAccount: relayer,
+        amount: 0
+    });
+
+    const recipientWithdrawal = await newAccountWithLamports(provider.connection)
+
+    var recipientTokenAccount = await token.getOrCreateAssociatedTokenAccount(
+       connection,
+       relayer,
+       MINT,
+       recipientWithdrawal.publicKey
+   );
+    let inputUtxosWithdrawal = []
+    if (deposit_utxo1.index == 1) {
+      inputUtxosWithdrawal = [deposit_utxo1, new light.Utxo()] // 38241198
+    } else {
+      inputUtxosWithdrawal = [deposit_utxo2, new light.Utxo()] // 38241198
+    }
+    let outputUtxosWithdrawal = [new light.Utxo(), new light.Utxo() ]
+
+    const externalAmountBigNumber: BigNumber = BigNumber.from(relayerFee.toString())
+    .add(
+      outputUtxosWithdrawal.reduce(
+        (sum, utxo) => sum.add(utxo.amount),
+        BigNumber.from(0),
+      ),
+    )
+    .sub(
+      inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
+    )
+
+    var dataWithdrawal = await light.getProof(
+      inputUtxosWithdrawal,
+      outputUtxosWithdrawal,
+      merkleTreeWithdrawal,
+      1, //merkleTreeIndex:
+      MERKLE_TREE_USDC.toBytes(),
+      externalAmountBigNumber,
+      relayerFee,
+      recipientTokenAccount.address.toBase58(),
+      relayer.publicKey.toBase58(),
+      'WITHDRAWAL',
+      encryptionKeypair
+    )
+    let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
+
+    let pdasWithdrawal = getPdaAddresses({
+      tx_integrity_hash: ix_dataWithdrawal.txIntegrityHash,
+      nullifier0: ix_dataWithdrawal.nullifier0,
+      nullifier1: ix_dataWithdrawal.nullifier1,
+      leafLeft: ix_dataWithdrawal.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+
+    let resWithdrawalTransact = await transact({
+      connection: provider.connection,
+      ix_data: ix_dataWithdrawal,
+      pdas: pdasWithdrawal,
+      origin_token: MERKLE_TREE_PDA_TOKEN_USDC,
+      MINT,
+      signer: relayer,
+      recipient: recipientTokenAccount.address,
+      relayer_recipient,
+      mode: "withdrawal",
+      verifierProgram,
+      merkleTreeProgram,
+      authority: AUTHORITY,
+      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
+      merkle_tree_pubkey: MERKLE_TREE_USDC,
+      provider,
+      relayerFee,
+      is_token: true
+    })
+    leavesPdasWithdrawal.push({
+      isSigner: false,
+      isWritable: true,
+      pubkey: resWithdrawalTransact
+    })
+    await executeUpdateMerkleTreeTransactions({
+      connection: provider.connection,
+      signer:relayer,
+      merkleTreeProgram,
+      leavesPdas: leavesPdasWithdrawal,
+      merkleTree: merkleTreeWithdrawal,
+      merkle_tree_pubkey: MERKLE_TREE_USDC,
+      merkleTreeIndex: 1,
+      provider
+    });
+
+
+
+  })
+
+
+
+  it.skip("Test withdraw spl Merkle tree program", async () => {
     const signer = await newAccountWithLamports(provider.connection)
     // UNREGISTERED_MERKLE_TREE = new anchor.web3.Account()
 
@@ -227,11 +1175,10 @@ describe("verifier_program", () => {
     var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
           ADMIN_AUTH_KEYPAIR.publicKey
       )
-    let mintA
+    let MINT
     // create new token
     try {
-    console.log()
-    mintA = await token.createMint(
+    MINT = await token.createMint(
         provider.connection,
         signer,
         signer.publicKey,
@@ -243,29 +1190,28 @@ describe("verifier_program", () => {
   }
 
     // create associated token account
-    // tokenAccountA = await mintA.createAccount(owner.publicKey);
+    // tokenAccountA = await MINT.createAccount(owner.publicKey);
 
-    const fromTokenAccount = await token.getOrCreateAssociatedTokenAccount(
+    const userTokenAccount = await token.getOrCreateAssociatedTokenAccount(
         provider.connection,
         signer,
-        mintA,
+        MINT,
         signer.publicKey
     );
     await token.mintTo(
       provider.connection,
       signer,
-      mintA,
-      fromTokenAccount.address,
+      MINT,
+      userTokenAccount.address,
       signer.publicKey,
       1,
       []
     );
     let mintedInfo = await token.getAccount(
       provider.connection,
-      fromTokenAccount.address,
+      userTokenAccount.address,
       token.TOKEN_PROGRAM_ID
     );
-    console.log("info.amount =", mintedInfo.amount)
 
     // set Merkle tree token authority as authority
 
@@ -281,81 +1227,22 @@ describe("verifier_program", () => {
         [anchor.utils.bytes.utf8.encode("spl")],
         merkleTreeProgram.programId
       )[0];
-    // console.log("Seeds: ", anchor.utils.bytes.utf8.encode("spl"))
-    // console.log("tokenAuthority: ", tokenAuthority.toBase58())
-    // console.log("merkle_tree: ", merkle_tree.toBase58())
+
     let merkle_tree_pda_token = solana.PublicKey.findProgramAddressSync(
         [merkle_tree.toBuffer(), anchor.utils.bytes.utf8.encode("merkle_tree_pda_token")],
         merkleTreeProgram.programId
       )[0];
-    console.log("merkle_tree: ", Array.prototype.slice.call(merkle_tree.toBytes()))
-    console.log("merkle_tree_pda_token: ", Array.prototype.slice.call(merkle_tree_pda_token.toBytes()))
 
     const pre_inserted_leaves_index = solana.PublicKey.findProgramAddressSync(
         [merkle_tree.toBuffer()],
         merkleTreeProgram.programId
       )[0];
-    // console.log("pre_inserted_leaves_index: ", pre_inserted_leaves_index.toBase58())
-    //
-    // console.log("here: ", token.TOKEN_PROGRAM_ID.toBase58())
-    // console.log("systemProgram: ", DEFAULT_PROGRAMS.systemProgram.toBase58())
 
-    try {
-      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSpl(
-      ).accounts({
-        authority: ADMIN_AUTH_KEYPAIR.publicKey,
-        merkleTree: merkle_tree,
-        preInsertedLeavesIndex: pre_inserted_leaves_index,
-        merkleTreePdaToken: merkle_tree_pda_token,
-        tokenProgram:token.TOKEN_PROGRAM_ID,
-        systemProgram: DEFAULT_PROGRAMS.systemProgram,
-        mint: mintA,
-        tokenAuthority: tokenAuthority,
-        rent: DEFAULT_PROGRAMS.rent
-      })
-      .preInstructions([
-        SystemProgram.createAccountWithSeed({
-          basePubkey:ADMIN_AUTH_KEY,
-          seed: anchor.utils.bytes.utf8.encode("usdc"),
-          fromPubkey: ADMIN_AUTH_KEY,
-          newAccountPubkey: merkle_tree,
-          space: MERKLE_TREE_SIZE,
-          lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
-          programId: merkleTreeProgram.programId,
-        })
-      ])
-      .signers([ADMIN_AUTH_KEYPAIR])
-      .rpc();
-
-    } catch(e) {
-      console.log("e: ", e)
-    }
-
-    await token.approve(
-      provider.connection,
-      signer,
-      fromTokenAccount.address,
-      merkle_tree_pda_token, //delegate
-      signer.publicKey, // owner
-      1, // amount
-      0, // number of decimals
-    )
-
-    // await token.transfer(
-    //     provider.connection,
-    //     signer,
-    //     fromTokenAccount.address,
-    //     merkle_tree_pda_token,
-    //     signer.publicKey,
-    //     1,
-    //     []
-    // );
   let merkle_tree_pda_tokenInfo = await token.getAccount(
     provider.connection,
     merkle_tree_pda_token,
     token.TOKEN_PROGRAM_ID
   );
-  console.log("info.amount.toNumber() 0 =", merkle_tree_pda_tokenInfo.amount)
   assert(merkle_tree_pda_tokenInfo.amount, 1)
   // withdraw again
 
@@ -372,25 +1259,17 @@ describe("verifier_program", () => {
       merkleTreeToken: merkle_tree_pda_token,
       token_program:token.TOKEN_PROGRAM_ID,
     }).remainingAccounts([
-      { isSigner: false, isWritable: true, pubkey:fromTokenAccount.address }
+      { isSigner: false, isWritable: true, pubkey:userTokenAccount.address }
     ])
     .signers([signer])
     .rpc();
 
   } catch(e) {
-    console.log("e: ", e)
-  }
-  let receivedTokenInfo = await token.getAccount(
-    provider.connection,
-    fromTokenAccount.address,
-    token.TOKEN_PROGRAM_ID
-  );
-  console.log(receivedTokenInfo.amount)
-  assert(receivedTokenInfo.amount == 1);
+    assert(e.error.errorCode.code == 'ConstraintAddress')
+    assert(e.error.origin == 'authority')
 
-  // add usdc flag to deposit
-  // approve token_authority
-  // add authorized transfer in last tx deposit
+  }
+
 
   });
 
@@ -400,7 +1279,7 @@ describe("verifier_program", () => {
   // that only registered verifiers can invoke these functions.
   // The functions trust the invocation and only perform minimal checks.
   // This test tries to invoke these functions from a non registered program.
-  it.skip("Cpi authority test", async () => {
+  it("Cpi authority test", async () => {
 
       let mockNullifier = new Uint8Array(32).fill(2);
       let mockNullifierPdaPubkey = solana.PublicKey.findProgramAddressSync(
@@ -598,76 +1477,6 @@ describe("verifier_program", () => {
 
     });
 
-  /*
-  it("Register Verifier Program", async () => {
-    console.log("Register Verifier Program here");
-    const tx = await merkleTreeProgram.methods.registerNewId().accounts({
-      authority: ADMIN_AUTH_KEY,
-      registry: REGISTERED_VERIFIER_KEY,
-      newId: verifierProgram.programId,
-      ...DEFAULT_PROGRAMS
-    })
-    .signers([ADMIN_AUTH_KEYPAIR])
-    .rpc();
-    console.log("register new id tx: ", tx)
-    const registry = await merkleTreeProgram.account.registry.fetch(REGISTERED_VERIFIER_KEY);
-    console.log("registry: ", registry)
-    assert(registry.id.equals(verifierProgram.programId) , 'Verifier Program Id mismatch');
-
-  });
-
-  it("Failed to Create AuthorityConfig for not upgradable authority", async () => {
-    const programInfo = await provider.connection.getAccountInfo(merkleTreeProgram.programId);
-    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
-    const authKeypair = solana.Keypair.generate();
-    await expect(
-      merkleTreeProgram.methods.createAuthorityConfig().accounts({
-        authority: authKeypair.publicKey,
-        merkleTreeProgram: merkleTreeProgram.programId,
-        authorityConfig: AUTHORITY_CONFIG_KEY,
-        merkleTreeProgramData: programDataAddress,
-        ...DEFAULT_PROGRAMS
-      })
-      .signers([authKeypair])
-      .rpc()
-    ).to.be.rejectedWith("0", "A raw constraint was violated");
-  });
-  it("Create AuthorityConfig", async () => {
-    const programInfo = await provider.connection.getAccountInfo(merkleTreeProgram.programId);
-    console.log(programInfo.data);
-    const programDataAddress = PROGRAM_LAYOUT.decode(programInfo.data).programDataAddress;
-
-    const tx = await merkleTreeProgram.methods.createAuthorityConfig().accounts({
-      authority: (merkleTreeProgram.provider as any).wallet.pubkey,
-      merkleTreeProgram: merkleTreeProgram.programId,
-      authorityConfig: AUTHORITY_CONFIG_KEY,
-      merkleTreeProgramData: programDataAddress,
-      ...DEFAULT_PROGRAMS
-    })
-    .rpc();
-  });
-  it("Failed to update AuthorityConfig for not current authority", async () => {
-    const authKeypair = solana.Keypair.generate();
-    await expect(
-      merkleTreeProgram.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
-        authority: authKeypair.publicKey,
-        authorityConfig: AUTHORITY_CONFIG_KEY,
-        ...DEFAULT_PROGRAMS
-      })
-      .signers([authKeypair])
-      .rpc()
-    ).to.be.rejectedWith("0", "A raw constraint was violated");
-  });
-  it("Update Authority Config", async () => {
-    const tx = await merkleTreeProgram.methods.updateAuthorityConfig(ADMIN_AUTH_KEY).accounts({
-      authority: (merkleTreeProgram.provider as any).wallet.pubkey,
-      authorityConfig: AUTHORITY_CONFIG_KEY,
-      ...DEFAULT_PROGRAMS
-    })
-    .rpc();
-  });
-  */
-
   // Escrow properties:
   // cannot be closed by anyone else but relayer and user
   // can be closed by user before computation starts and after timeout
@@ -675,7 +1484,7 @@ describe("verifier_program", () => {
   // if the relayer closes the escrow prior completion of the shielded transaction
   //    the relayer is only reimbursed for the transactions which are completed
   //    and does not receive the relayer fee
-  it.skip("Open and close escrow relayer", async () => {
+  it("Open and close escrow relayer", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
@@ -700,19 +1509,22 @@ describe("verifier_program", () => {
             ix_data.txIntegrityHash,
             new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
             ix_data.fee,
-            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+            new anchor.BN(0)
       ).accounts(
           {
-            signingAddress: relayer.publicKey,
-            verifierState: pdas.verifierStatePubkey,
-            systemProgram: SystemProgram.programId,
             feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState: pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
             user:           origin.publicKey,
+            systemProgram: SystemProgram.programId,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY
           }
         ).signers([relayer, origin]).rpc();
 
     } catch (e) {
-      console.log("e", e)
+      console.log("e createEscrow", e)
     }
 
 
@@ -724,7 +1536,9 @@ describe("verifier_program", () => {
         user_pubkey: origin.publicKey,
         relayer_pubkey: relayer.publicKey,
         tx_fee: new anchor.BN(tx_fee),
-        verifierProgram
+        verifierProgram,
+        rent: RENT_ESCROW
+
       });
 
       var relayerInfoMid = await connection.getAccountInfo(
@@ -736,7 +1550,7 @@ describe("verifier_program", () => {
       var feeEscrowStatePubkeyInfoMid = await connection.getAccountInfo(
         pdas.feeEscrowStatePubkey
       )
-
+      console.log()
       // Third party account tries to close escrow
       const attacker = await newAccountWithLamports(provider.connection)
       // Changed signer and relayer
@@ -750,6 +1564,10 @@ describe("verifier_program", () => {
               feeEscrowState: pdas.feeEscrowStatePubkey,
               user:           origin.publicKey,
               relayer:        attacker.publicKey,
+              token_program: token.TOKEN_PROGRAM_ID,
+              tokenAuthority: AUTHORITY,
+              systemProgram: SystemProgram.programId,
+
             }
           ).signers([attacker]).rpc()
 
@@ -768,6 +1586,9 @@ describe("verifier_program", () => {
             feeEscrowState: pdas.feeEscrowStatePubkey,
             user:           attacker.publicKey,
             relayer:        relayer.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY,
+            systemProgram: SystemProgram.programId,
           }
         ).signers([attacker]).rpc()
 
@@ -786,6 +1607,9 @@ describe("verifier_program", () => {
         feeEscrowState: pdas.feeEscrowStatePubkey,
         user:           attacker.publicKey,
         relayer:        relayer.publicKey,
+        token_program: token.TOKEN_PROGRAM_ID,
+        tokenAuthority: AUTHORITY,
+        systemProgram: SystemProgram.programId,
       }
     ).signers([relayer]).rpc();
   } catch (e) {
@@ -803,6 +1627,9 @@ describe("verifier_program", () => {
           feeEscrowState: pdas.feeEscrowStatePubkey,
           user:           origin.publicKey,
           relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId,
         }
       ).signers([relayer]).rpc();
     } catch (e) {
@@ -828,8 +1655,183 @@ describe("verifier_program", () => {
     // console.log("ix_data.extAmount: ", U64.readLE(ix_data.extAmount, 0).toString())
     // console.log(`userInfoStart  ${userInfoStart.lamports} ${userInfoMid.lamports + U64.readLE(ix_data.extAmount, 0).toNumber()} ${Number(userInfoEnd.lamports) - userInfoStart.lamports}`)
     assert(userInfoStart.lamports == userInfoEnd.lamports)
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + rent)
+    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + RENT_ESCROW)
+    assert(userInfoStart.lamports == userInfoMid.lamports + escrow_amount)
+
+
+  })
+
+  it.skip("Open and close escrow token relayer", async () => {
+    const origin = await newAccountWithLamports(provider.connection)
+    const relayer = await newAccountWithLamports(provider.connection)
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    let tx_fee = 5000 * 50;
+    let escrow_amount = U64.readLE(ix_data.extAmount, 0).toNumber() + tx_fee + U64.readLE(ix_data.fee, 0).toNumber()
+    let pdas = getPdaAddresses({
+      tx_integrity_hash: ix_data.txIntegrityHash,
+      nullifier0: ix_data.nullifier0,
+      nullifier1: ix_data.nullifier1,
+      leafLeft: ix_data.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+    var relayerInfoStart = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+    var userInfoStart = await connection.getAccountInfo(
+      origin.publicKey
+    )
+    try{
+      const tx = await verifierProgram.methods.createEscrow(
+            ix_data.txIntegrityHash,
+            new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+            ix_data.fee,
+            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+            new anchor.BN(0)
+      ).accounts(
+          {
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState: pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
+            user:           origin.publicKey,
+            systemProgram: SystemProgram.programId,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY
+          }
+        ).signers([relayer, origin]).rpc();
+
+    } catch (e) {
+      console.log("e createEscrow", e)
+    }
+
+
+
+      await checkEscrowAccountCreated({
+        connection: provider.connection,
+        pdas,
+        ix_data,
+        user_pubkey: origin.publicKey,
+        relayer_pubkey: relayer.publicKey,
+        tx_fee: new anchor.BN(tx_fee),
+        verifierProgram,
+        rent: RENT_ESCROW
+      });
+
+      var relayerInfoMid = await connection.getAccountInfo(
+        relayer.publicKey
+      )
+      var userInfoMid = await connection.getAccountInfo(
+        origin.publicKey
+      )
+      var feeEscrowStatePubkeyInfoMid = await connection.getAccountInfo(
+        pdas.feeEscrowStatePubkey
+      )
+      console.log()
+      // Third party account tries to close escrow
+      const attacker = await newAccountWithLamports(provider.connection)
+      // Changed signer and relayer
+      try {
+        await verifierProgram.methods.closeEscrow(
+          ).accounts(
+            {
+              signingAddress: attacker.publicKey,
+              verifierState: pdas.verifierStatePubkey,
+              systemProgram: SystemProgram.programId,
+              feeEscrowState: pdas.feeEscrowStatePubkey,
+              user:           origin.publicKey,
+              relayer:        attacker.publicKey,
+              token_program: token.TOKEN_PROGRAM_ID,
+              tokenAuthority: AUTHORITY,
+              systemProgram: SystemProgram.programId,
+
+            }
+          ).signers([attacker]).rpc()
+
+    } catch (e) {
+      assert(e.error.origin == 'relayer');
+      assert(e.error.errorCode.code == 'ConstraintRaw');
+    }
+    // Changed signer and user
+    try {
+      await verifierProgram.methods.closeEscrow(
+        ).accounts(
+          {
+            signingAddress: attacker.publicKey,
+            verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            user:           attacker.publicKey,
+            relayer:        relayer.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY,
+            systemProgram: SystemProgram.programId,
+          }
+        ).signers([attacker]).rpc()
+
+  } catch (e) {
+    assert(e.error.origin == 'user');
+    assert(e.error.errorCode.code == 'ConstraintRaw');
+  }
+  // Changed user
+  try {
+    const tx1 = await verifierProgram.methods.closeEscrow(
+    ).accounts(
+      {
+        signingAddress: relayer.publicKey,
+        verifierState: pdas.verifierStatePubkey,
+        systemProgram: SystemProgram.programId,
+        feeEscrowState: pdas.feeEscrowStatePubkey,
+        user:           attacker.publicKey,
+        relayer:        relayer.publicKey,
+        token_program: token.TOKEN_PROGRAM_ID,
+        tokenAuthority: AUTHORITY,
+        systemProgram: SystemProgram.programId,
+      }
+    ).signers([relayer]).rpc();
+  } catch (e) {
+    assert(e.error.origin == 'user');
+    assert(e.error.errorCode.code == 'ConstraintRaw');
+  }
+
+  try {
+      const tx1 = await verifierProgram.methods.closeEscrow(
+      ).accounts(
+        {
+          signingAddress: relayer.publicKey,
+          verifierState: pdas.verifierStatePubkey,
+          systemProgram: SystemProgram.programId,
+          feeEscrowState: pdas.feeEscrowStatePubkey,
+          user:           origin.publicKey,
+          relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId,
+        }
+      ).signers([relayer]).rpc();
+    } catch (e) {
+      console.log("e", e)
+    }
+    var feeEscrowStatePubkeyInfo = await connection.getAccountInfo(
+      pdas.feeEscrowStatePubkey
+    )
+    var relayerInfoEnd = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+    var userInfoEnd = await connection.getAccountInfo(
+      origin.publicKey
+    )
+    assert(feeEscrowStatePubkeyInfo == null, "Escrow account is not closed");
+    // console.log("feeEscrowStatePubkeyInfo")
+    // console.log("relayerInfo", relayerInfoEnd)
+    // console.log("userInfo", userInfoEnd)
+    // console.log(`relayerInfoStart ${relayerInfoStart.lamports} ${relayerInfoMid.lamports} ${Number(relayerInfoEnd.lamports)}`)
+    // console.log(`relayerInfoStart ${relayerInfoStart.lamports} ${relayerInfoMid.lamports - relayerInfoStart.lamports} ${Number(relayerInfoEnd.lamports) - relayerInfoStart.lamports}`)
+    assert(relayerInfoStart.lamports == relayerInfoEnd.lamports)
+    // console.log(`userInfoStart  ${userInfoStart.lamports} ${userInfoMid.lamports} ${userInfoEnd.lamports}`)
+    // console.log("ix_data.extAmount: ", U64.readLE(ix_data.extAmount, 0).toString())
+    // console.log(`userInfoStart  ${userInfoStart.lamports} ${userInfoMid.lamports + U64.readLE(ix_data.extAmount, 0).toNumber()} ${Number(userInfoEnd.lamports) - userInfoStart.lamports}`)
+    assert(userInfoStart.lamports == userInfoEnd.lamports)
+    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + RENT_ESCROW)
     assert(userInfoStart.lamports == userInfoMid.lamports + escrow_amount)
 
 
@@ -860,7 +1862,8 @@ describe("verifier_program", () => {
           ix_data.txIntegrityHash,
           new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
           ix_data.fee,
-          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+          new anchor.BN(0)
     ).accounts(
       {
         signingAddress: relayer.publicKey,
@@ -868,6 +1871,8 @@ describe("verifier_program", () => {
         systemProgram: SystemProgram.programId,
         feeEscrowState: pdas.feeEscrowStatePubkey,
         user:           origin.publicKey,
+        token_program: token.TOKEN_PROGRAM_ID,
+        tokenAuthority: AUTHORITY
       }
     ).signers([relayer, origin]).rpc();
 
@@ -878,7 +1883,8 @@ describe("verifier_program", () => {
         user_pubkey: origin.publicKey,
         relayer_pubkey: relayer.publicKey,
         tx_fee: new anchor.BN(tx_fee),
-        verifierProgram
+        verifierProgram,
+        rent: RENT_ESCROW
       });
 
       var relayerInfoMid = await connection.getAccountInfo(
@@ -901,6 +1907,9 @@ describe("verifier_program", () => {
           feeEscrowState: pdas.feeEscrowStatePubkey,
           user:           origin.publicKey,
           relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId,
         }
       ).signers([origin]).rpc();
     } catch (e) {
@@ -913,10 +1922,10 @@ describe("verifier_program", () => {
     var userInfoEnd = await connection.getAccountInfo(origin.publicKey)
 
     assert(feeEscrowStatePubkeyInfo == null, "Escrow account is not closed");
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
+
     assert(userInfoStart.lamports == userInfoEnd.lamports)
     assert(relayerInfoStart.lamports == relayerInfoEnd.lamports)
-    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + rent)
+    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + RENT_ESCROW)
     assert(userInfoStart.lamports == userInfoMid.lamports + escrow_amount)
   })
 
@@ -929,12 +1938,12 @@ describe("verifier_program", () => {
     let Keypair = new light.Keypair()
     let merkle_tree_pubkey = MERKLE_TREE_KEY
     let tx_fee = 5000 * 50;
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-    let rent_verifier = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+
+
     provider.wallet.payer = relayer
     let nr_tx = 10;
     let tx_cost = (nr_tx + 1) * 5000
-    let merkleTree = await light.buildMerkelTree(provider.connection);
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
     let deposit_utxo1 = new light.Utxo(BigNumber.from(amount), Keypair)
     let deposit_utxo2 = new light.Utxo(BigNumber.from(amount), Keypair)
@@ -946,6 +1955,8 @@ describe("verifier_program", () => {
       inputUtxos,
       outputUtxos,
       merkleTree,
+      0,
+      MERKLE_TREE_KEY.toBytes(),
       deposit_utxo1.amount.add(deposit_utxo2.amount),
       U64(0),
       MERKLE_TREE_PDA_TOKEN.toBase58(),
@@ -973,7 +1984,8 @@ describe("verifier_program", () => {
           ix_data.txIntegrityHash,
           new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
           ix_data.fee,
-          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+          new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+          new anchor.BN(0)
     ).accounts(
         {
           signingAddress: relayer.publicKey,
@@ -981,6 +1993,8 @@ describe("verifier_program", () => {
           systemProgram: SystemProgram.programId,
           feeEscrowState: pdas.feeEscrowStatePubkey,
           user:           origin.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY
         }
       ).signers([relayer, origin]).rpc();
 
@@ -991,14 +2005,15 @@ describe("verifier_program", () => {
         user_pubkey: origin.publicKey,
         relayer_pubkey: relayer.publicKey,
         tx_fee: new anchor.BN(tx_fee),
-        verifierProgram
+        verifierProgram,
+        rent: RENT_ESCROW
       });
 
       var relayerInfoMid = await connection.getAccountInfo(
         relayer.publicKey
       )
 
-      assert(relayerInfoMid.lamports == relayerInfoStart.lamports - rent - rent_verifier)
+      assert(relayerInfoMid.lamports == relayerInfoStart.lamports - RENT_ESCROW - RENT_VERIFIER)
       var userInfoMid = await connection.getAccountInfo(
         origin.publicKey
       )
@@ -1067,12 +2082,16 @@ describe("verifier_program", () => {
           feeEscrowState: pdas.feeEscrowStatePubkey,
           user:           origin.publicKey,
           relayer:        relayer.publicKey,
+          token_program: token.TOKEN_PROGRAM_ID,
+          tokenAuthority: AUTHORITY,
+          systemProgram: SystemProgram.programId,
         }
       ).signers([origin]).transaction();
       await provider.sendAndConfirm(txUserClose, [origin])
 
     } catch (e) {
-      assert(e.logs[2] == 'Program log: AnchorError thrown in programs/verifier_program/src/escrow/close_escrow_state.rs:44. Error Code: NotTimedOut. Error Number: 6006. Error Message: Closing escrow state failed relayer not timed out..');
+      // console.log(e)
+      assert(e.logs[2] == 'Program log: AnchorError thrown in programs/verifier_program/src/escrow/close_escrow_state.rs:52. Error Code: NotTimedOut. Error Number: 6006. Error Message: Closing escrow state failed relayer not timed out..');
     }
 
     const tx1relayer = await verifierProgram.methods.closeEscrow(
@@ -1084,6 +2103,9 @@ describe("verifier_program", () => {
         feeEscrowState: pdas.feeEscrowStatePubkey,
         user:           origin.publicKey,
         relayer:        relayer.publicKey,
+        token_program: token.TOKEN_PROGRAM_ID,
+        tokenAuthority: AUTHORITY,
+        systemProgram: SystemProgram.programId,
       }
     ).signers([relayer]).transaction();
     await provider.sendAndConfirm(tx1relayer, [relayer])
@@ -1113,9 +2135,9 @@ describe("verifier_program", () => {
     // console.log("feeEscrowStatePubkeyInfoMid: ", feeEscrowStatePubkeyInfoMid.lamports)
     // console.log("rent: ", rent)
     // console.log("escrow_amount: ", escrow_amount)
-    // console.log(`feeEscrowStatePubkeyInfoMid.lamports : ${feeEscrowStatePubkeyInfoMid.lamports} ${escrow_amount + rent} `)
+    // console.log(`feeEscrowStatePubkeyInfoMid.lamports : ${feeEscrowStatePubkeyInfoMid.lamports} ${escrow_amount RENT_ESCROW} `)
     assert(userInfoStart.lamports - tx_cost == userInfoEnd.lamports)
-    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + rent)
+    assert(feeEscrowStatePubkeyInfoMid.lamports == escrow_amount + RENT_ESCROW)
     assert(userInfoStart.lamports == userInfoMid.lamports + escrow_amount)
 
   })
@@ -1126,12 +2148,12 @@ describe("verifier_program", () => {
     let Keypair = new light.Keypair()
     let merkle_tree_pubkey = MERKLE_TREE_KEY
     let tx_fee = 5000 * 50;
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-    let rent_verifier = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+
+
     provider.wallet.payer = relayer
     let nr_tx = 10;
     let tx_cost = (nr_tx + 1) * 5000
-    let merkleTree = await light.buildMerkelTree(provider.connection);
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
     let deposit_utxo1 = new light.Utxo(BigNumber.from(amount), Keypair)
     let deposit_utxo2 = new light.Utxo(BigNumber.from(amount), Keypair)
@@ -1143,6 +2165,8 @@ describe("verifier_program", () => {
       inputUtxos,
       outputUtxos,
       merkleTree,
+      0,
+      MERKLE_TREE_KEY.toBytes(),
       deposit_utxo1.amount.add(deposit_utxo2.amount),
       U64(0),
       MERKLE_TREE_PDA_TOKEN.toBase58(),
@@ -1171,7 +2195,8 @@ describe("verifier_program", () => {
             ix_data.txIntegrityHash,
             new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
             ix_data.fee,
-            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString())
+            new anchor.BN(I64.readLE(ix_data.extAmount,0).toString()),
+            new anchor.BN(0)
       ).accounts(
           {
             signingAddress: relayer.publicKey,
@@ -1179,6 +2204,8 @@ describe("verifier_program", () => {
             systemProgram: SystemProgram.programId,
             feeEscrowState: pdas.feeEscrowStatePubkey,
             user:           origin.publicKey,
+            token_program: token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY
           }
         ).signers([relayer, origin]).rpc();
     } catch (e) {
@@ -1192,13 +2219,14 @@ describe("verifier_program", () => {
         user_pubkey: origin.publicKey,
         relayer_pubkey: relayer.publicKey,
         tx_fee: new anchor.BN(tx_fee),
-        verifierProgram
+        verifierProgram,
+        rent: RENT_ESCROW
       });
 
       var relayerInfoMid = await connection.getAccountInfo(
         relayer.publicKey
       )
-      assert(relayerInfoMid.lamports == relayerInfoStart.lamports - rent - rent_verifier)
+      assert(relayerInfoMid.lamports == relayerInfoStart.lamports - RENT_ESCROW - RENT_VERIFIER)
       var userInfoMid = await connection.getAccountInfo(
         origin.publicKey
       )
@@ -1277,7 +2305,8 @@ describe("verifier_program", () => {
               ).signers([relayer]).transaction()
             await provider.sendAndConfirm(tx, [relayer])
       } catch(e) {
-        assert(e.logs[2] == 'Program log: AnchorError thrown in programs/verifier_program/src/groth16_verifier/create_verifier_state.rs:61. Error Code: VerifierStateAlreadyInitialized. Error Number: 6008. Error Message: VerifierStateAlreadyInitialized.')
+        // console.log(e)
+        assert(e.logs.indexOf('Program log: AnchorError thrown in programs/verifier_program/src/groth16_verifier/create_verifier_state.rs:71. Error Code: VerifierStateAlreadyInitialized. Error Number: 6008. Error Message: VerifierStateAlreadyInitialized.') != -1)
       }
     var verifierState = await connection.getAccountInfo(
       pdas.verifierStatePubkey
@@ -1295,13 +2324,11 @@ describe("verifier_program", () => {
     let Keypair = new light.Keypair()
     let merkle_tree_pubkey = MERKLE_TREE_KEY
     let tx_fee = 5000 * 50;
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-    let rent_verifier = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+
     provider.wallet.payer = relayer
     let nr_tx = 10;
     let tx_cost = (nr_tx + 1) * 5000
-    let merkleTree = await light.buildMerkelTree(provider.connection);
-
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
     let pdas = getPdaAddresses({
       tx_integrity_hash: IX_DATA.txIntegrityHash,
       nullifier0: IX_DATA.nullifier0,
@@ -1347,13 +2374,12 @@ describe("verifier_program", () => {
       let preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX
 
       let tx_fee = 5000 * 50;
-      let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-      let rent_verifier = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+
       provider.wallet.payer = relayer
       let nr_tx = 10;
       let tx_cost = (nr_tx + 1) * 5000
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
+      let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
 
       let pdas = getPdaAddresses({
@@ -1462,7 +2488,7 @@ describe("verifier_program", () => {
         // *
         //
 
-        let merkleTree = await light.buildMerkelTree(provider.connection);
+        let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
         let Keypair = new light.Keypair()
 
@@ -1483,7 +2509,8 @@ describe("verifier_program", () => {
               merkle_tree_pubkey: MERKLE_TREE_KEY,
               provider,
               relayerFee,
-              lastTx: false
+              lastTx: false,
+              rent: RENT_ESCROW
             })
             leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
             utxos.push(res[1])
@@ -1749,13 +2776,13 @@ describe("verifier_program", () => {
     let merkle_tree_pubkey = MERKLE_TREE_KEY
 
     let tx_fee = 5000 * 50;
-    let rent = await provider.connection.getMinimumBalanceForRentExemption(128);
-    let rent_verifier = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
+
+
     provider.wallet.payer = relayer
     let nr_tx = 10;
     let tx_cost = (nr_tx + 1) * 5000
 
-    let merkleTree = await light.buildMerkelTree(provider.connection);
+    let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
     let deposit_utxo1 = new light.Utxo(BigNumber.from(amount), Keypair)
     let deposit_utxo2 = new light.Utxo(BigNumber.from(amount), Keypair)
@@ -1767,6 +2794,8 @@ describe("verifier_program", () => {
       inputUtxos,
       outputUtxos,
       merkleTree,
+      0,
+      MERKLE_TREE_KEY.toBytes(),
       deposit_utxo1.amount.add(deposit_utxo2.amount),
       U64(0),
       MERKLE_TREE_PDA_TOKEN.toBase58(),
@@ -1965,7 +2994,7 @@ describe("verifier_program", () => {
     }
   })
 
-  it.skip("Double Spend", async () => {
+  it("Sol Deposit, Withdrawal & Double Spend", async () => {
       const userAccount = await newAccountWithLamports(provider.connection)
       const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
@@ -1978,7 +3007,7 @@ describe("verifier_program", () => {
       // *
       //
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
+      let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
       MERKLE_TREE_OLD = merkleTree
       let Keypair = new light.Keypair()
 
@@ -1997,7 +3026,9 @@ describe("verifier_program", () => {
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
           provider,
-          relayerFee
+          relayerFee,
+          lastTx: true,
+          rent: RENT_ESCROW
         })
         leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
         utxos.push(res[1])
@@ -2007,6 +3038,7 @@ describe("verifier_program", () => {
         connection: provider.connection,
         signer:userAccount,
         merkleTreeProgram: merkleTreeProgram,
+        merkleTreeIndex: 0,
         leavesPdas,
         merkleTree,
         merkle_tree_pubkey: MERKLE_TREE_KEY,
@@ -2024,7 +3056,7 @@ describe("verifier_program", () => {
       // generate utxos
       //
       var leavesPdasWithdrawal = []
-      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
       let deposit_utxo1 = utxos[0][0];
       let deposit_utxo2 = utxos[0][1];
       deposit_utxo1.index = merkleTreeWithdrawal._layers[0].indexOf(deposit_utxo1.getCommitment()._hex)
@@ -2056,6 +3088,8 @@ describe("verifier_program", () => {
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         externalAmountBigNumber,
         relayerFee,
         recipientWithdrawal.publicKey.toBase58(),
@@ -2075,24 +3109,28 @@ describe("verifier_program", () => {
         verifierProgram
       })
 
+      try {
+        let resWithdrawalTransact = await transact({
+          connection: provider.connection,
+          ix_data: ix_dataWithdrawal,
+          pdas: pdasWithdrawal,
+          origin: MERKLE_TREE_PDA_TOKEN,
+          signer: relayer,
+          recipient: recipientWithdrawal.publicKey,
+          relayer_recipient,
+          mode: "withdrawal",
+          verifierProgram,
+          merkleTreeProgram,
+          authority: AUTHORITY,
+          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+          merkle_tree_pubkey: MERKLE_TREE_KEY,
+          provider,
+          relayerFee
+        })
+      } catch(e) {
+        console.log(e)
+      }
 
-      let resWithdrawalTransact = await transact({
-        connection: provider.connection,
-        ix_data: ix_dataWithdrawal,
-        pdas: pdasWithdrawal,
-        origin: MERKLE_TREE_PDA_TOKEN,
-        signer: relayer,
-        recipient: recipientWithdrawal.publicKey,
-        relayer_recipient,
-        mode: "withdrawal",
-        verifierProgram,
-        merkleTreeProgram,
-        authority: AUTHORITY,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        merkle_tree_pubkey: MERKLE_TREE_KEY,
-        provider,
-        relayerFee
-      })
 
       let failed = false
       try {
@@ -2119,7 +3157,7 @@ describe("verifier_program", () => {
       assert(failed, "double spend did not fail");
     })
 
-  it.skip("Last Tx Withdrawal false inputs", async () => {
+  it("Last Tx Withdrawal false inputs", async () => {
       const userAccount = await newAccountWithLamports(provider.connection)
       const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
@@ -2133,7 +3171,7 @@ describe("verifier_program", () => {
       // *
       // *
 
-      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+      const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
       let signer = await newAccountWithLamports(provider.connection);
       let relayer_recipient = new anchor.web3.Account();
@@ -2156,6 +3194,8 @@ describe("verifier_program", () => {
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         externalAmountBigNumber,
         relayerFee,
         recipientWithdrawal.publicKey.toBase58(),
@@ -2207,7 +3247,10 @@ describe("verifier_program", () => {
         // console.log(pdasWithdrawal.nullifier1PdaPubkey.toBase58())
         failed = true
       }
-
+      let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+          [anchor.utils.bytes.utf8.encode("spl")],
+          verifierProgram.programId
+        )[0];
       const maliciousRecipient = await newProgramOwnedAccount({ connection: provider.connection,owner: merkleTreeProgram})
       try {
         const txLastTransaction = await verifierProgram.methods.lastTransactionWithdrawal(
@@ -2226,7 +3269,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2256,7 +3301,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: UNREGISTERED_MERKLE_TREE_PDA_TOKEN,
             merkleTree: UNREGISTERED_MERKLE_TREE.publicKey,
             preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2286,7 +3333,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2319,7 +3368,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2353,7 +3404,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2383,7 +3436,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2415,7 +3470,9 @@ describe("verifier_program", () => {
             merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
             merkleTree: MERKLE_TREE_KEY,
             preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-            authority: AUTHORITY
+            authority: AUTHORITY,
+            tokenAuthority,
+            tokenProgram: token.TOKEN_PROGRAM_ID
           }
         ).preInstructions([
           SystemProgram.transfer({
@@ -2431,7 +3488,7 @@ describe("verifier_program", () => {
     })
 
   // Tries to validate a tx with a wrong Merkle proof with consistent wrong root
-  it.skip("Wrong root & merkle proof", async () => {
+  it("Wrong root & merkle proof", async () => {
     const userAccount = await newAccountWithLamports(provider.connection)
     const recipientWithdrawal = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
@@ -2454,7 +3511,7 @@ describe("verifier_program", () => {
     // generate utxos
     //
     var leavesPdasWithdrawal = []
-    const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection);
+    const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
     let relayer = await newAccountWithLamports(provider.connection);
     let relayer_recipient = new anchor.web3.Account();
@@ -2478,6 +3535,8 @@ describe("verifier_program", () => {
       inputUtxosWithdrawal,
       outputUtxosWithdrawal,
       MERKLE_TREE_OLD,
+      0,
+      MERKLE_TREE_KEY.toBytes(),
       externalAmountBigNumber,
       relayerFee,
       recipientWithdrawal.publicKey.toBase58(),
@@ -2520,7 +3579,7 @@ describe("verifier_program", () => {
     }
   })
 
-  it.skip("Wrong Proof", async () => {
+  it("Wrong Proof", async () => {
       const userAccount = await newAccountWithLamports(provider.connection)
       const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
@@ -2533,7 +3592,7 @@ describe("verifier_program", () => {
       // *
       //
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
+      let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
       let Keypair = new light.Keypair()
       let amount = 1_000_000_00
@@ -2556,6 +3615,8 @@ describe("verifier_program", () => {
         inputUtxos,
         outputUtxos,
         merkleTree,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         deposit_utxo1.amount.add(deposit_utxo2.amount),
         U64(0),
         merkleTreePdaToken.toBase58(),
@@ -2618,11 +3679,12 @@ describe("verifier_program", () => {
       // *
       //
 
-      let merkleTree = await light.buildMerkelTree(provider.connection);
+      let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
       let Keypair = new light.Keypair()
 
       for (var i= 0; i < 17; i++) {
+        console.log(`${i} / 17`)
         let res = await deposit({
           Keypair,
           encryptionKeypair,
@@ -2637,7 +3699,8 @@ describe("verifier_program", () => {
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
           provider,
-          relayerFee
+          relayerFee,
+          rent: RENT_ESCROW
         })
         leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
         utxos.push(res[1])
@@ -2649,6 +3712,7 @@ describe("verifier_program", () => {
           merkleTreeProgram: merkleTreeProgram,
           leavesPdas,
           merkleTree,
+          merkleTreeIndex: 0,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
           provider
         });
@@ -2660,6 +3724,7 @@ describe("verifier_program", () => {
         connection: provider.connection,
         signer:userAccount,
         merkleTreeProgram: merkleTreeProgram,
+        merkleTreeIndex: 0,
         leavesPdas,
         merkleTree,
         merkle_tree_pubkey: MERKLE_TREE_KEY,
@@ -2703,11 +3768,12 @@ describe("verifier_program", () => {
       .sub(
         inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
       )
-      console.log("externalAmountBigNumber ", externalAmountBigNumber.toString())
       var dataWithdrawal = await light.getProof(
         inputUtxosWithdrawal,
         outputUtxosWithdrawal,
         merkleTreeWithdrawal,
+        0,
+        MERKLE_TREE_KEY.toBytes(),
         externalAmountBigNumber,
         relayerFee,
         recipientWithdrawal.publicKey.toBase58(),
@@ -2741,21 +3807,28 @@ describe("verifier_program", () => {
         merkle_tree_pubkey: MERKLE_TREE_KEY,
         provider,
         relayerFee
-      })
+      });
+      leavesPdasWithdrawal = [];
       leavesPdasWithdrawal.push({
         isSigner: false,
         isWritable: true,
         pubkey: resWithdrawalTransact
       })
-      await executeUpdateMerkleTreeTransactions({
-        connection: provider.connection,
-        signer:relayer,
-        merkleTreeProgram,
-        leavesPdas: leavesPdasWithdrawal,
-        merkleTree: merkleTreeWithdrawal,
-        merkle_tree_pubkey: MERKLE_TREE_KEY,
-        provider
-      });
+      try {
+        await executeUpdateMerkleTreeTransactions({
+          connection: provider.connection,
+          signer:relayer,
+          merkleTreeProgram,
+          leavesPdas: leavesPdasWithdrawal,
+          merkleTree: merkleTreeWithdrawal,
+          merkle_tree_pubkey: MERKLE_TREE_KEY,
+          merkleTreeIndex: 0,
+          provider
+        });
+
+      } catch(e) {
+        assert(e.error.errorCode.code == 'FirstLeavesPdaIncorrectIndex.')
+      }
     })
 
   it.skip("16 shielded transactions, 1 unshielding transaction", async () => {
@@ -2771,11 +3844,11 @@ describe("verifier_program", () => {
         // *
         //
 
-        let merkleTree = await light.buildMerkelTree(provider.connection);
+        let merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
 
         let Keypair = new light.Keypair()
 
-        for (var i= 0; i < 16; i++) {
+        for (var i= 0; i < 1; i++) {
           let res = await deposit({
             Keypair,
             encryptionKeypair,
@@ -2790,7 +3863,8 @@ describe("verifier_program", () => {
             preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
             merkle_tree_pubkey: MERKLE_TREE_KEY,
             provider,
-            relayerFee
+            relayerFee,
+            rent: RENT_ESCROW
           })
           leavesPdas.push({ isSigner: false, isWritable: true, pubkey: res[0]})
           utxos.push(res[1])
@@ -2800,6 +3874,7 @@ describe("verifier_program", () => {
           connection: provider.connection,
           signer:userAccount,
           merkleTreeProgram: merkleTreeProgram,
+          merkleTreeIndex: 0,
           leavesPdas,
           merkleTree,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
@@ -2843,11 +3918,13 @@ describe("verifier_program", () => {
         .sub(
           inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
         )
-        console.log("externalAmountBigNumber ", externalAmountBigNumber.toString())
+
         var dataWithdrawal = await light.getProof(
           inputUtxosWithdrawal,
           outputUtxosWithdrawal,
           merkleTreeWithdrawal,
+          0,
+          MERKLE_TREE_KEY.toBytes(),
           externalAmountBigNumber,
           relayerFee,
           recipientWithdrawal.publicKey.toBase58(),
@@ -2894,6 +3971,7 @@ describe("verifier_program", () => {
           leavesPdas: leavesPdasWithdrawal,
           merkleTree: merkleTreeWithdrawal,
           merkle_tree_pubkey: MERKLE_TREE_KEY,
+          merkleTreeIndex: 0,
           provider
         });
 

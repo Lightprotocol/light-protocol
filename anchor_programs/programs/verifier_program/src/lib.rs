@@ -48,14 +48,15 @@ pub mod verifier_program {
     /// The escrow amount consists out of the transaction fees the relayer incurs as costs (tx_fee)
     /// plus the relayer fee the relayer charges (relayer fee)
     /// plus the amount the user wants to shield (amount).
-    pub fn create_escrow(
-        ctx: Context<CreateEscrowState>,
+    pub fn create_escrow<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, CreateEscrowState<'info>>,
         tx_integrity_hash: [u8; 32],
         tx_fee: u64,
         relayer_fee: [u8; 8],
         amount: u64,
+        merkle_tree_index: u64
     ) -> Result<()> {
-        process_create_escrow(ctx, tx_integrity_hash, tx_fee, relayer_fee, amount)
+        process_create_escrow(ctx, tx_integrity_hash, tx_fee, relayer_fee, amount, merkle_tree_index)
     }
 
     /// Allows the user or relayer to close the escrow pda.
@@ -64,7 +65,7 @@ pub mod verifier_program {
     /// sent. The relayer does not collect the relayer fee thus does not make a profit.
     /// Users can close the account either before the relayer started sending transactions or
     /// after a timeout period.
-    pub fn close_escrow(ctx: Context<CloseFeeEscrowPda>) -> Result<()> {
+    pub fn close_escrow<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, CloseFeeEscrowPda<'info>>) -> Result<()> {
         process_close_escrow(ctx)
     }
 
@@ -116,7 +117,7 @@ pub mod verifier_program {
 
     /// Transfers the deposit amount,
     /// inserts nullifiers and Merkle tree leaves.
-    pub fn last_transaction_deposit(ctx: Context<LastTransactionDeposit>) -> Result<()> {
+    pub fn last_transaction_deposit<'a, 'b, 'c, 'info>(ctx: Context<'a, 'b, 'c, 'info, LastTransactionDeposit<'info>>) -> Result<()> {
         process_last_transaction_deposit(ctx)
     }
 

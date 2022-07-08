@@ -21,7 +21,7 @@ pub struct InsertTwoLeaves<'info> {
     /// CHECK:` should only be accessed by a registered verifier
     /// for every registered verifier a pda is saved in config::REGISTERED_VERIFIER_KEY_ARRAY
     ///
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[_index as usize]))]
+    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(_index).unwrap()]))]
     pub authority: Signer<'info>,
     /// CHECK:` Leaves account should be checked by invoking verifier.
     #[account(mut, seeds= [&nullifier, LEAVES_SEED], bump)]

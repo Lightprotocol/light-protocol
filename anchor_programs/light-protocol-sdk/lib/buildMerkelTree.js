@@ -17,7 +17,7 @@ const constants_1 = require("./constants");
 const merkelTree_1 = __importDefault(require("./merkelTree"));
 const toFixedHex_1 = require("./utils/toFixedHex");
 const { U64 } = require('n64');
-const buildMerkelTree = function (connection) {
+const buildMerkelTree = function (connection, tree) {
     return __awaiter(this, void 0, void 0, function* () {
         const programPubKey = constants_1.PROGRAM_ID;
         // Fetch all the accounts owned by the specified program id
@@ -28,7 +28,10 @@ const buildMerkelTree = function (connection) {
         /// Slices some data from the leaves
         leave_accounts.map((acc) => {
           // skip leaves which are not inserted yet
-          if(acc.account.data[1] == 4){
+          // console.log("tree bytes: ", Array.prototype.slice.call(tree).toString())
+          // console.log("acc.account.data.slice(74, 106): ", Array.prototype.slice.call(acc.account.data.slice(74, 106)).toString())
+          // console.log("tree == acc.account.data.slice(74, 106): ", Array.prototype.slice.call(tree).toString() == Array.prototype.slice.call(acc.account.data.slice(74, 106)).toString())
+          if(acc.account.data[1] == 4 && Array.prototype.slice.call(tree).toString() == Array.prototype.slice.call(acc.account.data.slice(74, 106)).toString()){
             leaves_to_sort.push({
                 index: U64(acc.account.data.slice(2, 10)).toString(),
                 leaves: acc.account.data.slice(10, 74),
