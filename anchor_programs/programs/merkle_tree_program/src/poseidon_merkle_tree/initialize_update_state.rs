@@ -21,7 +21,7 @@ pub struct InitializeUpdateState<'info> {
         seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
         bump,
         payer = authority,
-        space = MERKLE_TREE_TMP_PDA_SIZE + 64 * 20,
+        space = MERKLE_TREE_TMP_PDA_SIZE,
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK: that the merkle tree is registered.
@@ -38,12 +38,12 @@ pub fn process_initialize_update_state(
     msg!("InitializeUpdateState");
     msg!("merkle_tree_index: {}", merkle_tree_index);
 
-    let verifier_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
-    verifier_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
-    verifier_state_data.relayer = ctx.accounts.authority.key();
-    verifier_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
+    let update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
+    update_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
+    update_state_data.relayer = ctx.accounts.authority.key();
+    update_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
 
-    verifier_state_data.current_instruction_index = 1;
+    update_state_data.current_instruction_index = 1;
 
     // Checking that the number of remaining accounts is non zero and smaller than 16.
     if ctx.remaining_accounts.len() == 0 || ctx.remaining_accounts.len() > 16 {
@@ -55,7 +55,7 @@ pub fn process_initialize_update_state(
     }
 
     let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-    verifier_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
+    update_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
 
     let mut tmp_index = merkle_tree_pda_data.next_index;
     // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their
@@ -64,7 +64,7 @@ pub fn process_initialize_update_state(
     //             - are not inserted yet
     //             - belong to merkle_tree
     //             - the lowest index is the next index of the merkle_tree
-    //             - indices increases incrementally by 2 for subsequent leaves
+    //             - indices increase incrementally by 2 for subsequent leaves
     // Copying leaves to tmp account.
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Copying leaves pair {}", index);
@@ -105,9 +105,9 @@ pub fn process_initialize_update_state(
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
         // Copy leaves to tmp account.
-        verifier_state_data.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
-        verifier_state_data.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
-        verifier_state_data.number_of_leaves = (index + 1).try_into().unwrap();
+        update_state_data.leaves[index][0] = leaves_pda_data.node_left.try_into().unwrap();
+        update_state_data.leaves[index][1] = leaves_pda_data.node_right.try_into().unwrap();
+        update_state_data.number_of_leaves = (index + 1).try_into().unwrap();
         tmp_index += 2;
     }
 
@@ -149,6 +149,11 @@ pub fn process_initialize_update_state(
             .key()
             .to_bytes()
             .to_vec();
+    }
+
+    // Copying Subtrees into update state.
+    for (i, node) in merkle_tree_pda_data.filled_subtrees.iter().enumerate() {
+        update_state_data.filled_subtrees[i] = node.clone().try_into().unwrap();
     }
 
     MerkleTree::pack_into_slice(

@@ -1,4 +1,5 @@
 use anchor_lang::prelude::*;
+use crate::utils::config::MERKLE_TREE_HEIGHT;
 
 #[account(zero_copy)]
 pub struct MerkleTreeUpdateState {
@@ -17,6 +18,7 @@ pub struct MerkleTreeUpdateState {
     pub current_level: u64,
     pub current_level_hash: [u8; 32],
     pub tmp_leaves_index: u64,
+    pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT as usize],
 
     pub leaves: [[[u8; 32]; 2]; 16],
     pub merkle_tree_index: u8,
