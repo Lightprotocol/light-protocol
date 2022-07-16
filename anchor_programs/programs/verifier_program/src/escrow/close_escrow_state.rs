@@ -44,7 +44,7 @@ pub fn process_close_escrow<'info>(ctx: Context<'_, '_, '_, 'info, CloseFeeEscro
 
     // if yes check that signer such that user can only close after timeout
     if verifier_state.current_instruction_index != 0
-        && fee_escrow_state.creation_slot + TIMEOUT_ESCROW > <Clock as Sysvar>::get()?.slot
+        || !(fee_escrow_state.creation_slot + TIMEOUT_ESCROW > <Clock as Sysvar>::get()?.slot)
         && ctx.accounts.signing_address.key() != Pubkey::new(&[0u8; 32])
     {
         if ctx.accounts.signing_address.key() != verifier_state.signing_address {
@@ -90,7 +90,7 @@ pub fn process_close_escrow<'info>(ctx: Context<'_, '_, '_, 'info, CloseFeeEscro
         let accounts = &mut ctx.remaining_accounts.iter();
         let from = next_account_info(accounts)?;
         let to = next_account_info(accounts)?;
-        
+
         if fee_escrow_state.user_token_pda != to.key() {
             return err!(ErrorCode::WrongUserTokenPda);
         }
