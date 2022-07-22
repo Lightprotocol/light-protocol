@@ -31,8 +31,11 @@ export const MERKLE_TREE_INIT_AUTHORITY = [2, 99, 226, 251, 88, 66, 92, 33, 25, 
 export const ADMIN_AUTH_KEY = new solana.PublicKey(new Uint8Array(MERKLE_TREE_INIT_AUTHORITY));
 export const ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
 export const MERKLE_TREE_ACC_BYTES_0 = new Uint8Array([
-    242, 149, 147, 41, 62, 228, 214, 222, 231, 159, 167, 195, 10, 226, 182, 153, 84, 80, 249, 150,
-    131, 112, 150, 225, 133, 131, 32, 149, 69, 188, 94, 13,
+  190, 128,   2, 139, 132, 166, 200,
+  112, 236,  75,  16,  77, 200, 175,
+  154, 124, 163, 241, 240, 136,  11,
+   14, 233, 211,  37, 101, 200, 190,
+  101, 163, 127,  20
 ]);
 export const MERKLE_TREE_KP = solana.Keypair.fromSeed(MERKLE_TREE_ACC_BYTES_0);
 
@@ -41,8 +44,10 @@ export const MERKLE_TREE_KEY = MERKLE_TREE_KP.publicKey;
 export const MERKLE_TREE_SIZE = 16658;
 
 export const MERKLE_TREE_TOKEN_ACC_BYTES_0 = new Uint8Array([
-    123, 30, 128, 110, 93, 171, 2, 242, 20, 194, 175, 25, 246, 98, 182, 99, 31, 110, 119, 163, 68,
-    179, 244, 89, 176, 19, 93, 136, 149, 231, 179, 213,
+  218, 24,  22, 174,  97, 242, 114,  92,
+   10, 17, 126,  18, 203, 163, 145, 123,
+    3, 83, 209, 157, 145, 202, 112, 112,
+  133, 88,   2, 242, 144,  12, 225,  72
 ]);
 
 export const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")

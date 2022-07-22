@@ -108,7 +108,10 @@ describe("verifier_program", () => {
   const AUTHORITY = solana.PublicKey.findProgramAddressSync(
       [merkleTreeProgram.programId.toBuffer()],
       verifierProgram.programId)[0];
+      console.log("AUTHORITY: ", AUTHORITY.toBase58());
 
+  console.log("AUTHORITY: ", Array.prototype.slice.call(AUTHORITY.toBytes()));
+  console.log("verifierProgram.programId: ", Array.prototype.slice.call(verifierProgram.programId.toBytes()));
 
 
 
@@ -156,7 +159,10 @@ describe("verifier_program", () => {
     var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
           ADMIN_AUTH_KEYPAIR.publicKey
         )
-
+    console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
+    console.log("MERKLE_TREE_KEY: ", Array.prototype.slice.call(MERKLE_TREE_KEY.toBytes()))
+    console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
+    console.log("MERKLE_TREE_PDA_TOKEN: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN.toBytes()))
     try {
       const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
         authority: ADMIN_AUTH_KEY,
@@ -249,11 +255,11 @@ describe("verifier_program", () => {
     RENT_VERIFIER = await provider.connection.getMinimumBalanceForRentExemption(5 * 1024);
     RENT_TOKEN_ACCOUNT = await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE)
 
-    // console.log("MERKLE_TREE_USDC: ", MERKLE_TREE_USDC.toBase58())
-    //
-    // console.log("MERKLE_TREE_USDC: ", Array.prototype.slice.call(MERKLE_TREE_USDC.toBytes()))
-    // console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", MERKLE_TREE_PDA_TOKEN_USDC.toBase58())
-    // console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN_USDC.toBytes()))
+    console.log("MERKLE_TREE_USDC: ", MERKLE_TREE_USDC.toBase58())
+
+    console.log("MERKLE_TREE_USDC: ", Array.prototype.slice.call(MERKLE_TREE_USDC.toBytes()))
+    console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", MERKLE_TREE_PDA_TOKEN_USDC.toBase58())
+    console.log("MERKLE_TREE_PDA_TOKEN_USDC: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN_USDC.toBytes()))
 
     const signer = await newAccountWithLamports(provider.connection)
 
@@ -322,7 +328,7 @@ describe("verifier_program", () => {
 
   });
 
-  it("Open and close escrow relayer token", async () => {
+  it.skip("Open and close escrow relayer token", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let tokenAuthority = solana.PublicKey.findProgramAddressSync(
@@ -551,7 +557,7 @@ describe("verifier_program", () => {
   assert(userAccountAfter.lamports == userAccountPrior.lamports + Number(tx_fee));
   })
 
-  it("Open and close escrow user token", async () => {
+  it.skip("Open and close escrow user token", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let tokenAuthority = solana.PublicKey.findProgramAddressSync(
@@ -739,7 +745,7 @@ describe("verifier_program", () => {
   assert(userAccountAfter.lamports == userAccountPrior.lamports + Number(tx_fee));
   })
 
-  it("Open and close escrow token after 1 tx", async () => {
+  it.skip("Open and close escrow token after 1 tx", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     var userTokenAccount = (await newAccountWithTokens({
         connection: provider.connection,
@@ -981,7 +987,7 @@ describe("verifier_program", () => {
   })
 
 
-  it("Deposit and withdraw token", async () => {
+  it.skip("Deposit and withdraw token", async () => {
     const userAccount = await newAccountWithLamports(provider.connection)
 
     var amount = 1_000_000_00
@@ -1037,7 +1043,7 @@ describe("verifier_program", () => {
       signer = res[2]
       pdas = res[3]
     }
-
+    console.log("probably finished deposit")
     await executeUpdateMerkleTreeTransactions({
       connection: provider.connection,
       signer: userAccount,
@@ -1059,6 +1065,8 @@ describe("verifier_program", () => {
     // new lightTransaction
     // generate utxos
     //
+    console.log("probably finished deposit")
+
     var leavesPdasWithdrawal = []
     const merkleTreeWithdrawal = await light.buildMerkelTree(provider.connection, MERKLE_TREE_USDC.toBytes());
     let deposit_utxo1 = utxos[0][0];
@@ -1074,6 +1082,7 @@ describe("verifier_program", () => {
         userAccount: relayer,
         amount: 0
     });
+    console.log("probably finished deposit")
 
     const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 
@@ -1101,6 +1110,7 @@ describe("verifier_program", () => {
     .sub(
       inputUtxosWithdrawal.reduce((sum, utxo) => sum.add(utxo.amount), BigNumber.from(0)),
     )
+    console.log("probably finished deposit")
 
     var dataWithdrawal = await light.getProof(
       inputUtxosWithdrawal,
@@ -1661,7 +1671,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("Open and close escrow token relayer", async () => {
+  it("Open and close escrow token relayer", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
@@ -1838,7 +1848,7 @@ describe("verifier_program", () => {
   })
 
   // User can close an escrow account created by a relayer
-  it.skip("Open and close escrow user", async () => {
+  it("Open and close escrow user", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
@@ -1932,7 +1942,7 @@ describe("verifier_program", () => {
   // Creates an escrow, verifier state, executes 10 deposit transactions,
   // tries to close the escrow with user account (should fail),
   // and closes the escrow with relayer account.
-  it.skip("Open and close escrow after 10 tx", async () => {
+  it("Open and close escrow after 10 tx", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
@@ -2091,7 +2101,7 @@ describe("verifier_program", () => {
 
     } catch (e) {
       // console.log(e)
-      assert(e.logs[2] == 'Program log: AnchorError thrown in programs/verifier_program/src/escrow/close_escrow_state.rs:52. Error Code: NotTimedOut. Error Number: 6006. Error Message: Closing escrow state failed relayer not timed out..');
+      assert(e.logs[2] == 'Program log: AnchorError thrown in programs/verifier_program/src/escrow/close_escrow_state.rs:51. Error Code: NotTimedOut. Error Number: 6006. Error Message: Closing escrow state failed relayer not timed out..');
     }
 
     const tx1relayer = await verifierProgram.methods.closeEscrow(
@@ -2142,7 +2152,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("reinit verifier state after 10 tx", async () => {
+  it("reinit verifier state after 10 tx", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
@@ -2306,7 +2316,7 @@ describe("verifier_program", () => {
             await provider.sendAndConfirm(tx, [relayer])
       } catch(e) {
         // console.log(e)
-        assert(e.logs.indexOf('Program log: AnchorError thrown in programs/verifier_program/src/groth16_verifier/create_verifier_state.rs:71. Error Code: VerifierStateAlreadyInitialized. Error Number: 6008. Error Message: VerifierStateAlreadyInitialized.') != -1)
+        assert(e.logs.indexOf('Program log: AnchorError thrown in programs/verifier_program/src/groth16_verifier/create_verifier_state.rs:65. Error Code: VerifierStateAlreadyInitialized. Error Number: 6008. Error Message: VerifierStateAlreadyInitialized.') != -1)
       }
     var verifierState = await connection.getAccountInfo(
       pdas.verifierStatePubkey
@@ -2318,7 +2328,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("Signer is consistent during compute instructions", async () => {
+  it("Signer is consistent during compute instructions", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
@@ -2365,7 +2375,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("Invoke last transaction with wrong instruction index", async () => {
+  it("Invoke last transaction with wrong instruction index", async () => {
       const origin = await newAccountWithLamports(provider.connection)
       const relayer = await newAccountWithLamports(provider.connection)
       let Keypair = new light.Keypair()
@@ -2474,7 +2484,7 @@ describe("verifier_program", () => {
 
     })
 
-  it.skip("Last tx deposit with wrong accounts", async () => {
+  it("Last tx deposit with wrong accounts", async () => {
         const userAccount = await newAccountWithLamports(provider.connection)
         const recipientWithdrawal = await newAccountWithLamports(provider.connection)
         var signer
@@ -2609,6 +2619,7 @@ describe("verifier_program", () => {
             })
           ]).signers([signer]).rpc()
         } catch(e) {
+          // console.log(e)
           assert(e.error.origin == 'pre_inserted_leaves_index')
         }
 
@@ -2769,7 +2780,7 @@ describe("verifier_program", () => {
         }
       })
 
-  it.skip("wrong tx txIntegrityHash", async () => {
+  it("wrong tx txIntegrityHash", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
     let Keypair = new light.Keypair()
