@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("2c54pLrGpQdGxJWUAoME6CReBrtDbsx5Tqx4nLZZo6av");
+declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 
 use solana_security_txt::security_txt;
 
