@@ -24,6 +24,7 @@ const buildMerkelTree = function (connection, tree) {
         const leave_accounts = yield connection.getProgramAccounts(programPubKey, {
             filters: [{ dataSize: 106 + 222 }],
         });
+        // console.log("leave_accounts: ", leave_accounts)
         let leaves_to_sort = [];
         /// Slices some data from the leaves
         leave_accounts.map((acc) => {
