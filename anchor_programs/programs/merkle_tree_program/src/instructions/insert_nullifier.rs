@@ -19,7 +19,7 @@ pub struct InitializeNullifier<'info> {
     )]
     pub nullifier_pda: Account<'info, Nullifier>,
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(index).unwrap()]))]
+    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(index).unwrap()]))]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,

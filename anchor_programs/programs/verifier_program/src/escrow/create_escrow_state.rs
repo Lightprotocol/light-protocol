@@ -4,7 +4,7 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{clock::Clock, msg, sysvar::Sysvar};
 use anchor_spl::token::{Token, Transfer};
 use crate::errors::ErrorCode;
-use solana_program::program_pack::Pack;
+use anchor_lang::solana_program::program_pack::Pack;
 use merkle_tree_program::ID;
 
 #[derive(Accounts)]
@@ -77,7 +77,7 @@ pub fn process_create_escrow<'info>(
         // Save user_token_pda for check in close escrow.
         fee_escrow_state.user_token_pda = from.key().clone();
 
-        let address= solana_program::pubkey::Pubkey::create_with_seed(
+        let address= anchor_lang::prelude::Pubkey::create_with_seed(
             &ctx.accounts.signing_address.key(),
             "escrow",
             &ctx.accounts.token_program.key()).unwrap();
@@ -87,7 +87,7 @@ pub fn process_create_escrow<'info>(
         }
 
         let seed = ID.to_bytes();
-        let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(
+        let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
             &[seed.as_ref()],
             ctx.program_id,
         );

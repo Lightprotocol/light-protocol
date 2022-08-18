@@ -1,7 +1,10 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const constants_1 = require("./constants");
-const { poseidonHash2 } = require('./utils/poseidonHash');
+const ethers_1 = require("ethers");
+const toFixedHex_1 = require("./utils/toFixedHex");
+
+// const { poseidonHash2 } = require('./utils/poseidonHash');
 /**
  * @callback hashFunction
  * @param left Left leaf
@@ -11,7 +14,7 @@ const { poseidonHash2 } = require('./utils/poseidonHash');
  * Merkle tree
  */
 class MerkleTree {
-    constructor(levels, elements = [], { zeroElement = constants_1.DEFAULT_ZERO } = {}) {
+    constructor(levels,poseidonHash2, elements = [], { zeroElement = constants_1.DEFAULT_ZERO } = {}) {
         this.levels = levels;
         this.capacity = Math.pow(2, levels);
         this.zeroElement = zeroElement;
@@ -26,8 +29,7 @@ class MerkleTree {
         //console.log(this._zeros[0]);
         for (let i = 1; i <= levels; i++) {
             //console.log(  this._zeros[i - 1])
-            this._zeros[i] = this._hash(this._zeros[i - 1], this._zeros[i - 1]);
-            //console.log(  this._zeros[i])
+            this._zeros[i] = this._hash.F.toString(this._hash([this._zeros[i - 1], this._zeros[i - 1]]));
         }
         this._rebuild();
     }
@@ -35,9 +37,10 @@ class MerkleTree {
         for (let level = 1; level <= this.levels; level++) {
             this._layers[level] = [];
             for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-                this._layers[level][i] = this._hash(this._layers[level - 1][i * 2], i * 2 + 1 < this._layers[level - 1].length
+                this._layers[level][i] = this._hash.F.toString(this._hash(
+                  this._layers[level - 1][i * 2], i * 2 + 1 < this._layers[level - 1].length
                     ? this._layers[level - 1][i * 2 + 1]
-                    : this._zeros[level - 1]);
+                    : this._zeros[level - 1]));
             }
         }
     }
@@ -86,9 +89,11 @@ class MerkleTree {
         this._layers[0][index] = element;
         for (let level = 1; level <= this.levels; level++) {
             index >>= 1;
-            this._layers[level][index] = this._hash(this._layers[level - 1][index * 2], index * 2 + 1 < this._layers[level - 1].length
+
+            this._layers[level][index] = this._hash.F.toString(
+              this._hash([this._layers[level - 1][index * 2], index * 2 + 1 < this._layers[level - 1].length
                 ? this._layers[level - 1][index * 2 + 1]
-                : this._zeros[level - 1]);
+                : this._zeros[level - 1]]));
         }
     }
     /**

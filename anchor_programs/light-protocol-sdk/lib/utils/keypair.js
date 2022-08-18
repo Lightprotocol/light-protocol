@@ -2,10 +2,11 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.unpackEncryptedMessage = exports.packEncryptedMessage = exports.Keypair = void 0;
 const eth_sig_util_1 = require("eth-sig-util");
-const ethers_1 = require("ethers");
-const poseidonHash_1 = require("./poseidonHash");
+// const ethers_1 = require("ethers");
+const nacl = require('tweetnacl');
+const anchor = require("@project-serum/anchor")
+
 const toFixedHex_1 = require("./toFixedHex");
-const BigNumber = ethers_1.ethers.BigNumber;
 function packEncryptedMessage(encryptedMessage) {
     const nonceBuf = Buffer.from(encryptedMessage.nonce, 'base64');
     const ephemPublicKeyBuf = Buffer.from(encryptedMessage.ephemPublicKey, 'base64');
@@ -35,12 +36,15 @@ function unpackEncryptedMessage(encryptedMessage) {
         ciphertext: ciphertextBuf.toString('base64'),
     };
 }
+
 exports.unpackEncryptedMessage = unpackEncryptedMessage;
 class Keypair {
-    constructor(privkey = ethers_1.ethers.Wallet.createRandom().privateKey) {
+    constructor(poseidon , privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))) {
+
         this.privkey = privkey;
-        this.pubkey = (0, poseidonHash_1.poseidonHash)([this.privkey]);
+        this.pubkey = poseidon.F.toString(poseidon([this.privkey]));
         this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(privkey.slice(2));
+        this.poseidon = poseidon;
     }
     toString() {
         return ((0, toFixedHex_1.toFixedHex)(this.pubkey) +
@@ -54,8 +58,9 @@ class Keypair {
     address() {
         return this.toString();
     }
+
     /**
-     * Initialize new keypair from address string
+     * Initialize new keypair from address outPubkeystring
      *
      * @param str
      * @returns {Keypair}
@@ -69,7 +74,7 @@ class Keypair {
         }
         return Object.assign(new Keypair(), {
             privkey: null,
-            pubkey: BigNumber.from('0x' + str.slice(0, 64)),
+            pubkey: new anchor.BN('0x' + str.slice(0, 64)),
             encryptionKey: Buffer.from(str.slice(64, 128), 'hex').toString('base64'),
         });
     }
@@ -81,7 +86,7 @@ class Keypair {
      * @returns {BigNumber} a hex string with signature
      */
     sign(commitment, merklePath) {
-        return (0, poseidonHash_1.poseidonHash)([this.privkey, commitment, merklePath]);
+        return this.poseidon.F.toString(this.poseidon([this.privkey, commitment, merklePath]));
     }
     /**
      * Encrypt data using keypair encryption key

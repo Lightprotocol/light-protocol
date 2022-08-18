@@ -6,6 +6,7 @@ use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
+    sysvar,
     account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
 };
 
@@ -71,7 +72,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         )?;
         merkle_tree_update_state_data.current_instruction_index += 1;
         // renews lock
-        merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+        merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
         MerkleTree::pack_into_slice(
             &merkle_tree_pda_data,
             &mut ctx.accounts.merkle_tree.data.borrow_mut(),

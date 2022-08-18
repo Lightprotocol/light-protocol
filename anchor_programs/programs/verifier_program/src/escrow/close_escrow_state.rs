@@ -7,7 +7,7 @@ use merkle_tree_program::instructions::sol_transfer;
 
 use anchor_lang::solana_program::{clock::Clock, sysvar::Sysvar};
 use anchor_spl::token::{Token, Transfer};
-use solana_program::program_pack::Pack;
+use anchor_lang::solana_program::program_pack::Pack;
 use merkle_tree_program::ID;
 
 #[derive(Accounts)]
@@ -95,7 +95,7 @@ pub fn process_close_escrow<'info>(ctx: Context<'_, '_, '_, 'info, CloseFeeEscro
             return err!(ErrorCode::WrongUserTokenPda);
         }
 
-        let address= solana_program::pubkey::Pubkey::create_with_seed(
+        let address= anchor_lang::prelude::Pubkey::create_with_seed(
             &ctx.accounts.relayer.key(),
             "escrow",
             &ctx.accounts.token_program.key()).unwrap();
@@ -109,7 +109,7 @@ pub fn process_close_escrow<'info>(ctx: Context<'_, '_, '_, 'info, CloseFeeEscro
         spl_token::state::Account::unpack(&to.data.borrow())?;
 
         let seed = ID.to_bytes();
-        let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(
+        let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
             &[seed.as_ref()],
             ctx.program_id,
         );

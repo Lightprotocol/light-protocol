@@ -65,7 +65,7 @@ pub struct LastTransactionDeposit<'info> {
     pub fee_escrow_state: Account<'info, FeeEscrowState>,
     #[account(
         mut,
-        address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
@@ -121,7 +121,7 @@ pub struct LastTransactionWithdrawal<'info> {
     #[account(mut)]
     /// CHECK:` Is not checked the relayer has complete freedom.
     pub relayer_recipient: AccountInfo<'info>,
-    #[account(mut, address = solana_program::pubkey::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
+    #[account(mut, address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: this is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]

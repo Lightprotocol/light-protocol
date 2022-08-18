@@ -1,7 +1,9 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExtDataHash = void 0;
-const ethers_1 = require("ethers");
+// const ethers_1 = require("ethers");
+const anchor = require("@project-serum/anchor")
+
 const constants_1 = require("../constants");
 const getExtDataHash = function (
 // inputs are bytes
@@ -35,9 +37,10 @@ recipient, extAmount, relayer, fee, merkleTreeIndex, merkleTreePubkeyBytes, encr
         ...senderThrowAwayPubkey2,
         // ...[0],
     ]);
-    const hash = ethers_1.ethers.utils.keccak256(Buffer.from(encodedData));
+    // const hash = ethers_1.ethers.utils.keccak256(Buffer.from(encodedData));
+    const hash = anchor.utils.sha256.hash(encodedData.toString())
     return {
-        extDataHash: ethers_1.BigNumber.from(hash).mod(constants_1.FIELD_SIZE),
+        extDataHash: new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
         extDataBytes: encodedData,
     };
 };

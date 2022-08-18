@@ -215,7 +215,7 @@ pub mod merkle_tree_program {
 #[instruction(verifer_index: u64, merkle_tree_index: u64)]
 pub struct CheckMerkleRootExists<'info> {
     /// CHECK:` should be , address = Pubkey::new(&MERKLE_TREE_SIGNER_AUTHORITY)
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(verifer_index).unwrap()]))]
+    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(verifer_index).unwrap()]))]
     pub authority: Signer<'info>,
     /// CHECK:` that the merkle tree is whitelisted.
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_index).unwrap()].0))]

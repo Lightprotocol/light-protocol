@@ -1,7 +1,7 @@
 use crate::groth16_verifier::prepare_inputs::instructions::*;
 use crate::groth16_verifier::VerifierState;
 use solana_program::msg;
-use solana_program::program_error::ProgramError;
+use anchor_lang::prelude::ProgramError;
 use std::cell::RefMut;
 const MULTIPLE: u64 = 12;
 const ROUNDS: u64 = 4 * MULTIPLE;

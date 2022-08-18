@@ -8,7 +8,7 @@ use crate::utils::constants::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 
-use anchor_lang::solana_program::{msg, program_pack::Pack};
+use anchor_lang::solana_program::{msg, program_pack::Pack, sysvar};
 
 #[derive(Accounts)]
 #[instruction(merkle_tree_index: u64)]
@@ -114,7 +114,7 @@ pub fn process_initialize_update_state(
     // Get Merkle tree lock with update state account.
     // The lock lasts config::LOCK_DURATION and is renewed every transaction.
 
-    let current_slot = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+    let current_slot = <Clock as sysvar::Sysvar>::get()?.slot;
     msg!("Current slot: {:?}", current_slot);
 
     msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
@@ -126,7 +126,7 @@ pub fn process_initialize_update_state(
     if merkle_tree_pda_data.time_locked == 0
         || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
     {
-        merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+        merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
         merkle_tree_pda_data.pubkey_locked = ctx
             .accounts
             .merkle_tree_update_state
@@ -142,7 +142,7 @@ pub fn process_initialize_update_state(
         msg!("Contract is still locked.");
         return err!(ErrorCode::ContractStillLocked);
     } else {
-        merkle_tree_pda_data.time_locked = <Clock as solana_program::sysvar::Sysvar>::get()?.slot;
+        merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
         merkle_tree_pda_data.pubkey_locked = ctx
             .accounts
             .merkle_tree_update_state

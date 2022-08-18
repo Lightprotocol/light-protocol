@@ -1,10 +1,10 @@
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
-use merkle_tree_program::{self, program::MerkleTreeProgram};
+// use merkle_tree_program::{self, program::MerkleTreeProgram};
 use solana_program;
-use merkle_tree_program::PreInsertedLeavesIndex;
+// use merkle_tree_program::PreInsertedLeavesIndex;
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
-use merkle_tree_program::utils::constants::NF_SEED;
+// use merkle_tree_program::utils::constants::NF_SEED;
 // use verifier_program::last_transaction::cpi_instructions::{
 //     check_merkle_root_exists_cpi,
 //     // insert_two_leaves_cpi,
@@ -13,7 +13,7 @@ use merkle_tree_program::utils::constants::NF_SEED;
 #[program]
 pub mod attacker_program {
     use super::*;
-
+    /*
     pub fn test_nullifier_insert(
         ctx: Context<TestNullifierInsert>,
         nullifer: [u8; 32]
@@ -168,9 +168,22 @@ pub mod attacker_program {
         // let amount = pub_amount_checked;
         merkle_tree_program::cpi::withdraw_sol(cpi_ctx, (1_000_000_000u64).to_le_bytes().to_vec(), 0u64, 0u64)
     }
+    */
+    pub fn testr(
+        ctx: Context<Test>,
+    ) -> Result<()> {
+        let merkle_tree_program_id = ctx.accounts.nullifier0_pda.to_account_info();
+        let program_id = ctx.program_id;
 
+        let (seed, bump) = get_seeds(program_id, &merkle_tree_program_id)?;
+        let bump = &[bump];
+        let _seeds = &[&[seed.as_slice(), bump][..]];
+
+        // let amount = pub_amount_checked;
+        Ok(())
+    }
 }
-
+/*
 #[derive(Accounts)]
 #[instruction(nullifier: [u8;32])]
 pub struct TestNullifierInsert<'info> {
@@ -214,14 +227,24 @@ pub enum ErrorCode {
     #[msg("WrongTxIntegrityHash")]
     WrongTxIntegrityHash,
 }
+*/
 pub fn get_seeds<'a>(
     program_id: &'a Pubkey,
     merkle_tree_program_id: &'a AccountInfo,
 ) -> Result<([u8; 32], u8)> {
-    let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(
+    let (_, bump) = Pubkey::find_program_address(
         &[merkle_tree_program_id.key().to_bytes().as_ref()],
         program_id,
     );
     let seed = merkle_tree_program_id.key().to_bytes();
     Ok((seed, bump))
+}
+
+
+
+#[derive(Accounts)]
+pub struct Test<'info> {
+    /// CHECK:` doc comment explaining why no checks through types are necessary
+    pub nullifier0_pda: UncheckedAccount<'info>,
+    pub signing_address: Signer<'info>,
 }

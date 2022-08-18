@@ -8,7 +8,7 @@ use std::ops::DerefMut;
 #[instruction(data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64)]
 pub struct WithdrawSol<'info> {
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=solana_program::pubkey::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(_verifier_index).unwrap()]))]
+    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(_verifier_index).unwrap()]))]
     pub authority: Signer<'info>,
     /// CHECK:` That the merkle tree token belongs to a registered Merkle tree.
     #[account(mut, constraint = merkle_tree_token.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(_merkle_tree_index).unwrap()].1))]

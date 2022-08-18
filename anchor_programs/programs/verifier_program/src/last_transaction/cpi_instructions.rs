@@ -183,7 +183,7 @@ pub fn get_seeds<'a>(
     program_id: &'a Pubkey,
     merkle_tree_program_id: &'a AccountInfo,
 ) -> Result<([u8; 32], u8)> {
-    let (_, bump) = solana_program::pubkey::Pubkey::find_program_address(
+    let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
         &[merkle_tree_program_id.key().to_bytes().as_ref()],
         program_id,
     );

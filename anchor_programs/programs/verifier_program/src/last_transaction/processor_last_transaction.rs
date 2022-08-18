@@ -48,7 +48,7 @@ pub fn process_last_transaction_deposit<'info>(ctx: Context<'_, '_, '_, 'info, L
         )?;
     } else {
         msg!("starting spl transfer");
-        let address= solana_program::pubkey::Pubkey::create_with_seed(
+        let address= anchor_lang::prelude::Pubkey::create_with_seed(
             &ctx.accounts.signing_address.key(),
             "escrow",
             &ctx.accounts.token_program.key()).unwrap();

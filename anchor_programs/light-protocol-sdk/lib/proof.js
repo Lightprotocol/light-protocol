@@ -9,8 +9,10 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.getProof = void 0;
-const ethers_1 = require("ethers");
+exports.prepareTransaction = void 0;
+exports.getProofMasp = void 0;
+const anchor = require("@project-serum/anchor")
+
 const constants_1 = require("./constants");
 const enums_1 = require("./enums");
 const getExternalDataHash_1 = require("./utils/getExternalDataHash");
@@ -18,21 +20,20 @@ const parseInputsToBytesArray_1 = require("./utils/parseInputsToBytesArray");
 const parseProofToBytesArray_1 = require("./utils/parseProofToBytesArray");
 const prove_1 = require("./utils/prove");
 const shuffle_1 = require("./utils/shuffle");
-const timeoutPromise_1 = require("./utils/timeoutPromise");
-const toFixedHex_1 = require("./utils/toFixedHex");
 const { I64, U64 } = require('n64');
 const solana = require('@solana/web3.js');
-// TODO could be in helper function
 const nacl = require('tweetnacl');
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 const newKeypair = () => nacl.box.keyPair();
-//
-const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair) {
+
+
+const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair, inIndices, outIndices, assetPubkeys, mintPubkey) {
     return __awaiter(this, void 0, void 0, function* () {
         /// mixes the input utxos
         /// mixes the output utxos
-        inputUtxos = (0, shuffle_1.shuffle)(inputUtxos);
-        outputUtxos = (0, shuffle_1.shuffle)(outputUtxos);
+        console.log("commented shuffle")
+        // inputUtxos = (0, shuffle_1.shuffle)(inputUtxos);
+        // outputUtxos = (0, shuffle_1.shuffle)(outputUtxos);
         // console.log(`input utxos -> `, inputUtxos)
         // console.log(`outputUtxos -> `, outputUtxos)
         // console.log(`merkelTree -> `, merkelTree)
@@ -49,15 +50,16 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleT
         /// and fill the path to the leaf with 0s
         for (const inputUtxo of inputUtxos) {
             if (inputUtxo.amount > 0) {
-                inputUtxo.index = merkelTree.indexOf((0, toFixedHex_1.toFixedHex)(inputUtxo.getCommitment()));
-                if (inputUtxo.index) {
+                inputUtxo.index = merkelTree.indexOf(inputUtxo.getCommitment());
+                if (inputUtxo.index || inputUtxo.index == 0) {
                     if (inputUtxo.index < 0) {
-                        throw new Error(`Input commitment ${(0, toFixedHex_1.toFixedHex)(inputUtxo.getCommitment())} was not found`);
+                        throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
                     }
                     inputMerklePathIndices.push(inputUtxo.index);
                     inputMerklePathElements.push(merkelTree.path(inputUtxo.index).pathElements);
                 }
             }
+
             else {
                 inputMerklePathIndices.push(0);
                 inputMerklePathElements.push(new Array(merkelTree.levels).fill(0));
@@ -65,15 +67,17 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleT
         }
         // does something with the fees
         let int64;
-        if (externalAmountBigNumber._hex.indexOf('-') > -1) {
+        console.log("externalAmountBigNumber: ", externalAmountBigNumber)
+        if (externalAmountBigNumber < 0) {
             // is withdrawal
-            int64 = I64(-1 * Number(externalAmountBigNumber._hex.slice(1)));
+            int64 = I64(-1 * externalAmountBigNumber.toNumber());
         }
         else {
-            int64 = I64(Number(externalAmountBigNumber._hex));
+            int64 = I64(externalAmountBigNumber.toNumber());
         }
         let z = new Uint8Array(8);
         int64.writeLE(z, 0);
+
         let feesLE = new Uint8Array(8);
         if (enums_1.Action[action] !== 'deposit') {
             relayerFee.writeLE(feesLE, 0);
@@ -81,17 +85,21 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleT
         else {
             feesLE.fill(0);
         }
-        // Encrypting outputUtxos only
+        // Encrypting outputUtxos onl11706303591708973095148360617010962626840972903207922381194541855451929915886y
         // Why is this empty
-        const nonces = [newNonce(), newNonce()];
+        const nonces = [newNonce(), newNonce(), newNonce(), newNonce()];
         const senderThrowAwayKeypairs = [
             newKeypair(),
             newKeypair(),
+            newKeypair(),
+            newKeypair()
         ];
+        // console.log(outputUtxos)
         /// Encrypt outputUtxos to bytes
-        let encryptedOutputs = [];
+        let encryptedOutputs = [ ];
         outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, senderThrowAwayKeypairs[index])));
         // test decrypt: same?
+
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
             extAmount: z,
@@ -106,41 +114,67 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleT
             senderThrowAwayPubkey2: senderThrowAwayKeypairs[1].publicKey,
         };
         const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.extAmount, extData.relayer, extData.fee,merkleTreeIndex, extData.merkleTreePubkeyBytes, extData.encryptedOutput1, extData.encryptedOutput2, extData.nonce1, extData.nonce2, extData.senderThrowAwayPubkey1, extData.senderThrowAwayPubkey2);
+        let feeAmount = new anchor.BN(relayerFee.toString())
+        if (externalAmountBigNumber < 0) {
+          feeAmount = new anchor.BN(0).sub(new anchor.BN(relayerFee.toString()))
+          .add(constants_1.FIELD_SIZE)
+          .mod(constants_1.FIELD_SIZE)
+          .toString()
+        }
+
         let input = {
             root: merkelTree.root(),
             inputNullifier: inputUtxos.map((x) => x.getNullifier()),
             outputCommitment: outputUtxos.map((x) => x.getCommitment()),
-            publicAmount: ethers_1.BigNumber.from(externalAmountBigNumber)
-                .sub(ethers_1.BigNumber.from(relayerFee.toString()))
+            publicAmount: new anchor.BN(externalAmountBigNumber)
                 .add(constants_1.FIELD_SIZE)
                 .mod(constants_1.FIELD_SIZE)
                 .toString(),
             extDataHash,
+            feeAmount,
+            mintPubkey,
             // data for 2 transaction inputUtxos
-            inAmount: inputUtxos.map((x) => x.amount),
+            inAmount: inputUtxos.map((x) => x.amounts),
             inPrivateKey: inputUtxos.map((x) => x.keypair.privkey),
             inBlinding: inputUtxos.map((x) => x.blinding),
             inPathIndices: inputMerklePathIndices,
             inPathElements: inputMerklePathElements,
+            assetPubkeys,
             // data for 2 transaction outputUtxos
-            outAmount: outputUtxos.map((x) => x.amount),
+            outAmount: outputUtxos.map((x) => x.amounts),
             outBlinding: outputUtxos.map((x) => x.blinding),
             outPubkey: outputUtxos.map((x) => x.keypair.pubkey),
+            inIndices,
+            outIndices,
+            inInstructionType: inputUtxos.map((x) => x.instructionType),
+            outInstructionType: outputUtxos.map((x) => x.instructionType)
         };
+
+        return {
+                extAmount: extData.extAmount,
+                externalAmountBigNumber,
+                extDataBytes,
+                encryptedOutputs,
+                input
+            };
+    });
+};
+exports.prepareTransaction = prepareTransaction;
+
+
+const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDataBytes, encryptedOutputs) {
+    return __awaiter(this, void 0, void 0, function* () {
         var proofJson;
         var publicInputsJson;
-        yield (0, timeoutPromise_1.timeoutPromise)(40, (0, prove_1.prove)(input, `./artifacts/circuits/transaction${inputUtxos.length}`))
+        yield (0, prove_1.prove)(input, `./Light_circuits/build/circuits/transactionMasp2`)
             .then((r) => {
             proofJson = r.proofJson;
             publicInputsJson = r.publicInputsJson;
         })
-            .catch((e) => {
-            console.log(e);
-            throw new Error(`Your proof generation took too long. Please refresh the page and try again.`);
-        });
+
         return {
             data: {
-                extAmount: extData.extAmount,
+                extAmount: extAmount,
                 externalAmountBigNumber,
                 extDataBytes,
                 publicInputsBytes: yield (0, parseInputsToBytesArray_1.parseInputsToBytesArray)(publicInputsJson),
@@ -150,4 +184,5 @@ const getProof = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleT
         };
     });
 };
-exports.getProof = getProof;
+
+exports.getProofMasp = getProofMasp;
