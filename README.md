@@ -1,4 +1,11 @@
-# Light Protocol Program V2
+# Light Protocol Program V3
+
+
+## Current State
+
+Very raw the whole groth16_verifier folder in verifier_program will be replaced with syscalls which are not in any official Solana release yet.
+
+The inputs of existing first and last transactions will need to be adjusted to Masp inputs.
 
 ## Tests
 
@@ -30,9 +37,8 @@ For repeated tests ``anchor test --skip-build`` is useful.
 
 Check logs in anchor_programs/.anchor/program-logs
 
-### Current State
 
-Both programs are ready for audit.
+### General
 
 The current user flow is separated in two actions:
 - first verifying a proof plus executing protocol logic (moving funds, storing commitments onchain among others)
