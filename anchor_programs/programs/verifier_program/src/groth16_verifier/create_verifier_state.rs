@@ -1,23 +1,27 @@
 use crate::errors::ErrorCode;
-use crate::groth16_verifier::VerifierState;
-use crate::groth16_verifier::_process_instruction;
-use crate::groth16_verifier::init_pairs_instruction;
-use crate::groth16_verifier::parse_proof_b_from_bytes;
-use crate::groth16_verifier::parse_r_to_bytes;
+// use crate::groth16_verifier::VerifierState;
+// use crate::groth16_verifier::_process_instruction;
+// use crate::groth16_verifier::init_pairs_instruction;
+// use crate::groth16_verifier::parse_proof_b_from_bytes;
+// use crate::groth16_verifier::parse_r_to_bytes;
+use anchor_spl::token::Token;
 use anchor_lang::prelude::*;
-use ark_ec::bn::g2::G2HomProjective;
-// use ark_ed_on_bn254::{Fq, Fr};
-use ark_bn254::{Fq, Fr};
+use merkle_tree_program::initialize_new_merkle_tree_spl::PreInsertedLeavesIndex;
 
-use ark_ff::Fp2;
-use ark_ff::PrimeField;
-use ark_std::{One, Zero};
+// use ark_ec::bn::g2::G2HomProjective;
+// use ark_ed_on_bn254::{Fq, Fr};
+use ark_bn254::Fq;
 use ark_ff::Fp256;
+use ark_ff::PrimeField;
+use ark_ff::FpParameters;
+use ark_ff::BigInteger256;
 use solana_program::alt_bn128::{
     alt_bn128_addition,
     alt_bn128_pairing,
     alt_bn128_multiplication
 };
+use ark_std::{Zero, One};
+use ark_ed_on_bn254::FqParameters;
 use crate::utils::verification_key::{
     VK_IC,
     VK_ALPHA_G1,
@@ -25,7 +29,22 @@ use crate::utils::verification_key::{
     VK_GAMMA_G2,
     VK_DELTA_G2,
 };
-#[derive(Accounts)]
+use merkle_tree_program::program::MerkleTreeProgram;
+use crate::last_transaction::cpi_instructions::{
+    check_merkle_root_exists_cpi, initialize_nullifier_cpi, insert_two_leaves_cpi, withdraw_sol_cpi,
+    withdraw_spl_cpi
+};
+use merkle_tree_program::sol_transfer;
+
+type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
+use ark_ff::{BigInteger, bytes::{FromBytes, ToBytes}};
+use std::ops::Neg;
+
+
+pub const NR_NULLIFIERS: usize = 2;
+pub const NR_LEAVES: usize = 2;
+
+#[derive( Accounts)]
 #[instruction(
     proof:              [u8;256],
     merkle_root:        [u8;32],
@@ -33,170 +52,550 @@ use crate::utils::verification_key::{
     tx_integrity_hash:  [u8;32]
 )]
 pub struct CreateVerifierState<'info> {
-    #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
-    pub verifier_state: AccountLoader<'info, VerifierState>,
+    // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
+    // pub verifier_state: AccountLoader<'info, VerifierState>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    pub rent: Sysvar<'info, Rent>,
+    /// CHECK: Is the same as in integrity hash.
+    //#[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+    pub merkle_tree: AccountInfo<'info>,
+    #[account(
+        mut,
+        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
+    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+    pub authority: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    pub sender: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    pub recipient: UncheckedAccount<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub relayer_recipient: AccountInfo<'info>,
 }
 
-pub fn process_create_verifier_state(
-    ctx: Context<CreateVerifierState>,
+pub fn process_create_verifier_state<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info,CreateVerifierState<'info>>,
     proof: [u8; 256],
     merkle_root: [u8; 32],
-    amount: [u8; 32],
-    tx_integrity_hash: [u8; 32],
+    public_amount: [u8; 32],
+    ext_data_hash: [u8; 32],
     nullifier0: [u8; 32],
     nullifier1: [u8; 32],
     leaf_right: [u8; 32],
     leaf_left: [u8; 32],
     recipient: [u8; 32],
-    ext_amount: [u8; 8],
+    ext_amount: i64,
     _relayer: [u8; 32],
-    relayer_fee: [u8; 8],
+    fee_amount: [u8; 32],
+    mint_pubkey: [u8;32],
     encrypted_utxos: [u8; 256],
-    merkle_tree_index: [u8; 1],
+    merkle_tree_index: u64,
+    relayer_fee: u64,
 ) -> Result<()> {
-    // If not initialized this will run load_init.
-    let verifier_state_data = &mut match ctx.accounts.verifier_state.load_mut() {
-        Ok(res) => {
-            // Checking that all values are the same as in create escrow.
-            if res.signing_address == ctx.accounts.signing_address.key() &&
-                res.merkle_tree_index == merkle_tree_index[0] &&
-                res.ext_amount == ext_amount &&
-                res.tx_integrity_hash == tx_integrity_hash &&
-                res.relayer_fee == u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone() {
-                Ok(res)
-            } else {
-                err!(ErrorCode::WrongSigner)
-            }
-        }
-        Err(_) => ctx.accounts.verifier_state.load_init(),
-    }?;
-    // Verifier state accounts should only be initialized once.
-    if verifier_state_data.current_instruction_index > 0 {
-        return err!(ErrorCode::VerifierStateAlreadyInitialized);
-    }
-    verifier_state_data.signing_address = ctx.accounts.signing_address.key();
-    verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
-    verifier_state_data.merkle_root = merkle_root.clone();
-    verifier_state_data.amount = amount.clone();
-    verifier_state_data.merkle_tree_index = merkle_tree_index[0].clone();
-    verifier_state_data.relayer_fee = u64::from_le_bytes(relayer_fee.try_into().unwrap()).clone();
-    verifier_state_data.recipient = Pubkey::new(&recipient).clone();
-    verifier_state_data.ext_amount = ext_amount.clone();
-    verifier_state_data.fee = relayer_fee.clone();
-    verifier_state_data.leaf_left = leaf_left;
-    verifier_state_data.leaf_right = leaf_right;
-    verifier_state_data.nullifier0 = nullifier0;
-    verifier_state_data.nullifier1 = nullifier1;
-    verifier_state_data.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
-    /*let public_inputs = [
-        root,
-        nullifier0,
-        nullifier1,
-        leaf_left,
-        leaf_right,
-        publicAmount,
-        extDataHash,
-        feeAmount,
-        mintPubkey
-    ].concat();
-    // Initing pairs to prepare inputs.
-    // init_pairs_instruction(verifier_state_data)?;
-    // _process_instruction(
-    //     41,
-    //     verifier_state_data,
-    //     usize::try_from(verifier_state_data.current_index).unwrap(),
-    // )?;
-    // verifier_state_data.current_index = 1;
-    // verifier_state_data.current_instruction_index = 1;
-    // verifier_state_data.computing_prepared_inputs = true;
 
-    // miller loop
-    // verifier_state_data.proof_a_bytes = proof[0..64].try_into().unwrap();
-    // verifier_state_data.proof_b_bytes = proof[64..64 + 128].try_into().unwrap();
-    // verifier_state_data.proof_c_bytes = proof[64 + 128..256].try_into().unwrap();
+    // verifier_state_data.signing_address = ctx.accounts.signing_address.key();
+    // check immediately don't save
+    // verifier_state_data.tx_integrity_hash = tx_integrity_hash.clone();
+    // check immediately don't save
+    // verifier_state_data.merkle_root = merkle_root.clone();
 
-    // preparing inputs
-     let mut public_inputs_res_bytes = VK_IC[0];
-     for i in 0..VK_IC {
-         let input_mul_bytes = [VK_IC[i], public_inputs[i]].concat();
-         let mul_res = alt_bn128_multiplication(&input_mul_bytes[..]);
-         let input_addition_bytes = [mul_res, public_inputs_res_bytes].concat();
-         // .add_assign(&b.mul(i.into_repr()));
-         public_inputs_res_bytes = alt_bn128_addition(&input_addition_bytes[..]);
-     }
-     msg!("public_inputs_res_bytes: {:?}", public_inputs_res_bytes);
-    let pairing_input = [
-        proof[0..64].to_vec(), // proof_a
-        proof[64..64 + 128].to_vec(), // proof_b
-        public_inputs_bytes.to_vec(),
-        VK_GAMMA_G2.to_vec(),
-        proof[64 + 128..256].to_vec(), // proof_c
-        VK_DELTA_G2.to_vec(),
-        VK_ALPHA_G1.to_vec(),
-        VK_BETA_G2.to_vec(),
-    ].concat();
-    let pairing_res = alt_bn128_pairing(&pairing_input[..]);
-    if pairing_res != 1 {
-        return err!(ErrorCode::ProofVerificationFailed);
-    }*/
-    Ok(())
-    // check_tx_integrity_hash(
-    //     verifier_state_data.recipient.to_bytes().to_vec(),
-    //     verifier_state_data.ext_amount.to_vec(),
-    //     verifier_state_data
-    //         .signing_address
-    //         .key()
-    //         .to_bytes()
-    //         .to_vec(),
-    //     verifier_state_data.fee.to_vec(),
-    //     verifier_state_data.tx_integrity_hash.to_vec(),
-    //     verifier_state_data.merkle_tree_index,
-    //     verifier_state_data.encrypted_utxos[..222].to_vec(),
-    //     merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
-    //         [usize::try_from(verifier_state_data.merkle_tree_index).unwrap()]
-    //         .0
-    //         .to_vec(),
-    // )
-}
+    // verifier_state_data.amount = public_amount.clone();
+    // verifier_state_data.merkle_tree_index = merkle_tree_index[0].clone();
+    // verifier_state_data.relayer_fee = u64::from_le_bytes(fee_amount[24..].try_into().unwrap()).clone();
+    // verifier_state_data.recipient = Pubkey::new(&recipient).clone();
+    // verifier_state_data.ext_amount = ext_amount.clone();
+    // verifier_state_data.fee = fee_amount.clone();
+    // verifier_state_data.leaf_left = leaf_left;
+    // verifier_state_data.leaf_right = leaf_right;
+    // verifier_state_data.nullifier0 = nullifier0;
+    // verifier_state_data.nullifier1 = nullifier1;
+    // verifier_state_data.encrypted_utxos = encrypted_utxos[..222].try_into().unwrap();
 
-fn check_tx_integrity_hash(
-    recipient: Vec<u8>,
-    ext_amount: Vec<u8>,
-    relayer: Vec<u8>,
-    fee: Vec<u8>,
-    tx_integrity_hash: Vec<u8>,
-    merkle_tree_index: u8,
-    encrypted_utxos: Vec<u8>,
-    merkle_tree_pda_pubkey: Vec<u8>,
-) -> Result<()> {
-    let input = [
-        recipient,
-        ext_amount,
-        relayer,
-        fee,
-        merkle_tree_pda_pubkey,
-        vec![merkle_tree_index],
+    // trait with the nunber of inputs and commitments
+    // Put nullifier accounts in remaining accounts
+    // Put commitment accounts in the remaining accounts
+    // make the instruction flexible enough such that I can easily call it in a second tx
+    // actually with that I can easily implement it in 2 tx in the first place
+
+    let mut tx = LightTransaction::new(
+        proof,
+        merkle_root,
+        public_amount,
+        ext_data_hash,
+        fee_amount,
+        mint_pubkey,
+        Vec::<Vec<u8>>::new(), // checked_public_inputs
+        vec![nullifier0.to_vec(), nullifier1.to_vec()],
+        vec![(leaf_left.to_vec(), leaf_right.to_vec())],
         encrypted_utxos,
-    ]
-    .concat();
-    msg!("integrity_hash inputs: {:?}", input);
-    let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-    msg!("hash computed {:?}", hash);
-
-    if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
-        msg!(
-            "tx_integrity_hash verification failed.{:?} != {:?}",
-            &hash[..],
-            &tx_integrity_hash
-        );
-        return err!(ErrorCode::WrongTxIntegrityHash);
-    }
+        merkle_tree_index,
+        ext_amount,
+        relayer_fee,
+        ctx
+    );
+    tx.verify()?;
+    tx.check_root()?;
+    tx.insert_leaves()?;
+    tx.insert_nullifiers()?;
+    tx.transfer_user_funds()?;
+    tx.pay_relayer()?;
+    tx.check_completion()?;
+    // let (pub_amount_checked, _relayer_fee) = check_external_amount(verifier_state)?;
+    // let ext_amount = i64::from_le_bytes(ext_amount);
     Ok(())
+
 }
+
+
+fn to_be_64(bytes: &[u8]) -> Vec<u8> {
+    let mut vec = Vec::new();
+    for b in bytes.chunks(32) {
+        for byte in b.iter().rev() {
+            vec.push(*byte);
+        }
+    }
+    vec
+}
+
+pub struct LightTransaction<'a, 'b, 'c, 'info>  {
+    merkle_root: [u8; 32],
+    public_amount: [u8;32],
+    ext_data_hash: [u8;32],
+    fee_amount: [u8;32],
+    mint_pubkey: [u8;32],
+    checked_public_inputs: Vec<Vec<u8>>,
+    nullifiers: Vec<Vec<u8>>,
+    leaves: Vec<(Vec<u8>, Vec<u8>)>,
+    ext_amount: i64,
+    relayer_fee: u64,
+    proof_a: Vec<u8>,
+    proof_b: Vec<u8>,
+    proof_c: Vec<u8>,
+    encrypted_utxos: Vec<u8>,
+    merkle_tree_index: u64,
+    public_inputs: Vec<u8>,
+    transferred_funds: bool,
+    checked_tx_integrity_hash: bool,
+    verified_proof : bool,
+    inserted_leaves : bool,
+    inserted_nullifier : bool,
+    checked_root : bool,
+    ctx: Context<'a, 'b, 'c, 'info, CreateVerifierState<'info>>
+
+}
+
+
+impl LightTransaction<'_, '_, '_, '_> {
+
+    // pub const FEE_TOKEN: Pubkey = solana_program::id();
+
+    pub fn new<'a, 'b, 'c, 'info> (
+        proof: [u8;256],
+        merkle_root: [u8; 32],
+        public_amount: [u8;32],
+        ext_data_hash: [u8;32],
+        fee_amount: [u8;32],
+        mint_pubkey: [u8;32],
+        checked_public_inputs: Vec<Vec<u8>>,
+        nullifiers: Vec<Vec<u8>>,
+        leaves: Vec<(Vec<u8>, Vec<u8>)>,
+        encrypted_utxos: [u8;256],
+        merkle_tree_index: u64,
+        ext_amount: i64,
+        relayer_fee: u64,
+        ctx: Context<'a, 'b, 'c, 'info, CreateVerifierState<'info>>
+    ) -> LightTransaction<'a, 'b, 'c, 'info> {
+        // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
+        // assert_eq!(leaves.len(), NR_LEAVES  / 2);
+        // assert_eq!(0, NR_LEAVES  % 2);
+
+        let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
+
+        let mut proof_a_neg = [0u8;64];
+        <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]);
+
+        msg!("integrity hash check commented");
+        // check_tx_integrity_hash(
+        //     verifier_state_data.recipient.to_bytes().to_vec(),
+        //     verifier_state_data.ext_amount.to_vec(),
+        //     verifier_state_data
+        //         .signing_address
+        //         .key()
+        //         .to_bytes()
+        //         .to_vec(),
+        //     verifier_state_data.fee.to_vec(),
+        //     verifier_state_data.tx_integrity_hash.to_vec(),
+        //     verifier_state_data.merkle_tree_index,
+        //     verifier_state_data.encrypted_utxos[..222].to_vec(),
+        //     merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
+        //         [usize::try_from(verifier_state_data.merkle_tree_index).unwrap()]
+        //         .0
+        //         .to_vec(),
+        // )
+
+
+        return LightTransaction {
+            merkle_root,
+            public_amount,
+            ext_data_hash,
+            fee_amount,
+            mint_pubkey,
+            checked_public_inputs,
+            nullifiers,
+            leaves,
+            ext_amount: ext_amount,
+            relayer_fee: relayer_fee,
+            proof_a: to_be_64(&proof_a_neg).to_vec(),
+            proof_b: proof[64..64 + 128].to_vec(),
+            proof_c: proof[64 + 128..256].to_vec(),
+            encrypted_utxos: encrypted_utxos[0..222].to_vec(),
+            merkle_tree_index: merkle_tree_index,
+            public_inputs: vec![0u8;32],
+            transferred_funds: false,
+            checked_tx_integrity_hash: true,
+            verified_proof : false,
+            inserted_leaves : false,
+            inserted_nullifier : false,
+            checked_root : false,
+            ctx
+        }
+    }
+
+    pub fn verify(&mut self) -> Result<()> {
+        self.prepare_inputs()?;
+        let pairing_input = [
+            self.proof_a.to_vec(),
+            self.proof_b.to_vec(),
+            self.public_inputs.to_vec(),
+            VK_GAMMA_G2.to_vec(),
+            self.proof_c.to_vec(),
+            VK_DELTA_G2.to_vec(),
+            VK_ALPHA_G1.to_vec(),
+            VK_BETA_G2.to_vec(),
+        ].concat();
+        let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
+
+        if pairing_res[31] != 1 {
+            return err!(ErrorCode::ProofVerificationFailed);
+        }
+        Ok(())
+    }
+
+    pub fn prepare_inputs(&mut self) -> Result<()> {
+        let mut public_inputs = vec![
+            self.merkle_root.to_vec(),
+            self.public_amount.to_vec(),
+            self.ext_data_hash.to_vec(),
+            self.fee_amount.to_vec(),
+            self.mint_pubkey.to_vec()
+        ];
+        for input in self.nullifiers.iter() {
+            public_inputs.push((*input).to_vec());
+        }
+
+        for input in self.leaves.iter() {
+            public_inputs.push((*input.0).to_vec());
+            public_inputs.push((*input.1).to_vec());
+        }
+
+        for input in self.checked_public_inputs.iter() {
+            public_inputs.push((*input).to_vec());
+
+        }
+
+        let mut public_inputs_res_bytes = VK_IC[0];
+
+        for (i, input) in public_inputs.iter().enumerate() {
+            let input_mul_bytes = [VK_IC[i+1].to_vec(), input.to_vec()].concat();
+            let mul_res = alt_bn128_multiplication(&input_mul_bytes[..]).unwrap();
+            let input_addition_bytes= [mul_res, public_inputs_res_bytes.to_vec()].concat();
+            public_inputs_res_bytes = alt_bn128_addition(&input_addition_bytes[..]).unwrap().try_into().unwrap();
+        }
+        self.public_inputs = public_inputs_res_bytes.to_vec();
+        Ok(())
+    }
+
+    pub fn check_tx_integrity_hash(
+        recipient: Vec<u8>,
+        ext_amount: Vec<u8>,
+        relayer: Vec<u8>,
+        fee: Vec<u8>,
+        tx_integrity_hash: Vec<u8>,
+        merkle_tree_index: u8,
+        encrypted_utxos: Vec<u8>,
+        merkle_tree_pda_pubkey: Vec<u8>,
+    ) -> Result<()> {
+        let input = [
+            recipient,
+            ext_amount,
+            relayer,
+            fee,
+            merkle_tree_pda_pubkey,
+            vec![merkle_tree_index],
+            encrypted_utxos,
+        ]
+        .concat();
+        msg!("integrity_hash inputs: {:?}", input);
+        let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
+        msg!("hash computed {:?}", hash);
+
+        if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
+            msg!(
+                "tx_integrity_hash verification failed.{:?} != {:?}",
+                &hash[..],
+                &tx_integrity_hash
+            );
+            return err!(ErrorCode::WrongTxIntegrityHash);
+        }
+        Ok(())
+    }
+
+    pub fn insert_leaves(&mut self) -> Result<()> {
+
+        assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
+        assert_eq!(NR_NULLIFIERS + NR_LEAVES, self.ctx.remaining_accounts.len());
+
+        // check merkle tree
+        for (leaves, leaves_pda) in self.leaves.iter().zip(self.ctx.remaining_accounts).skip(NR_NULLIFIERS) {
+            // check account integrities
+
+            insert_two_leaves_cpi(
+                &self.ctx.program_id,
+                &self.ctx.accounts.program_merkle_tree.to_account_info(),
+                &self.ctx.accounts.authority.to_account_info(),
+                &leaves_pda.to_account_info(),
+                &self.ctx.accounts.pre_inserted_leaves_index.to_account_info(),
+                &self.ctx.accounts.system_program.to_account_info(),
+                &self.ctx.accounts.rent.to_account_info(),
+                self.nullifiers[0].clone().try_into().unwrap(),
+                leaves.0.clone().try_into().unwrap(),
+                leaves.1.clone().try_into().unwrap(),
+                self.ctx.accounts.merkle_tree.key().to_bytes(),
+                self.encrypted_utxos.clone().try_into().unwrap(),
+            )?;
+        }
+
+        self.inserted_leaves = true;
+        return Ok(());
+    }
+
+    pub fn check_root(&mut self) -> Result<()> {
+        // check account integrities
+        // check merkle tree
+        check_merkle_root_exists_cpi(
+            &self.ctx.program_id,
+            &self.ctx.accounts.program_merkle_tree.to_account_info(),
+            &self.ctx.accounts.authority.to_account_info(),
+            &self.ctx.accounts.merkle_tree.to_account_info(),
+            self.merkle_tree_index.try_into().unwrap(),
+            self.merkle_root.clone(),
+        )?;
+
+        self.inserted_leaves = true;
+        Ok(())
+    }
+
+    pub fn insert_nullifiers(&mut self) -> Result<()> {
+        assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
+        assert_eq!(NR_NULLIFIERS + NR_LEAVES, self.ctx.remaining_accounts.len());
+
+        for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.ctx.remaining_accounts) {
+
+            initialize_nullifier_cpi(
+                &self.ctx.program_id,
+                &self.ctx.accounts.program_merkle_tree.to_account_info(),
+                &self.ctx.accounts.authority.to_account_info(),
+                &nullifier_pda.to_account_info(),
+                &self.ctx.accounts.system_program.to_account_info().clone(),
+                &self.ctx.accounts.rent.to_account_info().clone(),
+                (*nullifier.clone()).try_into().unwrap()
+            )?;
+        }
+        self.inserted_nullifier = true;
+        Ok(())
+    }
+
+    pub fn transfer_user_funds(&mut self) -> Result<()> {
+        println!("self.public_amount {:?}", self.public_amount);
+        println!("self.relayer_fee {:?}", self.relayer_fee);
+        println!("self.ext_amount {:?}", self.ext_amount);
+
+        // check mintPubkey
+        let (pub_amount_checked, relayer_fee) = self.check_external_amount(
+            self.ext_amount,
+            self.relayer_fee,
+            to_be_64(&self.public_amount).try_into().unwrap()
+        )?;
+        //check accounts
+        if self.is_deposit() {
+            // sender is user no check
+            // recipient is merkle tree pda, check correct derivation
+        } else {
+            // sender is merkle tree pda check correct derivation
+            // recipient is the same as in integrity_hash
+        }
+        println!("pub_amount_checked {:?}", pub_amount_checked );
+        if self.mint_pubkey == [0u8;32] {
+            // either sol withdrawal or normal withdrawal
+            // deposit
+
+            if self.is_deposit() {
+                // sender is user no check
+                // recipient is merkle tree pda, check correct derivation
+                sol_transfer(
+                    &self.ctx.accounts.sender.to_account_info(),
+                    &self.ctx.accounts.recipient.to_account_info(),
+                    pub_amount_checked,
+                )?;
+            } else {
+                // sender is merkle tree pda check correct derivation
+                // recipient is the same as in integrity_hash
+                withdraw_sol_cpi(
+                    &self.ctx.program_id,
+                    &self.ctx.accounts.program_merkle_tree.to_account_info(),
+                    &self.ctx.accounts.authority.to_account_info(),
+                    &self.ctx.accounts.sender.to_account_info(),
+                    &self.ctx.accounts.recipient.to_account_info(),
+                    pub_amount_checked,
+                )?;
+            }
+        } else {
+            // is a token deposit or withdrawal
+            // do I need another token pda check here?
+            withdraw_spl_cpi(
+                &self.ctx.program_id,
+                &self.ctx.accounts.merkle_tree,
+                &self.ctx.accounts.authority.to_account_info(),
+                &self.ctx.accounts.sender.to_account_info(),
+                &self.ctx.accounts.recipient.to_account_info(),
+                &self.ctx.accounts.authority.to_account_info(),
+                &self.ctx.accounts.token_program.to_account_info(),
+                pub_amount_checked,
+                self.merkle_tree_index.try_into().unwrap()
+            )?;
+        }
+        self.transferred_funds = true;
+        Ok(())
+    }
+
+    fn is_deposit(&self) -> bool {
+        if self.ext_amount > 0 {
+            return true;
+        }
+        return false;
+    }
+
+    pub fn pay_relayer(&self) -> Result<()> {
+        if self.relayer_fee > 0 {
+            withdraw_sol_cpi(
+                &self.ctx.program_id,
+                &self.ctx.accounts.program_merkle_tree.to_account_info(),
+                &self.ctx.accounts.authority.to_account_info(),
+                &self.ctx.accounts.sender.to_account_info(),
+                &self.ctx.accounts.relayer_recipient.to_account_info(),
+                self.relayer_fee,
+            )?;
+        }
+        Ok(())
+    }
+
+    pub fn check_completion(&self) -> Result<()>{
+        if self.transferred_funds &&
+            self.checked_tx_integrity_hash &&
+            self.verified_proof &&
+            self.inserted_leaves &&
+            self.inserted_nullifier &&
+            self.checked_root
+        {
+            return Ok(());
+        }
+        err!(ErrorCode::TransactionIncomplete)
+    }
+
+    #[allow(clippy::comparison_chain)]
+    pub fn check_external_amount(
+            &self,
+            ext_amount: i64,
+            relayer_fee: u64,
+            amount: [u8;32]
+        ) -> Result<(u64, u64)> {
+        // let ext_amount = i64::from_le_bytes(ext_amount);
+        // ext_amount includes relayer_fee
+        // pub_amount is the public amount included in public inputs for proof verification
+        let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
+
+        if ext_amount > 0 {
+            if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0 {
+                msg!("Public amount is larger than u64.");
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+
+            let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
+
+            if pub_amount_fits_i64.is_err() {
+                msg!("Public amount is larger than i64.");
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+
+            //check amount
+            if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 {
+                msg!(
+                    "Deposit invalid external amount (relayer_fee) {} != {}",
+                    pub_amount.0[0] + relayer_fee,
+                    ext_amount
+                );
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+            Ok((ext_amount.try_into().unwrap(), relayer_fee))
+        } else if ext_amount < 0 {
+            // calculate ext_amount from pubAmount:
+            let mut field = FqParameters::MODULUS;
+            field.sub_noborrow(&pub_amount);
+
+            // field.0[0] is the positive value
+            if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0 {
+                msg!("Public amount is larger than u64.");
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+            let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
+            if pub_amount_fits_i64.is_err() {
+                msg!("Public amount is larger than i64.");
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+
+            if field.0[0]
+                != u64::try_from(-ext_amount)
+                    .unwrap()
+                    .checked_add(relayer_fee)
+                    .unwrap()
+            {
+                msg!(
+                    "Withdrawal invalid external amount: {} != {}",
+                    pub_amount.0[0],
+                    relayer_fee + u64::try_from(-ext_amount).unwrap()
+                );
+                return Err(ErrorCode::WrongPubAmount.into());
+            }
+            Ok(((-ext_amount).try_into().unwrap(), relayer_fee))
+        }
+        //  else if ext_amount == 0 {
+        //     Ok((ext_amount.try_into().unwrap(), relayer_fee))
+        // }
+        else {
+            msg!("Invalid state checking external amount.");
+            Err(ErrorCode::WrongPubAmount.into())
+        }
+    }
+
+}
+
 #[cfg(test)]
 mod test {
     use super::*;
@@ -208,7 +607,6 @@ mod test {
     use std::ops::MulAssign;
     use ark_ff::BigInteger256;
 
-    // use ark_groth16::prepare_inputs;
     #[test]
     fn test_multiplication() {
 
@@ -254,8 +652,8 @@ mod test {
         // original public inputs the all 0 element throws a group error
         // let public_inputs = [34,238,251,182,234,248,214,189,46,67,42,25,71,58,145,58,61,28,116,110,60,17,82,149,178,187,160,211,37,226,174,231,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,59,154,202,0,43,223,170,106,86,191,3,134,169,166,97,179,10,139,71,201,124,116,122,168,7,166,16,82,87,87,55,138,100,65,144,63,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15,66,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,42,193,192,156,15,46,99,214,68,44,64,245,153,95,88,47,59,97,174,9,81,73,224,59,175,90,81,176,130,35,75,65,29,25,86,66,122,132,239,36,216,86,2,150,23,205,25,62,124,65,157,152,212,7,0,36,58,27,199,147,203,0,75,247,17,165,151,106,130,197,203,27,237,151,250,137,37,238,192,5,166,225,6,33,133,86,177,4,157,118,125,201,22,195,106,9,41,29,214,42,35,223,191,115,24,160,192,52,55,2,154,201,186,194,34,3,155,134,210,36,91,144,30,243,80,76,197,199];
         println!("{:?}",Fq::zero().into_repr().to_bytes_be() );
-        let public_inputs = [231,174,226,37,211,160,187,178,149,82,17,60,110,116,28,61,58,145,58,71,25,42,67,46,189,214,248,234,182,251,238,34,0,202,154,59,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,147,133,167,234,114,214,160,62,253,149,162,29,94,213,10,163,230,52,212,43,160,89,66,87,200,156,67,245,97,229,199,41,64,66,15,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,236,115,74,30,48,235,24,244,215,152,178,245,113,207,157,65,217,3,33,32,79,12,67,40,61,184,108,88,134,172,216,6,125,164,181,19,123,95,136,53,123,117,255,137,200,164,3,157,71,120,195,252,19,175,35,169,175,38,78,220,245,223,193,33,88,98,12,176,149,34,52,121,191,150,0,126,161,63,17,81,206,125,197,93,76,129,246,73,59,88,94,30,46,203,40,13,145,189,53,69,231,100,68,245,250,86,57,217,161,216,32,47,23,118,254,137,159,204,121,196,152,192,186,195,72,80,36,3];
-        let proof = [103,10,220,223,94,148,102,79,96,125,1,194,227,55,125,114,214,160,29,210,5,69,113,72,37,165,142,127,216,11,4,34,132,151,253,204,34,180,23,111,37,16,189,219,212,35,246,106,154,75,5,233,252,92,74,127,144,37,153,138,90,49,237,22,91,71,254,230,62,149,227,57,117,183,245,47,252,158,107,97,188,141,210,28,161,30,123,142,150,12,102,202,214,138,241,36,137,122,26,68,165,124,59,92,150,118,53,74,160,30,222,167,253,243,194,5,153,156,23,24,114,250,138,164,31,143,132,7,225,219,219,111,110,69,42,227,5,6,250,194,123,158,227,168,117,176,158,228,82,202,217,41,180,186,181,226,147,219,180,40,113,21,24,141,236,132,163,63,73,209,125,152,146,100,200,84,151,241,33,49,176,42,41,11,4,225,197,203,0,142,195,39,8,35,95,133,40,240,204,82,56,113,121,170,83,203,2,116,127,31,223,135,198,83,146,16,170,91,70,4,15,12,141,10,169,126,159,174,46,127,58,251,221,234,157,113,155,84,207,243,146,157,169,34,76,241,70,224,57,50,42,104,1,181,197,42];
+        let public_inputs = [34,238,251,182,234,248,214,189,46,67,42,25,71,58,145,58,61,28,116,110,60,17,82,149,178,187,160,211,37,226,174,231,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,59,154,202,0,17,5,192,204,2,243,79,210,29,182,212,226,240,137,53,73,145,50,226,160,164,78,236,246,92,34,161,201,84,83,101,246,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15,66,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,66,157,100,204,79,6,203,25,53,193,48,66,197,84,169,97,31,70,54,150,204,162,133,78,192,152,90,179,50,27,61,35,225,126,79,110,121,27,239,65,55,42,135,141,226,196,86,76,197,43,108,83,141,218,92,206,197,180,6,35,146,190,217,32,237,108,29,147,0,45,108,178,182,216,135,120,162,105,59,219,237,211,2,150,14,241,15,161,182,178,46,42,230,246,12,31,136,211,135,126,239,49,29,239,109,125,103,216,179,48,173,197,154,212,243,94,253,188,114,83,16,116,158,66,237,98,253];
+        let proof = [32,81,3,142,46,160,165,147,183,128,61,106,49,182,204,176,237,55,160,156,173,44,137,54,51,179,116,55,108,64,62,211,0,16,68,248,207,185,88,210,7,214,155,69,15,254,237,64,101,106,40,44,28,210,14,180,10,238,244,108,159,7,131,183,30,41,7,90,120,134,3,249,13,230,173,46,54,98,96,130,108,78,152,13,166,145,215,118,148,186,82,129,145,194,209,24,13,151,119,20,241,30,150,215,26,211,45,149,73,211,138,90,44,191,70,100,58,1,35,71,158,163,33,66,211,44,179,36,4,217,46,128,69,35,39,220,36,131,96,225,190,122,27,8,151,241,171,144,75,233,13,0,190,37,25,52,65,90,245,79,13,221,252,140,182,101,208,225,172,188,237,80,101,85,148,218,67,247,20,194,253,56,0,192,230,170,15,58,178,240,105,81,43,133,107,239,178,29,180,149,177,37,6,73,162,30,96,33,96,235,249,198,168,51,204,89,94,184,81,198,175,67,173,93,47,116,232,166,155,67,104,125,214,53,75,190,249,119,138,16,134,81,226,217,118,130,81,166,50,31,255,28,96,124,139,10];
         // let mut g_ic = <G1 as FromBytes>::read(&*[&*to_be_64(&VK_IC[0][..]), &[0u8][..]].concat()).unwrap().into_projective();
         // for (i, input) in public_inputs.chunks(32).enumerate() {
         //     if i != 0{
@@ -264,13 +662,13 @@ mod test {
         //         g_ic.add_assign(&b.mul(scalar.into_repr()));
         //     }
         // }
-        let mut public_inputs_ark = Vec::new();
-        for (i, input) in public_inputs.chunks(32).enumerate() {
-            let scalar = <Fp256<ark_bn254::FqParameters> as FromBytes> ::read(&input[..]).unwrap();
-            public_inputs_ark.push(scalar);
-        }
+        // let mut public_inputs_ark = Vec::new();
+        // for (i, input) in public_inputs.chunks(32).enumerate() {
+        //     let scalar = <Fp256<ark_bn254::FqParameters> as FromBytes> ::read(&input[..]).unwrap();
+        //     public_inputs_ark.push(scalar);
+        // }
         // let prepared_inputs = prepare_inputs(&pvk, &public_inputs_ark[..]).unwrap();
-        let mut g_ic = <G1 as FromBytes>::read(&*[&VK_IC[0][..], &[0u8][..]].concat()).unwrap().into_projective();
+        let mut g_ic = <G1 as FromBytes>::read(&*[&to_be_64(&VK_IC[0])[..], &[0u8][..]].concat()).unwrap().into_projective();
         // for (i, input) in public_inputs.chunks(32).enumerate() {
         //     // let scalar = <Fr as FromBytes>::read(&input[..]).unwrap();
         //     println!("g_ic{}", g_ic);
@@ -296,10 +694,10 @@ mod test {
         //     g_ic.add_assign(&b.mul(i.into_repr()));
         // }
         // let snarkjs_public_inputs_be = to_be_64(&snarkjs_public_inputs[..]);
-        let mut public_inputs_res_bytes = to_be_64(&VK_IC[0]);
+        let mut public_inputs_res_bytes = VK_IC[0];
         for (i, input) in public_inputs.chunks(32).enumerate() {
-            let scalar = <Fp256<ark_bn254::FqParameters> as FromBytes> ::read(&input[..]).unwrap();
-            let b = <G1 as FromBytes>::read(&*[&VK_IC[i+1][..], &[0u8][..]].concat()).unwrap().into_projective();
+            let scalar = <Fp256<ark_bn254::FqParameters> as FromBytes> ::read(&*to_be_64(&input[..])).unwrap();
+            let b = <G1 as FromBytes>::read(&*[&to_be_64(&VK_IC[i+1])[..], &[0u8][..]].concat()).unwrap().into_projective();
             println!("b {:?}", b.into_affine());
             println!("scalar {:?}", scalar);
             println!("p ark {:?}", g_ic);
@@ -308,7 +706,7 @@ mod test {
             g_ic.add_assign(&mul_res_ark);
 
 
-            let input_mul_bytes = [to_be_64(&VK_IC[i+1]).to_vec(), (to_be_64(&input)).to_vec()].concat();
+            let input_mul_bytes = [VK_IC[i+1].to_vec(), input.to_vec()].concat();
             let mul_res = alt_bn128_multiplication(&input_mul_bytes[..]).unwrap();
             println!("mul_res {:?}",<G1 as FromBytes>::read(&*to_be_64(&mul_res[..])) );
             let input_addition_bytes= [mul_res, public_inputs_res_bytes.to_vec()].concat();
@@ -332,17 +730,17 @@ mod test {
 
        // // assert!(pairing_res == 1);
        // println!("{:?}",pairing_res);
-       let proof_a: G1 =  <G1 as FromBytes>::read(&*[&proof[0..64][..], &[0u8][..]].concat()).unwrap();
-       let proof_b: G2 =  <G2 as FromBytes>::read(&*[&proof[64..192][..], &[0u8][..]].concat()).unwrap();
+       let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
+       let proof_b: G2 =  <G2 as FromBytes>::read(&*[&to_be_128(&proof[64..192])[..], &[0u8][..]].concat()).unwrap();
 
        let g_ic: G1 = g_ic.into();
-       let gamma_g2_neg_pc: G2 =  <G2 as FromBytes>::read(&*[&VK_GAMMA_G2[..], &[0u8][..]].concat()).unwrap();
+       let gamma_g2_neg_pc: G2 =  <G2 as FromBytes>::read(&*[&to_be_128(&VK_GAMMA_G2)[..], &[0u8][..]].concat()).unwrap();
 
-       let delta_g2_neg_pc: G2 =  <G2 as FromBytes>::read(&*[&VK_DELTA_G2[..], &[0u8][..]].concat()).unwrap();
-       let proof_c: G1 =  <G1 as FromBytes>::read(&*[&proof[192..256][..], &[0u8][..]].concat()).unwrap();
+       let delta_g2_neg_pc: G2 =  <G2 as FromBytes>::read(&*[&to_be_128(&VK_DELTA_G2)[..], &[0u8][..]].concat()).unwrap();
+       let proof_c: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[192..256])[..], &[0u8][..]].concat()).unwrap();
 
-       let alpha_g1: G1 =  <G1 as FromBytes>::read(&*[&VK_ALPHA_G1[..], &[0u8][..]].concat()).unwrap();
-       let beta_g2 : G2 =  <G2 as FromBytes>::read(&*[&VK_BETA_G2[..], &[0u8][..]].concat()).unwrap();
+       let alpha_g1: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&VK_ALPHA_G1)[..], &[0u8][..]].concat()).unwrap();
+       let beta_g2 : G2 =  <G2 as FromBytes>::read(&*[&to_be_128(&VK_BETA_G2)[..], &[0u8][..]].concat()).unwrap();
 
 
        let miller_output_ref =
@@ -369,18 +767,86 @@ mod test {
 
        let pairing_input = [
            to_be_64(&proof_a_neg).to_vec(), // proof_a
-           to_be_128(&proof[64..64 + 128]).to_vec(), // proof_b
-           (public_inputs_res_bytes).to_vec(),
-           // to_be_64(&affine_public_inputs_snarkjs_rs_bytes).to_vec(),
-           to_be_128(&VK_GAMMA_G2).to_vec(),
-           to_be_64(&proof[64 + 128..256]).to_vec(), // proof_c
-           to_be_128(&VK_DELTA_G2).to_vec(),
-           to_be_64(&VK_ALPHA_G1).to_vec(),
-           to_be_128(&VK_BETA_G2).to_vec(),
+           proof[64..64 + 128].to_vec(), // proof_b
+           public_inputs_res_bytes.to_vec(),
+           VK_GAMMA_G2.to_vec(),
+           proof[64 + 128..256].to_vec(), // proof_c
+           VK_DELTA_G2.to_vec(),
+           VK_ALPHA_G1.to_vec(),
+           VK_BETA_G2.to_vec(),
        ].concat();
        let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
-       println!("paring res {:?}",pairing_res );
        assert_eq!(pairing_res[31], 1);
+    }
+
+    #[test]
+    fn test_groth16_struct_verification() {
+        let public_inputs = [34,238,251,182,234,248,214,189,46,67,42,25,71,58,145,58,61,28,116,110,60,17,82,149,178,187,160,211,37,226,174,231,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,59,154,202,0,17,5,192,204,2,243,79,210,29,182,212,226,240,137,53,73,145,50,226,160,164,78,236,246,92,34,161,201,84,83,101,246,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,15,66,64,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,20,66,157,100,204,79,6,203,25,53,193,48,66,197,84,169,97,31,70,54,150,204,162,133,78,192,152,90,179,50,27,61,35,225,126,79,110,121,27,239,65,55,42,135,141,226,196,86,76,197,43,108,83,141,218,92,206,197,180,6,35,146,190,217,32,237,108,29,147,0,45,108,178,182,216,135,120,162,105,59,219,237,211,2,150,14,241,15,161,182,178,46,42,230,246,12,31,136,211,135,126,239,49,29,239,109,125,103,216,179,48,173,197,154,212,243,94,253,188,114,83,16,116,158,66,237,98,253];
+        let proof = [32,81,3,142,46,160,165,147,183,128,61,106,49,182,204,176,237,55,160,156,173,44,137,54,51,179,116,55,108,64,62,211,0,16,68,248,207,185,88,210,7,214,155,69,15,254,237,64,101,106,40,44,28,210,14,180,10,238,244,108,159,7,131,183,30,41,7,90,120,134,3,249,13,230,173,46,54,98,96,130,108,78,152,13,166,145,215,118,148,186,82,129,145,194,209,24,13,151,119,20,241,30,150,215,26,211,45,149,73,211,138,90,44,191,70,100,58,1,35,71,158,163,33,66,211,44,179,36,4,217,46,128,69,35,39,220,36,131,96,225,190,122,27,8,151,241,171,144,75,233,13,0,190,37,25,52,65,90,245,79,13,221,252,140,182,101,208,225,172,188,237,80,101,85,148,218,67,247,20,194,253,56,0,192,230,170,15,58,178,240,105,81,43,133,107,239,178,29,180,149,177,37,6,73,162,30,96,33,96,235,249,198,168,51,204,89,94,184,81,198,175,67,173,93,47,116,232,166,155,67,104,125,214,53,75,190,249,119,138,16,134,81,226,217,118,130,81,166,50,31,255,28,96,124,139,10];
+        // order of publicInputs
+        // let mut public_inputs = vec![
+        //     self.merkle_root,
+        //     self.public_amount,
+        //     self.ext_data_hash,
+        //     self.fee_amount,
+        //     self.mint_pubkey,
+        //     self.nullifier0,
+        //     self.nullifier1,
+        //     self.leaf_left,
+        //     self.leaf_right
+        // ];
+        let pub_amount = <BigInteger256 as FromBytes>::read(&to_be_64(&public_inputs[32..64])[..]).unwrap().0[0];
+        println!("pub amount {}", pub_amount);
+        /*
+        let mut tx = LightTransaction::new(
+                proof,
+                public_inputs[0..32].try_into().unwrap(),// merkle_root,
+                public_inputs[32..64].try_into().unwrap(),// merkle_root,public_amount: [u8;32],
+                public_inputs[64..96].try_into().unwrap(),// ext_data_hash: [u8;32],
+                public_inputs[96..128].try_into().unwrap(),// fee_amount,public_amount: [u8;32],
+                public_inputs[128..160].try_into().unwrap(),// mint_pubkey,public_amount: [u8;32],
+                Vec::<Vec<u8>>::new(),//checked_public_inputs: Vec<Vec<u8>>,
+                vec![public_inputs[160..192].to_vec(), public_inputs[192..224].to_vec()], // nullifiers:
+                vec![(public_inputs[224..256].to_vec(), public_inputs[256..288].to_vec())], // leaves: Vec<(Vec<u8>, Vec<u8>)>,
+                [0u8;256],
+                0u64,
+                pub_amount as i64,
+                0u64,
+                // Context
+                Context::<CreateVerifierState>::new(
+                    &Pubkey::new(b"Sxg7dBh5VLT8S1o6BqncZCPq9nhHHukjfVd6ohQJeAk"),//program_id: &'a Pubkey,
+                    &mut create_verifier_state::CreateVerifierState{
+                        signing_address: Signer<'info>,
+                        system_program: Program<'info, System>,
+                        program_merkle_tree: Program<'info, MerkleTreeProgram>,
+                        rent: Sysvar<'info, Rent>,
+                        /// CHECK: Is the same as in integrity hash.
+                        //#[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+                        merkle_tree: AccountInfo<'info>,
+                        #[account(
+                            mut,
+                            address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+                        )]
+                        pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+                        /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
+                        #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+                        authority: UncheckedAccount<'info>,
+                        token_program: Program<'info, Token>,
+                        /// CHECK:` Is checked depending on deposit or withdrawal.
+                        sender: UncheckedAccount<'info>,
+                        /// CHECK:` Is checked depending on deposit or withdrawal.
+                        recipient: UncheckedAccount<'info>,
+                        /// CHECK:` Is not checked the relayer has complete freedom.
+                        relayer_recipient: AccountInfo<'info>,
+
+                    },//accounts: &'b mut T,
+                    &[Pubkey::new(b"Sxg7dBh5VLT8S1o6BqncZCPq9nhHHukjfVd6ohQJeAk")]//remaining_accounts: &'c [AccountInfo<'info>],
+                    //bumps: BTreeMap<String, u8>,
+                )
+        );
+        tx.verify().unwrap();
+        tx.transfer_user_funds().unwrap();
+        */
     }
     use std::ops::Neg;
 

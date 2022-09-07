@@ -35,6 +35,7 @@ use crate::escrow::{
 use crate::groth16_verifier::{
     process_compute, process_create_verifier_state, Compute, CreateVerifierState, VerifierState,
 };
+use solana_address_lookup_table_program::{self, state::AddressLookupTable};
 
 use anchor_lang::prelude::*;
 
@@ -74,29 +75,31 @@ pub mod verifier_program {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification.
-    pub fn create_verifier_state(
-        ctx: Context<CreateVerifierState>,
+    pub fn create_verifier_state<'a, 'b, 'c, 'info> (
+        ctx: Context<'a, 'b, 'c, 'info, CreateVerifierState<'info>>,
         proof: [u8; 256],
         merkle_root: [u8; 32],
         amount: [u8; 32],
-        tx_integrity_hash: [u8; 32],
+        ext_data_hash: [u8; 32],
         nullifier0: [u8; 32],
         nullifier1: [u8; 32],
         leaf_right: [u8; 32],
         leaf_left: [u8; 32],
         recipient: [u8; 32],
-        ext_amount: [u8; 8],
+        ext_amount: i64,
         _relayer: [u8; 32],
-        relayer_fee: [u8; 8],
+        fee_amount: [u8; 32],
+        mint_pubkey: [u8;32],
         encrypted_utxos: [u8; 256],
-        merkle_tree_index: [u8; 1],
+        merkle_tree_index: u64,
+        relayer_fee: u64,
     ) -> Result<()> {
         process_create_verifier_state(
             ctx,
             proof,
             merkle_root,
             amount,
-            tx_integrity_hash,
+            ext_data_hash,
             nullifier0,
             nullifier1,
             leaf_right,
@@ -104,9 +107,11 @@ pub mod verifier_program {
             recipient,
             ext_amount,
             _relayer,
-            relayer_fee,
+            fee_amount,
+            mint_pubkey,
             encrypted_utxos,
             merkle_tree_index,
+            relayer_fee
         )
     }
 
