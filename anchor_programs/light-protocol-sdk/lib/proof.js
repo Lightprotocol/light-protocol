@@ -27,11 +27,10 @@ const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 const newKeypair = () => nacl.box.keyPair();
 
 
-const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair, inIndices, outIndices, assetPubkeys, mintPubkey) {
+const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair, inIndices, outIndices, assetPubkeys, mintPubkey, test) {
     return __awaiter(this, void 0, void 0, function* () {
         /// mixes the input utxos
         /// mixes the output utxos
-        console.log("commented shuffle")
         // inputUtxos = (0, shuffle_1.shuffle)(inputUtxos);
         // outputUtxos = (0, shuffle_1.shuffle)(outputUtxos);
         // console.log(`input utxos -> `, inputUtxos)
@@ -48,8 +47,14 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         /// also push the path to the leaf
         /// else push a 0 to the indices
         /// and fill the path to the leaf with 0s
+
         for (const inputUtxo of inputUtxos) {
-            if (inputUtxo.amount > 0) {
+            if (test) {
+              inputMerklePathIndices.push(0);
+              inputMerklePathElements.push(new Array(merkelTree.levels).fill(0));
+
+            }
+            else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0|| inputUtxo.amounts[2] > 0)  {
                 inputUtxo.index = merkelTree.indexOf(inputUtxo.getCommitment());
                 if (inputUtxo.index || inputUtxo.index == 0) {
                     if (inputUtxo.index < 0) {
@@ -67,7 +72,6 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         }
         // does something with the fees
         let int64;
-        console.log("externalAmountBigNumber: ", externalAmountBigNumber)
         if (externalAmountBigNumber < 0) {
             // is withdrawal
             int64 = I64(-1 * externalAmountBigNumber.toNumber());
@@ -87,10 +91,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         }
         // Encrypting outputUtxos onl11706303591708973095148360617010962626840972903207922381194541855451929915886y
         // Why is this empty
-        const nonces = [newNonce(), newNonce(), newNonce(), newNonce()];
+        const nonces = [newNonce(), newNonce()];
         const senderThrowAwayKeypairs = [
-            newKeypair(),
-            newKeypair(),
             newKeypair(),
             newKeypair()
         ];
@@ -99,6 +101,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         let encryptedOutputs = [ ];
         outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, senderThrowAwayKeypairs[index])));
         // test decrypt: same?
+        console.log("encryptedOutputs: ", encryptedOutputs)
+        console.log("encryptedOutputs.length: ", encryptedOutputs.length);
 
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
@@ -161,7 +165,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
 };
 exports.prepareTransaction = prepareTransaction;
 
-
+var ffjavascript = require('ffjavascript');
+const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDataBytes, encryptedOutputs) {
     return __awaiter(this, void 0, void 0, function* () {
         var proofJson;
@@ -172,14 +177,31 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
             publicInputsJson = r.publicInputsJson;
         })
 
+        var publicInputsBytes = JSON.parse(publicInputsJson.toString());
+        for (var i in publicInputsBytes) {
+            publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
+        }
+
+        let publicInputs = {
+            root:         publicInputsBytes[0],
+            publicAmount: publicInputsBytes[1],
+            extDataHash:  publicInputsBytes[2],
+            feeAmount:    publicInputsBytes[3],
+            mintPubkey:   publicInputsBytes[4],
+            nullifier0:   publicInputsBytes[5],
+            nullifier1:   publicInputsBytes[6],
+            leafLeft:     publicInputsBytes[7],
+            leafRight:    publicInputsBytes[8]
+        };
+
         return {
             data: {
                 extAmount: extAmount,
                 externalAmountBigNumber,
                 extDataBytes,
-                publicInputsBytes: yield (0, parseInputsToBytesArray_1.parseInputsToBytesArray)(publicInputsJson),
+                publicInputs,//
                 proofBytes: yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson),
-                encryptedOutputs: encryptedOutputs, // may need these somewhere
+                encryptedOutputs: encryptedOutputs,
             },
         };
     });

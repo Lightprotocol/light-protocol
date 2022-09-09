@@ -748,7 +748,6 @@ mod tests {
                 computing_final_exponentiation: true,
 
                 merkle_tree_index: 0,
-                found_root: 0,
                 current_instruction_index_prepare_inputs: 0,
                 encrypted_utxos: [0u8; 222],
                 last_transaction: false,

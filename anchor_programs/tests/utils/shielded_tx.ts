@@ -3,11 +3,11 @@ const {U64, I64} = require('n64');
 const anchor = require("@project-serum/anchor")
 const nacl = require('tweetnacl')
 const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
-const createEncryptionKeypair = () => nacl.box.keyPair()
+export const createEncryptionKeypair = () => nacl.box.keyPair()
 
 
 
-class shieldedTransaction {
+export class shieldedTransaction {
   constructor({
     assetPubkeys = null,
     keypair = null, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
@@ -176,7 +176,7 @@ class shieldedTransaction {
      this.extAmount = data.extAmount;
      this.externalAmountBigNumber = data.externalAmountBigNumber;
      this.extDataBytes = data.extDataBytes;
-     this.encryptedOutputs = data.extDataBytes;
+     this.encryptedOutputs = data.encryptedOutputs;
     }
 
     async proof(insert) {
@@ -186,6 +186,7 @@ class shieldedTransaction {
       if (this.inIndices == null) {
         throw "transaction not prepared";
       }
+
       let proofData = await light.getProofMasp(
         this.input,
         this.extAmount,
@@ -193,7 +194,7 @@ class shieldedTransaction {
         this.extDataBytes,
         this.encryptedOutputs
       )
-
+      console.log(proofData)
       this.outputUtxos.map((utxo) => {
         if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
             this.utxos.push(utxo)
@@ -212,7 +213,7 @@ class shieldedTransaction {
         }
 
       }
-      return proofData;
+      return proofData.data;
     }
 
 }

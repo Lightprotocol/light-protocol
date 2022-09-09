@@ -1,5 +1,33 @@
 # Light Protocol Program V3
 
+## Notes
+
+For 2 inputs -> 14 accounts & 888 bytes data
+For 16 inputs -> 11 + 16 Nf + 1 leaves = 28 Accounts & 536 + 16 * 32 = 1048 byte data
+
+./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program.so JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/merkle_tree_program.so
+
+anchor test --skip-build --skip-deploy --skip-local-validator
+
+Lookup table:
+token_program
+authority
+pre_inserted_leaves_index
+merkle_tree
+rent
+system programs
+program_merkle_tree
+
+inputs = 256 + 32 * 8 + 8 + 32 + 256 + 1
+814
+> accounts = 32 *14
+448
+> inputs +  accounts
+1262
+> accounts = 32 * 5
+160
+> inputs +  accounts
+974
 
 ## Current State
 

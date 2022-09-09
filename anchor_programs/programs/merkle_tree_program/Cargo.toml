@@ -20,14 +20,14 @@ test-bpf = []
 opt-level = 2
 
 [dependencies]
-anchor-lang = "0.24.2"
-anchor-spl = "0.24.2"
+anchor-lang = "0.25.0"
+anchor-spl = "0.25.0"
 
 byteorder = "1.3"
 
 #solana
 #solana-program = "1.9.15"
-solana-program = { path = "../../../../solana/sdk/program"}
+solana-program = { path = "../../../../solana_real/solana/sdk/program"}
 
 arrayref = "0.3.6"
 borsh = "0.9.1"

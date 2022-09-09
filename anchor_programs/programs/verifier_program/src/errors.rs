@@ -25,5 +25,9 @@ pub enum ErrorCode {
     #[msg("Token escrow account is incorrect.")]
     IncorrectTokenEscrowAcc,
     #[msg("WrongUserTokenPda")]
-    WrongUserTokenPda
+    WrongUserTokenPda,
+    #[msg("ProofVerificationFailed")]
+    ProofVerificationFailed,
+    #[msg("Transaction was not executed completely")]
+    TransactionIncomplete
 }

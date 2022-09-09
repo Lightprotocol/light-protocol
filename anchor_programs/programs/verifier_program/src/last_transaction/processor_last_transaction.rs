@@ -250,7 +250,7 @@ pub fn check_external_amount(verifier_state: &mut RefMut<'_, VerifierState>) -> 
         }
 
         //check amount
-        if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount.try_into().unwrap() {
+        if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 {
             msg!(
                 "Deposit invalid external amount (relayer_fee) {} != {}",
                 pub_amount.0[0] + relayer_fee,

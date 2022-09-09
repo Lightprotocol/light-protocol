@@ -11,7 +11,8 @@ mod test {
     use ark_groth16::prepare_inputs;
     use ark_groth16::prepare_verifying_key;
     use serde_json::{Result, Value};
-    use solana_program::pubkey::Pubkey;
+    // use solana_program::pubkey::Pubkey;
+    use anchor_lang::prelude::Pubkey;
     use std::borrow::Borrow;
     use std::cell::{RefCell, RefMut};
     use std::convert::TryInto;

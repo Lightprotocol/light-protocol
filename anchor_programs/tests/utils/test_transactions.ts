@@ -121,7 +121,7 @@ export async function deposit({
   rent
 }) {
   const burnerUserAccount = await newAccountWithLamports(connection)
-
+  throw "fn deposit still creates old utxos";
   let deposit_utxo1 = new light.Utxo(BigNumber.from(amount), Keypair)
   let deposit_utxo2 = new light.Utxo(BigNumber.from(amount), Keypair)
 

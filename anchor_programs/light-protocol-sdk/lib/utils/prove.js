@@ -42,6 +42,32 @@ const prove = function (input, keyBasePath) {
             console.log('Invalid proof');
             throw new Error('Invalid Proof');
         }
+        const curve = yield ffjavascript.getCurveFromName(vKey.curve);
+
+        // console.log("proof: ", proof);
+        // we need to negate proof_a such that the product of pairings result is 1
+        // doesnt work
+        // proof.pi_a[1] = ffjavascript.utils.stringifyBigInts(curve.G1.F.toObject(curve.G1.F.neg(curve.G1.F.fromObject(proof.pi_a[1]))))
+        // proof.pi_a = ffjavascript.utils.stringifyBigInts(curve.G1.toObject(curve.G1.neg(curve.G1.fromObject(proof.pi_a))));
+        // console.log("proof: ", proof);
+
+        // proof.pi_a = curve.G1.fromObject(proof.pi_a);
+        // proof.pi_b = curve.G2.fromObject(proof.pi_b);
+        // proof.pi_c = curve.G1.fromObject(proof.pi_c);
+        //
+        // console.log("proof: ", proof);
+        // let proofBytes = Array.from(proof.pi_a).concat(Array.from(proof.pi_b).concat(Array.from(proof.pi_c)))
+        // console.log("proofBytes: ", proofBytes);
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(0,32)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(32,64)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(64,96)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(96,128)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(128,160)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(128,160)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(160,192)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(192,224)), 32).toString());
+        // console.log(ffjavascript.utils.leBuff2int(Buffer.from(proofBytes.slice(224,256)), 32).toString());
+
         const proofJson = JSON.stringify(proof, null, 1);
         return { proofJson, publicInputsJson };
     });

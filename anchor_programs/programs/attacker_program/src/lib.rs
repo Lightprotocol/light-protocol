@@ -1,7 +1,7 @@
 use anchor_lang::prelude::Pubkey;
 use anchor_lang::prelude::*;
 // use merkle_tree_program::{self, program::MerkleTreeProgram};
-use solana_program;
+// use solana_program;
 // use merkle_tree_program::PreInsertedLeavesIndex;
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 // use merkle_tree_program::utils::constants::NF_SEED;

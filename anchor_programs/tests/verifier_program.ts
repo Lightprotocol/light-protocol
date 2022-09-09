@@ -13,7 +13,11 @@ const light = require('../light-protocol-sdk');
 import _ from "lodash";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
-
+let circomlibjs = require("circomlibjs")
+import {
+  shieldedTransaction,
+  createEncryptionKeypair
+} from "./utils/shielded_tx";
 import {
   checkEscrowAccountCreated,
   checkVerifierStateAccountCreated,
@@ -65,7 +69,8 @@ import {
   MERKLE_TREE_SIZE,
   MERKLE_TREE_KP,
   MERKLE_TREE_SIGNER_AUTHORITY,
-  PRIVATE_KEY
+  PRIVATE_KEY,
+  FIELD_SIZE
   } from "./utils/constants";
 
 
@@ -77,13 +82,14 @@ var UNREGISTERED_PRE_INSERTED_LEAVES_INDEX;
 var UTXOS;
 var MERKLE_TREE_OLD;
 
-var MERKLE_TREE_USDC
-var MERKLE_TREE_PDA_TOKEN_USDC
+var MERKLE_TREE_USDC = 0
+var MERKLE_TREE_PDA_TOKEN_USDC = 0
 var PRE_INSERTED_LEAVES_INDEX_USDC
 var MINT
 var RENT_ESCROW
 var RENT_VERIFIER
 var RENT_TOKEN_ACCOUNT
+import {toBufferLE} from 'bigint-buffer';
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
@@ -149,6 +155,47 @@ describe("verifier_program", () => {
 
 
       });
+  it("Deposit Proof", async () => {
+    let MERKLE_TREE_PDA_TOKEN_USDC = new anchor.web3.Account().publicKey
+    let MERKLE_TREE_USDC  = new anchor.web3.Account().publicKey
+
+    let RELAYER = new anchor.web3.Account()
+    let ASSET = new anchor.BN(RELAYER.publicKey._bn.toString()).mod(FIELD_SIZE);
+    let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+
+    let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+    let RELAYER_FEE = U64(10_000);
+    let AMOUNT = 1_000_000
+
+    let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
+    let depositAmount = 1_000_000_000
+    let depositFeeAmount = 1_000_000
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+    let KEYPAIR = new light.Keypair(poseidon);
+    console.log(shieldedTransaction)
+    let SHIELDED_TRANSACTION = new shieldedTransaction({
+      merkleTreePubkey:MERKLE_TREE_USDC,
+      merkleTreeAssetPubkey: MERKLE_TREE_PDA_TOKEN_USDC,
+      relayerPubkey: AUTHORITY.toBase58(),
+      poseidon: poseidon
+    });
+
+    await SHIELDED_TRANSACTION.getMerkleTree();
+
+    let deposit_utxo1 = new light.Utxo(poseidon,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+
+    let outputUtxos = [deposit_utxo1];
+
+    await SHIELDED_TRANSACTION.prepareTransactionFull({
+        inputUtxos: [],
+        outputUtxos,
+        action: "DEPOSIT",
+        assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
+        relayerFee: U64(depositFeeAmount),
+        shuffle: true
+    });
+    let proof_data = await SHIELDED_TRANSACTION.proof();
+  });
 
   it("Initialize Merkle Tree", async () => {
     await newAccountWithLamports(
@@ -156,15 +203,57 @@ describe("verifier_program", () => {
       ADMIN_AUTH_KEYPAIR
     )
     await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
-    var ADMIN_AUTH_KEYPAIRAccountInfo = await provider.connection.getAccountInfo(
-          ADMIN_AUTH_KEYPAIR.publicKey
-        )
+
+        /*
+    // initing Lookup table
+    //
+    const recentSlot = (await provider.connection.getSlot()) - 10;
+    console.log(`recentSlot ${recentSlot}`);
+
+    const authorityPubkey = solana.Keypair.generate().publicKey;
+    const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
+    const [createInstruction] = solana.AddressLookupTableProgram.createLookupTable({
+      authority: payerPubkey,
+      payer: payerPubkey,
+      recentSlot,
+    });
+    var transaction = new solana.Transaction().add(createInstruction);
+    const [lookupTableAddress, bumpSeed] = solana.PublicKey.findProgramAddressSync(
+      [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
+      solana.AddressLookupTableProgram.programId,
+    );
+    const addressesToAdd = [
+      MERKLE_TREE_KEY,
+      MERKLE_TREE_PDA_TOKEN,
+      PRE_INSERTED_LEAVES_INDEX,
+      DEFAULT_PROGRAMS.rent,
+      DEFAULT_PROGRAMS.systemProgram,
+      DEFAULT_PROGRAMS.tokenProgram,
+      DEFAULT_PROGRAMS.clock
+    ];
+
+    const extendInstruction = solana.AddressLookupTableProgram.extendLookupTable({
+      lookupTable: lookupTableAddress,
+      authority: payerPubkey,
+      payer: payerPubkey,
+      addresses: addressesToAdd,
+    });
+    transaction.add(extendInstruction);
+    try {
+      let res = await solana.sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR]);
+      console.log(res)
+    } catch(e) {
+      console.log(e);
+      process.exit();
+    }
+
     console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
     console.log("MERKLE_TREE_KEY: ", Array.prototype.slice.call(MERKLE_TREE_KEY.toBytes()))
     console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
     console.log("MERKLE_TREE_PDA_TOKEN: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN.toBytes()))
     try {
-      const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
+      let recentBlockhash = await provider.connection.getLatestBlockhash();
+      const ix = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
         authority: ADMIN_AUTH_KEY,
         merkleTree: MERKLE_TREE_KEY,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -181,11 +270,62 @@ describe("verifier_program", () => {
         })
       ])
       .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
-      .rpc();
+      .transaction();
+      ix.recentBlockhash = recentBlockhash.blockhash;
+      ix.feePayer = ADMIN_AUTH_KEY;
+      ix.lastValidBlockHeight = recentBlockhash.lastValidBlockHeight;
+      console.log(ix);
+      const compiledInstruction = ix.compileMessage();
+      console.log("compiledInstruction0: ", ix.instructions[0])
+      console.log("compiledInstruction1: ", ix.instructions[1])
+      for (var i = 0; i < ix.instructions[1].keys.length; i++) {
+        console.log(`${ix.instructions[1].keys[i].pubkey.toBase58()}, isWritable: ${ix.instructions[1].keys[i].isWritable}, isSigner: ${ix.instructions[1].keys[i].isSigner}`);
 
+      }
+      console.log(`programid: ${ix.instructions[1].programId.toBase58()}`);
+      console.log(`data: ${Array.from(ix.instructions[1].data)}`);
+
+      process.exit()
+      let vTx = new solana.VersionedTransaction(
+          new solana.MessageV0({
+            header: {
+              numRequiredSignatures: 1,
+              numReadonlySignedAccounts:1,
+              numReadonlyUnsignedAccounts:3, // might be wrong
+            },
+            staticAccountKeys: [ADMIN_AUTH_KEY, MERKLE_TREE_KEY, PRE_INSERTED_LEAVES_INDEX, MERKLE_TREE_PDA_TOKEN, DEFAULT_PROGRAMS.systemProgram, DEFAULT_PROGRAMS.rent],
+            compiledInstructions: [{
+              /// Index into the transaction keys array indicating the program account that executes this instruction /
+              programIdIndex: 5,
+              // Ordered indices into the transaction keys array indicating which accounts to pass to the program /
+              accountKeyIndexes: [0, 1],
+              // The program input data /
+              data: "",//compiledInstruction.instructions[0].data,
+            }],
+            addressTableLookups: [
+            //   {
+            //   accountKey: lookupTableAddress,
+            //   writableIndexes: [],
+            //   readonlyIndexes: [0],
+            // }
+            // {
+            //   accountKey: new PublicKey(3),
+            //   writableIndexes: [1],
+            //   readonlyIndexes: [],
+            // }
+          ],
+            recentBlockhash
+          }),
+          [ADMIN_AUTH_KEYPAIR] //MERKLE_TREE_KP
+      );
+      console.log("vTx: ", vTx);
+      let res = await solana.sendAndConfirmTransaction(provider.connection, vTx, [ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP]);
+      console.log(res)
     } catch(e) {
       console.log("e: ", e)
-    }
+      process.exit()
+
+    }*/
     var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
           MERKLE_TREE_KEY
         )
@@ -235,9 +375,154 @@ describe("verifier_program", () => {
     } catch(e) {
       console.log(e)
     }
+
+
   });
 
-  it("Initialize Token Merkle tree", async () => {
+  it("Deposit Proof & Tx will not work", async () => {
+    let MERKLE_TREE_PDA_TOKEN_USDC = new anchor.web3.Account().publicKey
+    let MERKLE_TREE_USDC  = new anchor.web3.Account().publicKey
+
+    let RELAYER = new anchor.web3.Account()
+    let ASSET = new anchor.BN(RELAYER.publicKey._bn.toString()).mod(FIELD_SIZE);
+    let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+
+    let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+    let RELAYER_FEE = U64(10_000);
+    let AMOUNT = 1_000_000
+    for (var i = 0; i < 100; i++) {
+      let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
+      // let depositAmount = 1_000_000_000
+      // let depositFeeAmount = 1_000_000
+      let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let poseidon = await circomlibjs.buildPoseidonOpt();
+      let KEYPAIR = new light.Keypair(poseidon);
+      let SHIELDED_TRANSACTION = new shieldedTransaction({
+        merkleTreePubkey:MERKLE_TREE_USDC,
+        merkleTreeAssetPubkey: MERKLE_TREE_PDA_TOKEN_USDC,
+        relayerPubkey: AUTHORITY.toBase58(),
+        poseidon: poseidon
+      });
+
+      await SHIELDED_TRANSACTION.getMerkleTree();
+
+      let deposit_utxo1 = new light.Utxo(poseidon,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+
+      let outputUtxos = [deposit_utxo1];
+
+      await SHIELDED_TRANSACTION.prepareTransactionFull({
+        inputUtxos: [],
+        outputUtxos,
+        action: "DEPOSIT",
+        assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
+        relayerFee: U64(depositFeeAmount),
+        shuffle: true
+      });
+      let proof_data = await SHIELDED_TRANSACTION.proof();
+      console.log("proof_data: ", proof_data);
+      // console.log(verifierProgram.methods.createVerifierState);
+      // console.log("signingAddress: ", ADMIN_AUTH_KEYPAIR.publicKey);
+      // console.log("systemProgram: ", SystemProgram.programId);
+      // console.log("systemProgram: ", SystemProgram.programId);
+      try {
+        // solana.requestUnits(1_400_000);
+        const tx = await verifierProgram.methods.createVerifierState(
+          proof_data.proofBytes,
+          proof_data.publicInputs.root,
+          proof_data.publicInputs.publicAmount,
+          proof_data.publicInputs.extDataHash,
+          proof_data.publicInputs.nullifier0,
+          proof_data.publicInputs.nullifier1,
+          proof_data.publicInputs.leafRight,
+          proof_data.publicInputs.leafLeft,
+          new Uint8Array(32).fill(1),//proof_data.recipient,
+          proof_data.publicInputs.extAmount,
+          new Uint8Array(32).fill(1),//proof_data.relayer,
+          proof_data.publicInputs.feeAmount,
+          proof_data.publicInputs.mintPubkey,
+          new Uint8Array(256).fill(1),
+          proof_data.merkleTreeIndex
+        ).accounts(
+          {
+            signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+            // verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            merkleTree: MERKLE_TREE_KEY,
+            programMerkleTree:  merkleTreeProgram.programId,
+          }
+        ).preInstructions([
+          solana.ComputeBudgetProgram.requestUnits({units:1_400_000, fee: 1})
+        ]).signers([ADMIN_AUTH_KEYPAIR]).rpc()
+        console.log(tx);
+
+      } catch (e) {
+        console.log(e);
+
+      }
+      // console.log(proof_data.publicInputsBytes)
+      // console.log(proof_data.proofBytes)
+      // console.log(proof_data.publicInputsBytes.toString())
+      // console.log(proof_data.proofBytes.toString())
+
+    }
+
+  });
+
+  it("Init Address Lookup Table", async () => {
+    await newAccountWithLamports(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR
+    )
+    await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
+
+    const recentSlot = (await provider.connection.getSlot()) - 10;
+    console.log(`recentSlot ${recentSlot}`);
+
+    const authorityPubkey = solana.Keypair.generate().publicKey;
+    const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
+    const [createInstruction] = solana.AddressLookupTableProgram.createLookupTable({
+      authority: payerPubkey,
+      payer: payerPubkey,
+      recentSlot,
+    });
+    var transaction = new solana.Transaction().add(createInstruction);
+    const [lookupTableAddress, bumpSeed] = solana.PublicKey.findProgramAddressSync(
+      [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
+      solana.AddressLookupTableProgram.programId,
+    );
+    const addressesToAdd = [
+      solana.Keypair.generate().publicKey,
+      solana.Keypair.generate().publicKey,
+      solana.Keypair.generate().publicKey,
+      solana.Keypair.generate().publicKey,
+    ];
+
+    const extendInstruction = solana.AddressLookupTableProgram.extendLookupTable({
+      lookupTable: lookupTableAddress,
+      authority: payerPubkey,
+      payer: payerPubkey,
+      addresses: addressesToAdd,
+    });
+    transaction.add(extendInstruction);
+    try {
+      let res = await solana.sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR]);
+      console.log(res)
+    } catch(e) {
+      console.log(e);
+    }
+
+
+
+  });
+
+  it.only("Initialize Token Merkle tree", async () => {
+    await newAccountWithLamports(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR
+    )
+    await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000)
+
     MERKLE_TREE_USDC= await solana.PublicKey.createWithSeed(
         ADMIN_AUTH_KEY,
         "usdc",
@@ -328,9 +613,268 @@ describe("verifier_program", () => {
 
   });
 
+
+
+  it.only("Generate Proof & Deposit & Withdraw", async () => {
+    console.log("1")
+    let merkelTree= await solana.PublicKey.createWithSeed(
+        ADMIN_AUTH_KEY,
+        "usdc",
+        merkleTreeProgram.programId,
+      )
+    let merkleTreePda  = solana.PublicKey.findProgramAddressSync(
+          [merkelTree.toBytes(), anchor.utils.bytes.utf8.encode("merkle_tree_pda_token")],
+          merkleTreeProgram.programId
+        )[0];
+    const origin = await newAccountWithLamports(provider.connection)
+    const relayer = await newAccountWithLamports(provider.connection)
+    let tokenAuthority = solana.PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        verifierProgram.programId
+      )[0];
+    let {ix_data, bytes} = read_and_parse_instruction_data_bytes();
+    console.log(merkleTreePda);
+
+    ix_data.recipient = merkleTreePda.toBytes();
+    ix_data.merkleTreeIndex = new Uint8Array(1).fill(1)
+
+    let tx_fee = 5000 * 50;
+    let escrow_amount = tx_fee + U64.readLE(ix_data.fee, 0).toNumber()
+    let amount = U64.readLE(ix_data.extAmount, 0).toNumber()
+    let pdas = getPdaAddresses({
+      tx_integrity_hash: ix_data.txIntegrityHash,
+      nullifier0: ix_data.nullifier0,
+      nullifier1: ix_data.nullifier1,
+      leafLeft: ix_data.leafLeft,
+      merkleTreeProgram,
+      verifierProgram
+    })
+    var relayerInfoStart = await connection.getAccountInfo(
+      relayer.publicKey
+    )
+    var userInfoStart = await connection.getAccountInfo(
+      origin.publicKey
+    )
+
+    // create associated token account
+    var userTokenAccount = (await newAccountWithTokens({
+        connection: provider.connection,
+        MINT,
+        ADMIN_AUTH_KEYPAIR,
+        userAccount: origin,
+        amount: (amount+10 )
+    }))
+
+
+    await token.approve(
+      provider.connection,
+      origin,
+      userTokenAccount,
+      AUTHORITY, //delegate
+      origin.publicKey, // owner
+      I64.readLE(ix_data.extAmount,0).toNumber(), // amount
+      []
+    )
+    /*
+    let escrowTokenAccount = await solana.PublicKey.createWithSeed(
+      relayer.publicKey,
+      "escrow",
+      token.TOKEN_PROGRAM_ID,
+    );
+
+
+    try {
+      const tx = await verifierProgram.methods.createEscrow(
+            ix_data.txIntegrityHash,
+            new anchor.BN(tx_fee), // does not need to be checked since this tx is signed by the user
+            ix_data.fee,
+            new anchor.BN(amount),
+            new anchor.BN(1)
+      ).accounts(
+          {
+            feeEscrowState: pdas.feeEscrowStatePubkey,
+            verifierState:  pdas.verifierStatePubkey,
+            signingAddress: relayer.publicKey,
+            user:           origin.publicKey,
+            systemProgram:  SystemProgram.programId,
+            tokenProgram:  token.TOKEN_PROGRAM_ID,
+            tokenAuthority: AUTHORITY//tokenAuthority
+          }
+        ).remainingAccounts([
+          { isSigner: false, isWritable: true, pubkey:userTokenAccount },
+          { isSigner: false, isWritable: true, pubkey:escrowTokenAccount }
+        ]).preInstructions([
+          SystemProgram.createAccountWithSeed({
+            basePubkey:relayer.publicKey,
+            seed: anchor.utils.bytes.utf8.encode("escrow"),
+            fromPubkey: relayer.publicKey,
+            newAccountPubkey: escrowTokenAccount,
+            space: token.ACCOUNT_SIZE,
+            lamports: await provider.connection.getMinimumBalanceForRentExemption(token.ACCOUNT_SIZE),
+            programId: token.TOKEN_PROGRAM_ID
+          }),
+          token.createInitializeAccountInstruction(
+           escrowTokenAccount, //new account
+           MINT, // mint
+           AUTHORITY,
+           tokenAuthority, //owner
+         )
+       ]).signers([relayer, origin]).transaction();
+       tx.instructions[1].programId = token.TOKEN_PROGRAM_ID
+       await provider.sendAndConfirm(tx, [relayer, origin]);
+    } catch (e) {
+
+      console.log("e createEscrow", e)
+    }
+
+    let receivedTokenInfo1 = await token.getAccount(
+      provider.connection,
+      userTokenAccount,
+      token.TOKEN_PROGRAM_ID
+    );
+    assert(receivedTokenInfo1.amount == 10);
+    */
+    // let MERKLE_TREE_PDA_TOKEN_USDC = new anchor.web3.Account().publicKey
+    // let MERKLE_TREE_USDC  = new anchor.web3.Account().publicKey
+
+    let RELAYER = new anchor.web3.Account()
+    let ASSET = new anchor.BN(RELAYER.publicKey._bn.toString()).mod(FIELD_SIZE);
+    let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+
+    let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+    let RELAYER_FEE = U64(10_000);
+    let AMOUNT = 1_000_000
+
+      let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
+      // let depositAmount = 1_000_000_000
+      // let depositFeeAmount = 1_000_000
+      let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let poseidon = await circomlibjs.buildPoseidonOpt();
+      let KEYPAIR = new light.Keypair(poseidon);
+      let SHIELDED_TRANSACTION = new shieldedTransaction({
+        merkleTreePubkey:merkelTree,
+        merkleTreeAssetPubkey: merkleTreePda,
+        relayerPubkey: AUTHORITY.toBase58(),
+        poseidon: poseidon
+      });
+
+      await SHIELDED_TRANSACTION.getMerkleTree();
+
+      let deposit_utxo1 = new light.Utxo(poseidon,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+
+      let outputUtxos = [deposit_utxo1];
+
+      await SHIELDED_TRANSACTION.prepareTransactionFull({
+        inputUtxos: [],
+        outputUtxos,
+        action: "DEPOSIT",
+        assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
+        relayerFee: U64(depositFeeAmount),
+        shuffle: true,
+        mintPubkey: ASSET
+      });
+      let proof_data = await SHIELDED_TRANSACTION.proof();
+
+      let escrow_account = await newProgramOwnedAccount({ connection: provider.connection,lamports: 300_000, owner: verifierProgram, account: AUTHORITY})
+
+      const txTransfer = new solana.Transaction().add(
+        await solana.SystemProgram.transfer({
+            fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey,
+            toPubkey: escrow_account.publicKey,
+            lamports: 1_000_000_0000
+        }),
+      );
+
+    txTransfer.recentBlockhash = await connection.getRecentBlockhash();
+
+    let x = await solana.sendAndConfirmTransaction(
+        provider.connection,
+        txTransfer,
+        [ADMIN_AUTH_KEYPAIR],
+        {
+          commitment: 'singleGossip',
+          preflightCommitment: 'singleGossip',
+        },
+      );
+      console.log(x);
+
+      console.log("proof_data: ", proof_data);
+      let placeholderNUllifier0 = new anchor.web3.Account()
+      let placeholderNUllifier1 = new anchor.web3.Account()
+      let placeholderLeavesAcc = new anchor.web3.Account()
+
+      // console.log(verifierProgram.methods.createVerifierState);
+      // console.log("signingAddress: ", ADMIN_AUTH_KEYPAIR.publicKey);
+      // console.log("systemProgram: ", SystemProgram.programId);
+      // console.log("systemProgram: ", SystemProgram.programId);
+      try {
+        // solana.requestUnits(1_400_000);
+        const tx = await verifierProgram.methods.createVerifierState(
+          proof_data.proofBytes,
+          proof_data.publicInputs.root,
+          proof_data.publicInputs.publicAmount,
+          proof_data.publicInputs.extDataHash,
+          [proof_data.publicInputs.nullifier0, proof_data.publicInputs.nullifier1],
+          [proof_data.publicInputs.leafRight, proof_data.publicInputs.leafLeft],
+          new Uint8Array(32).fill(1),//proof_data.recipient,
+          proof_data.externalAmountBigNumber,
+          new Uint8Array(32).fill(1),//proof_data.relayer,
+          proof_data.publicInputs.feeAmount,
+          proof_data.publicInputs.mintPubkey,
+          // new Uint8Array(256).fill(1),
+          proof_data.merkleTreeIndex,
+          new anchor.BN(0)// relayer_fee
+        ).accounts(
+          {
+            signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+            // verifierState: pdas.verifierStatePubkey,
+            systemProgram: SystemProgram.programId,
+            merkleTree: merkelTree,
+            programMerkleTree:  merkleTreeProgram.programId,
+            rent:DEFAULT_PROGRAMS.rent,
+            // preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
+            authority:AUTHORITY,
+            sender:escrow_account.publicKey,
+            recipient: merkleTreePda,
+            relayerRecipient:AUTHORITY, // doesnt matter at deposit is not called
+            tokenProgram:  token.TOKEN_PROGRAM_ID,
+            // escrow: escrow_account.publicKey
+          }
+        )
+        // .remainingAccounts([ // placeholders for test should be leaves and nullifier
+        //   { isSigner: false, isWritable: true, pubkey:placeholderNUllifier0.publicKey },
+        //   { isSigner: false, isWritable: true, pubkey:placeholderNUllifier1.publicKey },
+        //   { isSigner: false, isWritable: true, pubkey:placeholderLeavesAcc.publicKey }
+        // ])
+        .preInstructions([
+          solana.ComputeBudgetProgram.requestUnits({units:1_400_000, fee: 1})
+        ])
+        .signers([ADMIN_AUTH_KEYPAIR]).rpc()
+        console.log(tx);
+        // for (var i in tx.keys){
+        //   if (tx.keys[i].isWritable) {
+        //     console.log(`AccountMeta::new(Pubkey::from_str(\"${tx.keys[i].pubkey.toBase58()}\").unwrap(), isSigner: ${tx.keys[i].isSigner}}),`);
+        //   } else {
+        //     console.log(`AccountMeta::new_readonly(Pubkey::from_str(\"${tx.keys[i].pubkey.toBase58()}\").unwrap(), isSigner: ${tx.keys[i].isSigner}}),`);
+        //   }
+
+
+        // console.log("data: ", Array.prototype.slice.call(tx.data).toString());
+
+
+      } catch (e) {
+        console.log(e);
+        console.log("AUTHORITY: ", AUTHORITY.toBase58());
+
+      }
+    })
+
+
   it.skip("Open and close escrow relayer token", async () => {
     const origin = await newAccountWithLamports(provider.connection)
     const relayer = await newAccountWithLamports(provider.connection)
+
     let tokenAuthority = solana.PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("spl")],
         verifierProgram.programId
