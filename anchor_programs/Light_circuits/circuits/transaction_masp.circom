@@ -96,6 +96,17 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
     // nAssets should be even plus one feeAsset
     (nAssets - 1) % 2 === 0;
 
+    // If public amount is != 0 then check that assetPubkeys[1] == mintPubkey
+    log(55555555555);
+    log(assetPubkeys[1] == mintPubkey);
+    log(assetPubkeys[1]);
+    log(mintPubkey);
+    log(55555555555);
+
+    component checkMintPubkey = ForceEqualIfEnabled();
+    checkMintPubkey.in[0] <== assetPubkeys[1];
+    checkMintPubkey.in[1] <== mintPubkey;
+    checkMintPubkey.enabled <== publicAmount;
     // defines which utxos are used in which instruction
 
     component inKeypair[nIns];
@@ -237,14 +248,14 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
 
         // check asset type for withdrawal
         // asset has to be in
-        selectorCheckMint[tx] = AND();
-        selectorCheckMint[tx].a <== mintPubkey;
-        selectorCheckMint[tx].b <== inIndices[1][1][tx];
+        /*selectorCheckMint[tx] = IsEqual();
+        selectorCheckMint[tx].in[0] <== mintPubkey;
+        selectorCheckMint[tx].in[1] <== inCommitmentHasher[tx].inputs[3];//inIndices[tx][1][1];
 
         inCheckMint[tx] = ForceEqualIfEnabled();
         inCheckMint[tx].in[0] <== inCommitmentHasher[tx].inputs[3];
         inCheckMint[tx].in[1] <== mintPubkey;
-        inCheckMint[tx].enabled <== selectorCheckMint[tx].out;
+        inCheckMint[tx].enabled <== selectorCheckMint[tx].out;*/
 
     }
 

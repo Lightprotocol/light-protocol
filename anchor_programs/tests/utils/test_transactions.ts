@@ -147,7 +147,7 @@ export async function deposit({
     encryptionKeypair
   )
   let ix_data = parse_instruction_data_bytes(data);
-  let pdas = getPdaAddresses({
+  let pdas = await getPdaAddresses({
     tx_integrity_hash: ix_data.txIntegrityHash,
     nullifier0: ix_data.nullifier0,
     nullifier1: ix_data.nullifier1,

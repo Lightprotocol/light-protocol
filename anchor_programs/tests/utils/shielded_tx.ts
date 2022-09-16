@@ -4,6 +4,7 @@ const anchor = require("@project-serum/anchor")
 const nacl = require('tweetnacl')
 const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const createEncryptionKeypair = () => nacl.box.keyPair()
+var assert = require('assert');
 
 
 
@@ -55,6 +56,10 @@ export class shieldedTransaction {
       relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
     }) {
+      // mintPubkey = assetPubkeys[1];
+      // if (assetPubkeys[1].toString() != mintPubkey.toString()) {
+      //   throw "mintPubkey should be assetPubkeys[1]";
+      // }
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
       }
@@ -74,11 +79,17 @@ export class shieldedTransaction {
           this.poseidon,
           shuffle
       );
+
       this.inputUtxos = res.inputUtxos;
       this.outputUtxos = res.outputUtxos;
       this.inIndices = res.inIndices;
       this.outIndices = res.outIndices;
       this.externalAmountBigNumber = res.externalAmountBigNumber;
+      if (this.externalAmountBigNumber != 0) {
+        if (assetPubkeys[1].toString() != mintPubkey.toString()) {
+          throw "mintPubkey should be assetPubkeys[1]";
+        }
+      }
       // console.log("this.inputUtxos[0]: ", this.inputUtxos[0])
       // console.log("this.inputUtxos[1]: ", this.inputUtxos[1])
       // console.log("this.inputUtxos[2]: ", this.inputUtxos[2])
@@ -113,6 +124,8 @@ export class shieldedTransaction {
        this.outIndices,
        this.assetPubkeys,
        this.mintPubkey,
+       false,
+       this.feeAmount
      )
      this.input = data.input;
      this.extAmount = data.extAmount;
@@ -131,6 +144,7 @@ export class shieldedTransaction {
       relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
     }) {
+      mintPubkey = assetPubkeys[1];
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
       }
@@ -155,6 +169,7 @@ export class shieldedTransaction {
       this.inIndices = res.inIndices;
       this.outIndices = res.outIndices;
       this.externalAmountBigNumber = res.externalAmountBigNumber;
+      this.feeAmount = res.feeAmount;
       let data = await light.prepareTransaction(
        this.inputUtxos,
        this.outputUtxos,
@@ -171,12 +186,23 @@ export class shieldedTransaction {
        this.outIndices,
        this.assetPubkeys,
        this.mintPubkey,
+       false,
+       this.feeAmount
      )
      this.input = data.input;
+     assert(this.input.mintPubkey == this.mintPubkey);
+     assert(this.input.mintPubkey == this.assetPubkeys[1]);
+     console.log("this.input.inIndices: ", this.input.inIndices);
+     console.log(`this.input.mintPubkey ${this.input.mintPubkey}== this.mintPubkey${this.mintPubkey}`);
      this.extAmount = data.extAmount;
      this.externalAmountBigNumber = data.externalAmountBigNumber;
      this.extDataBytes = data.extDataBytes;
-     this.encryptedOutputs = data.encryptedOutputs;
+     this.encryptedOutputs = data.extDataBytes;
+     if (this.externalAmountBigNumber != 0) {
+       if (assetPubkeys[1].toString() != mintPubkey.toString()) {
+         throw "mintPubkey should be assetPubkeys[1]";
+       }
+     }
     }
 
     async proof(insert) {
@@ -186,7 +212,6 @@ export class shieldedTransaction {
       if (this.inIndices == null) {
         throw "transaction not prepared";
       }
-
       let proofData = await light.getProofMasp(
         this.input,
         this.extAmount,
@@ -194,7 +219,7 @@ export class shieldedTransaction {
         this.extDataBytes,
         this.encryptedOutputs
       )
-      console.log(proofData)
+
       this.outputUtxos.map((utxo) => {
         if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
             this.utxos.push(utxo)
@@ -213,7 +238,6 @@ export class shieldedTransaction {
         }
 
       }
-      return proofData.data;
+      return proofData;
     }
-
 }

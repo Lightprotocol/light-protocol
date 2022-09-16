@@ -12,7 +12,7 @@ export declare class Utxo {
     index: number | null;
     _commitment: BigNumber | null;
     _nullifier: BigNumber | null;
-    constructor(amount?:number[] | BigNumber[], keypair?: Keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    constructor(amount?: number | BigNumber, keypair?: Keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding?: BigNumber, index?: number | null, _commitment?: BigNumber | null, // I added null as default if there is an error could be that
     _nullifier?: BigNumber | null);
     /**

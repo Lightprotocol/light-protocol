@@ -131,6 +131,29 @@ const prepareUtxos = (
           new anchor.BN(0)
       ));
       console.log("here after extNumber");
+    const feeAmount =  new anchor.BN(0)
+        .add(outputUtxos.filter((utxo) => {return utxo.assets[0] == assets[0]}).reduce((sum, utxo) => (
+          // add all utxos of the same asset
+          // console.log("utxo add: ",  utxo.amount[1]);
+          // console.log("utxo add asset: ",  utxo.assets[1]);
+          // console.log("assets[1]: ", assets[1])
+          // console.log("utxo add: ",  utxo.assets.toString()== assets[1].toString());
+          sum.add(utxo.amounts[0])
+          // if (utxo.assets.toString() == assets[1].toString()) {
+          //   console.log("sum: ",  sum);
+          //   sum.add(utxo.amount)
+          //   console.log("sum: ",  sum);
+          // }
+        ), new anchor.BN(0)))
+        .sub(inputUtxos.filter((utxo) => {return utxo.assets[1] == assets[1]}).reduce((sum, utxo) =>
+          // console.log("utxo sub: ",  utxo.amount);
+          //
+          // if (utxo.assets == assets[1]) {
+          //   sum.add(utxo.amount)
+          // }
+          sum.add(utxo.amounts[1]),
+          new anchor.BN(0)
+      ));
 
     /// if it is a deposit and the amount going in is smaller than 0 throw error
     if (enums_1.Action[action] === 'deposit' &&
@@ -212,6 +235,7 @@ const prepareUtxos = (
         externalAmountBigNumber,
         inIndices,
         outIndices,
+        feeAmount
         // constraint,
         // inInstructionType,
         // outInstructionType,

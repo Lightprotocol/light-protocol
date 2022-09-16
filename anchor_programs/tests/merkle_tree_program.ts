@@ -26,7 +26,7 @@ import {
   read_and_parse_instruction_data_bytes,
   parse_instruction_data_bytes,
   readAndParseAccountDataMerkleTreeTmpState,
-  getPdaAddresses,
+  await getPdaAddresses,
   unpackLeavesAccount,
 } from "./utils/unpack_accounts"
 import {
@@ -659,7 +659,7 @@ it("Shielded transactions", async () => {
       )
 
       let ix_dataWithdrawal = parse_instruction_data_bytes(dataWithdrawal);
-      let pdasWithdrawal = getPdaAddresses({
+      let pdasWithdrawal = await getPdaAddresses({
         tx_integrity_hash: ix_dataWithdrawal.txIntegrityHash,
         nullifier0: ix_dataWithdrawal.nullifier0,
         nullifier1: ix_dataWithdrawal.nullifier1,

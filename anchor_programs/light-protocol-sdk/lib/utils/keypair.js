@@ -6,6 +6,7 @@ const eth_sig_util_1 = require("eth-sig-util");
 const nacl = require('tweetnacl');
 const anchor = require("@project-serum/anchor")
 
+const poseidonHash_1 = require("./poseidonHash");
 const toFixedHex_1 = require("./toFixedHex");
 function packEncryptedMessage(encryptedMessage) {
     const nonceBuf = Buffer.from(encryptedMessage.nonce, 'base64');
@@ -36,11 +37,9 @@ function unpackEncryptedMessage(encryptedMessage) {
         ciphertext: ciphertextBuf.toString('base64'),
     };
 }
-
 exports.unpackEncryptedMessage = unpackEncryptedMessage;
 class Keypair {
-    constructor(poseidon , privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))) {
-
+    constructor(poseidon, privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))) {
         this.privkey = privkey;
         this.pubkey = poseidon.F.toString(poseidon([this.privkey]));
         this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(privkey.slice(2));

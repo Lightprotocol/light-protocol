@@ -28,6 +28,7 @@ use crate::last_transaction::cpi_instructions::{
     withdraw_spl_cpi
 };
 use merkle_tree_program::sol_transfer;
+use anchor_spl::token::{Transfer};
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 use ark_ff::{BigInteger, bytes::{FromBytes, ToBytes}};
@@ -56,11 +57,11 @@ pub struct CreateVerifierState<'info> {
     /// CHECK: Is the same as in integrity hash.
     //#[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountInfo<'info>,
-    // #[account(
-    //     mut,
-    //     address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
-    // )]
-    // pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    #[account(
+        mut,
+        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
@@ -71,10 +72,16 @@ pub struct CreateVerifierState<'info> {
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
     pub recipient: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub recipient_fee: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
     pub relayer_recipient: AccountInfo<'info>,
-    // /// CHECK:` Is not checked the relayer has complete freedom.
-    // pub escrow: AccountInfo<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
+    pub escrow: AccountInfo<'info>,
+
 }
 
 // split into two tx
@@ -92,12 +99,10 @@ pub fn process_create_verifier_state<'a, 'b, 'c, 'info>(
     nullifier1: [u8; 32],
     leaf_right: [u8; 32],
     leaf_left: [u8; 32],
-    recipient: [u8; 32],
     ext_amount: i64,
-    _relayer: [u8; 32],
     fee_amount: [u8; 32],
     mint_pubkey: [u8;32],
-    encrypted_utxos: [u8; 256],
+    encrypted_utxos: Vec<u8>,
     merkle_tree_index: u64,
     relayer_fee: u64,
 ) -> Result<()> {
@@ -130,7 +135,7 @@ pub fn process_create_verifier_state<'a, 'b, 'c, 'info>(
     // tx.insert_leaves()?;
     // tx.insert_nullifiers()?;
     tx.transfer_user_funds()?;
-    // tx.pay_relayer()?;
+    tx.transfer_fee()?;
     // tx.check_completion()?;
     Ok(())
 }
@@ -188,7 +193,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         checked_public_inputs: Vec<Vec<u8>>,
         nullifiers: Vec<Vec<u8>>,
         leaves: Vec<(Vec<u8>, Vec<u8>)>,
-        encrypted_utxos: [u8;256],
+        encrypted_utxos: Vec<u8>,
         merkle_tree_index: u64,
         ext_amount: i64,
         relayer_fee: u64,
@@ -237,7 +242,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             proof_a: to_be_64(&proof_a_neg).to_vec(),
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
-            encrypted_utxos: encrypted_utxos[0..222].to_vec(),
+            encrypted_utxos: encrypted_utxos,
             merkle_tree_index: merkle_tree_index,
             public_inputs: vec![0u8;32],
             transferred_funds: false,
@@ -262,11 +267,11 @@ impl LightTransaction<'_, '_, '_, '_> {
             VK_ALPHA_G1.to_vec(),
             VK_BETA_G2.to_vec(),
         ].concat();
-        sol_log_compute_units();
+        // sol_log_compute_units();
 
         let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
-        msg!("pairing_res {:?}", pairing_res);
-        sol_log_compute_units();
+        // msg!("pairing_res {:?}", pairing_res);
+        // sol_log_compute_units();
         if pairing_res[31] != 1 {
             return err!(ErrorCode::ProofVerificationFailed);
         }
@@ -299,14 +304,14 @@ impl LightTransaction<'_, '_, '_, '_> {
 
         for (i, input) in public_inputs.iter().enumerate() {
             // let input_mul_bytes = [VK_IC[i+1].to_vec(), input.to_vec()].concat();
-            sol_log_compute_units();
-            msg!("mul");
+            // sol_log_compute_units();
+            // msg!("mul");
             let mul_res = alt_bn128_multiplication(&[&VK_IC[i+1][..], &input[..]].concat()).unwrap();
-            sol_log_compute_units();
-            msg!("addition");
+            // sol_log_compute_units();
+            // msg!("addition");
             // let input_addition_bytes= [mul_res, public_inputs_res_bytes.to_vec()].concat();
             public_inputs_res_bytes = alt_bn128_addition(&[&mul_res[..], &public_inputs_res_bytes[..]].concat()).unwrap().try_into().unwrap();
-            sol_log_compute_units();
+            // sol_log_compute_units();
         }
         self.public_inputs = public_inputs_res_bytes.to_vec();
         Ok(())
@@ -397,7 +402,8 @@ impl LightTransaction<'_, '_, '_, '_> {
     pub fn insert_nullifiers(&mut self) -> Result<()> {
         assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
         assert_eq!(NR_NULLIFIERS + NR_LEAVES, self.ctx.remaining_accounts.len());
-
+        panic!("commented insert nullifier ");
+        /*
         for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.ctx.remaining_accounts) {
 
             initialize_nullifier_cpi(
@@ -409,21 +415,23 @@ impl LightTransaction<'_, '_, '_, '_> {
                 &self.ctx.accounts.rent.to_account_info().clone(),
                 (*nullifier.clone()).try_into().unwrap()
             )?;
-        }
+        }*/
         self.inserted_nullifier = true;
         Ok(())
     }
 
     pub fn transfer_user_funds(&mut self) -> Result<()> {
-        msg!("self.public_amount {:?}", self.public_amount);
-        msg!("self.relayer_fee {:?}", self.relayer_fee);
-        msg!("self.ext_amount {:?}", self.ext_amount);
-
+        // msg!("self.public_amount {:?}", self.public_amount);
+        // msg!("self.relayer_fe {:?}", self.relayer_fee);
+        // msg!("self.ext_amount {:?}", self.ext_amount);
+        msg!("transferring user funds");
+        sol_log_compute_units();
         // check mintPubkey
         let (pub_amount_checked, relayer_fee) = self.check_external_amount(
-            self.ext_amount,
-            self.relayer_fee,
-            to_be_64(&self.public_amount).try_into().unwrap()
+            0,
+            0,
+            to_be_64(&self.public_amount).try_into().unwrap(),
+            false
         )?;
 
         //check accounts
@@ -435,11 +443,10 @@ impl LightTransaction<'_, '_, '_, '_> {
             // recipient is the same as in integrity_hash
         }
 
-        msg!("pub_amount_checked {:?}", pub_amount_checked );
-        msg!("self.mint_pubkey {:?}", self.mint_pubkey);
         if self.mint_pubkey == [0u8;32] {
             // either sol withdrawal or normal withdrawal
             // deposit
+
 
             if self.is_deposit() {
                 // sender is user no check
@@ -462,54 +469,88 @@ impl LightTransaction<'_, '_, '_, '_> {
                 )?;
             }
         } else {
+            // check mint
+
             // is a token deposit or withdrawal
             // do I need another token pda check here?
-            withdraw_spl_cpi(
-                &self.ctx.program_id,
-                &self.ctx.accounts.merkle_tree,
-                &self.ctx.accounts.authority.to_account_info(),
-                &self.ctx.accounts.sender.to_account_info(),
-                &self.ctx.accounts.recipient.to_account_info(),
-                &self.ctx.accounts.authority.to_account_info(),
-                &self.ctx.accounts.token_program.to_account_info(),
-                pub_amount_checked,
-                self.merkle_tree_index.try_into().unwrap()
-            )?;
+            // withdraw_spl_cpi(
+            //     &self.ctx.program_id,
+            //     &self.ctx.accounts.merkle_tree,
+            //     &self.ctx.accounts.authority.to_account_info(),
+            //     &self.ctx.accounts.sender.to_account_info(),
+            //     &self.ctx.accounts.recipient.to_account_info(),
+            //     &self.ctx.accounts.authority.to_account_info(),
+            //     &self.ctx.accounts.token_program.to_account_info(),
+            //     pub_amount_checked,
+            //     self.merkle_tree_index.try_into().unwrap()
+            // )?;
+            let seed = merkle_tree_program::ID.to_bytes();
+            let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+                &[seed.as_ref()],
+                self.ctx.program_id,
+            );
+            let bump = &[bump];
+            let seeds = &[&[seed.as_slice(), bump][..]];
+
+            let accounts = Transfer {
+                from:       self.ctx.accounts.sender.to_account_info().clone(),
+                to:         self.ctx.accounts.recipient.to_account_info().clone(),
+                authority:  self.ctx.accounts.authority.to_account_info().clone()
+            };
+
+            let cpi_ctx = CpiContext::new_with_signer(self.ctx.accounts.token_program.to_account_info().clone(), accounts, seeds);
+            anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
         }
         self.transferred_funds = true;
+        msg!("transferred");
+        sol_log_compute_units();
+
         Ok(())
     }
 
     fn is_deposit(&self) -> bool {
-        if self.ext_amount > 0 {
+        if self.public_amount[24..] != [0u8;8] && self.public_amount[..24] == [0u8;24] {
             return true;
         }
         return false;
     }
 
-    pub fn pay_relayer(&self) -> Result<()> {
-        // check mintPubkey
-        // let (pub_amount_checked, relayer_fee) = self.check_external_amount(
-        //     self.ext_amount,
-        //     self.relayer_fee,
-        //     to_be_64(&self.fee_amount).try_into().unwrap()
-        // )?;
-        if self.relayer_fee > 0 {
+    pub fn transfer_fee(&self) -> Result<()> {
+        // TODO: check that it is a native account
+
+        // check that it is the native token pool
+        msg!("self.relayer_fee: {}", self.relayer_fee);
+        msg!("self.fee_amount; {:?}", self.fee_amount);
+        let (fee_amount_checked, relayer_fee) = self.check_external_amount(
+            0,
+            self.relayer_fee,
+            to_be_64(&self.fee_amount).try_into().unwrap(),
+            true
+        )?;
+        msg!("fee_amount_checked: {}", fee_amount_checked);
+        if self.is_deposit() {
+            sol_transfer(
+                &self.ctx.accounts.escrow.to_account_info(),
+                &self.ctx.accounts.recipient_fee.to_account_info(),
+                fee_amount_checked,
+            )?;
+        } else {
             withdraw_sol_cpi(
                 &self.ctx.program_id,
                 &self.ctx.accounts.program_merkle_tree.to_account_info(),
                 &self.ctx.accounts.authority.to_account_info(),
                 &self.ctx.accounts.sender.to_account_info(),
                 &self.ctx.accounts.relayer_recipient.to_account_info(),
-                self.relayer_fee,
+                fee_amount_checked,
             )?;
-        } else if self.relayer_fee < 0 {
-            // sol_transfer(
-            //     &self.ctx.accounts.escrow.to_account_info(),
-            //     &self.ctx.accounts.recipient.to_account_info(),
-            //     fee_amount_checked,
-            // )?;
+
+            sol_transfer(
+                &self.ctx.accounts.recipient_fee.to_account_info(),
+                &self.ctx.accounts.relayer_recipient.to_account_info(),
+                relayer_fee,
+            )?;
         }
+
         Ok(())
     }
 
@@ -531,19 +572,20 @@ impl LightTransaction<'_, '_, '_, '_> {
             &self,
             ext_amount: i64,
             relayer_fee: u64,
-            amount: [u8;32]
+            amount: [u8;32],
+            is_fee_token: bool
         ) -> Result<(u64, u64)> {
         // let ext_amount = i64::from_le_bytes(ext_amount);
         // ext_amount includes relayer_fee
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
-
-        if ext_amount > 0 {
+        msg!("pub_amount: {:?}", pub_amount);
+        if pub_amount.0[0] > 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
             if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0 {
                 msg!("Public amount is larger than u64.");
                 return Err(ErrorCode::WrongPubAmount.into());
             }
-
+            msg!("entered deposit");
             let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
 
             if pub_amount_fits_i64.is_err() {
@@ -552,7 +594,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             }
 
             //check amount
-            if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 {
+            if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 && ext_amount > 0 && relayer_fee > 0 {
                 msg!(
                     "Deposit invalid external amount (relayer_fee) {} != {}",
                     pub_amount.0[0] + relayer_fee,
@@ -560,8 +602,9 @@ impl LightTransaction<'_, '_, '_, '_> {
                 );
                 return Err(ErrorCode::WrongPubAmount.into());
             }
-            Ok((ext_amount.try_into().unwrap(), relayer_fee))
-        } else if ext_amount < 0 {
+            msg!("returning public amount");
+            Ok((pub_amount.0[0], relayer_fee))
+        } else if pub_amount.0[3] > 0 && pub_amount.0[4] > 0 {
             // calculate ext_amount from pubAmount:
             let mut field = FqParameters::MODULUS;
             field.sub_noborrow(&pub_amount);
@@ -581,7 +624,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                 != u64::try_from(-ext_amount)
                     .unwrap()
                     .checked_add(relayer_fee)
-                    .unwrap()
+                    .unwrap() && is_fee_token
             {
                 msg!(
                     "Withdrawal invalid external amount: {} != {}",
@@ -590,11 +633,11 @@ impl LightTransaction<'_, '_, '_, '_> {
                 );
                 return Err(ErrorCode::WrongPubAmount.into());
             }
-            Ok(((-ext_amount).try_into().unwrap(), relayer_fee))
+            Ok((field.0[0], relayer_fee))
         }
-        //  else if ext_amount == 0 {
-        //     Ok((ext_amount.try_into().unwrap(), relayer_fee))
-        // }
+         else if ext_amount == 0 {
+            Ok((ext_amount.try_into().unwrap(), relayer_fee))
+        }
         else {
             msg!("Invalid state checking external amount.");
             Err(ErrorCode::WrongPubAmount.into())

@@ -90,32 +90,32 @@ export async function readAndParseAccountDataMerkleTreeTmpState({
     return object;
 }
 
-export function getPdaAddresses({tx_integrity_hash,
+export async function getPdaAddresses({tx_integrity_hash,
   nullifier0, nullifier1, leafLeft,
   merkleTreeProgram, verifierProgram
 }) {
   return {
-    signerAuthorityPubkey: solana.PublicKey.findProgramAddressSync(
+    signerAuthorityPubkey: (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBytes()],
-        verifierProgram.programId)[0],
-    verifierStatePubkey: solana.PublicKey.findProgramAddressSync(
+        verifierProgram.programId))[0],
+    verifierStatePubkey: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("storage")],
-        verifierProgram.programId)[0],
-    feeEscrowStatePubkey: solana.PublicKey.findProgramAddressSync(
+        verifierProgram.programId))[0],
+    feeEscrowStatePubkey: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgram.programId)[0],
-    merkleTreeUpdateState: solana.PublicKey.findProgramAddressSync(
+        verifierProgram.programId))[0],
+    merkleTreeUpdateState: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(leafLeft)), anchor.utils.bytes.utf8.encode("storage")],
-        merkleTreeProgram.programId)[0],
-    leavesPdaPubkey: solana.PublicKey.findProgramAddressSync(
+        merkleTreeProgram.programId))[0],
+    leavesPdaPubkey: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(nullifier0)), anchor.utils.bytes.utf8.encode("leaves")],
-        merkleTreeProgram.programId)[0],
-    nullifier0PdaPubkey: solana.PublicKey.findProgramAddressSync(
+        merkleTreeProgram.programId))[0],
+    nullifier0PdaPubkey: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(nullifier0)), anchor.utils.bytes.utf8.encode("nf")],
-        merkleTreeProgram.programId)[0],
-    nullifier1PdaPubkey: solana.PublicKey.findProgramAddressSync(
+        merkleTreeProgram.programId))[0],
+    nullifier1PdaPubkey: (await solana.PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(nullifier1)), anchor.utils.bytes.utf8.encode("nf")],
-        merkleTreeProgram.programId)[0]
+        merkleTreeProgram.programId))[0]
   }
 }
 

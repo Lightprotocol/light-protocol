@@ -13,10 +13,9 @@ export declare class Keypair {
      * @param {string} privkey
      */
     privkey: string;
-    //poseidon: any;
     pubkey: any;
     encryptionKey: any;
-    constructor(poseidon?: any,privkey?: string);
+    constructor(privkey?: string);
     toString(): string;
     /**
      * Key address for this keypair, alias to {@link toString}

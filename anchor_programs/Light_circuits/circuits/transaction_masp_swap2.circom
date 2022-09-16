@@ -2,6 +2,8 @@ include "../../node_modules/circomlib/circuits/poseidon.circom";
 include "./merkleProof.circom"
 include "./keypair.circom"
 include "../../node_modules/circomlib/circuits/gates.circom"
+// include "../../node_modules/circomlib/circuits/bitify.circom"
+
 
 /*
 Utxo structure:
@@ -127,6 +129,7 @@ template Transaction(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nA
     component inCheckconstraintAsset[nIns];
     component checkSwapConstraint1[nIns];
     component inCheckconstraintOutBlinding[nIns];
+    component inCheckconstraintOutInstructionType[nIns];
 
     var sumIns[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -139,10 +142,37 @@ template Transaction(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nA
             checkInIndices.indices[a][i] <== inIndices[a][i];
         }
     }
+    component getInstructions[nIns]
 
 
     // verify correctness of transaction inputs
     for (var tx = 0; tx < nIns; tx++) {
+        log(248248248248248248248248)
+        getInstructions[tx] = Num2Bits(248);
+
+
+        log(248248248248248248248248)
+        log(inInstructionType[tx])
+        getInstructions[tx].in <== inInstructionType[tx];
+        log(getInstructions[tx].out[0])
+        log(getInstructions[tx].out[1])
+        log(getInstructions[tx].out[2])
+        log(getInstructions[tx].out[3])
+        log(getInstructions[tx].out[4])
+        log(getInstructions[tx].out[5])
+        log(getInstructions[tx].out[6])
+        log(getInstructions[tx].out[7])
+        log(getInstructions[tx].out[245])
+        log(getInstructions[tx].out[246])
+        log(getInstructions[tx].out[247])
+        var instructions[32];
+        log(248248248248248248248248)
+        /*
+        for (var i = 0; i < 248; i++) {
+            log(getInstructions.out[i])
+            instructions[i] = getInstructions.out[i];
+        }*/
+        log(248248248248248248248248)
         log(tx)
         log(99999999999999999999)
 
@@ -224,6 +254,18 @@ template Transaction(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nA
         // what if I aggregate the results into one constraint
         // and multiply it with 0
         // maybe this way I can reduce prooftime
+        checkSwapConstraint[tx] = Poseidon(6);
+        checkSwapConstraint[tx].inputs[0] <== constraint[0];
+        checkSwapConstraint[tx].inputs[1] <== constraint[1];
+        checkSwapConstraint[tx].inputs[2] <== constraint[2];
+        checkSwapConstraint[tx].inputs[0] <== constraint[3];
+        checkSwapConstraint[tx].inputs[1] <== constraint[4];
+        checkSwapConstraint[tx].inputs[2] <== constraint[5];
+
+        inCheckconstraintInBlinding[tx] = ForceEqualIfEnabled();
+        inCheckconstraintInBlinding[tx].in[0] <== checkSwapConstraint[tx].out;
+        inCheckconstraintInBlinding[tx].in[1] <== inBlinding[tx];
+        inCheckconstraintInBlinding[tx].enabled <== inInstructionType[tx];
 
         // if (tx == 2) {
             // if is instruction enforce
@@ -234,16 +276,8 @@ template Transaction(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nA
             // check destination asset
             // for(var n = 0; n < nConstraints; n++) {
             log(2)
-            checkSwapConstraint[tx] = Poseidon(3);
-            checkSwapConstraint[tx].inputs[0] <== constraint[0];
-            checkSwapConstraint[tx].inputs[1] <== constraint[1];
-            checkSwapConstraint[tx].inputs[2] <== constraint[2];
-            log(3)
 
-            inCheckconstraintInBlinding[tx] = ForceEqualIfEnabled();
-            inCheckconstraintInBlinding[tx].in[0] <== checkSwapConstraint[tx].out;
-            inCheckconstraintInBlinding[tx].in[1] <== inBlinding[tx];
-            inCheckconstraintInBlinding[tx].enabled <== inInstructionType[tx];
+            log(3)
             log(4,inInstructionType[tx] )
             log(inInstructionType[tx])
             log(constraint[0])
@@ -286,39 +320,12 @@ template Transaction(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nA
             inCheckconstraintOutBlinding[tx].in[1] <== outBlinding[1];
             inCheckconstraintOutBlinding[tx].enabled <== inInstructionType[tx];
             log(9)
-            inCheckconstraintOutBlinding[tx] = ForceEqualIfEnabled();
-            inCheckconstraintOutBlinding[tx].in[0] <== 0;
-            inCheckconstraintOutBlinding[tx].in[1] <== outInstructionType[1];
-            inCheckconstraintOutBlinding[tx].enabled <== inInstructionType[tx];
-            // constraint[0] === outAmount[1];
-            // constraint[1] === outPubkey[1];
-            // constraint[2] === assetPubkeys[1];
-            // inBlinding[2] === inBlinding[1];
-            // Problem how can I take back the money from the swap utxo if I want to?
-            // solution -> it needs to be spendable by both parties -> shared key
-            // I can send the key because this utxo can only be transferred to
-            // the specified pubkey
-            // need to enforce that the normal circuit cannot just spend the utxo
-            // without checking constraints
-            // Solution: I put a marker on the utxo either additional input or byte in blinding
-            // transport
-            // such that (and/or, constraintIndex)
-            // loop over these constraints
-            // one constraint option to check every parameter of the utxo
-            // plus a constraint to check a public input
-            // define for example 3 public inputs as constraints
-            // constraints:
-            // 1. amount
-            // 2. destPubkey
-            // 3. destAsset
-            // 4. destPublicMint
-            // 5. PublicInput (can be used to check anything in the integrity hash in the program)
-            //    a. withdrawal pubkey
-            //    b. slotnumber
-            //    c. signer (could be a program, this program can then check the other numbers)
-            // 6. Poseidon eddsa signature (multisig)
-            // 7. outInstructionType // or enforce as 0 problem how do you enforce
-            // Covering: swaps, escrow with defined recipient, slot, signer
+
+            inCheckconstraintOutInstructionType[tx] = ForceEqualIfEnabled();
+            inCheckconstraintOutInstructionType[tx].in[0] <== 0;
+            inCheckconstraintOutInstructionType[tx].in[1] <== outInstructionType[1];
+            inCheckconstraintOutInstructionType[tx].enabled <== inInstructionType[tx];
+
 
 
         // }

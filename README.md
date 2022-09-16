@@ -2,6 +2,16 @@
 
 ## Notes
 
+verifyProof:
+Prepare one Input: ~5k
+Pairing:
+Transfer: 10315
+RootCheck:
+PayRelayer:
+check_tx_integrity_hash:
+inserLeaves:
+insertNullifier:
+
 For 2 inputs -> 14 accounts & 888 bytes data
 For 16 inputs -> 11 + 16 Nf + 1 leaves = 28 Accounts & 536 + 16 * 32 = 1048 byte data
 
