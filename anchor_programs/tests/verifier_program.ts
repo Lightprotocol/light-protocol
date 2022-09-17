@@ -182,6 +182,7 @@ describe("verifier_program", () => {
   var PRE_INSERTED_LEAVES_INDEX;
   var MERKLE_TREE_PDA_TOKEN;
   var AUTHORITY;
+  var LOOK_UP_TABLE;
   it.only("init pubkeys ", async () => {
     REGISTERED_VERIFIER_KEY = (await solana.PublicKey.findProgramAddress(
         [verifierProgram.programId.toBuffer()],
@@ -198,44 +199,6 @@ describe("verifier_program", () => {
     AUTHORITY = (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBuffer()],
         verifierProgram.programId))[0];
-  })
-  it("min test attackerProgram ", async () => {
-    await newAccountWithLamports(
-      provider.connection,
-      ADMIN_AUTH_KEYPAIR
-    )
-    console.log(attackerProgram.methods);
-
-    try {
-      const tx = await attackerProgram.methods.testr(
-      ).accounts({
-        signingAddress: ADMIN_AUTH_KEY,
-        nullifier0Pda: AUTHORITY,
-      })
-      .signers([ADMIN_AUTH_KEYPAIR])
-      .instruction()
-      console.log(tx);
-
-      console.log("keys[0]: ", Array.from(tx.keys[0].pubkey.toBytes()).toString());
-      console.log("keys[1]: ", Array.from(tx.keys[1].pubkey.toBytes()).toString());
-
-      console.log("ix: ", Array.from(tx.data).toString());
-      tx.feePayer = ADMIN_AUTH_KEYPAIR.publicKey;
-      await solana.sendAndConfirmTransaction(
-            provider.connection,
-            new solana.Transaction().add(tx),
-            [ADMIN_AUTH_KEYPAIR],
-            {
-              commitment: 'singleGossip',
-              preflightCommitment: 'singleGossip',
-            },
-        );
-      // await solana.sendAndConfirm(provider.connection, tx, [ADMIN_AUTH_KEYPAIR]);
-
-    } catch(e) {
-      console.log(e);
-
-    }
   })
 
 
@@ -521,7 +484,7 @@ describe("verifier_program", () => {
 
   });
 
-  it("Init Address Lookup Table", async () => {
+  it.only("Init Address Lookup Table", async () => {
     await newAccountWithLamports(
       provider.connection,
       ADMIN_AUTH_KEYPAIR
@@ -533,21 +496,23 @@ describe("verifier_program", () => {
 
     const authorityPubkey = solana.Keypair.generate().publicKey;
     const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
-    const [createInstruction] = solana.AddressLookupTableProgram.createLookupTable({
-      authority: payerPubkey,
-      payer: payerPubkey,
-      recentSlot,
-    });
-    var transaction = new solana.Transaction().add(createInstruction);
     const [lookupTableAddress, bumpSeed] = await solana.PublicKey.findProgramAddress(
       [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
       solana.AddressLookupTableProgram.programId,
     );
+    const createInstruction = solana.AddressLookupTableProgram.createLookupTable({
+      authority: payerPubkey,
+      payer: payerPubkey,
+      recentSlot,
+    })[0];
+
+    console.log("createInstruction.data: ", createInstruction.data);
+
+
+    var transaction = new solana.Transaction().add(createInstruction);
+    LOOK_UP_TABLE = lookupTableAddress;
     const addressesToAdd = [
-      solana.Keypair.generate().publicKey,
-      solana.Keypair.generate().publicKey,
-      solana.Keypair.generate().publicKey,
-      solana.Keypair.generate().publicKey,
+      AUTHORITY
     ];
 
     const extendInstruction = solana.AddressLookupTableProgram.extendLookupTable({
@@ -556,7 +521,14 @@ describe("verifier_program", () => {
       payer: payerPubkey,
       addresses: addressesToAdd,
     });
+    console.log("extendInstruction ", extendInstruction);
+
     transaction.add(extendInstruction);
+    let recentBlockhash = await provider.connection.getRecentBlockhash();
+    transaction.feePayer = payerPubkey;
+    transaction.recentBlockhash = recentBlockhash;
+    console.log(transaction);
+
     try {
       let res = await solana.sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR]);
       console.log(res)
@@ -567,8 +539,69 @@ describe("verifier_program", () => {
 
 
   });
+  it.only("min test attackerProgram ", async () => {
+    await newAccountWithLamports(
+      provider.connection,
+      ADMIN_AUTH_KEYPAIR
+    )
+    console.log(attackerProgram.methods);
 
-  it.only("Initialize Token Merkle tree", async () => {
+    try {
+      const ix = await attackerProgram.methods.testr(
+      ).accounts({
+        signingAddress: ADMIN_AUTH_KEY,
+        nullifier0Pda: AUTHORITY,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .instruction()
+      console.log(ix);
+      let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
+      console.log("recentBlockhash " ,recentBlockhash);
+
+      let txMsg = new solana.TransactionMessage({payerKey: ADMIN_AUTH_KEY,instructions: [ix], recentBlockhash: recentBlockhash})
+      let lookupTableAccount = await provider.connection.getAccountInfo(LOOK_UP_TABLE);
+      let unpackedLookupTableAccount = solana.AddressLookupTableAccount.deserialize(lookupTableAccount.data);
+      console.log("unpackedLookupTableAccount: ", unpackedLookupTableAccount);
+
+      let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
+      console.log("compiledTx: ", compiledTx);
+      console.log(compiledTx.addressTableLookups);
+
+      compiledTx.addressTableLookups[0].accountKey = LOOK_UP_TABLE
+
+      // console.log("keys[0]: ", Array.from(ix.keys[0].pubkey.toBytes()).toString());
+      // console.log("keys[1]: ", Array.from(ix.keys[1].pubkey.toBytes()).toString());
+
+      // console.log("ix: ", Array.from(ix.data).toString());
+      // txMsg.feePayer = ADMIN_AUTH_KEYPAIR.publicKey;
+
+      let transaction = new solana.VersionedTransaction(compiledTx);
+      console.log(transaction.message.serialize());
+
+      transaction.sign([ADMIN_AUTH_KEYPAIR])
+      let serializedTx = transaction.serialize();
+      let res = await provider.connection.sendRawTransaction(serializedTx);
+      console.log(res);
+
+      // transaction.feePayer = payerPubkey;
+      // await solana.sendAndConfirmTransaction(
+      //       provider.connection,
+      //       transaction,
+      //       [ADMIN_AUTH_KEYPAIR],
+      //       {
+      //         commitment: 'singleGossip',
+      //         preflightCommitment: 'singleGossip',
+      //       },
+      //   );
+      // await solana.sendAndConfirm(provider.connection, tx, [ADMIN_AUTH_KEYPAIR]);
+
+    } catch(e) {
+      console.log(e);
+
+    }
+  })
+
+  it("Initialize Token Merkle tree", async () => {
     await newAccountWithLamports(
       provider.connection,
       ADMIN_AUTH_KEYPAIR
@@ -667,7 +700,7 @@ describe("verifier_program", () => {
 
 
 
-  it.only("Generate Proof & Deposit & Withdraw", async () => {
+  it("Generate Proof & Deposit & Withdraw", async () => {
     console.log("1")
     let merkelTree= await solana.PublicKey.createWithSeed(
         ADMIN_AUTH_KEY,

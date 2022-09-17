@@ -469,10 +469,10 @@
   dependencies:
     "eventemitter3" "^4.0.0"
 
-"@solana/web3.js@^1.2.0", "@solana/web3.js@^1.32.0", "@solana/web3.js@^1.36.0", "@solana/web3.js@^1.44.3", "@solana/web3.js@^1.54.1":
-  "integrity" "sha512-/PViPDGxF6oZZidcILndlm0MdbuzBouiQcqxrAfiBZ4lHMntLE4U75KhC+205EkVnkgCC4/prkjKVeSnbkfzrw=="
-  "resolved" "https://registry.npmjs.org/@solana/web3.js/-/web3.js-1.54.1.tgz"
-  "version" "1.54.1"
+"@solana/web3.js@^1.2.0", "@solana/web3.js@^1.32.0", "@solana/web3.js@^1.36.0", "@solana/web3.js@^1.44.3", "@solana/web3.js@^1.62":
+  "integrity" "sha512-rHnqJR5ECooUp8egurP9Qi1SKI1Q3pbF2ZkaHbEmFsSjBsyEe+Qqxa5h+7ueylqApYyk0zawnxz83y4kdrlNIA=="
+  "resolved" "https://registry.npmjs.org/@solana/web3.js/-/web3.js-1.62.0.tgz"
+  "version" "1.62.0"
   dependencies:
     "@babel/runtime" "^7.12.5"
     "@noble/ed25519" "^1.7.0"
@@ -486,7 +486,6 @@
     "buffer" "6.0.1"
     "fast-stable-stringify" "^1.0.0"
     "jayson" "^3.4.4"
-    "js-sha3" "^0.8.0"
     "node-fetch" "2"
     "rpc-websockets" "^7.5.0"
     "superstruct" "^0.14.2"
