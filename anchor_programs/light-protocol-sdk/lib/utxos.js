@@ -10,6 +10,7 @@ const keypair_1 = require("./utils/keypair");
 const constants_1 = require("./constants");
 const toFixedHex_1 = require("./utils/toFixedHex");
 const anchor = require("@project-serum/anchor")
+const toBufferLE = require('bigint-buffer');
 
 const N_ASSETS = 3;
 class Utxo {
@@ -123,9 +124,12 @@ class Utxo {
      * @returns {string}
      */
     encrypt(nonce, encryptionKeypair, senderThrowAwayKeypair) {
+        console.log(this.amounts[0]);
+
         const bytes_message = Buffer.concat([
             this.blinding.toBuffer(),
-            this.amounts[0].toBuffer()
+            toBufferLE.toBufferLE(BigInt(this.amounts[0]), 8),
+            toBufferLE.toBufferLE(BigInt(this.amounts[1]), 8)
         ]);
         // console.log("bytes_message", bytes_message)
         // console.log("nonce", nonce)

@@ -55,7 +55,8 @@ pub struct CreateVerifierState<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,
     /// CHECK: Is the same as in integrity hash.
-    //#[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+    // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+    #[account(mut)]
     pub merkle_tree: AccountInfo<'info>,
     #[account(
         mut,
@@ -130,13 +131,18 @@ pub fn process_create_verifier_state<'a, 'b, 'c, 'info>(
         ctx
     );
     tx.verify()?;
-    // tx.check_tx_integrity_hash()?;
-    // tx.check_root()?;
-    // tx.insert_leaves()?;
-    // tx.insert_nullifiers()?;
+    tx.check_tx_integrity_hash()?;
+    tx.check_root()?;
+    sol_log_compute_units();
+    msg!("leaves");
+    tx.insert_leaves()?;
+    sol_log_compute_units();
+    msg!("nullifiers");
+    tx.insert_nullifiers()?;
+    sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
-    // tx.check_completion()?;
+    tx.check_completion()?;
     Ok(())
 }
 
@@ -168,6 +174,7 @@ pub struct LightTransaction<'a, 'b, 'c, 'info>  {
     encrypted_utxos: Vec<u8>,
     merkle_tree_index: u64,
     public_inputs: Vec<u8>,
+    tx_integrity_hash: Vec<u8>,
     transferred_funds: bool,
     checked_tx_integrity_hash: bool,
     verified_proof : bool,
@@ -208,26 +215,6 @@ impl LightTransaction<'_, '_, '_, '_> {
         let mut proof_a_neg = [0u8;64];
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]);
 
-        msg!("integrity hash check commented");
-        // check_tx_integrity_hash(
-        //     verifier_state_data.recipient.to_bytes().to_vec(),
-        //     verifier_state_data.ext_amount.to_vec(),
-        //     verifier_state_data
-        //         .signing_address
-        //         .key()
-        //         .to_bytes()
-        //         .to_vec(),
-        //     verifier_state_data.fee.to_vec(),
-        //     verifier_state_data.tx_integrity_hash.to_vec(),
-        //     verifier_state_data.merkle_tree_index,
-        //     verifier_state_data.encrypted_utxos[..222].to_vec(),
-        //     merkle_tree_program::utils::config::MERKLE_TREE_ACC_BYTES_ARRAY
-        //         [usize::try_from(verifier_state_data.merkle_tree_index).unwrap()]
-        //         .0
-        //         .to_vec(),
-        // )
-
-
         return LightTransaction {
             merkle_root,
             public_amount,
@@ -237,6 +224,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             checked_public_inputs,
             nullifiers,
             leaves,
+            tx_integrity_hash: ext_data_hash.to_vec(),
             ext_amount: ext_amount,
             relayer_fee: relayer_fee,
             proof_a: to_be_64(&proof_a_neg).to_vec(),
@@ -246,7 +234,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             merkle_tree_index: merkle_tree_index,
             public_inputs: vec![0u8;32],
             transferred_funds: false,
-            checked_tx_integrity_hash: true,
+            checked_tx_integrity_hash: false,
             verified_proof : false,
             inserted_leaves : false,
             inserted_nullifier : false,
@@ -270,8 +258,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         // sol_log_compute_units();
 
         let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
-        // msg!("pairing_res {:?}", pairing_res);
-        // sol_log_compute_units();
+
         if pairing_res[31] != 1 {
             return err!(ErrorCode::ProofVerificationFailed);
         }
@@ -303,49 +290,37 @@ impl LightTransaction<'_, '_, '_, '_> {
         let mut public_inputs_res_bytes = VK_IC[0];
 
         for (i, input) in public_inputs.iter().enumerate() {
-            // let input_mul_bytes = [VK_IC[i+1].to_vec(), input.to_vec()].concat();
-            // sol_log_compute_units();
-            // msg!("mul");
             let mul_res = alt_bn128_multiplication(&[&VK_IC[i+1][..], &input[..]].concat()).unwrap();
-            // sol_log_compute_units();
-            // msg!("addition");
-            // let input_addition_bytes= [mul_res, public_inputs_res_bytes.to_vec()].concat();
             public_inputs_res_bytes = alt_bn128_addition(&[&mul_res[..], &public_inputs_res_bytes[..]].concat()).unwrap().try_into().unwrap();
-            // sol_log_compute_units();
         }
+
         self.public_inputs = public_inputs_res_bytes.to_vec();
         Ok(())
     }
 
-    pub fn check_tx_integrity_hash(
-        recipient: Vec<u8>,
-        ext_amount: Vec<u8>,
-        relayer: Vec<u8>,
-        fee: Vec<u8>,
-        tx_integrity_hash: Vec<u8>,
-        merkle_tree_index: u8,
-        encrypted_utxos: Vec<u8>,
-        merkle_tree_pda_pubkey: Vec<u8>,
-    ) -> Result<()> {
+    pub fn check_tx_integrity_hash(&mut self) -> Result<()> {
         let input = [
-            recipient,
-            ext_amount,
-            relayer,
-            fee,
-            merkle_tree_pda_pubkey,
-            vec![merkle_tree_index],
-            encrypted_utxos,
+            self.ctx.accounts.recipient.key().to_bytes().to_vec(),
+            self.ctx.accounts.recipient_fee.key().to_bytes().to_vec(),
+            self.ctx.accounts.signing_address.key().to_bytes().to_vec(),
+            self.relayer_fee.to_le_bytes().to_vec(),
+            vec![self.merkle_tree_index.try_into().unwrap()],
+            self.encrypted_utxos.clone()
         ]
         .concat();
-        msg!("integrity_hash inputs: {:?}", input);
+        msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
+        msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
+        msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
+        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
         let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-        msg!("hash computed {:?}", hash);
-
-        if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&tx_integrity_hash) {
+        msg!("integrity_hash inputs: {:?}", input);
+        msg!("integrity_hash inputs.len(): {}", input.len());
+        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fq::from_be_bytes_mod_order(&hash[..]) );
+        if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_be_bytes_mod_order(&self.tx_integrity_hash) {
             msg!(
                 "tx_integrity_hash verification failed.{:?} != {:?}",
                 &hash[..],
-                &tx_integrity_hash
+                &self.tx_integrity_hash
             );
             return err!(ErrorCode::WrongTxIntegrityHash);
         }
@@ -353,19 +328,21 @@ impl LightTransaction<'_, '_, '_, '_> {
     }
 
     pub fn insert_leaves(&mut self) -> Result<()> {
-        /*
+
         assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
-        assert_eq!(NR_NULLIFIERS + NR_LEAVES, self.ctx.remaining_accounts.len());
+        assert_eq!(NR_NULLIFIERS + (NR_LEAVES / 2), self.ctx.remaining_accounts.len());
 
         // check merkle tree
-        for (leaves, leaves_pda) in self.leaves.iter().zip(self.ctx.remaining_accounts).skip(NR_NULLIFIERS) {
+        for (i, leaves) in self.leaves.iter().enumerate()/*.zip(self.ctx.remaining_accounts).skip(NR_NULLIFIERS)*/ {
             // check account integrities
+            // msg!("leaves: {:?}", leaves);
+            // msg!("self.nullifiers[0].clone() {:?}", self.nullifiers[0].clone());
 
             insert_two_leaves_cpi(
                 &self.ctx.program_id,
                 &self.ctx.accounts.program_merkle_tree.to_account_info(),
                 &self.ctx.accounts.authority.to_account_info(),
-                &leaves_pda.to_account_info(),
+                &self.ctx.remaining_accounts[NR_NULLIFIERS + i].to_account_info(),
                 &self.ctx.accounts.pre_inserted_leaves_index.to_account_info(),
                 &self.ctx.accounts.system_program.to_account_info(),
                 &self.ctx.accounts.rent.to_account_info(),
@@ -377,33 +354,36 @@ impl LightTransaction<'_, '_, '_, '_> {
             )?;
         }
 
-        self.inserted_leaves = true;*/
+        self.inserted_leaves = true;
         return Ok(());
     }
 
     pub fn check_root(&mut self) -> Result<()> {
         // check account integrities
-        // check merkle tree
-        // check_merkle_root_exists_cpi(
-        //     &self.ctx.program_id,
-        //     &self.ctx.accounts.program_merkle_tree.to_account_info(),
-        //     &self.ctx.accounts.authority.to_account_info(),
-        //     &self.ctx.accounts.merkle_tree.to_account_info(),
-        //     self.merkle_tree_index.try_into().unwrap(),
-        //     self.merkle_root.clone(),
-        // )?;
 
         // send index of root in merkle tree account
         // get root at that index
+        // just unpack the account
+        // check that it's the correct account
+        check_merkle_root_exists_cpi(
+            &self.ctx.program_id,
+            &self.ctx.accounts.program_merkle_tree,
+            &self.ctx.accounts.authority.to_account_info(),
+            &self.ctx.accounts.merkle_tree.to_account_info(),
+            self.merkle_tree_index.try_into().unwrap(),
+            to_be_64(&self.merkle_root).try_into().unwrap(),
+        )?;
         self.inserted_leaves = true;
         Ok(())
     }
 
     pub fn insert_nullifiers(&mut self) -> Result<()> {
+
         assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
-        assert_eq!(NR_NULLIFIERS + NR_LEAVES, self.ctx.remaining_accounts.len());
-        panic!("commented insert nullifier ");
-        /*
+        assert_eq!(NR_NULLIFIERS + (NR_LEAVES / 2), self.ctx.remaining_accounts.len());
+
+        // panic!("commented insert nullifier ");
+
         for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.ctx.remaining_accounts) {
 
             initialize_nullifier_cpi(
@@ -415,7 +395,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                 &self.ctx.accounts.rent.to_account_info().clone(),
                 (*nullifier.clone()).try_into().unwrap()
             )?;
-        }*/
+        }
         self.inserted_nullifier = true;
         Ok(())
     }
@@ -473,17 +453,6 @@ impl LightTransaction<'_, '_, '_, '_> {
 
             // is a token deposit or withdrawal
             // do I need another token pda check here?
-            // withdraw_spl_cpi(
-            //     &self.ctx.program_id,
-            //     &self.ctx.accounts.merkle_tree,
-            //     &self.ctx.accounts.authority.to_account_info(),
-            //     &self.ctx.accounts.sender.to_account_info(),
-            //     &self.ctx.accounts.recipient.to_account_info(),
-            //     &self.ctx.accounts.authority.to_account_info(),
-            //     &self.ctx.accounts.token_program.to_account_info(),
-            //     pub_amount_checked,
-            //     self.merkle_tree_index.try_into().unwrap()
-            // )?;
             let seed = merkle_tree_program::ID.to_bytes();
             let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
                 &[seed.as_ref()],
@@ -535,6 +504,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                 fee_amount_checked,
             )?;
         } else {
+            // withdraws sol for the user
             withdraw_sol_cpi(
                 &self.ctx.program_id,
                 &self.ctx.accounts.program_merkle_tree.to_account_info(),
@@ -544,11 +514,21 @@ impl LightTransaction<'_, '_, '_, '_> {
                 fee_amount_checked,
             )?;
 
-            sol_transfer(
-                &self.ctx.accounts.recipient_fee.to_account_info(),
+            // pays the relayer fee
+            withdraw_sol_cpi(
+                &self.ctx.program_id,
+                &self.ctx.accounts.program_merkle_tree.to_account_info(),
+                &self.ctx.accounts.authority.to_account_info(),
+                &self.ctx.accounts.sender.to_account_info(),
                 &self.ctx.accounts.relayer_recipient.to_account_info(),
                 relayer_fee,
             )?;
+
+            // sol_transfer(
+            //     &self.ctx.accounts.recipient_fee.to_account_info(),
+            //     &self.ctx.accounts.relayer_recipient.to_account_info(),
+            //     relayer_fee,
+            // )?;
         }
 
         Ok(())
@@ -897,6 +877,12 @@ mod test {
         tx.verify().unwrap();
         tx.transfer_user_funds().unwrap();
         */
+    }
+    #[test]
+    fn test_hash() {
+        let input = vec![1u8;32];
+        let hash = solana_program::hash::hash(&input[..]);
+        println!("hash {:?}", hash.to_bytes());
     }
     use std::ops::Neg;
 

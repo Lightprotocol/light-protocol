@@ -34,8 +34,10 @@ const MILLER_LOOP_TX_COUNT = 42
 const FINAL_EXPONENTIATION_TX_COUNT = 19
 const MERKLE_TREE_UPDATE_TX_COUNT = 38
 
-export const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e13) => {
-  await connection.confirmTransaction(await connection.requestAirdrop(account.publicKey, lamports))
+export const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e10) => {
+  let x = await connection.requestAirdrop(account.publicKey, lamports);
+  console.log("newAccountWithLamports ", account.publicKey.toBase58());
+
   return account;
 }
 
@@ -63,16 +65,16 @@ export const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) 
   let retry = 0;
   while(retry < 30){
     try{
-      await connection.confirmTransaction(
-        await connection.requestAirdrop(payer.publicKey, 1e13)
-      )
+
+      await connection.requestAirdrop(payer.publicKey, 1e7)
+
 
       const tx = new solana.Transaction().add(
         solana.SystemProgram.createAccount({
           fromPubkey: payer.publicKey,
           newAccountPubkey: account.publicKey,
           space: 0,
-          lamports: await connection.getMinimumBalanceForRentExemption(0),
+          lamports: await connection.getMinimumBalanceForRentExemption(1),
           programId: owner.programId,
         })
       );
@@ -882,23 +884,57 @@ export async function newAccountWithTokens ({
   userAccount,
   amount
 }) {
+  const tokenAccount = await token.getAssociatedTokenAddress(
+      MINT,
+      userAccount.publicKey,
+      false,
+      token.TOKEN_PROGRAM_ID,
+      token.ASSOCIATED_TOKEN_PROGRAM_ID
+  );
+  console.log("tokenAccount ", tokenAccount);
 
-  var tokenAccount = await token.getOrCreateAssociatedTokenAccount(
-     connection,
-     userAccount,
-     MINT,
-     userAccount.publicKey
- );
+  try {
+    console.log("userAccount.publicKey: ", userAccount.publicKey.toBase58());
 
- await token.mintTo(
-   connection,
-   ADMIN_AUTH_KEYPAIR,
-   MINT,
-   tokenAccount.address,
-   ADMIN_AUTH_KEYPAIR.publicKey,
-   amount,
-   []
- );
+    // var tokenAccount = await token.createAssociatedTokenAccount(
+    //   connection,
+    //   userAccount,
+    //   MINT,
+    //   userAccount.publicKey
+    // );
 
- return tokenAccount.address;
+    const transaction = new solana.Transaction().add(
+        token.createAssociatedTokenAccountInstruction(
+            userAccount.publicKey,
+            tokenAccount,
+            userAccount.publicKey,
+            MINT,
+            token.TOKEN_PROGRAM_ID,
+            token.ASSOCIATED_TOKEN_PROGRAM_ID
+        )
+    );
+
+    await solana.sendAndConfirmTransaction(connection, transaction, [userAccount]);
+  } catch (e) {
+    console.log(e);
+    process.exit()
+  }
+
+  try{
+
+    await token.mintTo(
+      connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      tokenAccount,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      amount,
+      []
+    );
+  } catch (e) {
+    console.log(e);
+
+  }
+
+ return tokenAccount;
 }

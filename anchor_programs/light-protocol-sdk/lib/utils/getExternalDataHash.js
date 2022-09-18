@@ -1,44 +1,39 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getExtDataHash = void 0;
-// const ethers_1 = require("ethers");
+const ethers_1 = require("ethers");
 const anchor = require("@project-serum/anchor")
+const toBufferLE = require('bigint-buffer');
 
 const constants_1 = require("../constants");
 const getExtDataHash = function (
 // inputs are bytes
-recipient, extAmount, relayer, fee, merkleTreeIndex, merkleTreePubkeyBytes, encryptedOutput1, encryptedOutput2, nonce1, nonce2, senderThrowAwayPubkey1, senderThrowAwayPubkey2) {
-    // console.log("recipient ", Array.prototype.slice.call(recipient))
-    // console.log("extAmount ", extAmount)
-    // console.log("relayer ", Array.prototype.slice.call(relayer))
-    // console.log("fee ", fee)
-    // console.log("merkleTreePubkeyBytes ", Array.prototype.slice.call(merkleTreePubkeyBytes))
-    // console.log("index merkletreetokenpda ", merkleTreeIndex)
-    // console.log("encryptedOutput1 ", encryptedOutput1)
-    // console.log("encryptedOutput2 ", encryptedOutput2)
-    // console.log("nonce1 ", nonce1)
-    // console.log("nonce2 ", nonce2)
-    // console.log("senderThrowAwayPubkey1 ", senderThrowAwayPubkey1)
-    // console.log("senderThrowAwayPubkey2 ", senderThrowAwayPubkey2)
-    // let merkleTreeIndexArr = Uint8Array.from(merkleTreeIndex);
-    // console.log("merkleTreeIndexArr", merkleTreeIndexArr)
+recipient, recipient_fee, relayer, relayer_fee, merkleTreeIndex,encryptedUtxos) {
+    console.log("recipient ", Array.from(recipient))
+    console.log("recipient_fee ", Array.from(recipient_fee))
+    console.log("relayer ", Array.from(relayer))
+    console.log("relayer_fee ", relayer_fee)
+    console.log("index merkletreetokenpda ", merkleTreeIndex)
+    console.log("encryptedUtxos ", encryptedUtxos.toString())
+
     let encodedData = new Uint8Array([
         ...recipient,
-        ...extAmount,
+        ...recipient_fee,
         ...relayer,
-        ...fee,
-        ...merkleTreePubkeyBytes,
+        ...relayer_fee,
         merkleTreeIndex,
-        ...encryptedOutput1,
-        ...nonce1,
-        ...senderThrowAwayPubkey1,
-        ...encryptedOutput2,
-        ...nonce2,
-        ...senderThrowAwayPubkey2,
+        ...encryptedUtxos
         // ...[0],
     ]);
-    // const hash = ethers_1.ethers.utils.keccak256(Buffer.from(encodedData));
-    const hash = anchor.utils.sha256.hash(encodedData.toString())
+    console.log("2encodedData: ", encodedData.toString());
+    const hash_ethers = ethers_1.ethers.utils.keccak256(encodedData);
+    const hash = anchor.utils.sha256.hash(encodedData)
+    console.log("hash_ethers ", hash_ethers);
+    console.log("hash ethers mod: ",  new anchor.BN(anchor.utils.bytes.hex.decode(hash_ethers)).mod(constants_1.FIELD_SIZE));
+    console.log("hash: ", hash);
+    console.log("hash: ", Array.from(anchor.utils.bytes.hex.decode(hash)));
+    console.log("mod: ", new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE));
+    console.log("mod bytes: ", Array.from(toBufferLE.toBufferBE(BigInt(new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE)),32)));
     return {
         extDataHash: new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
         extDataBytes: encodedData,

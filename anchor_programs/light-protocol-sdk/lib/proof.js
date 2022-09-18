@@ -27,7 +27,7 @@ const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 const newKeypair = () => nacl.box.keyPair();
 
 
-const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair, inIndices, outIndices, assetPubkeys, mintPubkey, test, feeAmount) {
+const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTree,merkleTreeIndex,merkleTreePubkeyBytes, externalAmountBigNumber, relayerFee, recipient, relayer, action, encryptionKeypair, inIndices, outIndices, assetPubkeys, mintPubkey, test, feeAmount, recipientFee) {
     return __awaiter(this, void 0, void 0, function* () {
         /// mixes the input utxos
         /// mixes the output utxos
@@ -101,23 +101,25 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         let encryptedOutputs = [ ];
         outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, senderThrowAwayKeypairs[index])));
         // test decrypt: same?
-        console.log("encryptedOutputs: ", encryptedOutputs)
+        console.log("encryptedOutputs: ", encryptedOutputs.toString())
         console.log("encryptedOutputs.length: ", encryptedOutputs.length);
+        console.log("recipientFee: ", recipientFee);
+        let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...senderThrowAwayKeypairs[0].publicKey, ...encryptedOutputs[1], ...nonces[1], ...senderThrowAwayKeypairs[1].publicKey]);
 
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
-            extAmount: z,
+            recipientFee: recipientFee.toBytes(),
             relayer: new solana.PublicKey(relayer).toBytes(),
-            fee: feesLE,
+            relayer_fee: feesLE,
             merkleTreePubkeyBytes: merkleTreePubkeyBytes,
-            encryptedOutput1: encryptedOutputs[0],
-            encryptedOutput2: encryptedOutputs[1],
-            nonce1: nonces[0],
-            nonce2: nonces[1],
-            senderThrowAwayPubkey1: senderThrowAwayKeypairs[0].publicKey,
-            senderThrowAwayPubkey2: senderThrowAwayKeypairs[1].publicKey,
+            // encryptedOutput1: encryptedOutputs[0],
+            // encryptedOutput2: encryptedOutputs[1],
+            // nonce1: nonces[0],
+            // nonce2: nonces[1],
+            // senderThrowAwayPubkey1: senderThrowAwayKeypairs[0].publicKey,
+            // senderThrowAwayPubkey2: senderThrowAwayKeypairs[1].publicKey,
         };
-        const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.extAmount, extData.relayer, extData.fee,merkleTreeIndex, extData.merkleTreePubkeyBytes, extData.encryptedOutput1, extData.encryptedOutput2, extData.nonce1, extData.nonce2, extData.senderThrowAwayPubkey1, extData.senderThrowAwayPubkey2);
+        const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.recipientFee, extData.relayer, extData.relayer_fee,merkleTreeIndex, encryptedUtxos);
         // let feeAmount = new anchor.BN(relayerFee.toString())
         // if (externalAmountBigNumber < 0) {
         //   feeAmount = new anchor.BN(0).sub(new anchor.BN(relayerFee.toString()))
@@ -125,7 +127,6 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         //   .mod(constants_1.FIELD_SIZE)
         //   .toString()
         // }
-        console.log("feeAmount: ", feeAmount);
         let input = {
             root: merkelTree.root(),
             inputNullifier: inputUtxos.map((x) => x.getNullifier()),
@@ -134,7 +135,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
                 .add(constants_1.FIELD_SIZE)
                 .mod(constants_1.FIELD_SIZE)
                 .toString(),
-            extDataHash,
+            extDataHash: extDataHash.toString(),
             feeAmount: new anchor.BN(feeAmount)
                 // .sub(new anchor.BN(relayerFee.toString()))
                 .add(constants_1.FIELD_SIZE)
@@ -157,6 +158,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
             inInstructionType: inputUtxos.map((x) => x.instructionType),
             outInstructionType: outputUtxos.map((x) => x.instructionType)
         };
+        console.log("extDataHash: ", input.extDataHash);
+        console.log("input.inputNullifier ",input.inputNullifier[0] );
         console.log("input feeAmount: ", input.feeAmount);
         console.log("input publicAmount: ", input.publicAmount);
         console.log("input relayerFee: ", relayerFee);
@@ -165,7 +168,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
                 extAmount: extData.extAmount,
                 externalAmountBigNumber,
                 extDataBytes,
-                encryptedOutputs,
+                encryptedUtxos,
                 input,
                 relayerFee
             };
@@ -189,7 +192,7 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         for (var i in publicInputsBytes) {
             publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
         }
-
+        console.log("encryptedOutputs ", encryptedOutputs);
         let publicInputs = {
             root:         publicInputsBytes[0],
             publicAmount: publicInputsBytes[1],

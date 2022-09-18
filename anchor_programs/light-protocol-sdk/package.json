@@ -57,6 +57,7 @@
     "n64": "^0.2.10",
     "snarkjs": "^0.4.16",
     "tweetnacl": "^1.0.3",
-    "tweetnacl-util": "^0.15.1"
+    "tweetnacl-util": "^0.15.1",
+    "bigint-buffer": "^1.1.5"
   }
 }

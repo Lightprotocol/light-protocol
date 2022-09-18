@@ -20,7 +20,9 @@ export class shieldedTransaction {
     merkleTree = null,
     merkleTreeAssetPubkey = null,
     relayerPubkey = null,
-    poseidon = null
+    poseidon = null,
+    recipient = null,
+    recipientFee = null,
   }) {
       if (keypair == null) {
         keypair = new light.Keypair(poseidon);
@@ -39,6 +41,7 @@ export class shieldedTransaction {
       this.feeUtxos = [];
       this.encryptionKeypair = encryptionKeypair;
       this.poseidon = poseidon;
+
     }
 
     async getMerkleTree() {
@@ -51,10 +54,11 @@ export class shieldedTransaction {
       outputUtxos,
       action,
       assetPubkeys,
-      recipient = "MERKLE_TREE_PDA_TOKEN_USDC",
+      recipient = MERKLE_TREE_PDA_TOKEN_USDC,
       mintPubkey = 0,
       relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
+      recipientFee = null
     }) {
       // mintPubkey = assetPubkeys[1];
       // if (assetPubkeys[1].toString() != mintPubkey.toString()) {
@@ -66,6 +70,8 @@ export class shieldedTransaction {
       if (action == "DEPOSIT") {
         this.relayerFee = relayerFee;
       }
+
+      this.recipientFee = recipientFee;
       this.recipient = recipient
       this.assetPubkeys = assetPubkeys;
       this.mintPubkey = mintPubkey;
@@ -116,7 +122,7 @@ export class shieldedTransaction {
        this.merkleTreePubkey.toBytes(),
        this.externalAmountBigNumber,
        this.relayerFee,
-       this.merkleTreeAssetPubkey,
+       this.recipient, // recipient
        this.relayerPubkey,
        this.action,
        this.encryptionKeypair,
@@ -125,7 +131,8 @@ export class shieldedTransaction {
        this.assetPubkeys,
        this.mintPubkey,
        false,
-       this.feeAmount
+       this.feeAmount,
+       this.recipientFee
      )
      this.input = data.input;
      this.extAmount = data.extAmount;
@@ -143,6 +150,7 @@ export class shieldedTransaction {
       mintPubkey = 0,
       relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
+      recipientFee = null
     }) {
       mintPubkey = assetPubkeys[1];
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
@@ -151,10 +159,12 @@ export class shieldedTransaction {
       if (action == "DEPOSIT") {
         this.relayerFee = relayerFee;
       }
-      this.recipient = recipient
+      this.recipientFee = recipientFee;
+      this.recipient = recipient;
       this.assetPubkeys = assetPubkeys;
       this.mintPubkey = mintPubkey;
       this.action = action;
+
       let res = light.prepareUtxos(
           inputUtxos,
           outputUtxos,
@@ -187,7 +197,8 @@ export class shieldedTransaction {
        this.assetPubkeys,
        this.mintPubkey,
        false,
-       this.feeAmount
+       this.feeAmount,
+       this.recipientFee
      )
      this.input = data.input;
      assert(this.input.mintPubkey == this.mintPubkey);
@@ -197,7 +208,7 @@ export class shieldedTransaction {
      this.extAmount = data.extAmount;
      this.externalAmountBigNumber = data.externalAmountBigNumber;
      this.extDataBytes = data.extDataBytes;
-     this.encryptedOutputs = data.extDataBytes;
+     this.encrypedUtxos = data.encryptedUtxos
      if (this.externalAmountBigNumber != 0) {
        if (assetPubkeys[1].toString() != mintPubkey.toString()) {
          throw "mintPubkey should be assetPubkeys[1]";
@@ -217,7 +228,7 @@ export class shieldedTransaction {
         this.extAmount,
         this.externalAmountBigNumber,
         this.extDataBytes,
-        this.encryptedOutputs
+        this.encrypedUtxos
       )
 
       this.outputUtxos.map((utxo) => {

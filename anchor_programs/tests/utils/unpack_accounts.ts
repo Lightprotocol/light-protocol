@@ -94,6 +94,8 @@ export async function getPdaAddresses({tx_integrity_hash,
   nullifier0, nullifier1, leafLeft,
   merkleTreeProgram, verifierProgram
 }) {
+  console.log("new Uint8Array(nullifier0) ", new Uint8Array(nullifier0));
+
   return {
     signerAuthorityPubkey: (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBytes()],
