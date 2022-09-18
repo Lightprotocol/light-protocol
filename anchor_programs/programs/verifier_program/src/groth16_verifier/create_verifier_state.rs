@@ -3,7 +3,7 @@ use anchor_spl::token::Token;
 use anchor_lang::prelude::*;
 use merkle_tree_program::initialize_new_merkle_tree_spl::PreInsertedLeavesIndex;
 
-use ark_bn254::Fq;
+use ark_ed_on_bn254::Fq;
 use ark_ff::Fp256;
 use ark_ff::PrimeField;
 use ark_ff::FpParameters;
@@ -262,6 +262,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         if pairing_res[31] != 1 {
             return err!(ErrorCode::ProofVerificationFailed);
         }
+        self.verified_proof = true;
         Ok(())
     }
 
@@ -308,15 +309,15 @@ impl LightTransaction<'_, '_, '_, '_> {
             self.encrypted_utxos.clone()
         ]
         .concat();
-        msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
-        msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
-        msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
-        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        // msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
+        // msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
+        // msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
+        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
         let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-        msg!("integrity_hash inputs: {:?}", input);
-        msg!("integrity_hash inputs.len(): {}", input.len());
-        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fq::from_be_bytes_mod_order(&hash[..]) );
-        if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_be_bytes_mod_order(&self.tx_integrity_hash) {
+        // msg!("integrity_hash inputs: {:?}", input);
+        // msg!("integrity_hash inputs.len(): {}", input.len());
+        // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fq::from_be_bytes_mod_order(&hash[..]) );
+        if Fq::from_be_bytes_mod_order(&hash[..]) != Fq::from_le_bytes_mod_order(&to_be_64(&self.tx_integrity_hash)) {
             msg!(
                 "tx_integrity_hash verification failed.{:?} != {:?}",
                 &hash[..],
@@ -324,6 +325,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             );
             return err!(ErrorCode::WrongTxIntegrityHash);
         }
+        self.checked_tx_integrity_hash = true;
         Ok(())
     }
 
@@ -350,7 +352,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                 leaves.0.clone().try_into().unwrap(),
                 leaves.1.clone().try_into().unwrap(),
                 self.ctx.accounts.merkle_tree.key().to_bytes(),
-                self.encrypted_utxos.clone().try_into().unwrap(),
+                self.encrypted_utxos.clone().try_into().unwrap()
             )?;
         }
 
@@ -373,7 +375,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             self.merkle_tree_index.try_into().unwrap(),
             to_be_64(&self.merkle_root).try_into().unwrap(),
         )?;
-        self.inserted_leaves = true;
+        self.checked_root = true;
         Ok(())
     }
 

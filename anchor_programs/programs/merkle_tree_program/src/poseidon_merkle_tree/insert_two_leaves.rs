@@ -59,6 +59,7 @@ pub fn process_insert_two_leaves(
         true,                //rent_exempt
     )?;
     let mut leaf_pda_account_data = TwoLeavesBytesPda::unpack(&two_leaves_pda.data.borrow())?;
+    msg!("here0");
 
     leaf_pda_account_data.account_type = UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
     //save leaves into pda account
@@ -73,12 +74,15 @@ pub fn process_insert_two_leaves(
     leaf_pda_account_data.merkle_tree_pubkey = merkle_tree_pda_pubkey.to_vec();
     // Padded encryptedUtxos of length 222 to length 256 for anchor uses serde which is
     // not implemented for [u8;222].
-    leaf_pda_account_data.encrypted_utxos = encrypted_utxos[0..222].to_vec();
+    msg!("here1");
 
+    leaf_pda_account_data.encrypted_utxos = encrypted_utxos[0..238].to_vec();
+    msg!("here2");
     TwoLeavesBytesPda::pack_into_slice(
         &leaf_pda_account_data,
         &mut two_leaves_pda.data.borrow_mut(),
     );
+
     // Increase next index by 2 because we're inserting 2 leaves at once.
     ctx.accounts.pre_inserted_leaves_index.next_index += 2;
     msg!("packed two_leaves_pda");

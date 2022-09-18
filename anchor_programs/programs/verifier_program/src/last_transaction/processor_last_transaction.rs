@@ -19,7 +19,7 @@ use crate::last_transaction::cpi_instructions::{
 };
 
 pub fn process_last_transaction_deposit<'info>(ctx: Context<'_, '_, '_, 'info, LastTransactionDeposit<'info>>) -> Result<()> {
-    let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
+    /*let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
 
     if !verifier_state.last_transaction {
         msg!("Wrong state");
@@ -115,12 +115,12 @@ pub fn process_last_transaction_deposit<'info>(ctx: Context<'_, '_, '_, 'info, L
         verifier_state.encrypted_utxos,
     )?;
 
-
+*/
     Ok(())
 }
 
 pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawal>) -> Result<()> {
-    let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
+    /*let verifier_state = &mut ctx.accounts.verifier_state.load_mut()?;
 
     if !verifier_state.last_transaction {
         msg!("Wrong state");
@@ -224,7 +224,7 @@ pub fn process_last_transaction_withdrawal(ctx: Context<LastTransactionWithdrawa
         verifier_state.leaf_right,
         ctx.accounts.merkle_tree.key().to_bytes(),
         verifier_state.encrypted_utxos,
-    )?;
+    )?;*/
     Ok(())
 }
 
