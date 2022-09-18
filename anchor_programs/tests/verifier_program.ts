@@ -70,7 +70,9 @@ import {
   MERKLE_TREE_KP,
   MERKLE_TREE_SIGNER_AUTHORITY,
   PRIVATE_KEY,
-  FIELD_SIZE
+  FIELD_SIZE,
+  MINT_PRIVATE_KEY,
+  MINT
   } from "./utils/constants";
 
 
@@ -85,7 +87,6 @@ var MERKLE_TREE_OLD;
 var MERKLE_TREE_USDC = 0
 var MERKLE_TREE_PDA_TOKEN_USDC = 0
 var PRE_INSERTED_LEAVES_INDEX_USDC
-var MINT
 var RENT_ESCROW
 var RENT_VERIFIER
 var RENT_TOKEN_ACCOUNT
@@ -562,13 +563,15 @@ describe("verifier_program", () => {
     // create new token
     try {
 
-    MINT = await token.createMint(
+    let mint = await token.createMint(
         provider.connection,
         ADMIN_AUTH_KEYPAIR,
         ADMIN_AUTH_KEYPAIR.publicKey,
         null,
-        2
+        2,
+        solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
     );
+    assert(MINT.toBase58() == mint.toBase58());
     console.log("MINT: ", MINT.toBase58());
 
   } catch(e) {
@@ -850,7 +853,7 @@ describe("verifier_program", () => {
         console.log(proof_data.toString());
         console.log("proof_data.publicInputs.extDataHash ", proof_data.publicInputs.extDataHash);
 
-        const ix = await verifierProgram.methods.createVerifierState(
+        const ix = await verifierProgram.methods.shieldedTransferInputs(
           proof_data.proofBytes,
           proof_data.publicInputs.root,
           proof_data.publicInputs.publicAmount.slice(24,32),
@@ -922,6 +925,7 @@ describe("verifier_program", () => {
         transaction.sign([ADMIN_AUTH_KEYPAIR])
         let serializedTx = transaction.serialize();
         let res = await provider.connection.sendRawTransaction(serializedTx);
+        console.log(res);
 
 
       } catch (e) {

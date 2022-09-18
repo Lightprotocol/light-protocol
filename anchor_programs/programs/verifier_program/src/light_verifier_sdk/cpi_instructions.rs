@@ -2,7 +2,7 @@ use anchor_lang::prelude::*;
 use merkle_tree_program::utils::config::{
     ENCRYPTED_UTXOS_LENGTH
 };
-use crate::utils::config::VERIFIER_INDEX;
+const VERIFIER_INDEX: u64 = 0;
 use solana_program;
 use anchor_spl::token::{Transfer, CloseAccount};
 

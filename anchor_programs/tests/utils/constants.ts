@@ -28,6 +28,23 @@ export const PRIVATE_KEY = [
 export const MERKLE_TREE_INIT_AUTHORITY = [2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,
   253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
 ];
+
+export const MINT_PRIVATE_KEY = new Uint8Array([
+  194, 220,  38, 233, 140, 177,  44, 255, 131,   7, 129,
+  209,  20, 230, 130,  41, 128, 186, 233, 161,  10,  77,
+  134,  70,  34, 141,  30, 246, 145,  69,  69,  35,  14,
+  129,  15,  86, 229, 176, 155,   3,   8, 217, 125,  97,
+  221, 115, 252, 160, 127, 236,  37, 229, 116,  84, 111,
+    6,   5, 182, 141,  86,   7,  23, 246, 215
+]);
+
+export const MINT = new solana.PublicKey([
+   14, 129,  15,  86, 229, 176, 155,   3,
+    8, 217, 125,  97, 221, 115, 252, 160,
+  127, 236,  37, 229, 116,  84, 111,   6,
+    5, 182, 141,  86,   7,  23, 246, 215
+])
+
 export const ADMIN_AUTH_KEY = new solana.PublicKey(new Uint8Array(MERKLE_TREE_INIT_AUTHORITY));
 export const ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
 export const MERKLE_TREE_ACC_BYTES_0 = new Uint8Array([
