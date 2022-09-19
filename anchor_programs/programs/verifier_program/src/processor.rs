@@ -42,14 +42,16 @@ pub struct ShieldedTransfer2Inputs<'info> {
     pub recipient: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
+    pub sender_fee: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
     pub recipient_fee: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: AccountInfo<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub escrow: AccountInfo<'info>,
-
+    pub escrow: AccountInfo<'info>
 }
 
 // split into two tx

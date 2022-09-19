@@ -127,7 +127,7 @@ export function unpackLeavesAccount(leavesAccountData) {
     leafIndex:    U64.readLE(leavesAccountData.slice(2,10),0),
     leafLeft:     Array.prototype.slice.call(leavesAccountData.slice(10, 42)),
     leafRight:    Array.prototype.slice.call(leavesAccountData.slice(42, 74)),
-    encryptedUtxos: Array.prototype.slice.call(leavesAccountData.slice(106,328)),
+    encryptedUtxos: Array.prototype.slice.call(leavesAccountData.slice(106,328 + 16)),
     merkleTree:   Array.prototype.slice.call(leavesAccountData.slice(74, 106)),
   }
 }

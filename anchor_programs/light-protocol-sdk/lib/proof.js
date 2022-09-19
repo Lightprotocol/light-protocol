@@ -105,7 +105,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         console.log("encryptedOutputs.length: ", encryptedOutputs.length);
         console.log("recipientFee: ", recipientFee);
         let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...senderThrowAwayKeypairs[0].publicKey, ...encryptedOutputs[1], ...nonces[1], ...senderThrowAwayKeypairs[1].publicKey]);
-
+        console.log(relayer);
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
             recipientFee: recipientFee.toBytes(),
@@ -204,7 +204,15 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
             leafLeft:     publicInputsBytes[7],
             leafRight:    publicInputsBytes[8]
         };
-
+        console.log({
+                extAmount: extAmount,
+                externalAmountBigNumber,
+                extDataBytes,
+                publicInputs,//
+                proofBytes: yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson),
+                encryptedOutputs: encryptedOutputs,
+                relayerFee
+            });
         return {
                 extAmount: extAmount,
                 externalAmountBigNumber,

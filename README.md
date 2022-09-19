@@ -1,7 +1,11 @@
 # Light Protocol Program V3
 
 ## Notes
-
+TODO:
+- kick out ark_ed_on_bn254 dep need to change mod order in hash for this
+- merge tx into testing class
+- kick out ethers dep integrity hash
+- write testing class in TS
 verifyProof:
 Prepare one Input: ~5k
 Pairing:

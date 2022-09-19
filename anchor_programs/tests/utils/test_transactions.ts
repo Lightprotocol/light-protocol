@@ -35,7 +35,7 @@ const FINAL_EXPONENTIATION_TX_COUNT = 19
 const MERKLE_TREE_UPDATE_TX_COUNT = 38
 
 export const newAccountWithLamports = async (connection,account = new anchor.web3.Account(),lamports = 1e10) => {
-  let x = await connection.requestAirdrop(account.publicKey, lamports);
+  let x = await connection.confirmTransaction(await connection.requestAirdrop(account.publicKey, lamports));
   console.log("newAccountWithLamports ", account.publicKey.toBase58());
 
   return account;
@@ -66,7 +66,7 @@ export const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) 
   while(retry < 30){
     try{
 
-      await connection.requestAirdrop(payer.publicKey, 1e7)
+      await connection.confirmTransaction(await connection.requestAirdrop(payer.publicKey, 1e7))
 
 
       const tx = new solana.Transaction().add(

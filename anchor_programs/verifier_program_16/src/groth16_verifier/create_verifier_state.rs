@@ -1,16 +1,7 @@
+use crate::errors::ErrorCode;
+use anchor_spl::token::Token;
 use anchor_lang::prelude::*;
-use crate::light_verifier_sdk::errors::VerifierSdkError;
-use crate::config::{
-    NR_NULLIFIERS,
-    NR_LEAVES
-};
-
-use solana_program::alt_bn128::{
-    alt_bn128_addition,
-    alt_bn128_pairing,
-    alt_bn128_multiplication
-};
-use ark_std::{Zero, One};
+use merkle_tree_program::initialize_new_merkle_tree_spl::PreInsertedLeavesIndex;
 
 use ark_bn254::Fr;
 use ark_ff::{
@@ -24,36 +15,147 @@ use ark_ff::{
         ToBytes
     }
 };
-use ark_bn254::FrParameters;
-use merkle_tree_program::{
-    sol_transfer,
-    close_account,
-    utils::create_pda::create_and_check_pda,
+
+use solana_program::alt_bn128::{
+    alt_bn128_addition,
+    alt_bn128_pairing,
+    alt_bn128_multiplication
 };
-use merkle_tree_program::utils::constants::AUTHORITY_SEED;
-
-use anchor_spl::token::{Transfer};
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
-use std::ops::Neg;
-use solana_program::log::sol_log_compute_units;
-
-use crate::verification_key::{
+use ark_std::{Zero, One};
+use ark_bn254::FrParameters;
+use crate::utils::verification_key::{
     VK_IC,
     VK_ALPHA_G1,
     VK_BETA_G2,
     VK_GAMMA_G2,
     VK_DELTA_G2,
 };
-
-use crate::light_verifier_sdk::cpi_instructions::{
+use merkle_tree_program::program::MerkleTreeProgram;
+use crate::last_transaction::cpi_instructions::{
     check_merkle_root_exists_cpi,
     initialize_nullifier_cpi,
     insert_two_leaves_cpi,
     withdraw_sol_cpi,
     withdraw_spl_cpi
 };
+use merkle_tree_program::sol_transfer;
+use anchor_spl::token::{Transfer};
 
-use crate::processor::ShieldedTransfer2Inputs;
+type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
+use std::ops::Neg;
+use solana_program::log::sol_log_compute_units;
+
+pub const NR_NULLIFIERS: usize = 2;
+pub const NR_LEAVES: usize = 2;
+
+#[derive( Accounts)]
+#[instruction(
+    proof:              [u8;256],
+    merkle_root:        [u8;32],
+    amount:             [u8;32],
+    tx_integrity_hash:  [u8;32]
+)]
+pub struct CreateVerifierState<'info> {
+    // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
+    // pub verifier_state: AccountLoader<'info, VerifierState>,
+    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
+    #[account(mut)]
+    pub signing_address: Signer<'info>,
+    pub system_program: Program<'info, System>,
+    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
+    pub rent: Sysvar<'info, Rent>,
+    /// CHECK: Is the same as in integrity hash.
+    // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+    #[account(mut)]
+    pub merkle_tree: AccountInfo<'info>,
+    #[account(
+        mut,
+        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
+    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+    pub authority: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub sender: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub recipient: UncheckedAccount<'info>,
+    /// CHECK:` Is checked depending on deposit or withdrawal.
+    #[account(mut)]
+    pub recipient_fee: UncheckedAccount<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
+    pub relayer_recipient: AccountInfo<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
+    pub escrow: AccountInfo<'info>,
+
+}
+
+// split into two tx
+// tx checks which data it has and computes accordingly
+// tx checks if other compute was already completed
+// if yes insert leaves etc
+
+pub fn process_create_verifier_state<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info,CreateVerifierState<'info>>,
+    proof: [u8; 256],
+    merkle_root: [u8; 32],
+    public_amount: [u8; 32],
+    ext_data_hash: [u8; 32],
+    nullifier0: [u8; 32],
+    nullifier1: [u8; 32],
+    leaf_right: [u8; 32],
+    leaf_left: [u8; 32],
+    ext_amount: i64,
+    fee_amount: [u8; 32],
+    mint_pubkey: [u8;32],
+    encrypted_utxos: Vec<u8>,
+    merkle_tree_index: u64,
+    relayer_fee: u64,
+) -> Result<()> {
+
+    // trait with the nunber of inputs and commitments
+    // Put nullifier accounts in remaining accounts
+    // Put commitment accounts in the remaining accounts
+    // make the instruction flexible enough such that I can easily call it in a second tx
+    // actually with that I can easily implement it in 2 tx in the first place
+
+    let mut tx = LightTransaction::new(
+        proof,
+        merkle_root,
+        public_amount,
+        ext_data_hash,
+        fee_amount,
+        mint_pubkey,
+        Vec::<Vec<u8>>::new(), // checked_public_inputs
+        vec![nullifier0.to_vec(), nullifier1.to_vec()],
+        vec![(leaf_left.to_vec(), leaf_right.to_vec())],
+        encrypted_utxos,
+        merkle_tree_index,
+        ext_amount,
+        relayer_fee,
+        ctx
+    );
+    tx.verify()?;
+    tx.check_tx_integrity_hash()?;
+    tx.check_root()?;
+    sol_log_compute_units();
+    msg!("leaves");
+    tx.insert_leaves()?;
+    sol_log_compute_units();
+    msg!("nullifiers");
+    tx.insert_nullifiers()?;
+    sol_log_compute_units();
+    tx.transfer_user_funds()?;
+    tx.transfer_fee()?;
+    tx.check_completion()?;
+    Ok(())
+}
+
 
 fn to_be_64(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
@@ -89,7 +191,7 @@ pub struct LightTransaction<'a, 'b, 'c, 'info>  {
     inserted_leaves : bool,
     inserted_nullifier : bool,
     checked_root : bool,
-    ctx: Context<'a, 'b, 'c, 'info, ShieldedTransfer2Inputs<'info>>
+    ctx: Context<'a, 'b, 'c, 'info, CreateVerifierState<'info>>
 
 }
 
@@ -112,7 +214,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         merkle_tree_index: u64,
         ext_amount: i64,
         relayer_fee: u64,
-        ctx: Context<'a, 'b, 'c, 'info, ShieldedTransfer2Inputs<'info>>
+        ctx: Context<'a, 'b, 'c, 'info, CreateVerifierState<'info>>
     ) -> LightTransaction<'a, 'b, 'c, 'info> {
         // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
         // assert_eq!(leaves.len(), NR_LEAVES  / 2);
@@ -168,7 +270,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
 
         if pairing_res[31] != 1 {
-            return err!(VerifierSdkError::ProofVerificationFailed);
+            return err!(ErrorCode::ProofVerificationFailed);
         }
         self.verified_proof = true;
         Ok(())
@@ -193,10 +295,7 @@ impl LightTransaction<'_, '_, '_, '_> {
 
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input);
-        }
 
-        if public_inputs.len() + 1 != VK_IC.len()  {
-            return err!(VerifierSdkError::IncompatibleVerifyingKeyWithNrPublicInputs);
         }
 
         let mut public_inputs_res_bytes = VK_IC[0];
@@ -220,21 +319,21 @@ impl LightTransaction<'_, '_, '_, '_> {
             self.encrypted_utxos.clone()
         ]
         .concat();
-        msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
-        msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
-        msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
-        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
-        msg!("integrity_hash inputs: {:?}", input);
-        msg!("integrity_hash inputs.len(): {}", input.len());
+        // msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
+        // msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
+        // msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
+        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
         let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
-        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fr::from_be_bytes_mod_order(&hash[..]) );
-        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
+        // msg!("integrity_hash inputs: {:?}", input);
+        // msg!("integrity_hash inputs.len(): {}", input.len());
+        // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fq::from_be_bytes_mod_order(&hash[..]) );
+        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_le_bytes_mod_order(&to_be_64(&self.tx_integrity_hash)) {
             msg!(
                 "tx_integrity_hash verification failed.{:?} != {:?}",
                 &hash[..],
                 &self.tx_integrity_hash
             );
-            return err!(VerifierSdkError::WrongTxIntegrityHash);
+            return err!(ErrorCode::WrongTxIntegrityHash);
         }
         self.checked_tx_integrity_hash = true;
         Ok(())
@@ -259,7 +358,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                 &self.ctx.accounts.pre_inserted_leaves_index.to_account_info(),
                 &self.ctx.accounts.system_program.to_account_info(),
                 &self.ctx.accounts.rent.to_account_info(),
-                leaves.0.clone().try_into().unwrap(),
+                self.nullifiers[0].clone().try_into().unwrap(),
                 leaves.0.clone().try_into().unwrap(),
                 leaves.1.clone().try_into().unwrap(),
                 self.ctx.accounts.merkle_tree.key().to_bytes(),
@@ -294,6 +393,8 @@ impl LightTransaction<'_, '_, '_, '_> {
 
         assert_eq!(NR_NULLIFIERS, self.nullifiers.len());
         assert_eq!(NR_NULLIFIERS + (NR_LEAVES / 2), self.ctx.remaining_accounts.len());
+
+        // panic!("commented insert nullifier ");
 
         for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.ctx.remaining_accounts) {
 
@@ -342,23 +443,11 @@ impl LightTransaction<'_, '_, '_, '_> {
             if self.is_deposit() {
                 // sender is user no check
                 // recipient is merkle tree pda, check correct derivation
-
-                let rent = &Rent::from_account_info(&self.ctx.accounts.rent.to_account_info())?;
-
-                create_and_check_pda(
-                    &self.ctx.program_id,
-                    &self.ctx.accounts.signing_address.to_account_info(),
-                    &self.ctx.accounts.escrow.to_account_info(),
-                    &self.ctx.accounts.system_program.to_account_info(),
-                    &rent,
-                    &b"escrow"[..],
-                    &Vec::new(),
-                    0,                  //bytes
-                    pub_amount_checked, //lamports
-                    false,               //rent_exempt
+                sol_transfer(
+                    &self.ctx.accounts.sender.to_account_info(),
+                    &self.ctx.accounts.recipient.to_account_info(),
+                    pub_amount_checked,
                 )?;
-                close_account(&self.ctx.accounts.escrow.to_account_info(), &self.ctx.accounts.recipient.to_account_info())?;
-
             } else {
                 // sender is merkle tree pda check correct derivation
                 // recipient is the same as in integrity_hash
@@ -374,40 +463,24 @@ impl LightTransaction<'_, '_, '_, '_> {
         } else {
             // check mint
 
-            if self.is_deposit() {
-                // is a token deposit or withdrawal
-                // do I need another token pda check here?
-                let seed = merkle_tree_program::ID.to_bytes();
-                let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-                    &[seed.as_ref()],
-                    self.ctx.program_id,
-                );
-                let bump = &[bump];
-                let seeds = &[&[seed.as_slice(), bump][..]];
+            // is a token deposit or withdrawal
+            // do I need another token pda check here?
+            let seed = merkle_tree_program::ID.to_bytes();
+            let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+                &[seed.as_ref()],
+                self.ctx.program_id,
+            );
+            let bump = &[bump];
+            let seeds = &[&[seed.as_slice(), bump][..]];
 
-                let accounts = Transfer {
-                    from:       self.ctx.accounts.sender.to_account_info().clone(),
-                    to:         self.ctx.accounts.recipient.to_account_info().clone(),
-                    authority:  self.ctx.accounts.authority.to_account_info().clone()
-                };
+            let accounts = Transfer {
+                from:       self.ctx.accounts.sender.to_account_info().clone(),
+                to:         self.ctx.accounts.recipient.to_account_info().clone(),
+                authority:  self.ctx.accounts.authority.to_account_info().clone()
+            };
 
-                let cpi_ctx = CpiContext::new_with_signer(self.ctx.accounts.token_program.to_account_info().clone(), accounts, seeds);
-                anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
-            } else {
-                msg!("token authority might be wrong");
-                // withdraw_spl_cpi
-                withdraw_spl_cpi(
-                    &self.ctx.program_id,
-                    &self.ctx.accounts.program_merkle_tree.to_account_info(),
-                    &self.ctx.accounts.authority.to_account_info(),
-                    &self.ctx.accounts.sender.to_account_info(),
-                    &self.ctx.accounts.recipient.to_account_info(),
-                    &self.ctx.accounts.authority.to_account_info(), // token authority
-                    &self.ctx.accounts.token_program.to_account_info(),
-                    pub_amount_checked,
-                    1//merkle_tree_index
-                )?;
-            }
+            let cpi_ctx = CpiContext::new_with_signer(self.ctx.accounts.token_program.to_account_info().clone(), accounts, seeds);
+            anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
         }
         self.transferred_funds = true;
         msg!("transferred");
@@ -437,31 +510,19 @@ impl LightTransaction<'_, '_, '_, '_> {
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
-
-            let rent = &Rent::from_account_info(&self.ctx.accounts.rent.to_account_info())?;
-            
-            create_and_check_pda(
-                &self.ctx.program_id,
-                &self.ctx.accounts.signing_address.to_account_info(),
+            sol_transfer(
                 &self.ctx.accounts.escrow.to_account_info(),
-                &self.ctx.accounts.system_program.to_account_info(),
-                &rent,
-                &b"escrow"[..],
-                &Vec::new(),
-                0,                  //bytes
-                fee_amount_checked, //lamports
-                false,               //rent_exempt
+                &self.ctx.accounts.recipient_fee.to_account_info(),
+                fee_amount_checked,
             )?;
-            close_account(&self.ctx.accounts.escrow.to_account_info(), &self.ctx.accounts.recipient_fee.to_account_info())?;
-
         } else {
             // withdraws sol for the user
             withdraw_sol_cpi(
                 &self.ctx.program_id,
                 &self.ctx.accounts.program_merkle_tree.to_account_info(),
                 &self.ctx.accounts.authority.to_account_info(),
-                &self.ctx.accounts.sender_fee.to_account_info(),
-                &self.ctx.accounts.recipient_fee.to_account_info(),
+                &self.ctx.accounts.sender.to_account_info(),
+                &self.ctx.accounts.relayer_recipient.to_account_info(),
                 fee_amount_checked,
             )?;
 
@@ -470,11 +531,16 @@ impl LightTransaction<'_, '_, '_, '_> {
                 &self.ctx.program_id,
                 &self.ctx.accounts.program_merkle_tree.to_account_info(),
                 &self.ctx.accounts.authority.to_account_info(),
-                &self.ctx.accounts.sender_fee.to_account_info(),
+                &self.ctx.accounts.sender.to_account_info(),
                 &self.ctx.accounts.relayer_recipient.to_account_info(),
                 relayer_fee,
             )?;
 
+            // sol_transfer(
+            //     &self.ctx.accounts.recipient_fee.to_account_info(),
+            //     &self.ctx.accounts.relayer_recipient.to_account_info(),
+            //     relayer_fee,
+            // )?;
         }
 
         Ok(())
@@ -490,7 +556,7 @@ impl LightTransaction<'_, '_, '_, '_> {
         {
             return Ok(());
         }
-        err!(VerifierSdkError::TransactionIncomplete)
+        err!(ErrorCode::TransactionIncomplete)
     }
 
     #[allow(clippy::comparison_chain)]
@@ -509,14 +575,14 @@ impl LightTransaction<'_, '_, '_, '_> {
         if pub_amount.0[0] > 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
             if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0 {
                 msg!("Public amount is larger than u64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
             msg!("entered deposit");
             let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
 
             if pub_amount_fits_i64.is_err() {
                 msg!("Public amount is larger than i64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
 
             //check amount
@@ -526,7 +592,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                     pub_amount.0[0] + relayer_fee,
                     ext_amount
                 );
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
             msg!("returning public amount");
             Ok((pub_amount.0[0], relayer_fee))
@@ -538,12 +604,12 @@ impl LightTransaction<'_, '_, '_, '_> {
             // field.0[0] is the positive value
             if field.0[1] != 0 || field.0[2] != 0 || field.0[3] != 0 {
                 msg!("Public amount is larger than u64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
             let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
             if pub_amount_fits_i64.is_err() {
                 msg!("Public amount is larger than i64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
 
             if field.0[0]
@@ -557,7 +623,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                     pub_amount.0[0],
                     relayer_fee + u64::try_from(-ext_amount).unwrap()
                 );
-                return Err(VerifierSdkError::WrongPubAmount.into());
+                return Err(ErrorCode::WrongPubAmount.into());
             }
             Ok((field.0[0], relayer_fee))
         }
@@ -566,12 +632,11 @@ impl LightTransaction<'_, '_, '_, '_> {
         }
         else {
             msg!("Invalid state checking external amount.");
-            Err(VerifierSdkError::WrongPubAmount.into())
+            Err(ErrorCode::WrongPubAmount.into())
         }
     }
 
 }
-
 
 #[cfg(test)]
 mod test {
@@ -790,9 +855,9 @@ mod test {
                 pub_amount as i64,
                 0u64,
                 // Context
-                Context::<ShieldedTransfer2Inputs>::new(
+                Context::<CreateVerifierState>::new(
                     &Pubkey::new(b"Sxg7dBh5VLT8S1o6BqncZCPq9nhHHukjfVd6ohQJeAk"),//program_id: &'a Pubkey,
-                    &mut create_verifier_state::ShieldedTransfer2Inputs{
+                    &mut create_verifier_state::CreateVerifierState{
                         signing_address: Signer<'info>,
                         system_program: Program<'info, System>,
                         program_merkle_tree: Program<'info, MerkleTreeProgram>,
