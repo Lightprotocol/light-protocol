@@ -36,7 +36,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         // console.log(`input utxos -> `, inputUtxos)
         // console.log(`outputUtxos -> `, outputUtxos)
         // console.log(`merkelTree -> `, merkelTree)
-        // console.log(`externalAmountBigNumber -> `, externalAmountBigNumber)
+        console.log(`externalAmountBigNumber -> `, externalAmountBigNumber)
         // console.log(`relayerFee -> `, relayerFee)
         // console.log(`recipient -> `, recipient)
         // console.log(`Action[action] -> `, Action[action])
@@ -79,9 +79,10 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         else {
             int64 = I64(externalAmountBigNumber.toNumber());
         }
+        console.log("int64: ", int64);
         let z = new Uint8Array(8);
         int64.writeLE(z, 0);
-
+        console.log("relayerFee: ", relayerFee);
         let feesLE = new Uint8Array(8);
         if (enums_1.Action[action] !== 'deposit') {
             relayerFee.writeLE(feesLE, 0);
@@ -89,8 +90,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         else {
             feesLE.fill(0);
         }
-        // Encrypting outputUtxos onl11706303591708973095148360617010962626840972903207922381194541855451929915886y
-        // Why is this empty
+
         const nonces = [newNonce(), newNonce()];
         const senderThrowAwayKeypairs = [
             newKeypair(),
@@ -111,33 +111,22 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
             recipientFee: recipientFee.toBytes(),
             relayer: new solana.PublicKey(relayer).toBytes(),
             relayer_fee: feesLE,
-            merkleTreePubkeyBytes: merkleTreePubkeyBytes,
-            // encryptedOutput1: encryptedOutputs[0],
-            // encryptedOutput2: encryptedOutputs[1],
-            // nonce1: nonces[0],
-            // nonce2: nonces[1],
-            // senderThrowAwayPubkey1: senderThrowAwayKeypairs[0].publicKey,
-            // senderThrowAwayPubkey2: senderThrowAwayKeypairs[1].publicKey,
+            merkleTreePubkeyBytes: merkleTreePubkeyBytes
         };
         const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.recipientFee, extData.relayer, extData.relayer_fee,merkleTreeIndex, encryptedUtxos);
-        // let feeAmount = new anchor.BN(relayerFee.toString())
-        // if (externalAmountBigNumber < 0) {
-        //   feeAmount = new anchor.BN(0).sub(new anchor.BN(relayerFee.toString()))
-        //   .add(constants_1.FIELD_SIZE)
-        //   .mod(constants_1.FIELD_SIZE)
-        //   .toString()
-        // }
+
+        console.log("feeAmount: ", feeAmount);
         let input = {
             root: merkelTree.root(),
             inputNullifier: inputUtxos.map((x) => x.getNullifier()),
             outputCommitment: outputUtxos.map((x) => x.getCommitment()),
+            // TODO: move public and fee amounts into tx preparation
             publicAmount: new anchor.BN(externalAmountBigNumber)
                 .add(constants_1.FIELD_SIZE)
                 .mod(constants_1.FIELD_SIZE)
                 .toString(),
             extDataHash: extDataHash.toString(),
             feeAmount: new anchor.BN(feeAmount)
-                // .sub(new anchor.BN(relayerFee.toString()))
                 .add(constants_1.FIELD_SIZE)
                 .mod(constants_1.FIELD_SIZE)
                 .toString(),

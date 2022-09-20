@@ -2,10 +2,12 @@
 
 ## Notes
 TODO:
-- kick out ark_ed_on_bn254 dep need to change mod order in hash for this
-- merge tx into testing class
 - kick out ethers dep integrity hash
 - write testing class in TS
+
+PITTFALLS:
+- leaves are 16 bytes bigger now
+- 
 verifyProof:
 Prepare one Input: ~5k
 Pairing:

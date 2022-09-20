@@ -5,6 +5,8 @@ const nacl = require('tweetnacl')
 const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
+let circomlibjs = require("circomlibjs")
+
 import {
   MERKLE_TREE_KEY,
   DEFAULT_PROGRAMS,
@@ -32,7 +34,6 @@ export class shieldedTransaction {
     merkleTreePubkey,
     merkleTree = null,
     merkleTreeAssetPubkey = null,
-    poseidon = null,
     recipient, //PublicKey
     // recipientFee: number,
     lookupTable, //PublicKey
@@ -43,22 +44,15 @@ export class shieldedTransaction {
     merkle_tree_token_pda,
     preInsertedLeavesIndex,
     provider,
-    merkleTreeFeeAssetPubkey
+    merkleTreeFeeAssetPubkey,
+    relayerRecipient
   }) {
-      if (keypair == null) {
-        keypair = new light.Keypair(poseidon);
-      } else {
-        this.keypair = keypair;
-      }
       if (relayerPubkey == null) {
           this.relayerPubkey = new PublicKey(payer.publicKey);
       } else {
          this.relayerPubkey = relayerPubkey;
       }
-      console.log("payer: ", payer);
-
-      console.log("this.relayerPubkey ", this.relayerPubkey);
-
+      this.relayerRecipient = relayerRecipient;
       this.preInsertedLeavesIndex = preInsertedLeavesIndex;
       this.merkleTreeProgram = merkleTreeProgram;
       this.verifierProgram = verifierProgram;
@@ -72,19 +66,25 @@ export class shieldedTransaction {
       this.utxos = [];
       this.feeUtxos = [];
       this.encryptionKeypair = encryptionKeypair;
-      this.poseidon = poseidon;
       this.payer = payer;
+      console.log("payer: ", payer);
+
       this.provider = provider;
       this.recipient = recipient;
       this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
+      this.keypair = keypair;
 
     }
 
     async getMerkleTree() {
+      this.poseidon = await circomlibjs.buildPoseidonOpt();
+      if (this.keypair == null) {
+        this.keypair = new light.Keypair(this.poseidon);
+      }
       this.merkleTree = await light.buildMerkelTree(this.poseidon);
       this.merkleTreeLeavesIndex = 0;
     }
-
+/*
     prepareUtxos({
       inputUtxos,
       outputUtxos,
@@ -119,8 +119,18 @@ export class shieldedTransaction {
         this.sender = this.merkleTreeAssetPubkey;
         this.recipient = recipient;
         this.recipientFee = recipientFee;
+        if (recipientFee == undefined) {
+          throw "recipientFee undefined";
+        }
+        if (recipient == undefined) {
+          throw "recipient undefined";
+        }
+        if (relayerFee == undefined) {
+          throw "relayerFee undefined";
+        }
       }
 
+      console.log("this.recipientFee: ", this.recipientFee);
 
       this.assetPubkeys = assetPubkeys;
       this.mintPubkey = mintPubkey;
@@ -163,7 +173,7 @@ export class shieldedTransaction {
 
 
     }
-
+*/
     async prepareTransaction() {
       let data = await light.prepareTransaction(
        this.inputUtxos,
@@ -199,9 +209,9 @@ export class shieldedTransaction {
       assetPubkeys,
       recipient,
       mintPubkey = 0,
-      relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
+      relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
-      recipientFee = null,
+      recipientFee,
       sender
     }) {
       mintPubkey = assetPubkeys[1];
@@ -224,11 +234,27 @@ export class shieldedTransaction {
           throw "relayerPubkey and payer pubkey need to be equivalent at deposit";
         }
       } else if (action == "WITHDRAWAL") {
-        this.relayerFee = relayerFee;
+        this.senderFee = this.merkleTreeFeeAssetPubkey;
+        this.recipientFee = recipientFee;
         this.sender = this.merkleTreeAssetPubkey;
         this.recipient = recipient;
-        this.senderFee = this.merkleTreeFeeAssetPubkey;
+        if (relayerFee != null) {
+          this.relayerFee = relayerFee;
+          if (relayerFee == undefined) {
+            throw "relayerFee undefined";
+          }
+        }
+
+      if (recipient == undefined) {
+        throw "recipient undefined";
       }
+      if (recipientFee == undefined) {
+        throw "recipientFee undefined";
+      }
+    }
+
+    console.log("this.recipientFee: ", this.recipientFee);
+
 
       this.assetPubkeys = assetPubkeys;
       this.mintPubkey = mintPubkey;
@@ -243,6 +269,8 @@ export class shieldedTransaction {
           this.poseidon,
           shuffle
       );
+      console.log(" light.prepareUtxos res ", res);
+
       this.inputUtxos = res.inputUtxos;
       this.outputUtxos = res.outputUtxos;
       this.inIndices = res.inIndices;
@@ -258,7 +286,7 @@ export class shieldedTransaction {
        this.merkleTreePubkey.toBytes(),
        this.externalAmountBigNumber,
        this.relayerFee,
-       this.merkleTreeAssetPubkey,
+       this.recipient,
        this.relayerPubkey,
        this.action,
        this.encryptionKeypair,
@@ -312,6 +340,7 @@ export class shieldedTransaction {
       this.leavesPdaPubkeys = pdas.leavesPdaPubkeys;
       this.nullifierPdaPubkeys = pdas.nullifierPdaPubkeys;
       this.signerAuthorityPubkey = pdas.signerAuthorityPubkey;
+      this.tokenAuthority = pdas.tokenAuthority;
       return this.proofData;
     }
 
@@ -320,7 +349,7 @@ export class shieldedTransaction {
 
       this.recipientBalancePriorTx = (await getAccount(
         this.provider.connection,
-        this.merkleTreeAssetPubkey,
+        this.recipient,
         TOKEN_PROGRAM_ID
       )).amount;
       this.recipientFeeBalancePriorTx = await this.provider.connection.getBalance(this.recipientFee);
@@ -328,21 +357,21 @@ export class shieldedTransaction {
       console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
       console.log("sender_fee: ", this.senderFee);
       this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
-
-      console.log("this.recipient: ", this.recipient);
+      this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
+      console.log("relayerAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx);
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
         this.proofData.proofBytes,
         this.proofData.publicInputs.root,
-        this.proofData.publicInputs.publicAmount.slice(24,32),
+        this.proofData.publicInputs.publicAmount,
         this.proofData.publicInputs.extDataHash,
         [this.proofData.publicInputs.nullifier0,this.proofData.publicInputs.nullifier1],
         [this.proofData.publicInputs.leafRight, this.proofData.publicInputs.leafLeft],
-        this.proofData.publicInputs.feeAmount.slice(24,32),
+        this.proofData.publicInputs.feeAmount,
         this.proofData.publicInputs.mintPubkey,
-        new anchor.BN(1), //this.proofData.merkleTreeIndex,
+        new anchor.BN(1),
         new anchor.BN(0),
-        new anchor.BN(this.relayerFee.toString()),// relayer_fee
+        new anchor.BN(this.relayerFee.toString()),
         this.proofData.encryptedOutputs.slice(0,128),
         this.proofData.encryptedOutputs.slice(128,192),
         this.proofData.encryptedOutputs.slice(192,224),
@@ -353,16 +382,17 @@ export class shieldedTransaction {
           systemProgram:      SystemProgram.programId,
           programMerkleTree:  this.merkleTreeProgram.programId,
           rent:               DEFAULT_PROGRAMS.rent,
-          merkleTree:         this.merkleTreePubkey,//MERKLE_TREE_USDC,
-          preInsertedLeavesIndex: this.preInsertedLeavesIndex,//PRE_INSERTED_LEAVES_INDEX_USDC,
+          merkleTree:         this.merkleTreePubkey,
+          preInsertedLeavesIndex: this.preInsertedLeavesIndex,
           authority:          this.signerAuthorityPubkey,
           tokenProgram:       TOKEN_PROGRAM_ID,
           sender:             this.sender,
-          recipient:          this.recipient, //MERKLE_TREE_PDA_TOKEN_USDC,
+          recipient:          this.recipient,
           senderFee:          this.senderFee,
           recipientFee:       this.recipientFee,
-          relayerRecipient:   this.signerAuthorityPubkey, //AUTHORITY, // doesnt matter at deposit is not called
+          relayerRecipient:   this.relayerRecipient,
           escrow:             this.escrow,
+          tokenAuthority:     this.tokenAuthority
         }
       )
       .remainingAccounts([
@@ -371,6 +401,7 @@ export class shieldedTransaction {
         { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
       ])
       .signers([this.payer]).instruction()
+      console.log("this.payer: ", this.payer);
 
       let recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
       let txMsg = new TransactionMessage({
@@ -393,26 +424,32 @@ export class shieldedTransaction {
       compiledTx.addressTableLookups[0].accountKey = this.lookupTable
 
       let transaction = new VersionedTransaction(compiledTx);
-      transaction.sign([this.payer])
-      console.log(transaction);
-      console.log(transaction.message.addressTableLookups);
-      recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
-      transaction.message.recentBlockhash = recentBlockhash;
-      let serializedTx = transaction.serialize();
-      // console.log(this.provider.connection);
-      let res
-      try {
-        console.log("serializedTx: ", Array.from(serializedTx).toString());
+      let retries = 3;
+      while (retries > 0) {
+        transaction.sign([this.payer])
+        console.log(transaction);
+        console.log(transaction.message.addressTableLookups);
+        recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
+        transaction.message.recentBlockhash = recentBlockhash;
+        let serializedTx = transaction.serialize();
+        // console.log(this.provider.connection);
+        let res
 
-        res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
-          {
-            commitment: 'finalized',
-            preflightCommitment: 'finalized',
-          }
-        );
+        try {
+          console.log("serializedTx: ");
 
-      } catch (e) {
-        console.log(e);
+          res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
+            {
+              commitment: 'finalized',
+              preflightCommitment: 'finalized',
+            }
+          );
+          retries = 0;
+
+        } catch (e) {
+          console.log(e);
+          retries--;
+        }
 
       }
 
@@ -439,7 +476,6 @@ export class shieldedTransaction {
 
     async checkBalances(){
       // Checking that nullifiers were inserted
-      console.log("here");
       this.is_token = true;
 
       for (var i in this.nullifierPdaPubkeys) {
@@ -459,11 +495,8 @@ export class shieldedTransaction {
           connection: this.provider.connection
         });
       }
-      console.log("here1");
       let leavesAccount
       var leavesAccountData
-      console.log("this.leavesPdaPubkeys: ", this.leavesPdaPubkeys);
-
       // Checking that leaves were inserted
       for (var i in this.leavesPdaPubkeys) {
         console.log(i);
@@ -471,7 +504,6 @@ export class shieldedTransaction {
         leavesAccount = await this.provider.connection.getAccountInfo(
           this.leavesPdaPubkeys[i]
         );
-        console.log(leavesAccount);
 
         leavesAccountData = unpackLeavesAccount(leavesAccount.data)
         await checkRentExemption({
@@ -510,6 +542,12 @@ export class shieldedTransaction {
 
       }
 
+
+      if (this.action == "WITHDRAWAL") {
+
+      }
+
+
       if (this.action == "DEPOSIT" && this.is_token == false) {
         var recipientAccount = await this.provider.connection.getAccountInfo(this.recipient)
         assert(recipientAccount.lamports == (I64(this.recipientBalancePriorTx).add(this.proofData.externalAmountBigNumber.toString())).toString(), "amount not transferred correctly");
@@ -546,7 +584,7 @@ export class shieldedTransaction {
         console.log(`${Number(this.senderFeeBalancePriorTx)} - ${Number(this.feeAmount)} == ${senderFeeAccountBalance}`);
         assert(Number(this.senderFeeBalancePriorTx) - Number(this.feeAmount) - 5000 == Number(senderFeeAccountBalance) );
 
-      } else if (this.action == "withdrawal" && this.is_token == false) {
+      } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
         var senderAccount = await this.provider.connection.getAccountInfo(this.sender)
         var recipientAccount = await this.provider.connection.getAccountInfo(this.recipient)
         // console.log("senderAccount.lamports: ", senderAccount.lamports)
@@ -574,17 +612,17 @@ export class shieldedTransaction {
         // console.log("rent_leaves: ", rent_leaves)
         //
         // let expectedBalanceRelayer = I64(relayerFee)
-        //   .add(I64(Number(relayerAccountBalancePriorLastTx)))
+        //   .add(I64(Number(this.relayerRecipientAccountBalancePriorLastTx)))
         //   .add(I64(Number(rent_verifier)))
         //   // .add(I64(Number(rent_escrow)))
         //   .sub(I64(Number(rent_nullifier)))
         //   .sub(I64(Number(rent_nullifier)))
         //   .sub(I64(Number(rent_leaves)))
-        // console.log("relayerAccountBalancePriorLastTx: ", relayerAccountBalancePriorLastTx)
+        // console.log("this.relayerRecipientAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx)
         // console.log(`${relayerAccount.lamports } == ${expectedBalanceRelayer}`)
         // assert(relayerAccount.lamports == expectedBalanceRelayer.toString())
 
-      }  else if (this.action == "withdrawal" && this.is_token == true) {
+      }  else if (this.action == "WITHDRAWAL" && this.is_token == true) {
         var senderAccount = await getAccount(
           this.provider.connection,
           this.sender,
@@ -596,16 +634,22 @@ export class shieldedTransaction {
           TOKEN_PROGRAM_ID
         );
 
-        var relayerAccount = await getAccount(
-          this.provider.connection,
-          this.relayer,
-          TOKEN_PROGRAM_ID
-        );
-        assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.proofData.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
-        console.log(`${recipientAccount.amount}, ${Number(this.recipientBalancePriorTx)} ${I64.readLE(this.proofData.extAmount, 0)} ${I64(relayerFee)}`)
-        assert(recipientAccount.amount == ((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.proofData.extAmount, 0)))).toString(), "amount not transferred correctly");
-        console.log(`relayerAccount.amount ${relayerAccount.amount} == I64(relayerFee) ${I64(relayerFee)} + ${relayerAccountBalancePriorLastTx}`)
-        assert(relayerAccount.amount == (I64(relayerFee).add(I64(Number(relayerAccountBalancePriorLastTx)))).toString())
+
+        // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.proofData.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+        console.log(`${recipientAccount.amount}, ${((new anchor.BN(this.recipientBalancePriorTx)).sub(this.proofData.externalAmountBigNumber)).toString()}`)
+        assert(recipientAccount.amount.toString() == ((new anchor.BN(this.recipientBalancePriorTx)).sub(this.proofData.externalAmountBigNumber)).toString(), "amount not transferred correctly");
+
+
+
+        var relayerAccount = await this.provider.connection.getBalance(this.relayerRecipient);
+        var recipientFeeAccount = await this.provider.connection.getBalance(this.recipientFee);
+
+        console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount).toString()} == ${new anchor.BN(this.recipientFeeBalancePriorLastTx).sub(this.feeAmount).toString()}`)
+
+        console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`)
+        assert(new anchor.BN(relayerAccount).toString() == new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString());
+
+
       } else {
         throw Error("mode not supplied");
       }
@@ -658,6 +702,10 @@ export async function getPdaAddresses({
         [Buffer.from(new Uint8Array(leftLeaves[0])), anchor.utils.bytes.utf8.encode("storage")],
         merkleTreeProgram.programId))[0],
     nullifierPdaPubkeys,
-    leavesPdaPubkeys
+    leavesPdaPubkeys,
+    tokenAuthority: (await PublicKey.findProgramAddress(
+        [anchor.utils.bytes.utf8.encode("spl")],
+        merkleTreeProgram.programId
+      ))[0],
   }
 }

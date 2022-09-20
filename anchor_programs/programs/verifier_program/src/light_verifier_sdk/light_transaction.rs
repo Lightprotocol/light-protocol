@@ -182,6 +182,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             &self.fee_amount[..],
             &self.mint_pubkey[..],
         ];
+
         for input in self.nullifiers.iter() {
             public_inputs.push(input);
         }
@@ -220,12 +221,12 @@ impl LightTransaction<'_, '_, '_, '_> {
             self.encrypted_utxos.clone()
         ]
         .concat();
-        msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
-        msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
-        msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
-        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
-        msg!("integrity_hash inputs: {:?}", input);
-        msg!("integrity_hash inputs.len(): {}", input.len());
+        // msg!("recipient: {:?}", self.ctx.accounts.recipient.key().to_bytes().to_vec());
+        // msg!("recipient_fee: {:?}", self.ctx.accounts.recipient_fee.key().to_bytes().to_vec());
+        // msg!("signing_address: {:?}", self.ctx.accounts.signing_address.key().to_bytes().to_vec());
+        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        // msg!("integrity_hash inputs: {:?}", input);
+        // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = solana_program::keccak::hash(&input[..]).try_to_vec()?;
         msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fr::from_be_bytes_mod_order(&hash[..]) );
         if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
@@ -402,7 +403,7 @@ impl LightTransaction<'_, '_, '_, '_> {
                     &self.ctx.accounts.authority.to_account_info(),
                     &self.ctx.accounts.sender.to_account_info(),
                     &self.ctx.accounts.recipient.to_account_info(),
-                    &self.ctx.accounts.authority.to_account_info(), // token authority
+                    &self.ctx.accounts.token_authority.to_account_info(), // token authority
                     &self.ctx.accounts.token_program.to_account_info(),
                     pub_amount_checked,
                     1//merkle_tree_index
@@ -437,9 +438,9 @@ impl LightTransaction<'_, '_, '_, '_> {
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
-
+            msg!("is deposit");
             let rent = &Rent::from_account_info(&self.ctx.accounts.rent.to_account_info())?;
-            
+
             create_and_check_pda(
                 &self.ctx.program_id,
                 &self.ctx.accounts.signing_address.to_account_info(),
@@ -530,7 +531,7 @@ impl LightTransaction<'_, '_, '_, '_> {
             }
             msg!("returning public amount");
             Ok((pub_amount.0[0], relayer_fee))
-        } else if pub_amount.0[3] > 0 && pub_amount.0[4] > 0 {
+        } else if pub_amount.0[1] > 0 && pub_amount.0[2] > 0 && pub_amount.0[3] > 0 {
             // calculate ext_amount from pubAmount:
             let mut field = FrParameters::MODULUS;
             field.sub_noborrow(&pub_amount);
@@ -559,7 +560,9 @@ impl LightTransaction<'_, '_, '_, '_> {
                 );
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
-            Ok((field.0[0], relayer_fee))
+            let pub_amount = field.0[0] - relayer_fee;
+            msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
+            Ok((pub_amount, relayer_fee))
         }
          else if ext_amount == 0 {
             Ok((ext_amount.try_into().unwrap(), relayer_fee))

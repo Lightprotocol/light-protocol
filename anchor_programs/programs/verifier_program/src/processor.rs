@@ -51,7 +51,10 @@ pub struct ShieldedTransfer2Inputs<'info> {
     pub relayer_recipient: AccountInfo<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub escrow: AccountInfo<'info>
+    pub escrow: AccountInfo<'info>,
+    /// CHECK:` Is not checked the relayer has complete freedom.
+    #[account(mut)]
+    pub token_authority: AccountInfo<'info>
 }
 
 // split into two tx
@@ -101,7 +104,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     );
     tx.verify()?;
     tx.check_tx_integrity_hash()?;
-    tx.check_root()?;
+    // tx.check_root()?;
     sol_log_compute_units();
     msg!("leaves");
     tx.insert_leaves()?;
@@ -111,6 +114,6 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
-    tx.check_completion()?;
+    // tx.check_completion()?;
     Ok(())
 }

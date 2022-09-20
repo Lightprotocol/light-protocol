@@ -18,7 +18,7 @@ const feeAsset = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString(
 const prepareUtxos = (
     inputUtxos = [],
     outputUtxos = [],
-    relayFee,
+    relayerFee,
     assets = [],
     action,
     poseidon,
@@ -131,7 +131,7 @@ const prepareUtxos = (
           new anchor.BN(0)
       ));
       console.log("here after extNumber");
-    const feeAmount =  new anchor.BN(0)
+    var feeAmount =  new anchor.BN(0)
         .add(outputUtxos.filter((utxo) => {return utxo.assets[0] == assets[0]}).reduce((sum, utxo) => (
           // add all utxos of the same asset
           // console.log("utxo add: ",  utxo.amount[1]);
@@ -145,13 +145,13 @@ const prepareUtxos = (
           //   console.log("sum: ",  sum);
           // }
         ), new anchor.BN(0)))
-        .sub(inputUtxos.filter((utxo) => {return utxo.assets[1] == assets[1]}).reduce((sum, utxo) =>
+        .sub(inputUtxos.filter((utxo) => {return utxo.assets[0] == assets[0]}).reduce((sum, utxo) =>
           // console.log("utxo sub: ",  utxo.amount);
           //
           // if (utxo.assets == assets[1]) {
           //   sum.add(utxo.amount)
           // }
-          sum.add(utxo.amounts[1]),
+          sum.add(utxo.amounts[0]),
           new anchor.BN(0)
       ));
 

@@ -829,6 +829,7 @@ export async function executeMerkleTreeUpdateTransactions({
 
   }));
 }
+
 export async function createVerifierState({
   provider,
   ix_data,
@@ -905,7 +906,7 @@ export async function newAccountWithTokens ({
 
     const transaction = new solana.Transaction().add(
         token.createAssociatedTokenAccountInstruction(
-            userAccount.publicKey,
+            ADMIN_AUTH_KEYPAIR.publicKey,
             tokenAccount,
             userAccount.publicKey,
             MINT,
@@ -914,7 +915,7 @@ export async function newAccountWithTokens ({
         )
     );
 
-    await solana.sendAndConfirmTransaction(connection, transaction, [userAccount]);
+    await solana.sendAndConfirmTransaction(connection, transaction, [ADMIN_AUTH_KEYPAIR]);
   } catch (e) {
     console.log(e);
     process.exit()
