@@ -105,14 +105,14 @@ async function main() {
    }
    console.log(mydata)
    let resFile = await fs.openSync("verification_key_bytes_mainnet.rs","w")
-   let s = "pub const VK_ALPHA_G1: [u8;64] = [\n"
+   let s = "pub const vk_alpha_g1: [u8;64] = [\n"
    for (var j = 0; j < mydata.vk_alpha_1.length -1 ; j++) {
      console.log(typeof(mydata.vk_alpha_1[j]))
      s += "\t" + Array.from(mydata.vk_alpha_1[j])/*.reverse().toString()*/ + ",\n"
    }
    s += " ];\n\n"
    fs.writeSync(resFile,s)
-   s = "pub const VK_BETA_G2: [u8;128] = [\n"
+   s = "pub const vk_beta_g2: [u8;128] = [\n"
    for (var j = 0; j < mydata.vk_beta_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
        s += "\t" + Array.from(mydata.vk_beta_2[j][z])/*.reverse().toString()*/ + ",\n"
@@ -120,7 +120,7 @@ async function main() {
    }
    s += " ];\n\n"
    fs.writeSync(resFile,s)
-   s = "const VK_GAMMA_G2: [u8;128] = [\n"
+   s = "const vk_gamme_g2: [u8;128] = [\n"
    for (var j = 0; j < mydata.vk_gamma_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
        s += "\t" + Array.from(mydata.vk_gamma_2[j][z])/*.reverse().toString()*/ + ",\n"
@@ -129,7 +129,7 @@ async function main() {
    s += " ];\n\n"
    fs.writeSync(resFile,s)
 
-   s = "pub const VK_DELTA_G2: [u8;128] = [\n"
+   s = "pub const vk_delta_g2: [u8;128] = [\n"
    for (var j = 0; j < mydata.vk_delta_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
        s += "\t" + Array.from(mydata.vk_delta_2[j][z])/*.reverse().toString()*/ + ",\n"

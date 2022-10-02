@@ -1,7 +1,6 @@
 use crate::config;
 use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
 use std::ops::DerefMut;
 
 #[derive(Accounts)]

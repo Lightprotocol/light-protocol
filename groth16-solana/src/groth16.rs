@@ -5,35 +5,34 @@ use solana_program::alt_bn128::{
 };
 
 use crate::errors::Groth16Error;
-use std::marker::PhantomData;
 
-pub struct Groth16Verifyingkey {
-    NR_PUBINPUTS: usize,
-    VK_ALPHA_G1: [u8;64],
-    VK_BETA_G2: [u8;128],
-    VK_GAMMA_G2: [u8;128],
-    VK_DELTA_G2: [u8;128],
-    VK_IC: [[u8;64]; 10]
+pub struct Groth16Verifyingkey<'a> {
+    pub nr_pubinputs: usize,
+    pub vk_alpha_g1: [u8;64],
+    pub vk_beta_g2: [u8;128],
+    pub vk_gamme_g2: [u8;128],
+    pub vk_delta_g2: [u8;128],
+    pub vk_ic: &'a [[u8;64]]
 }
 
-pub struct Groth16Verifier {
+pub struct Groth16Verifier<'a> {
     proof_a: Vec<u8>,
     proof_b: Vec<u8>,
     proof_c: Vec<u8>,
     public_inputs: Vec<Vec<u8>>,
     prepared_public_inputs: Vec<u8>,
-    verifyingkey: Groth16Verifyingkey
+    verifyingkey: &'a Groth16Verifyingkey<'a>
 }
 
-impl Groth16Verifier {
+impl Groth16Verifier<'_> {
 
-    pub fn new(
+    pub fn new<'a>(
         proof_a: Vec<u8>,
         proof_b: Vec<u8>,
         proof_c: Vec<u8>,
         public_inputs: Vec<Vec<u8>>,
-        verifyingkey: Groth16Verifyingkey
-    ) -> Result<Groth16Verifier,Groth16Error> {
+        verifyingkey: &'a Groth16Verifyingkey<'a>
+    ) -> Result<Groth16Verifier<'a>,Groth16Error> {
 
         if proof_a.len() != 64 {
             return Err(Groth16Error::InvalidG1Length);
@@ -47,7 +46,7 @@ impl Groth16Verifier {
             return Err(Groth16Error::InvalidG1Length);
         }
 
-        if public_inputs.len() + 1 != verifyingkey.VK_IC.len() {
+        if public_inputs.len() + 1 != verifyingkey.vk_ic.len() {
             return Err(Groth16Error::InvalidPublicInputsLength);
         }
 
@@ -63,10 +62,10 @@ impl Groth16Verifier {
 
     pub fn prepare_inputs(&mut self) -> Result<(),Groth16Error> {
 
-        let mut prepared_public_inputs = self.verifyingkey.VK_IC[0].clone();
+        let mut prepared_public_inputs = self.verifyingkey.vk_ic[0].clone();
 
         for (i, input) in self.public_inputs.iter().enumerate() {
-            let mul_res = alt_bn128_multiplication(&[&self.verifyingkey.VK_IC[i+1][..], &input[..]].concat()).unwrap();
+            let mul_res = alt_bn128_multiplication(&[&self.verifyingkey.vk_ic[i+1][..], &input[..]].concat()).unwrap();
             prepared_public_inputs = alt_bn128_addition(&[&mul_res[..], &prepared_public_inputs[..]].concat()).unwrap().try_into().unwrap();
         }
 
@@ -80,11 +79,11 @@ impl Groth16Verifier {
             self.proof_a.to_vec(),
             self.proof_b.to_vec(),
             self.prepared_public_inputs.to_vec(),
-            self.verifyingkey.VK_GAMMA_G2.to_vec(),
+            self.verifyingkey.vk_gamme_g2.to_vec(),
             self.proof_c.to_vec(),
-            self.verifyingkey.VK_DELTA_G2.to_vec(),
-            self.verifyingkey.VK_ALPHA_G1.to_vec(),
-            self.verifyingkey.VK_BETA_G2.to_vec(),
+            self.verifyingkey.vk_delta_g2.to_vec(),
+            self.verifyingkey.vk_alpha_g1.to_vec(),
+            self.verifyingkey.vk_beta_g2.to_vec(),
         ].concat();
 
         let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
@@ -105,33 +104,33 @@ mod tests {
     pub const verifyingkey: Groth16Verifyingkey =  Groth16Verifyingkey {
         NR_PUBINPUTS: 10,
 
-    	VK_ALPHA_G1: [
+    	vk_alpha_g1: [
     	45,77,154,167,227,2,217,223,65,116,157,85,7,148,157,5,219,234,51,251,177,108,100,59,34,245,153,162,190,109,242,226,
     	20,190,221,80,60,55,206,176,97,216,236,96,32,159,227,69,206,137,131,10,25,35,3,1,240,118,202,255,0,77,25,38,
     	],
 
-    	VK_BETA_G2: [
+    	vk_beta_g2: [
     	9,103,3,47,203,247,118,209,175,201,133,248,136,119,241,130,211,132,128,166,83,242,222,202,169,121,76,188,59,243,6,12,
     	14,24,120,71,173,76,121,131,116,208,214,115,43,245,1,132,125,214,139,192,224,113,36,30,2,19,188,127,193,61,183,171,
     	48,76,251,209,224,138,112,74,153,245,232,71,217,63,140,60,170,253,222,196,107,122,13,55,157,166,154,77,17,35,70,167,
     	23,57,193,177,164,87,168,199,49,49,35,210,77,47,145,146,248,150,183,198,62,234,5,169,213,127,6,84,122,208,206,200,
     	],
 
-    	VK_GAMMA_G2: [
+    	vk_gamme_g2: [
     	25,142,147,147,146,13,72,58,114,96,191,183,49,251,93,37,241,170,73,51,53,169,231,18,151,228,133,183,174,243,18,194,
     	24,0,222,239,18,31,30,118,66,106,0,102,94,92,68,121,103,67,34,212,247,94,218,221,70,222,189,92,217,146,246,237,
     	9,6,137,208,88,95,240,117,236,158,153,173,105,12,51,149,188,75,49,51,112,179,142,243,85,172,218,220,209,34,151,91,
     	18,200,94,165,219,140,109,235,74,171,113,128,141,203,64,143,227,209,231,105,12,67,211,123,76,230,204,1,102,250,125,170,
     	],
 
-    	VK_DELTA_G2: [
+    	vk_delta_g2: [
     	25,142,147,147,146,13,72,58,114,96,191,183,49,251,93,37,241,170,73,51,53,169,231,18,151,228,133,183,174,243,18,194,
     	24,0,222,239,18,31,30,118,66,106,0,102,94,92,68,121,103,67,34,212,247,94,218,221,70,222,189,92,217,146,246,237,
     	9,6,137,208,88,95,240,117,236,158,153,173,105,12,51,149,188,75,49,51,112,179,142,243,85,172,218,220,209,34,151,91,
     	18,200,94,165,219,140,109,235,74,171,113,128,141,203,64,143,227,209,231,105,12,67,211,123,76,230,204,1,102,250,125,170,
     	],
         // [[u8;64];10]
-    	VK_IC: [
+    	vk_ic: [
     	[
     	3,183,175,189,219,73,183,28,132,200,83,8,65,22,184,81,82,36,181,186,25,216,234,25,151,2,235,194,13,223,32,145,
     	15,37,113,122,93,59,91,25,236,104,227,238,58,154,67,250,186,91,93,141,18,241,150,59,202,48,179,1,53,207,155,199,

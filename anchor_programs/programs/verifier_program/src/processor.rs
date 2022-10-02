@@ -1,60 +1,23 @@
-use anchor_spl::token::Token;
 use anchor_lang::prelude::*;
-use merkle_tree_program::initialize_new_merkle_tree_spl::PreInsertedLeavesIndex;
-use merkle_tree_program::program::MerkleTreeProgram;
 use solana_program::log::sol_log_compute_units;
-use crate::LightTransaction;
+use crate::verification_key::VERIFYINGKEY;
+use light_verifier_sdk::{
+    light_transaction::{
+        TxConfig,
+        LightTransaction,
+        self
+    },
+};
 
-#[derive( Accounts)]
-#[instruction(
-    proof:              [u8;256],
-    merkle_root:        [u8;32],
-    amount:             [u8;32],
-    tx_integrity_hash:  [u8;32]
-)]
-pub struct ShieldedTransfer2Inputs<'info> {
-    // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
-    // pub verifier_state: AccountLoader<'info, VerifierState>,
-    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
-    #[account(mut)]
-    pub signing_address: Signer<'info>,
-    pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    pub rent: Sysvar<'info, Rent>,
-    /// CHECK: Is the same as in integrity hash.
-    // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
-    #[account(mut)]
-    pub merkle_tree: AccountInfo<'info>,
-    #[account(
-        mut,
-        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub relayer_recipient: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub escrow: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub token_authority: AccountInfo<'info>
+use crate::LightInstruction;
+struct LightTx;
+impl TxConfig for LightTx {
+    /// Number of nullifiers to be inserted with the transaction.
+	const NR_NULLIFIERS: usize = 2;
+	/// Number of output utxos.
+	const NR_LEAVES: usize = 2;
+	/// Number of checked public inputs.
+    const N_CHECKED_PUBLIC_INPUTS: usize = 0;
 }
 
 // split into two tx
@@ -63,7 +26,7 @@ pub struct ShieldedTransfer2Inputs<'info> {
 // if yes insert leaves etc
 
 pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info,ShieldedTransfer2Inputs<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info,LightInstruction<'info>>,
     proof: [u8; 256],
     merkle_root: [u8; 32],
     public_amount: [u8; 32],
@@ -85,8 +48,27 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     // Put commitment accounts in the remaining accounts
     // make the instruction flexible enough such that I can easily call it in a second tx
     // actually with that I can easily implement it in 2 tx in the first place
+    let accounts = light_transaction::Accounts {
+        program_id: ctx.program_id,
+        signing_address: ctx.accounts.signing_address.to_account_info(),
+        system_program: ctx.accounts.system_program.to_account_info(),
+        program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info(),
+        rent: ctx.accounts.rent.to_account_info(),
+        merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
+        pre_inserted_leaves_index: ctx.accounts.pre_inserted_leaves_index.to_account_info(),
+        authority: ctx.accounts.authority.to_account_info(),
+        token_program: ctx.accounts.token_program.to_account_info(),
+        sender: ctx.accounts.sender.to_account_info(),
+        recipient: ctx.accounts.recipient.to_account_info(),
+        sender_fee: ctx.accounts.sender_fee.to_account_info(),
+        recipient_fee: ctx.accounts.recipient_fee.to_account_info(),
+        relayer_recipient: ctx.accounts.relayer_recipient.to_account_info(),
+        escrow: ctx.accounts.escrow.to_account_info(),
+        token_authority: ctx.accounts.token_authority.to_account_info(),
+        remaining_accounts: ctx.remaining_accounts
+    };
 
-    let mut tx = LightTransaction::new(
+    let mut tx = LightTransaction::<LightTx>::new(
         proof,
         merkle_root,
         public_amount,
@@ -100,7 +82,8 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         merkle_tree_index,
         ext_amount,
         relayer_fee,
-        ctx
+        accounts,
+        VERIFYINGKEY
     );
     tx.verify()?;
     tx.check_tx_integrity_hash()?;

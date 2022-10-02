@@ -1,7 +1,6 @@
 use crate::config;
 use crate::utils::constants::NF_SEED;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program;
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
 #[account]

@@ -13,3 +13,5 @@
 
 /program_merkle_tree/dist/
 /program_merkle_tree/docker-target
+groth16-solana/target
+light-verifier-sdk/target
