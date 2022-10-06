@@ -81,10 +81,11 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "finalized", commitment: "finalized"});//anchor.getProvider();
+  console.log("e");
 
   const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
-  const attackerProgram = anchor.workspace.AttackerProgram as Program<AttackerProgram>;
+  // const attackerProgram = anchor.workspace.AttackerProgram as Program<AttackerProgram>;
   console.log(solana.PublicKey);
   // var provider
 
@@ -396,7 +397,7 @@ describe("verifier_program", () => {
 
   });
 
-  it("Deposit", async () => {
+  it.only("Deposit", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -491,7 +492,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.only("Withdraw", async () => {
+  it("Withdraw", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);

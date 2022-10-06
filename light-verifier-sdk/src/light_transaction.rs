@@ -1,9 +1,13 @@
-use anchor_lang::prelude::*;
-use crate::errors::VerifierSdkError;
+use anchor_lang::{
+    prelude::*,
+    solana_program::{
+        log::sol_log_compute_units,
+        self
+    }
+};
+
+use anchor_spl::token::{Transfer};
 use ark_std::{marker::PhantomData, vec::Vec};
-use groth16_solana::groth16::Groth16Verifier;
-use groth16_solana::groth16::Groth16Verifyingkey;
-use ark_bn254::Fr;
 use ark_ff::{
     BigInteger256,
     FpParameters,
@@ -14,17 +18,25 @@ use ark_ff::{
         ToBytes
     }
 };
-use ark_bn254::FrParameters;
+
+use ark_bn254::{
+    FrParameters,
+    Fr
+};
+use groth16_solana::groth16::{
+    Groth16Verifier,
+    Groth16Verifyingkey
+};
+
 use merkle_tree_program::{
     close_account,
     utils::create_pda::create_and_check_pda,
 };
 
-use anchor_spl::token::{Transfer};
-type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 use std::ops::Neg;
-use anchor_lang::solana_program::log::sol_log_compute_units;
 
+
+use crate::errors::VerifierSdkError;
 use crate::cpi_instructions::{
     check_merkle_root_exists_cpi,
     initialize_nullifier_cpi,
@@ -32,6 +44,7 @@ use crate::cpi_instructions::{
     withdraw_sol_cpi,
     withdraw_spl_cpi
 };
+use crate::accounts::Accounts;
 
 fn to_be_64(bytes: &[u8]) -> Vec<u8> {
     let mut vec = Vec::new();
@@ -44,6 +57,7 @@ fn to_be_64(bytes: &[u8]) -> Vec<u8> {
 }
 
 // pub const FEE_TOKEN: Pubkey = solana_program::id();
+type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 
 pub trait TxConfig {
 	/// Number of nullifiers to be inserted with the transaction.
@@ -52,26 +66,6 @@ pub trait TxConfig {
 	const NR_LEAVES: usize;
 	/// Number of checked public inputs.
 	const N_CHECKED_PUBLIC_INPUTS: usize;
-}
-
-pub struct Accounts<'info, 'a, 'c> {
-    pub program_id: &'a Pubkey,
-    pub signing_address:  AccountInfo<'info>,
-    pub system_program: AccountInfo<'info>,
-    pub program_merkle_tree: AccountInfo<'info>,
-    pub rent: AccountInfo<'info>,
-    pub merkle_tree: AccountInfo<'info>,
-    pub pre_inserted_leaves_index: AccountInfo<'info>,
-    pub authority: AccountInfo<'info>,
-    pub token_program: AccountInfo<'info>,
-    pub sender: AccountInfo<'info>,
-    pub recipient: AccountInfo<'info>,
-    pub sender_fee: AccountInfo<'info>,
-    pub recipient_fee: AccountInfo<'info>,
-    pub relayer_recipient: AccountInfo<'info>,
-    pub escrow: AccountInfo<'info>,
-    pub token_authority: AccountInfo<'info>,
-    pub remaining_accounts: &'c [AccountInfo<'info>]
 }
 
 pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
@@ -97,9 +91,9 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     inserted_leaves : bool,
     inserted_nullifier : bool,
     checked_root : bool,
-    accounts: Accounts<'info, 'a, 'c>, //Context<'a, 'b, 'c, 'info, LightInstructionTrait<'info>>,
+    accounts: Accounts<'info, 'a, 'c>,
     e_phantom: PhantomData<T>,
-    verifyingkey: Groth16Verifyingkey<'a>
+    verifyingkey: &'a Groth16Verifyingkey<'a>
 }
 
 
@@ -120,7 +114,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         ext_amount: i64,
         relayer_fee: u64,
         accounts: Accounts<'info, 'a, 'c>,//Context<'info, LightInstructionTrait<'info>>,
-        verifyingkey: Groth16Verifyingkey<'a>
+        verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> LightTransaction<'info, 'a, 'c, T> {
         // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
         // assert_eq!(leaves.len(), NR_LEAVES  / 2);
@@ -128,7 +122,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
         let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
 
-        let mut proof_a_neg = [0u8;64];
+        let mut proof_a_neg = [0u8;65];
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
         return LightTransaction {
@@ -143,7 +137,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             tx_integrity_hash: ext_data_hash.to_vec(),
             ext_amount: ext_amount,
             relayer_fee: relayer_fee,
-            proof_a: to_be_64(&proof_a_neg).to_vec(),
+            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(),
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos: encrypted_utxos,
@@ -227,14 +221,20 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn insert_leaves(&mut self) -> Result<()> {
 
-        assert_eq!(T::NR_NULLIFIERS, self.nullifiers.len());
-        assert_eq!(T::NR_NULLIFIERS + (T::NR_LEAVES / 2), self.accounts.remaining_accounts.len());
+
+        if T::NR_NULLIFIERS != self.nullifiers.len() {
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            return err!(VerifierSdkError::InvalidNrNullifieraccounts);
+        }
+
+        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.remaining_accounts.len() {
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            return err!(VerifierSdkError::InvalidNrLeavesaccounts);
+        }
 
         // check merkle tree
         for (i, leaves) in self.leaves.iter().enumerate()/*.zip(self.accounts.remaining_accounts).skip(NR_NULLIFIERS)*/ {
             // check account integrities
-            // msg!("leaves: {:?}", leaves);
-            // msg!("self.nullifiers[0].clone() {:?}", self.nullifiers[0].clone());
 
             insert_two_leaves_cpi(
                 &self.accounts.program_id,
@@ -277,8 +277,15 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn insert_nullifiers(&mut self) -> Result<()> {
 
-        assert_eq!(T::NR_NULLIFIERS, self.nullifiers.len());
-        assert_eq!(T::NR_NULLIFIERS + (T::NR_LEAVES / 2), self.accounts.remaining_accounts.len());
+        if T::NR_NULLIFIERS != self.nullifiers.len() {
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            return err!(VerifierSdkError::InvalidNrNullifieraccounts);
+        }
+
+        if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.remaining_accounts.len() {
+            msg!("NR_LEAVES / 2  {} != self.leaves.len() {}", T::NR_LEAVES / 2, self.leaves.len());
+            return err!(VerifierSdkError::InvalidNrLeavesaccounts);
+        }
 
         for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.accounts.remaining_accounts) {
 
@@ -314,9 +321,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         if self.is_deposit() {
             // sender is user no check
             // recipient is merkle tree pda, check correct derivation
+            
         } else {
             // sender is merkle tree pda check correct derivation
+
             // recipient is the same as in integrity_hash
+
         }
 
         if self.mint_pubkey == [0u8;32] {

@@ -1,6 +1,4 @@
-pub mod light_transaction;
+pub mod accounts;
 pub mod cpi_instructions;
 pub mod errors;
-
-pub use light_transaction::*;
-pub use errors::*;
+pub mod light_transaction;

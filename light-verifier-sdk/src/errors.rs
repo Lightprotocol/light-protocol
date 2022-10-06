@@ -11,5 +11,10 @@ pub enum VerifierSdkError {
     #[msg("ProofVerificationFailed")]
     ProofVerificationFailed,
     #[msg("Transaction was not executed completely")]
-    TransactionIncomplete
+    TransactionIncomplete,
+    #[msg("Invalid number of Nullifieraccounts")]
+    InvalidNrNullifieraccounts,
+    #[msg("Invalid number of Leavesaccounts")]
+    InvalidNrLeavesaccounts,
+
 }

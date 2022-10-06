@@ -407,7 +407,7 @@ export class shieldedTransaction {
       let txMsg = new TransactionMessage({
             payerKey: this.payer.publicKey,
             instructions: [
-              // ComputeBudgetProgram.requestUnits({units:1_400_000, fee: 1}),
+              ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
               // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
               ix
             ],

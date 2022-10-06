@@ -181,7 +181,8 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         for (var i in publicInputsBytes) {
             publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
         }
-        console.log("encryptedOutputs ", encryptedOutputs);
+        console.log("Public inputs bytes", (new Uint8Array([...publicInputsBytes[0], ...publicInputsBytes[1], ...publicInputsBytes[2], ...publicInputsBytes[3], ...publicInputsBytes[4], ...publicInputsBytes[5], ...publicInputsBytes[6], ...publicInputsBytes[7], ...publicInputsBytes[8]])).toString());
+        console.log("proof bytes: ", (yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson)).toString());
         let publicInputs = {
             root:         publicInputsBytes[0],
             publicAmount: publicInputsBytes[1],
@@ -193,15 +194,7 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
             leafLeft:     publicInputsBytes[7],
             leafRight:    publicInputsBytes[8]
         };
-        console.log({
-                extAmount: extAmount,
-                externalAmountBigNumber,
-                extDataBytes,
-                publicInputs,//
-                proofBytes: yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson),
-                encryptedOutputs: encryptedOutputs,
-                relayerFee
-            });
+
         return {
                 extAmount: extAmount,
                 externalAmountBigNumber,
