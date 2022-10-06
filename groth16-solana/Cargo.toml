@@ -3,8 +3,11 @@ name = "groth16-solana"
 version = "0.1.0"
 edition = "2021"
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 solana-program = { path = "../../solana_real/solana/sdk/program"}
 thiserror = "1.0"
+
+[dev-dependencies]
+ark-ec = "0.3.0"
+ark-bn254 = "0.3.0"
+ark-ff = "0.3.0"
