@@ -1,6 +1,7 @@
 use crate::config;
 use crate::utils::constants::NF_SEED;
 use anchor_lang::prelude::*;
+use crate::RegisteredVerifier;
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
 #[account]
@@ -18,8 +19,9 @@ pub struct InitializeNullifier<'info> {
     )]
     pub nullifier_pda: Account<'info, Nullifier>,
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(index).unwrap()]))]
+    #[account(mut, address=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
 }

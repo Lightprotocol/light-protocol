@@ -38,7 +38,6 @@ use std::ops::Neg;
 
 use crate::errors::VerifierSdkError;
 use crate::cpi_instructions::{
-    check_merkle_root_exists_cpi,
     initialize_nullifier_cpi,
     insert_two_leaves_cpi,
     withdraw_sol_cpi,
@@ -69,11 +68,11 @@ pub trait TxConfig {
 }
 
 pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
-    merkle_root: [u8; 32],
-    public_amount: [u8;32],
-    ext_data_hash: [u8;32],
-    fee_amount: [u8;32],
-    mint_pubkey: [u8;32],
+    merkle_root: &'a [u8; 32],
+    public_amount: &'a [u8;32],
+    ext_data_hash: &'a [u8;32],
+    fee_amount: &'a [u8;32],
+    mint_pubkey: &'a [u8;32],
     checked_public_inputs: Vec<Vec<u8>>,
     nullifiers: Vec<Vec<u8>>,
     leaves: Vec<(Vec<u8>, Vec<u8>)>,
@@ -83,7 +82,6 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     proof_b: Vec<u8>,
     proof_c: Vec<u8>,
     encrypted_utxos: Vec<u8>,
-    merkle_tree_index: u64,
     tx_integrity_hash: Vec<u8>,
     transferred_funds: bool,
     checked_tx_integrity_hash: bool,
@@ -91,7 +89,7 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     inserted_leaves : bool,
     inserted_nullifier : bool,
     checked_root : bool,
-    accounts: Accounts<'info, 'a, 'c>,
+    accounts: &'a Accounts<'info, 'a, 'c>,
     e_phantom: PhantomData<T>,
     verifyingkey: &'a Groth16Verifyingkey<'a>
 }
@@ -100,20 +98,19 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
 impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn new<'info, 'a, 'c> (
-        proof: [u8;256],
-        merkle_root: [u8; 32],
-        public_amount: [u8;32],
-        ext_data_hash: [u8;32],
-        fee_amount: [u8;32],
-        mint_pubkey: [u8;32],
+        proof: &'a [u8;256],
+        merkle_root: &'a [u8; 32],
+        public_amount: &'a [u8;32],
+        ext_data_hash: &'a [u8;32],
+        fee_amount: &'a [u8;32],
+        mint_pubkey: &'a [u8;32],
         checked_public_inputs: Vec<Vec<u8>>,
         nullifiers: Vec<Vec<u8>>,
         leaves: Vec<(Vec<u8>, Vec<u8>)>,
         encrypted_utxos: Vec<u8>,
-        merkle_tree_index: u64,
         ext_amount: i64,
         relayer_fee: u64,
-        accounts: Accounts<'info, 'a, 'c>,//Context<'info, LightInstructionTrait<'info>>,
+        accounts: &'a Accounts<'info, 'a, 'c>,//Context<'info, LightInstructionTrait<'info>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> LightTransaction<'info, 'a, 'c, T> {
         // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
@@ -141,7 +138,6 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos: encrypted_utxos,
-            merkle_tree_index: merkle_tree_index,
             transferred_funds: false,
             checked_tx_integrity_hash: false,
             verified_proof : false,
@@ -190,12 +186,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
     }
 
     pub fn check_tx_integrity_hash(&mut self) -> Result<()> {
+        panic!("removed merkle tree index");
         let input = [
             self.accounts.recipient.key().to_bytes().to_vec(),
             self.accounts.recipient_fee.key().to_bytes().to_vec(),
             self.accounts.signing_address.key().to_bytes().to_vec(),
             self.relayer_fee.to_le_bytes().to_vec(),
-            vec![self.merkle_tree_index.try_into().unwrap()],
             self.encrypted_utxos.clone()
         ]
         .concat();
@@ -221,14 +217,13 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn insert_leaves(&mut self) -> Result<()> {
 
-
         if T::NR_NULLIFIERS != self.nullifiers.len() {
-            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", T::NR_NULLIFIERS, self.nullifiers.len());
             return err!(VerifierSdkError::InvalidNrNullifieraccounts);
         }
 
         if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.remaining_accounts.len() {
-            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", T::NR_NULLIFIERS, self.nullifiers.len());
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
@@ -244,10 +239,11 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.pre_inserted_leaves_index.to_account_info(),
                 &self.accounts.system_program.to_account_info(),
                 &self.accounts.rent.to_account_info(),
+                &self.accounts.registered_verifier_pda.to_account_info(),
                 leaves.0.clone().try_into().unwrap(),
                 leaves.0.clone().try_into().unwrap(),
                 leaves.1.clone().try_into().unwrap(),
-                self.accounts.merkle_tree.key().to_bytes(),
+                self.accounts.merkle_tree.key(),
                 self.encrypted_utxos.clone().try_into().unwrap()
             )?;
         }
@@ -262,23 +258,25 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         // send index of root in merkle tree account
         // get root at that index
         // just unpack the account
-        // check that it's the correct account
-        check_merkle_root_exists_cpi(
-            &self.accounts.program_id,
-            &self.accounts.program_merkle_tree,
-            &self.accounts.authority.to_account_info(),
-            &self.accounts.merkle_tree.to_account_info(),
-            self.merkle_tree_index.try_into().unwrap(),
-            to_be_64(&self.merkle_root).try_into().unwrap(),
-        )?;
-        self.checked_root = true;
+        msg!("implement rootcheck with index");
+
+        // // check that it's the correct account
+        // check_merkle_root_exists_cpi(
+        //     &self.accounts.program_id,
+        //     &self.accounts.program_merkle_tree,
+        //     &self.accounts.authority.to_account_info(),
+        //     &self.accounts.merkle_tree.to_account_info(),
+        //     self.merkle_tree_index.try_into().unwrap(),
+        //     to_be_64(&self.merkle_root).try_into().unwrap(),
+        // )?;
+        // self.checked_root = true;
         Ok(())
     }
 
     pub fn insert_nullifiers(&mut self) -> Result<()> {
 
         if T::NR_NULLIFIERS != self.nullifiers.len() {
-            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", NR_NULLIFIERS, self.nullifiers.len());
+            msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", T::NR_NULLIFIERS, self.nullifiers.len());
             return err!(VerifierSdkError::InvalidNrNullifieraccounts);
         }
 
@@ -296,6 +294,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &nullifier_pda.to_account_info(),
                 &self.accounts.system_program.to_account_info().clone(),
                 &self.accounts.rent.to_account_info().clone(),
+                &self.accounts.registered_verifier_pda.to_account_info(),
                 (*nullifier.clone()).try_into().unwrap()
             )?;
         }
@@ -313,7 +312,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let (pub_amount_checked, relayer_fee) = self.check_external_amount(
             0,
             0,
-            to_be_64(&self.public_amount).try_into().unwrap(),
+            to_be_64(self.public_amount).try_into().unwrap(),
             false
         )?;
 
@@ -321,7 +320,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         if self.is_deposit() {
             // sender is user no check
             // recipient is merkle tree pda, check correct derivation
-            
+
         } else {
             // sender is merkle tree pda check correct derivation
 
@@ -329,7 +328,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
         }
 
-        if self.mint_pubkey == [0u8;32] {
+        if *self.mint_pubkey == [0u8;32] {
             // either sol withdrawal or normal withdrawal
             // deposit
 
@@ -363,6 +362,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     &self.accounts.authority.to_account_info(),
                     &self.accounts.sender.to_account_info(),
                     &self.accounts.recipient.to_account_info(),
+                    &self.accounts.registered_verifier_pda.to_account_info(),
                     pub_amount_checked,
                 )?;
             }
@@ -399,8 +399,8 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     &self.accounts.recipient.to_account_info(),
                     &self.accounts.token_authority.to_account_info(), // token authority
                     &self.accounts.token_program.to_account_info(),
-                    pub_amount_checked,
-                    1//merkle_tree_index
+                    &self.accounts.registered_verifier_pda.to_account_info(),
+                    pub_amount_checked
                 )?;
             }
         }
@@ -427,7 +427,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let (fee_amount_checked, relayer_fee) = self.check_external_amount(
             0,
             self.relayer_fee,
-            to_be_64(&self.fee_amount).try_into().unwrap(),
+            to_be_64(self.fee_amount).try_into().unwrap(),
             true
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
@@ -457,6 +457,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.authority.to_account_info(),
                 &self.accounts.sender_fee.to_account_info(),
                 &self.accounts.recipient_fee.to_account_info(),
+                &self.accounts.registered_verifier_pda.to_account_info(),
                 fee_amount_checked,
             )?;
 
@@ -467,6 +468,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.authority.to_account_info(),
                 &self.accounts.sender_fee.to_account_info(),
                 &self.accounts.relayer_recipient.to_account_info(),
+                &self.accounts.registered_verifier_pda.to_account_info(),
                 relayer_fee,
             )?;
 

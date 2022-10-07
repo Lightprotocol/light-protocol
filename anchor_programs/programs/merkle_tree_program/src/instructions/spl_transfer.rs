@@ -1,20 +1,22 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Transfer};
 use crate::utils::config;
+use crate::RegisteredVerifier;
 
 #[derive(Accounts)]
-#[instruction(data: Vec<u8>,_verifier_index: u64, _merkle_tree_index: u64)]
+#[instruction(data: Vec<u8>)]
 pub struct WithdrawSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::REGISTERED_VERIFIER_KEY_ARRAY[usize::try_from(_verifier_index).unwrap()]))]
+    #[account(mut, address=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     /// CHECK:` That the merkle tree token belongs to a registered Merkle tree.
-    #[account(mut, constraint = merkle_tree_token.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(_merkle_tree_index).unwrap()].1))]
+    #[account(mut)]
     pub merkle_tree_token: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` that the token authority is derived in the correct way.
     #[account(mut, seeds=[b"spl"], bump)]
     pub token_authority: AccountInfo<'info>,
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
     // Recipients are specified in remaining accounts and checked in the verifier program.
 }
 

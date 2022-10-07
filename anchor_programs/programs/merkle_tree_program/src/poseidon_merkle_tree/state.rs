@@ -1,30 +1,26 @@
 use crate::utils::config::ENCRYPTED_UTXOS_LENGTH;
 use crate::utils::constants::MERKLE_TREE_ACCOUNT_TYPE;
-use anchor_lang::solana_program::{
-    msg,
-    program_error::ProgramError,
-    program_pack::{IsInitialized, Pack, Sealed},
-};
-use arrayref::{array_mut_ref, array_ref, array_refs, mut_array_refs};
-use byteorder::{ByteOrder, LittleEndian};
-use std::convert::TryInto;
+use anchor_lang::prelude::*;
 
-#[allow(unused_variables)]
-#[derive(Debug, Clone, Default, PartialEq)]
+// #[allow(unused_variables)]
+// #[derive(Debug, Default, PartialEq)]
+#[account(zero_copy)]
 pub struct MerkleTree {
-    pub is_initialized: bool,
+    // pub is_initialized: bool,
     pub levels: usize,
-    pub filled_subtrees: Vec<Vec<u8>>,
+    pub filled_subtrees: [[u8;32];18],
     pub current_root_index: usize,
     pub next_index: usize,
     pub root_history_size: usize,
-    pub roots: Vec<u8>,
+    pub roots: [[u8;32];32],
     pub current_total_deposits: u64,
     pub inserted_leaf: bool,
     pub inserted_root: bool,
-    pub pubkey_locked: Vec<u8>,
+    pub pubkey_locked: Pubkey,
     pub time_locked: u64,
+    pub height: u64,
 }
+/*
 impl Sealed for MerkleTree {}
 impl IsInitialized for MerkleTree {
     fn is_initialized(&self) -> bool {
@@ -191,18 +187,20 @@ impl Pack for InitMerkleTreeBytes {
         *bytes_dst = self.bytes.clone().try_into().unwrap();
     }
 }
+*/
 
-#[derive(Clone, Debug)]
+// #[derive(Debug)]
+#[account]
+#[derive(Eq, PartialEq, Debug)]
 pub struct TwoLeavesBytesPda {
-    pub is_initialized: bool,
-    pub account_type: u8,
-    pub node_right: Vec<u8>,
-    pub node_left: Vec<u8>,
-    pub merkle_tree_pubkey: Vec<u8>,
-    pub encrypted_utxos: Vec<u8>,
-    pub left_leaf_index: usize,
+    pub node_left: [u8;32],
+    pub node_right: [u8;32],
+    pub merkle_tree_pubkey: Pubkey,
+    pub encrypted_utxos: [u8; 256],
+    pub left_leaf_index: u64,
+    pub is_inserted: bool,
 }
-
+/*
 impl Sealed for TwoLeavesBytesPda {}
 impl IsInitialized for TwoLeavesBytesPda {
     fn is_initialized(&self) -> bool {
@@ -264,3 +262,4 @@ impl Pack for TwoLeavesBytesPda {
         msg!("packed inserted_leaves");
     }
 }
+*/

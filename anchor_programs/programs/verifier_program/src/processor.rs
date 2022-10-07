@@ -4,9 +4,9 @@ use crate::verification_key::VERIFYINGKEY;
 use light_verifier_sdk::{
     light_transaction::{
         TxConfig,
-        LightTransaction,
-        self
+        LightTransaction
     },
+    accounts::Accounts
 };
 
 use crate::LightInstruction;
@@ -48,41 +48,41 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     // Put commitment accounts in the remaining accounts
     // make the instruction flexible enough such that I can easily call it in a second tx
     // actually with that I can easily implement it in 2 tx in the first place
-    let accounts = light_transaction::Accounts {
-        program_id: ctx.program_id,
-        signing_address: ctx.accounts.signing_address.to_account_info(),
-        system_program: ctx.accounts.system_program.to_account_info(),
-        program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info(),
-        rent: ctx.accounts.rent.to_account_info(),
-        merkle_tree: ctx.accounts.merkle_tree.to_account_info(),
-        pre_inserted_leaves_index: ctx.accounts.pre_inserted_leaves_index.to_account_info(),
-        authority: ctx.accounts.authority.to_account_info(),
-        token_program: ctx.accounts.token_program.to_account_info(),
-        sender: ctx.accounts.sender.to_account_info(),
-        recipient: ctx.accounts.recipient.to_account_info(),
-        sender_fee: ctx.accounts.sender_fee.to_account_info(),
-        recipient_fee: ctx.accounts.recipient_fee.to_account_info(),
-        relayer_recipient: ctx.accounts.relayer_recipient.to_account_info(),
-        escrow: ctx.accounts.escrow.to_account_info(),
-        token_authority: ctx.accounts.token_authority.to_account_info(),
-        remaining_accounts: ctx.remaining_accounts
-    };
+    let accounts = Accounts::new(
+        ctx.program_id,
+        ctx.accounts.signing_address.to_account_info(),
+        &ctx.accounts.system_program,
+        &ctx.accounts.program_merkle_tree,
+        &ctx.accounts.rent,
+        &ctx.accounts.merkle_tree,
+        &ctx.accounts.pre_inserted_leaves_index,
+        ctx.accounts.authority.to_account_info(),
+        &ctx.accounts.token_program,
+        ctx.accounts.sender.to_account_info(),
+        ctx.accounts.recipient.to_account_info(),
+        ctx.accounts.sender_fee.to_account_info(),
+        ctx.accounts.recipient_fee.to_account_info(),
+        ctx.accounts.relayer_recipient.to_account_info(),
+        ctx.accounts.escrow.to_account_info(),
+        ctx.accounts.token_authority.to_account_info(),
+        &ctx.accounts.registered_verifier_pda,
+        ctx.remaining_accounts
+    )?;
 
     let mut tx = LightTransaction::<LightTx>::new(
-        proof,
-        merkle_root,
-        public_amount,
-        ext_data_hash,
-        fee_amount,
-        mint_pubkey,
+        &proof,
+        &merkle_root,
+        &public_amount,
+        &ext_data_hash,
+        &fee_amount,
+        &mint_pubkey,
         Vec::<Vec<u8>>::new(), // checked_public_inputs
         vec![nullifier0.to_vec(), nullifier1.to_vec()],
         vec![(leaf_left.to_vec(), leaf_right.to_vec())],
         encrypted_utxos,
-        merkle_tree_index,
         ext_amount,
         relayer_fee,
-        accounts,
+        &accounts,
         &VERIFYINGKEY
     );
     tx.verify()?;

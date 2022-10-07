@@ -20,10 +20,13 @@ pub use errors::*;
 use anchor_lang::prelude::*;
 use merkle_tree_program::program::MerkleTreeProgram;
 use anchor_spl::token::Token;
-use merkle_tree_program::initialize_new_merkle_tree_spl::PreInsertedLeavesIndex;
+use merkle_tree_program::{
+    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    RegisteredVerifier,
+    poseidon_merkle_tree::state::MerkleTree,
+
+};
 use crate::processor::process_shielded_transfer_2_inputs;
-
-
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -93,8 +96,7 @@ pub struct LightInstruction<'info> {
     pub rent: Sysvar<'info, Rent>,
     /// CHECK: Is the same as in integrity hash.
     // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
-    #[account(mut)]
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: AccountLoader<'info, MerkleTree>,
     #[account(
         mut,
         address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
@@ -124,5 +126,6 @@ pub struct LightInstruction<'info> {
     pub escrow: AccountInfo<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub token_authority: AccountInfo<'info>
+    pub token_authority: AccountInfo<'info>,
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
 }

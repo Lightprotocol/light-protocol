@@ -9,6 +9,8 @@ use anchor_lang::solana_program::{
     sysvar,
     account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
 };
+use crate::utils::constants::*;
+use crate::poseidon_merkle_tree::instructions::*;
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
@@ -17,17 +19,19 @@ pub struct UpdateMerkleTree<'info> {
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
     #[account(mut, seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()], bump,
-        constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key()
+        // constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key()
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
     #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_update_state.load()?.merkle_tree_index).unwrap()].0))]
-    pub merkle_tree: AccountInfo<'info>,
+    pub merkle_tree: AccountLoader<'info, MerkleTree>,
 }
 
 #[allow(clippy::comparison_chain)]
 pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result<()> {
-    let merkle_tree_update_state_data = ctx.accounts.merkle_tree_update_state.load()?.clone();
+    let mut merkle_tree_update_state_data = ctx.accounts.merkle_tree_update_state.load_mut()?;
+    let mut merkle_tree_pda_data = ctx.accounts.merkle_tree.load_mut()?;
+
     msg!(
         "\n prior process_instruction {}\n",
         merkle_tree_update_state_data.current_instruction_index
@@ -36,13 +40,10 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
     if merkle_tree_update_state_data.current_instruction_index > 0
         && merkle_tree_update_state_data.current_instruction_index < 56
     {
-        let merkle_tree_update_state_data =
-            &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
-        let mut merkle_tree_pda_data = MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
 
         pubkey_check(
             ctx.accounts.merkle_tree_update_state.key(),
-            Pubkey::new(&merkle_tree_pda_data.pubkey_locked),
+            merkle_tree_pda_data.pubkey_locked,
             String::from("Merkle tree locked by another account."),
         )?;
 
@@ -50,11 +51,11 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
             "merkle_tree_update_state_data.current_instruction_index0 {}",
             merkle_tree_update_state_data.current_instruction_index
         );
-
+        let id = IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
         if merkle_tree_update_state_data.current_instruction_index == 1 {
             compute_updated_merkle_tree(
                 IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
-                merkle_tree_update_state_data,
+                &mut merkle_tree_update_state_data,
                 &mut merkle_tree_pda_data,
             )?;
             merkle_tree_update_state_data.current_instruction_index += 1;
@@ -67,17 +68,17 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
 
         compute_updated_merkle_tree(
             IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
-            merkle_tree_update_state_data,
+            &mut merkle_tree_update_state_data,
             &mut merkle_tree_pda_data,
         )?;
+
         merkle_tree_update_state_data.current_instruction_index += 1;
         // renews lock
         merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
-        MerkleTree::pack_into_slice(
-            &merkle_tree_pda_data,
-            &mut ctx.accounts.merkle_tree.data.borrow_mut(),
-        );
+
     }
+
+
 
     Ok(())
 }

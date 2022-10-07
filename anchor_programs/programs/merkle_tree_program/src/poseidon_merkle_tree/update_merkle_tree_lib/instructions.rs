@@ -5,8 +5,9 @@ use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_stat
 use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 use std::cell::RefMut;
 
+
 pub fn insert_0_double(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     update_state_data.current_index = (merkle_tree_account.next_index as u64
@@ -61,7 +62,7 @@ pub fn insert_0_double(
 }
 
 pub fn insert_1_inner_loop(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     msg!(
@@ -135,14 +136,14 @@ pub fn insert_1_inner_loop(
 }
 
 pub fn insert_last_double(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
     merkle_tree_account.current_root_index = ((merkle_tree_account.current_root_index + 1)
         % merkle_tree_account.root_history_size)
         .try_into()
         .unwrap();
-    //
+    
     msg!(
         "merkle_tree_account.current_root_index {}",
         merkle_tree_account.current_root_index
@@ -156,12 +157,14 @@ pub fn insert_last_double(
         "update_state_data.state[0..32].to_vec() {:?}",
         update_state_data.state[0..32].to_vec()
     );
+    let index = merkle_tree_account.current_root_index.clone();
     //roots unpacks only the current root and write only this one
-    merkle_tree_account.roots = update_state_data.state[0..32].to_vec();
+    merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
     merkle_tree_account.inserted_root = true;
+    merkle_tree_account.current_root_index +=1;
 
     for (i, node) in update_state_data.filled_subtrees.iter().enumerate() {
-        merkle_tree_account.filled_subtrees[i] = node.clone().to_vec();
+        merkle_tree_account.filled_subtrees[i] = node.clone();
     }
 
     Ok(())

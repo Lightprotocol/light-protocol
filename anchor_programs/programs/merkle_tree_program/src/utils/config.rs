@@ -1,7 +1,8 @@
 use anchor_lang::constant;
 #[constant]
-pub const INIT_BYTES_MERKLE_TREE_18: [u8; 642] = [
-    1, 2, 18, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214,
+pub const INIT_BYTES_MERKLE_TREE_18: [u8; 640] = [
+    // 1, 2, is inited, account_type, both replaced by anchor
+    18, 0, 0, 0, 0, 0, 0, 0, 40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214,
     220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32, 227, 42, 164,
     149, 188, 70, 170, 8, 197, 44, 134, 162, 211, 186, 50, 238, 97, 71, 25, 130, 77, 70, 37, 128,
     172, 154, 54, 111, 93, 193, 105, 27, 25, 241, 255, 33, 65, 214, 48, 229, 38, 116, 134, 103, 44,
@@ -140,3 +141,10 @@ pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 2048;
 pub const MERKLE_TREE_HEIGHT: u64 = 18;
 // Lock duration in slots (is renewed with every successful transaction)
 pub const LOCK_DURATION: u64 = 20;
+
+pub const INITIAL_MERKLE_TREE_AUTHORITY: [u8;32] = [
+    4, 203, 209, 164, 161, 103, 134,  95,
+  246, 154,   5,  51,  37,   1,  32, 118,
+  119,  12, 172, 130, 113, 144,  90, 220,
+   16,   7,  37, 245, 166, 123, 119,  20
+];

@@ -1,16 +1,13 @@
 pub mod state;
 
-pub mod check_merkle_root_exists;
-pub use check_merkle_root_exists::*;
-
 pub mod insert_root;
 pub use insert_root::*;
 
-pub mod initialize_new_merkle_tree_sol;
-pub use initialize_new_merkle_tree_sol::*;
+pub mod initialize_new_merkle_tree_18;
+pub use initialize_new_merkle_tree_18::*;
 
-pub mod initialize_new_merkle_tree_spl;
-pub use initialize_new_merkle_tree_spl::*;
+// pub mod initialize_new_merkle_tree_spl;
+// pub use initialize_new_merkle_tree_spl::*;
 
 pub mod initialize_update_state;
 pub use initialize_update_state::*;

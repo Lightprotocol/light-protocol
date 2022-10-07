@@ -31,6 +31,8 @@ pub enum ErrorCode {
     #[msg("NullifierAlreadyExists")]
     NullifierAlreadyExists,
     #[msg("LeavesOfWrongTree")]
-    LeavesOfWrongTree
+    LeavesOfWrongTree,
+    #[msg("InvalidAuthority")]
+    InvalidAuthority
 
 }
