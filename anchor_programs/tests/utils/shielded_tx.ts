@@ -24,23 +24,19 @@ import { unpackLeavesAccount } from './unpack_accounts';
 
 export class shieldedTransaction {
   constructor({
-    keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    encryptionKeypair = createEncryptionKeypair(),
+    user,
     relayerFee = U64(10_000),
     merkleTreeIndex = 0,
-    merkleTreePubkey,
     merkleTree = null,
     merkleTreeAssetPubkey = null,
-    recipient, //PublicKey
+    recipient = null, //PublicKey
     // recipientFee: number,
     lookupTable, //PublicKey
     payer, //: Keypair
     relayerPubkey = null, //PublicKey
-    merkleTreeProgram, // any
-    verifierProgram, //: any
-    merkle_tree_token_pda,
+    config,
+    merkleTreePubkey, // can be added to config
     preInsertedLeavesIndex,
-    provider,
     merkleTreeFeeAssetPubkey,
     relayerRecipient,
   }) {
@@ -51,8 +47,9 @@ export class shieldedTransaction {
     }
     this.relayerRecipient = relayerRecipient;
     this.preInsertedLeavesIndex = preInsertedLeavesIndex;
-    this.merkleTreeProgram = merkleTreeProgram;
-    this.verifierProgram = verifierProgram;
+    this.merkleTreeProgram = config.merkleTreeProgram;
+    this.verifierProgram = config.verifierProgram;
+    this.provider = config.provider;
     this.lookupTable = lookupTable;
     this.feeAsset = new anchor.BN(
       anchor.web3.SystemProgram.programId._bn.toString()
@@ -64,20 +61,19 @@ export class shieldedTransaction {
     this.merkleTree = null;
     this.utxos = [];
     this.feeUtxos = [];
-    this.encryptionKeypair = encryptionKeypair;
+    this.encryptionKeypair = user.encryptionKeypair;
     this.payer = payer;
     console.log('payer: ', payer);
 
-    this.provider = provider;
     this.recipient = recipient;
     this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
-    this.keypair = keypair;
+    this.shieldedKeypair = user.shieldedKeypair;
   }
 
   async getMerkleTree() {
     this.poseidon = await circomlibjs.buildPoseidonOpt();
-    if (this.keypair == null) {
-      this.keypair = new light.Keypair(this.poseidon);
+    if (this.shieldedKeypair == null) {
+      this.shieldedKeypair = new light.Keypair(this.poseidon);
     }
     this.merkleTree = await light.buildMerkelTree(this.poseidon);
     this.merkleTreeLeavesIndex = 0;
