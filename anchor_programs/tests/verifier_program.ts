@@ -15,6 +15,7 @@ import { assert, expect } from "chai";
 const token = require('@solana/spl-token');
 let circomlibjs = require("circomlibjs");
 import {toBufferLE} from 'bigint-buffer';
+import {UserClass} from './utils/userClass'
 
 import {
   shieldedTransaction,
@@ -59,6 +60,7 @@ import {
   MINT_PRIVATE_KEY,
   MINT
   } from "./utils/constants";
+import { getConfig, Network } from './utils/config';
 
 
 var UNREGISTERED_MERKLE_TREE;
@@ -439,21 +441,21 @@ describe("verifier_program", () => {
       depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
       []
     )
+    const user = new UserClass({signature: 'somesignature'})
+    const config = getConfig(Network.LOCAL)
 
     let SHIELDED_TRANSACTION = new shieldedTransaction({
+        user: user,
+        config: config,
         // four static config fields
         lookupTable:            LOOK_UP_TABLE,
         merkleTreeFeeAssetPubkey: MERKLE_TREE_PDA_TOKEN,
-        merkleTreeProgram,
-        verifierProgram,
-
         merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
         merkleTreePubkey:       MERKLE_TREE_USDC,
         merkleTreeIndex:        1,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
-        provider,
         payer:                  ADMIN_AUTH_KEYPAIR,
-        encryptionKeypair:      ENCRYPTION_KEYPAIR,
+        // encryptionKeypair:      ENCRYPTION_KEYPAIR,
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey
     });
 
@@ -491,7 +493,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.only("Withdraw", async () => {
+  it("Withdraw", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -545,8 +547,11 @@ describe("verifier_program", () => {
       {commitment: "finalized", preflightCommitment: "finalized"},
       token.TOKEN_PROGRAM_ID
     )
+    const user = new UserClass({signature: 'somesignature'})
 
     let SHIELDED_TRANSACTION = new shieldedTransaction({
+        user: user,
+
         // four static config fields
         lookupTable:            LOOK_UP_TABLE,
         merkleTreeFeeAssetPubkey: MERKLE_TREE_PDA_TOKEN,
@@ -559,7 +564,7 @@ describe("verifier_program", () => {
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX_USDC,
         provider,
         payer:                  ADMIN_AUTH_KEYPAIR,
-        encryptionKeypair:      ENCRYPTION_KEYPAIR,
+        // encryptionKeypair:      ENCRYPTION_KEYPAIR,
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey
     });
 
