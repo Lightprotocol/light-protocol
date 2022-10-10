@@ -7,18 +7,19 @@ use anchor_lang::prelude::*;
 #[account(zero_copy)]
 pub struct MerkleTree {
     // pub is_initialized: bool,
-    pub levels: usize,
+    pub levels: u64,
     pub filled_subtrees: [[u8;32];18],
-    pub current_root_index: usize,
-    pub next_index: usize,
-    pub root_history_size: usize,
+    pub current_root_index: u64,
+    pub next_index: u64,
+    pub root_history_size: u64,
     pub roots: [[u8;32];32],
     pub current_total_deposits: u64,
-    pub inserted_leaf: bool,
-    pub inserted_root: bool,
     pub pubkey_locked: Pubkey,
     pub time_locked: u64,
     pub height: u64,
+    pub merkle_tree_nr: u64,
+    pub inserted_leaf: bool,
+    pub inserted_root: bool,
 }
 /*
 impl Sealed for MerkleTree {}

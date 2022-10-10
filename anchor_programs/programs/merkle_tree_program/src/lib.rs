@@ -52,7 +52,7 @@ use crate::poseidon_merkle_tree::{
     // check_merkle_root_exists::process_check_merkle_root_exists,
     initialize_new_merkle_tree_18::{
         process_initialize_new_merkle_tree_18,
-        InitializeNewMerkleTree18
+        InitializeNewMerkleTree
     },
     // initialize_new_merkle_tree_spl::{
     //     process_initialize_new_merkle_tree_spl,
@@ -70,20 +70,12 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_tree_18(ctx: Context<InitializeNewMerkleTree18>) -> Result<()> {
-        // let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
-        // let rent = Rent::get()?;
-        //
-        // if !rent.is_exempt(
-        //     **merkle_tree_storage_acc.lamports.borrow(),
-        //     merkle_tree_storage_acc.data.borrow().len(),
-        // ) {
-        //     msg!("Account is not rent exempt.");
-        //     return Err(ProgramError::AccountNotRentExempt.try_into().unwrap());
-        // }
+    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree> , merkle_tree_nr: u64
+    ) -> Result<()> {
         process_initialize_new_merkle_tree_18(
             ctx,
             &config::INIT_BYTES_MERKLE_TREE_18[..],
+            merkle_tree_nr
         )
 
     }

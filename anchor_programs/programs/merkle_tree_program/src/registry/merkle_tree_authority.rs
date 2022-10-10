@@ -2,8 +2,10 @@ use crate::config;
 use anchor_lang::prelude::*;
 use crate::errors::ErrorCode;
 
-/// Nullfier pdas are derived from the nullifier
-/// existence of a nullifier is the check to prevent double spends.
+/// Configures the authority of the merkle tree which can:
+/// - register new verifiers
+/// - register new asset pools
+/// - set permissions for new asset pool creation
 #[account]
 pub struct MerkleTreeAuthority {
     pub pubkey: Pubkey,
@@ -20,7 +22,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         payer = authority,
         seeds = [&b"MERKLE_TREE_AUTHORITY"[..]],
         bump,
-        space = 8 + 32
+        space = 8 + 32 + 8
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is registered verifier program.
@@ -41,7 +43,5 @@ pub struct UpdateMerkleTreeAuthority<'info> {
     #[account(mut, address=merkle_tree_authority_pda.pubkey)]
     pub authority: Signer<'info>,
     /// CHECK:` New authority no need to be checked
-    pub new_authority: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub new_authority: UncheckedAccount<'info>
 }

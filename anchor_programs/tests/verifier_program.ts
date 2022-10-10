@@ -89,20 +89,22 @@ describe("verifier_program", () => {
   console.log(solana.PublicKey);
   // var provider
 
-  var REGISTERED_VERIFIER_KEY;
+  var REGISTERED_VERIFIER_PDA;
   var PRE_INSERTED_LEAVES_INDEX;
   var MERKLE_TREE_PDA_TOKEN;
   var AUTHORITY;
   var LOOK_UP_TABLE;
   var POSEIDON;
   var RELAYER_RECIPIENT;
+  var REGISTERED_VERIFIER_PDA;
+  var MERKLE_TREE_AUTHORITY_PDA;
 
   it.only("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
     await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000))
 
-    REGISTERED_VERIFIER_KEY = (await solana.PublicKey.findProgramAddress(
+    REGISTERED_VERIFIER_PDA = (await solana.PublicKey.findProgramAddress(
         [verifierProgram.programId.toBuffer()],
         merkleTreeProgram.programId
       ))[0];
@@ -134,85 +136,108 @@ describe("verifier_program", () => {
       console.log("MERKLE_TREE_KEY: ", Array.prototype.slice.call(MERKLE_TREE_KEY.toBytes()))
       console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
       console.log("MERKLE_TREE_PDA_TOKEN: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN.toBytes()))
+      console.log(merkleTreeProgram.methods);
+      let signer = new anchor.web3.Account();
+      console.log("signer, ", signer);
+      MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
+          [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+          merkleTreeProgram.programId))[0];
       try {
-        const ix = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
+        const ix = await merkleTreeProgram.methods.initializeNewMerkleTree(new anchor.BN("0")
+      ).accounts({
           authority: ADMIN_AUTH_KEY,
           merkleTree: MERKLE_TREE_KEY,
-          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN,
-          ...DEFAULT_PROGRAMS
+          // preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+          systemProgram: DEFAULT_PROGRAMS.systemProgram,
+          rent: DEFAULT_PROGRAMS.rent
         })
-        .preInstructions([
-          SystemProgram.createAccount({
-            fromPubkey: ADMIN_AUTH_KEY,
-            newAccountPubkey: MERKLE_TREE_KEY,
-            space: MERKLE_TREE_SIZE,
-            lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE *2),
-            programId: merkleTreeProgram.programId,
-          })
-        ])
-        .signers([ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KP])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .signers([ADMIN_AUTH_KEYPAIR])
+        .transaction()//rpc(); // {commitment: "finalized", preflightCommitment: 'finalized',}
+        let x = await solana.sendAndConfirmTransaction(
+              provider.connection,
+              ix,
+              [ADMIN_AUTH_KEYPAIR],
+              {
+                commitment: 'finalized',
+                preflightCommitment: 'finalized',
+              },
+          );
+
       } catch(e) {
-        // console.log(e);
+        console.log(e);
 
       }
 
-      var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
-        MERKLE_TREE_KEY
-      )
-      // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
-      //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
+
+
+      // var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
+      //   MERKLE_TREE_KEY
       // )
-      if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
-        throw "merkle tree pda size wrong after initializing";
-
-      }
-      if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-        throw "merkle tree pda owner wrong after initializing";
-      }
-      var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
-            PRE_INSERTED_LEAVES_INDEX
-          )
-      assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
+      // // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
+      // //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
+      // // )
+      // if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
+      //   throw "merkle tree pda size wrong after initializing";
+      //
+      // }
+      // if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
+      //   throw "merkle tree pda owner wrong after initializing";
+      // }
+      // var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
+      //       PRE_INSERTED_LEAVES_INDEX
+      //     )
+      // assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
     }
-    // UNREGISTERED_MERKLE_TREE = new anchor.web3.Account()
-    // UNREGISTERED_MERKLE_TREE_PDA_TOKEN = await solana.PublicKey.findProgramAddress(
-    //     [UNREGISTERED_MERKLE_TREE.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode("MERKLE_TREE_PDA_TOKEN")],
-    //     merkleTreeProgram.programId
-    //   )[0];
-    //
-    // UNREGISTERED_PRE_INSERTED_LEAVES_INDEX = await solana.PublicKey.findProgramAddress(
-    //     [UNREGISTERED_MERKLE_TREE.publicKey.toBuffer()],
-    //     merkleTreeProgram.programId
-    //   )[0];
-    // try {
-    //   const tx = await merkleTreeProgram.methods.initializeNewMerkleTreeSol().accounts({
-    //     authority: ADMIN_AUTH_KEY,
-    //     merkleTree: UNREGISTERED_MERKLE_TREE.publicKey,
-    //     preInsertedLeavesIndex: UNREGISTERED_PRE_INSERTED_LEAVES_INDEX,
-    //     merkleTreePdaToken: UNREGISTERED_MERKLE_TREE_PDA_TOKEN,
-    //     ...DEFAULT_PROGRAMS
-    //   })
-    //   .preInstructions([
-    //     SystemProgram.createAccount({
-    //       fromPubkey: ADMIN_AUTH_KEY,
-    //       newAccountPubkey: UNREGISTERED_MERKLE_TREE.publicKey,
-    //       space: MERKLE_TREE_SIZE,
-    //       lamports: await provider.connection.getMinimumBalanceForRentExemption(MERKLE_TREE_SIZE),
-    //       programId: merkleTreeProgram.programId,
-    //     })
-    //   ])
-    //   .signers([ADMIN_AUTH_KEYPAIR, UNREGISTERED_MERKLE_TREE])
-    //   .rpc();
-    // } catch(e) {
-    //   console.log(e)
-    // }
+
+
+    console.log("Initing MERKLE_TREE_AUTHORITY_PDA");
+    MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
+        [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
+        merkleTreeProgram.programId
+      ))[0];
+    try {
+      const ix = await merkleTreeProgram.methods.initializeMerkleTreeAuthority().accounts({
+        authority: ADMIN_AUTH_KEY,
+        newAuthority: ADMIN_AUTH_KEY,
+        merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      console.log("Registering Verifier success");
+
+    } catch(e) {
+      console.log(e);
+
+    }
+
+    console.log("Registering Verifier");
+
+    console.log(verifierProgram.programId.toBytes());
+
+    try {
+      await merkleTreeProgram.methods.registerVerifier(
+        verifierProgram.programId
+      ).accounts({
+        registeredVerifierPda: REGISTERED_VERIFIER_PDA,
+        authority: ADMIN_AUTH_KEY,
+        merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      console.log("Registering Verifier success");
+
+    } catch(e) {
+      console.log(e);
+
+    }
+
 
 
   });
 
-  it.only("Initialize Token Merkle tree", async () => {
+  it("Initialize Token Merkle tree", async () => {
     MERKLE_TREE_USDC= await solana.PublicKey.createWithSeed(
       ADMIN_AUTH_KEY,
       "usdc",
@@ -328,7 +353,7 @@ describe("verifier_program", () => {
 
   });
 
-  it.only("Init Address Lookup Table", async () => {
+  it("Init Address Lookup Table", async () => {
     const recentSlot = (await provider.connection.getSlot()) - 10;
     console.log("recentSlot: ", recentSlot);
 
@@ -397,7 +422,7 @@ describe("verifier_program", () => {
 
   });
 
-  it.only("Deposit", async () => {
+  it("Deposit", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
