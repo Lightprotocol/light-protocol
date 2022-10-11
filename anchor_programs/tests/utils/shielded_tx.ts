@@ -2,9 +2,11 @@ const light = require('../../light-protocol-sdk');
 const { U64, I64 } = require('n64');
 const anchor = require('@project-serum/anchor');
 const nacl = require('tweetnacl');
+
 const FIELD_SIZE = new anchor.BN(
   '21888242871839275222246405745257275088548364400416034343698204186575808495617'
 );
+
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 var assert = require('assert');
 let circomlibjs = require('circomlibjs');
@@ -23,6 +25,26 @@ import { checkRentExemption } from './test_checks';
 import { unpackLeavesAccount } from './unpack_accounts';
 
 export class shieldedTransaction {
+  relayerPubkey: any;
+  relayerRecipient: any;
+  preInsertedLeavesIndex: any;
+  merkleTreeProgram: any;
+  verifierProgram: any;
+  provider: any;
+  lookupTable: any;
+  feeAsset: any;
+  relayerFee: any;
+  merkleTreeIndex: number;
+  merkleTreePubkey: any;
+  utxos: any[];
+  feeUtxos: any[];
+  encryptionKeypair: any;
+  payer: any;
+  recipient: any;
+  shieldedKeypair: any;
+  merkleTree: any;
+  merkleTreeFeeAssetPubkey: any;
+  merkleTreeAssetPubkey: any;
   constructor({
     user,
     relayerFee = U64(10_000),
@@ -48,8 +70,11 @@ export class shieldedTransaction {
     this.relayerRecipient = relayerRecipient;
     this.preInsertedLeavesIndex = preInsertedLeavesIndex;
     this.merkleTreeProgram = config.merkleTreeProgram;
+    console.log('merkleTreeProgram', this.merkleTreeProgram);
     this.verifierProgram = config.verifierProgram;
+    console.log('verifierProgram', this.verifierProgram);
     this.provider = config.provider;
+    console.log('provider', this.provider);
     this.lookupTable = lookupTable;
     this.feeAsset = new anchor.BN(
       anchor.web3.SystemProgram.programId._bn.toString()
@@ -62,12 +87,14 @@ export class shieldedTransaction {
     this.utxos = [];
     this.feeUtxos = [];
     this.encryptionKeypair = user.encryptionKeypair;
+    console.log("encryptionKeypair", this.encryptionKeypair);
+    this.shieldedKeypair = user.shieldedKeypair;
+    console.log("shieldedKeypair", this.shieldedKeypair);
     this.payer = payer;
     console.log('payer: ', payer);
 
     this.recipient = recipient;
     this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
-    this.shieldedKeypair = user.shieldedKeypair;
   }
 
   async getMerkleTree() {
@@ -112,11 +139,11 @@ export class shieldedTransaction {
     outputUtxos,
     action,
     assetPubkeys,
-    recipient,
+    recipient = null,
     mintPubkey = 0,
     relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
     shuffle = true,
-    recipientFee,
+    recipientFee = null,
     sender,
   }) {
     mintPubkey = assetPubkeys[1];
