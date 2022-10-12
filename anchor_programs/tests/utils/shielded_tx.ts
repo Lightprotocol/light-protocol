@@ -25,7 +25,8 @@ import { unpackLeavesAccount } from './unpack_accounts';
 import nacl from 'tweetnacl';
 import { Utxo } from '../../light-protocol-sdk/lib';
 import {MerkleTree} from './v3/merkelTree';
-import { prepareTransaction } from './v3/proof';
+import { getProofMasp, prepareTransaction } from './v3/proof';
+import { prepareUtxos } from './v3/prepareTransaction';
 
 export class shieldedTransaction {
   relayerPubkey: PublicKey;
@@ -276,7 +277,7 @@ export class shieldedTransaction {
     this.mintPubkey = mintPubkey;
     this.action = action;
 
-    let res = light.prepareUtxos(
+    let res = prepareUtxos(
       inputUtxos,
       outputUtxos,
       this.relayerFee,
@@ -294,7 +295,7 @@ export class shieldedTransaction {
     this.externalAmountBigNumber = res.externalAmountBigNumber;
     this.feeAmount = res.feeAmount;
 
-    let data = await light.prepareTransaction(
+    let data = await prepareTransaction(
       this.inputUtxos,
       this.outputUtxos,
       this.merkleTree,
@@ -335,7 +336,7 @@ export class shieldedTransaction {
     if (this.inIndices == null) {
       throw 'transaction not prepared';
     }
-    let proofData = await light.getProofMasp(
+    let proofData = await getProofMasp(
       this.input,
       this.extAmount,
       this.externalAmountBigNumber,
