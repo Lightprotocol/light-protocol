@@ -1,6 +1,7 @@
-const poseidon = require("./utils/poseidonHash");
-const randomBN_1 = require("./utils/randomBN");
-const toBuffer_1 = require("./utils/toBuffer");
+
+const poseidon = require("./poseidonHash");
+const randomBN_1 = require("./randomBN");
+const toBuffer_1 = require("./toBuffer");
 const nacl = require('tweetnacl');
 nacl.util = require('tweetnacl-util');
 
