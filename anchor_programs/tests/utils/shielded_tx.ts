@@ -1,5 +1,6 @@
 const light = require('../../light-protocol-sdk');
 const { U64, I64 } = require('n64');
+import { Keypair as LightKeypair } from './v3/keypair';
 import * as anchor from '@project-serum/anchor';
 
 const FIELD_SIZE = new anchor.BN(
@@ -35,7 +36,7 @@ export class shieldedTransaction {
   provider: anchor.Provider;
   lookupTable: PublicKey;
   feeAsset: anchor.BN;
-  relayerFee: any; // U64 
+  relayerFee: any; // U64
   merkleTreeIndex: number;
   merkleTreePubkey: PublicKey;
   utxos: Utxo[];
@@ -43,10 +44,26 @@ export class shieldedTransaction {
   encryptionKeypair: nacl.BoxKeyPair;
   payer: Keypair;
   recipient: PublicKey;
-  shieldedKeypair: any; // light.Keypair
+  shieldedKeypair: LightKeypair;
   merkleTree: MerkleTree;
   merkleTreeFeeAssetPubkey: PublicKey;
   merkleTreeAssetPubkey: PublicKey;
+  poseidon: any;
+  merkleTreeLeavesIndex: number;
+  inputUtxos: any;
+  outputUtxos: any;
+  externalAmountBigNumber: any;
+  action: any;
+  inIndices: any;
+  outIndices: any;
+  assetPubkeys: any;
+  mintPubkey: any;
+  feeAmount: any;
+  recipientFee: any;
+  input: any;
+  extAmount: any;
+  extDataBytes: any;
+  encryptedOutputs: any;
   constructor({
     user,
     relayerFee = U64(10_000),
@@ -99,7 +116,6 @@ export class shieldedTransaction {
     this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
   }
 
-
   async shield({
     userTokenAccount,
     AUTHORITY,
@@ -150,7 +166,7 @@ export class shieldedTransaction {
   async getMerkleTree() {
     this.poseidon = await circomlibjs.buildPoseidonOpt();
     if (this.shieldedKeypair == null) {
-      this.shieldedKeypair = new light.Keypair(this.poseidon);
+      this.shieldedKeypair = new LightKeypair(this.poseidon);
     }
     this.merkleTree = await light.buildMerkelTree(this.poseidon);
     this.merkleTreeLeavesIndex = 0;
@@ -202,7 +218,7 @@ export class shieldedTransaction {
     assetPubkeys: anchor.BN[];
     recipient: PublicKey;
     mintPubkey: anchor.BN;
-    relayerFee: any //U64;
+    relayerFee: any; //U64;
     shuffle: boolean;
     recipientFee: any; //U64(?);
     sender: PublicKey;
@@ -787,7 +803,7 @@ export async function getPdaAddresses({
   leftLeaves,
   merkleTreeProgram,
   verifierProgram,
-} : {
+}: {
   tx_integrity_hash: any;
   nullifiers: any[];
   leftLeaves: any[];
@@ -795,7 +811,7 @@ export async function getPdaAddresses({
   verifierProgram: anchor.Program;
 }) {
   console.log('new Uint8Array(nullifier0) ', new Uint8Array(nullifiers[0]));
-  
+
   let nullifierPdaPubkeys = [];
   for (var i in nullifiers) {
     nullifierPdaPubkeys.push(
