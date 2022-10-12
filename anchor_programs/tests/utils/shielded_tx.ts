@@ -2,7 +2,6 @@ const light = require('../../light-protocol-sdk');
 const { U64, I64 } = require('n64');
 import { Keypair as LightKeypair } from './v3/keypair';
 import * as anchor from '@project-serum/anchor';
-
 const FIELD_SIZE = new anchor.BN(
   '21888242871839275222246405745257275088548364400416034343698204186575808495617'
 );
@@ -10,7 +9,7 @@ const FIELD_SIZE = new anchor.BN(
 var assert = require('assert');
 let circomlibjs = require('circomlibjs');
 
-import { DEFAULT_PROGRAMS } from './constants';
+import { DEFAULT_PROGRAMS, MERKLE_TREE_HEIGHT } from './constants';
 import {
   PublicKey,
   SystemProgram,
@@ -25,7 +24,7 @@ import { checkRentExemption } from './test_checks';
 import { unpackLeavesAccount } from './unpack_accounts';
 import nacl from 'tweetnacl';
 import { Utxo } from '../../light-protocol-sdk/lib';
-import MerkleTree from '../../light-protocol-sdk/lib/merkelTree';
+import {MerkleTree} from './v3/merkelTree';
 
 export class shieldedTransaction {
   relayerPubkey: PublicKey;
@@ -162,13 +161,17 @@ export class shieldedTransaction {
       console.log(e);
     }
   }
+  buildMerkelTree(poseidonHash) {
+    return new MerkleTree(MERKLE_TREE_HEIGHT, poseidonHash);
+  };
 
   async getMerkleTree() {
     this.poseidon = await circomlibjs.buildPoseidonOpt();
     if (this.shieldedKeypair == null) {
       this.shieldedKeypair = new LightKeypair(this.poseidon);
     }
-    this.merkleTree = await light.buildMerkelTree(this.poseidon);
+    
+    this.merkleTree = await this.buildMerkelTree(this.poseidon);
     this.merkleTreeLeavesIndex = 0;
   }
 
