@@ -99,7 +99,7 @@ export class shieldedTransaction {
     this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
   }
 
-  
+
   async shield({
     userTokenAccount,
     AUTHORITY,
@@ -108,6 +108,14 @@ export class shieldedTransaction {
     ASSET,
     ASSET_1,
     depositFeeAmount,
+  }: {
+    userTokenAccount: PublicKey;
+    AUTHORITY: PublicKey;
+    outputUtxos: Utxo[];
+    FEE_ASSET: anchor.BN;
+    ASSET: anchor.BN;
+    ASSET_1: anchor.BN;
+    depositFeeAmount: number;
   }) {
     console.log('getMerkleTree');
     await this.getMerkleTree();
@@ -182,11 +190,22 @@ export class shieldedTransaction {
     action,
     assetPubkeys,
     recipient = null,
-    mintPubkey = 0,
+    mintPubkey = new anchor.BN(0),
     relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
     shuffle = true,
     recipientFee = null,
     sender,
+  }: {
+    inputUtxos: Utxo[];
+    outputUtxos: Utxo[];
+    action: string;
+    assetPubkeys: anchor.BN[];
+    recipient: PublicKey;
+    mintPubkey: anchor.BN;
+    relayerFee: any //U64;
+    shuffle: boolean;
+    recipientFee: any; //U64(?);
+    sender: PublicKey;
   }) {
     mintPubkey = assetPubkeys[1];
     if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
