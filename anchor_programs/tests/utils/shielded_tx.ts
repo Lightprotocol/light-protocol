@@ -787,9 +787,15 @@ export async function getPdaAddresses({
   leftLeaves,
   merkleTreeProgram,
   verifierProgram,
+} : {
+  tx_integrity_hash: any;
+  nullifiers: any[];
+  leftLeaves: any[];
+  merkleTreeProgram: anchor.Program;
+  verifierProgram: anchor.Program;
 }) {
   console.log('new Uint8Array(nullifier0) ', new Uint8Array(nullifiers[0]));
-
+  
   let nullifierPdaPubkeys = [];
   for (var i in nullifiers) {
     nullifierPdaPubkeys.push(
