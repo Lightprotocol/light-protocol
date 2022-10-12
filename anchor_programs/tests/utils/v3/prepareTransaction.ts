@@ -1,7 +1,7 @@
 const enums_1 = require("./enums");
-const utxos_1 = require("./utxos").default;
+const utxos_1 = require("./utxos");
 const anchor = require("@project-serum/anchor")
-const constants_1 = require("./constants");
+const constants_1 = require("./../constants");
 const shuffle_1 = require("./shuffle");
 
 const feeAsset = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(constants_1.FIELD_SIZE)
@@ -9,6 +9,7 @@ const feeAsset = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString(
 export const prepareUtxos = (
     inputUtxos = [],
     outputUtxos = [],
+    relayerFee,
     assets = [],
     action,
     poseidon,
