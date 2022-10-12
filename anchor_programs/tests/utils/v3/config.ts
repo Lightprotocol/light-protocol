@@ -1,7 +1,7 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from '@project-serum/anchor';
-import { MerkleTreeProgram } from '../../target/types/merkle_tree_program';
-import { VerifierProgram } from '../../target/types/verifier_program';
+import { MerkleTreeProgram } from '../../../target/types/merkle_tree_program';
+import { VerifierProgram } from '../../../target/types/verifier_program';
 
 export async function getConfig(network: Network) {
 	if(Network.MAINNET === network) {
