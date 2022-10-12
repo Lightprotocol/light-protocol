@@ -25,6 +25,7 @@ import { unpackLeavesAccount } from './unpack_accounts';
 import nacl from 'tweetnacl';
 import { Utxo } from '../../light-protocol-sdk/lib';
 import {MerkleTree} from './v3/merkelTree';
+import { prepareTransaction } from './v3/proof';
 
 export class shieldedTransaction {
   relayerPubkey: PublicKey;
@@ -176,7 +177,7 @@ export class shieldedTransaction {
   }
 
   async prepareTransaction() {
-    let data = await light.prepareTransaction(
+    let data = await prepareTransaction(
       this.inputUtxos,
       this.outputUtxos,
       this.merkleTree,
@@ -196,6 +197,7 @@ export class shieldedTransaction {
       this.feeAmount,
       this.recipientFee
     );
+    
     this.input = data.input;
     this.extAmount = data.extAmount;
     this.externalAmountBigNumber = data.externalAmountBigNumber;
