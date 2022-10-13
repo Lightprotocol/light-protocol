@@ -1,6 +1,8 @@
 use crate::config::{
     MERKLE_TREE_INIT_AUTHORITY,
-    ZERO_BYTES_MERKLE_TREE_18
+    ZERO_BYTES_MERKLE_TREE_18,
+    INIT_BYTES_MERKLE_TREE_18,
+    MERKLE_TREE_HISTORY_SIZE
 };
 use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
@@ -22,7 +24,7 @@ pub struct InitializeNewMerkleTree<'info> {
         ],
         bump,
         payer = authority,
-        space = 2024 //1698
+        space = 8880 //10240 //1698
     )]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     pub system_program: Program<'info, System>,
@@ -62,9 +64,9 @@ pub fn process_initialize_new_merkle_tree_18(
     }
     merkle_tree_state_data.levels = merkle_tree_state_data.filled_subtrees.len().try_into().unwrap();
     merkle_tree_state_data.merkle_tree_nr = merkle_tree_nr;
-    merkle_tree_state_data.root_history_size = 1024;
+    merkle_tree_state_data.root_history_size = MERKLE_TREE_HISTORY_SIZE;
 
-    merkle_tree_state_data.roots[0] = merkle_tree_state_data.filled_subtrees[merkle_tree_state_data.filled_subtrees.len() - 1];
+    merkle_tree_state_data.roots[0] = INIT_BYTES_MERKLE_TREE_18[merkle_tree_state_data.filled_subtrees.len() * 32 + 4 * 8..].try_into().unwrap();
     msg!("merkle_tree_state_data.roots[0]: {:?}", merkle_tree_state_data.roots[0]);
     msg!("merkle_tree_state_data.levels {}", merkle_tree_state_data.levels);
 

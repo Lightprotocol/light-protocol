@@ -26,8 +26,7 @@ pub struct InitializeUpdateState<'info> {
         space = MERKLE_TREE_TMP_PDA_SIZE,
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
-    /// CHECK: that the merkle tree is registered.
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_index).unwrap()].0))]
+    #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,

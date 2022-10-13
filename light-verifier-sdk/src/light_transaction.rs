@@ -83,6 +83,7 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     proof_c: Vec<u8>,
     encrypted_utxos: Vec<u8>,
     tx_integrity_hash: Vec<u8>,
+    merkle_root_index: usize,
     transferred_funds: bool,
     checked_tx_integrity_hash: bool,
     verified_proof : bool,
@@ -110,6 +111,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         encrypted_utxos: Vec<u8>,
         ext_amount: i64,
         relayer_fee: u64,
+        merkle_root_index: usize,
         accounts: &'a Accounts<'info, 'a, 'c>,//Context<'info, LightInstructionTrait<'info>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> LightTransaction<'info, 'a, 'c, T> {
@@ -138,6 +140,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos: encrypted_utxos,
+            merkle_root_index,
             transferred_funds: false,
             checked_tx_integrity_hash: false,
             verified_proof : false,
@@ -254,22 +257,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn check_root(&mut self) -> Result<()> {
         // check account integrities
-
-        // send index of root in merkle tree account
-        // get root at that index
-        // just unpack the account
         msg!("implement rootcheck with index");
-
-        // // check that it's the correct account
-        // check_merkle_root_exists_cpi(
-        //     &self.accounts.program_id,
-        //     &self.accounts.program_merkle_tree,
-        //     &self.accounts.authority.to_account_info(),
-        //     &self.accounts.merkle_tree.to_account_info(),
-        //     self.merkle_tree_index.try_into().unwrap(),
-        //     to_be_64(&self.merkle_root).try_into().unwrap(),
-        // )?;
-        // self.checked_root = true;
+        let merkle_tree = self.accounts.merkle_tree.load()?;
+        if merkle_tree.roots[self.merkle_root_index].to_vec() != to_be_64(self.merkle_root) {
+            return err!(VerifierSdkError::InvalidMerkleTreeRoot);
+        }
+        self.checked_root = true;
         Ok(())
     }
 

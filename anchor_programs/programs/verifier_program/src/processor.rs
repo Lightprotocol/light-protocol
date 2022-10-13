@@ -82,6 +82,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         encrypted_utxos,
         ext_amount,
         relayer_fee,
+        merkle_tree_index.try_into().unwrap(),
         &accounts,
         &VERIFYINGKEY
     );
@@ -97,6 +98,6 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
-    // tx.check_completion()?;
+    tx.check_completion()?;
     Ok(())
 }

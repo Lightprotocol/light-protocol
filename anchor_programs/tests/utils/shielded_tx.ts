@@ -6,6 +6,8 @@ const FIELD_SIZE = new anchor.BN('2188824287183927522224640574525727508854836440
 export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
 let circomlibjs = require("circomlibjs")
+var ffjavascript = require('ffjavascript');
+const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 import {
   MERKLE_TREE_KEY,
@@ -25,6 +27,8 @@ import { newAccountWithLamports  } from "./test_transactions";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import {checkRentExemption} from './test_checks';
 import {unpackLeavesAccount} from './unpack_accounts';
+
+
 export class shieldedTransaction {
   constructor({
     keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
@@ -87,7 +91,33 @@ export class shieldedTransaction {
       }
       this.merkleTree = await light.buildMerkelTree(this.poseidon);
       this.merkleTreeLeavesIndex = 0;
+
     }
+
+
+
+    async getRootIndex() {
+      console.log("this.merkleTree.root ", this.merkleTree.root());
+      let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
+      let merkle_tree_account = await this.provider.connection.getAccountInfo(this.merkleTreePubkey);
+      let merkle_tree_account_data  = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode('MerkleTree', merkle_tree_account.data);
+      console.log("root: ", root);
+
+      console.log("merkle_tree_account_data.roots[0], ", merkle_tree_account_data.roots[0]);
+
+       merkle_tree_account_data.roots.map((x, index)=> {
+        console.log(x.toString());
+        console.log(root.toString());
+
+        if (x.toString() === root.toString()) {
+          this.root_index =  index;
+        }
+      })
+
+      console.log("this.merkleTree: ", this.merkleTree);
+      console.log("this.root_index ", this.root_index);
+    }
+
 /*
     prepareUtxos({
       inputUtxos,
@@ -323,6 +353,8 @@ export class shieldedTransaction {
       if (this.inIndices == null) {
         throw "transaction not prepared";
       }
+      await this.getRootIndex();
+
       let proofData = await light.getProofMasp(
         this.input,
         this.extAmount,
@@ -364,22 +396,22 @@ export class shieldedTransaction {
       this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
       console.log("relayerAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx);
 
-      // console.log("signingAddress:     ", this.relayerPubkey)
-      // console.log("systemProgram:      ", SystemProgram.programId)
-      // console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
-      // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
-      // console.log("merkleTree:         ", this.merkleTreePubkey)
-      // console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
-      // console.log("authority:          ", this.signerAuthorityPubkey)
-      // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
-      // console.log("sender:             ", this.sender)
-      // console.log("recipient:          ", this.recipient)
-      // console.log("senderFee:          ", this.senderFee)
-      // console.log("recipientFee:       ", this.recipientFee)
-      // console.log("relayerRecipient:   ", this.relayerRecipient)
-      // console.log("escrow:             ", this.escrow)
-      // console.log("tokenAuthority:     ", this.tokenAuthority)
-      // console.log("registeredVerifierPd",this.registeredVerifierPda)
+      console.log("signingAddress:     ", this.relayerPubkey)
+      console.log("systemProgram:      ", SystemProgram.programId)
+      console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
+      console.log("rent:               ", DEFAULT_PROGRAMS.rent)
+      console.log("merkleTree:         ", this.merkleTreePubkey)
+      console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
+      console.log("authority:          ", this.signerAuthorityPubkey)
+      console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
+      console.log("sender:             ", this.sender)
+      console.log("recipient:          ", this.recipient)
+      console.log("senderFee:          ", this.senderFee)
+      console.log("recipientFee:       ", this.recipientFee)
+      console.log("relayerRecipient:   ", this.relayerRecipient)
+      console.log("escrow:             ", this.escrow)
+      console.log("tokenAuthority:     ", this.tokenAuthority)
+      console.log("registeredVerifierPd",this.registeredVerifierPda)
       console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
@@ -391,8 +423,7 @@ export class shieldedTransaction {
         [this.proofData.publicInputs.leafRight, this.proofData.publicInputs.leafLeft],
         this.proofData.publicInputs.feeAmount,
         this.proofData.publicInputs.mintPubkey,
-        new anchor.BN(1),
-        new anchor.BN(0),
+        new anchor.BN(this.root_index.toString()),
         new anchor.BN(this.relayerFee.toString()),
         this.proofData.encryptedOutputs.slice(0,128),
         this.proofData.encryptedOutputs.slice(128,160),

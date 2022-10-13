@@ -77,8 +77,7 @@ pub mod verifier_program {
         leaves: [[u8; 32]; 2],
         fee_amount: [u8; 32],
         mint_pubkey: [u8;32],
-        merkle_tree_index: u64,
-        _root_index: u64,
+        root_index: u64,
         relayer_fee: u64,
         encrypted_utxos0: [u8; 128],
         encrypted_utxos1: [u8; 32],
@@ -98,7 +97,7 @@ pub mod verifier_program {
             fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
             mint_pubkey,
             [encrypted_utxos0.to_vec(), encrypted_utxos1.to_vec(), encrypted_utxos2.to_vec()].concat(),
-            merkle_tree_index,
+            root_index,
             relayer_fee
         )
     }

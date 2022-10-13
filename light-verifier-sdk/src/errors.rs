@@ -16,5 +16,7 @@ pub enum VerifierSdkError {
     InvalidNrNullifieraccounts,
     #[msg("Invalid number of Leavesaccounts")]
     InvalidNrLeavesaccounts,
+    #[msg("Invalid merkle tree root")]
+    InvalidMerkleTreeRoot,
 
 }

@@ -1,4 +1,7 @@
-use crate::utils::config::ENCRYPTED_UTXOS_LENGTH;
+use crate::utils::config::{
+    ENCRYPTED_UTXOS_LENGTH,
+    MERKLE_TREE_HISTORY_SIZE
+};
 use crate::utils::constants::MERKLE_TREE_ACCOUNT_TYPE;
 use anchor_lang::prelude::*;
 
@@ -10,7 +13,7 @@ pub struct MerkleTree {
     pub current_root_index: u64,
     pub next_index: u64,
     pub root_history_size: u64,
-    pub roots: [[u8;32];32],
+    pub roots: [[u8;32];MERKLE_TREE_HISTORY_SIZE as usize],
     pub current_total_deposits: u64,
     pub pubkey_locked: Pubkey,
     pub time_locked: u64,

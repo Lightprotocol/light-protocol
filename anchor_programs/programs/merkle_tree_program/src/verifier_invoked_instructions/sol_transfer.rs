@@ -11,7 +11,7 @@ pub struct WithdrawSol<'info> {
     #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     /// CHECK:` That the merkle tree token belongs to a registered Merkle tree.
-    #[account(mut, constraint = merkle_tree_token.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(_merkle_tree_index).unwrap()].1))]
+    #[account(mut, /* constraint = merkle_tree_token.key() == */)]
     pub merkle_tree_token: AccountInfo<'info>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>

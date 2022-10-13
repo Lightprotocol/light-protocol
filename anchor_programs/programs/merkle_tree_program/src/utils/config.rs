@@ -70,45 +70,6 @@ pub const INSERT_INSTRUCTION_ORDER_18: [u8; 57] = [
     34, 14, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
     2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 241,
 ];
-#[constant]
-// const MERKLE_TREE_ACC_BYTES_0: [u8; 32] = [
-//     242, 149, 147, 41, 62, 228, 214, 222, 231, 159, 167, 195, 10, 226, 182, 153, 84, 80, 249, 150,
-//     131, 112, 150, 225, 133, 131, 32, 149, 69, 188, 94, 13,
-// ];
-const MERKLE_TREE_ACC_BYTES_0: [u8; 32] = [
-  104, 129, 241,  93,  39,  94, 181,  64,
-   81, 222, 245,  80,  33,  77,  49, 152,
-  253,  43,  98, 248,  25,   2,  73, 194,
-  145,  41,  70,  13, 184, 106, 160, 202
-];
-#[constant]
-const MERKLE_TREE_TOKEN_ACC_BYTES_0: [u8; 32] = [
-  109,  40,   1, 222, 154,  13,  19,
-   14, 243, 236,  85, 177, 247, 155,
-  145, 159, 133, 157, 201, 188, 146,
-  193, 220, 236,  15, 161, 252, 241,
-  144,  82, 172, 203
-];
-// seed usdc
-const MERKLE_TREE_ACC_BYTES_1: [u8; 32] = [
-   52, 136,  38, 111, 233, 237, 145, 181,
-   92, 172, 157, 113, 210,  54,   8, 161,
-   92,  19,  69,  31, 197, 101, 115, 187,
-  158,  23,  59, 227, 240, 175, 126, 190
-];
-#[constant]
-const MERKLE_TREE_TOKEN_ACC_BYTES_1: [u8; 32] = [
-  164, 211, 228,  90,  16, 122, 102, 101,
-   59, 177, 174,  36, 122, 158,  86,   5,
-  206, 100, 119, 249, 160,  34, 102,   6,
-   95,  54, 198,  54, 215, 118, 148, 127
-];
-
-
-pub const MERKLE_TREE_ACC_BYTES_ARRAY: [([u8; 32], [u8; 32]); 2] =
-    [(MERKLE_TREE_ACC_BYTES_0, MERKLE_TREE_TOKEN_ACC_BYTES_0),
-    (MERKLE_TREE_ACC_BYTES_1, MERKLE_TREE_TOKEN_ACC_BYTES_1)
-    ];
 
 // Is used to init new merkle trees
 #[constant]
@@ -118,26 +79,18 @@ pub const MERKLE_TREE_INIT_AUTHORITY: [u8; 32] = [
 ];
 
 // Is used for CPI
-pub const MERKLE_TREE_SIGNER_AUTHORITY: [u8; 32] = [
-    4, 203, 209, 164, 161, 103, 134,  95,
-  246, 154,   5,  51,  37,   1,  32, 118,
-  119,  12, 172, 130, 113, 144,  90, 220,
-   16,   7,  37, 245, 166, 123, 119,  20
-];
-
-pub const REGISTERED_VERIFIER_KEY_ARRAY: [[u8; 32]; 1] = [REGISTERED_VERIFIER_KEY_0];
-// AUTHORITY
-pub const REGISTERED_VERIFIER_KEY_0: [u8; 32] = [
-    4, 203, 209, 164, 161, 103, 134,  95,
-  246, 154,   5,  51,  37,   1,  32, 118,
-  119,  12, 172, 130, 113, 144,  90, 220,
-   16,   7,  37, 245, 166, 123, 119,  20
-];
+// pub const MERKLE_TREE_SIGNER_AUTHORITY: [u8; 32] = [
+//     4, 203, 209, 164, 161, 103, 134,  95,
+//   246, 154,   5,  51,  37,   1,  32, 118,
+//   119,  12, 172, 130, 113, 144,  90, 220,
+//    16,   7,  37, 245, 166, 123, 119,  20
+// ];
 
 //
 pub const ENCRYPTED_UTXOS_LENGTH: usize = 174;
 pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 2048;
 
+pub const MERKLE_TREE_HISTORY_SIZE: u64 = 256;
 pub const MERKLE_TREE_HEIGHT: u64 = 18;
 // Lock duration in slots (is renewed with every successful transaction)
 pub const LOCK_DURATION: u64 = 20;

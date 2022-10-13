@@ -19,11 +19,11 @@ pub struct UpdateMerkleTree<'info> {
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
     #[account(mut, seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()], bump,
-        // constraint= Pubkey::new(&merkle_tree.data.borrow()[16658-40..16658-8]) == merkle_tree_update_state.key()
+        constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key()
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
-    #[account(mut, constraint = merkle_tree.key() == Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(merkle_tree_update_state.load()?.merkle_tree_index).unwrap()].0))]
+    #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
 }
 
