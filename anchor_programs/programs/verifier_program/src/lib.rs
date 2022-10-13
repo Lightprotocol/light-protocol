@@ -18,21 +18,49 @@ pub use processor::*;
 pub use errors::*;
 
 use anchor_lang::prelude::*;
-use merkle_tree_program::program::MerkleTreeProgram;
+use merkle_tree_program::{
+    program::MerkleTreeProgram,
+    MerkleTreeAuthority,
+};
 use anchor_spl::token::Token;
 use merkle_tree_program::{
     initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
     RegisteredVerifier,
     poseidon_merkle_tree::state::MerkleTree,
+    errors::ErrorCode as MerkleTreeError
 
 };
 use crate::processor::process_shielded_transfer_2_inputs;
+use merkle_tree_program::utils::create_pda::create_and_check_pda;
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
 #[program]
 pub mod verifier_program {
     use super::*;
+
+    /// Initializes the authority which is used to cpi the Merkle tree.
+    /// can only be invoked by Merkle tree authority.
+    pub fn initialize_authority(
+        ctx: Context<InitializeAuthority>
+    ) -> anchor_lang::Result<()> {
+        let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
+
+        create_and_check_pda(
+            &ctx.program_id,
+            &ctx.accounts.signing_address.to_account_info(),
+            &ctx.accounts.authority.to_account_info(),
+            &ctx.accounts.system_program.to_account_info(),
+            &rent,
+            MerkleTreeProgram::id().to_bytes().as_ref(),
+            &Vec::new(),
+            0,                  //bytes
+            0, //lamports
+            true,               //rent_exempt
+        )?;
+
+        Ok(())
+    }
 
     /// This instruction is the first step of a shieled transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
@@ -53,9 +81,8 @@ pub mod verifier_program {
         _root_index: u64,
         relayer_fee: u64,
         encrypted_utxos0: [u8; 128],
-        encrypted_utxos1: [u8; 64],
-        encrypted_utxos2: [u8; 32],
-        encrypted_utxos3: [u8; 14],
+        encrypted_utxos1: [u8; 32],
+        encrypted_utxos2: [u8; 14],
     ) -> Result<()> {
         process_shielded_transfer_2_inputs(
             ctx,
@@ -70,12 +97,29 @@ pub mod verifier_program {
             0,//ext_amount,
             fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
             mint_pubkey,
-            [encrypted_utxos0.to_vec(), encrypted_utxos1.to_vec(), encrypted_utxos2.to_vec(), encrypted_utxos3.to_vec()].concat(),
+            [encrypted_utxos0.to_vec(), encrypted_utxos1.to_vec(), encrypted_utxos2.to_vec()].concat(),
             merkle_tree_index,
             relayer_fee
         )
     }
 
+}
+
+// #[account]
+// pub struct Authority {}
+
+#[derive( Accounts)]
+pub struct InitializeAuthority<'info> {
+    /// CHECK:` Signer is merkle tree authority.
+    #[account(mut, address=merkle_tree_authority_pda.pubkey @MerkleTreeError::InvalidAuthority)]
+    pub signing_address: Signer<'info>,
+    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump, seeds::program=MerkleTreeProgram::id())]
+    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
+    /// CHECK:` Is checked here, but inited with 0 bytes.
+    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+    pub authority: UncheckedAccount<'info>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>
 }
 
 #[derive( Accounts)]
@@ -127,5 +171,7 @@ pub struct LightInstruction<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub token_authority: AccountInfo<'info>,
+    /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
+    #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>
 }

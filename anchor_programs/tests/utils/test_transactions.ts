@@ -885,15 +885,15 @@ export async function newAccountWithTokens ({
   userAccount,
   amount
 }) {
-  const tokenAccount = await token.getAssociatedTokenAddress(
-      MINT,
-      userAccount.publicKey,
-      false,
-      token.TOKEN_PROGRAM_ID,
-      token.ASSOCIATED_TOKEN_PROGRAM_ID
-  );
-  console.log("tokenAccount ", tokenAccount);
-
+  // const tokenAccount = await token.getAssociatedTokenAddress(
+  //     MINT,
+  //     userAccount.publicKey,
+  //     false,
+  //     token.TOKEN_PROGRAM_ID,
+  //     token.ASSOCIATED_TOKEN_PROGRAM_ID
+  // );
+  // console.log("tokenAccount ", tokenAccount);
+  let tokenAccount
   try {
     console.log("userAccount.publicKey: ", userAccount.publicKey.toBase58());
 
@@ -903,22 +903,36 @@ export async function newAccountWithTokens ({
     //   MINT,
     //   userAccount.publicKey
     // );
+    // console.log(ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+    // console.log(tokenAccount.toBase58());
+    // console.log(MINT);
+    //
+    // const transaction = new solana.Transaction().add(
+    //     token.createAssociatedTokenAccountInstruction(
+    //         ADMIN_AUTH_KEYPAIR.publicKey,
+    //         tokenAccount,
+    //         userAccount.publicKey,
+    //         MINT,
+    //         // token.TOKEN_PROGRAM_ID,
+    //         // token.ASSOCIATED_TOKEN_PROGRAM_ID
+    //     )
+    // );
+    // console.log(transaction);
+    // await solana.sendAndConfirmTransaction(connection, transaction, [ADMIN_AUTH_KEYPAIR]);
 
-    const transaction = new solana.Transaction().add(
-        token.createAssociatedTokenAccountInstruction(
-            ADMIN_AUTH_KEYPAIR.publicKey,
-            tokenAccount,
-            userAccount.publicKey,
-            MINT,
-            token.TOKEN_PROGRAM_ID,
-            token.ASSOCIATED_TOKEN_PROGRAM_ID
-        )
-    );
+    let space = token.ACCOUNT_SIZE
 
-    await solana.sendAndConfirmTransaction(connection, transaction, [ADMIN_AUTH_KEYPAIR]);
+    tokenAccount = await   token.createAccount(
+        connection,
+        ADMIN_AUTH_KEYPAIR,
+        MINT,
+        userAccount.publicKey,
+        // userAccount
+      )
+
+
   } catch (e) {
     console.log(e);
-    process.exit()
   }
 
   try{

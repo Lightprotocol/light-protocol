@@ -21,7 +21,7 @@ recipient, recipient_fee, relayer, relayer_fee, merkleTreeIndex,encryptedUtxos) 
         ...recipient_fee,
         ...relayer,
         ...relayer_fee,
-        merkleTreeIndex,
+        // merkleTreeIndex,
         ...encryptedUtxos
         // ...[0],
     ]);

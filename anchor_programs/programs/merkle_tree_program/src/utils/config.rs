@@ -135,7 +135,7 @@ pub const REGISTERED_VERIFIER_KEY_0: [u8; 32] = [
 ];
 
 //
-pub const ENCRYPTED_UTXOS_LENGTH: usize = 238;
+pub const ENCRYPTED_UTXOS_LENGTH: usize = 174;
 pub const MERKLE_TREE_TMP_PDA_SIZE: usize = 2048;
 
 pub const MERKLE_TREE_HEIGHT: u64 = 18;

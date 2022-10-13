@@ -14,16 +14,16 @@ security_txt! {
 
 pub mod poseidon_merkle_tree;
 pub use poseidon_merkle_tree::*;
-pub mod instructions;
-pub use instructions::*;
+pub mod verifier_invoked_instructions;
+pub use verifier_invoked_instructions::*;
 pub mod errors;
 pub use errors::*;
 pub mod utils;
 
-pub mod registry;
-pub use registry::*;
+pub mod config_accounts;
+pub use config_accounts::*;
 
-use crate::registry::{
+use crate::config_accounts::{
     init_asset_pda::{
         RegisterSplPool,
         RegisterSolPool,
@@ -35,16 +35,18 @@ use crate::registry::{
     register_verifier::RegisterVerifier,
 
 };
+
 use crate::errors::ErrorCode;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
 use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
 
-use crate::instructions::{
+use crate::verifier_invoked_instructions::{
     insert_nullifier::InitializeNullifier,
     sol_transfer::{process_sol_transfer, WithdrawSol},
     spl_transfer::{process_spl_transfer, WithdrawSpl},
+    insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
 };
 use crate::utils::config;
 
@@ -58,10 +60,11 @@ use crate::poseidon_merkle_tree::{
     //     process_initialize_new_merkle_tree_spl,
     //     InitializeNewMerkleTreeSpl
     // },
-    initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
-    insert_root::{process_insert_root, InsertRoot},
-    insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
-    update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
+    update_instructions:: {
+        initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
+        insert_root::{process_insert_root, InsertRoot},
+        update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
+    }
 };
 
 #[program]
@@ -91,6 +94,7 @@ pub mod merkle_tree_program {
         enable_permissionless_spl_tokens: bool,
         enable_permissionless_merkle_tree_registration: bool
     ) -> Result<()> {
+        // account is checked in ctx struct
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
         // ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_nfts;
         // ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless_spl_tokens;
@@ -113,7 +117,7 @@ pub mod merkle_tree_program {
     }
 
     pub fn register_pool_type(
-        ctx: Context<RegisterSplPool>,
+        ctx: Context<RegisterPoolType>,
         pool_type: [u8;32]
     ) -> Result<()> {
         if !ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens {
@@ -126,8 +130,7 @@ pub mod merkle_tree_program {
     }
 
     pub fn register_spl_pool(
-        ctx: Context<RegisterSplPool>,
-        pool_type: [u8;32]
+        ctx: Context<RegisterSplPool>
     ) -> Result<()> {
         if !ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens {
             if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
@@ -140,14 +143,14 @@ pub mod merkle_tree_program {
     }
 
     pub fn register_sol_pool(
-        ctx: Context<RegisterSolPool>,
-        pool_type: [u8;32]
+        ctx: Context<RegisterSolPool>
     ) -> Result<()> {
         if !ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens {
             if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
                 return err!(ErrorCode::InvalidAuthority);
             }
         }
+
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey = ctx.accounts.registered_asset_pool_pda.key();
         ctx.accounts.registered_asset_pool_pda.pool_type = ctx.accounts.registered_pool_type_pda.pool_type;
         Ok(())
@@ -217,7 +220,6 @@ pub mod merkle_tree_program {
         encrypted_utxos: [u8;256],
         merkle_tree_pda_pubkey: Pubkey,
     ) -> Result<()> {
-        panic!("remove nullifiers from data");
         process_insert_two_leaves(
             ctx,
             leaf_left,
@@ -263,14 +265,14 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-    /// Generates a leaves index account for already existing Merkle trees.
-    /// Can only be called by the init authority.
-    pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
-        _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>,
-        _bump: u64,
-    ) -> anchor_lang::Result<()> {
-        Ok(())
-    }
+    // /// Generates a leaves index account for already existing Merkle trees.
+    // /// Can only be called by the init authority.
+    // pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
+    //     _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>,
+    //     _bump: u64,
+    // ) -> anchor_lang::Result<()> {
+    //     Ok(())
+    // }
 
     // /// Checks whether a passed in merkle root exists.
     // /// Execution fails if root is not found.
@@ -293,23 +295,23 @@ pub mod merkle_tree_program {
 
 // This is a helper instruction to initialize the leaves index for existing
 // merkle trees.
-#[derive(Accounts)]
-pub struct InitializeMerkleTreeLeavesIndex<'info> {
-    #[account(mut, address= Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))]
-    pub authority: Signer<'info>,
-    // /// CHECK:` doc comment explaining why no checks through types are necessary.
-    #[account(
-        init,
-        payer = authority,
-        seeds = [&merkle_tree.key().to_bytes()],
-        bump,
-        space = 16,
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    /// CHECK:` that this function can only be used to create this account for the existing sol
-    /// Merkle tree.
-    #[account(mut, address=Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[0].0))]
-    pub merkle_tree: AccountInfo<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
-}
+// #[derive(Accounts)]
+// pub struct InitializeMerkleTreeLeavesIndex<'info> {
+//     #[account(mut, address=)]
+//     pub authority: Signer<'info>,
+//     // /// CHECK:` doc comment explaining why no checks through types are necessary.
+//     #[account(
+//         init,
+//         payer = authority,
+//         seeds = [&merkle_tree.key().to_bytes()],
+//         bump,
+//         space = 16,
+//     )]
+//     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+//     /// CHECK:` that this function can only be used to create this account for the existing sol
+//     /// Merkle tree.
+//     #[account(mut, address=Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[0].0))]
+//     pub merkle_tree: AccountInfo<'info>,
+//     pub system_program: Program<'info, System>,
+//     pub rent: Sysvar<'info, Rent>,
+// }

@@ -18,10 +18,11 @@ pub struct InitializeNullifier<'info> {
         space = 8
     )]
     pub nullifier_pda: Account<'info, Nullifier>,
-    /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=registered_verifier_pda.pubkey)]
+    /// CHECK:` Signer is owned by registered verifier program.
+    #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>
 }

@@ -101,10 +101,11 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         let encryptedOutputs = [ ];
         outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, senderThrowAwayKeypairs[index])));
         // test decrypt: same?
-        console.log("encryptedOutputs: ", encryptedOutputs.toString())
-        console.log("encryptedOutputs.length: ", encryptedOutputs.length);
-        console.log("recipientFee: ", recipientFee);
-        let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...senderThrowAwayKeypairs[0].publicKey, ...encryptedOutputs[1], ...nonces[1], ...senderThrowAwayKeypairs[1].publicKey]);
+        // console.log("encryptedOutputs: ", encryptedOutputs.toString())
+        // console.log("encryptedOutputs.length: ", encryptedOutputs.length);
+        // console.log("recipientFee: ", recipientFee);
+        console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
+        let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1]]);
         console.log(relayer);
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
@@ -169,6 +170,7 @@ var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDataBytes, encryptedOutputs, relayerFee) {
     return __awaiter(this, void 0, void 0, function* () {
+        console.log(input);
         var proofJson;
         var publicInputsJson;
         yield (0, prove_1.prove)(input, `./Light_circuits/build/circuits/transactionMasp2`)
@@ -181,8 +183,8 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         for (var i in publicInputsBytes) {
             publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
         }
-        console.log("Public inputs bytes", (new Uint8Array([...publicInputsBytes[0], ...publicInputsBytes[1], ...publicInputsBytes[2], ...publicInputsBytes[3], ...publicInputsBytes[4], ...publicInputsBytes[5], ...publicInputsBytes[6], ...publicInputsBytes[7], ...publicInputsBytes[8]])).toString());
-        console.log("proof bytes: ", (yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson)).toString());
+        // console.log("Public inputs bytes", (new Uint8Array([...publicInputsBytes[0], ...publicInputsBytes[1], ...publicInputsBytes[2], ...publicInputsBytes[3], ...publicInputsBytes[4], ...publicInputsBytes[5], ...publicInputsBytes[6], ...publicInputsBytes[7], ...publicInputsBytes[8]])).toString());
+        // console.log("proof bytes: ", (yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson)).toString());
         let publicInputs = {
             root:         publicInputsBytes[0],
             publicAmount: publicInputsBytes[1],

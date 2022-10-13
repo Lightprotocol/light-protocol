@@ -1,6 +1,7 @@
 use crate::config;
 use anchor_lang::prelude::*;
 use crate::MerkleTreeAuthority;
+use crate::errors::ErrorCode;
 
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
@@ -22,11 +23,11 @@ pub struct RegisterVerifier<'info> {
     )]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` Signer is checked according to authority pda in instruction
-    #[account(mut)]
+    #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK:` New authority no need to be checked
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    
+
 }

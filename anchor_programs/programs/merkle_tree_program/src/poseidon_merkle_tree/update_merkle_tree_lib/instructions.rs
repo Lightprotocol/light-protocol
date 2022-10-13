@@ -5,7 +5,6 @@ use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_stat
 use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 use std::cell::RefMut;
 
-
 pub fn insert_0_double(
     merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,

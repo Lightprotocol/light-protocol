@@ -7,7 +7,7 @@ use crate::RegisteredVerifier;
 #[instruction(data: Vec<u8>)]
 pub struct WithdrawSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
-    #[account(mut, address=registered_verifier_pda.pubkey)]
+    #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     /// CHECK:` That the merkle tree token belongs to a registered Merkle tree.
     #[account(mut)]
@@ -16,6 +16,7 @@ pub struct WithdrawSpl<'info> {
     /// CHECK:` that the token authority is derived in the correct way.
     #[account(mut, seeds=[b"spl"], bump)]
     pub token_authority: AccountInfo<'info>,
+    #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>
     // Recipients are specified in remaining accounts and checked in the verifier program.
 }

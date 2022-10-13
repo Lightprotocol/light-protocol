@@ -9,13 +9,11 @@ use anchor_lang::solana_program::{
     account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
 };
 use crate::state::MerkleTree;
-
+use crate::MerkleTreeAuthority;
 #[derive(Accounts)]
 #[instruction(merkle_tree_nr: u64)]
 pub struct InitializeNewMerkleTree<'info> {
-    #[account(mut
-        //, address = Pubkey::new(&MERKLE_TREE_INIT_AUTHORITY))
-    )]
+    #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
     #[account(
@@ -29,6 +27,16 @@ pub struct InitializeNewMerkleTree<'info> {
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    #[account(
+        init,
+        payer = authority,
+        seeds = [&merkle_tree.key().to_bytes()],
+        bump,
+        space = 16,
+    )]
+    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump)]
+    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
 // keeps track of leaves which have been queued but not inserted into the merkle tree yet

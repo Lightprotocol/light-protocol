@@ -13,7 +13,7 @@ pub struct RegisteredAssetPool {
 }
 
 
-/// Pool
+/// Pool type
 #[account]
 pub struct RegisteredPoolType {
     pub pool_type: [u8;32]
@@ -21,7 +21,7 @@ pub struct RegisteredPoolType {
 
 
 #[derive(Accounts)]
-#[instruction(verifier_pubkey: Pubkey, pool_type: [u8;32])]
+#[instruction(pool_type: [u8;32])]
 pub struct RegisterPoolType<'info> {
     #[account(
         init,
@@ -36,7 +36,7 @@ pub struct RegisterPoolType<'info> {
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    /// CHECK:` New authority no need to be checked
+    /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 
 }
@@ -47,7 +47,7 @@ pub struct RegisterSplPool<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, &b"pool"[..]],
+        seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, &b"pool-config"[..]],
         bump,
         space = 8 + 32 + 32
     )]
@@ -55,7 +55,7 @@ pub struct RegisterSplPool<'info> {
     #[account(init,
               seeds = [
                   &mint.key().to_bytes(), &registered_pool_type_pda.pool_type,
-                  &b"token"[..]
+                  &b"pool"[..]
               ],
               bump,
               payer = authority,
@@ -75,8 +75,13 @@ pub struct RegisterSplPool<'info> {
     #[account(mut, seeds=[b"spl"], bump)]
     pub token_authority: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
+    /// Just needs to exist and be derived correctly.
+    #[account(
+        seeds = [&registered_pool_type_pda.pool_type[..], &b"pooltype"[..]],
+        bump,
+    )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
-    /// CHECK:` New authority no need to be checked
+    /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>
 }
 
@@ -85,7 +90,7 @@ pub struct RegisterSolPool<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, &b"pool"[..]],
+        seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, &b"pool-config"[..]],
         bump,
         space = 8 + 32 + 32
     )]
@@ -95,8 +100,12 @@ pub struct RegisterSolPool<'info> {
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
+    #[account(
+        seeds = [&registered_pool_type_pda.pool_type[..], &b"pooltype"[..]],
+        bump,
+    )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
-    /// CHECK:` New authority no need to be checked
+    /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 
 }

@@ -106,6 +106,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
+    msg!("authority : {:?}", authority);
     let accounts = merkle_tree_program::cpi::accounts::InsertTwoLeaves {
         authority: authority.clone(),
         two_leaves_pda: two_leaves_pda.clone(),
@@ -114,13 +115,16 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         pre_inserted_leaves_index: pre_inserted_leaves_index_account.clone(),
         registered_verifier_pda: registered_verifier_pda.clone()
     };
-
+    msg!("[encrypted_utxos.to_vec(), vec![0u8; 256 - encrypted_utxos.len()]].concat(): {}", [encrypted_utxos.to_vec(), vec![0u8; 256 - encrypted_utxos.len()]].concat().len());
+    msg!("leaf_left {:?}", leaf_left.to_vec());
+    msg!("leaf_right {:?}", leaf_right.to_vec());
+    msg!("encrypted_utxos {:?}", encrypted_utxos.to_vec());
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::insert_two_leaves(
         cpi_ctx,
         leaf_left,
         leaf_right,
-        [encrypted_utxos.to_vec(), vec![0u8; 34]].concat().try_into().unwrap(),
+        [encrypted_utxos.to_vec(), vec![0u8; 256 - encrypted_utxos.len()]].concat().try_into().unwrap(),
         merkle_tree_tmp_account,
     )
 }

@@ -186,7 +186,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
     }
 
     pub fn check_tx_integrity_hash(&mut self) -> Result<()> {
-        panic!("removed merkle tree index");
+        msg!("removed merkle tree index");
         let input = [
             self.accounts.recipient.key().to_bytes().to_vec(),
             self.accounts.recipient_fee.key().to_bytes().to_vec(),

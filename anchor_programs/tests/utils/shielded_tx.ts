@@ -45,7 +45,8 @@ export class shieldedTransaction {
     preInsertedLeavesIndex,
     provider,
     merkleTreeFeeAssetPubkey,
-    relayerRecipient
+    relayerRecipient,
+    registeredVerifierPda
   }) {
       if (relayerPubkey == null) {
           this.relayerPubkey = new PublicKey(payer.publicKey);
@@ -73,6 +74,9 @@ export class shieldedTransaction {
       this.recipient = recipient;
       this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
       this.keypair = keypair;
+      this.registeredVerifierPda = registeredVerifierPda;
+      console.log("registeredVerifierPda: ", registeredVerifierPda.toBase58());
+
 
     }
 
@@ -360,6 +364,24 @@ export class shieldedTransaction {
       this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
       console.log("relayerAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx);
 
+      // console.log("signingAddress:     ", this.relayerPubkey)
+      // console.log("systemProgram:      ", SystemProgram.programId)
+      // console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
+      // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
+      // console.log("merkleTree:         ", this.merkleTreePubkey)
+      // console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
+      // console.log("authority:          ", this.signerAuthorityPubkey)
+      // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
+      // console.log("sender:             ", this.sender)
+      // console.log("recipient:          ", this.recipient)
+      // console.log("senderFee:          ", this.senderFee)
+      // console.log("recipientFee:       ", this.recipientFee)
+      // console.log("relayerRecipient:   ", this.relayerRecipient)
+      // console.log("escrow:             ", this.escrow)
+      // console.log("tokenAuthority:     ", this.tokenAuthority)
+      // console.log("registeredVerifierPd",this.registeredVerifierPda)
+      console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
+
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
         this.proofData.proofBytes,
         this.proofData.publicInputs.root,
@@ -373,9 +395,8 @@ export class shieldedTransaction {
         new anchor.BN(0),
         new anchor.BN(this.relayerFee.toString()),
         this.proofData.encryptedOutputs.slice(0,128),
-        this.proofData.encryptedOutputs.slice(128,192),
-        this.proofData.encryptedOutputs.slice(192,224),
-        this.proofData.encryptedOutputs.slice(224,238)
+        this.proofData.encryptedOutputs.slice(128,160),
+        this.proofData.encryptedOutputs.slice(160,174)
       ).accounts(
         {
           signingAddress:     this.relayerPubkey,
@@ -392,7 +413,8 @@ export class shieldedTransaction {
           recipientFee:       this.recipientFee,
           relayerRecipient:   this.relayerRecipient,
           escrow:             this.escrow,
-          tokenAuthority:     this.tokenAuthority
+          tokenAuthority:     this.tokenAuthority,
+          registeredVerifierPda: this.registeredVerifierPda
         }
       )
       .remainingAccounts([
@@ -504,25 +526,32 @@ export class shieldedTransaction {
         leavesAccount = await this.provider.connection.getAccountInfo(
           this.leavesPdaPubkeys[i]
         );
+        console.log(this.merkleTreeProgram.account);
 
-        leavesAccountData = unpackLeavesAccount(leavesAccount.data)
+        leavesAccountData = this.merkleTreeProgram.account.twoLeavesBytesPda._coder.accounts.decode('TwoLeavesBytesPda', leavesAccount.data);
+
         await checkRentExemption({
           account: leavesAccount,
           connection: this.provider.connection
         });
         try {
-          console.log(leavesAccountData);
+          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leafLeft.toString(), "left leaf not inserted correctly")
+          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leafRight.toString(), "right leaf not inserted correctly")
+          assert(leavesAccountData.merkleTreePubkey.toBase58() === this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
+          for (var i in this.encrypedUtxos) {
 
-          assert(leavesAccountData.leafLeft.toString() === this.proofData.publicInputs.leafLeft.toString(), "left leaf not inserted correctly")
-          assert(leavesAccountData.leafRight.toString() === this.proofData.publicInputs.leafRight.toString(), "right leaf not inserted correctly")
-          assert(leavesAccountData.encryptedUtxos.toString() === this.encrypedUtxos.toString(), "encryptedUtxos not inserted correctly")
-          assert(leavesAccountData.leafType  === 7);
+            if (leavesAccountData.encryptedUtxos[i] !== this.encrypedUtxos[i]) {
+              console.log(i);
+            }
+            assert(leavesAccountData.encryptedUtxos[i] === this.encrypedUtxos[i], "encryptedUtxos not inserted correctly");
+          }
+          // assert(Array.from(leavesAccountData.encryptedUtxos.slice(0,178)).toString() === this.encrypedUtxos.toString(), "encryptedUtxos not inserted correctly")
+
         } catch(e) {
           console.log("leaves: ", e);
         }
       }
 
-      console.log("here2");
       console.log(`mode ${this.action}, this.is_token ${this.is_token}`);
 
       try {
@@ -534,8 +563,10 @@ export class shieldedTransaction {
 
         console.log(preInsertedLeavesIndexAccount);
         const preInsertedLeavesIndexAccountAfterUpdate = this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode('PreInsertedLeavesIndex', preInsertedLeavesIndexAccount.data);
+        console.log("Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ", Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex));
+        console.log(`${Number(leavesAccountData.leftLeafIndex) } + ${this.leavesPdaPubkeys.length * 2}`);
 
-        assert(Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) == Number(leavesAccountData.leafIndex) + this.leavesPdaPubkeys.length * 2)
+        assert(Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) == Number(leavesAccountData.leftLeafIndex) + this.leavesPdaPubkeys.length * 2)
 
       } catch(e) {
         console.log("preInsertedLeavesIndex: ", e);
