@@ -26,6 +26,7 @@ class MerkleTree {
         this._layers = [];
         this._layers[0] = elements;
         this._zeros[0] = this.zeroElement;
+
         //console.log(this._zeros[0]);
         for (let i = 1; i <= levels; i++) {
             //console.log(  this._zeros[i - 1])
@@ -37,10 +38,10 @@ class MerkleTree {
         for (let level = 1; level <= this.levels; level++) {
             this._layers[level] = [];
             for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-                this._layers[level][i] = this._hash.F.toString(this._hash(
+                this._layers[level][i] = this._hash.F.toString(this._hash([
                   this._layers[level - 1][i * 2], i * 2 + 1 < this._layers[level - 1].length
                     ? this._layers[level - 1][i * 2 + 1]
-                    : this._zeros[level - 1]));
+                    : this._zeros[level - 1]]));
             }
         }
     }

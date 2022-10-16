@@ -89,7 +89,7 @@ export class shieldedTransaction {
       if (this.keypair == null) {
         this.keypair = new light.Keypair(this.poseidon);
       }
-      this.merkleTree = await light.buildMerkelTree(this.poseidon);
+      this.merkleTree = await light.buildMerkelTree(this.poseidon, 18, []);
       this.merkleTreeLeavesIndex = 0;
 
     }
@@ -413,6 +413,7 @@ export class shieldedTransaction {
       console.log("tokenAuthority:     ", this.tokenAuthority)
       console.log("registeredVerifierPd",this.registeredVerifierPda)
       console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
+      console.log();
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
         this.proofData.proofBytes,
@@ -478,6 +479,7 @@ export class shieldedTransaction {
 
       let transaction = new VersionedTransaction(compiledTx);
       let retries = 3;
+      let res
       while (retries > 0) {
         transaction.sign([this.payer])
         console.log(transaction);
@@ -486,7 +488,7 @@ export class shieldedTransaction {
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
         // console.log(this.provider.connection);
-        let res
+
 
         try {
           console.log("serializedTx: ");
@@ -554,17 +556,15 @@ export class shieldedTransaction {
       for (var i in this.leavesPdaPubkeys) {
         console.log(i);
 
-        leavesAccount = await this.provider.connection.getAccountInfo(
+        leavesAccountData = await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.leavesPdaPubkeys[i]
         );
-        console.log(this.merkleTreeProgram.account);
+        console.log(leavesAccountData);
 
-        leavesAccountData = this.merkleTreeProgram.account.twoLeavesBytesPda._coder.accounts.decode('TwoLeavesBytesPda', leavesAccount.data);
-
-        await checkRentExemption({
-          account: leavesAccount,
-          connection: this.provider.connection
-        });
+        // await checkRentExemption({
+        //   account: leavesAccount,
+        //   connection: this.provider.connection
+        // });
         try {
           assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leafLeft.toString(), "left leaf not inserted correctly")
           assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leafRight.toString(), "right leaf not inserted correctly")
@@ -742,7 +742,7 @@ export async function getPdaAddresses({
   for (var i in leftLeaves) {
     leavesPdaPubkeys.push(
     (await PublicKey.findProgramAddress(
-        [Buffer.from(new Uint8Array(leftLeaves[i])), anchor.utils.bytes.utf8.encode("leaves")],
+        [Buffer.from(Array.from(leftLeaves[i]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
         merkleTreeProgram.programId))[0]);
   }
 

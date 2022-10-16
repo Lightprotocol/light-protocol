@@ -40,7 +40,7 @@ pub struct InsertRoot<'info> {
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
 }
 
-pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
+pub fn process_insert_root<'a, 'b, 'c, 'info>(ctx: &mut Context<'a, 'b, 'c, 'info,InsertRoot<'info>>) -> Result<()> {
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
     let mut merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
 
@@ -68,11 +68,17 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
     merkle_tree_pda_data.time_locked = 0;
     merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
 
+    /*
+    // not necessary since we are already checking that the index of a leaves account is greater
+    // than the index of the merkle tree account which means the account is not part of the tree
+
     // mark leaves as inserted
     // check that leaves are the same as in first tx
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Checking leaves pair {}", index);
-        let mut leaves_pda_data = TwoLeavesBytesPda::deserialize(&mut &**account.to_account_info().try_borrow_mut_data().unwrap())?;
+        // let mut leaves_pda_data = TwoLeavesBytesPda::deserialize(&mut &**account.to_account_info().try_borrow_mut_data().unwrap())?;
+        let leaves_pda_data:  &mut Account<'info, TwoLeavesBytesPda> = &mut Account::try_from(account)?;
+
         if index >= merkle_tree_update_state_data.number_of_leaves.into() {
             msg!(
                 "Submitted to many remaining accounts {}",
@@ -119,11 +125,8 @@ pub fn process_insert_root(ctx: &mut Context<InsertRoot>) -> Result<()> {
         //     &mut account.data.borrow_mut(),
         // );
     }
+    */
 
-    // MerkleTree::pack_into_slice(
-    //     &merkle_tree_pda_data,
-    //     &mut ctx.accounts.merkle_tree.data.borrow_mut(),
-    // );
 
     Ok(())
 }

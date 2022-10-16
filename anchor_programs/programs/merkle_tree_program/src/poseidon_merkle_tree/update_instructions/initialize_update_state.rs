@@ -13,7 +13,6 @@ use anchor_lang::solana_program::{msg, program_pack::Pack, sysvar};
 use std::borrow::BorrowMut;
 
 #[derive(Accounts)]
-#[instruction(merkle_tree_index: u64)]
 pub struct InitializeUpdateState<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
@@ -32,15 +31,11 @@ pub struct InitializeUpdateState<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn process_initialize_update_state(
-    ctx: Context<InitializeUpdateState>,
-    merkle_tree_index: u64,
+pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info,InitializeUpdateState<'info>>,
 ) -> Result<()> {
     msg!("InitializeUpdateState");
-    msg!("merkle_tree_index: {}", merkle_tree_index);
-
     let update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
-    update_state_data.merkle_tree_index = merkle_tree_index.try_into().unwrap();
     update_state_data.relayer = ctx.accounts.authority.key();
     update_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
 
@@ -56,9 +51,9 @@ pub fn process_initialize_update_state(
     }
 
     let mut merkle_tree_pda_data = ctx.accounts.merkle_tree.load_mut()?; //MerkleTree::unpack(&ctx.accounts.merkle_tree.data.borrow())?;
-    update_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index.try_into().unwrap();
 
     let mut tmp_index = merkle_tree_pda_data.next_index;
+    msg!("tmp_index: {}", tmp_index);
     // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their
     // number.
     // Checks are:
@@ -69,14 +64,16 @@ pub fn process_initialize_update_state(
     // Copying leaves to tmp account.
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Copying leaves pair {}", index);
-        // let leaves_pda_data = TwoLeavesBytesPda::deserialize(account.data.into_inner().as_ref().borrow_mut())?;
-        // let mut inner = account.clone().data.into_inner().as_ref();
-        // let mut leaves_pda_data = TwoLeavesBytesPda::deserialize(&mut inner)?;
-        let leaves_pda_data = TwoLeavesBytesPda::try_from_slice(&account.to_account_info().borrow().data.deref().borrow_mut())?;
+
+        let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
+
+        // let leaves_pda_data = account. deserialize_data::<TwoLeavesBytesPda>().unwrap();
+
         // &mut tmp_storage_pda.data.borrow_mut()
+        msg!("leaves_pda_data {:?}", leaves_pda_data);
 
         // Checking that leaves are not inserted already.
-        if leaves_pda_data.is_inserted {
+        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index.try_into().unwrap() {
             // msg!(
             //     "Leaf pda state {} with address {:?} is already inserted",
             //     leaves_pda_data.is_inserted,
@@ -96,7 +93,7 @@ pub fn process_initialize_update_state(
         }
 
         // Checking that index is correct.
-        if index == 0 && leaves_pda_data.left_leaf_index != merkle_tree_pda_data.next_index.try_into().unwrap() {
+        if index == 0 && leaves_pda_data.left_leaf_index != merkle_tree_pda_data.next_index {
             msg!(
                 "Leaves pda at index {} has index {} but should have {}",
                 index,
@@ -153,9 +150,8 @@ pub fn process_initialize_update_state(
     }
 
     // Copying Subtrees into update state.
-    for (i, node) in merkle_tree_pda_data.filled_subtrees.iter().enumerate() {
-        update_state_data.filled_subtrees[i] = node.clone().try_into().unwrap();
-    }
+    update_state_data.filled_subtrees = merkle_tree_pda_data.filled_subtrees.clone();
+    update_state_data.tmp_leaves_index = merkle_tree_pda_data.next_index.clone();
 
     Ok(())
 }

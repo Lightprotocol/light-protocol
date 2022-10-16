@@ -243,9 +243,9 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.system_program.to_account_info(),
                 &self.accounts.rent.to_account_info(),
                 &self.accounts.registered_verifier_pda.to_account_info(),
-                leaves.0.clone().try_into().unwrap(),
-                leaves.0.clone().try_into().unwrap(),
-                leaves.1.clone().try_into().unwrap(),
+                to_be_64(&leaves.0).try_into().unwrap(),
+                to_be_64(&leaves.0).try_into().unwrap(),
+                to_be_64(&leaves.1).try_into().unwrap(),
                 self.accounts.merkle_tree.key(),
                 self.encrypted_utxos.clone().try_into().unwrap()
             )?;
@@ -260,6 +260,9 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         msg!("implement rootcheck with index");
         let merkle_tree = self.accounts.merkle_tree.load()?;
         if merkle_tree.roots[self.merkle_root_index].to_vec() != to_be_64(self.merkle_root) {
+            msg!("self.merkle_root_index: {}", self.merkle_root_index);
+            msg!("merkle_tree.roots[self.merkle_root_index].to_vec() {:?}", merkle_tree.roots[self.merkle_root_index].to_vec());
+            msg!("to_be_64(self.merkle_root) {:?}", to_be_64(self.merkle_root));
             return err!(VerifierSdkError::InvalidMerkleTreeRoot);
         }
         self.checked_root = true;

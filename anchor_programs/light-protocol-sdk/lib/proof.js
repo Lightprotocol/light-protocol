@@ -13,6 +13,8 @@ exports.prepareTransaction = void 0;
 exports.getProofMasp = void 0;
 const anchor = require("@project-serum/anchor")
 
+var ffjavascript = require('ffjavascript');
+const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const constants_1 = require("./constants");
 const enums_1 = require("./enums");
 const getExternalDataHash_1 = require("./utils/getExternalDataHash");
@@ -166,8 +168,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
 };
 exports.prepareTransaction = prepareTransaction;
 
-var ffjavascript = require('ffjavascript');
-const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
+
 const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDataBytes, encryptedOutputs, relayerFee) {
     return __awaiter(this, void 0, void 0, function* () {
         console.log(input);

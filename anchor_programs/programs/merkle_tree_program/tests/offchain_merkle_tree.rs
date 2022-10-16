@@ -5,8 +5,8 @@
 mod tests {
     // mod batched_instructions;
     // use batched_instructions::batched_instructions::*;
-    mod merkle_tree_update_instructions;
-    use crate::tests::merkle_tree_update_instructions::instructions::insert_last_double;
+    // mod merkle_tree_update_instructions;
+    // use crate::tests::merkle_tree_update_instructions::instructions::insert_last_double;
     use anchor_lang::prelude::Pubkey;
     use ark_crypto_primitives::{
         crh::{TwoToOneCRH, CRH},
@@ -39,9 +39,9 @@ mod tests {
 
     use std::fs::File;
     use std::io::Error as ioError;
-
+    use merkle_tree_program;
     use solana_program::program_pack::Pack;
-
+    use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::instructions::insert_last_double;
     use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::processor::compute_updated_merkle_tree;
 
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
@@ -449,9 +449,10 @@ mod tests {
             let (updated_leaf_hash, mut updated_path) = self.updated_path(index, new_leaf)?;
             self.leaf_nodes[index] = updated_leaf_hash;
             let mut curr_index = convert_index_to_last_level(index, self.height);
-            for _ in 0..self.height - 1 {
+            for i in 0..self.height - 1 {
                 curr_index = parent(curr_index).unwrap();
                 self.non_leaf_nodes[curr_index] = updated_path.pop().unwrap();
+                println!("current level hash {} {:?}", i ,self.non_leaf_nodes[curr_index]);
             }
             Ok(())
         }
@@ -632,9 +633,7 @@ mod tests {
         );
 
         // looping over init bytes and asserting them with dynamically created poseidon hashes
-        for (level, level_hash) in config::INIT_BYTES_MERKLE_TREE_18[10..(18 * 32 + 10)]
-            .chunks(32)
-            .enumerate()
+        for (level, level_hash) in ZERO_BYTES_MERKLE_TREE_18.iter().enumerate()
         {
             current_level_hash =
                 <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
@@ -651,165 +650,58 @@ mod tests {
             );
             assert_eq!(
                 zero_value,
-                config::ZERO_BYTES_MERKLE_TREE_18[level * 32..(level + 1) * 32],
+                ZERO_BYTES_MERKLE_TREE_18[level],
                 "Verification of zero bytes failed at level {}",
                 level
             );
         }
     }
 
+    use merkle_tree_program::utils::config::{
+        ZERO_BYTES_MERKLE_TREE_18,
+        MERKLE_TREE_HISTORY_SIZE,
+    };
+    use merkle_tree_program::poseidon_merkle_tree::initialize_new_merkle_tree_18;
+    use std::cell::RefCell;
     #[test]
-    fn merkle_tree_arkworks_fork_vs_tornado_cash_fork_init() {
-        //testing full arkforks_merkle tree vs sparse tornado cash fork tree for heights from 1 to 15
-        for i in 1..12 {
-            println!("tree_height: {}", i);
-            let tree_height = i;
-            let zero_value = [
-                108, 175, 153, 72, 237, 133, 150, 36, 226, 65, 231, 118, 15, 52, 27, 130, 180, 93,
-                161, 235, 182, 53, 58, 52, 243, 171, 172, 211, 96, 76, 229, 47,
-            ]
-            .to_vec(); //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
+    fn test_initialize() {
+        let tree_height = 18;
 
-            let mut smt = MockSmtMerkleTree {
-                is_initialized: true,
-                levels: 1,
-                filled_subtrees: vec![vec![0 as u8; 32]; 1],
-                zeros: vec![vec![0 as u8; 32]; 1],
-                current_root_index: 0,
-                next_index: 0,
-                root_history_size: 100,
-                roots: vec![vec![0 as u8; 32]; 10],
-                leaves: vec![vec![0 as u8; 32]; 10],
-            };
-
-            initialize(&mut smt, tree_height, zero_value.clone());
-            let leaves: Vec<Vec<u8>> =
-                vec![smt.zeros[0].clone(); 2_usize.pow(tree_height.try_into().unwrap())];
-            println!("starting to init arkworks_fork tree");
-            let mut tree = MerkleTree::new(&leaves).unwrap();
-            //println!("root: {:?}", tree.root());
-            //assert_eq!(smt.levels, tree.height);
-            assert_eq!(smt.roots[0], tree.root());
-        }
-    }
-
-    fn print_init_bytes_helper(smt: MockSmtMerkleTree) -> Result<(), ioError> {
-        let path = format!("src/init_bytes{}.rs", smt.levels);
-        let mut output = File::create(path)?;
-        let line = println!("{}", "hello");
-
-        let mut init_bytes = Vec::new();
-        let mut zero_bytes = Vec::new();
-
-        print!("[");
-        //print initialize
-        print!("{}", 1);
-        init_bytes.push(1u8);
-        //add account type
-        init_bytes.push(2u8);
-
-        for i in &smt.levels.to_le_bytes() {
-            print!(", {}", i);
-            init_bytes.push(*i);
-        }
-        for i in &smt.filled_subtrees {
-            for j in i {
-                print!(", {}", j);
-                init_bytes.push(*j);
-            }
-        }
-        for i in &smt.zeros {
-            for j in i {
-                print!(", {}", j);
-                zero_bytes.push(*j);
-            }
-        }
-        for i in &smt.current_root_index.to_le_bytes() {
-            print!(", {}", i);
-            init_bytes.push(*i);
-        }
-        for i in &smt.next_index.to_le_bytes() {
-            print!(", {}", i);
-            init_bytes.push(*i);
-        }
-        for i in &smt.root_history_size.to_le_bytes() {
-            print!(", {}", i);
-            init_bytes.push(*i);
-        }
-        for i in &smt.roots {
-            for j in i {
-                print!(", {}", j);
-                init_bytes.push(*j);
-            }
-            break;
-        }
-        /*
-        for i in &smt.leaves {
-            for j in i {
-                print!(", {}", j);
-
-            }
-        }*/
-        println!("];");
-        write!(
-            output,
-            "{}",
-            format!(
-                "pub const INIT_BYTES_MERKLE_TREE_{} : [u8;{}] = {:?};",
-                smt.levels,
-                init_bytes.len(),
-                init_bytes
-            )
-        );
-        write!(
-            output,
-            "{}",
-            format!(
-                "\n\npub const ZERO_BYTES_MERKLE_TREE_{} : [u8;{}] = {:?};",
-                smt.levels,
-                zero_bytes.len(),
-                zero_bytes
-            )
-        );
-
-        println!("subtrees len : {}", smt.filled_subtrees.len());
-        println!("zeros len : {}", smt.zeros.len());
-        println!("Number of init bytes: {}", init_bytes.len());
-
-        println!("generating instruction order for height {}", smt.levels);
-        let mut instruction_order = Vec::new();
-
-        instruction_order.push(34u8);
-        instruction_order.push(14u8);
-        for j in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
-            instruction_order.push(j);
-        }
-        for i in 1..smt.levels {
-            instruction_order.push(25u8);
-            //instruction_order.push(27u8);
-            for j in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
-                instruction_order.push(j);
-            }
-        }
-        // instruction_order.push(25u8);
-        // instruction_order.push(27u8);
-        // for j in INSTRUCTION_ORDER_POSEIDON_2_INPUTS {
-        // 	instruction_order.push(j);
+        let zero_value = vec![40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32]; //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
+        let mut zero_values = Vec::new();
+        let mut current_zero = zero_value.clone();
+        zero_values.push(current_zero.clone());
+        // println!("pub const ZERO_BYTES_MERKLE_TREE_18: [[u8;32];{}] = [\n \t {:?},",tree_height, current_zero);
+        // for i in 0..32 {
+        //     current_zero = hash_64_to_vec([current_zero.clone(), current_zero].concat()).to_vec();
+        //     zero_values.push(current_zero.clone());
+        //     println!("\t {:?},", current_zero);
+        //
         // }
-        instruction_order.push(16u8);
+        // println!("]; ");
 
-        write!(
-            output,
-            "{}",
-            format!(
-                "\n\npub const INSERT_INSTRUCTION_ORDER_{} : [u8;{}] = {:?};",
-                smt.levels,
-                instruction_order.len(),
-                instruction_order
-            )
-        );
+        let mut mt = MerkleTreeOnchain {
+            filled_subtrees: [[0u8;32];18],
+            current_root_index: 0u64,
+            next_index: 0u64,
+            roots: [[0u8;32];MERKLE_TREE_HISTORY_SIZE as usize],
+            pubkey_locked: Pubkey::new(&[0u8;32]),
+            time_locked: 0u64,
+            height: 0u64,
+            merkle_tree_nr: 0u64,
+        };
+        let mt_index = 0;
+        let binding = &mut RefCell::new(mt);
+        let mut ref_mt = binding.borrow_mut();
+        initialize_new_merkle_tree_18::process_initialize_new_merkle_tree_18(&mut ref_mt,tree_height, ZERO_BYTES_MERKLE_TREE_18.to_vec(), mt_index);
 
-        Ok(())
+        let leaves: Vec<Vec<u8>> =
+            vec![zero_value.clone(); 2_usize.pow(tree_height.try_into().unwrap())];
+        println!("starting to init arkworks_fork tree");
+        let mut tree = MerkleTree::new(&leaves).unwrap();
+        //println!("root: {:?}", tree.root());
+        //assert_eq!(smt.levels, tree.height);
+        assert_eq!(ref_mt.roots[0].to_vec(), tree.root());
     }
 
     #[test]
@@ -851,76 +743,105 @@ mod tests {
         // //println!("root: {:?}", tree.root());
         // //assert_eq!(smt.levels, tree.height);
         // assert_eq!(smt.roots[0], tree.root());
-        print_init_bytes_helper(smt);
     }
 
     use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
-    use std::cell::RefCell;
     use std::cell::RefMut;
     use merkle_tree_program::poseidon_merkle_tree::state;
-    pub const INSERT_INSTRUCTION_ORDER_18: [u8; 73] = [
-        34, 14, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1,
-        2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1,
-        2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2, 25, 0, 1, 2,
+    pub const INSERT_INSTRUCTION_ORDER_18: [u8; 55] = [
+    14, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1,
+    2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2, 0, 1, 2
     ];
     #[test]
     fn batch_updat_smt_test() {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for height 18
-        let tree_height = 18;
-        let iterations = 2;
+        let tree_height: u64 = 18;
+        const iterations: usize = 13;
+
         println!("tree_height: {}", tree_height);
-        //let zero_value = [1u8, 32];
-        let zero_value = vec![1 as u8; 32];
-        let mut account_data_merkle_tree = [0u8; 16658];
-        //initing merkle tree with init bytes
-        for i in 0..config::INIT_BYTES_MERKLE_TREE_18.len() {
-            account_data_merkle_tree[i] = config::INIT_BYTES_MERKLE_TREE_18[i];
-        }
-        let mut smt = MerkleTreeOnchain::unpack(&account_data_merkle_tree).unwrap();
-        let mut smt_batch = MerkleTreeOnchain::unpack(&account_data_merkle_tree).unwrap();
-        println!(
-            "smt {:?}, len data {}",
-            smt.roots,
-            account_data_merkle_tree.len()
-        );
-        //initialize(&mut smt, tree_height, zero_value.clone());
-        let initial_zero_hash = config::ZERO_BYTES_MERKLE_TREE_18[0..32].to_vec();
-        println!("initial_zero_hash: {:?}", initial_zero_hash);
+
+        let mut mt = MerkleTreeOnchain {
+            filled_subtrees: [[0u8;32];18],
+            current_root_index: 0u64,
+            next_index: 0u64,
+            roots: [[0u8;32]; 256],
+            pubkey_locked: Pubkey::new(&[0u8;32]),
+            time_locked: 0u64,
+            height: 0u64,
+            merkle_tree_nr: 0u64,
+        };
+        let mt_index = 0;
+        let binding = &mut RefCell::new(mt);
+        let mut smt = binding.borrow_mut();
+        initialize_new_merkle_tree_18::process_initialize_new_merkle_tree_18(&mut smt,tree_height, ZERO_BYTES_MERKLE_TREE_18.to_vec(), mt_index);
+
+        let initial_zero_hash = config::ZERO_BYTES_MERKLE_TREE_18[0].to_vec();
+        let zero_value = vec![40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32]; //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
+        assert_eq!(initial_zero_hash, zero_value);
 
         println!("init successful");
         let mut rng = test_rng();
 
-        let mut filled_leaves = [[[0u8; 32]; 2]; 16];
-        filled_leaves[0][0] = vec![
-            122, 211, 19, 11, 66, 4, 220, 94, 97, 4, 55, 167, 17, 188, 163, 24, 95, 226, 42, 95,
-            245, 35, 100, 234, 210, 0, 177, 23, 6, 54, 141, 36,
-        ]
-        .try_into()
-        .unwrap();
-
-        filled_leaves[0][1] = vec![
-            221, 219, 197, 254, 66, 250, 66, 161, 9, 62, 220, 57, 202, 115, 205, 232, 199, 222,
-            131, 2, 116, 138, 212, 25, 104, 209, 32, 254, 20, 161, 49, 47,
-        ]
-        .try_into()
-        .unwrap();
-        filled_leaves[1][0] = vec![
-            177, 178, 52, 116, 232, 152, 188, 86, 170, 183, 5, 59, 51, 142, 44, 62, 78, 105, 95, 4,
-            247, 13, 250, 27, 153, 208, 63, 76, 70, 159, 54, 10,
-        ]
-        .try_into()
-        .unwrap();
-        filled_leaves[1][1] = vec![
-            218, 210, 112, 195, 148, 121, 95, 46, 107, 224, 46, 89, 100, 236, 202, 218, 164, 24,
-            16, 25, 13, 235, 6, 65, 239, 70, 165, 32, 152, 43, 73, 18,
-        ]
-        .try_into()
-        .unwrap();
+        let leaves: Vec<Vec<u8>> =
+            vec![initial_zero_hash.clone(); 2_usize.pow(tree_height.try_into().unwrap())];
+        println!("starting to init arkworks_fork tree");
+        let mut tree = MerkleTree::new(&leaves).unwrap();
 
         let mut j = 0;
         for i in 0..iterations {
+            let mut filled_leaves = Vec::<[[u8; 32]; 2]>::new();
+            // filled_leaves.push([vec![
+            //    97, 182, 164, 119,  88, 188,   3,   6,
+            //    86,  29,  64, 115, 216, 126,  65, 250,
+            //    21, 183,  53, 226,  34, 204, 117, 118,
+            //   133,  53, 186,  79,  60, 132,   0,  42
+            // ]
+            // .try_into()
+            // .unwrap(), vec![
+            //   135, 113, 171, 189, 221,  82, 238,  58,
+            //   214, 114,  66, 168, 151, 143,  90,  65,
+            //   252,  76, 206, 240, 108,  50, 222, 196,
+            //    34,  77,  44,   1,  15, 243, 130,   5
+            // ]
+            // .try_into()
+            // .unwrap()]);
+            // println!("INSERT_INSTRUCTION_ORDER_18 {:?}", INSERT_INSTRUCTION_ORDER_18);
+            //
+            // filled_leaves.push([vec![
+            //     177, 178, 52, 116, 232, 152, 188, 86, 170, 183, 5, 59, 51, 142, 44, 62, 78, 105, 95, 4,
+            //     247, 13, 250, 27, 153, 208, 63, 76, 70, 159, 54, 10,
+            // ]
+            // .try_into()
+            // .unwrap(), vec![
+            // 218, 210, 112, 195, 148, 121, 95, 46, 107, 224, 46, 89, 100, 236, 202, 218, 164, 24,
+            // 16, 25, 13, 235, 6, 65, 239, 70, 165, 32, 152, 43, 73, 18,
+            // ]
+            // .try_into()
+            // .unwrap()]);
+
+            for _ in 0..(i + 1) {
+                let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+
+                let mut new_leaf_hash_bytes = [0u8; 32];
+                <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+                    &new_leaf_hash,
+                    &mut new_leaf_hash_bytes[..],
+                );
+
+                let new_leaf_hash_1 = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+
+                let mut new_leaf_hash_bytes_1 = [0u8; 32];
+
+                <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
+                    &new_leaf_hash_1,
+                    &mut new_leaf_hash_bytes_1[..],
+                );
+                filled_leaves.push([
+                        new_leaf_hash_bytes, new_leaf_hash_bytes_1
+                    ]);
+            }
+
             let mut tmp_pda = MerkleTreeUpdateState {
-                merkle_tree_index: 0,
                 node_left: [0u8; 32],
                 node_right: [0u8; 32],
                 leaf_left: [0u8; 32],
@@ -939,124 +860,71 @@ mod tests {
                 current_instruction_index: 0u64,
                 insert_leaves_index: 0,
                 leaves: [[[0u8; 32]; 2]; 16],
-                number_of_leaves: 1,
-                tmp_leaves_index: 0,
+                number_of_leaves: filled_leaves.len().try_into().unwrap(),
+                tmp_leaves_index: smt.next_index,
+                filled_subtrees: smt.filled_subtrees.clone()
             };
             let tmp = RefCell::new(tmp_pda);
             let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
 
-            let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
+            for (j, leaves) in filled_leaves.iter().enumerate() {
+                verifier_state_data.leaves[j][0] = leaves[0];
+                verifier_state_data.leaves[j][1] = leaves[1];
+            }
 
-            let mut new_leaf_hash_bytes = [0u8; 32];
-            <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
-                &new_leaf_hash,
-                &mut new_leaf_hash_bytes[..],
-            );
-
-            let new_leaf_hash_1 = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
-
-            let mut new_leaf_hash_bytes_1 = [0u8; 32];
-
-            <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
-                &new_leaf_hash_1,
-                &mut new_leaf_hash_bytes_1[..],
-            );
-            // new_leaf_hash_bytes = [2u8; 32];
-            // let new_leaf_hash_bytes_1 =[1u8; 32];
-
-            println!("verifier_state_data.node_left: {:?}", new_leaf_hash_bytes);
-            println!(
-                "verifier_state_data.node_right: {:?}",
-                new_leaf_hash_bytes_1
-            );
-            verifier_state_data.node_left = filled_leaves[i][0];
-            verifier_state_data.node_right = filled_leaves[i][1];
-            // filled_leaves[i] = [new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()];
-
-            //assert_eq!(true, false,"will fail because no data is incjected");
-            for i in INSERT_INSTRUCTION_ORDER_18 {
-                double_process_instruction(
-                    i,
+            let mut counter = 0;
+            while verifier_state_data.current_instruction_index != 55 {
+                compute_updated_merkle_tree(
+                    config::INSERT_INSTRUCTION_ORDER_18
+                        [verifier_state_data.current_instruction_index as usize],
                     &mut verifier_state_data,
                     &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
                 );
+                verifier_state_data.current_instruction_index += 1;
+                counter += 1;
                 println!(
-                    "verifier_state_data.state[0..32]: {:?}",
-                    verifier_state_data.state[0..32].to_vec()
+                    "counter {} current_instruction_index {}",
+                    counter, verifier_state_data.current_instruction_index
+                );
+                println!(
+                    "counter {} current_instruction_index {}",
+                    counter, verifier_state_data.current_round
+                );
+                println!(
+                    "insert_leaves_index {} number_of_leaves {}",
+                    verifier_state_data.insert_leaves_index, verifier_state_data.number_of_leaves
                 );
             }
+
             insert_last_double(&mut smt, &mut verifier_state_data);
+            assert_eq!(smt.filled_subtrees, verifier_state_data.filled_subtrees);
 
-            j += 2;
-        }
-        // starting batch insert
 
-        let mut tmp_pda = MerkleTreeUpdateState {
-            merkle_tree_index: 0,
-            node_left: [0u8; 32],
-            node_right: [0u8; 32],
-            leaf_left: [0u8; 32],
-            leaf_right: [0u8; 32],
-            merkle_tree_pda_pubkey: Pubkey::new(&[0u8; 32]),
-            // verifier_tmp_pda: vec![0u8; 32],
-            relayer: Pubkey::new(&[0u8; 32]),
+            for leaves in filled_leaves.iter() {
+                tree.update(j, &leaves[0].to_vec());
+                tree.update(j + 1, &leaves[1].to_vec());
+                j += 2;
+            }
+            println!("iter {}",i );
+            println!("verifier_state_data nr leaves {}", verifier_state_data.number_of_leaves);
+            println!("smt {:?}", smt);
+            assert_eq!(smt.roots[i + 1].to_vec(), tree.root());
 
-            state: [0u8; 96],
-            current_round: 0,
-            current_round_index: 0,
-
-            current_level_hash: [0u8; 32],
-            current_index: 0u64,
-            current_level: 0u64,
-            current_instruction_index: 0u64,
-            insert_leaves_index: 0,
-            leaves: filled_leaves,
-            number_of_leaves: iterations.try_into().unwrap(),
-            tmp_leaves_index: 0,
-        };
-        let tmp = RefCell::new(tmp_pda);
-        let mut verifier_state_data: RefMut<'_, MerkleTreeUpdateState> = tmp.borrow_mut();
-
-        println!("filled_leaves: {:?}", filled_leaves);
-        //assert_eq!(true, false,"will fail because no data is incjected");
-        let mut counter = 0;
-        while verifier_state_data.current_instruction_index != 56 {
-            compute_updated_merkle_tree(
-                config::INSERT_INSTRUCTION_ORDER_18
-                    [verifier_state_data.current_instruction_index as usize],
-                &mut verifier_state_data,
-                &mut smt_batch, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
-            );
-            verifier_state_data.current_instruction_index += 1;
-            counter += 1;
-            println!(
-                "counter {} current_instruction_index {}",
-                counter, verifier_state_data.current_instruction_index
-            );
-            println!(
-                "insert_leaves_index {} number_of_leaves {}",
-                verifier_state_data.insert_leaves_index, verifier_state_data.number_of_leaves
-            );
         }
 
-        instructions::insert_last_double(&mut smt_batch, &mut verifier_state_data);
-
-        println!(
-            "current_level_hash {:?}",
-            verifier_state_data.current_level_hash
-        );
-        println!("smt.roots {:?}", smt.roots);
-
-        assert_eq!(smt.roots, smt_batch.roots);
-        assert_eq!(
-            vec![
-                194, 152, 246, 84, 243, 21, 82, 3, 176, 169, 72, 89, 231, 239, 92, 186, 47, 95, 68,
-                136, 112, 218, 43, 168, 139, 62, 46, 131, 15, 210, 192, 20
-            ],
-            smt.roots
-        );
+        // assert_eq!(smt.roots[1].to_vec(), tree.root());
+        // one insert
+        // assert_eq!(
+        //     [
+        //       249, 153, 153,  65, 165, 155, 198, 151,
+        //        95,   3, 219, 106,  68,  21, 237,  12,
+        //        45, 136, 180, 245,  19, 172, 210, 247,
+        //       107,  96, 232, 120,  42, 142,  78,  29
+        //     ],
+        //     smt.roots[1]
+        // );
     }
-
+    /*
     #[test]
     #[ignore]
     fn batch_updat_offchain_test() {
@@ -1266,7 +1134,7 @@ mod tests {
             smt.roots
         );
     }
-
+    */
     use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::poseidon_0;
     use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::poseidon_1;
     use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::poseidon_2;
@@ -1299,7 +1167,8 @@ mod tests {
         } else if id == MERKLE_TREE_UPDATE_START {
             batched_instructions::batched_instructions::insert_0_double(merkle_tree_pda_data, verifier_state_data);
         }
-    }*/
+    }
+
 
     pub fn double_process_instruction(
         id: u8,
@@ -1314,15 +1183,16 @@ mod tests {
         } else if id == HASH_2 {
             poseidon_2(verifier_state_data);
         } else if id == MERKLE_TREE_UPDATE_LEVEL {
-            merkle_tree_update_instructions::instructions::insert_1_inner_loop(
+            merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::instructions::insert_1_inner_loop(
                 merkle_tree_pda_data,
                 verifier_state_data,
             );
         } else if id == MERKLE_TREE_UPDATE_START {
-            merkle_tree_update_instructions::instructions::insert_0_double(
+            merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::instructions::insert_0_double(
                 merkle_tree_pda_data,
                 verifier_state_data,
             );
         }
-    }
+    }*/
+
 }

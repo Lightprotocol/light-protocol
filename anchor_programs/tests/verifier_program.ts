@@ -15,7 +15,9 @@ import { assert, expect } from "chai";
 const token = require('@solana/spl-token');
 let circomlibjs = require("circomlibjs");
 import {toBufferLE} from 'bigint-buffer';
-
+import {
+  buildMerkleTree
+} from "./utils/build_merkle_tree";
 import {
   shieldedTransaction,
   createEncryptionKeypair
@@ -23,7 +25,8 @@ import {
 import {
   newAccountWithLamports,
   newAccountWithTokens,
-  newProgramOwnedAccount
+  newProgramOwnedAccount,
+  executeUpdateMerkleTreeTransactions
 } from "./utils/test_transactions";
 
 import {
@@ -57,7 +60,8 @@ import {
   PRIVATE_KEY,
   FIELD_SIZE,
   MINT_PRIVATE_KEY,
-  MINT
+  MINT,
+  ENCRYPTION_KEYPAIR
   } from "./utils/constants";
 
 
@@ -103,8 +107,9 @@ describe("verifier_program", () => {
   var REGISTERED_POOL_PDA_SPL;
   var REGISTERED_POOL_PDA_SOL;
   var REGISTERED_POOL_PDA;
+  var SHIELDED_TRANSACTION;
 
-  it.only("init pubkeys ", async () => {
+  it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
     await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000))
@@ -159,7 +164,7 @@ describe("verifier_program", () => {
       ))[0];
   })
 
-  it.only("Initialize Merkle Tree", async () => {
+  it("Initialize Merkle Tree", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )
@@ -201,8 +206,8 @@ describe("verifier_program", () => {
       console.log("signer, ", signer);
 
       try {
-        const ix = await merkleTreeProgram.methods.initializeNewMerkleTree(new anchor.BN("0")
-      ).accounts({
+        const ix = await merkleTreeProgram.methods.initializeNewMerkleTree(
+        ).accounts({
           authority: ADMIN_AUTH_KEY,
           merkleTree: MERKLE_TREE_KEY,
           preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -509,7 +514,7 @@ describe("verifier_program", () => {
   // });
   */
 
-  it.only("Init Address Lookup Table", async () => {
+  it("Init Address Lookup Table", async () => {
     const recentSlot = (await provider.connection.getSlot()) - 10;
     console.log("recentSlot: ", recentSlot);
 
@@ -574,56 +579,58 @@ describe("verifier_program", () => {
 
   });
 
-  it.only("Deposit", async () => {
+  it("Deposit", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
-    const origin = await newAccountWithLamports(provider.connection)
-    const relayer = await newAccountWithLamports(provider.connection)
-    let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
-    let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+    for (var i = 0; i < 1; i++) {
+      console.log("Deposit ", i);
 
-    let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
-    let RELAYER_FEE = U64(10_000);
+      const origin = await newAccountWithLamports(provider.connection)
+      const relayer = await newAccountWithLamports(provider.connection)
+      let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+      let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
 
-    let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
-    let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
-    let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+      let RELAYER_FEE = U64(10_000);
 
-    let KEYPAIR = new light.Keypair(POSEIDON);
-    var userTokenAccount
-    console.log("MINT: ", MINT);
-    console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR);
-    console.log("origin: ", origin);
-    console.log("depositAmount: ", depositAmount);
+      let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
-    try {
-      // create associated token account
-      userTokenAccount = (await newAccountWithTokens({
-        connection: provider.connection,
-        MINT,
-        ADMIN_AUTH_KEYPAIR,
-        userAccount: origin,
-        amount: depositAmount
-      }))
-      console.log("userTokenAccount ", userTokenAccount.toBase58());
+      let KEYPAIR = new light.Keypair(POSEIDON);
+      var userTokenAccount
+      console.log("MINT: ", MINT);
+      console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR);
+      console.log("origin: ", origin);
+      console.log("depositAmount: ", depositAmount);
 
-    } catch(e) {
-      console.log(e);
-    }
+      try {
+        // create associated token account
+        userTokenAccount = (await newAccountWithTokens({
+          connection: provider.connection,
+          MINT,
+          ADMIN_AUTH_KEYPAIR,
+          userAccount: origin,
+          amount: depositAmount
+        }))
+        console.log("userTokenAccount ", userTokenAccount.toBase58());
 
-    await token.approve(
-      provider.connection,
-      origin,
-      userTokenAccount,
-      AUTHORITY, //delegate
-      origin.publicKey, // owner
-      depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
-      []
-    )
+      } catch(e) {
+        console.log(e);
+      }
 
-    let SHIELDED_TRANSACTION = new shieldedTransaction({
+      await token.approve(
+        provider.connection,
+        origin,
+        userTokenAccount,
+        AUTHORITY, //delegate
+        origin.publicKey, // owner
+        depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
+        []
+      )
+
+      SHIELDED_TRANSACTION = new shieldedTransaction({
         // four static config fields
         lookupTable:            LOOK_UP_TABLE,
         merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
@@ -639,43 +646,113 @@ describe("verifier_program", () => {
         encryptionKeypair:      ENCRYPTION_KEYPAIR,
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
         registeredVerifierPda:  REGISTERED_VERIFIER_PDA
-    });
+      });
 
-    await SHIELDED_TRANSACTION.getMerkleTree();
+      await SHIELDED_TRANSACTION.getMerkleTree();
 
-    let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
-    let outputUtxos = [deposit_utxo1];
+      let outputUtxos = [deposit_utxo1];
 
-    await SHIELDED_TRANSACTION.prepareTransactionFull({
-      inputUtxos: [],
-      outputUtxos,
-      action: "DEPOSIT",
-      assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
-      relayerFee: U64(depositFeeAmount),
-      shuffle: true,
-      mintPubkey: ASSET,
-      sender: userTokenAccount
-    });
+      await SHIELDED_TRANSACTION.prepareTransactionFull({
+        inputUtxos: [],
+        outputUtxos,
+        action: "DEPOSIT",
+        assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
+        relayerFee: U64(depositFeeAmount),
+        shuffle: true,
+        mintPubkey: ASSET,
+        sender: userTokenAccount
+      });
 
-    await SHIELDED_TRANSACTION.proof();
+      await SHIELDED_TRANSACTION.proof();
 
-    try {
-      let res = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log(res);
-    } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
-    }
-    try {
-      await SHIELDED_TRANSACTION.checkBalances()
-    } catch (e) {
-      console.log(e);
+      try {
+        let res = await SHIELDED_TRANSACTION.sendTransaction();
+        console.log(res);
+      } catch (e) {
+        console.log(e);
+        console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      }
+      try {
+        await SHIELDED_TRANSACTION.checkBalances()
+      } catch (e) {
+        console.log(e);
+      }
+
     }
 
   })
 
-  it("Withdraw", async () => {
+  async function getUninsertedLeaves({
+    merkleTreeProgram,
+    merkleTreeIndex,
+    connection
+    // merkleTreePubkey
+  }) {
+    var leave_accounts: Array<{
+      pubkey: PublicKey
+      account: Account<Buffer>
+    }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
+    console.log("Total nr of accounts. ", leave_accounts.length);
+
+    let filteredLeaves = leave_accounts
+    .filter((pda) => {
+      return pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber()
+    }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
+
+    return filteredLeaves.map((pda) => {
+        return { isSigner: false, isWritable: false, pubkey: pda.publicKey};
+    })
+  }
+
+  it("Update Merkle Tree after Deposit", async () => {
+
+    console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
+
+    MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        merkleTreeProgram.programId))[0];
+    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
+
+    // fetch uninserted utxos from chain
+    let leavesPdas = await getUninsertedLeaves({
+        merkleTreeProgram,
+        merkleTreeIndex: mtFetched.nextIndex,
+        connection: provider.connection
+    });
+
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+    // build tree from chain
+    let mtPrior = await buildMerkleTree({
+        connection:provider.connection,
+        config: {x:1}, // rnd filler
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        merkleTreeProgram: merkleTreeProgram,
+        poseidonHash: poseidon
+      }
+    );
+
+    await executeUpdateMerkleTreeTransactions({
+      connection:       provider.connection,
+      signer:           ADMIN_AUTH_KEYPAIR,
+      merkleTreeProgram: merkleTreeProgram,
+      leavesPdas:       leavesPdas,
+      merkleTree:       mtPrior,
+      merkle_tree_pubkey: MERKLE_TREE_KEY,
+      provider
+    });
+
+
+    //check correct insert
+    //  let mtOnchain = await merkleTreeProgram.account.merkleTree.all()
+    // console.log("mtOnchain.roots[1] ", mtOnchain.roots[1]);
+    // console.log("mtAfter.root() ", mtAfter.root());
+
+    // assert(mtOnchain.roots[1] == mtAfter.root());
+  })
+
+  it.skip("Withdraw", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);

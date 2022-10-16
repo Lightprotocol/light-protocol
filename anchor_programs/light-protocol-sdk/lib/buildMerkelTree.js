@@ -17,8 +17,9 @@ const constants_1 = require("./constants");
 const merkelTree_1 = __importDefault(require("./merkelTree"));
 const toFixedHex_1 = require("./utils/toFixedHex");
 const { U64 } = require('n64');
-const buildMerkelTree = function (poseidonHash) {
+const buildMerkelTree = function (poseidonHash, MERKLE_TREE_HEIGHT, leaves) {
     return __awaiter(this, void 0, void 0, function* () {
+      console.log("here");
         // const programPubKey = constants_1.PROGRAM_ID;
         // // Fetch all the accounts owned by the specified program id
         // const leave_accounts = yield connection.getProgramAccounts(programPubKey, {
@@ -49,7 +50,7 @@ const buildMerkelTree = function (poseidonHash) {
         //       leaves.push((0, toFixedHex_1.toFixedHex)(leaves_to_sort[i].leaves.slice(32, 64).reverse()));
         //   }
         // }
-        return new merkelTree_1.default(constants_1.MERKLE_TREE_HEIGHT, poseidonHash);
+        return new merkelTree_1.default(MERKLE_TREE_HEIGHT, poseidonHash, leaves);
     });
 };
 exports.buildMerkelTree = buildMerkelTree;

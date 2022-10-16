@@ -2,6 +2,7 @@ use anchor_lang::prelude::*;
 use crate::utils::config::MERKLE_TREE_HEIGHT;
 
 #[account(zero_copy)]
+#[derive(Debug)]
 pub struct MerkleTreeUpdateState {
     pub node_left: [u8; 32],
     pub node_right: [u8; 32],
@@ -21,7 +22,6 @@ pub struct MerkleTreeUpdateState {
     pub filled_subtrees: [[u8; 32]; MERKLE_TREE_HEIGHT as usize],
 
     pub leaves: [[[u8; 32]; 2]; 16],
-    pub merkle_tree_index: u8,
     pub number_of_leaves: u8,
     pub insert_leaves_index: u8,
 }

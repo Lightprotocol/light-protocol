@@ -75,3 +75,19 @@ export const DEFAULT_PROGRAMS = {
   rent: solana.SYSVAR_RENT_PUBKEY,
   clock: solana.SYSVAR_CLOCK_PUBKEY,
 };
+
+
+export const ENCRYPTION_KEYPAIR = {
+  publicKey: new Uint8Array([
+     45, 218, 154, 197, 141, 144, 160, 47,
+    100,  67, 150, 144,  22, 128,  18, 23,
+    104,   2, 176, 172, 176, 238, 235, 14,
+    118, 139,  22, 151,  86,  26, 136, 84
+  ]),
+  secretKey: new Uint8Array([
+    246,  19, 199,   8, 120, 165, 210,  59,
+    113, 102,  63,  98, 185, 252,  50,  12,
+     35,  89,  71,  60, 189, 251, 109,  89,
+     92,  74, 233, 128, 148,  50, 243, 162
+  ])
+}

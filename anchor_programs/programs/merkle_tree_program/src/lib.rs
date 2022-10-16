@@ -40,7 +40,7 @@ use crate::errors::ErrorCode;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY};
+use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY, ZERO_BYTES_MERKLE_TREE_18};
 
 use crate::verifier_invoked_instructions::{
     insert_nullifier::InitializeNullifier,
@@ -73,16 +73,20 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree> , merkle_tree_nr: u64
-    ) -> Result<()> {
-        process_initialize_new_merkle_tree_18(
-            ctx,
-            &config::INIT_BYTES_MERKLE_TREE_18[..],
-            merkle_tree_nr
-        )
+    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
+        let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
+
+        let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
+        process_initialize_new_merkle_tree_18(merkle_tree,18, ZERO_BYTES_MERKLE_TREE_18.to_vec(), merkle_tree_index);
+
+        ctx.accounts.merkle_tree_authority_pda.merkle_tree_index += 1;
+
+        Ok(())
 
     }
 
+    /// Initializes a new merkle tree authority which can register new verifiers and configure
+    /// permissions to create new pools.
     pub fn initialize_merkle_tree_authority(ctx: Context<InitializeMerkleTreeAuthority>) -> Result<()> {
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
         Ok(())
@@ -103,6 +107,8 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    /// Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.
+    /// These functions can only be invoked from registered verifiers.
     pub fn register_verifier(
         ctx: Context<RegisterVerifier>,
         verifier_pubkey: Pubkey
@@ -116,6 +122,7 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    /// Registers a new pooltype.
     pub fn register_pool_type(
         ctx: Context<RegisterPoolType>,
         pool_type: [u8;32]
@@ -129,6 +136,7 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(
         ctx: Context<RegisterSplPool>
     ) -> Result<()> {
@@ -142,6 +150,7 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    /// Creates a new sol pool which can be used by any registered verifier.
     pub fn register_sol_pool(
         ctx: Context<RegisterSolPool>
     ) -> Result<()> {
@@ -156,20 +165,6 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
-
-
-    // /// Initializes a new Merkle tree from config bytes.
-    // /// Can only be called from the init authority.
-    // pub fn initialize_new_merkle_tree_spl(ctx: Context<InitializeNewMerkleTreeSpl>) -> Result<()> {
-    //     let merkle_tree_storage_acc = ctx.accounts.merkle_tree.to_account_info();
-    //
-    //     process_initialize_new_merkle_tree_spl(
-    //         merkle_tree_storage_acc,
-    //         &config::INIT_BYTES_MERKLE_TREE_18[..],
-    //     )
-    //
-    // }
-
     /// Initializes a merkle tree update state pda. This pda stores the leaves to be inserted
     /// and state of the computation of poseidon hashes to update the Merkle tree.
     /// A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.
@@ -177,17 +172,16 @@ pub mod merkle_tree_program {
     /// passed in during the following instructions.
     /// The hashes are computed with the update merkle tree instruction and the new root is inserted
     /// with the insert root merkle tree instruction.
-    pub fn initialize_merkle_tree_update_state(
-        ctx: Context<InitializeUpdateState>,
-        merkle_tree_index: u64,
+    pub fn initialize_merkle_tree_update_state<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info,InitializeUpdateState<'info>>,
     ) -> Result<()> {
-        process_initialize_update_state(ctx, merkle_tree_index)
+        process_initialize_update_state(ctx)
     }
 
     /// Computes poseidon hashes to update the Merkle tree.
     pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
         mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
-        _bump: u64, //data: Vec<u8>,
+        _bump: u64,
     ) -> Result<()> {
         process_update_merkle_tree(&mut ctx)
     }
