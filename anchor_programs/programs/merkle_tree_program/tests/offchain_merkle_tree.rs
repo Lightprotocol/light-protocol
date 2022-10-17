@@ -756,7 +756,7 @@ mod tests {
     fn batch_updat_smt_test() {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for height 18
         let tree_height: u64 = 18;
-        const iterations: usize = 13;
+        const iterations: usize = 100;
 
         println!("tree_height: {}", tree_height);
 
@@ -819,7 +819,7 @@ mod tests {
             // .try_into()
             // .unwrap()]);
 
-            for _ in 0..(i + 1) {
+            for _ in 0..((i % 15)+ 1) {
                 let new_leaf_hash = Fp256::<ark_ed_on_bn254::FqParameters>::rand(&mut rng);
 
                 let mut new_leaf_hash_bytes = [0u8; 32];
@@ -857,7 +857,7 @@ mod tests {
                 current_level_hash: [0u8; 32],
                 current_index: 0u64,
                 current_level: 0u64,
-                current_instruction_index: 0u64,
+                current_instruction_index: 1u64,
                 insert_leaves_index: 0,
                 leaves: [[[0u8; 32]; 2]; 16],
                 number_of_leaves: filled_leaves.len().try_into().unwrap(),
@@ -872,10 +872,11 @@ mod tests {
                 verifier_state_data.leaves[j][1] = leaves[1];
             }
 
+            print!("tmp_pda.leaves {:?}",tmp_pda.leaves );
             let mut counter = 0;
-            while verifier_state_data.current_instruction_index != 55 {
+            while verifier_state_data.current_instruction_index != 56 {
                 compute_updated_merkle_tree(
-                    config::INSERT_INSTRUCTION_ORDER_18
+                    merkle_tree_program::utils::constants::IX_ORDER
                         [verifier_state_data.current_instruction_index as usize],
                     &mut verifier_state_data,
                     &mut smt, /*new_leaf_hash_bytes.clone(), new_leaf_hash_bytes_1.clone()*/
@@ -905,24 +906,14 @@ mod tests {
                 tree.update(j + 1, &leaves[1].to_vec());
                 j += 2;
             }
-            println!("iter {}",i );
-            println!("verifier_state_data nr leaves {}", verifier_state_data.number_of_leaves);
-            println!("smt {:?}", smt);
+            // println!("iter {}",i );
+            // println!("verifier_state_data nr leaves {}", verifier_state_data.number_of_leaves);
+            // println!("smt {:?}", smt);
+            println!("{:?}", smt.roots[i + 1].to_vec());
             assert_eq!(smt.roots[i + 1].to_vec(), tree.root());
 
         }
 
-        // assert_eq!(smt.roots[1].to_vec(), tree.root());
-        // one insert
-        // assert_eq!(
-        //     [
-        //       249, 153, 153,  65, 165, 155, 198, 151,
-        //        95,   3, 219, 106,  68,  21, 237,  12,
-        //        45, 136, 180, 245,  19, 172, 210, 247,
-        //       107,  96, 232, 120,  42, 142,  78,  29
-        //     ],
-        //     smt.roots[1]
-        // );
     }
     /*
     #[test]

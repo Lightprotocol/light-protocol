@@ -15,7 +15,7 @@ use std::borrow::BorrowMut;
 use std::borrow::Borrow;
 
 use crate::utils::constants::{
-    LEAVES_PDA_ACCOUNT_TYPE, STORAGE_SEED, UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE,
+    STORAGE_SEED
 };
 
 #[derive(Accounts)]

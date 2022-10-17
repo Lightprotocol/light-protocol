@@ -29,12 +29,3 @@ pub const STORAGE_SEED: &[u8] = b"storage";
 pub const LEAVES_SEED: &[u8] = b"leaves";
 #[constant]
 pub const NF_SEED: &[u8] = b"nf";
-
-// account types
-pub const TMP_STORAGE_ACCOUNT_TYPE: u8 = 1;
-pub const MERKLE_TREE_ACCOUNT_TYPE: u8 = 2;
-pub const NULLIFIER_ACCOUNT_TYPE: u8 = 3;
-pub const LEAVES_PDA_ACCOUNT_TYPE: u8 = 4;
-pub const USER_ACCOUNT_TYPE: u8 = 5;
-pub const MERKLE_TREE_TMP_STORAGE_ACCOUNT_TYPE: u8 = 6;
-pub const UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE: u8 = 7;

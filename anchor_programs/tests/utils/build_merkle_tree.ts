@@ -47,20 +47,32 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
   //   return pda.account.leftLeafIndex.toNumber() < mtFetched.nextIndex.toNumber()
   // })
   .sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
-  console.log("leave_accounts: ", leave_accounts);
+
 
   const leaves: string[] = []
+console.log("------------------------------------------------------");
+  console.log("[");
 
   if(leave_accounts.length > 0){
     for (let i: number = 0; i < leave_accounts.length; i++) {
       if (leave_accounts[i].account.leftLeafIndex.toNumber() < mtFetched.nextIndex.toNumber()) {
         leaves.push(new anchor.BN(leave_accounts[i].account.nodeLeft.reverse())) // .reverse()
         leaves.push(new anchor.BN(leave_accounts[i].account.nodeRight.reverse()))
+        console.log("[ ");
+
+        console.log(leave_accounts[i].account.nodeLeft.reverse());
+        console.log(",");
+
+        console.log(leave_accounts[i].account.nodeRight.reverse());
+        console.log(",");
+        console.log("],");
 
       }
     }
   }
-  console.log("leaves ",leaves);
+  console.log("]");
+
+  console.log("------------------------------------------------------");
 
   console.log(leaves[0]);
   console.log(new anchor.BN(leave_accounts[0].account.nodeLeft));
@@ -75,11 +87,12 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
   let fetchedMerkleTree = await light.buildMerkelTree(poseidonHash, MERKLE_TREE_HEIGHT, leaves)
   console.log("ftecj tree here");
 
-  console.log("fetchedMerkleTree.root()  ", Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()))) );
+  console.log("fetchedMerkleTree.root()  ", Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)) );
   console.log(" mtFetched.roots[mtFetched.currentRootIndex ",  mtFetched.roots[mtFetched.currentRootIndex]);
+  console.log(mtFetched);
 
-  if (Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()))).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()) {
-    throw `building merkle tree from chain failed: root local ${Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()))).toString()} != root fetched ${mtFetched.roots[mtFetched.currentRootIndex]}`;
+  if (Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()) {
+    throw `building merkle tree from chain failed: root local ${Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString()} != root fetched ${mtFetched.roots[mtFetched.currentRootIndex]}`;
   }
 
   return fetchedMerkleTree;

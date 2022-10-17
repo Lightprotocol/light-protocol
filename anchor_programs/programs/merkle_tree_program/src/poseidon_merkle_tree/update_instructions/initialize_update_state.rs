@@ -4,7 +4,6 @@ use crate::state::TwoLeavesBytesPda;
 use crate::utils::config;
 use crate::utils::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::utils::constants::STORAGE_SEED;
-use crate::utils::constants::UNINSERTED_LEAVES_PDA_ACCOUNT_TYPE;
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use std::borrow::Borrow;

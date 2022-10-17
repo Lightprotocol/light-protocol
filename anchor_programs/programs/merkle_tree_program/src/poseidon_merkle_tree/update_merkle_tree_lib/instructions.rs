@@ -99,7 +99,7 @@ pub fn insert_1_inner_loop(
             );
 
             // reset current_instruction_index to 1 since the lock is already taken
-            update_state_data.current_instruction_index = 0;
+            update_state_data.current_instruction_index = 1;
 
             // increase tmp index by pair
 

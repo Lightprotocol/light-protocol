@@ -584,7 +584,7 @@ describe("verifier_program", () => {
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
-    for (var i = 0; i < 1; i++) {
+    for (var i = 0; i < 16; i++) {
       console.log("Deposit ", i);
 
       const origin = await newAccountWithLamports(provider.connection)
@@ -706,7 +706,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it("Update Merkle Tree after Deposit", async () => {
+  it.only("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -737,7 +737,7 @@ describe("verifier_program", () => {
       connection:       provider.connection,
       signer:           ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram: merkleTreeProgram,
-      leavesPdas:       leavesPdas,
+      leavesPdas:       leavesPdas.slice(0,5),
       merkleTree:       mtPrior,
       merkle_tree_pubkey: MERKLE_TREE_KEY,
       provider

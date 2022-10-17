@@ -2,7 +2,6 @@ use crate::utils::config::{
     ENCRYPTED_UTXOS_LENGTH,
     MERKLE_TREE_HISTORY_SIZE
 };
-use crate::utils::constants::MERKLE_TREE_ACCOUNT_TYPE;
 use anchor_lang::prelude::*;
 
 
