@@ -50,7 +50,8 @@ export class shieldedTransaction {
     provider,
     merkleTreeFeeAssetPubkey,
     relayerRecipient,
-    registeredVerifierPda
+    registeredVerifierPda,
+    poseidon,
   }) {
       if (relayerPubkey == null) {
           this.relayerPubkey = new PublicKey(payer.publicKey);
@@ -72,16 +73,14 @@ export class shieldedTransaction {
       this.feeUtxos = [];
       this.encryptionKeypair = encryptionKeypair;
       this.payer = payer;
-      console.log("payer: ", payer);
 
       this.provider = provider;
       this.recipient = recipient;
       this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
       this.keypair = keypair;
       this.registeredVerifierPda = registeredVerifierPda;
-      console.log("registeredVerifierPda: ", registeredVerifierPda.toBase58());
-
-
+      this.merkleTree = merkleTree;
+      this.poseidon = poseidon;
     }
 
     async getMerkleTree() {
@@ -394,7 +393,6 @@ export class shieldedTransaction {
       console.log("sender_fee: ", this.senderFee);
       this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
       this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
-      console.log("relayerAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx);
 
       console.log("signingAddress:     ", this.relayerPubkey)
       console.log("systemProgram:      ", SystemProgram.programId)
@@ -413,7 +411,6 @@ export class shieldedTransaction {
       console.log("tokenAuthority:     ", this.tokenAuthority)
       console.log("registeredVerifierPd",this.registeredVerifierPda)
       console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
-      console.log();
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
         this.proofData.proofBytes,
@@ -428,7 +425,8 @@ export class shieldedTransaction {
         new anchor.BN(this.relayerFee.toString()),
         this.proofData.encryptedOutputs.slice(0,128),
         this.proofData.encryptedOutputs.slice(128,160),
-        this.proofData.encryptedOutputs.slice(160,174)
+        this.proofData.encryptedOutputs.slice(160,174),
+        new Uint8Array(16).fill(1)
       ).accounts(
         {
           signingAddress:     this.relayerPubkey,
@@ -705,11 +703,20 @@ export class shieldedTransaction {
 
         var relayerAccount = await this.provider.connection.getBalance(this.relayerRecipient);
         var recipientFeeAccount = await this.provider.connection.getBalance(this.recipientFee);
+        console.log("recipientFeeAccount ", recipientFeeAccount);
+        console.log("this.feeAmount: ", this.feeAmount);
+        console.log("recipientFeeBalancePriorTx ", this.recipientFeeBalancePriorTx);
+        console.log(`recipientFeeAccount ${(new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString()))).add(new anchor.BN("5000")).toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString()}`)
 
-        console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount).toString()} == ${new anchor.BN(this.recipientFeeBalancePriorLastTx).sub(this.feeAmount).toString()}`)
+        console.log("relayerAccount ", relayerAccount);
+        console.log("this.relayerFee: ", this.relayerFee);
+        console.log("relayerRecipientAccountBalancePriorLastTx ", this.relayerRecipientAccountBalancePriorLastTx);
+        console.log(`relayerFeeAccount ${new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx)}`)
 
-        console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`)
-        assert(new anchor.BN(relayerAccount).toString() == new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString());
+        // console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`)
+        assert((new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString()))).toString() == new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString());
+        assert(new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).add(new anchor.BN("5000")).toString() == new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).toString());
+
 
 
       } else {

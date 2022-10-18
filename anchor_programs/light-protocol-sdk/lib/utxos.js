@@ -11,6 +11,7 @@ const constants_1 = require("./constants");
 const toFixedHex_1 = require("./utils/toFixedHex");
 const anchor = require("@project-serum/anchor")
 const toBufferLE = require('bigint-buffer');
+// import { BigNumber } from 'ethers';
 
 const N_ASSETS = 3;
 class Utxo {
@@ -140,18 +141,31 @@ class Utxo {
         // console.log("CIPHERTEXT TYPE", typeof ciphertext)
         return ciphertext;
     }
-    static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, index) {
+    static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
+      console.log("jhere");
         const cleartext = nacl.box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
+        console.log(cleartext);
         if (!cleartext) {
             return [false, null];
         }
         const buf = Buffer.from(cleartext);
-        const utxoAmount = new anchor.BN('0x' + buf.slice(31, 39).toString('hex'));
-        const utxoBlinding = new anchor.BN('0x' + buf.slice(0, 31).toString('hex'));
+        console.log(buf);
+        const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
+        const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
+
+        const utxoBlinding = new anchor.BN( buf.slice(0, 31));
+        console.log(assets);
         return [
             true,
-            new Utxo(utxoAmount, shieldedKeypair, // only recipient can decrypt, has full keypair
-            utxoBlinding, index),
+            // {
+            // utxoAmount1,
+            // utxoAmount2,
+            // shieldedKeypair,
+            // utxoBlinding,
+            // index}
+            new Utxo(POSEIDON, assets, [utxoAmount1, utxoAmount2], shieldedKeypair,"0", utxoBlinding, index)
+            // only recipient can decrypt, has full keypair
+            // utxoBlinding, index),
         ];
     }
 }

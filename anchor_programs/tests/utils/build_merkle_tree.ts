@@ -56,8 +56,8 @@ console.log("------------------------------------------------------");
   if(leave_accounts.length > 0){
     for (let i: number = 0; i < leave_accounts.length; i++) {
       if (leave_accounts[i].account.leftLeafIndex.toNumber() < mtFetched.nextIndex.toNumber()) {
-        leaves.push(new anchor.BN(leave_accounts[i].account.nodeLeft.reverse())) // .reverse()
-        leaves.push(new anchor.BN(leave_accounts[i].account.nodeRight.reverse()))
+        leaves.push(new anchor.BN(leave_accounts[i].account.nodeLeft.reverse()).toString()) // .reverse()
+        leaves.push(new anchor.BN(leave_accounts[i].account.nodeRight.reverse()).toString())
         console.log("[ ");
 
         console.log(leave_accounts[i].account.nodeLeft.reverse());

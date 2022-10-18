@@ -540,25 +540,36 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             }
 
             if field.0[0]
-                != u64::try_from(-ext_amount)
-                    .unwrap()
-                    .checked_add(relayer_fee)
-                    .unwrap() && is_fee_token
+                < relayer_fee && is_fee_token
             {
                 msg!(
-                    "Withdrawal invalid external amount: {} != {}",
+                    "Withdrawal invalid relayer_fee: {} < {}",
                     pub_amount.0[0],
-                    relayer_fee + u64::try_from(-ext_amount).unwrap()
+                    relayer_fee
                 );
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
+
+            // if field.0[0]
+            //     != u64::try_from(-ext_amount)
+            //         .unwrap()
+            //         .checked_add(relayer_fee)
+            //         .unwrap() && is_fee_token
+            // {
+            //     msg!(
+            //         "Withdrawal invalid external amount: {} != {}",
+            //         pub_amount.0[0],
+            //         relayer_fee + u64::try_from(-ext_amount).unwrap()
+            //     );
+            //     return Err(VerifierSdkError::WrongPubAmount.into());
+            // }
             let pub_amount = field.0[0] - relayer_fee;
             msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
             Ok((pub_amount, relayer_fee))
         }
-         else if ext_amount == 0 {
-            Ok((ext_amount.try_into().unwrap(), relayer_fee))
-        }
+        //  else if ext_amount == 0 {
+        //     Ok((ext_amount.try_into().unwrap(), relayer_fee))
+        // }
         else {
             msg!("Invalid state checking external amount.");
             Err(VerifierSdkError::WrongPubAmount.into())

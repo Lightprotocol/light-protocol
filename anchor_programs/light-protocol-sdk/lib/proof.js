@@ -51,6 +51,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         /// and fill the path to the leaf with 0s
 
         for (const inputUtxo of inputUtxos) {
+            console.log(merkelTree);
             if (test) {
               inputMerklePathIndices.push(0);
               inputMerklePathElements.push(new Array(merkelTree.levels).fill(0));
@@ -94,14 +95,16 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         }
 
         const nonces = [newNonce(), newNonce()];
-        const senderThrowAwayKeypairs = [
-            newKeypair(),
-            newKeypair()
-        ];
+        // const senderThrowAwayKeypairs = [
+        //     newKeypair(),
+        //     newKeypair()
+        // ];
         // console.log(outputUtxos)
         /// Encrypt outputUtxos to bytes
+        // removed throwaway keypairs since we already have message integrity with integrity_hashes
+        // TODO: should be a hardcoded keypair in production not the one of the sender
         let encryptedOutputs = [ ];
-        outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, senderThrowAwayKeypairs[index])));
+        outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, encryptionKeypair)));
         // test decrypt: same?
         // console.log("encryptedOutputs: ", encryptedOutputs.toString())
         // console.log("encryptedOutputs.length: ", encryptedOutputs.length);
@@ -155,6 +158,9 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         console.log("input feeAmount: ", input.feeAmount);
         console.log("input publicAmount: ", input.publicAmount);
         console.log("input relayerFee: ", relayerFee);
+
+        console.log("inIndices ", JSON.stringify(inIndices, null, 4));
+        console.log("outIndices ", JSON.stringify(outIndices, null, 4));
 
         return {
                 extAmount: extData.extAmount,

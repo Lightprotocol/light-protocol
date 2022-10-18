@@ -94,6 +94,7 @@ const prepareUtxos = (
     }
     /// mixes the input utxos
     /// mixes the output utxos
+    shuffle = false
     if (shuffle) {
       console.log("shuffling utxos")
 
@@ -103,6 +104,9 @@ const prepareUtxos = (
     } else {
       console.log("commented shuffle")
     }
+    console.log("inputUtxos", inputUtxos[0]);
+    console.log("outputUtxos", outputUtxos);
+
     /// the fee plus the amount to pay has to be bigger than the amount in the input utxo
     // which doesn't make sense it should be the other way arround right
     // the external amount can only be made up of utxos of asset[0]
@@ -173,7 +177,7 @@ const prepareUtxos = (
     });
     let assetPubkeys = [feeAsset,assets].concat();
     if (assets.length != 3) {
-      throw new Error(`assetPubkeys.length != 3 ${assetPubkeys}`);
+      throw new Error(`assetPubkeys.length != 3 ${assets}`);
     }
     // if (inputUtxos[0].asset != assets[0]) {
     //   throw new Error(`No feeUtxo in first place ${inputUtxos[0].asset}`);

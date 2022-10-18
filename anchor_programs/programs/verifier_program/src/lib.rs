@@ -82,6 +82,7 @@ pub mod verifier_program {
         encrypted_utxos0: [u8; 128],
         encrypted_utxos1: [u8; 32],
         encrypted_utxos2: [u8; 14],
+        encrypted_utxos3: [u8; 16]
     ) -> Result<()> {
         process_shielded_transfer_2_inputs(
             ctx,

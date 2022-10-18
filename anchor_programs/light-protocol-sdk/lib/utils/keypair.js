@@ -41,6 +41,7 @@ exports.unpackEncryptedMessage = unpackEncryptedMessage;
 class Keypair {
     constructor(poseidon, privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))) {
         this.privkey = privkey;
+
         this.pubkey = poseidon.F.toString(poseidon([this.privkey]));
         this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(privkey.slice(2));
         this.poseidon = poseidon;
@@ -87,26 +88,6 @@ class Keypair {
     sign(commitment, merklePath) {
         return this.poseidon.F.toString(this.poseidon([this.privkey, commitment, merklePath]));
     }
-    /**
-     * Encrypt data using keypair encryption key
-     *
-     * @param {Buffer} bytes
-     * @returns {string} a hex string with encrypted data
-     */
-    encrypt(bytes) {
-        return packEncryptedMessage((0, eth_sig_util_1.encrypt)(this.encryptionKey, { data: bytes.toString('base64') }, 'x25519-xsalsa20-poly1305'));
-    }
-    /**
-     * Decrypt data using keypair private key
-     *
-     * @param {string} data a hex string with data
-     * @returns {Buffer}
-     */
-    decrypt(data) {
-        // return Buffer.from(
-        //   decrypt(unpackEncryptedMessage(data), this.privkey.slice(2)),
-        //   "base58",
-        // );
-    }
+    
 }
 exports.Keypair = Keypair;

@@ -64,6 +64,9 @@ import {
   ENCRYPTION_KEYPAIR
   } from "./utils/constants";
 
+var MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
+let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toBuffer(32).slice(0,31));
 
 var UNREGISTERED_MERKLE_TREE;
 var UNREGISTERED_MERKLE_TREE_PDA_TOKEN;
@@ -109,10 +112,21 @@ describe("verifier_program", () => {
   var REGISTERED_POOL_PDA;
   var SHIELDED_TRANSACTION;
 
+  var PRIOR_UTXO;
+
+  var KEYPAIR :light.keypair =  {
+      privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
+      pubkey: '11764594559652842781365480184568685555721424202471696567480221588056785654892',
+      encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
+  };
+
   it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
     await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000))
+    POSEIDON = await circomlibjs.buildPoseidonOpt();
+
+    KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
 
     REGISTERED_VERIFIER_PDA = (await solana.PublicKey.findProgramAddress(
         [verifierProgram.programId.toBuffer()],
@@ -142,7 +156,6 @@ describe("verifier_program", () => {
         [merkleTreeProgram.programId.toBuffer()],
         verifierProgram.programId))[0];
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
       [anchor.utils.bytes.utf8.encode("spl")],
@@ -584,21 +597,21 @@ describe("verifier_program", () => {
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
-    for (var i = 0; i < 16; i++) {
+    for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
       const origin = await newAccountWithLamports(provider.connection)
       const relayer = await newAccountWithLamports(provider.connection)
-      let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
-      let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+      // let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
 
-      let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
       let RELAYER_FEE = U64(10_000);
 
       let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
       let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
-      let KEYPAIR = new light.Keypair(POSEIDON);
+      // let KEYPAIR = new light.Keypair(POSEIDON);
+      // console.log("KEYPAIR: ", KEYPAIR);
+
       var userTokenAccount
       console.log("MINT: ", MINT);
       console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR);
@@ -650,7 +663,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.getMerkleTree();
 
-      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
       let outputUtxos = [deposit_utxo1];
 
@@ -658,10 +671,10 @@ describe("verifier_program", () => {
         inputUtxos: [],
         outputUtxos,
         action: "DEPOSIT",
-        assetPubkeys: [FEE_ASSET, ASSET, ASSET_1],
+        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
         relayerFee: U64(depositFeeAmount),
         shuffle: true,
-        mintPubkey: ASSET,
+        mintPubkey: MINT_CIRCUIT,
         sender: userTokenAccount
       });
 
@@ -706,7 +719,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it.only("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -752,24 +765,99 @@ describe("verifier_program", () => {
     // assert(mtOnchain.roots[1] == mtAfter.root());
   })
 
-  it.skip("Withdraw", async () => {
+
+  async function getInsertedLeaves({
+    merkleTreeProgram,
+    merkleTreeIndex,
+    connection
+    // merkleTreePubkey
+  }) {
+    var leave_accounts: Array<{
+      pubkey: PublicKey
+      account: Account<Buffer>
+    }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
+    console.log("Total nr of accounts. ", leave_accounts.length);
+
+    let filteredLeaves = leave_accounts
+    .filter((pda) => {
+      return pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber()
+    }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
+
+    return filteredLeaves;
+  }
+  const nacl = require('tweetnacl');
+
+  it.skip("Test Utxo encryption", async () => {
+    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    KEYPAIR = new light.Keypair(POSEIDON)
+
+    let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
+    deposit_utxo1.index = 0;
+    let preCommitHash = deposit_utxo1.getCommitment();
+    let preNullifier = deposit_utxo1.getNullifier();
+
+    let nonce = nacl.randomBytes(24);
+    let encUtxo = deposit_utxo1.encrypt(nonce, ENCRYPTION_KEYPAIR, ENCRYPTION_KEYPAIR);
+    console.log(encUtxo);
+    let decUtxo = light.Utxo.decrypt(new Uint8Array(Array.from(encUtxo.slice(0,63))),nonce, ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
+    // console.log(decUtxo);
+
+    assert(preCommitHash == decUtxo.getCommitment(), "commitment doesnt match")
+    assert(preNullifier == decUtxo.getNullifier(), "nullifier doesnt match")
+
+
+  })
+
+  it("Withdraw", async () => {
+    POSEIDON = await circomlibjs.buildPoseidonOpt();
+
+
+    MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        merkleTreeProgram.programId))[0];
+    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
+    let merkleTree = await buildMerkleTree({
+        connection:provider.connection,
+        config: {x:1}, // rnd filler
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        merkleTreeProgram: merkleTreeProgram,
+        poseidonHash: POSEIDON
+      }
+    );
+
+    // commitment 1997455705844261495603407827525422405298079803327781621973292052224256407227
+    // get inserted leaves
+    let leavesPdas = await getInsertedLeaves({
+        merkleTreeProgram,
+        merkleTreeIndex: mtFetched.nextIndex,
+        connection: provider.connection
+    });
+    console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
+
+    // decrypt first leaves account and build utxo
+    let decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
+    console.log("decryptedUtxo1: ", decryptedUtxo1);
+
+    let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
+    console.log("decryptedUtxo2: ", decryptedUtxo2);
+
+
+
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
     const origin = new anchor.web3.Account()
     const relayer = await newAccountWithLamports(provider.connection)
-    let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
-    let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+    // let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+    // let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
 
-    let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
     let RELAYER_FEE = U64(10_000);
 
-    let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
+    // let ENCRYPTION_KEYPAIR = createEncryptionKeypair()
     let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
     let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
-    let KEYPAIR = new light.Keypair(POSEIDON);
     var userTokenAccount
     var tokenRecipient
     try {
@@ -795,71 +883,90 @@ describe("verifier_program", () => {
       console.log(e);
     }
 
-    await token.transfer(
-      provider.connection,
-      relayer,
-      userTokenAccount, // from
-      MERKLE_TREE_PDA_TOKEN_USDC, // to
-      relayer, // owner
-      depositAmount,
-      [],
-      {commitment: "finalized", preflightCommitment: "finalized"},
-      token.TOKEN_PROGRAM_ID
-    )
+    // await token.transfer(
+    //   provider.connection,
+    //   relayer,
+    //   userTokenAccount, // from
+    //   MERKLE_TREE_PDA_TOKEN_USDC, // to
+    //   relayer, // owner
+    //   depositAmount,
+    //   [],
+    //   {commitment: "finalized", preflightCommitment: "finalized"},
+    //   token.TOKEN_PROGRAM_ID
+    // )
     console.log("PRE_INSERTED_LEAVES_INDEX: ", PRE_INSERTED_LEAVES_INDEX);
 
-    let SHIELDED_TRANSACTION = new shieldedTransaction({
-        // four static config fields
-        lookupTable:            LOOK_UP_TABLE,
-        merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
-        merkleTreeProgram,
-        verifierProgram,
+    // let SHIELDED_TRANSACTION = new shieldedTransaction({
+    //     // four static config fields
+    //     lookupTable:            LOOK_UP_TABLE,
+    //     merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
+    //     merkleTreeProgram,
+    //     verifierProgram,
+    //
+    //     merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+    //     merkleTreePubkey:       MERKLE_TREE_KEY,
+    //     merkleTreeIndex:        1,
+    //     preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+    //     provider,
+    //     payer:                  ADMIN_AUTH_KEYPAIR,
+    //     encryptionKeypair:      ENCRYPTION_KEYPAIR,
+    //     relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+    //     merkleTree: mtFetched
+    // });
+    SHIELDED_TRANSACTION = new shieldedTransaction({
+      // four static config fields
+      lookupTable:            LOOK_UP_TABLE,
+      merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
+      merkleTreeProgram,
+      verifierProgram,
 
-        merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
-        merkleTreePubkey:       MERKLE_TREE_KEY,
-        merkleTreeIndex:        1,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        provider,
-        payer:                  ADMIN_AUTH_KEYPAIR,
-        encryptionKeypair:      ENCRYPTION_KEYPAIR,
-        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey
+      merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+      merkleTreePubkey:       MERKLE_TREE_KEY,
+      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+      provider,
+      payer:                  ADMIN_AUTH_KEYPAIR,
+      encryptionKeypair:      ENCRYPTION_KEYPAIR,
+      relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+      registeredVerifierPda:  REGISTERED_VERIFIER_PDA,
+      merkleTree: merkleTree,
+      poseidon: POSEIDON
     });
 
-    await SHIELDED_TRANSACTION.getMerkleTree();
+    // let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT._bn], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
 
-    let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,ASSET], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
-
-    let outputUtxos = [deposit_utxo1];
-    for (var i = 0; i<outputUtxos.length; i++) {
-      SHIELDED_TRANSACTION.merkleTree.update(SHIELDED_TRANSACTION.merkleTreeLeavesIndex, outputUtxos[i].getCommitment())
-      SHIELDED_TRANSACTION.merkleTreeLeavesIndex++;
-    }
+    let outputUtxos = [];
+    // for (var i = 0; i<outputUtxos.length; i++) {
+    //   SHIELDED_TRANSACTION.merkleTree.update(SHIELDED_TRANSACTION.merkleTreeLeavesIndex, outputUtxos[i].getCommitment())
+    //   SHIELDED_TRANSACTION.merkleTreeLeavesIndex++;
+    // }
 
     let utxoIndex = 0;
 
     let inputUtxos = []
-    inputUtxos.push(deposit_utxo1)
+    inputUtxos.push(decryptedUtxo1[1])
+    // inputUtxos.push(deposit_utxo1)
+
     // inputUtxos.push(SHIELDED_TRANSACTION.utxos[0])
 
-    let outFeeAmount = inputUtxos[0].amounts[0]
-    let withdrawalAmount = Math.floor(Math.random() * inputUtxos[0].amounts[1].toNumber());
-    let outUtxoAmount = inputUtxos[0].amounts[1].sub(new anchor.BN(withdrawalAmount))
-    let outUtxoAmount2 = inputUtxos[0].amounts[2]
-    console.log("SHIELDED_TRANSACTION.relayerFee ", SHIELDED_TRANSACTION.relayerFee)
-    outputUtxos =[
-      new light.Utxo(POSEIDON,[FEE_ASSET, inputUtxos[0].assets[1], inputUtxos[0].assets[2]], [outFeeAmount.sub(new anchor.BN(SHIELDED_TRANSACTION.relayerFee.toNumber())),outUtxoAmount, outUtxoAmount2])]
-    console.log("tokenRecipient: ", tokenRecipient);
-    console.log("outFeeAmountPrior: ", outFeeAmount);
-    console.log("outFeeAmount: ", outFeeAmount.sub(new anchor.BN(SHIELDED_TRANSACTION.relayerFee.toNumber())));
-    console.log("relayerFee: ", SHIELDED_TRANSACTION.relayerFee.toNumber());
+    // let outFeeAmount = inputUtxos[0].amounts[0]
+    // let withdrawalAmount = Math.floor(Math.random() * inputUtxos[0].amounts[1].toNumber());
+    // let outUtxoAmount = inputUtxos[0].amounts[1].sub(new anchor.BN(withdrawalAmount))
+    // let outUtxoAmount2 = inputUtxos[0].amounts[2]
+    // console.log("SHIELDED_TRANSACTION.relayerFee ", SHIELDED_TRANSACTION.relayerFee)
+    // outputUtxos =[
+    //   new light.Utxo(POSEIDON,[FEE_ASSET, inputUtxos[0].assets[1], inputUtxos[0].assets[2]], [outFeeAmount.sub(new anchor.BN(SHIELDED_TRANSACTION.relayerFee.toNumber())),outUtxoAmount, outUtxoAmount2])]
+    // console.log("tokenRecipient: ", tokenRecipient);
+    // console.log("outFeeAmountPrior: ", outFeeAmount);
+    // console.log("outFeeAmount: ", outFeeAmount.sub(new anchor.BN(SHIELDED_TRANSACTION.relayerFee.toNumber())));
+    // console.log("relayerFee: ", SHIELDED_TRANSACTION.relayerFee.toNumber());
 
 
     await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos: inputUtxos,
         outputUtxos: outputUtxos,
         action: "WITHDRAWAL",
-        assetPubkeys: [FEE_ASSET, inputUtxos[0].assets[1], inputUtxos[0].assets[2]],
-        mintPubkey: inputUtxos[0].assets[1],
+        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
+        mintPubkey: MINT_CIRCUIT,
         // relayerFee: U64(0),//RELAYER_FEE,
         recipientFee: origin.publicKey,
         recipient: tokenRecipient
