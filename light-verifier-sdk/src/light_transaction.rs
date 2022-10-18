@@ -2,11 +2,14 @@ use anchor_lang::{
     prelude::*,
     solana_program::{
         log::sol_log_compute_units,
-        self
+        self,
+        program_pack::{IsInitialized, Pack, Sealed},
     }
 };
 
 use anchor_spl::token::{Transfer};
+// use spl_token::state::GenericTokenAccount::unpack;
+// use spl_token::state::Account::unpack;
 use ark_std::{marker::PhantomData, vec::Vec};
 use ark_ff::{
     BigInteger256,
@@ -363,11 +366,19 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 )?;
             }
         } else {
+            let recipient_mint = spl_token::state::Account::unpack(&self.accounts.recipient.data.borrow())?;
+            let sender_mint = spl_token::state::Account::unpack(&self.accounts.sender.data.borrow())?;
+
             // check mint
+            if self.mint_pubkey[1..] != recipient_mint.mint.to_bytes()[..31] || self.mint_pubkey[1..] != sender_mint.mint.to_bytes()[..31] {
+                msg!("*self.mint_pubkey[..31] {:?}, {:?}, {:?}", self.mint_pubkey[1..].to_vec(), recipient_mint.mint.to_bytes()[..31].to_vec(), sender_mint.mint.to_bytes()[..31].to_vec() );
+                return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
+            }
+            // is a token deposit or withdrawal
+            // do I need another token pda check here?
 
             if self.is_deposit() {
-                // is a token deposit or withdrawal
-                // do I need another token pda check here?
+
                 let seed = merkle_tree_program::ID.to_bytes();
                 let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
                     &[seed.as_ref()],

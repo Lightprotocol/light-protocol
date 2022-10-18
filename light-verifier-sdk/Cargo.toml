@@ -17,3 +17,4 @@ ark-ec = { version = "0.3.0" }
 ark-bn254 = "0.3.0"
 ark-std = { version = "^0.3.0", default-features = false }
 groth16-solana = {path= "../groth16-solana"}
+spl-token = "3.3.0"

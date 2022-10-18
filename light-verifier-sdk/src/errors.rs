@@ -18,5 +18,6 @@ pub enum VerifierSdkError {
     InvalidNrLeavesaccounts,
     #[msg("Invalid merkle tree root")]
     InvalidMerkleTreeRoot,
-
+    #[msg("InconsistentMintProofSenderOrRecipient")]
+    InconsistentMintProofSenderOrRecipient
 }

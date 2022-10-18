@@ -2115,6 +2115,7 @@ dependencies = [
  "ark-std",
  "groth16-solana",
  "merkle_tree_program",
+ "spl-token",
 ]
 
 [[package]]
