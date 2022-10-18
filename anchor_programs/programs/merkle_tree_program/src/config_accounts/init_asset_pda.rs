@@ -9,7 +9,8 @@ use anchor_spl::token::{Mint, TokenAccount, Token};
 #[account]
 pub struct RegisteredAssetPool {
     pub asset_pool_pubkey: Pubkey,
-    pub pool_type: [u8;32]
+    pub pool_type: [u8;32],
+    pub index: u64
 }
 
 
@@ -49,7 +50,7 @@ pub struct RegisterSplPool<'info> {
         payer = authority,
         seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, &b"pool-config"[..]],
         bump,
-        space = 8 + 32 + 32
+        space = 8 + 32 + 32 + 8
     )]
     pub registered_asset_pool_pda: Account<'info, RegisteredAssetPool>,
     #[account(init,
@@ -92,7 +93,7 @@ pub struct RegisterSolPool<'info> {
         payer = authority,
         seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, &b"pool-config"[..]],
         bump,
-        space = 8 + 32 + 32
+        space = 8 + 32 + 32 + 8
     )]
     pub registered_asset_pool_pda: Account<'info, RegisteredAssetPool>,
     /// CHECK:` Signer is checked according to authority pda in instruction

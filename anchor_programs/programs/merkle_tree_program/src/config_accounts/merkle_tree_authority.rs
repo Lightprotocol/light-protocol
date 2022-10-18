@@ -13,7 +13,8 @@ pub struct MerkleTreeAuthority {
     pub enable_nfts: bool,
     pub enable_permissionless_spl_tokens: bool,
     pub enable_permissionless_merkle_tree_registration: bool,
-    pub merkle_tree_index: u64
+    pub merkle_tree_index: u64,
+    pub registered_asset_index: u64
 }
 
 
@@ -24,7 +25,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
         payer = authority,
         seeds = [&b"MERKLE_TREE_AUTHORITY"[..]],
         bump,
-        space = 8 + 32 + 8 + 8
+        space = 8 + 32 + 8 + 8 + 8
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.

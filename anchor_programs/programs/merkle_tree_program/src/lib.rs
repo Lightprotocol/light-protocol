@@ -147,6 +147,8 @@ pub mod merkle_tree_program {
         }
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey = ctx.accounts.merkle_tree_pda_token.key();
         ctx.accounts.registered_asset_pool_pda.pool_type = ctx.accounts.registered_pool_type_pda.pool_type;
+        ctx.accounts.registered_asset_pool_pda.index = ctx.accounts.merkle_tree_authority_pda.registered_asset_index.clone();
+        ctx.accounts.merkle_tree_authority_pda.registered_asset_index += 1;
         Ok(())
     }
 
@@ -162,6 +164,8 @@ pub mod merkle_tree_program {
 
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey = ctx.accounts.registered_asset_pool_pda.key();
         ctx.accounts.registered_asset_pool_pda.pool_type = ctx.accounts.registered_pool_type_pda.pool_type;
+        ctx.accounts.registered_asset_pool_pda.index = ctx.accounts.merkle_tree_authority_pda.registered_asset_index.clone();
+        ctx.accounts.merkle_tree_authority_pda.registered_asset_index += 1;
         Ok(())
     }
 
