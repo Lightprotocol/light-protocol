@@ -3,7 +3,7 @@ mod verification_key;
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::groth16::{Groth16Verifyingkey, Groth16Verifier};
+    use groth16_solana::{groth16::{Groth16Verifyingkey, Groth16Verifier}, errors::Groth16Error};
     use ark_ff::bytes::{ToBytes, FromBytes};
     use ark_ec;
     use ark_bn254;
@@ -43,7 +43,7 @@ mod tests {
             PROOF[64..192].to_vec(),
             PROOF[192..256].to_vec(),
             public_inputs_vec,
-            &VERIFYING_KEY
+            &VERIFYINGKEY
         ).unwrap();
         verifier.verify().unwrap();
     }
@@ -61,7 +61,7 @@ mod tests {
             PROOF[64..192].to_vec(),
             PROOF[192..256].to_vec(),
             public_inputs_vec,
-            &VERIFYING_KEY
+            &VERIFYINGKEY
         ).unwrap();
 
         assert_eq!(verifier.verify(), Err(Groth16Error::ProofVerificationFailed));
@@ -80,7 +80,7 @@ mod tests {
             PROOF[64..192].to_vec(),
             PROOF[192..256].to_vec(),
             public_inputs_vec,
-            &VERIFYING_KEY
+            &VERIFYINGKEY
         );
 
         assert_eq!(verifier, Err(Groth16Error::InvalidPublicInputsLength));

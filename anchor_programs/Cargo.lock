@@ -2113,8 +2113,10 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-std",
+ "borsh",
  "groth16-solana",
  "merkle_tree_program",
+ "serde",
  "spl-token",
 ]
 
@@ -3329,9 +3331,9 @@ dependencies = [
 
 [[package]]
 name = "serde"
-version = "1.0.137"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "61ea8d54c77f8315140a05f4c7237403bf38b72704d031543aa1d16abbf517d1"
+checksum = "728eb6351430bccb993660dfffc5a72f91ccc1295abaa8ce19b27ebe4f75568b"
 dependencies = [
  "serde_derive",
 ]
@@ -3347,9 +3349,9 @@ dependencies = [
 
 [[package]]
 name = "serde_derive"
-version = "1.0.137"
+version = "1.0.145"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1f26faba0c3959972377d3b2d306ee9f71faee9714294e41bb777f83f88578be"
+checksum = "81fa1584d3d1bcacd84c277a0dfe21f5b0f6accf4a23d04d4c6d61f1af522b4c"
 dependencies = [
  "proc-macro2 1.0.39",
  "quote 1.0.18",
@@ -5239,7 +5241,20 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
-name = "verifier_program"
+name = "verifier_program_one"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "anchor-spl",
+ "groth16-solana",
+ "light-verifier-sdk",
+ "merkle_tree_program",
+ "solana-program 1.11.11",
+ "solana-security-txt",
+]
+
+[[package]]
+name = "verifier_program_zero"
 version = "0.1.0"
 dependencies = [
  "anchor-lang",

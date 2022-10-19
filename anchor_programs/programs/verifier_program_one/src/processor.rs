@@ -6,41 +6,71 @@ use light_verifier_sdk::{
         TxConfig,
         LightTransaction
     },
-    accounts::Accounts
+    accounts::Accounts,
+    state::VerifierStateTenNF
 };
 
-use crate::LightInstruction;
-struct LightTx;
+use crate::{LightInstructionFirst, LightInstructionSecond};
+#[derive(Clone)]
+pub struct LightTx;
 impl TxConfig for LightTx {
     /// Number of nullifiers to be inserted with the transaction.
 	const NR_NULLIFIERS: usize = 2;
 	/// Number of output utxos.
 	const NR_LEAVES: usize = 2;
 	/// Number of checked public inputs.
-    const N_CHECKED_PUBLIC_INPUTS: usize = 0;
+    const NR_CHECKED_PUBLIC_INPUTS: usize = 0;
+    /// wrong bytes
+    const ID: [u8;32]  = [74,  49, 82,  82, 101, 116,  90, 52, 117, 106,
+  112, 104, 85,  55,  53,  76,  80, 56,  82,  97,
+  100, 106, 88,  77, 102,  51, 115, 65,  49,  50,
+  121,  67];
 }
 
-// split into two tx
-// tx checks which data it has and computes accordingly
-// tx checks if other compute was already completed
-// if yes insert leaves etc
-
-pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info,LightInstruction<'info>>,
+pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info,LightInstructionFirst<'info>>,
     proof: [u8; 256],
     merkle_root: [u8; 32],
     public_amount: [u8; 32],
     ext_data_hash: [u8; 32],
-    nullifier0: [u8; 32],
-    nullifier1: [u8; 32],
-    leaf_right: [u8; 32],
-    leaf_left: [u8; 32],
-    ext_amount: i64,
+    nullifiers: [[u8; 32]; 10],
+    leaves: [[u8; 32]; 2],
     fee_amount: [u8; 32],
     mint_pubkey: [u8;32],
-    encrypted_utxos: Vec<u8>,
-    merkle_tree_index: u64,
+    encrypted_utxos0: Vec<u8>,
+    encrypted_utxos1: Vec<u8>,
+    root_index: u64,
     relayer_fee: u64,
+) -> Result<()> {
+
+    let mut tx = LightTransaction::<LightTx>::new(
+        &proof,
+        &merkle_root,
+        &public_amount,
+        &ext_data_hash,
+        &fee_amount,
+        &mint_pubkey,
+        Vec::<[u8; 32]>::new(), // checked_public_inputs
+        nullifiers.to_vec(),
+        vec![leaves],
+        [encrypted_utxos0, encrypted_utxos1].concat(),
+        relayer_fee,
+        root_index.try_into().unwrap(),
+        None,
+        &VERIFYINGKEY
+    );
+
+    tx.verify()?;
+    sol_log_compute_units();
+    msg!("packing verifier state");
+    ctx.accounts.verifier_state.set_inner(tx.into());
+    sol_log_compute_units();
+    msg!("packed verifier state");
+    Ok(())
+}
+
+pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
+    ctx: Context<'a, 'b, 'c, 'info,LightInstructionSecond<'info>>,
 ) -> Result<()> {
 
     // trait with the nunber of inputs and commitments
@@ -48,6 +78,8 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     // Put commitment accounts in the remaining accounts
     // make the instruction flexible enough such that I can easily call it in a second tx
     // actually with that I can easily implement it in 2 tx in the first place
+    // Shielded state update should be atomic thus this account struct should only be used completely
+    // or not at all.
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),
@@ -69,25 +101,8 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts
     )?;
 
-    let mut tx = LightTransaction::<LightTx>::new(
-        &proof,
-        &merkle_root,
-        &public_amount,
-        &ext_data_hash,
-        &fee_amount,
-        &mint_pubkey,
-        Vec::<Vec<u8>>::new(), // checked_public_inputs
-        vec![nullifier0.to_vec(), nullifier1.to_vec()],
-        vec![(leaf_left.to_vec(), leaf_right.to_vec())],
-        encrypted_utxos,
-        ext_amount,
-        relayer_fee,
-        merkle_tree_index.try_into().unwrap(),
-        &accounts,
-        &VERIFYINGKEY
-    );
-    tx.verify()?;
-    tx.check_tx_integrity_hash()?;
+    let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(Some(&accounts), &VERIFYINGKEY);
+
     tx.check_root()?;
     sol_log_compute_units();
     msg!("leaves");
@@ -98,6 +113,6 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
-    tx.check_completion()?;
-    Ok(())
+    tx.check_completion()
+
 }

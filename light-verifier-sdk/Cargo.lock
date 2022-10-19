@@ -1112,8 +1112,11 @@ dependencies = [
  "ark-ec",
  "ark-ff",
  "ark-std",
+ "borsh",
  "groth16-solana",
  "merkle_tree_program",
+ "serde",
+ "spl-token",
 ]
 
 [[package]]
