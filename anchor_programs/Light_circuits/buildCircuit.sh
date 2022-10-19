@@ -1,5 +1,5 @@
 #!/bin/bash -e
-POWERS_OF_TAU=15 # circuit will support max 2^POWERS_OF_TAU constraints
+POWERS_OF_TAU=18 # circuit will support max 2^POWERS_OF_TAU constraints
 mkdir -p build/circuits
 if [ ! -f build/circuits/ptau$POWERS_OF_TAU ]; then
   echo "Downloading powers of tau file"

@@ -36,7 +36,7 @@ use merkle_tree_program::utils::create_pda::create_and_check_pda;
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
 #[program]
-pub mod verifier_program {
+pub mod verifier_program_one {
     use super::*;
 
     /// Initializes the authority which is used to cpi the Merkle tree.

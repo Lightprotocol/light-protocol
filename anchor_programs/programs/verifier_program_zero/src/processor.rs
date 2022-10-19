@@ -18,11 +18,13 @@ impl TxConfig for LightTx {
 	const NR_LEAVES: usize = 2;
 	/// Number of checked public inputs.
     const NR_CHECKED_PUBLIC_INPUTS: usize = 0;
-    /// wrong bytes
-    const ID: [u8;32]  = [74,  49, 82,  82, 101, 116,  90, 52, 117, 106,
-  112, 104, 85,  55,  53,  76,  80, 56,  82,  97,
-  100, 106, 88,  77, 102,  51, 115, 65,  49,  50,
-  121,  67];
+    /// ProgramId in bytes.
+    const ID: [u8;32]  = [
+      252, 178,  75, 149,  78, 219, 142,  17,
+       53, 237,  47,   4,  42, 105, 173, 204,
+      248,  16, 209,  38, 219, 222, 123, 242,
+        5,  68, 240, 131,   3, 211, 184,  81
+    ];
 }
 
 // split into two tx

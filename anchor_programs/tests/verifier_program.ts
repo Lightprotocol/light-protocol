@@ -1,6 +1,6 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-import { VerifierProgram } from "../target/types/verifier_program";
+import { verifierProgramZero } from "../target/types/verifier_program";
 import { AttackerProgram } from "../target/types/attacker_program";
 const { SystemProgram } = require('@solana/web3.js');
 import { MerkleTreeProgram } from "../target/types/merkle_tree_program";
@@ -90,10 +90,10 @@ describe("verifier_program", () => {
   const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "finalized", commitment: "finalized"});//anchor.getProvider();
   console.log("e");
 
-  const verifierProgram = anchor.workspace.VerifierProgram as Program<VerifierProgram>;
+  const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
   // const attackerProgram = anchor.workspace.AttackerProgram as Program<AttackerProgram>;
-  console.log(solana.PublicKey);
+
   // var provider
 
   var REGISTERED_VERIFIER_PDA;
@@ -129,7 +129,7 @@ describe("verifier_program", () => {
     KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
 
     REGISTERED_VERIFIER_PDA = (await solana.PublicKey.findProgramAddress(
-        [verifierProgram.programId.toBuffer()],
+        [verifierProgramZero.programId.toBuffer()],
         merkleTreeProgram.programId
       ))[0];
 
@@ -154,7 +154,7 @@ describe("verifier_program", () => {
 
     AUTHORITY = (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBuffer()],
-        verifierProgram.programId))[0];
+        verifierProgramZero.programId))[0];
 
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
@@ -209,7 +209,7 @@ describe("verifier_program", () => {
       console.log("AUTHORITY: ", AUTHORITY);
 
       console.log("AUTHORITY: ", Array.prototype.slice.call(AUTHORITY.toBytes()));
-      console.log("verifierProgram.programId: ", Array.prototype.slice.call(verifierProgram.programId.toBytes()));
+      console.log("verifierProgramZero.programId: ", Array.prototype.slice.call(verifierProgramZero.programId.toBytes()));
       console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
       console.log("MERKLE_TREE_KEY: ", Array.prototype.slice.call(MERKLE_TREE_KEY.toBytes()))
       // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
@@ -270,11 +270,11 @@ describe("verifier_program", () => {
 
       console.log("Registering Verifier");
 
-      console.log(verifierProgram.programId.toBytes());
+      console.log(verifierProgramZero.programId.toBytes());
 
       try {
         await merkleTreeProgram.methods.registerVerifier(
-          verifierProgram.programId
+          verifierProgramZero.programId
         ).accounts({
           registeredVerifierPda: REGISTERED_VERIFIER_PDA,
           authority: ADMIN_AUTH_KEY,
@@ -293,10 +293,10 @@ describe("verifier_program", () => {
       // console.log("Initing Verifier AUTHORITY");
       //
       // try {
-      //   console.log(verifierProgram.methods.initializeAuthority);
+      //   console.log(verifierProgramZero.methods.initializeAuthority);
       //   console.log("sigbner ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
       //
-      //   const ix = await verifierProgram.methods.initializeAuthority().accounts({
+      //   const ix = await verifierProgramZero.methods.initializeAuthority().accounts({
       //     signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
       //     authority: AUTHORITY,
       //     merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
@@ -546,7 +546,7 @@ describe("verifier_program", () => {
     })[0];
     let escrows = (await solana.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgram.programId))[0];
+        verifierProgramZero.programId))[0];
 
     let ix0 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_0000});
     // let ix1 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: MERKLE_TREE_PDA_TOKEN, lamports: 1_000_000_0000});
@@ -648,7 +648,7 @@ describe("verifier_program", () => {
         lookupTable:            LOOK_UP_TABLE,
         merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
         merkleTreeProgram,
-        verifierProgram,
+        verifierProgram: verifierProgramZero,
 
         merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
         merkleTreePubkey:       MERKLE_TREE_KEY,
@@ -901,7 +901,7 @@ describe("verifier_program", () => {
     //     lookupTable:            LOOK_UP_TABLE,
     //     merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
     //     merkleTreeProgram,
-    //     verifierProgram,
+    //     verifierProgramZero,
     //
     //     merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
     //     merkleTreePubkey:       MERKLE_TREE_KEY,
@@ -918,7 +918,7 @@ describe("verifier_program", () => {
       lookupTable:            LOOK_UP_TABLE,
       merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
       merkleTreeProgram,
-      verifierProgram,
+      verifierProgram: verifierProgramZero,
 
       merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
       merkleTreePubkey:       MERKLE_TREE_KEY,

@@ -5,7 +5,7 @@ var fs = require("fs")
 
 
 async function main() {
-  let file = await fs.readFile("verification_masp.json", async function(err, fd) {
+  let file = await fs.readFile("verification_key_mainnet10.json", async function(err, fd) {
    if (err) {
       return console.error(err);
    }
@@ -105,51 +105,52 @@ async function main() {
    }
    console.log(mydata)
    let resFile = await fs.openSync("verification_key_bytes_mainnet.rs","w")
-   let s = "pub const vk_alpha_g1: [u8;64] = [\n"
+   let s = `use groth16_solana::groth16::Groth16Verifyingkey;\n\npub const VERIFYINGKEY: Groth16Verifyingkey =  Groth16Verifyingkey {\n\tnr_pubinputs: ${mydata.IC.length},\n\n`
+   s += "\tvk_alpha_g1: [\n"
    for (var j = 0; j < mydata.vk_alpha_1.length -1 ; j++) {
      console.log(typeof(mydata.vk_alpha_1[j]))
-     s += "\t" + Array.from(mydata.vk_alpha_1[j])/*.reverse().toString()*/ + ",\n"
+     s += "\t\t" + Array.from(mydata.vk_alpha_1[j])/*.reverse().toString()*/ + ",\n"
    }
-   s += " ];\n\n"
+   s += "\t],\n\n"
    fs.writeSync(resFile,s)
-   s = "pub const vk_beta_g2: [u8;128] = [\n"
+   s = "\tvk_beta_g2: [\n"
    for (var j = 0; j < mydata.vk_beta_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
-       s += "\t" + Array.from(mydata.vk_beta_2[j][z])/*.reverse().toString()*/ + ",\n"
+       s += "\t\t" + Array.from(mydata.vk_beta_2[j][z])/*.reverse().toString()*/ + ",\n"
      }
    }
-   s += " ];\n\n"
+   s += "\t],\n\n"
    fs.writeSync(resFile,s)
-   s = "const vk_gamme_g2: [u8;128] = [\n"
+   s = "\tvk_gamme_g2: [\n"
    for (var j = 0; j < mydata.vk_gamma_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
-       s += "\t" + Array.from(mydata.vk_gamma_2[j][z])/*.reverse().toString()*/ + ",\n"
+       s += "\t\t" + Array.from(mydata.vk_gamma_2[j][z])/*.reverse().toString()*/ + ",\n"
      }
    }
-   s += " ];\n\n"
+   s += "\t],\n\n"
    fs.writeSync(resFile,s)
 
-   s = "pub const vk_delta_g2: [u8;128] = [\n"
+   s = "\tvk_delta_g2: [\n"
    for (var j = 0; j < mydata.vk_delta_2.length -1 ; j++) {
      for (var z = 0; z < 2; z++) {
-       s += "\t" + Array.from(mydata.vk_delta_2[j][z])/*.reverse().toString()*/ + ",\n"
+       s += "\t\t" + Array.from(mydata.vk_delta_2[j][z])/*.reverse().toString()*/ + ",\n"
      }
    }
-   s += " ];\n\n"
+   s += "\t],\n\n"
    fs.writeSync(resFile,s)
-   s = "pub const IC: [[u8;64];10] = [\n"
+   s = "\tvk_ic: &[\n"
    let x = 0;
    console.log("mydata.IC, ", mydata.IC)
    for (var ic in mydata.IC) {
-     s += " \t[\n"
+     s += "\t\t[\n"
      // console.log(mydata.IC[ic])
      for (var j = 0; j < mydata.IC[ic].length - 1 ; j++) {
-       s += "\t\t" + mydata.IC[ic][j]/*.reverse().toString()*/ + ",\n"
+       s += "\t\t\t" + mydata.IC[ic][j]/*.reverse().toString()*/ + ",\n"
      }
      x++;
-     s += " \t],\n"
+     s += "\t\t],\n"
    }
-   s += " ];\n"
+   s += "\t]\n};"
 
    console.log("Public inputs", x)
    fs.writeSync(resFile,s)
