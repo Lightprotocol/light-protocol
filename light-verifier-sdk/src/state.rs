@@ -21,10 +21,10 @@ pub struct VerifierState<T: TxConfig> {
     pub mint_pubkey: [u8;32],
     pub additional_checked_public_inputs: [[u8;32];3],
     pub relayer_fee: u64,
-    pub encrypted_utxos0: [u8; 128],
-    pub encrypted_utxos1: [u8; 128],
-    pub encrypted_utxos2: [u8; 128],
-    pub encrypted_utxos3: [u8; 128],
+    pub encrypted_utxos0: Vec<u8>,
+    pub encrypted_utxos1: Vec<u8>,
+    pub encrypted_utxos2: Vec<u8>,
+    pub encrypted_utxos3: Vec<u8>,
     e_phantom: PhantomData<T>
 }
 
@@ -54,7 +54,7 @@ impl <T: TxConfig>anchor_lang::Owner for VerifierState<T> {
 #[derive(BorshSerialize,BorshDeserialize, Clone)]
 pub struct VerifierStateTenNF<T: TxConfig> {
     pub signer: Pubkey,
-    pub nullifiers: [[u8;32]; 10],
+    pub nullifiers: Vec<Vec<u8>>, //[[u8;32]; 10],
     pub leaves: [[u8;32]; 2],
     pub public_amount: [u8; 32],
     pub fee_amount: [u8; 32],
@@ -62,8 +62,8 @@ pub struct VerifierStateTenNF<T: TxConfig> {
     pub merkle_root: [u8; 32],
 
     pub relayer_fee: u64,
-    pub encrypted_utxos0: [u8; 128],
-    pub encrypted_utxos1: [u8; 128],
+    pub encrypted_utxos0: Vec<u8>,
+    pub encrypted_utxos1: Vec<u8>,
     pub merkle_root_index: u64,
 
     pub e_phantom: PhantomData<T>
@@ -92,10 +92,10 @@ impl <T: TxConfig>anchor_lang::Owner for VerifierStateTenNF<T> {
 
 impl <T: TxConfig>From<LightTransaction<'_, '_, '_, T>> for VerifierStateTenNF<T> {
     fn from(light_tx: LightTransaction<'_, '_, '_, T>) -> VerifierStateTenNF<T> {
-        let mut nullifiers = [[0u8;32]; 10];
-        for (i, nf) in light_tx.nullifiers.iter().enumerate() {
-                nullifiers[i] = nf.clone().try_into().unwrap();
-        }
+        // let mut nullifiers = [[0u8;32]; 10];
+        // for (i, nf) in light_tx.nullifiers.iter().enumerate() {
+        //         nullifiers[i] = nf.clone().try_into().unwrap();
+        // }
         let mut leaves = [[[0u8;32]; 2]; 1];
         for (i, leaf) in light_tx.leaves.iter().enumerate() {
                 leaves[i] = [leaf[0].clone().try_into().unwrap(), leaf[1].clone().try_into().unwrap()];
@@ -104,7 +104,7 @@ impl <T: TxConfig>From<LightTransaction<'_, '_, '_, T>> for VerifierStateTenNF<T
         VerifierStateTenNF {
             merkle_root_index: <usize as TryInto::<u64>>::try_into(light_tx.merkle_root_index).unwrap(),
             signer: Pubkey::new(&[0u8;32]),
-            nullifiers,
+            nullifiers: light_tx.nullifiers,
             leaves: leaves[0],
             public_amount: *light_tx.public_amount,
             fee_amount: *light_tx.fee_amount,
@@ -120,33 +120,6 @@ impl <T: TxConfig>From<LightTransaction<'_, '_, '_, T>> for VerifierStateTenNF<T
 
 impl <'info,T: TxConfig + std::clone::Clone>VerifierStateTenNF<T> {
 
-
-    // fn from_light_transaction(light_tx: LightTransaction<'_, '_, '_, T>, light_acc: &mut anchor_lang::prelude::Account<'info, VerifierStateTenNF<T>, >) {
-    //     let mut nullifiers = [[0u8;32]; 10];
-    //     for (i, nf) in light_tx.nullifiers.iter().enumerate() {
-    //             nullifiers[i] = nf.clone().try_into().unwrap();
-    //     }
-    //     let mut leaves = [[[0u8;32]; 2]; 1];
-    //     for (i, leaf) in light_tx.leaves.iter().enumerate() {
-    //             leaves[i] = [leaf[0].clone().try_into().unwrap(), leaf[1].clone().try_into().unwrap()];
-    //     }
-    //
-    //     VerifierStateTenNF {
-    //         merkle_root_index: <usize as TryInto::<u64>>::try_into(light_tx.merkle_root_index).unwrap(),
-    //         signer: Pubkey::new(&[0u8;32]),
-    //         nullifiers,
-    //         leaves: leaves[0],
-    //         public_amount: *light_tx.public_amount,
-    //         fee_amount: *light_tx.fee_amount,
-    //         mint_pubkey: *light_tx.mint_pubkey,
-    //         relayer_fee: light_tx.relayer_fee,
-    //         encrypted_utxos0: light_tx.encrypted_utxos[0..128].try_into().unwrap(),
-    //         encrypted_utxos1: light_tx.encrypted_utxos[128..256].try_into().unwrap(),
-    //         merkle_root: *light_tx.merkle_root,
-    //         e_phantom: PhantomData,
-    //     }
-    // }
-
     pub fn into_light_transaction<'a, 'c> (
         &'a self,
         accounts: Option<&'a Accounts<'info, 'a, 'c>>,//Context<'info, LightInstructionTrait<'info>>,
@@ -154,11 +127,16 @@ impl <'info,T: TxConfig + std::clone::Clone>VerifierStateTenNF<T> {
     ) -> LightTransaction<'info, 'a, 'c, T> {
         assert_eq!(T::NR_NULLIFIERS, self.nullifiers.len());
 
+        let mut nullifiers = Vec::<Vec<u8>>::new();
+        for nf in &self.nullifiers {
+            nullifiers.push(nf.to_vec());
+        }
+
         return LightTransaction {
             ext_data_hash: &[0u8;32],
             checked_public_inputs: Vec::<[u8; 32]>::new(),
             leaves: vec![self.leaves],
-            nullifiers: self.nullifiers.to_vec(),
+            nullifiers: nullifiers,
             public_amount: &self.public_amount,
             fee_amount: &self.fee_amount,
             mint_pubkey: &self.mint_pubkey,
@@ -182,21 +160,6 @@ impl <'info,T: TxConfig + std::clone::Clone>VerifierStateTenNF<T> {
     }
 }
 
-// impl <'info, 'a, 'c, T: TxConfig>From<VerifierStateTenNF<T>> for LightTransaction<'info, 'a, 'c, T> {
-//     fn from(light_tx: VerifierStateTenNF<T>) -> LightTransaction<'info, 'a, 'c, T> {
-//         LightTransaction {
-//             nullifiers: light_tx.nullifiers.to_vec(),
-//             leaves: light_tx.leaves,
-//             public_amount: &light_tx.public_amount,
-//             fee_amount: &light_tx.fee_amount,
-//             mint_pubkey: &light_tx.mint_pubkey,
-//             relayer_fee: light_tx.relayer_fee,
-//             encrypted_utxos: [light_tx.encrypted_utxos0.to_vec(), light_tx.encrypted_utxos1.to_vec()].concat(),
-//             e_phantom: PhantomData,
-//
-//         }
-//     }
-// }
 
 #[test]
 fn test_into() {

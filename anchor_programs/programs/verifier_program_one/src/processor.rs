@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_program::log::sol_log_compute_units;
-use crate::verification_key::VERIFYINGKEY;
+use crate::verifying_key::VERIFYINGKEY;
 use light_verifier_sdk::{
     light_transaction::{
         TxConfig,
@@ -31,33 +31,32 @@ impl TxConfig for LightTx {
 
 pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info,LightInstructionFirst<'info>>,
-    proof: [u8; 256],
-    merkle_root: [u8; 32],
-    public_amount: [u8; 32],
-    ext_data_hash: [u8; 32],
-    nullifiers: [[u8; 32]; 10],
-    leaves: [[u8; 32]; 2],
-    fee_amount: [u8; 32],
-    mint_pubkey: [u8;32],
-    encrypted_utxos0: Vec<u8>,
-    encrypted_utxos1: Vec<u8>,
-    root_index: u64,
-    relayer_fee: u64,
+    proof: &[u8; 256],
+    merkle_root: &[u8; 32],
+    public_amount: &[u8; 32],
+    ext_data_hash: &[u8; 32],
+    nullifiers: Vec<Vec<u8>>,
+    leaves: &[[u8; 32]; 2],
+    fee_amount: &[u8; 32],
+    mint_pubkey: &[u8;32],
+    encrypted_utxos: Vec<u8>,
+    root_index: &u64,
+    relayer_fee: &u64,
 ) -> Result<()> {
 
     let mut tx = LightTransaction::<LightTx>::new(
-        &proof,
-        &merkle_root,
-        &public_amount,
-        &ext_data_hash,
-        &fee_amount,
-        &mint_pubkey,
+        proof,
+        merkle_root,
+        public_amount,
+        ext_data_hash,
+        fee_amount,
+        mint_pubkey,
         Vec::<[u8; 32]>::new(), // checked_public_inputs
-        nullifiers.to_vec(),
-        vec![leaves],
-        [encrypted_utxos0, encrypted_utxos1].concat(),
-        relayer_fee,
-        root_index.try_into().unwrap(),
+        nullifiers,
+        vec![*leaves],
+        encrypted_utxos,
+        *relayer_fee,
+        (*root_index).try_into().unwrap(),
         None,
         &VERIFYINGKEY
     );
@@ -75,13 +74,6 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info,LightInstructionSecond<'info>>,
 ) -> Result<()> {
 
-    // trait with the nunber of inputs and commitments
-    // Put nullifier accounts in remaining accounts
-    // Put commitment accounts in the remaining accounts
-    // make the instruction flexible enough such that I can easily call it in a second tx
-    // actually with that I can easily implement it in 2 tx in the first place
-    // Shielded state update should be atomic thus this account struct should only be used completely
-    // or not at all.
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),
@@ -106,13 +98,8 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(Some(&accounts), &VERIFYINGKEY);
 
     tx.check_root()?;
-    sol_log_compute_units();
-    msg!("leaves");
     tx.insert_leaves()?;
-    sol_log_compute_units();
-    msg!("nullifiers");
     tx.insert_nullifiers()?;
-    sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
     tx.check_completion()

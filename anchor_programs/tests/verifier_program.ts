@@ -678,6 +678,112 @@ describe("verifier_program", () => {
         sender: userTokenAccount
       });
 
+      await SHIELDED_TRANSACTION.proof10();
+
+      try {
+        let res = await SHIELDED_TRANSACTION.sendTransaction10();
+        console.log(res);
+      } catch (e) {
+        console.log(e);
+        console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      }
+      try {
+        await SHIELDED_TRANSACTION.checkBalances()
+      } catch (e) {
+        console.log(e);
+      }
+
+    }
+
+  })
+
+
+  it.skip("Deposit", async () => {
+    // subsidising transactions
+    let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
+    await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
+
+    for (var i = 0; i < 1; i++) {
+      console.log("Deposit ", i);
+
+      const origin = await newAccountWithLamports(provider.connection)
+      const relayer = await newAccountWithLamports(provider.connection)
+      // let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
+
+      let RELAYER_FEE = U64(10_000);
+
+      let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+      let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
+
+      // let KEYPAIR = new light.Keypair(POSEIDON);
+      // console.log("KEYPAIR: ", KEYPAIR);
+
+      var userTokenAccount
+      console.log("MINT: ", MINT);
+      console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR);
+      console.log("origin: ", origin);
+      console.log("depositAmount: ", depositAmount);
+
+      try {
+        // create associated token account
+        userTokenAccount = (await newAccountWithTokens({
+          connection: provider.connection,
+          MINT,
+          ADMIN_AUTH_KEYPAIR,
+          userAccount: origin,
+          amount: depositAmount
+        }))
+        console.log("userTokenAccount ", userTokenAccount.toBase58());
+
+      } catch(e) {
+        console.log(e);
+      }
+
+      await token.approve(
+        provider.connection,
+        origin,
+        userTokenAccount,
+        AUTHORITY, //delegate
+        origin.publicKey, // owner
+        depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
+        []
+      )
+
+      SHIELDED_TRANSACTION = new shieldedTransaction({
+        // four static config fields
+        lookupTable:            LOOK_UP_TABLE,
+        merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
+        merkleTreeProgram,
+        verifierProgram: verifierProgramZero,
+
+        merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+        merkleTreePubkey:       MERKLE_TREE_KEY,
+        merkleTreeIndex:        1,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+        provider,
+        payer:                  ADMIN_AUTH_KEYPAIR,
+        encryptionKeypair:      ENCRYPTION_KEYPAIR,
+        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+        registeredVerifierPda:  REGISTERED_VERIFIER_PDA
+      });
+
+      await SHIELDED_TRANSACTION.getMerkleTree();
+
+      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+
+      let outputUtxos = [deposit_utxo1];
+
+      await SHIELDED_TRANSACTION.prepareTransactionFull({
+        inputUtxos: [],
+        outputUtxos,
+        action: "DEPOSIT",
+        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
+        relayerFee: U64(depositFeeAmount),
+        shuffle: true,
+        mintPubkey: MINT_CIRCUIT,
+        sender: userTokenAccount
+      });
+
       await SHIELDED_TRANSACTION.proof();
 
       try {
@@ -808,7 +914,7 @@ describe("verifier_program", () => {
 
   })
 
-  it("Withdraw", async () => {
+  it.skip("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 

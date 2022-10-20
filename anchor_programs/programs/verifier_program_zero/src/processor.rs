@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 use solana_program::log::sol_log_compute_units;
-use crate::verification_key::VERIFYINGKEY;
+use crate::verifying_key::VERIFYINGKEY;
 use light_verifier_sdk::{
     light_transaction::{
         TxConfig,
@@ -27,11 +27,6 @@ impl TxConfig for LightTx {
     ];
 }
 
-// split into two tx
-// tx checks which data it has and computes accordingly
-// tx checks if other compute was already completed
-// if yes insert leaves etc
-
 pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info,LightInstruction<'info>>,
     proof: [u8; 256],
@@ -50,11 +45,6 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     relayer_fee: u64,
 ) -> Result<()> {
 
-    // trait with the nunber of inputs and commitments
-    // Put nullifier accounts in remaining accounts
-    // Put commitment accounts in the remaining accounts
-    // make the instruction flexible enough such that I can easily call it in a second tx
-    // actually with that I can easily implement it in 2 tx in the first place
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),
@@ -84,7 +74,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         &fee_amount,
         &mint_pubkey,
         Vec::<[u8; 32]>::new(), // checked_public_inputs
-        vec![nullifier0, nullifier1],
+        vec![nullifier0.to_vec(), nullifier1.to_vec()],
         vec![[leaf_left, leaf_right]],
         encrypted_utxos,
         relayer_fee,
@@ -92,16 +82,12 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         Some(&accounts),
         &VERIFYINGKEY
     );
+
     tx.verify()?;
     tx.check_tx_integrity_hash()?;
     tx.check_root()?;
-    sol_log_compute_units();
-    msg!("leaves");
     tx.insert_leaves()?;
-    sol_log_compute_units();
-    msg!("nullifiers");
     tx.insert_nullifiers()?;
-    sol_log_compute_units();
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
     tx.check_completion()?;

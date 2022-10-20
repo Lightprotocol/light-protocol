@@ -10,12 +10,10 @@ security_txt! {
 }
 */
 
-pub mod errors;
-pub mod verification_key;
+pub mod verifying_key;
 pub mod processor;
 
 pub use processor::*;
-pub use errors::*;
 
 use anchor_lang::prelude::*;
 use merkle_tree_program::{
@@ -33,7 +31,7 @@ use merkle_tree_program::{
 use crate::processor::process_shielded_transfer_first;
 use merkle_tree_program::utils::create_pda::create_and_check_pda;
 
-declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
+declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
 #[program]
 pub mod verifier_program_one {
@@ -73,7 +71,7 @@ pub mod verifier_program_one {
         merkle_root: [u8; 32],
         amount: [u8; 32],
         ext_data_hash: [u8; 32],
-        nullifiers: [[u8; 32]; 10], // 10 nullifiers 1072 byts 16 1264 bytes total data sent
+        nullifiers: Vec<Vec<u8>>, // 10 nullifiers 1072 byts 16 1264 bytes total data sent
         leaves: [[u8; 32]; 2],
         fee_amount: [u8; 32],
         mint_pubkey: [u8;32],
@@ -84,18 +82,17 @@ pub mod verifier_program_one {
     ) -> Result<()> {
         process_shielded_transfer_first(
             ctx,
-            proof,
-            merkle_root,
-            amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
-            ext_data_hash,
-            nullifiers,
-            leaves,
-            fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
-            mint_pubkey,
-            encrypted_utxos0.to_vec(),
-            encrypted_utxos1.to_vec(),
-            root_index,
-            relayer_fee
+            &proof,
+            &merkle_root,
+            &amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
+            &ext_data_hash,
+            nullifiers.to_vec(),
+            &leaves,
+            &fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
+            &mint_pubkey,
+            [encrypted_utxos0.to_vec(),encrypted_utxos1.to_vec()].concat(),
+            &root_index,
+            &relayer_fee
         )
 
     }

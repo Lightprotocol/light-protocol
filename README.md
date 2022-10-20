@@ -21,7 +21,7 @@ insertNullifier:
 For 2 inputs -> 14 accounts & 888 bytes data
 For 16 inputs -> 11 + 16 Nf + 1 leaves = 28 Accounts & 536 + 16 * 32 = 1048 byte data
 
-./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/merkle_tree_program.so
+./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program_zero.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/merkle_tree_program.so --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL  /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program_one.so
 
 anchor test --skip-build --skip-deploy --skip-local-validator
 

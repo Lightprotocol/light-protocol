@@ -10,12 +10,10 @@ security_txt! {
 }
 */
 
-pub mod errors;
-pub mod verification_key;
+pub mod verifying_key;
 pub mod processor;
 
 pub use processor::*;
-pub use errors::*;
 
 use anchor_lang::prelude::*;
 use merkle_tree_program::{
@@ -105,9 +103,6 @@ pub mod verifier_program_zero {
 
 }
 
-// #[account]
-// pub struct Authority {}
-
 #[derive( Accounts)]
 pub struct InitializeAuthority<'info> {
     /// CHECK:` Signer is merkle tree authority.
@@ -123,12 +118,6 @@ pub struct InitializeAuthority<'info> {
 }
 
 #[derive( Accounts)]
-#[instruction(
-    proof:              [u8;256],
-    merkle_root:        [u8;32],
-    amount:             [u8;32],
-    tx_integrity_hash:  [u8;32]
-)]
 pub struct LightInstruction<'info> {
     // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
     // pub verifier_state: AccountLoader<'info, VerifierState>,
