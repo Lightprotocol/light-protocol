@@ -18,16 +18,34 @@ const calculateWtns = require('../../../Light_circuits/build/circuits/transactio
 const ffjavascript = require('ffjavascript');
 const { stringifyBigInts } = ffjavascript.utils;
 // const genProof = require('./Light_circuits/build/transactionMasp2_js/witness_calculator')
-const prove = function (input, keyBasePath) {
+const prove = function (input) {
     return __awaiter(this, void 0, void 0, function* () {
-        let path = "./Light_circuits/build/circuits/transactionMasp2_js/transactionMasp2";
-        const buffer = readFileSync(`${path}.wasm`);
         let wtns
-        let witnessCalculator =  yield calculateWtns(buffer)
-        console.time('Proof generation');
+        let keyBasePath
+        console.log("input.inputNullifier.length ", input.inputNullifier.length);
+        if (input.inputNullifier.length == 2) {
+          keyBasePath = `./Light_circuits/build/circuits/transactionMasp2`
+          let path = "./Light_circuits/build/circuits/transactionMasp2_js/transactionMasp2";
+          const buffer = readFileSync(`${path}.wasm`);
 
-        wtns= yield witnessCalculator.calculateWTNSBin(stringifyBigInts(input),0);
+          let witnessCalculator =  yield calculateWtns(buffer)
+          console.time('Proof generation');
 
+          wtns= yield witnessCalculator.calculateWTNSBin(stringifyBigInts(input),0);
+
+        } else {
+          keyBasePath = `./Light_circuits/build/circuits/transactionMasp10`
+
+          let path = "./Light_circuits/build/circuits/transactionMasp10_js/transactionMasp10";
+          const buffer = readFileSync(`${path}.wasm`);
+
+          let witnessCalculator =  yield calculateWtns(buffer)
+          console.time('Proof generation');
+
+          wtns= yield witnessCalculator.calculateWTNSBin(stringifyBigInts(input),0);
+        }
+        console.log("witness calc success");
+        console.log("keyBasePath ", keyBasePath);
         const { proof, publicSignals } = yield snarkjs.groth16.prove(`${keyBasePath}.zkey`, wtns);
 
         const publicInputsJson = JSON.stringify(publicSignals, null, 1);
@@ -42,7 +60,7 @@ const prove = function (input, keyBasePath) {
             console.log('Invalid proof');
             throw new Error('Invalid Proof');
         }
-        const curve = yield ffjavascript.getCurveFromName(vKey.curve);
+        // const curve = yield ffjavascript.getCurveFromName(vKey.curve);
 
         // console.log("proof: ", proof);
         // we need to negate proof_a such that the product of pairings result is 1

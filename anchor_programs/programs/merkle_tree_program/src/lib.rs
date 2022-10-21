@@ -93,19 +93,27 @@ pub mod merkle_tree_program {
     }
 
     pub fn update_merkle_tree_authority(
-        ctx: Context<UpdateMerkleTreeAuthority>,
-        enable_nfts: bool,
-        enable_permissionless_spl_tokens: bool,
-        enable_permissionless_merkle_tree_registration: bool
+        ctx: Context<UpdateMerkleTreeAuthority>
     ) -> Result<()> {
         // account is checked in ctx struct
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
-        // ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_nfts;
-        // ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless_spl_tokens;
-        // ctx.accounts.merkle_tree_authority_pda.enable_permissionless_merkle_tree_registration = enable_permissionless_merkle_tree_registration;
-
         Ok(())
     }
+
+    // pub fn enable_nfts() -> Result<()> {
+    //     ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_nfts;
+    //     Ok(())
+    // }
+    //
+    // pub fn enable_permissionless_spl_tokens() -> Result<()> {
+    //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless_spl_tokens;
+    //     Ok(())
+    // }
+    //
+    // pub fn enable_permissionless_merkle_tree_registration() -> Result<()> {
+    //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_merkle_tree_registration = enable_permissionless_merkle_tree_registration;
+    //     Ok(())
+    // }
 
     /// Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.
     /// These functions can only be invoked from registered verifiers.
@@ -215,14 +223,14 @@ pub mod merkle_tree_program {
         ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeaves<'info>>,
         leaf_left: [u8; 32],
         leaf_right: [u8; 32],
-        encrypted_utxos: [u8;256],
+        encrypted_utxo: [u8;256],
         merkle_tree_pda_pubkey: Pubkey,
     ) -> Result<()> {
         process_insert_two_leaves(
             ctx,
             leaf_left,
             leaf_right,
-            encrypted_utxos,
+            encrypted_utxo,
             merkle_tree_pda_pubkey,
         )
     }
@@ -232,14 +240,11 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn withdraw_sol<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSol<'info>>,
-        data: Vec<u8>,
-        _verifier_index: u64,
-        _merkle_tree_index: u64,
+        amount: u64
     ) -> Result<()> {
-        let mut accounts = ctx.remaining_accounts.to_vec();
-        accounts.insert(0, ctx.accounts.merkle_tree_token.to_account_info());
+        // process_sol_transfer(ctx, amount)
+        sol_transfer(&ctx.accounts.merkle_tree_token.to_account_info(), &ctx.accounts.recipient.to_account_info(), amount)
 
-        process_sol_transfer(&accounts.as_slice(), &data.as_slice())
     }
 
     /// Withdraws spl tokens from a liquidity pool.
@@ -247,9 +252,9 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn withdraw_spl<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSpl<'info>>,
-        data: Vec<u8>
+        amount: u64
     ) -> Result<()> {
-        process_spl_transfer(ctx, &data.as_slice())
+        process_spl_transfer(ctx, amount)
     }
 
 
@@ -257,59 +262,9 @@ pub mod merkle_tree_program {
     /// Can only be called from a registered verifier program.
     pub fn initialize_nullifier(
         _ctx: Context<InitializeNullifier>,
-        _nullifier: [u8; 32],
-        _index: u64,
+        _nullifier: [u8; 32]
     ) -> anchor_lang::Result<()> {
         Ok(())
     }
 
-    // /// Generates a leaves index account for already existing Merkle trees.
-    // /// Can only be called by the init authority.
-    // pub fn initialize_merkle_tree_leaves_index<'a, 'b, 'c, 'info>(
-    //     _ctx: Context<'a, 'b, 'c, 'info, InitializeMerkleTreeLeavesIndex<'info>>,
-    //     _bump: u64,
-    // ) -> anchor_lang::Result<()> {
-    //     Ok(())
-    // }
-
-    // /// Checks whether a passed in merkle root exists.
-    // /// Execution fails if root is not found.
-    // /// Can only be called from a registered verifier program.
-    // pub fn check_merkle_root_exists<'a, 'b, 'c, 'info>(
-    //     ctx: Context<'a, 'b, 'c, 'info, CheckMerkleRootExists<'info>>,
-    //     _verifer_index: u64,
-    //     _merkle_tree_index: u64,
-    //     merkle_root: [u8; 32],
-    // ) -> anchor_lang::Result<()> {
-    //     msg!("Invoking check_merkle_root_exists");
-    //     process_check_merkle_root_exists(
-    //         &ctx.accounts.merkle_tree.to_account_info(),
-    //         &merkle_root.to_vec(),
-    //         &ctx.program_id
-    //     )?;
-    //     Ok(())
-    // }
 }
-
-// This is a helper instruction to initialize the leaves index for existing
-// merkle trees.
-// #[derive(Accounts)]
-// pub struct InitializeMerkleTreeLeavesIndex<'info> {
-//     #[account(mut, address=)]
-//     pub authority: Signer<'info>,
-//     // /// CHECK:` doc comment explaining why no checks through types are necessary.
-//     #[account(
-//         init,
-//         payer = authority,
-//         seeds = [&merkle_tree.key().to_bytes()],
-//         bump,
-//         space = 16,
-//     )]
-//     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-//     /// CHECK:` that this function can only be used to create this account for the existing sol
-//     /// Merkle tree.
-//     #[account(mut, address=Pubkey::new(&config::MERKLE_TREE_ACC_BYTES_ARRAY[0].0))]
-//     pub merkle_tree: AccountInfo<'info>,
-//     pub system_program: Program<'info, System>,
-//     pub rent: Sysvar<'info, Rent>,
-// }

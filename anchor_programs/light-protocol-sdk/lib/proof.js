@@ -180,7 +180,7 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         console.log(input);
         var proofJson;
         var publicInputsJson;
-        yield (0, prove_1.prove)(input, `./Light_circuits/build/circuits/transactionMasp2`)
+        yield (0, prove_1.prove)(input)
             .then((r) => {
             proofJson = r.proofJson;
             publicInputsJson = r.publicInputsJson;
@@ -192,17 +192,32 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         }
         // console.log("Public inputs bytes", (new Uint8Array([...publicInputsBytes[0], ...publicInputsBytes[1], ...publicInputsBytes[2], ...publicInputsBytes[3], ...publicInputsBytes[4], ...publicInputsBytes[5], ...publicInputsBytes[6], ...publicInputsBytes[7], ...publicInputsBytes[8]])).toString());
         // console.log("proof bytes: ", (yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson)).toString());
-        let publicInputs = {
-            root:         publicInputsBytes[0],
-            publicAmount: publicInputsBytes[1],
-            extDataHash:  publicInputsBytes[2],
-            feeAmount:    publicInputsBytes[3],
-            mintPubkey:   publicInputsBytes[4],
-            nullifier0:   publicInputsBytes[5],
-            nullifier1:   publicInputsBytes[6],
-            leafLeft:     publicInputsBytes[7],
-            leafRight:    publicInputsBytes[8]
-        };
+        console.log("publicInputsBytes ", publicInputsBytes);
+        let publicInputs
+
+        if (publicInputsBytes.length == 9) {
+            publicInputs = {
+             root:         publicInputsBytes[0],
+             publicAmount: publicInputsBytes[1],
+             extDataHash:  publicInputsBytes[2],
+             feeAmount:    publicInputsBytes[3],
+             mintPubkey:   publicInputsBytes[4],
+             nullifiers:   [publicInputsBytes[5], publicInputsBytes[6]],
+             leafLeft:     publicInputsBytes[7],
+             leafRight:    publicInputsBytes[8]
+           };
+        } else {
+          publicInputs = {
+           root:         publicInputsBytes[0],
+           publicAmount: publicInputsBytes[1],
+           extDataHash:  publicInputsBytes[2],
+           feeAmount:    publicInputsBytes[3],
+           mintPubkey:   publicInputsBytes[4],
+           nullifiers:   Array.from(publicInputsBytes.slice(5,15)),
+           leafLeft:     publicInputsBytes[15],
+           leafRight:    publicInputsBytes[16]
+         };
+        }
 
         return {
                 extAmount: extAmount,

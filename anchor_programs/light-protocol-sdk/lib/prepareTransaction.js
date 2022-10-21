@@ -28,7 +28,7 @@ const prepareUtxos = (
     // swapSetupKeypair = new keypair_1.Keypair()
   ) => {
     /// Validation
-    if (inputUtxos.length > 16 || outputUtxos.length > 4) {
+    if (inputUtxos.length > 16 || outputUtxos.length > 2) {
         throw new Error('Incorrect inputUtxos/outputUtxos count');
     }
     // generates an setup utxo
@@ -81,9 +81,9 @@ const prepareUtxos = (
       )
     }
     */
-
+    console.log("inputUtxos.length ", inputUtxos.length);
     /// fill inputUtxos until 2 or 16
-    while (inputUtxos.length !== 2 && inputUtxos.length < 16) {
+    while (inputUtxos.length !== 2 && inputUtxos.length < 10) {
       inputUtxos.push(new utxos_1.default(poseidon));
       // throw "inputUtxos.length > 2 are not implemented";
     }

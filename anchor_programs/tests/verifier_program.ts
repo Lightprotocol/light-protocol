@@ -1,7 +1,7 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-import { verifierProgramZero } from "../target/types/verifier_program";
-import { AttackerProgram } from "../target/types/attacker_program";
+import { verifierProgramZero } from "../target/types/verifier_program_zero";
+import { VerifierProgramOne } from "../target/types/verifier_program_one";
 const { SystemProgram } = require('@solana/web3.js');
 import { MerkleTreeProgram } from "../target/types/merkle_tree_program";
 import { findProgramAddress } from "@project-serum/anchor/dist/cjs/utils/pubkey";
@@ -88,11 +88,9 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "finalized", commitment: "finalized"});//anchor.getProvider();
-  console.log("e");
-
-  const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
-  // const attackerProgram = anchor.workspace.AttackerProgram as Program<AttackerProgram>;
+  const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
+  const verifierProgramOne = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
 
   // var provider
 
@@ -111,6 +109,7 @@ describe("verifier_program", () => {
   var REGISTERED_POOL_PDA_SOL;
   var REGISTERED_POOL_PDA;
   var SHIELDED_TRANSACTION;
+  var REGISTERED_VERIFIER_ONE_PDA;
 
   var PRIOR_UTXO;
 
@@ -130,6 +129,10 @@ describe("verifier_program", () => {
 
     REGISTERED_VERIFIER_PDA = (await solana.PublicKey.findProgramAddress(
         [verifierProgramZero.programId.toBuffer()],
+        merkleTreeProgram.programId
+      ))[0];
+    REGISTERED_VERIFIER_ONE_PDA = (await solana.PublicKey.findProgramAddress(
+        [verifierProgramOne.programId.toBuffer()],
         merkleTreeProgram.programId
       ))[0];
 
@@ -277,6 +280,24 @@ describe("verifier_program", () => {
           verifierProgramZero.programId
         ).accounts({
           registeredVerifierPda: REGISTERED_VERIFIER_PDA,
+          authority: ADMIN_AUTH_KEY,
+          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
+          ...DEFAULT_PROGRAMS
+        })
+        .signers([ADMIN_AUTH_KEYPAIR])
+        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        console.log("Registering Verifier success");
+
+      } catch(e) {
+        console.log(e);
+
+      }
+
+      try {
+        await merkleTreeProgram.methods.registerVerifier(
+          verifierProgramOne.programId
+        ).accounts({
+          registeredVerifierPda: REGISTERED_VERIFIER_ONE_PDA,
           authority: ADMIN_AUTH_KEY,
           merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
           ...DEFAULT_PROGRAMS
@@ -592,7 +613,7 @@ describe("verifier_program", () => {
 
   });
 
-  it("Deposit", async () => {
+  it("Deposit 10 utxo", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -648,7 +669,7 @@ describe("verifier_program", () => {
         lookupTable:            LOOK_UP_TABLE,
         merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
         merkleTreeProgram,
-        verifierProgram: verifierProgramZero,
+        verifierProgram: verifierProgramOne,
 
         merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
         merkleTreePubkey:       MERKLE_TREE_KEY,
@@ -658,17 +679,17 @@ describe("verifier_program", () => {
         payer:                  ADMIN_AUTH_KEYPAIR,
         encryptionKeypair:      ENCRYPTION_KEYPAIR,
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
-        registeredVerifierPda:  REGISTERED_VERIFIER_PDA
+        registeredVerifierPda:  REGISTERED_VERIFIER_ONE_PDA,
       });
 
       await SHIELDED_TRANSACTION.getMerkleTree();
-
+      let inputUtxos = [new light.Utxo(POSEIDON), new light.Utxo(POSEIDON), new light.Utxo(POSEIDON), new light.Utxo(POSEIDON)];
       let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
       let outputUtxos = [deposit_utxo1];
 
       await SHIELDED_TRANSACTION.prepareTransactionFull({
-        inputUtxos: [],
+        inputUtxos,
         outputUtxos,
         action: "DEPOSIT",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
@@ -678,7 +699,7 @@ describe("verifier_program", () => {
         sender: userTokenAccount
       });
 
-      await SHIELDED_TRANSACTION.proof10();
+      await SHIELDED_TRANSACTION.proof();
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction10();
@@ -825,7 +846,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it("Update Merkle Tree after Deposit", async () => {
+  it.skip("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 

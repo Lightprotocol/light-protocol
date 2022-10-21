@@ -19,5 +19,9 @@ pub enum VerifierSdkError {
     #[msg("Invalid merkle tree root")]
     InvalidMerkleTreeRoot,
     #[msg("InconsistentMintProofSenderOrRecipient")]
-    InconsistentMintProofSenderOrRecipient
+    InconsistentMintProofSenderOrRecipient,
+    #[msg("InvalidUtxoSize")]
+    InvalidUtxoSize,
+    #[msg("CloseAccountFailed")]
+    CloseAccountFailed
 }

@@ -8,7 +8,7 @@ use crate::RegisteredVerifier;
 pub struct Nullifier {}
 
 #[derive(Accounts)]
-#[instruction(nullifier: [u8;32], index: u64)]
+#[instruction(nullifier: [u8;32])]
 pub struct InitializeNullifier<'info> {
     #[account(
         init,

@@ -7,7 +7,8 @@ use light_verifier_sdk::{
         LightTransaction
     },
     accounts::Accounts,
-    state::VerifierStateTenNF
+    state::VerifierStateTenNF,
+    errors::VerifierSdkError
 };
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
@@ -15,7 +16,7 @@ use crate::{LightInstructionFirst, LightInstructionSecond};
 pub struct LightTx;
 impl TxConfig for LightTx {
     /// Number of nullifiers to be inserted with the transaction.
-	const NR_NULLIFIERS: usize = 2;
+	const NR_NULLIFIERS: usize = 10;
 	/// Number of output utxos.
 	const NR_LEAVES: usize = 2;
 	/// Number of checked public inputs.
@@ -27,6 +28,7 @@ impl TxConfig for LightTx {
       246, 190,  23, 138, 211,  16, 120, 183,
         7,  91,  10, 173,  20, 245,  75, 167
     ];
+    const UTXO_SIZE: usize = 256;
 }
 
 pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
@@ -36,7 +38,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     public_amount: &[u8; 32],
     ext_data_hash: &[u8; 32],
     nullifiers: Vec<Vec<u8>>,
-    leaves: &[[u8; 32]; 2],
+    leaves: Vec<Vec<Vec<u8>>>,
     fee_amount: &[u8; 32],
     mint_pubkey: &[u8;32],
     encrypted_utxos: Vec<u8>,
@@ -53,7 +55,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         mint_pubkey,
         Vec::<[u8; 32]>::new(), // checked_public_inputs
         nullifiers,
-        vec![*leaves],
+        leaves,
         encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),
@@ -61,10 +63,11 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         &VERIFYINGKEY
     );
 
-    tx.verify()?;
+
     sol_log_compute_units();
     msg!("packing verifier state");
     ctx.accounts.verifier_state.set_inner(tx.into());
+    msg!("ctx.accounts.verifier_state {:?}", ctx.accounts.verifier_state.leaves);
     sol_log_compute_units();
     msg!("packed verifier state");
     Ok(())
@@ -72,6 +75,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
 
 pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info,LightInstructionSecond<'info>>,
+    proof: &[u8; 256]
 ) -> Result<()> {
 
     let accounts = Accounts::new(
@@ -92,11 +96,16 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx.accounts.escrow.to_account_info(),
         ctx.accounts.token_authority.to_account_info(),
         &ctx.accounts.registered_verifier_pda,
-        ctx.remaining_accounts
+        &ctx.remaining_accounts
     )?;
+    // msg!("VerifierStateTenNF: {:?}", ctx.accounts.verifier_state.nullifiers);
+    // msg!("encrypted_utxos: {:?}", ctx.accounts.verifier_state.encrypted_utxos);
+    msg!("leaves: {:?}", ctx.accounts.verifier_state.leaves);
+    msg!("relayer_fee: {}", ctx.accounts.verifier_state.relayer_fee);
 
-    let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(Some(&accounts), &VERIFYINGKEY);
+    let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(Some(proof), Some(&accounts), &VERIFYINGKEY);
 
+    tx.verify()?;
     tx.check_root()?;
     tx.insert_leaves()?;
     tx.insert_nullifiers()?;

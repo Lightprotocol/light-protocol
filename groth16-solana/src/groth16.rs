@@ -18,9 +18,9 @@ pub struct Groth16Verifyingkey<'a> {
 
 #[derive(PartialEq, Debug)]
 pub struct Groth16Verifier<'a> {
-    proof_a: Vec<u8>,
-    proof_b: Vec<u8>,
-    proof_c: Vec<u8>,
+    proof_a: &'a Vec<u8>,
+    proof_b: &'a Vec<u8>,
+    proof_c: &'a Vec<u8>,
     public_inputs: Vec<Vec<u8>>,
     prepared_public_inputs: Vec<u8>,
     verifyingkey: &'a Groth16Verifyingkey<'a>
@@ -29,9 +29,9 @@ pub struct Groth16Verifier<'a> {
 impl Groth16Verifier<'_> {
 
     pub fn new<'a>(
-        proof_a: Vec<u8>,
-        proof_b: Vec<u8>,
-        proof_c: Vec<u8>,
+        proof_a: &'a Vec<u8>,
+        proof_b: &'a Vec<u8>,
+        proof_c: &'a Vec<u8>,
         public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> Result<Groth16Verifier<'a>,Groth16Error> {

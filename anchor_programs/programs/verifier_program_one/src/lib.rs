@@ -28,8 +28,8 @@ use merkle_tree_program::{
     errors::ErrorCode as MerkleTreeError
 
 };
+use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use crate::processor::process_shielded_transfer_first;
-use merkle_tree_program::utils::create_pda::create_and_check_pda;
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
@@ -67,30 +67,33 @@ pub mod verifier_program_one {
     /// in the last transaction after successful ZKP verification.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info> (
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        proof: [u8; 256],
+        // proof: [u8; 256],
         merkle_root: [u8; 32],
         amount: [u8; 32],
         ext_data_hash: [u8; 32],
-        nullifiers: Vec<Vec<u8>>, // 10 nullifiers 1072 byts 16 1264 bytes total data sent
+        nullifiers: [[u8; 32]; 10], // 10 nullifiers 1072 byts 16 1264 bytes total data sent
         leaves: [[u8; 32]; 2],
         fee_amount: [u8; 32],
         mint_pubkey: [u8;32],
         root_index: u64,
         relayer_fee: u64,
-        encrypted_utxos0: [u8; 128],
-        encrypted_utxos1: [u8; 128]
+        encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
+        let mut nfs = Vec::<Vec<u8>>::new();
+        for nf in nullifiers {
+            nfs.push(nf.to_vec());
+        }
         process_shielded_transfer_first(
             ctx,
-            &proof,
+            &[0u8;256],
             &merkle_root,
             &amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
             &ext_data_hash,
-            nullifiers.to_vec(),
-            &leaves,
+            nfs,
+            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
             &fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
             &mint_pubkey,
-            [encrypted_utxos0.to_vec(),encrypted_utxos1.to_vec()].concat(),
+            encrypted_utxos,
             &root_index,
             &relayer_fee
         )
@@ -104,9 +107,11 @@ pub mod verifier_program_one {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info> (
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+        proof: [u8; 256],
     ) -> Result<()> {
         process_shielded_transfer_second(
-            ctx
+            ctx,
+            &proof
         )
     }
 
@@ -136,18 +141,18 @@ pub struct LightInstructionFirst<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [b"VERIFIER_STATE"], bump, space= 8 + 776, payer = signing_address )]
+    #[account(init, seeds = [b"VERIFIER_STATE"], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF::<LightTx>>
 }
 
 /// Executes light transaction with state created in the first instruction.
 #[derive( Accounts)]
 pub struct LightInstructionSecond<'info> {
-    #[account(mut, seeds = [b"VERIFIER_STATE"], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF::<LightTx>>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
+    #[account(mut, seeds = [b"VERIFIER_STATE"], bump, close=signing_address )]
+    pub verifier_state: Account<'info, VerifierStateTenNF::<LightTx>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,

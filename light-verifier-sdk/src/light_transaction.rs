@@ -31,14 +31,14 @@ use groth16_solana::groth16::{
     Groth16Verifyingkey
 };
 
-use merkle_tree_program::{
-    close_account,
-    utils::create_pda::create_and_check_pda,
+use crate::utils::{
+    close_account::close_account,
+    create_pda::create_and_check_pda,
 };
 
 use std::ops::Neg;
 
-
+use crate::utils::to_be_64;
 use crate::errors::VerifierSdkError;
 use crate::cpi_instructions::{
     initialize_nullifier_cpi,
@@ -48,17 +48,6 @@ use crate::cpi_instructions::{
 };
 use crate::accounts::Accounts;
 
-fn to_be_64(bytes: &[u8]) -> Vec<u8> {
-    let mut vec = Vec::new();
-    for b in bytes.chunks(32) {
-        for byte in b.iter().rev() {
-            vec.push(*byte);
-        }
-    }
-    vec
-}
-
-// pub const FEE_TOKEN: Pubkey = solana_program::id();
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 
 
@@ -70,21 +59,22 @@ pub trait TxConfig {
 	/// Number of checked public inputs.
 	const NR_CHECKED_PUBLIC_INPUTS: usize;
     const ID: [u8;32];
+    const UTXO_SIZE: usize;
 }
 #[derive(Clone)]
 pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     pub merkle_root: &'a [u8; 32],
     pub public_amount: &'a [u8;32],
-    pub ext_data_hash: &'a [u8;32],
+    pub tx_integrity_hash: &'a [u8;32],
     pub fee_amount: &'a [u8;32],
     pub mint_pubkey: &'a [u8;32],
     pub checked_public_inputs: Vec<[u8; 32]>,
     pub nullifiers: Vec<Vec<u8>>,
-    pub leaves: Vec<[[u8; 32]; 2]>,
+    pub leaves: Vec<Vec<Vec<u8>>>,
     pub relayer_fee: u64,
-    pub proof_a: Vec<u8>,
-    pub proof_b: Vec<u8>,
-    pub proof_c: Vec<u8>,
+    pub proof_a: Option<Vec<u8>>,
+    pub proof_b: Option<Vec<u8>>,
+    pub proof_c: Option<Vec<u8>>,
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: usize,
     pub transferred_funds: bool,
@@ -105,12 +95,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         proof: &'a [u8;256],
         merkle_root: &'a [u8; 32],
         public_amount: &'a [u8;32],
-        ext_data_hash: &'a [u8;32],
+        tx_integrity_hash: &'a [u8;32],
         fee_amount: &'a [u8;32],
         mint_pubkey: &'a [u8;32],
         checked_public_inputs: Vec<[u8; 32]>,
         nullifiers: Vec<Vec<u8>>,
-        leaves: Vec<[[u8; 32]; 2]>,
+        leaves: Vec<Vec<Vec<u8>>>,
         encrypted_utxos: Vec<u8>,
         relayer_fee: u64,
         merkle_root_index: usize,
@@ -129,16 +119,16 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         return LightTransaction {
             merkle_root,
             public_amount,
-            ext_data_hash,
+            tx_integrity_hash,
             fee_amount,
             mint_pubkey,
             checked_public_inputs,
             nullifiers,
             leaves,
             relayer_fee: relayer_fee,
-            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(),
-            proof_b: proof[64..64 + 128].to_vec(),
-            proof_c: proof[64 + 128..256].to_vec(),
+            proof_a: Some(to_be_64(&proof_a_neg[..64]).to_vec()),
+            proof_b: Some(proof[64..64 + 128].to_vec()),
+            proof_c: Some(proof[64 + 128..256].to_vec()),
             encrypted_utxos: encrypted_utxos,
             merkle_root_index,
             transferred_funds: false,
@@ -159,7 +149,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let mut public_inputs = vec![
             self.merkle_root[..].to_vec(),
             self.public_amount[..].to_vec(),
-            self.ext_data_hash[..].to_vec(),
+            self.tx_integrity_hash[..].to_vec(),
             self.fee_amount[..].to_vec(),
             self.mint_pubkey[..].to_vec(),
         ];
@@ -176,11 +166,11 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input.to_vec());
         }
-
+        msg!("public_inputs: {:?}", public_inputs);
         let mut verifier = Groth16Verifier::new(
-            self.proof_a.to_vec(),
-            self.proof_b.to_vec(),
-            self.proof_c.to_vec(),
+            self.proof_a.as_ref().unwrap(),
+            self.proof_b.as_ref().unwrap(),
+            self.proof_c.as_ref().unwrap(),
             public_inputs,
             &self.verifyingkey
         ).unwrap();
@@ -208,11 +198,11 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?;
         msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fr::from_be_bytes_mod_order(&hash[..]) );
-        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(self.ext_data_hash) {
+        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(self.tx_integrity_hash) {
             msg!(
                 "tx_integrity_hash verification failed.{:?} != {:?}",
                 &hash[..],
-                &self.ext_data_hash
+                &self.tx_integrity_hash
             );
             return err!(VerifierSdkError::WrongTxIntegrityHash);
         }
@@ -360,7 +350,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     &self.accounts.unwrap().sender.to_account_info(),
                     &self.accounts.unwrap().recipient.to_account_info(),
                     &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
-                    pub_amount_checked,
+                    pub_amount_checked
                 )?;
             }
         } else {
@@ -785,7 +775,7 @@ mod test {
         // let mut public_inputs = vec![
         //     self.merkle_root,
         //     self.public_amount,
-        //     self.ext_data_hash,
+        //     self.tx_integrity_hash,
         //     self.fee_amount,
         //     self.mint_pubkey,
         //     self.nullifier0,
@@ -800,7 +790,7 @@ mod test {
                 proof,
                 public_inputs[0..32].try_into().unwrap(),// merkle_root,
                 public_inputs[32..64].try_into().unwrap(),// merkle_root,public_amount: [u8;32],
-                public_inputs[64..96].try_into().unwrap(),// ext_data_hash: [u8;32],
+                public_inputs[64..96].try_into().unwrap(),// tx_integrity_hash: [u8;32],
                 public_inputs[96..128].try_into().unwrap(),// fee_amount,public_amount: [u8;32],
                 public_inputs[128..160].try_into().unwrap(),// mint_pubkey,public_amount: [u8;32],
                 Vec::<Vec<u8>>::new(),//checked_public_inputs: Vec<Vec<u8>>,

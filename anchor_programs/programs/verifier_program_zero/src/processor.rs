@@ -6,7 +6,8 @@ use light_verifier_sdk::{
         TxConfig,
         LightTransaction
     },
-    accounts::Accounts
+    accounts::Accounts,
+    errors::VerifierSdkError
 };
 
 use crate::LightInstruction;
@@ -25,6 +26,7 @@ impl TxConfig for LightTx {
       248,  16, 209,  38, 219, 222, 123, 242,
         5,  68, 240, 131,   3, 211, 184,  81
     ];
+    const UTXO_SIZE: usize = 256;
 }
 
 pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
@@ -75,7 +77,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         &mint_pubkey,
         Vec::<[u8; 32]>::new(), // checked_public_inputs
         vec![nullifier0.to_vec(), nullifier1.to_vec()],
-        vec![[leaf_left, leaf_right]],
+        vec![vec![leaf_left.to_vec(), leaf_right.to_vec()]],
         encrypted_utxos,
         relayer_fee,
         merkle_tree_index.try_into().unwrap(),

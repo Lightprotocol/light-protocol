@@ -12,7 +12,6 @@ security_txt! {
 
 pub mod verifying_key;
 pub mod processor;
-
 pub use processor::*;
 
 use anchor_lang::prelude::*;
@@ -26,10 +25,9 @@ use merkle_tree_program::{
     RegisteredVerifier,
     poseidon_merkle_tree::state::MerkleTree,
     errors::ErrorCode as MerkleTreeError
-
 };
+use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use crate::processor::process_shielded_transfer_2_inputs;
-use merkle_tree_program::utils::create_pda::create_and_check_pda;
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -77,10 +75,7 @@ pub mod verifier_program_zero {
         mint_pubkey: [u8;32],
         root_index: u64,
         relayer_fee: u64,
-        encrypted_utxos0: [u8; 128],
-        encrypted_utxos1: [u8; 32],
-        encrypted_utxos2: [u8; 14],
-        encrypted_utxos3: [u8; 16]
+        encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
         process_shielded_transfer_2_inputs(
             ctx,
@@ -95,7 +90,7 @@ pub mod verifier_program_zero {
             0,//ext_amount,
             fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
             mint_pubkey,
-            [encrypted_utxos0.to_vec(), encrypted_utxos1.to_vec(), encrypted_utxos2.to_vec()].concat(),
+            encrypted_utxos,
             root_index,
             relayer_fee
         )
