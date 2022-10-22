@@ -11,12 +11,10 @@ use anchor_lang::solana_program::{
     account_info::AccountInfo, clock::Clock, msg, program_pack::Pack, pubkey::Pubkey,
     sysvar::Sysvar,
 };
-use std::borrow::BorrowMut;
 use std::borrow::Borrow;
+use std::borrow::BorrowMut;
 
-use crate::utils::constants::{
-    STORAGE_SEED
-};
+use crate::utils::constants::STORAGE_SEED;
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
@@ -40,7 +38,9 @@ pub struct InsertRoot<'info> {
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
 }
 
-pub fn process_insert_root<'a, 'b, 'c, 'info>(ctx: &mut Context<'a, 'b, 'c, 'info,InsertRoot<'info>>) -> Result<()> {
+pub fn process_insert_root<'a, 'b, 'c, 'info>(
+    ctx: &mut Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
+) -> Result<()> {
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
     let mut merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
 
@@ -126,7 +126,6 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(ctx: &mut Context<'a, 'b, 'c, 'inf
         // );
     }
     */
-
 
     Ok(())
 }

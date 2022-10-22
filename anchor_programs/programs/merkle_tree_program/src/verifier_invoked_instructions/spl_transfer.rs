@@ -1,7 +1,7 @@
-use anchor_lang::prelude::*;
-use anchor_spl::token::{Token, TokenAccount, Transfer};
 use crate::utils::config;
 use crate::RegisteredVerifier;
+use anchor_lang::prelude::*;
+use anchor_spl::token::{Token, TokenAccount, Transfer};
 
 #[derive(Accounts)]
 pub struct WithdrawSpl<'info> {
@@ -19,22 +19,28 @@ pub struct WithdrawSpl<'info> {
     #[account(mut, seeds=[b"spl"], bump)]
     pub token_authority: AccountInfo<'info>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
 
-pub fn process_spl_transfer<'info> (ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>, amount: u64) -> Result<()> {
-
+pub fn process_spl_transfer<'info>(
+    ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>,
+    amount: u64,
+) -> Result<()> {
     msg!("Withdrawing spl token {}", amount);
-    let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-        &[&b"spl".as_ref()], ctx.program_id );
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[&b"spl".as_ref()], ctx.program_id);
     let bump = &[bump][..];
     let seeds = &[&[&b"spl".as_ref(), bump][..]];
     let accounts = Transfer {
-        from:       ctx.accounts.merkle_tree_token.to_account_info(),
-        to:         ctx.accounts.recipient.to_account_info(),
-        authority:  ctx.accounts.token_authority.to_account_info()
+        from: ctx.accounts.merkle_tree_token.to_account_info(),
+        to: ctx.accounts.recipient.to_account_info(),
+        authority: ctx.accounts.token_authority.to_account_info(),
     };
-    let cpi_ctx = CpiContext::new_with_signer(ctx.accounts.token_program.to_account_info(), accounts, seeds);
+    let cpi_ctx = CpiContext::new_with_signer(
+        ctx.accounts.token_program.to_account_info(),
+        accounts,
+        seeds,
+    );
     anchor_spl::token::transfer(cpi_ctx, amount)?;
 
     Ok(())

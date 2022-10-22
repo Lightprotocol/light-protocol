@@ -17,7 +17,7 @@ pub const HASH_0: u8 = 0;
 pub const HASH_1: u8 = 1;
 pub const HASH_2: u8 = 2;
 pub const ROOT_INSERT: u8 = 241;
-pub const MERKLE_TREE_SIZE:u64 = 16658;
+pub const MERKLE_TREE_SIZE: u64 = 16658;
 
 #[constant]
 pub const AUTHORITY_SEED: &[u8] = b"AUTHORITY_SEED";

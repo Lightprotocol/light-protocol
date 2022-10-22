@@ -290,80 +290,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             self.nullifiers.to_vec(),
             self.accounts.unwrap().remaining_accounts.to_vec()
         )?;
-        // for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.accounts.unwrap().remaining_accounts) {
-        //
-        //     // initialize_nullifier_cpi(
-        //     //     &self.accounts.unwrap().program_id,
-        //     //     &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-        //     //     &self.accounts.unwrap().authority.to_account_info(),
-        //     //     &nullifier_pda.to_account_info(),
-        //     //     &self.accounts.unwrap().system_program.to_account_info().clone(),
-        //     //     &self.accounts.unwrap().rent.to_account_info().clone(),
-        //     //     &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
-        //     //     (nullifier.clone()).try_into().unwrap()
-        //     // )?;
-        //
-        //     // let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
-        //     //
-        //     // create_and_check_pda(
-        //     //     &MerkleTreeProgram::id(), //Pubkey::new(&T::ID),
-        //     //     &self.accounts.unwrap().signing_address.to_account_info(),
-        //     //     &nullifier_pda.to_account_info(),
-        //     //     &self.accounts.unwrap().system_program.to_account_info(),
-        //     //     &rent,
-        //     //     nullifier,
-        //     //     &b"nf"[..],
-        //     //     8,                  //bytes
-        //     //     0, //lamports
-        //     //     true,               //rent_exempt
-        //     // )?;
-        //     // let derived_pubkey =
-        //     //     Pubkey::find_program_address(&[MerkleTreeProgram::id().to_bytes().as_ref()], &Pubkey::new(&T::ID));
-        //     //
-        //     // // if derived_pubkey.0 != *nullifier_pda.key {
-        //     //     msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
-        //     //     msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-        //     //     msg!("Passed-in pda pubkey {:?}", *nullifier_pda.key);
-        //     //     msg!("nullifier data seed  {:?}", nullifier);
-        //     // //     return err!(VerifierSdkError::InvalidNrLeavesaccounts);
-        //     // // }
-        //     //
-        //     // let account_lamports = rent.minimum_balance(8usize);
-        //     //
-        //     // //  else {
-        //     // //     account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
-        //     // // }
-        //     // msg!("account_lamports: {}", account_lamports);
-        //     // invoke_signed(
-        //     //     &system_instruction::create_account(
-        //     //         self.accounts.unwrap().signing_address.key,   // from_pubkey
-        //     //         nullifier_pda.key,    // to_pubkey
-        //     //         account_lamports,     // lamports
-        //     //         0u64, // space
-        //     //         &MerkleTreeProgram::id(),           // owner
-        //     //     ),
-        //     //     &[
-        //     //         self.accounts.unwrap().signing_address.to_account_info().clone(),
-        //     //         self.accounts.unwrap().authority.to_account_info().clone(),
-        //     //         self.accounts.unwrap().system_program.to_account_info().clone(),
-        //     //     ],
-        //     //     &[&[
-        //     //         &MerkleTreeProgram::id().to_bytes().as_ref(),
-        //     //         // &b"nf"[..],
-        //     //         &[derived_pubkey.1][..],
-        //     //     ]],
-        //     // ).unwrap();
-        //
-        //
-        //
-        // }
+
         self.inserted_nullifier = true;
         Ok(())
     }
 
     pub fn transfer_user_funds(&mut self) -> Result<()> {
-        // msg!("self.public_amount {:?}", self.public_amount);
-        // msg!("self.relayer_fe {:?}", self.relayer_fee);
         msg!("transferring user funds");
         sol_log_compute_units();
         // check mintPubkey
@@ -373,6 +305,8 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             to_be_64(self.public_amount).try_into().unwrap(),
             false
         )?;
+        msg!("self.public_amount {:?}", self.public_amount);
+        msg!("self.relayer_fe {:?}", self.relayer_fee);
 
         //check accounts
         if self.is_deposit() {

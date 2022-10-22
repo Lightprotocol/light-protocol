@@ -1,7 +1,7 @@
 use crate::config;
 use crate::utils::constants::NF_SEED;
-use anchor_lang::prelude::*;
 use crate::RegisteredVerifier;
+use anchor_lang::prelude::*;
 
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
@@ -25,7 +25,7 @@ pub struct InitializeNullifier<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
 
 #[derive(Accounts)]
@@ -36,17 +36,16 @@ pub struct InitializeNullifierMany<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
-    // nullifiers are sent in remaining accounts.
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts.
 }
 
-
-pub fn process_insert_many_nullifiers<'info>(ctx: Context<'_, '_, '_, 'info, InitializeNullifierMany<'info>>, nullifiers: Vec<Vec<u8>>) -> Result<()>{
-
+pub fn process_insert_many_nullifiers<'info>(
+    ctx: Context<'_, '_, '_, 'info, InitializeNullifierMany<'info>>,
+    nullifiers: Vec<Vec<u8>>,
+) -> Result<()> {
     let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
 
     for (nullifier_pda, nullifier) in ctx.remaining_accounts.iter().zip(nullifiers) {
-
         create_and_check_pda(
             &ctx.program_id,
             &ctx.accounts.authority.to_account_info(),
@@ -55,15 +54,15 @@ pub fn process_insert_many_nullifiers<'info>(ctx: Context<'_, '_, '_, 'info, Ini
             &rent,
             &nullifier,
             &NF_SEED,
-            8,                  //bytes
-            0, //lamports
-            true,               //rent_exempt
-        ).unwrap();
-        nullifier_pda.to_account_info().data.borrow_mut()[0] = 1u8;//[1u8;8]);
+            8,    //bytes
+            0,    //lamports
+            true, //rent_exempt
+        )
+        .unwrap();
+        nullifier_pda.to_account_info().data.borrow_mut()[0] = 1u8; //[1u8;8]);
     }
     Ok(())
 }
-
 
 use anchor_lang::solana_program::{
     account_info::AccountInfo, msg, program::invoke_signed, program_error::ProgramError,

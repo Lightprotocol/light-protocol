@@ -29,10 +29,10 @@ pub fn insert_0_double(
         msg!("Merkle tree full");
         return Err(ProgramError::InvalidInstructionData);
     }
-    update_state_data.node_left =
-        update_state_data.leaves[usize::try_from(update_state_data.insert_leaves_index).unwrap()][0];
-    update_state_data.node_right =
-        update_state_data.leaves[usize::try_from(update_state_data.insert_leaves_index).unwrap()][1];
+    update_state_data.node_left = update_state_data.leaves
+        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][0];
+    update_state_data.node_right = update_state_data.leaves
+        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][1];
     msg!(
         "update_state_data.node_left {:?}",
         update_state_data.node_left
@@ -72,8 +72,7 @@ pub fn insert_1_inner_loop(
         update_state_data.current_level_hash
     );
     if update_state_data.current_level != 0 {
-        update_state_data.current_level_hash =
-            update_state_data.state[0..32].try_into().unwrap();
+        update_state_data.current_level_hash = update_state_data.state[0..32].try_into().unwrap();
     }
     msg!(
         "update_state_data.current_index {}",
@@ -88,7 +87,8 @@ pub fn insert_1_inner_loop(
         update_state_data.node_left = update_state_data.current_level_hash.clone();
         update_state_data.node_right =
             ZERO_BYTES_MERKLE_TREE_18[usize::try_from(update_state_data.current_level).unwrap()];
-        update_state_data.filled_subtrees[usize::try_from(update_state_data.current_level).unwrap()] =
+        update_state_data.filled_subtrees
+            [usize::try_from(update_state_data.current_level).unwrap()] =
             update_state_data.current_level_hash.clone();
         // check if there is another queued leaves pair
         if update_state_data.insert_leaves_index < update_state_data.number_of_leaves {
@@ -110,9 +110,9 @@ pub fn insert_1_inner_loop(
     } else {
         update_state_data.node_left = update_state_data.filled_subtrees
             [usize::try_from(update_state_data.current_level).unwrap()]
-            .clone()
-            .try_into()
-            .unwrap();
+        .clone()
+        .try_into()
+        .unwrap();
         update_state_data.node_right = update_state_data.current_level_hash.clone();
     }
     update_state_data.current_index /= 2;
@@ -136,8 +136,8 @@ pub fn insert_last_double(
 ) -> Result<(), ProgramError> {
     merkle_tree_account.current_root_index = ((merkle_tree_account.current_root_index + 1)
         % u64::try_from(merkle_tree_account.roots.len()).unwrap())
-        .try_into()
-        .unwrap();
+    .try_into()
+    .unwrap();
 
     msg!(
         "merkle_tree_account.current_root_index {}",
@@ -152,7 +152,11 @@ pub fn insert_last_double(
         "update_state_data.state[0..32].to_vec() {:?}",
         update_state_data.state[0..32].to_vec()
     );
-    let index: usize = merkle_tree_account.current_root_index.clone().try_into().unwrap();
+    let index: usize = merkle_tree_account
+        .current_root_index
+        .clone()
+        .try_into()
+        .unwrap();
     //roots unpacks only the current root and write only this one
     merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
 

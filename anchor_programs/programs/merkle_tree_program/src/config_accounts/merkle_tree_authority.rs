@@ -1,6 +1,6 @@
 use crate::config;
-use anchor_lang::prelude::*;
 use crate::errors::ErrorCode;
+use anchor_lang::prelude::*;
 
 /// Configures the authority of the merkle tree which can:
 /// - register new verifiers
@@ -14,9 +14,8 @@ pub struct MerkleTreeAuthority {
     pub enable_permissionless_spl_tokens: bool,
     pub enable_permissionless_merkle_tree_registration: bool,
     pub merkle_tree_index: u64,
-    pub registered_asset_index: u64
+    pub registered_asset_index: u64,
 }
-
 
 #[derive(Accounts)]
 pub struct InitializeMerkleTreeAuthority<'info> {
@@ -37,7 +36,6 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-
 #[derive(Accounts)]
 pub struct UpdateMerkleTreeAuthority<'info> {
     #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump)]
@@ -46,5 +44,5 @@ pub struct UpdateMerkleTreeAuthority<'info> {
     #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK:` New authority no need to be checked
-    pub new_authority: UncheckedAccount<'info>
+    pub new_authority: UncheckedAccount<'info>,
 }

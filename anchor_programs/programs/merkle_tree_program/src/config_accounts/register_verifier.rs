@@ -1,15 +1,14 @@
 use crate::config;
-use anchor_lang::prelude::*;
-use crate::MerkleTreeAuthority;
 use crate::errors::ErrorCode;
+use crate::MerkleTreeAuthority;
+use anchor_lang::prelude::*;
 
 /// Nullfier pdas are derived from the nullifier
 /// existence of a nullifier is the check to prevent double spends.
 #[account]
 pub struct RegisteredVerifier {
-    pub pubkey: Pubkey
+    pub pubkey: Pubkey,
 }
-
 
 #[derive(Accounts)]
 #[instruction(verifier_pubkey: Pubkey)]
@@ -29,5 +28,4 @@ pub struct RegisterVerifier<'info> {
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-
 }

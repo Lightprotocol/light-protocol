@@ -10,26 +10,20 @@ security_txt! {
 }
 */
 
-pub mod verifying_key;
 pub mod processor;
+pub mod verifying_key;
 
 pub use processor::*;
 
-use anchor_lang::prelude::*;
-use merkle_tree_program::{
-    program::MerkleTreeProgram,
-    MerkleTreeAuthority,
-};
-use anchor_spl::token::Token;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    RegisteredVerifier,
-    poseidon_merkle_tree::state::MerkleTree,
-    errors::ErrorCode as MerkleTreeError
-
-};
-use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use crate::processor::process_shielded_transfer_first;
+use anchor_lang::prelude::*;
+use anchor_spl::token::Token;
+use light_verifier_sdk::utils::create_pda::create_and_check_pda;
+use merkle_tree_program::{
+    errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
+};
+use merkle_tree_program::{program::MerkleTreeProgram, MerkleTreeAuthority};
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
@@ -39,9 +33,7 @@ pub mod verifier_program_one {
 
     /// Initializes the authority which is used to cpi the Merkle tree.
     /// can only be invoked by Merkle tree authority.
-    pub fn initialize_authority(
-        ctx: Context<InitializeAuthority>
-    ) -> anchor_lang::Result<()> {
+    pub fn initialize_authority(ctx: Context<InitializeAuthority>) -> anchor_lang::Result<()> {
         let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
 
         create_and_check_pda(
@@ -52,9 +44,9 @@ pub mod verifier_program_one {
             &rent,
             MerkleTreeProgram::id().to_bytes().as_ref(),
             &Vec::new(),
-            0,                  //bytes
-            0, //lamports
-            true,               //rent_exempt
+            0,    //bytes
+            0,    //lamports
+            true, //rent_exempt
         )?;
 
         Ok(())
@@ -65,7 +57,7 @@ pub mod verifier_program_one {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification.
-    pub fn shielded_transfer_first<'a, 'b, 'c, 'info> (
+    pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
         // proof: [u8; 256],
         merkle_root: [u8; 32],
@@ -74,7 +66,7 @@ pub mod verifier_program_one {
         nullifiers: [[u8; 32]; 10], // 10 nullifiers 1072 byts 16 1264 bytes total data sent
         leaves: [[u8; 32]; 2],
         fee_amount: [u8; 32],
-        mint_pubkey: [u8;32],
+        mint_pubkey: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -85,7 +77,7 @@ pub mod verifier_program_one {
         }
         process_shielded_transfer_first(
             ctx,
-            &[0u8;256],
+            &[0u8; 256],
             &merkle_root,
             &amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
             &ext_data_hash,
@@ -95,9 +87,8 @@ pub mod verifier_program_one {
             &mint_pubkey,
             encrypted_utxos,
             &root_index,
-            &relayer_fee
+            &relayer_fee,
         )
-
     }
 
     /// This instruction is the second step of a shieled transaction.
@@ -105,16 +96,12 @@ pub mod verifier_program_one {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_second<'a, 'b, 'c, 'info> (
+    pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: [u8; 256],
     ) -> Result<()> {
-        process_shielded_transfer_second(
-            ctx,
-            &proof
-        )
+        process_shielded_transfer_second(ctx, &proof)
     }
-
 }
 use crate::processor::LightTx;
 use light_verifier_sdk::state::VerifierStateTenNF;
@@ -130,29 +117,28 @@ pub struct InitializeAuthority<'info> {
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub rent: Sysvar<'info, Rent>,
 }
 
-
 /// Send data and verifies proof.
-#[derive( Accounts)]
+#[derive(Accounts)]
 pub struct LightInstructionFirst<'info> {
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [b"VERIFIER_STATE"], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF::<LightTx>>
+    pub verifier_state: Account<'info, VerifierStateTenNF<LightTx>>,
 }
 
 /// Executes light transaction with state created in the first instruction.
-#[derive( Accounts)]
+#[derive(Accounts)]
 pub struct LightInstructionSecond<'info> {
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [b"VERIFIER_STATE"], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF::<LightTx>>,
+    pub verifier_state: Account<'info, VerifierStateTenNF<LightTx>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,
@@ -191,6 +177,6 @@ pub struct LightInstructionSecond<'info> {
     pub token_authority: AccountInfo<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
 use merkle_tree_program::Nullifier;

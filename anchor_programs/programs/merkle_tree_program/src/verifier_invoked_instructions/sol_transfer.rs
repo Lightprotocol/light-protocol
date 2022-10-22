@@ -1,8 +1,8 @@
 use crate::config;
 use crate::errors::ErrorCode;
+use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use std::ops::DerefMut;
-use crate::RegisteredVerifier;
 
 #[derive(Accounts)]
 pub struct WithdrawSol<'info> {
@@ -21,10 +21,16 @@ pub struct WithdrawSol<'info> {
 
 /// Transferring sol from the merkle_tree_token_pda to recipients which are passed-in
 /// as remaining accounts.
-pub fn process_sol_transfer<'info> (ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>, amount: u64) -> Result<()> {
-
+pub fn process_sol_transfer<'info>(
+    ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
+    amount: u64,
+) -> Result<()> {
     msg!("Withdrawing sol {}", amount);
-    sol_transfer(&ctx.accounts.merkle_tree_token.to_account_info(), &ctx.accounts.recipient.to_account_info(), amount)
+    sol_transfer(
+        &ctx.accounts.merkle_tree_token.to_account_info(),
+        &ctx.accounts.recipient.to_account_info(),
+        amount,
+    )
 }
 
 pub fn sol_transfer(
@@ -51,7 +57,6 @@ pub fn sol_transfer(
         .ok_or(ProgramError::InvalidAccountData)?;
     msg!("dest_starting_lamports: {}", dest_starting_lamports);
     msg!("dest_res_lamports: {}", res);
-
 
     Ok(())
 }

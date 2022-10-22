@@ -2,11 +2,11 @@ use anchor_lang::prelude::*;
 
 use crate::config;
 use crate::state::TwoLeavesBytesPda;
-use crate::utils::constants::TWO_LEAVES_PDA_SIZE;
 use crate::utils::constants::LEAVES_SEED;
+use crate::utils::constants::TWO_LEAVES_PDA_SIZE;
 use crate::PreInsertedLeavesIndex;
-use anchor_lang::solana_program::{msg, program_pack::Pack};
 use crate::RegisteredVerifier;
+use anchor_lang::solana_program::{msg, program_pack::Pack};
 
 #[derive(Accounts)]
 #[instruction(
@@ -34,7 +34,7 @@ pub fn process_insert_two_leaves(
     ctx: Context<InsertTwoLeaves>,
     leaf_left: [u8; 32],
     leaf_right: [u8; 32],
-    encrypted_utxos: [u8;256],
+    encrypted_utxos: [u8; 256],
     merkle_tree_pda_pubkey: Pubkey,
 ) -> Result<()> {
     //save leaves into pda account

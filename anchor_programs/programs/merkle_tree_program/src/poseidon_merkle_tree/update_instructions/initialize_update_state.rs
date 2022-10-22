@@ -6,10 +6,10 @@ use crate::utils::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::utils::constants::STORAGE_SEED;
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
-use std::borrow::Borrow;
-use std::ops::Deref;
 use anchor_lang::solana_program::{msg, program_pack::Pack, sysvar};
+use std::borrow::Borrow;
 use std::borrow::BorrowMut;
+use std::ops::Deref;
 
 #[derive(Accounts)]
 pub struct InitializeUpdateState<'info> {
@@ -31,7 +31,7 @@ pub struct InitializeUpdateState<'info> {
 }
 
 pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info,InitializeUpdateState<'info>>,
+    ctx: Context<'a, 'b, 'c, 'info, InitializeUpdateState<'info>>,
 ) -> Result<()> {
     msg!("InitializeUpdateState");
     let update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
@@ -128,24 +128,15 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
         || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
     {
         merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
-        merkle_tree_pda_data.pubkey_locked = ctx
-            .accounts
-            .merkle_tree_update_state
-            .key().clone();
+        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key().clone();
         msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
-        msg!(
-            "Locked by: {:?}",
-            merkle_tree_pda_data.pubkey_locked
-        );
+        msg!("Locked by: {:?}", merkle_tree_pda_data.pubkey_locked);
     } else if merkle_tree_pda_data.time_locked + config::LOCK_DURATION > current_slot {
         msg!("Contract is still locked.");
         return err!(ErrorCode::ContractStillLocked);
     } else {
         merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
-        merkle_tree_pda_data.pubkey_locked = ctx
-            .accounts
-            .merkle_tree_update_state
-            .key();
+        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key();
     }
 
     // Copying Subtrees into update state.

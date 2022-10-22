@@ -10,24 +10,19 @@ security_txt! {
 }
 */
 
-pub mod verifying_key;
 pub mod processor;
+pub mod verifying_key;
 pub use processor::*;
 
-use anchor_lang::prelude::*;
-use merkle_tree_program::{
-    program::MerkleTreeProgram,
-    MerkleTreeAuthority,
-};
-use anchor_spl::token::Token;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    RegisteredVerifier,
-    poseidon_merkle_tree::state::MerkleTree,
-    errors::ErrorCode as MerkleTreeError
-};
-use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use crate::processor::process_shielded_transfer_2_inputs;
+use anchor_lang::prelude::*;
+use anchor_spl::token::Token;
+use light_verifier_sdk::utils::create_pda::create_and_check_pda;
+use merkle_tree_program::{
+    errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
+};
+use merkle_tree_program::{program::MerkleTreeProgram, MerkleTreeAuthority};
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -37,9 +32,7 @@ pub mod verifier_program_zero {
 
     /// Initializes the authority which is used to cpi the Merkle tree.
     /// can only be invoked by Merkle tree authority.
-    pub fn initialize_authority(
-        ctx: Context<InitializeAuthority>
-    ) -> anchor_lang::Result<()> {
+    pub fn initialize_authority(ctx: Context<InitializeAuthority>) -> anchor_lang::Result<()> {
         let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
 
         create_and_check_pda(
@@ -50,9 +43,9 @@ pub mod verifier_program_zero {
             &rent,
             MerkleTreeProgram::id().to_bytes().as_ref(),
             &Vec::new(),
-            0,                  //bytes
-            0, //lamports
-            true,               //rent_exempt
+            0,    //bytes
+            0,    //lamports
+            true, //rent_exempt
         )?;
 
         Ok(())
@@ -63,7 +56,7 @@ pub mod verifier_program_zero {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info> (
+    pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
         proof: [u8; 256],
         merkle_root: [u8; 32],
@@ -72,7 +65,7 @@ pub mod verifier_program_zero {
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
         fee_amount: [u8; 32],
-        mint_pubkey: [u8;32],
+        mint_pubkey: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -87,18 +80,17 @@ pub mod verifier_program_zero {
             nullifiers[1],
             leaves[0],
             leaves[1],
-            0,//ext_amount,
+            0,          //ext_amount,
             fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
             mint_pubkey,
             encrypted_utxos,
             root_index,
-            relayer_fee
+            relayer_fee,
         )
     }
-
 }
 
-#[derive( Accounts)]
+#[derive(Accounts)]
 pub struct InitializeAuthority<'info> {
     /// CHECK:` Signer is merkle tree authority.
     #[account(mut, address=merkle_tree_authority_pda.pubkey @MerkleTreeError::InvalidAuthority)]
@@ -109,10 +101,10 @@ pub struct InitializeAuthority<'info> {
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>
+    pub rent: Sysvar<'info, Rent>,
 }
 
-#[derive( Accounts)]
+#[derive(Accounts)]
 pub struct LightInstruction<'info> {
     // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
     // pub verifier_state: AccountLoader<'info, VerifierState>,
@@ -157,5 +149,5 @@ pub struct LightInstruction<'info> {
     pub token_authority: AccountInfo<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }

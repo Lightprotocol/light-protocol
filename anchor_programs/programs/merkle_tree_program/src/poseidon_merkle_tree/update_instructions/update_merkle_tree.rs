@@ -1,16 +1,15 @@
+use crate::poseidon_merkle_tree::instructions::*;
 use crate::poseidon_merkle_tree::processor::compute_updated_merkle_tree;
 use crate::poseidon_merkle_tree::processor::pubkey_check;
 use crate::state::MerkleTree;
 use crate::utils::config;
+use crate::utils::constants::*;
 use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
-    sysvar,
-    account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
+    account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey, sysvar,
 };
-use crate::utils::constants::*;
-use crate::poseidon_merkle_tree::instructions::*;
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {
@@ -40,7 +39,6 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
     if merkle_tree_update_state_data.current_instruction_index > 0
         && merkle_tree_update_state_data.current_instruction_index < 56
     {
-
         pubkey_check(
             ctx.accounts.merkle_tree_update_state.key(),
             merkle_tree_pda_data.pubkey_locked,
@@ -51,10 +49,12 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
             "merkle_tree_update_state_data.current_instruction_index0 {}",
             merkle_tree_update_state_data.current_instruction_index
         );
-        let id = IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
+        let id = IX_ORDER
+            [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
         if merkle_tree_update_state_data.current_instruction_index == 1 {
             compute_updated_merkle_tree(
-                IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
+                IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index)
+                    .unwrap()],
                 &mut merkle_tree_update_state_data,
                 &mut merkle_tree_pda_data,
             )?;
@@ -67,7 +67,8 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         );
 
         compute_updated_merkle_tree(
-            IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
+            IX_ORDER
+                [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
             &mut merkle_tree_update_state_data,
             &mut merkle_tree_pda_data,
         )?;
@@ -75,10 +76,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         merkle_tree_update_state_data.current_instruction_index += 1;
         // renews lock
         merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
-
     }
-
-
 
     Ok(())
 }

@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::utils::config::MERKLE_TREE_HEIGHT;
+use anchor_lang::prelude::*;
 
 #[account(zero_copy)]
 #[derive(Debug)]

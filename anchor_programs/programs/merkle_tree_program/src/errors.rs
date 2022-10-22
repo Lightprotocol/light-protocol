@@ -33,5 +33,5 @@ pub enum ErrorCode {
     #[msg("LeavesOfWrongTree")]
     LeavesOfWrongTree,
     #[msg("InvalidAuthority")]
-    InvalidAuthority
+    InvalidAuthority,
 }
