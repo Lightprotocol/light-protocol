@@ -416,19 +416,17 @@ export class shieldedTransaction {
       console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
-        this.proofData.proofBytes,
-        this.proofData.publicInputs.root,
-        this.proofData.publicInputs.publicAmount,
-        this.proofData.publicInputs.extDataHash,
+        Buffer.from(this.proofData.proofBytes),
+        Buffer.from(this.proofData.publicInputs.root),
+        Buffer.from(this.proofData.publicInputs.publicAmount),
+        Buffer.from(this.proofData.publicInputs.extDataHash),
         this.proofData.publicInputs.nullifiers,
-        [this.proofData.publicInputs.leafRight, this.proofData.publicInputs.leafLeft],
-        this.proofData.publicInputs.feeAmount,
-        this.proofData.publicInputs.mintPubkey,
+        [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
+        Buffer.from(this.proofData.publicInputs.feeAmount),
+        Buffer.from(this.proofData.publicInputs.mintPubkey),
         new anchor.BN(this.root_index.toString()),
         new anchor.BN(this.relayerFee.toString()),
-        Buffer.from(this.proofData.encryptedOutputs),
-        // this.proofData.encryptedOutputs[0],
-        // this.proofData.encryptedOutputs[1],
+        Buffer.from(this.proofData.encryptedOutputs.slice(0,174)) // remaining bytes can be used once tx sizes increase
       ).accounts(
         {
           signingAddress:     this.relayerPubkey,
@@ -576,14 +574,14 @@ export class shieldedTransaction {
       try {
         const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
           // this.proofData.proofBytes,
-          this.proofData.publicInputs.root,
-          this.proofData.publicInputs.publicAmount,
-          this.proofData.publicInputs.extDataHash,
+          Buffer.from(this.proofData.publicInputs.root),
+          Buffer.from(this.proofData.publicInputs.publicAmount),
+          Buffer.from(this.proofData.publicInputs.extDataHash),
           this.proofData.publicInputs.nullifiers,
           // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
           [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
-          this.proofData.publicInputs.feeAmount,
-          this.proofData.publicInputs.mintPubkey,
+          Buffer.from(this.proofData.publicInputs.feeAmount),
+          Buffer.from(this.proofData.publicInputs.mintPubkey),
           new anchor.BN(this.root_index.toString()),
           new anchor.BN(this.relayerFee.toString()),
           Buffer.from(this.proofData.encryptedOutputs)
@@ -610,7 +608,7 @@ export class shieldedTransaction {
       // let recentBlockhash1 =(await connection.getLatestBlockhash()).blockhash;
 
       const ix = await this.verifierProgram.methods.shieldedTransferSecond(
-        this.proofData.proofBytes
+        Buffer.from(this.proofData.proofBytes)
       ).accounts(
         {
           signingAddress:     this.relayerPubkey,

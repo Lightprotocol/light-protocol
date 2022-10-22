@@ -58,34 +58,32 @@ pub mod verifier_program_zero {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-        proof: [u8; 256],
-        merkle_root: [u8; 32],
-        amount: [u8; 32],
-        ext_data_hash: [u8; 32],
+        proof: Vec<u8>,
+        merkle_root: Vec<u8>,
+        amount: Vec<u8>,
+        ext_data_hash: Vec<u8>,
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
-        fee_amount: [u8; 32],
-        mint_pubkey: [u8; 32],
+        fee_amount: Vec<u8>,
+        mint_pubkey: Vec<u8>,
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
         process_shielded_transfer_2_inputs(
             ctx,
-            proof,
-            merkle_root,
-            amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
-            ext_data_hash,
-            nullifiers[0],
-            nullifiers[1],
-            leaves[0],
-            leaves[1],
-            0,          //ext_amount,
-            fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
-            mint_pubkey,
-            encrypted_utxos,
+            proof.to_vec(),
+            merkle_root.to_vec(),
+            amount.to_vec(),
+            ext_data_hash.to_vec(),
+            vec![nullifiers[0].to_vec(), nullifiers[1].to_vec()],
+            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
+            fee_amount.to_vec(),
+            mint_pubkey.to_vec(),
+            [encrypted_utxos.to_vec(), vec![0u8;256 - encrypted_utxos.len()]].concat(),
             root_index,
             relayer_fee,
+            Vec::<Vec<u8>>::new() // checked_public_inputs
         )
     }
 }
@@ -106,8 +104,6 @@ pub struct InitializeAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct LightInstruction<'info> {
-    // #[account(init_if_needed, seeds = [tx_integrity_hash.as_ref(), b"storage"], bump,  payer=signing_address, space= 5 * 1024)]
-    // pub verifier_state: AccountLoader<'info, VerifierState>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,

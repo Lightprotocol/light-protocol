@@ -28,14 +28,14 @@ impl TxConfig for LightTx {
 
 pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-    proof: &[u8; 256],
-    merkle_root: &[u8; 32],
-    public_amount: &[u8; 32],
-    ext_data_hash: &[u8; 32],
+    proof: Vec<u8>,
+    merkle_root: Vec<u8>,
+    public_amount: Vec<u8>,
+    ext_data_hash: Vec<u8>,
     nullifiers: Vec<Vec<u8>>,
     leaves: Vec<Vec<Vec<u8>>>,
-    fee_amount: &[u8; 32],
-    mint_pubkey: &[u8; 32],
+    fee_amount: Vec<u8>,
+    mint_pubkey: Vec<u8>,
     encrypted_utxos: Vec<u8>,
     root_index: &u64,
     relayer_fee: &u64,
@@ -47,7 +47,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         ext_data_hash,
         fee_amount,
         mint_pubkey,
-        Vec::<[u8; 32]>::new(), // checked_public_inputs
+        Vec::<Vec<u8>>::new(), // checked_public_inputs
         nullifiers,
         leaves,
         encrypted_utxos,
@@ -71,7 +71,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
 
 pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-    proof: &[u8; 256],
+    proof: Vec<u8>,
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -82,26 +82,26 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         &ctx.accounts.merkle_tree,
         &ctx.accounts.pre_inserted_leaves_index,
         ctx.accounts.authority.to_account_info(),
-        &ctx.accounts.token_program,
-        ctx.accounts.sender.to_account_info(),
-        ctx.accounts.recipient.to_account_info(),
-        ctx.accounts.sender_fee.to_account_info(),
-        ctx.accounts.recipient_fee.to_account_info(),
-        ctx.accounts.relayer_recipient.to_account_info(),
-        ctx.accounts.escrow.to_account_info(),
-        ctx.accounts.token_authority.to_account_info(),
+        Some(&ctx.accounts.token_program),
+        Some(ctx.accounts.sender.to_account_info()),
+        Some(ctx.accounts.recipient.to_account_info()),
+        Some(ctx.accounts.sender_fee.to_account_info()),
+        Some(ctx.accounts.recipient_fee.to_account_info()),
+        Some(ctx.accounts.relayer_recipient.to_account_info()),
+        Some(ctx.accounts.escrow.to_account_info()),
+        Some(ctx.accounts.token_authority.to_account_info()),
         &ctx.accounts.registered_verifier_pda,
-        &ctx.remaining_accounts,
+        ctx.remaining_accounts,
     )?;
 
     let mut tx = LightTransaction::<LightTx>::new(
-        &proof,
-        &ctx.accounts.verifier_state.merkle_root,
-        &ctx.accounts.verifier_state.public_amount,
-        &ctx.accounts.verifier_state.tx_integrity_hash,
-        &ctx.accounts.verifier_state.fee_amount,
-        &ctx.accounts.verifier_state.mint_pubkey,
-        Vec::<[u8; 32]>::new(), // checked_public_inputs
+        proof,
+        ctx.accounts.verifier_state.merkle_root.to_vec(),
+        ctx.accounts.verifier_state.public_amount.to_vec(),
+        ctx.accounts.verifier_state.tx_integrity_hash.to_vec(),
+        ctx.accounts.verifier_state.fee_amount.to_vec(),
+        ctx.accounts.verifier_state.mint_pubkey.to_vec(),
+        Vec::<Vec<u8>>::new(), // checked_public_inputs
         ctx.accounts.verifier_state.nullifiers.to_vec(), //vec![nullifier0.to_vec(), nullifier1.to_vec()],
         vec![ctx.accounts.verifier_state.leaves.to_vec()], //vec![vec![leaf_left.to_vec(), leaf_right.to_vec()]],
         ctx.accounts.verifier_state.encrypted_utxos.to_vec(),

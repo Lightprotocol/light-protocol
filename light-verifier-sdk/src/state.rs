@@ -136,13 +136,13 @@ impl <T: TxConfig>From<LightTransaction<'_, '_, '_, T>> for VerifierStateTenNF<T
             signer: Pubkey::new(&[0u8;32]),
             nullifiers: light_tx.nullifiers,
             leaves: leaves[0].clone(), // vec![vec![0u8;32]; 2], //
-            public_amount: *light_tx.public_amount,
-            fee_amount: *light_tx.fee_amount,
-            mint_pubkey: *light_tx.mint_pubkey,
-            relayer_fee: light_tx.relayer_fee,
+            public_amount: light_tx.public_amount.try_into().unwrap(),
+            fee_amount: light_tx.fee_amount.try_into().unwrap(),
+            mint_pubkey: light_tx.mint_pubkey.try_into().unwrap(),
+            relayer_fee: light_tx.relayer_fee.try_into().unwrap(),
             encrypted_utxos: [light_tx.encrypted_utxos.clone(), vec![0u8; 256 - light_tx.encrypted_utxos.len()]].concat().try_into().unwrap(),
-            merkle_root: *light_tx.merkle_root,
-            tx_integrity_hash: *light_tx.tx_integrity_hash,
+            merkle_root: light_tx.merkle_root.try_into().unwrap(),
+            tx_integrity_hash: light_tx.tx_integrity_hash.try_into().unwrap(),
             e_phantom: PhantomData,
         }
     }

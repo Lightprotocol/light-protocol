@@ -68,44 +68,45 @@ pub trait TxConfig {
     const ID: [u8;32];
     const UTXO_SIZE: usize;
 }
+
 #[derive(Clone)]
 pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
-    pub merkle_root: &'a [u8; 32],
-    pub public_amount: &'a [u8;32],
-    pub tx_integrity_hash: &'a [u8;32],
-    pub fee_amount: &'a [u8;32],
-    pub mint_pubkey: &'a [u8;32],
-    pub checked_public_inputs: Vec<[u8; 32]>,
-    pub nullifiers: Vec<Vec<u8>>,
-    pub leaves: Vec<Vec<Vec<u8>>>,
-    pub relayer_fee: u64,
-    pub proof_a: Vec<u8>,
-    pub proof_b: Vec<u8>,
-    pub proof_c: Vec<u8>,
-    pub encrypted_utxos: Vec<u8>,
-    pub merkle_root_index: usize,
-    pub transferred_funds: bool,
-    pub checked_tx_integrity_hash: bool,
-    pub verified_proof : bool,
-    pub inserted_leaves : bool,
-    pub inserted_nullifier : bool,
-    pub checked_root : bool,
-    pub accounts: Option<&'a Accounts<'info, 'a, 'c>>,
-    pub e_phantom: PhantomData<T>,
-    pub verifyingkey: &'a Groth16Verifyingkey<'a>
+    pub merkle_root:                Vec<u8>,
+    pub public_amount:              Vec<u8>,
+    pub tx_integrity_hash:          Vec<u8>,
+    pub fee_amount:                 Vec<u8>,
+    pub mint_pubkey:                Vec<u8>,
+    pub checked_public_inputs:      Vec<Vec<u8>>,
+    pub nullifiers:                 Vec<Vec<u8>>,
+    pub leaves:                     Vec<Vec<Vec<u8>>>,
+    pub relayer_fee:                u64,
+    pub proof_a:                    Vec<u8>,
+    pub proof_b:                    Vec<u8>,
+    pub proof_c:                    Vec<u8>,
+    pub encrypted_utxos:            Vec<u8>,
+    pub merkle_root_index:          usize,
+    pub transferred_funds:          bool,
+    pub checked_tx_integrity_hash:  bool,
+    pub verified_proof:             bool,
+    pub inserted_leaves:            bool,
+    pub inserted_nullifier:         bool,
+    pub checked_root:               bool,
+    pub accounts:                   Option<&'a Accounts<'info, 'a, 'c>>,
+    pub e_phantom:                  PhantomData<T>,
+    pub verifyingkey:               &'a Groth16Verifyingkey<'a>
 }
 
 
 impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
 
     pub fn new<'info, 'a, 'c> (
-        proof: &'a [u8;256],
-        merkle_root: &'a [u8; 32],
-        public_amount: &'a [u8;32],
-        tx_integrity_hash: &'a [u8;32],
-        fee_amount: &'a [u8;32],
-        mint_pubkey: &'a [u8;32],
-        checked_public_inputs: Vec<[u8; 32]>,
+        proof: Vec<u8>,
+        merkle_root: Vec<u8>,
+        public_amount: Vec<u8>,
+        tx_integrity_hash: Vec<u8>,
+        fee_amount: Vec<u8>,
+        mint_pubkey: Vec<u8>,
+        checked_public_inputs: Vec<Vec<u8>>,
         nullifiers: Vec<Vec<u8>>,
         leaves: Vec<Vec<Vec<u8>>>,
         encrypted_utxos: Vec<u8>,
@@ -150,6 +151,17 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         }
     }
 
+    pub fn transact(&mut self) -> Result<()> {
+        self.verify()?;
+        self.check_tx_integrity_hash()?;
+        self.check_root()?;
+        self.insert_leaves()?;
+        self.insert_nullifiers()?;
+        self.transfer_user_funds()?;
+        self.transfer_fee()?;
+        self.check_completion()
+    }
+
 
 
     pub fn verify(&mut self) -> Result<()> {
@@ -190,8 +202,8 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
     pub fn check_tx_integrity_hash(&mut self) -> Result<()> {
         msg!("removed merkle tree index");
         let input = [
-            self.accounts.unwrap().recipient.key().to_bytes().to_vec(),
-            self.accounts.unwrap().recipient_fee.key().to_bytes().to_vec(),
+            self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec(),
+            self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec(),
             self.accounts.unwrap().signing_address.key().to_bytes().to_vec(),
             self.relayer_fee.to_le_bytes().to_vec(),
             self.encrypted_utxos.clone()
@@ -205,7 +217,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?;
         msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fr::from_be_bytes_mod_order(&hash[..]) );
-        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(self.tx_integrity_hash) {
+        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
             msg!(
                 "tx_integrity_hash verification failed.{:?} != {:?}",
                 &hash[..],
@@ -258,10 +270,10 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         // check account integrities
         msg!("implement rootcheck with index");
         let merkle_tree = self.accounts.unwrap().merkle_tree.load()?;
-        if merkle_tree.roots[self.merkle_root_index].to_vec() != to_be_64(self.merkle_root) {
+        if merkle_tree.roots[self.merkle_root_index].to_vec() != to_be_64(&self.merkle_root) {
             msg!("self.merkle_root_index: {}", self.merkle_root_index);
             msg!("merkle_tree.roots[self.merkle_root_index].to_vec() {:?}", merkle_tree.roots[self.merkle_root_index].to_vec());
-            msg!("to_be_64(self.merkle_root) {:?}", to_be_64(self.merkle_root));
+            msg!("to_be_64(self.merkle_root) {:?}", to_be_64(&self.merkle_root));
             return err!(VerifierSdkError::InvalidMerkleTreeRoot);
         }
         self.checked_root = true;
@@ -302,7 +314,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let (pub_amount_checked, relayer_fee) = self.check_external_amount(
             0,
             0,
-            to_be_64(self.public_amount).try_into().unwrap(),
+            to_be_64(&self.public_amount).try_into().unwrap(),
             false
         )?;
         msg!("self.public_amount {:?}", self.public_amount);
@@ -334,7 +346,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 create_and_check_pda(
                     &self.accounts.unwrap().program_id,
                     &self.accounts.unwrap().signing_address.to_account_info(),
-                    &self.accounts.unwrap().escrow.to_account_info(),
+                    &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
                     &self.accounts.unwrap().system_program.to_account_info(),
                     &rent,
                     &b"escrow"[..],
@@ -343,7 +355,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     pub_amount_checked, //lamports
                     false,               //rent_exempt
                 )?;
-                close_account(&self.accounts.unwrap().escrow.to_account_info(), &self.accounts.unwrap().recipient.to_account_info())?;
+                close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
 
             } else {
                 // sender is merkle tree pda check correct derivation
@@ -352,15 +364,15 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     &self.accounts.unwrap().program_id,
                     &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                     &self.accounts.unwrap().authority.to_account_info(),
-                    &self.accounts.unwrap().sender.to_account_info(),
-                    &self.accounts.unwrap().recipient.to_account_info(),
+                    &self.accounts.unwrap().sender.as_ref().unwrap().to_account_info(),
+                    &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info(),
                     &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                     pub_amount_checked
                 )?;
             }
         } else {
-            let recipient_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().recipient.data.borrow())?;
-            let sender_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().sender.data.borrow())?;
+            let recipient_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().recipient.as_ref().unwrap().data.borrow())?;
+            let sender_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().sender.as_ref().unwrap().data.borrow())?;
 
             // check mint
             if self.mint_pubkey[1..] != recipient_mint.mint.to_bytes()[..31] || self.mint_pubkey[1..] != sender_mint.mint.to_bytes()[..31] {
@@ -381,12 +393,12 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 let seeds = &[&[seed.as_slice(), bump][..]];
 
                 let accounts = Transfer {
-                    from:       self.accounts.unwrap().sender.to_account_info().clone(),
-                    to:         self.accounts.unwrap().recipient.to_account_info().clone(),
+                    from:       self.accounts.unwrap().sender.as_ref().unwrap().to_account_info().clone(),
+                    to:         self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info().clone(),
                     authority:  self.accounts.unwrap().authority.to_account_info().clone()
                 };
 
-                let cpi_ctx = CpiContext::new_with_signer(self.accounts.unwrap().token_program.to_account_info().clone(), accounts, seeds);
+                let cpi_ctx = CpiContext::new_with_signer(self.accounts.unwrap().token_program.unwrap().to_account_info().clone(), accounts, seeds);
                 anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
             } else {
                 msg!("token authority might be wrong");
@@ -395,10 +407,10 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                     &self.accounts.unwrap().program_id,
                     &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                     &self.accounts.unwrap().authority.to_account_info(),
-                    &self.accounts.unwrap().sender.to_account_info(),
-                    &self.accounts.unwrap().recipient.to_account_info(),
-                    &self.accounts.unwrap().token_authority.to_account_info(), // token authority
-                    &self.accounts.unwrap().token_program.to_account_info(),
+                    &self.accounts.unwrap().sender.as_ref().unwrap().to_account_info(),
+                    &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info(),
+                    &self.accounts.unwrap().token_authority.as_ref().unwrap().to_account_info(), // token authority
+                    &self.accounts.unwrap().token_program.as_ref().unwrap().to_account_info(),
                     &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                     pub_amount_checked
                 )?;
@@ -427,7 +439,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let (fee_amount_checked, relayer_fee) = self.check_external_amount(
             0,
             self.relayer_fee,
-            to_be_64(self.fee_amount).try_into().unwrap(),
+            to_be_64(&self.fee_amount).try_into().unwrap(),
             true
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
@@ -438,7 +450,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             create_and_check_pda(
                 &self.accounts.unwrap().program_id,
                 &self.accounts.unwrap().signing_address.to_account_info(),
-                &self.accounts.unwrap().escrow.to_account_info(),
+                &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
                 &self.accounts.unwrap().system_program.to_account_info(),
                 &rent,
                 &b"escrow"[..],
@@ -447,7 +459,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 fee_amount_checked, //lamports
                 false,               //rent_exempt
             )?;
-            close_account(&self.accounts.unwrap().escrow.to_account_info(), &self.accounts.unwrap().recipient_fee.to_account_info())?;
+            close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
 
         } else {
             // withdraws sol for the user
@@ -455,8 +467,8 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.unwrap().program_id,
                 &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                 &self.accounts.unwrap().authority.to_account_info(),
-                &self.accounts.unwrap().sender_fee.to_account_info(),
-                &self.accounts.unwrap().recipient_fee.to_account_info(),
+                &self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info(),
                 &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                 fee_amount_checked,
             )?;
@@ -466,8 +478,8 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.unwrap().program_id,
                 &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                 &self.accounts.unwrap().authority.to_account_info(),
-                &self.accounts.unwrap().sender_fee.to_account_info(),
-                &self.accounts.unwrap().relayer_recipient.to_account_info(),
+                &self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().relayer_recipient.as_ref().unwrap().to_account_info(),
                 &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                 relayer_fee,
             )?;

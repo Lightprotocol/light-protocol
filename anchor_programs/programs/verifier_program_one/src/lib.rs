@@ -60,13 +60,13 @@ pub mod verifier_program_one {
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
         // proof: [u8; 256],
-        merkle_root: [u8; 32],
-        amount: [u8; 32],
-        ext_data_hash: [u8; 32],
+        merkle_root: Vec<u8>,
+        amount: Vec<u8>,
+        ext_data_hash: Vec<u8>,
         nullifiers: [[u8; 32]; 10], // 10 nullifiers 1072 byts 16 1264 bytes total data sent
         leaves: [[u8; 32]; 2],
-        fee_amount: [u8; 32],
-        mint_pubkey: [u8; 32],
+        fee_amount: Vec<u8>,
+        mint_pubkey: Vec<u8>,
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -77,14 +77,14 @@ pub mod verifier_program_one {
         }
         process_shielded_transfer_first(
             ctx,
-            &[0u8; 256],
-            &merkle_root,
-            &amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
-            &ext_data_hash,
+            vec![0u8; 256],
+            merkle_root,
+            amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
+            ext_data_hash,
             nfs,
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            &fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
-            &mint_pubkey,
+            fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
+            mint_pubkey,
             encrypted_utxos,
             &root_index,
             &relayer_fee,
@@ -98,9 +98,9 @@ pub mod verifier_program_one {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof: [u8; 256],
+        proof: Vec<u8>,
     ) -> Result<()> {
-        process_shielded_transfer_second(ctx, &proof)
+        process_shielded_transfer_second(ctx, proof)
     }
 }
 use crate::processor::LightTx;
