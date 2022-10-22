@@ -40,7 +40,6 @@ pub fn process_insert_two_leaves(
     //save leaves into pda account
     ctx.accounts.two_leaves_pda.node_left = leaf_left;
     ctx.accounts.two_leaves_pda.node_right = leaf_right;
-    msg!("leaf_left {:?}", leaf_left);
     ctx.accounts.two_leaves_pda.left_leaf_index = ctx
         .accounts
         .pre_inserted_leaves_index
@@ -52,7 +51,6 @@ pub fn process_insert_two_leaves(
     // not implemented for [u8;222].
 
     ctx.accounts.two_leaves_pda.encrypted_utxos = encrypted_utxos;
-    msg!("encrypted_utxos {:?}", encrypted_utxos);
 
     // Increase next index by 2 because we're inserting 2 leaves at once.
     ctx.accounts.pre_inserted_leaves_index.next_index += 2;

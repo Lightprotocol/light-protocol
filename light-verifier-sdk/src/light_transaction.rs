@@ -6,7 +6,10 @@ use anchor_lang::{
         program_pack::{IsInitialized, Pack, Sealed},
     }
 };
-
+use anchor_lang::solana_program::{
+    account_info::AccountInfo, msg, program::invoke_signed, program_error::ProgramError,
+    pubkey::Pubkey, system_instruction, sysvar::rent::Rent,
+};
 use anchor_spl::token::{Transfer};
 // use spl_token::state::GenericTokenAccount::unpack;
 // use spl_token::state::Account::unpack;
@@ -42,11 +45,15 @@ use crate::utils::to_be_64;
 use crate::errors::VerifierSdkError;
 use crate::cpi_instructions::{
     initialize_nullifier_cpi,
+    initialize_many_nullifiers_cpi,
     insert_two_leaves_cpi,
     withdraw_sol_cpi,
     withdraw_spl_cpi
 };
 use crate::accounts::Accounts;
+use merkle_tree_program::program::MerkleTreeProgram;
+
+
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 
@@ -72,9 +79,9 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
     pub nullifiers: Vec<Vec<u8>>,
     pub leaves: Vec<Vec<Vec<u8>>>,
     pub relayer_fee: u64,
-    pub proof_a: Option<Vec<u8>>,
-    pub proof_b: Option<Vec<u8>>,
-    pub proof_c: Option<Vec<u8>>,
+    pub proof_a: Vec<u8>,
+    pub proof_b: Vec<u8>,
+    pub proof_c: Vec<u8>,
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: usize,
     pub transferred_funds: bool,
@@ -126,9 +133,9 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             nullifiers,
             leaves,
             relayer_fee: relayer_fee,
-            proof_a: Some(to_be_64(&proof_a_neg[..64]).to_vec()),
-            proof_b: Some(proof[64..64 + 128].to_vec()),
-            proof_c: Some(proof[64 + 128..256].to_vec()),
+            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(), // proof[0..64].to_vec(),//
+            proof_b: proof[64..64 + 128].to_vec(),
+            proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos: encrypted_utxos,
             merkle_root_index,
             transferred_funds: false,
@@ -166,11 +173,11 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input.to_vec());
         }
-        msg!("public_inputs: {:?}", public_inputs);
+
         let mut verifier = Groth16Verifier::new(
-            self.proof_a.as_ref().unwrap(),
-            self.proof_b.as_ref().unwrap(),
-            self.proof_c.as_ref().unwrap(),
+            self.proof_a.clone(),
+            self.proof_b.clone(),
+            self.proof_c.clone(),
             public_inputs,
             &self.verifyingkey
         ).unwrap();
@@ -239,7 +246,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 to_be_64(&leaves[0]).try_into().unwrap(),
                 to_be_64(&leaves[1]).try_into().unwrap(),
                 self.accounts.unwrap().merkle_tree.key(),
-                self.encrypted_utxos.clone().try_into().unwrap()
+                self.encrypted_utxos.clone()
             )?;
         }
 
@@ -273,19 +280,83 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
-        for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.accounts.unwrap().remaining_accounts) {
-
-            initialize_nullifier_cpi(
-                &self.accounts.unwrap().program_id,
-                &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                &self.accounts.unwrap().authority.to_account_info(),
-                &nullifier_pda.to_account_info(),
-                &self.accounts.unwrap().system_program.to_account_info().clone(),
-                &self.accounts.unwrap().rent.to_account_info().clone(),
-                &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
-                (nullifier.clone()).try_into().unwrap()
-            )?;
-        }
+        initialize_many_nullifiers_cpi(
+            &self.accounts.unwrap().program_id,
+            &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+            &self.accounts.unwrap().authority.to_account_info(),
+            &self.accounts.unwrap().system_program.to_account_info().clone(),
+            &self.accounts.unwrap().rent.to_account_info().clone(),
+            &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
+            self.nullifiers.to_vec(),
+            self.accounts.unwrap().remaining_accounts.to_vec()
+        )?;
+        // for (nullifier, nullifier_pda) in self.nullifiers.iter().zip(self.accounts.unwrap().remaining_accounts) {
+        //
+        //     // initialize_nullifier_cpi(
+        //     //     &self.accounts.unwrap().program_id,
+        //     //     &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+        //     //     &self.accounts.unwrap().authority.to_account_info(),
+        //     //     &nullifier_pda.to_account_info(),
+        //     //     &self.accounts.unwrap().system_program.to_account_info().clone(),
+        //     //     &self.accounts.unwrap().rent.to_account_info().clone(),
+        //     //     &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
+        //     //     (nullifier.clone()).try_into().unwrap()
+        //     // )?;
+        //
+        //     // let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
+        //     //
+        //     // create_and_check_pda(
+        //     //     &MerkleTreeProgram::id(), //Pubkey::new(&T::ID),
+        //     //     &self.accounts.unwrap().signing_address.to_account_info(),
+        //     //     &nullifier_pda.to_account_info(),
+        //     //     &self.accounts.unwrap().system_program.to_account_info(),
+        //     //     &rent,
+        //     //     nullifier,
+        //     //     &b"nf"[..],
+        //     //     8,                  //bytes
+        //     //     0, //lamports
+        //     //     true,               //rent_exempt
+        //     // )?;
+        //     // let derived_pubkey =
+        //     //     Pubkey::find_program_address(&[MerkleTreeProgram::id().to_bytes().as_ref()], &Pubkey::new(&T::ID));
+        //     //
+        //     // // if derived_pubkey.0 != *nullifier_pda.key {
+        //     //     msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+        //     //     msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+        //     //     msg!("Passed-in pda pubkey {:?}", *nullifier_pda.key);
+        //     //     msg!("nullifier data seed  {:?}", nullifier);
+        //     // //     return err!(VerifierSdkError::InvalidNrLeavesaccounts);
+        //     // // }
+        //     //
+        //     // let account_lamports = rent.minimum_balance(8usize);
+        //     //
+        //     // //  else {
+        //     // //     account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
+        //     // // }
+        //     // msg!("account_lamports: {}", account_lamports);
+        //     // invoke_signed(
+        //     //     &system_instruction::create_account(
+        //     //         self.accounts.unwrap().signing_address.key,   // from_pubkey
+        //     //         nullifier_pda.key,    // to_pubkey
+        //     //         account_lamports,     // lamports
+        //     //         0u64, // space
+        //     //         &MerkleTreeProgram::id(),           // owner
+        //     //     ),
+        //     //     &[
+        //     //         self.accounts.unwrap().signing_address.to_account_info().clone(),
+        //     //         self.accounts.unwrap().authority.to_account_info().clone(),
+        //     //         self.accounts.unwrap().system_program.to_account_info().clone(),
+        //     //     ],
+        //     //     &[&[
+        //     //         &MerkleTreeProgram::id().to_bytes().as_ref(),
+        //     //         // &b"nf"[..],
+        //     //         &[derived_pubkey.1][..],
+        //     //     ]],
+        //     // ).unwrap();
+        //
+        //
+        //
+        // }
         self.inserted_nullifier = true;
         Ok(())
     }
@@ -482,6 +553,11 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         {
             return Ok(());
         }
+        msg!("verified_proof {}", self.verified_proof);
+        msg!("inserted_leaves {}", self.inserted_leaves);
+        msg!("checked_tx_integrity_hash {}", self.checked_tx_integrity_hash);
+        msg!("checked_root {}", self.checked_root);
+        msg!("transferred_funds {}", self.transferred_funds);
         err!(VerifierSdkError::TransactionIncomplete)
     }
 

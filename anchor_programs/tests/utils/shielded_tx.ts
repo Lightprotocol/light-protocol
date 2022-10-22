@@ -22,7 +22,7 @@ import {
   MINT_PRIVATE_KEY,
   MINT
   } from "./constants";
-import { PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
+import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import { newAccountWithLamports  } from "./test_transactions";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import {checkRentExemption} from './test_checks';
@@ -457,7 +457,7 @@ export class shieldedTransaction {
       .signers([this.payer]).instruction()
       console.log("this.payer: ", this.payer);
 
-      let recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
+      let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
       let txMsg = new TransactionMessage({
             payerKey: this.payer.publicKey,
             instructions: [
@@ -484,7 +484,7 @@ export class shieldedTransaction {
         transaction.sign([this.payer])
         console.log(transaction);
         console.log(transaction.message.addressTableLookups);
-        recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
+        recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
         // console.log(this.provider.connection);
@@ -532,7 +532,10 @@ export class shieldedTransaction {
     async sendTransaction10(insert = true){
       assert(this.nullifierPdaPubkeys.length == 10);
       console.log("this.relayerFee ", this.relayerFee);
-
+      let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
+      if (balance === 0) {
+        await this.provider.connection.confirmTransaction(await this.provider.connection.requestAirdrop(this.signerAuthorityPubkey, 1_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
+      }
       this.recipientBalancePriorTx = (await getAccount(
         this.provider.connection,
         this.recipient,
@@ -569,32 +572,42 @@ export class shieldedTransaction {
       console.log("this.root_index ", this.root_index);
       console.log("this.relayerFee ", this.relayerFee);
       console.log("this.encryptedOutputs ", this.proofData.encryptedOutputs);
+      let recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
+      try {
+        const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
+          // this.proofData.proofBytes,
+          this.proofData.publicInputs.root,
+          this.proofData.publicInputs.publicAmount,
+          this.proofData.publicInputs.extDataHash,
+          this.proofData.publicInputs.nullifiers,
+          // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
+          [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
+          this.proofData.publicInputs.feeAmount,
+          this.proofData.publicInputs.mintPubkey,
+          new anchor.BN(this.root_index.toString()),
+          new anchor.BN(this.relayerFee.toString()),
+          Buffer.from(this.proofData.encryptedOutputs)
+        ).accounts(
+          {
+            signingAddress:     this.relayerPubkey,
+            systemProgram:      SystemProgram.programId,
+            verifierState:      this.verifierStatePubkey
+          }
+        )
+        .signers([this.payer]).rpc({
+                commitment: 'finalized',
+                preflightCommitment: 'finalized',
+              });
+        console.log("ix1 success ", ix1);
+      } catch (e) {
+          console.log(e);
 
-      const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
-        // this.proofData.proofBytes,
-        this.proofData.publicInputs.root,
-        this.proofData.publicInputs.publicAmount,
-        this.proofData.publicInputs.extDataHash,
-        this.proofData.publicInputs.nullifiers,
-        // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
-        [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
-        this.proofData.publicInputs.feeAmount,
-        this.proofData.publicInputs.mintPubkey,
-        new anchor.BN(this.root_index.toString()),
-        new anchor.BN(this.relayerFee.toString()),
-        Buffer.from(this.proofData.encryptedOutputs)
-      ).accounts(
-        {
-          signingAddress:     this.relayerPubkey,
-          systemProgram:      SystemProgram.programId,
-          verifierState:      this.verifierStatePubkey
-        }
-      )
-      .signers([this.payer]).rpc({
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
-            });
-      console.log("ix1 success ", ix1);
+      }
+
+      const solanaRPC = 'http://localhost:8899'
+      let connection = new Connection(solanaRPC, 'recent');
+      const version = await connection.getVersion()
+      // let recentBlockhash1 =(await connection.getLatestBlockhash()).blockhash;
 
       const ix = await this.verifierProgram.methods.shieldedTransferSecond(
         this.proofData.proofBytes
@@ -617,6 +630,16 @@ export class shieldedTransaction {
           escrow:             this.escrow,
           tokenAuthority:     this.tokenAuthority,
           registeredVerifierPda: this.registeredVerifierPda,
+          // nullifierPda0: this.nullifierPdaPubkeys[0],
+          // nullifierPda1: this.nullifierPdaPubkeys[1],
+          // nullifierPda2: this.nullifierPdaPubkeys[2],
+          // nullifierPda3: this.nullifierPdaPubkeys[3],
+          // nullifierPda4: this.nullifierPdaPubkeys[4],
+          // nullifierPda5: this.nullifierPdaPubkeys[5],
+          // nullifierPda6: this.nullifierPdaPubkeys[6],
+          // nullifierPda7: this.nullifierPdaPubkeys[7],
+          // nullifierPda8: this.nullifierPdaPubkeys[8],
+          // nullifierPda9: this.nullifierPdaPubkeys[9],
         }
       )
       .remainingAccounts([
@@ -632,15 +655,23 @@ export class shieldedTransaction {
         { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[9]},
         { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
       ])
+      // .preInstructions([
+      //   ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+      // ])
       .signers([this.payer]).instruction();
+      // rpc({
+      //         commitment: 'finalized',
+      //         preflightCommitment: 'finalized',
+      //       });
 
       console.log("this.payer: ", this.payer);
 
-      let recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
+      // let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
       let txMsg = new TransactionMessage({
             payerKey: this.payer.publicKey,
             instructions: [
               ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+              // ComputeBudgetProgram.requestHeapFrame({bytes: 256 * 1024}),
               // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
               ix
             ],
@@ -663,7 +694,7 @@ export class shieldedTransaction {
         transaction.sign([this.payer])
         console.log(transaction);
         console.log(transaction.message.addressTableLookups);
-        recentBlockhash = (await this.provider.connection.getRecentBlockhash()).blockhash;
+        recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
         // console.log(this.provider.connection);
@@ -672,7 +703,7 @@ export class shieldedTransaction {
         try {
           console.log("serializedTx: ");
 
-          res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
+          res = await sendAndConfirmRawTransaction(/*this.provider.connection*/ connection, serializedTx,
             {
               commitment: 'finalized',
               preflightCommitment: 'finalized',
@@ -686,7 +717,7 @@ export class shieldedTransaction {
         }
 
       }
-
+      /*
       // storing utxos
       this.outputUtxos.map((utxo) => {
         if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
@@ -704,7 +735,7 @@ export class shieldedTransaction {
           this.merkleTreeLeavesIndex++;
         }
       }
-
+      */
       return res;
     }
 

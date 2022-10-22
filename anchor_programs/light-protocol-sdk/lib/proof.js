@@ -110,7 +110,7 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         // console.log("encryptedOutputs.length: ", encryptedOutputs.length);
         // console.log("recipientFee: ", recipientFee);
         console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
-        let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1]]);
+        let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
         console.log(relayer);
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),

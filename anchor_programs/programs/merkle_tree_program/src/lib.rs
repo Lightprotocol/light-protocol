@@ -43,7 +43,7 @@ use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_stat
 use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY, ZERO_BYTES_MERKLE_TREE_18};
 
 use crate::verifier_invoked_instructions::{
-    insert_nullifier::InitializeNullifier,
+    insert_nullifier::{InitializeNullifier,InitializeNullifierMany, process_insert_many_nullifiers},
     sol_transfer::{process_sol_transfer, WithdrawSol},
     spl_transfer::{process_spl_transfer, WithdrawSpl},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
@@ -265,6 +265,13 @@ pub mod merkle_tree_program {
         _nullifier: [u8; 32]
     ) -> anchor_lang::Result<()> {
         Ok(())
+    }
+
+    pub fn initialize_many_nullifiers<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info,InitializeNullifierMany<'info>>,
+        nullifiers: Vec<Vec<u8>>
+    ) -> Result<()> {
+        process_insert_many_nullifiers(ctx, nullifiers)
     }
 
 }

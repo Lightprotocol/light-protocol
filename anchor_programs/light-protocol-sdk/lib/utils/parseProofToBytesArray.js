@@ -21,7 +21,8 @@ const parseProofToBytesArray = function (data) {
                     mydata[i][j] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j]), 32)).reverse();
                 }
             }
-            else if (i == 'pi_b') {
+            else
+            if (i == 'pi_b') {
                 for (var j in mydata[i]) {
                     for (var z in mydata[i][j]) {
                         mydata[i][j][z] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32))//.reverse();

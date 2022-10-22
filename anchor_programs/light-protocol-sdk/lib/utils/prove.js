@@ -60,8 +60,19 @@ const prove = function (input) {
             console.log('Invalid proof');
             throw new Error('Invalid Proof');
         }
+        // console.log("proof.pi_a ", proof.pi_a);
         // const curve = yield ffjavascript.getCurveFromName(vKey.curve);
+        // let neg_proof_a = curve.G1.neg(curve.G1.fromObject(proof.pi_a))
+        // proof.pi_a = [
+        //   ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(0,32)).toString(),
+        //     ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(32,64)).toString(),
+        //       '1'
+        // ]
+        // console.log("negated proof a");
+        // console.log("proof.pi_a ", proof.pi_a);
 
+        // console.log(neg_proof_a);
+        // process.exit()
         // console.log("proof: ", proof);
         // we need to negate proof_a such that the product of pairings result is 1
         // doesnt work

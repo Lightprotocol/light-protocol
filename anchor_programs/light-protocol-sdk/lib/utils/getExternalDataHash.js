@@ -25,7 +25,7 @@ recipient, recipient_fee, relayer, relayer_fee, merkleTreeIndex,encryptedUtxos) 
         ...encryptedUtxos
         // ...[0],
     ]);
-    // console.log("2encodedData: ", encodedData.toString());
+    console.log("2encodedData: ", encodedData.toString());
     // const hash_ethers = ethers_1.ethers.utils.keccak256(encodedData);
     // const hash = anchor.utils.sha256.hash(encodedData)
     // console.log("hash_ethers ", hash_ethers);

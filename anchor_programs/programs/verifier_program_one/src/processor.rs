@@ -100,17 +100,33 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     )?;
     // msg!("VerifierStateTenNF: {:?}", ctx.accounts.verifier_state.nullifiers);
     // msg!("encrypted_utxos: {:?}", ctx.accounts.verifier_state.encrypted_utxos);
-    msg!("leaves: {:?}", ctx.accounts.verifier_state.leaves);
-    msg!("relayer_fee: {}", ctx.accounts.verifier_state.relayer_fee);
-
-    let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(Some(proof), Some(&accounts), &VERIFYINGKEY);
-
+    // msg!("leaves: {:?}", ctx.accounts.verifier_state.leaves);
+    // msg!("relayer_fee: {}", ctx.accounts.verifier_state.relayer_fee);
+    //
+    // let mut tx: LightTransaction::<LightTx> = ctx.accounts.verifier_state.into_light_transaction(proof, Some(&accounts), &VERIFYINGKEY);
+    let mut tx = LightTransaction::<LightTx>::new(
+        &proof,
+        &ctx.accounts.verifier_state.merkle_root,
+        &ctx.accounts.verifier_state.public_amount,
+        &ctx.accounts.verifier_state.tx_integrity_hash,
+        &ctx.accounts.verifier_state.fee_amount,
+        &ctx.accounts.verifier_state.mint_pubkey,
+        Vec::<[u8; 32]>::new(), // checked_public_inputs
+        ctx.accounts.verifier_state.nullifiers.to_vec(), //vec![nullifier0.to_vec(), nullifier1.to_vec()],
+        vec![ctx.accounts.verifier_state.leaves.to_vec()], //vec![vec![leaf_left.to_vec(), leaf_right.to_vec()]],
+        ctx.accounts.verifier_state.encrypted_utxos.to_vec(),
+        ctx.accounts.verifier_state.relayer_fee,
+        ctx.accounts.verifier_state.merkle_root_index.try_into().unwrap(),
+        Some(&accounts),
+        &VERIFYINGKEY
+    );
     tx.verify()?;
+    tx.check_tx_integrity_hash()?;
     tx.check_root()?;
     tx.insert_leaves()?;
     tx.insert_nullifiers()?;
     tx.transfer_user_funds()?;
     tx.transfer_fee()?;
-    tx.check_completion()
-
+    tx.check_completion()?;
+    Ok(())
 }

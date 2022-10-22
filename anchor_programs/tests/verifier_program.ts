@@ -98,6 +98,7 @@ describe("verifier_program", () => {
   var PRE_INSERTED_LEAVES_INDEX;
   var MERKLE_TREE_PDA_TOKEN;
   var AUTHORITY;
+  var AUTHORITY_ONE;
   var LOOK_UP_TABLE;
   var POSEIDON;
   var RELAYER_RECIPIENT;
@@ -122,7 +123,10 @@ describe("verifier_program", () => {
   it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
-    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000))
+    let balance = await connection.getBalance(ADMIN_AUTH_KEY, {preflightCommitment: "confirmed", commitment: "confirmed"});
+    if (balance === 0) {
+      await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
+    }
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
@@ -158,6 +162,9 @@ describe("verifier_program", () => {
     AUTHORITY = (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBuffer()],
         verifierProgramZero.programId))[0];
+    AUTHORITY_ONE = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer()],
+        verifierProgramOne.programId))[0];
 
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
@@ -201,7 +208,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering Verifier success");
 
       } catch(e) {
@@ -231,6 +238,9 @@ describe("verifier_program", () => {
           rent: DEFAULT_PROGRAMS.rent,
           merkleTreeAuthorityPda:MERKLE_TREE_AUTHORITY_PDA
         })
+        .preInstructions([
+          solana.ComputeBudgetProgram.requestHeapFrame({bytes: 256 * 1024}),
+        ])
         .signers([ADMIN_AUTH_KEYPAIR])
         .transaction()//rpc(); // {commitment: "finalized", preflightCommitment: 'finalized',}
         let x = await solana.sendAndConfirmTransaction(
@@ -238,8 +248,8 @@ describe("verifier_program", () => {
               ix,
               [ADMIN_AUTH_KEYPAIR],
               {
-                commitment: 'finalized',
-                preflightCommitment: 'finalized',
+                commitment: 'confirmed',
+                preflightCommitment: 'confirmed',
               },
           );
 
@@ -285,7 +295,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering Verifier success");
 
       } catch(e) {
@@ -303,7 +313,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering Verifier success");
 
       } catch(e) {
@@ -345,7 +355,7 @@ describe("verifier_program", () => {
 
           })
         )
-        let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [ADMIN_AUTH_KEYPAIR, solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)], {commitment: "finalized", preflightCommitment: 'finalized',});
+        let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [ADMIN_AUTH_KEYPAIR, solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)], {commitment: "confirmed", preflightCommitment: 'confirmed',});
 
         let mint = await token.createMint(
           provider.connection,
@@ -374,7 +384,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering pool_type success");
 
       } catch(e) {
@@ -401,7 +411,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering spl pool success");
 
       } catch(e) {
@@ -424,7 +434,7 @@ describe("verifier_program", () => {
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
         console.log("Registering sol pool success");
 
       } catch(e) {
@@ -434,6 +444,48 @@ describe("verifier_program", () => {
     }
   });
 
+  it.skip("Test", async () => {
+    let nullifiers = []
+    for (var i = 0; i < 10; i++) {
+      nullifiers.push(new Uint8Array(32).fill(1))
+    }
+    let verifierStatePubkey = (await solana.PublicKey.findProgramAddress(
+        [anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+        verifierProgramOne.programId))[0];
+    try {
+      const ix1 = await verifierProgramOne.methods.shieldedTransferFirst(
+        // this.proofData.proofBytes,
+        new Uint8Array(32).fill(1),
+        new Uint8Array(32).fill(1),
+        new Uint8Array(32).fill(1),
+        nullifiers,
+        // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
+        [new Uint8Array(32).fill(1), new Uint8Array(32).fill(1)],
+        new Uint8Array(32).fill(1),
+        new Uint8Array(32).fill(1),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
+        Buffer.from(new Uint8Array(174).fill(1))
+      ).accounts(
+        {
+          signingAddress:     ADMIN_AUTH_KEY,
+          systemProgram:      SystemProgram.programId,
+          verifierState:      verifierStatePubkey
+        }
+      )
+      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
+            });
+      console.log(ix1);
+
+    } catch(e) {
+      console.log(e);
+
+    }
+
+    let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
+  })
   /*
   // it("Initialize Token Merkle tree", async () => {
   //   MERKLE_TREE_USDC= await solana.PublicKey.createWithSeed(
@@ -549,7 +601,7 @@ describe("verifier_program", () => {
   */
 
   it("Init Address Lookup Table", async () => {
-    const recentSlot = (await provider.connection.getSlot()) - 10;
+    const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
     console.log("recentSlot: ", recentSlot);
 
 
@@ -608,7 +660,7 @@ describe("verifier_program", () => {
     }
 
     console.log("LOOK_UP_TABLE: ", LOOK_UP_TABLE.toBase58());
-    let lookupTableAccount = await provider.connection.getAccountInfo(LOOK_UP_TABLE, "finalized");
+    let lookupTableAccount = await provider.connection.getAccountInfo(LOOK_UP_TABLE, "confirmed");
     assert(lookupTableAccount != null);
 
   });
@@ -619,7 +671,7 @@ describe("verifier_program", () => {
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
     for (var i = 0; i < 1; i++) {
-      console.log("Deposit ", i);
+      console.log("Deposit with 10 utxos ", i);
 
       const origin = await newAccountWithLamports(provider.connection)
       const relayer = await newAccountWithLamports(provider.connection)
@@ -658,7 +710,7 @@ describe("verifier_program", () => {
         provider.connection,
         origin,
         userTokenAccount,
-        AUTHORITY, //delegate
+        AUTHORITY_ONE, //delegate
         origin.publicKey, // owner
         depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
         []
