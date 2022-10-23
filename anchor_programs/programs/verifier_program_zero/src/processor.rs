@@ -35,7 +35,8 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     encrypted_utxos: Vec<u8>,
     merkle_tree_index: u64,
     relayer_fee: u64,
-    checked_public_inputs: Vec<Vec<u8>>
+    checked_public_inputs: Vec<Vec<u8>>,
+    pool_type: Vec<u8>
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -71,6 +72,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         encrypted_utxos,
         relayer_fee,
         merkle_tree_index.try_into().unwrap(),
+        pool_type,
         Some(&accounts),
         &VERIFYINGKEY,
     );

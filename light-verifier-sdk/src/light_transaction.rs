@@ -46,7 +46,13 @@ use crate::cpi_instructions::{
     withdraw_spl_cpi
 };
 use crate::accounts::Accounts;
-
+use merkle_tree_program::{
+    utils::constants::{
+        POOL_CONFIG_SEED,
+        POOL_SEED
+    },
+    program::MerkleTreeProgram
+};
 
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
@@ -78,6 +84,7 @@ pub struct Transaction<'info, 'a, 'c, T: Config>  {
     pub proof_b:                    Vec<u8>,
     pub proof_c:                    Vec<u8>,
     pub encrypted_utxos:            Vec<u8>,
+    pub pool_type:                  Vec<u8>,
     pub merkle_root_index:          usize,
     pub transferred_funds:          bool,
     pub checked_tx_integrity_hash:  bool,
@@ -106,15 +113,15 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         encrypted_utxos: Vec<u8>,
         relayer_fee: u64,
         merkle_root_index: usize,
+        pool_type: Vec<u8>,
         accounts: Option<&'a Accounts<'info, 'a, 'c>>,//Context<'info, LightInstructionTrait<'info>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> Transaction<'info, 'a, 'c, T> {
-        // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
-        // assert_eq!(leaves.len(), NR_LEAVES  / 2);
-        // assert_eq!(0, NR_LEAVES  % 2);
-        assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
-        let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
 
+        assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
+        assert_eq!(T::NR_LEAVES, leaves.len());
+
+        let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
         let mut proof_a_neg = [0u8;65];
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
@@ -141,7 +148,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             checked_root : false,
             e_phantom: PhantomData,
             verifyingkey,
-            accounts
+            accounts,
+            pool_type
         }
     }
 
@@ -311,19 +319,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             false
         )?;
         msg!("self.public_amount {:?}", self.public_amount);
-        msg!("self.relayer_fe {:?}", self.relayer_fee);
 
-        //check accounts
-        if self.is_deposit() {
-            // sender is user no check
-            // recipient is merkle tree pda, check correct derivation
-
-        } else {
-            // sender is merkle tree pda check correct derivation
-
-            // recipient is the same as in integrity_hash
-
-        }
 
         if *self.mint_pubkey == [0u8;32] {
             // either sol withdrawal or normal withdrawal
@@ -333,6 +329,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             if self.is_deposit() {
                 // sender is user no check
                 // recipient is merkle tree pda, check correct derivation
+                self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key())?;
 
                 let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
 
@@ -352,7 +349,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
             } else {
                 // sender is merkle tree pda check correct derivation
-                // recipient is the same as in integrity_hash
+                self.check_sol_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key())?;
+
                 withdraw_sol_cpi(
                     &self.accounts.unwrap().program_id,
                     &self.accounts.unwrap().program_merkle_tree.to_account_info(),
@@ -376,6 +374,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             // do I need another token pda check here?
 
             if self.is_deposit() {
+                self.check_spl_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key(), &recipient_mint.mint)?;
 
                 let seed = merkle_tree_program::ID.to_bytes();
                 let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
@@ -394,6 +393,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 let cpi_ctx = CpiContext::new_with_signer(self.accounts.unwrap().token_program.unwrap().to_account_info().clone(), accounts, seeds);
                 anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
             } else {
+                self.check_spl_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key(), &sender_mint.mint)?;
+
                 msg!("token authority might be wrong");
                 // withdraw_spl_cpi
                 withdraw_spl_cpi(
@@ -437,6 +438,9 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
+
+            self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient_fee.as_ref().unwrap().key())?;
+
             msg!("is deposit");
             let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
 
@@ -455,6 +459,9 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
 
         } else {
+
+            self.check_sol_pool_account_derivation(&self.accounts.unwrap().sender_fee.as_ref().unwrap().key())?;
+
             // withdraws sol for the user
             withdraw_sol_cpi(
                 &self.accounts.unwrap().program_id,
@@ -479,6 +486,26 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
         }
 
+        Ok(())
+    }
+
+    pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey) -> Result<()> {
+        let derived_pubkey =
+            Pubkey::find_program_address(&[&[0u8;32], &self.pool_type, &POOL_CONFIG_SEED[..]], &MerkleTreeProgram::id());
+
+        if derived_pubkey.0 != *pubkey {
+            return err!(VerifierSdkError::InvalidSenderorRecipient);
+        }
+        Ok(())
+    }
+
+    pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
+        let derived_pubkey =
+            Pubkey::find_program_address(&[&mint.to_bytes(), &self.pool_type, &POOL_SEED[..]], &MerkleTreeProgram::id());
+
+        if derived_pubkey.0 != *pubkey {
+            return err!(VerifierSdkError::InvalidSenderorRecipient);
+        }
         Ok(())
     }
 
@@ -828,11 +855,11 @@ mod test {
                         merkle_tree: AccountInfo<'info>,
                         #[account(
                             mut,
-                            address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+                            address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &&MerkleTreeProgram::id()).0
                         )]
                         pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
                         /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-                        #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+                        #[account(mut, seeds= [&MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
                         authority: UncheckedAccount<'info>,
                         token_program: Program<'info, Token>,
                         /// CHECK:` Is checked depending on deposit or withdrawal.

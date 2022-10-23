@@ -8,18 +8,16 @@ use borsh::{BorshSerialize, BorshDeserialize};
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
 pub struct VerifierStateTenNF<T: Config> {
     pub signer: Pubkey,
-    pub nullifiers: Vec<Vec<u8>>, //[[u8;32]; 10],
+    pub nullifiers: Vec<Vec<u8>>,
     pub leaves: Vec<Vec<u8>>,
     pub public_amount: [u8; 32],
     pub fee_amount: [u8; 32],
     pub mint_pubkey: [u8;32],
     pub merkle_root: [u8; 32],
     pub tx_integrity_hash: [u8; 32],
-
     pub relayer_fee: u64,
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: u64,
-
     pub e_phantom: PhantomData<T>
 }
 
@@ -45,7 +43,6 @@ impl <T: Config>anchor_lang::AccountSerialize for VerifierStateTenNF<T> {
         }
     }
 }
-
 
 impl <T: Config>anchor_lang::Owner for VerifierStateTenNF<T> {
     fn owner() -> Pubkey {

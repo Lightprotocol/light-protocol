@@ -23,5 +23,7 @@ pub enum VerifierSdkError {
     #[msg("InvalidUtxoSize")]
     InvalidUtxoSize,
     #[msg("CloseAccountFailed")]
-    CloseAccountFailed
+    CloseAccountFailed,
+    #[msg("InvalidSenderorRecipient")]
+    InvalidSenderorRecipient
 }

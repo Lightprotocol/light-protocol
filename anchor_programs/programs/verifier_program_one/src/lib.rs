@@ -86,7 +86,7 @@ pub mod verifier_program_one {
             mint_pubkey,
             encrypted_utxos,
             &root_index,
-            &relayer_fee,
+            &relayer_fee
         )
     }
 
@@ -99,7 +99,7 @@ pub mod verifier_program_one {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: Vec<u8>,
     ) -> Result<()> {
-        process_shielded_transfer_second(ctx, proof)
+        process_shielded_transfer_second(ctx, proof, vec![0u8;32])
     }
 }
 use crate::processor::TransactionConfig;

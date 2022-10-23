@@ -83,7 +83,8 @@ pub mod verifier_program_zero {
             [encrypted_utxos.to_vec(), vec![0u8;256 - encrypted_utxos.len()]].concat(),
             root_index,
             relayer_fee,
-            Vec::<Vec<u8>>::new() // checked_public_inputs
+            Vec::<Vec<u8>>::new(), // checked_public_inputs
+            vec![0u8;32], //pool_type
         )
     }
 }

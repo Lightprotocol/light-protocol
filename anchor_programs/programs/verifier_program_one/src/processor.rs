@@ -50,6 +50,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),
+        vec![0u8;32], //pool_type
         None,
         &VERIFYINGKEY,
     );
@@ -60,6 +61,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
 pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
     proof: Vec<u8>,
+    pool_type: Vec<u8>
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -99,6 +101,7 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
             .merkle_root_index
             .try_into()
             .unwrap(),
+        pool_type,
         Some(&accounts),
         &VERIFYINGKEY,
     );
