@@ -1,15 +1,13 @@
-use crate::config::{
-    MERKLE_TREE_HISTORY_SIZE, MERKLE_TREE_INIT_AUTHORITY, ZERO_BYTES_MERKLE_TREE_18,
-};
 use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 
 use crate::state::MerkleTree;
 use crate::MerkleTreeAuthority;
 use anchor_lang::solana_program::{
-    account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey,
+    msg, pubkey::Pubkey,
 };
 use std::cell::RefMut;
+use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTree<'info> {
@@ -35,7 +33,7 @@ pub struct InitializeNewMerkleTree<'info> {
         space = 16,
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump)]
+    #[account(seeds = [&MERKLE_TREE_AUTHORITY_SEED[..]], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
@@ -48,22 +46,6 @@ pub struct MerkleTreePdaToken {}
 pub struct PreInsertedLeavesIndex {
     pub next_index: u64,
 }
-
-// #[allow(clippy::manual_memcpy)]
-// pub fn process_initialize_new_merkle_tree_18(
-//     ctx: Context<InitializeNewMerkleTree>,
-//     init_bytes: &[u8],
-// ) -> Result<()> {
-//     let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
-//
-//
-//     let mt_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
-//     process_initialize_new_merkle_tree_18(merkle_tree,18, ZERO_BYTES_MERKLE_TREE_18.to_vec(), INIT_BYTES_MERKLE_TREE_18[18 * 32 + 4 * 8..].try_into().unwrap(), mt_index);
-//
-//     ctx.accounts.merkle_tree_authority_pda.merkle_tree_index += 1;
-//
-//     Ok(())
-// }
 
 // TODO: print zero bytes [[u8;32];32]
 pub fn process_initialize_new_merkle_tree_18(
@@ -88,7 +70,7 @@ pub fn process_initialize_new_merkle_tree_18(
     );
 }
 
-use std::cell::RefCell;
+
 #[test]
 fn test_init_merkle_tree() {
     let zero_value = vec![

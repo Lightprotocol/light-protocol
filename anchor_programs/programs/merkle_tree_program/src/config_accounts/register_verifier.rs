@@ -1,4 +1,3 @@
-use crate::config;
 use crate::errors::ErrorCode;
 use crate::MerkleTreeAuthority;
 use anchor_lang::prelude::*;

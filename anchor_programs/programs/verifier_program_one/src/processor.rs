@@ -2,16 +2,13 @@ use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    errors::VerifierSdkError,
-    light_transaction::{LightTransaction, TxConfig},
-    state::VerifierStateTenNF,
+    light_transaction::{Transaction, Config},
 };
-use solana_program::log::sol_log_compute_units;
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
 #[derive(Clone)]
-pub struct LightTx;
-impl TxConfig for LightTx {
+pub struct TransactionConfig;
+impl Config for TransactionConfig {
     /// Number of nullifiers to be inserted with the transaction.
     const NR_NULLIFIERS: usize = 10;
     /// Number of output utxos.
@@ -40,7 +37,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     root_index: &u64,
     relayer_fee: &u64,
 ) -> Result<()> {
-    let mut tx = LightTransaction::<LightTx>::new(
+    let tx = Transaction::<TransactionConfig>::new(
         proof,
         merkle_root,
         public_amount,
@@ -56,16 +53,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         None,
         &VERIFYINGKEY,
     );
-
-    sol_log_compute_units();
-    msg!("packing verifier state");
     ctx.accounts.verifier_state.set_inner(tx.into());
-    msg!(
-        "ctx.accounts.verifier_state {:?}",
-        ctx.accounts.verifier_state.leaves
-    );
-    sol_log_compute_units();
-    msg!("packed verifier state");
     Ok(())
 }
 
@@ -94,7 +82,7 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut tx = LightTransaction::<LightTx>::new(
+    let mut tx = Transaction::<TransactionConfig>::new(
         proof,
         ctx.accounts.verifier_state.merkle_root.to_vec(),
         ctx.accounts.verifier_state.public_amount.to_vec(),
@@ -102,8 +90,8 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx.accounts.verifier_state.fee_amount.to_vec(),
         ctx.accounts.verifier_state.mint_pubkey.to_vec(),
         Vec::<Vec<u8>>::new(), // checked_public_inputs
-        ctx.accounts.verifier_state.nullifiers.to_vec(), //vec![nullifier0.to_vec(), nullifier1.to_vec()],
-        vec![ctx.accounts.verifier_state.leaves.to_vec()], //vec![vec![leaf_left.to_vec(), leaf_right.to_vec()]],
+        ctx.accounts.verifier_state.nullifiers.to_vec(),
+        vec![ctx.accounts.verifier_state.leaves.to_vec()],
         ctx.accounts.verifier_state.encrypted_utxos.to_vec(),
         ctx.accounts.verifier_state.relayer_fee,
         ctx.accounts
@@ -114,13 +102,5 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         Some(&accounts),
         &VERIFYINGKEY,
     );
-    tx.verify()?;
-    tx.check_tx_integrity_hash()?;
-    tx.check_root()?;
-    tx.insert_leaves()?;
-    tx.insert_nullifiers()?;
-    tx.transfer_user_funds()?;
-    tx.transfer_fee()?;
-    tx.check_completion()?;
-    Ok(())
+    tx.transact()
 }

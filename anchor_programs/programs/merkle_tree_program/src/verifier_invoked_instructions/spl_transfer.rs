@@ -1,8 +1,9 @@
-use crate::utils::config;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Transfer};
-
+use crate::utils::constants::{
+    TOKEN_AUTHORITY_SEED,
+};
 #[derive(Accounts)]
 pub struct WithdrawSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
@@ -16,7 +17,7 @@ pub struct WithdrawSpl<'info> {
     pub recipient: Account<'info, TokenAccount>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` that the token authority is derived in the correct way.
-    #[account(mut, seeds=[b"spl"], bump)]
+    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump)]
     pub token_authority: AccountInfo<'info>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
@@ -28,9 +29,9 @@ pub fn process_spl_transfer<'info>(
 ) -> Result<()> {
     msg!("Withdrawing spl token {}", amount);
     let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[&b"spl".as_ref()], ctx.program_id);
+        anchor_lang::prelude::Pubkey::find_program_address(&[&TOKEN_AUTHORITY_SEED.as_ref()], ctx.program_id);
     let bump = &[bump][..];
-    let seeds = &[&[&b"spl".as_ref(), bump][..]];
+    let seeds = &[&[&TOKEN_AUTHORITY_SEED.as_ref(), bump][..]];
     let accounts = Transfer {
         from: ctx.accounts.merkle_tree_token.to_account_info(),
         to: ctx.accounts.recipient.to_account_info(),

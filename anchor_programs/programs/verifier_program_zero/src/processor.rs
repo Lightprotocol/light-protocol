@@ -2,14 +2,12 @@ use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    errors::VerifierSdkError,
-    light_transaction::{LightTransaction, TxConfig},
+    light_transaction::{Transaction, Config},
 };
-use solana_program::log::sol_log_compute_units;
 
 use crate::LightInstruction;
 struct TransactionConfig;
-impl TxConfig for TransactionConfig {
+impl Config for TransactionConfig {
     /// Number of nullifiers to be inserted with the transaction.
     const NR_NULLIFIERS: usize = 2;
     /// Number of output utxos.
@@ -60,7 +58,7 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut transaction = LightTransaction::<TransactionConfig>::new(
+    let mut transaction = Transaction::<TransactionConfig>::new(
         proof,
         merkle_root,
         public_amount,

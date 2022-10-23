@@ -2,17 +2,13 @@ use anchor_lang::{
     prelude::*,
     solana_program::{
         log::sol_log_compute_units,
-        self,
-        program_pack::{IsInitialized, Pack, Sealed},
+        program_pack::Pack,
     }
 };
 use anchor_lang::solana_program::{
-    account_info::AccountInfo, msg, program::invoke_signed, program_error::ProgramError,
-    pubkey::Pubkey, system_instruction, sysvar::rent::Rent,
+    msg, sysvar::rent::Rent,
 };
 use anchor_spl::token::{Transfer};
-// use spl_token::state::GenericTokenAccount::unpack;
-// use spl_token::state::Account::unpack;
 use ark_std::{marker::PhantomData, vec::Vec};
 use ark_ff::{
     BigInteger256,
@@ -45,20 +41,18 @@ use crate::utils::to_be_64;
 use crate::errors::VerifierSdkError;
 use crate::cpi_instructions::{
     initialize_nullifier_cpi,
-    initialize_many_nullifiers_cpi,
     insert_two_leaves_cpi,
     withdraw_sol_cpi,
     withdraw_spl_cpi
 };
 use crate::accounts::Accounts;
-use merkle_tree_program::program::MerkleTreeProgram;
 
 
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine::<ark_bn254::g1::Parameters>;
 
 
-pub trait TxConfig {
+pub trait Config {
 	/// Number of nullifiers to be inserted with the transaction.
 	const NR_NULLIFIERS: usize;
 	/// Number of output utxos.
@@ -70,7 +64,7 @@ pub trait TxConfig {
 }
 
 #[derive(Clone)]
-pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
+pub struct Transaction<'info, 'a, 'c, T: Config>  {
     pub merkle_root:                Vec<u8>,
     pub public_amount:              Vec<u8>,
     pub tx_integrity_hash:          Vec<u8>,
@@ -97,7 +91,7 @@ pub struct LightTransaction<'info, 'a, 'c, T: TxConfig>  {
 }
 
 
-impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
+impl <T: Config>Transaction<'_, '_, '_, T> {
 
     pub fn new<'info, 'a, 'c> (
         proof: Vec<u8>,
@@ -114,7 +108,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         merkle_root_index: usize,
         accounts: Option<&'a Accounts<'info, 'a, 'c>>,//Context<'info, LightInstructionTrait<'info>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
-    ) -> LightTransaction<'info, 'a, 'c, T> {
+    ) -> Transaction<'info, 'a, 'c, T> {
         // assert_eq!(nullifiers.len(), NR_NULLIFIERS);
         // assert_eq!(leaves.len(), NR_LEAVES  / 2);
         // assert_eq!(0, NR_LEAVES  % 2);
@@ -124,7 +118,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         let mut proof_a_neg = [0u8;65];
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
-        return LightTransaction {
+        return Transaction {
             merkle_root,
             public_amount,
             tx_integrity_hash,
@@ -255,7 +249,6 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
                 &self.accounts.unwrap().rent.to_account_info(),
                 &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                 to_be_64(&leaves[0]).try_into().unwrap(),
-                to_be_64(&leaves[0]).try_into().unwrap(),
                 to_be_64(&leaves[1]).try_into().unwrap(),
                 self.accounts.unwrap().merkle_tree.key(),
                 self.encrypted_utxos.clone()
@@ -292,7 +285,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
-        initialize_many_nullifiers_cpi(
+        initialize_nullifier_cpi(
             &self.accounts.unwrap().program_id,
             &self.accounts.unwrap().program_merkle_tree.to_account_info(),
             &self.accounts.unwrap().authority.to_account_info(),
@@ -311,7 +304,7 @@ impl <T: TxConfig>LightTransaction<'_, '_, '_, T> {
         msg!("transferring user funds");
         sol_log_compute_units();
         // check mintPubkey
-        let (pub_amount_checked, relayer_fee) = self.check_external_amount(
+        let (pub_amount_checked, _) = self.check_external_amount(
             0,
             0,
             to_be_64(&self.public_amount).try_into().unwrap(),
@@ -808,7 +801,7 @@ mod test {
         let pub_amount = <BigInteger256 as FromBytes>::read(&to_be_64(&public_inputs[32..64])[..]).unwrap().0[0];
         println!("pub amount {}", pub_amount);
         /*
-        let mut tx = LightTransaction::new(
+        let mut tx = Transaction::new(
                 proof,
                 public_inputs[0..32].try_into().unwrap(),// merkle_root,
                 public_inputs[32..64].try_into().unwrap(),// merkle_root,public_amount: [u8;32],

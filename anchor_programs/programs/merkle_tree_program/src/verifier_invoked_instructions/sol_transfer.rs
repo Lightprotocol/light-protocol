@@ -1,8 +1,5 @@
-use crate::config;
-use crate::errors::ErrorCode;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
-use std::ops::DerefMut;
 
 #[derive(Accounts)]
 pub struct WithdrawSol<'info> {

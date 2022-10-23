@@ -1,6 +1,7 @@
 use crate::config;
 use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
+use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
 
 /// Configures the authority of the merkle tree which can:
 /// - register new verifiers
@@ -22,7 +23,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&b"MERKLE_TREE_AUTHORITY"[..]],
+        seeds = [&MERKLE_TREE_AUTHORITY_SEED],
         bump,
         space = 8 + 32 + 8 + 8 + 8
     )]
@@ -38,7 +39,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTreeAuthority<'info> {
-    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump)]
+    #[account(seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
     #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]

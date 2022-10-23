@@ -1,4 +1,4 @@
-use crate::utils::config::{ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_HISTORY_SIZE};
+use crate::utils::config::MERKLE_TREE_HISTORY_SIZE;
 use anchor_lang::prelude::*;
 
 #[account(zero_copy)]

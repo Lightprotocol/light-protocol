@@ -34,28 +34,23 @@ use crate::errors::ErrorCode;
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
 use crate::utils::config::{
-    ENCRYPTED_UTXOS_LENGTH, MERKLE_TREE_INIT_AUTHORITY, ZERO_BYTES_MERKLE_TREE_18,
+    ENCRYPTED_UTXOS_LENGTH, ZERO_BYTES_MERKLE_TREE_18,
 };
 
 use crate::utils::config;
 use crate::verifier_invoked_instructions::{
     insert_nullifier::{
-        process_insert_many_nullifiers, InitializeNullifier, InitializeNullifierMany,
+        process_insert_many_nullifiers, InitializeNullifierMany,
     },
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
-    sol_transfer::{process_sol_transfer, WithdrawSol},
+    sol_transfer::{WithdrawSol},
     spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 
 use crate::poseidon_merkle_tree::{
-    // check_merkle_root_exists::process_check_merkle_root_exists,
     initialize_new_merkle_tree_18::{
         process_initialize_new_merkle_tree_18, InitializeNewMerkleTree,
     },
-    // initialize_new_merkle_tree_spl::{
-    //     process_initialize_new_merkle_tree_spl,
-    //     InitializeNewMerkleTreeSpl
-    // },
     update_instructions::{
         initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
         insert_root::{process_insert_root, InsertRoot},
@@ -283,15 +278,6 @@ pub mod merkle_tree_program {
         amount: u64,
     ) -> Result<()> {
         process_spl_transfer(ctx, amount)
-    }
-
-    /// Creates and initializes a nullifier pda.
-    /// Can only be called from a registered verifier program.
-    pub fn initialize_nullifier(
-        _ctx: Context<InitializeNullifier>,
-        _nullifier: [u8; 32],
-    ) -> anchor_lang::Result<()> {
-        Ok(())
     }
 
     pub fn initialize_many_nullifiers<'a, 'b, 'c, 'info>(

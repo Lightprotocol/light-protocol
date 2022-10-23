@@ -1,8 +1,5 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{
-        self
-    }
 };
 use merkle_tree_program::{
     initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
@@ -12,7 +9,6 @@ use merkle_tree_program::{
 use merkle_tree_program::program::MerkleTreeProgram;
 use anchor_spl::token::Token;
 use crate::errors::VerifierSdkError;
-use std::cell::Ref;
 
 pub struct Accounts<'info, 'a, 'c> {
     pub program_id:         &'a Pubkey,

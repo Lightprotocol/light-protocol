@@ -6,10 +6,7 @@ use crate::utils::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::utils::constants::STORAGE_SEED;
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{msg, program_pack::Pack, sysvar};
-use std::borrow::Borrow;
-use std::borrow::BorrowMut;
-use std::ops::Deref;
+use anchor_lang::solana_program::{msg,sysvar};
 
 #[derive(Accounts)]
 pub struct InitializeUpdateState<'info> {

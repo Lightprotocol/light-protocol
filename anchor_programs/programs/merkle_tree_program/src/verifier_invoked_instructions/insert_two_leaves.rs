@@ -1,12 +1,8 @@
 use anchor_lang::prelude::*;
-
-use crate::config;
 use crate::state::TwoLeavesBytesPda;
 use crate::utils::constants::LEAVES_SEED;
-use crate::utils::constants::TWO_LEAVES_PDA_SIZE;
 use crate::PreInsertedLeavesIndex;
 use crate::RegisteredVerifier;
-use anchor_lang::solana_program::{msg, program_pack::Pack};
 
 #[derive(Accounts)]
 #[instruction(

@@ -1,37 +1,6 @@
 use anchor_lang::prelude::*;
-use merkle_tree_program::utils::config::{
-    ENCRYPTED_UTXOS_LENGTH
-};
-use anchor_spl::token::{Transfer, CloseAccount};
-
 
 pub fn initialize_nullifier_cpi<'a, 'b>(
-    program_id: &Pubkey,
-    merkle_tree_program_id: &'b AccountInfo<'a>,
-    authority: &'b AccountInfo<'a>,
-    nullifier_pda: &'b AccountInfo<'a>,
-    system_program: &'b AccountInfo<'a>,
-    rent: &'b AccountInfo<'a>,
-    registered_verifier_pda: &'b AccountInfo<'a>,
-    nullifier: [u8; 32],
-) -> Result<()> {
-    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
-    let bump = &[bump];
-    let seeds = &[&[seed.as_slice(), bump][..]];
-    let accounts = merkle_tree_program::cpi::accounts::InitializeNullifier {
-        authority: authority.clone(),
-        nullifier_pda: nullifier_pda.clone(),
-        system_program: system_program.clone(),
-        rent: rent.clone(),
-        registered_verifier_pda: registered_verifier_pda.clone(),
-    };
-
-    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    let res = merkle_tree_program::cpi::initialize_nullifier(cpi_ctx, nullifier);
-    res
-}
-
-pub fn initialize_many_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
@@ -81,7 +50,7 @@ pub fn withdraw_sol_cpi<'a, 'b>(
         // system_program: system_program.clone(),
     };
 
-    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::withdraw_sol(cpi_ctx, pub_amount_checked)
 
 }
@@ -110,7 +79,7 @@ pub fn withdraw_spl_cpi<'a, 'b>(
         recipient: recipient.clone()
     };
 
-    let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::withdraw_spl(cpi_ctx, pub_amount_checked)
 }
 
@@ -123,7 +92,6 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     system_program: &'b AccountInfo<'a>,
     rent: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
-    nullifier: [u8; 32],
     leaf_left: [u8; 32],
     leaf_right: [u8; 32],
     merkle_tree_tmp_account: Pubkey,

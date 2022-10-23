@@ -59,11 +59,10 @@ pub mod verifier_program_one {
     /// in the last transaction after successful ZKP verification.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        // proof: [u8; 256],
         merkle_root: Vec<u8>,
         amount: Vec<u8>,
         ext_data_hash: Vec<u8>,
-        nullifiers: [[u8; 32]; 10], // 10 nullifiers 1072 byts 16 1264 bytes total data sent
+        nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
         fee_amount: Vec<u8>,
         mint_pubkey: Vec<u8>,
@@ -79,11 +78,11 @@ pub mod verifier_program_one {
             ctx,
             vec![0u8; 256],
             merkle_root,
-            amount, //[vec![0u8;24], amount.to_vec()].concat().try_into().unwrap(),
+            amount,
             ext_data_hash,
             nfs,
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            fee_amount, //[vec![0u8;24], fee_amount.to_vec()].concat().try_into().unwrap(),
+            fee_amount,
             mint_pubkey,
             encrypted_utxos,
             &root_index,
@@ -103,7 +102,7 @@ pub mod verifier_program_one {
         process_shielded_transfer_second(ctx, proof)
     }
 }
-use crate::processor::LightTx;
+use crate::processor::TransactionConfig;
 use light_verifier_sdk::state::VerifierStateTenNF;
 
 #[derive(Accounts)]
@@ -128,7 +127,7 @@ pub struct LightInstructionFirst<'info> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [b"VERIFIER_STATE"], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF<LightTx>>,
+    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
 }
 
 /// Executes light transaction with state created in the first instruction.
@@ -138,7 +137,7 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [b"VERIFIER_STATE"], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF<LightTx>>,
+    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,
@@ -179,4 +178,3 @@ pub struct LightInstructionSecond<'info> {
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
-use merkle_tree_program::Nullifier;

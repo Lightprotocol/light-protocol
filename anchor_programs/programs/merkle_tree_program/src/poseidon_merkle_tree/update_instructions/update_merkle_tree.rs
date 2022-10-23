@@ -1,14 +1,11 @@
-use crate::poseidon_merkle_tree::instructions::*;
 use crate::poseidon_merkle_tree::processor::compute_updated_merkle_tree;
 use crate::poseidon_merkle_tree::processor::pubkey_check;
 use crate::state::MerkleTree;
-use crate::utils::config;
-use crate::utils::constants::*;
 use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
-    account_info::AccountInfo, msg, program_pack::Pack, pubkey::Pubkey, sysvar,
+    msg, pubkey::Pubkey, sysvar,
 };
 
 #[derive(Accounts)]
@@ -52,9 +49,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         let id = IX_ORDER
             [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
         if merkle_tree_update_state_data.current_instruction_index == 1 {
-            compute_updated_merkle_tree(
-                IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index)
-                    .unwrap()],
+            compute_updated_merkle_tree(id,
                 &mut merkle_tree_update_state_data,
                 &mut merkle_tree_pda_data,
             )?;
@@ -66,9 +61,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
             merkle_tree_update_state_data.current_instruction_index
         );
 
-        compute_updated_merkle_tree(
-            IX_ORDER
-                [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()],
+        compute_updated_merkle_tree(id,
             &mut merkle_tree_update_state_data,
             &mut merkle_tree_pda_data,
         )?;
