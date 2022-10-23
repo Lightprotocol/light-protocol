@@ -12,6 +12,7 @@ use anchor_spl::token::{Transfer};
 use ark_std::{marker::PhantomData, vec::Vec};
 use ark_ff::{
     BigInteger256,
+    Fp256,
     FpParameters,
     PrimeField,
     BigInteger,
@@ -87,7 +88,7 @@ pub struct Transaction<'info, 'a, 'c, T: Config>  {
     pub pool_type:                  Vec<u8>,
     pub merkle_root_index:          usize,
     pub transferred_funds:          bool,
-    pub checked_tx_integrity_hash:  bool,
+    pub computed_tx_integrity_hash:  bool,
     pub verified_proof:             bool,
     pub inserted_leaves:            bool,
     pub inserted_nullifier:         bool,
@@ -104,7 +105,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         proof: Vec<u8>,
         merkle_root: Vec<u8>,
         public_amount: Vec<u8>,
-        tx_integrity_hash: Vec<u8>,
         fee_amount: Vec<u8>,
         mint_pubkey: Vec<u8>,
         checked_public_inputs: Vec<Vec<u8>>,
@@ -119,7 +119,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
     ) -> Transaction<'info, 'a, 'c, T> {
 
         assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
-        assert_eq!(T::NR_LEAVES, leaves.len());
+        assert_eq!(T::NR_LEAVES / 2, leaves.len());
 
         let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&proof[0..64])[..], &[0u8][..]].concat()).unwrap();
         let mut proof_a_neg = [0u8;65];
@@ -128,7 +128,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         return Transaction {
             merkle_root,
             public_amount,
-            tx_integrity_hash,
+            tx_integrity_hash: vec![0u8;32],
             fee_amount,
             mint_pubkey,
             checked_public_inputs,
@@ -141,7 +141,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             encrypted_utxos: encrypted_utxos,
             merkle_root_index,
             transferred_funds: false,
-            checked_tx_integrity_hash: false,
+            computed_tx_integrity_hash: false,
             verified_proof : false,
             inserted_leaves : false,
             inserted_nullifier : false,
@@ -154,8 +154,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
     }
 
     pub fn transact(&mut self) -> Result<()> {
+        self.compute_tx_integrity_hash()?;
         self.verify()?;
-        self.check_tx_integrity_hash()?;
         self.check_root()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
@@ -167,6 +167,9 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
 
     pub fn verify(&mut self) -> Result<()> {
+        if !self.computed_tx_integrity_hash {
+            msg!("Tried to verify proof without computing integrity hash.");
+        }
         let mut public_inputs = vec![
             self.merkle_root[..].to_vec(),
             self.public_amount[..].to_vec(),
@@ -201,8 +204,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
-    pub fn check_tx_integrity_hash(&mut self) -> Result<()> {
-        msg!("removed merkle tree index");
+    pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let input = [
             self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec(),
             self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec(),
@@ -211,23 +213,28 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             self.encrypted_utxos.clone()
         ]
         .concat();
-        // msg!("recipient: {:?}", self.accounts.unwrap().recipient.key().to_bytes().to_vec());
-        // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.key().to_bytes().to_vec());
+        // msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
+        // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
         // msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
         // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
         // msg!("integrity_hash inputs: {:?}", input);
         // msg!("integrity_hash inputs.len(): {}", input.len());
-        let hash = anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?;
-        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", Fr::from_be_bytes_mod_order(&hash[..]) );
-        if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
-            msg!(
-                "tx_integrity_hash verification failed.{:?} != {:?}",
-                &hash[..],
-                &self.tx_integrity_hash
-            );
-            return err!(VerifierSdkError::WrongTxIntegrityHash);
-        }
-        self.checked_tx_integrity_hash = true;
+        let hash = Fr::from_be_bytes_mod_order(&anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?[..]);
+        let mut bytes = Vec::<u8>::new();
+        <Fp256::<FrParameters> as ToBytes>::write(&hash, &mut bytes).unwrap();
+        self.tx_integrity_hash = to_be_64(&bytes[..32]);
+        msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
+        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
+        // disabled check to save bytes
+        // if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
+        //     msg!(
+        //         "tx_integrity_hash verification failed.{:?} != {:?}",
+        //         &hash[..],
+        //         &self.tx_integrity_hash
+        //     );
+        //     return err!(VerifierSdkError::WrongTxIntegrityHash);
+        // }
+        self.computed_tx_integrity_hash = true;
         Ok(())
     }
 
@@ -511,7 +518,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
     pub fn check_completion(&self) -> Result<()>{
         if self.transferred_funds &&
-            self.checked_tx_integrity_hash &&
+            self.computed_tx_integrity_hash &&
             self.verified_proof &&
             self.inserted_leaves &&
             self.inserted_nullifier &&
@@ -521,7 +528,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
         msg!("verified_proof {}", self.verified_proof);
         msg!("inserted_leaves {}", self.inserted_leaves);
-        msg!("checked_tx_integrity_hash {}", self.checked_tx_integrity_hash);
+        msg!("computed_tx_integrity_hash {}", self.computed_tx_integrity_hash);
         msg!("checked_root {}", self.checked_root);
         msg!("transferred_funds {}", self.transferred_funds);
         err!(VerifierSdkError::TransactionIncomplete)

@@ -92,8 +92,6 @@ describe("verifier_program", () => {
   const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
   const verifierProgramOne = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
 
-  // var provider
-
   var REGISTERED_VERIFIER_PDA;
   var PRE_INSERTED_LEAVES_INDEX;
   var MERKLE_TREE_PDA_TOKEN;
@@ -898,7 +896,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -987,7 +985,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 

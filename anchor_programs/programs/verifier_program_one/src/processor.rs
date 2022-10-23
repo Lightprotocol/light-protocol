@@ -28,7 +28,6 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     proof: Vec<u8>,
     merkle_root: Vec<u8>,
     public_amount: Vec<u8>,
-    ext_data_hash: Vec<u8>,
     nullifiers: Vec<Vec<u8>>,
     leaves: Vec<Vec<Vec<u8>>>,
     fee_amount: Vec<u8>,
@@ -41,7 +40,6 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
         proof,
         merkle_root,
         public_amount,
-        ext_data_hash,
         fee_amount,
         mint_pubkey,
         Vec::<Vec<u8>>::new(), // checked_public_inputs
@@ -88,7 +86,6 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
         proof,
         ctx.accounts.verifier_state.merkle_root.to_vec(),
         ctx.accounts.verifier_state.public_amount.to_vec(),
-        ctx.accounts.verifier_state.tx_integrity_hash.to_vec(),
         ctx.accounts.verifier_state.fee_amount.to_vec(),
         ctx.accounts.verifier_state.mint_pubkey.to_vec(),
         Vec::<Vec<u8>>::new(), // checked_public_inputs

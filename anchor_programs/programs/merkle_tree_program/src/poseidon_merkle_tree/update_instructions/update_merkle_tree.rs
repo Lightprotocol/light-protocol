@@ -49,7 +49,8 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
         let id = IX_ORDER
             [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
         if merkle_tree_update_state_data.current_instruction_index == 1 {
-            compute_updated_merkle_tree(id,
+            compute_updated_merkle_tree(
+                id,
                 &mut merkle_tree_update_state_data,
                 &mut merkle_tree_pda_data,
             )?;
@@ -60,8 +61,10 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
             "merkle_tree_update_state_data.current_instruction_index1 {}",
             merkle_tree_update_state_data.current_instruction_index
         );
-
-        compute_updated_merkle_tree(id,
+        let id = IX_ORDER
+            [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
+        compute_updated_merkle_tree(
+            id,
             &mut merkle_tree_update_state_data,
             &mut merkle_tree_pda_data,
         )?;

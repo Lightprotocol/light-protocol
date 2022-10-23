@@ -33,9 +33,7 @@ use crate::errors::ErrorCode;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::config::{
-    ENCRYPTED_UTXOS_LENGTH, ZERO_BYTES_MERKLE_TREE_18,
-};
+use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 
 use crate::utils::config;
 use crate::verifier_invoked_instructions::{
