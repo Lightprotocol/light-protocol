@@ -2,12 +2,10 @@ use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 
 use crate::state::MerkleTree;
-use crate::MerkleTreeAuthority;
-use anchor_lang::solana_program::{
-    msg, pubkey::Pubkey,
-};
-use std::cell::RefMut;
 use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
+use crate::MerkleTreeAuthority;
+use anchor_lang::solana_program::{msg, pubkey::Pubkey};
+use std::cell::RefMut;
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTree<'info> {
@@ -69,7 +67,6 @@ pub fn process_initialize_new_merkle_tree_18(
         merkle_tree_state_data.roots[0]
     );
 }
-
 
 #[test]
 fn test_init_merkle_tree() {

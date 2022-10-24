@@ -417,13 +417,13 @@ export class shieldedTransaction {
 
       const ix = await this.verifierProgram.methods.shieldedTransferInputs(
         Buffer.from(this.proofData.proofBytes),
-        Buffer.from(this.proofData.publicInputs.root),
+        // Buffer.from(this.proofData.publicInputs.root),
         Buffer.from(this.proofData.publicInputs.publicAmount),
         // Buffer.from(this.proofData.publicInputs.extDataHash),
         this.proofData.publicInputs.nullifiers,
         [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
         Buffer.from(this.proofData.publicInputs.feeAmount),
-        Buffer.from(this.proofData.publicInputs.mintPubkey),
+        // Buffer.from(this.proofData.publicInputs.mintPubkey),
         new anchor.BN(this.root_index.toString()),
         new anchor.BN(this.relayerFee.toString()),
         Buffer.from(this.proofData.encryptedOutputs.slice(0,174)) // remaining bytes can be used once tx sizes increase
@@ -574,14 +574,14 @@ export class shieldedTransaction {
       try {
         const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
           // this.proofData.proofBytes,
-          Buffer.from(this.proofData.publicInputs.root),
+          // Buffer.from(this.proofData.publicInputs.root),
           Buffer.from(this.proofData.publicInputs.publicAmount),
           // Buffer.from(this.proofData.publicInputs.extDataHash),
           this.proofData.publicInputs.nullifiers,
           // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
           [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
           Buffer.from(this.proofData.publicInputs.feeAmount),
-          Buffer.from(this.proofData.publicInputs.mintPubkey),
+          // Buffer.from(this.proofData.publicInputs.mintPubkey),
           new anchor.BN(this.root_index.toString()),
           new anchor.BN(this.relayerFee.toString()),
           Buffer.from(this.proofData.encryptedOutputs)

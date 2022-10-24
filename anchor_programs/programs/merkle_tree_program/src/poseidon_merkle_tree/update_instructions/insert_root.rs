@@ -1,18 +1,11 @@
 use crate::errors::ErrorCode;
 use crate::poseidon_merkle_tree::instructions::insert_last_double;
 use crate::state::MerkleTree;
-use crate::utils::constants::{
-    IX_ORDER,
-    STORAGE_SEED,
-    ROOT_INSERT
-};
+use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{
-    clock::Clock, msg, pubkey::Pubkey,
-    sysvar::Sysvar,
-};
+use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sysvar};
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {

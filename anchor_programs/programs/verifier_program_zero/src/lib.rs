@@ -20,9 +20,9 @@ use anchor_spl::token::Token;
 use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use merkle_tree_program::{
     errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
+    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    utils::constants::MERKLE_TREE_AUTHORITY_SEED, MerkleTreeAuthority, RegisteredVerifier,
 };
-use merkle_tree_program::{program::MerkleTreeProgram, MerkleTreeAuthority};
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
@@ -59,12 +59,10 @@ pub mod verifier_program_zero {
     pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
         proof: Vec<u8>,
-        merkle_root: Vec<u8>,
         amount: Vec<u8>,
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
         fee_amount: Vec<u8>,
-        mint_pubkey: Vec<u8>,
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -72,17 +70,19 @@ pub mod verifier_program_zero {
         process_shielded_transfer_2_inputs(
             ctx,
             proof.to_vec(),
-            merkle_root.to_vec(),
             amount.to_vec(),
             vec![nullifiers[0].to_vec(), nullifiers[1].to_vec()],
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
             fee_amount.to_vec(),
-            mint_pubkey.to_vec(),
-            [encrypted_utxos.to_vec(), vec![0u8;256 - encrypted_utxos.len()]].concat(),
+            [
+                encrypted_utxos.to_vec(),
+                vec![0u8; 256 - encrypted_utxos.len()],
+            ]
+            .concat(),
             root_index,
             relayer_fee,
             Vec::<Vec<u8>>::new(), // checked_public_inputs
-            vec![0u8;32], //pool_type
+            vec![0u8; 32],         //pool_type
         )
     }
 }
@@ -92,7 +92,7 @@ pub struct InitializeAuthority<'info> {
     /// CHECK:` Signer is merkle tree authority.
     #[account(mut, address=merkle_tree_authority_pda.pubkey @MerkleTreeError::InvalidAuthority)]
     pub signing_address: Signer<'info>,
-    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump, seeds::program=MerkleTreeProgram::id())]
+    #[account(seeds = [MERKLE_TREE_AUTHORITY_SEED], bump, seeds::program=MerkleTreeProgram::id())]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Is checked here, but inited with 0 bytes.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
@@ -113,8 +113,7 @@ pub struct LightInstruction<'info> {
     // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     #[account(
-        mut,
-        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+        mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
@@ -135,11 +134,11 @@ pub struct LightInstruction<'info> {
     pub recipient_fee: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub relayer_recipient: UncheckedAccount<'info>,
+    /// CHECK:` Is checked when it is used during sol deposits.
     #[account(mut)]
-    pub escrow: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub escrow: UncheckedAccount<'info>,
+    /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut)]
     pub token_authority: AccountInfo<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.

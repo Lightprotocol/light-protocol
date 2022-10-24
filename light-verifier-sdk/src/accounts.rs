@@ -8,7 +8,6 @@ use merkle_tree_program::{
 };
 use merkle_tree_program::program::MerkleTreeProgram;
 use anchor_spl::token::Token;
-use crate::errors::VerifierSdkError;
 
 pub struct Accounts<'info, 'a, 'c> {
     pub program_id:         &'a Pubkey,

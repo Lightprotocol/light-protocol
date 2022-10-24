@@ -2,8 +2,8 @@ use crate::utils::constants::NF_SEED;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{
-    account_info::AccountInfo, msg, program::invoke_signed,
-    pubkey::Pubkey, system_instruction, sysvar::rent::Rent,
+    account_info::AccountInfo, msg, program::invoke_signed, pubkey::Pubkey, system_instruction,
+    sysvar::rent::Rent,
 };
 use std::convert::TryInto;
 
@@ -71,9 +71,7 @@ pub fn create_and_check_pda<'a, 'b>(
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
     }
-    //  else {
-    //     account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
-    // }
+
     msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(

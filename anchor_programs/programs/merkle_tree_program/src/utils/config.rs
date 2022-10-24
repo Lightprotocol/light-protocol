@@ -17,7 +17,6 @@ pub const INITIAL_MERKLE_TREE_AUTHORITY: [u8; 32] = [
     253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
 ];
 
-
 /// Zero values to fill an empty sparse merkle tree.
 /// Every hash is the hash of its previous hash ([prev_hash, prev_hash].concat())
 #[constant]

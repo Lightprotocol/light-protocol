@@ -4,9 +4,7 @@ use crate::state::MerkleTree;
 use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{
-    msg, pubkey::Pubkey, sysvar,
-};
+use anchor_lang::solana_program::{msg, pubkey::Pubkey, sysvar};
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {

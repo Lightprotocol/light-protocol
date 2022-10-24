@@ -15,15 +15,18 @@ pub mod verifying_key;
 
 pub use processor::*;
 
-use crate::processor::process_shielded_transfer_first;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use merkle_tree_program::{
     errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
+    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    utils::constants::MERKLE_TREE_AUTHORITY_SEED, MerkleTreeAuthority, RegisteredVerifier,
 };
-use merkle_tree_program::{program::MerkleTreeProgram, MerkleTreeAuthority};
+
+use crate::processor::process_shielded_transfer_first;
+use crate::processor::TransactionConfig;
+use light_verifier_sdk::state::VerifierStateTenNF;
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
@@ -52,19 +55,16 @@ pub mod verifier_program_one {
         Ok(())
     }
 
-    /// This instruction is the first step of a shielded transaction.
-    /// It creates and initializes a verifier state account to save state of a verification during
-    /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
-    /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
-    /// in the last transaction after successful ZKP verification.
+    /// This instruction is the first step of a shielded transaction with 10 inputs and 2 outputs.
+    /// It creates and initializes a verifier state account which stores public inputs and other data
+    /// such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and
+    /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        merkle_root: Vec<u8>,
         amount: Vec<u8>,
         nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
         fee_amount: Vec<u8>,
-        mint_pubkey: Vec<u8>,
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -76,39 +76,42 @@ pub mod verifier_program_one {
         process_shielded_transfer_first(
             ctx,
             vec![0u8; 256],
-            merkle_root,
             amount,
             nfs,
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
             fee_amount,
-            mint_pubkey,
             encrypted_utxos,
             &root_index,
-            &relayer_fee
+            &relayer_fee,
         )
     }
 
     /// This instruction is the second step of a shieled transaction.
-    /// It creates and initializes a verifier state account to save state of a verification during
-    /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
-    /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
-    /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
+    /// The proof is verified with the parameters saved in the first transaction.
+    /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: Vec<u8>,
     ) -> Result<()> {
-        process_shielded_transfer_second(ctx, proof, vec![0u8;32])
+        process_shielded_transfer_second(ctx, proof, vec![0u8; 32])
+    }
+
+    /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
+    pub fn close_verifier_state<'a, 'b, 'c, 'info>(
+        _ctx: Context<'a, 'b, 'c, 'info, CloseVerifierState<'info>>,
+    ) -> Result<()> {
+        Ok(())
     }
 }
-use crate::processor::TransactionConfig;
-use light_verifier_sdk::state::VerifierStateTenNF;
+
+pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
 #[derive(Accounts)]
 pub struct InitializeAuthority<'info> {
     /// CHECK:` Signer is merkle tree authority.
     #[account(mut, address=merkle_tree_authority_pda.pubkey @MerkleTreeError::InvalidAuthority)]
     pub signing_address: Signer<'info>,
-    #[account(seeds = [&b"MERKLE_TREE_AUTHORITY"[..]], bump, seeds::program=MerkleTreeProgram::id())]
+    #[account(seeds = [MERKLE_TREE_AUTHORITY_SEED], bump, seeds::program=MerkleTreeProgram::id())]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Is checked here, but inited with 0 bytes.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
@@ -117,34 +120,30 @@ pub struct InitializeAuthority<'info> {
     pub rent: Sysvar<'info, Rent>,
 }
 
-/// Send data and verifies proof.
+/// Send and stores data.
 #[derive(Accounts)]
 pub struct LightInstructionFirst<'info> {
-    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
+    /// First transaction, therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [b"VERIFIER_STATE"], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
+    #[account(init, seeds = [VERIFIER_STATE_SEED], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
 }
 
 /// Executes light transaction with state created in the first instruction.
 #[derive(Accounts)]
 pub struct LightInstructionSecond<'info> {
-    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
-    #[account(mut)]
+    #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [b"VERIFIER_STATE"], bump, close=signing_address )]
+    #[account(mut, seeds = [VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     pub rent: Sysvar<'info, Rent>,
-    /// CHECK: Is the same as in integrity hash.
-    // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     #[account(
-        mut,
-        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
+        mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
@@ -165,14 +164,22 @@ pub struct LightInstructionSecond<'info> {
     pub recipient_fee: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub relayer_recipient: UncheckedAccount<'info>,
+    /// CHECK:` Is checked when it is used during sol deposits.
     #[account(mut)]
-    pub escrow: AccountInfo<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
+    pub escrow: UncheckedAccount<'info>,
+    /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut)]
-    pub token_authority: AccountInfo<'info>,
+    pub token_authority: UncheckedAccount<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+}
+
+#[derive(Accounts)]
+pub struct CloseVerifierState<'info> {
+    #[account(mut, address=verifier_state.signer)]
+    pub signing_address: Signer<'info>,
+    #[account(mut, seeds = [VERIFIER_STATE_SEED], bump, close=signing_address )]
+    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
 }

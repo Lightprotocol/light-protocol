@@ -2,7 +2,7 @@ use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Transaction, Config},
+    light_transaction::{Config, Transaction},
 };
 
 use crate::{LightInstructionFirst, LightInstructionSecond};
@@ -26,40 +26,37 @@ impl Config for TransactionConfig {
 pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
     proof: Vec<u8>,
-    merkle_root: Vec<u8>,
     public_amount: Vec<u8>,
     nullifiers: Vec<Vec<u8>>,
     leaves: Vec<Vec<Vec<u8>>>,
     fee_amount: Vec<u8>,
-    mint_pubkey: Vec<u8>,
     encrypted_utxos: Vec<u8>,
     root_index: &u64,
     relayer_fee: &u64,
 ) -> Result<()> {
     let tx = Transaction::<TransactionConfig>::new(
         proof,
-        merkle_root,
         public_amount,
         fee_amount,
-        mint_pubkey,
         Vec::<Vec<u8>>::new(), // checked_public_inputs
         nullifiers,
         leaves,
         encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),
-        vec![0u8;32], //pool_type
+        vec![0u8; 32], //pool_type
         None,
         &VERIFYINGKEY,
     );
     ctx.accounts.verifier_state.set_inner(tx.into());
+    ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
 }
 
 pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
     proof: Vec<u8>,
-    pool_type: Vec<u8>
+    pool_type: Vec<u8>,
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -84,10 +81,8 @@ pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
 
     let mut tx = Transaction::<TransactionConfig>::new(
         proof,
-        ctx.accounts.verifier_state.merkle_root.to_vec(),
         ctx.accounts.verifier_state.public_amount.to_vec(),
         ctx.accounts.verifier_state.fee_amount.to_vec(),
-        ctx.accounts.verifier_state.mint_pubkey.to_vec(),
         Vec::<Vec<u8>>::new(), // checked_public_inputs
         ctx.accounts.verifier_state.nullifiers.to_vec(),
         vec![ctx.accounts.verifier_state.leaves.to_vec()],

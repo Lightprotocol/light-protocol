@@ -1,9 +1,7 @@
+use crate::utils::constants::TOKEN_AUTHORITY_SEED;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Token, TokenAccount, Transfer};
-use crate::utils::constants::{
-    TOKEN_AUTHORITY_SEED,
-};
 #[derive(Accounts)]
 pub struct WithdrawSpl<'info> {
     /// CHECK:` Signer is registered verifier program.
@@ -28,8 +26,10 @@ pub fn process_spl_transfer<'info>(
     amount: u64,
 ) -> Result<()> {
     msg!("Withdrawing spl token {}", amount);
-    let (_, bump) =
-        anchor_lang::prelude::Pubkey::find_program_address(&[&TOKEN_AUTHORITY_SEED.as_ref()], ctx.program_id);
+    let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+        &[&TOKEN_AUTHORITY_SEED.as_ref()],
+        ctx.program_id,
+    );
     let bump = &[bump][..];
     let seeds = &[&[&TOKEN_AUTHORITY_SEED.as_ref(), bump][..]];
     let accounts = Transfer {

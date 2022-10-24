@@ -25,5 +25,7 @@ pub enum VerifierSdkError {
     #[msg("CloseAccountFailed")]
     CloseAccountFailed,
     #[msg("InvalidSenderorRecipient")]
-    InvalidSenderorRecipient
+    InvalidSenderorRecipient,
+    #[msg("Proof not verified")]
+    ProofNotVerified
 }

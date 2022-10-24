@@ -37,11 +37,9 @@ use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 
 use crate::utils::config;
 use crate::verifier_invoked_instructions::{
-    insert_nullifier::{
-        process_insert_many_nullifiers, InitializeNullifierMany,
-    },
+    insert_nullifier::{process_insert_many_nullifiers, InitializeNullifierMany},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
-    sol_transfer::{WithdrawSol},
+    sol_transfer::WithdrawSol,
     spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 

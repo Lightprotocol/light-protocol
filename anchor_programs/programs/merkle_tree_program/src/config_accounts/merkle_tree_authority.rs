@@ -1,7 +1,7 @@
 use crate::config;
 use crate::errors::ErrorCode;
-use anchor_lang::prelude::*;
 use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
+use anchor_lang::prelude::*;
 
 /// Configures the authority of the merkle tree which can:
 /// - register new verifiers

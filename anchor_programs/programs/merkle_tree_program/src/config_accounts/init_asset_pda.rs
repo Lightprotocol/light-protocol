@@ -1,9 +1,4 @@
-use crate::utils::constants::{
-    POOL_TYPE_SEED,
-    POOL_CONFIG_SEED,
-    TOKEN_AUTHORITY_SEED,
-    POOL_SEED
-};
+use crate::utils::constants::{POOL_CONFIG_SEED, POOL_SEED, POOL_TYPE_SEED, TOKEN_AUTHORITY_SEED};
 use crate::MerkleTreeAuthority;
 use anchor_lang::prelude::*;
 use anchor_spl::token::{Mint, Token, TokenAccount};

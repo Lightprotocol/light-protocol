@@ -1,8 +1,8 @@
-use anchor_lang::prelude::*;
 use crate::state::TwoLeavesBytesPda;
 use crate::utils::constants::LEAVES_SEED;
 use crate::PreInsertedLeavesIndex;
 use crate::RegisteredVerifier;
+use anchor_lang::prelude::*;
 
 #[derive(Accounts)]
 #[instruction(
@@ -43,9 +43,6 @@ pub fn process_insert_two_leaves(
         .try_into()
         .unwrap();
     ctx.accounts.two_leaves_pda.merkle_tree_pubkey = merkle_tree_pda_pubkey;
-    // Padded encryptedUtxos of length 222 to length 256 for anchor uses serde which is
-    // not implemented for [u8;222].
-
     ctx.accounts.two_leaves_pda.encrypted_utxos = encrypted_utxos;
 
     // Increase next index by 2 because we're inserting 2 leaves at once.

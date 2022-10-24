@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-pub fn initialize_nullifier_cpi<'a, 'b>(
+pub fn insert_nullifiers_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
@@ -26,8 +26,6 @@ pub fn initialize_nullifier_cpi<'a, 'b>(
     let res = merkle_tree_program::cpi::initialize_many_nullifiers(cpi_ctx, nullifiers);
     res
 }
-
-
 
 pub fn withdraw_sol_cpi<'a, 'b>(
     program_id: &Pubkey,

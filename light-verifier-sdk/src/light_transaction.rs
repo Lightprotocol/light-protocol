@@ -3,12 +3,11 @@ use anchor_lang::{
     solana_program::{
         log::sol_log_compute_units,
         program_pack::Pack,
+        msg,
+        sysvar::rent::Rent
     }
 };
-use anchor_lang::solana_program::{
-    msg, sysvar::rent::Rent,
-};
-use anchor_spl::token::{Transfer};
+use anchor_spl::token::Transfer;
 use ark_std::{marker::PhantomData, vec::Vec};
 use ark_ff::{
     BigInteger256,
@@ -26,27 +25,30 @@ use ark_bn254::{
     FrParameters,
     Fr
 };
+
 use groth16_solana::groth16::{
     Groth16Verifier,
     Groth16Verifyingkey
 };
 
-use crate::utils::{
-    close_account::close_account,
-    create_pda::create_and_check_pda,
+use crate::{
+    utils::{
+        close_account::close_account,
+        create_pda::create_and_check_pda,
+        to_be_64
+    },
+    errors::VerifierSdkError,
+    cpi_instructions::{
+        insert_nullifiers_cpi,
+        insert_two_leaves_cpi,
+        withdraw_sol_cpi,
+        withdraw_spl_cpi
+    },
+    accounts::Accounts
 };
 
 use std::ops::Neg;
 
-use crate::utils::to_be_64;
-use crate::errors::VerifierSdkError;
-use crate::cpi_instructions::{
-    initialize_nullifier_cpi,
-    insert_two_leaves_cpi,
-    withdraw_sol_cpi,
-    withdraw_spl_cpi
-};
-use crate::accounts::Accounts;
 use merkle_tree_program::{
     utils::constants::{
         POOL_CONFIG_SEED,
@@ -66,6 +68,7 @@ pub trait Config {
 	const NR_LEAVES: usize;
 	/// Number of checked public inputs.
 	const NR_CHECKED_PUBLIC_INPUTS: usize;
+    /// Program ID of the verifier program.
     const ID: [u8;32];
     const UTXO_SIZE: usize;
 }
@@ -92,7 +95,8 @@ pub struct Transaction<'info, 'a, 'c, T: Config>  {
     pub verified_proof:             bool,
     pub inserted_leaves:            bool,
     pub inserted_nullifier:         bool,
-    pub checked_root:               bool,
+    pub fetched_root:               bool,
+    pub fetched_mint:               bool,
     pub accounts:                   Option<&'a Accounts<'info, 'a, 'c>>,
     pub e_phantom:                  PhantomData<T>,
     pub verifyingkey:               &'a Groth16Verifyingkey<'a>
@@ -103,10 +107,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
     pub fn new<'info, 'a, 'c> (
         proof: Vec<u8>,
-        merkle_root: Vec<u8>,
         public_amount: Vec<u8>,
         fee_amount: Vec<u8>,
-        mint_pubkey: Vec<u8>,
         checked_public_inputs: Vec<Vec<u8>>,
         nullifiers: Vec<Vec<u8>>,
         leaves: Vec<Vec<Vec<u8>>>,
@@ -114,7 +116,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         relayer_fee: u64,
         merkle_root_index: usize,
         pool_type: Vec<u8>,
-        accounts: Option<&'a Accounts<'info, 'a, 'c>>,//Context<'info, LightInstructionTrait<'info>>,
+        accounts: Option<&'a Accounts<'info, 'a, 'c>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>
     ) -> Transaction<'info, 'a, 'c, T> {
 
@@ -126,16 +128,16 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
         return Transaction {
-            merkle_root,
+            merkle_root: vec![0u8;32],
             public_amount,
             tx_integrity_hash: vec![0u8;32],
             fee_amount,
-            mint_pubkey,
+            mint_pubkey: vec![0u8;32],
             checked_public_inputs,
             nullifiers,
             leaves,
             relayer_fee: relayer_fee,
-            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(), // proof[0..64].to_vec(),//
+            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(),
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos: encrypted_utxos,
@@ -145,7 +147,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             verified_proof : false,
             inserted_leaves : false,
             inserted_nullifier : false,
-            checked_root : false,
+            fetched_root : false,
+            fetched_mint: false,
             e_phantom: PhantomData,
             verifyingkey,
             accounts,
@@ -153,10 +156,13 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
     }
 
+    /// Transact is a wrapper function which computes the integrity hash, checks the root,
+    /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     pub fn transact(&mut self) -> Result<()> {
         self.compute_tx_integrity_hash()?;
+        self.fetch_root()?;
+        self.fetch_mint()?;
         self.verify()?;
-        self.check_root()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
         self.transfer_user_funds()?;
@@ -164,12 +170,20 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         self.check_completion()
     }
 
-
-
+    /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
     pub fn verify(&mut self) -> Result<()> {
         if !self.computed_tx_integrity_hash {
             msg!("Tried to verify proof without computing integrity hash.");
         }
+
+        if !self.fetched_mint {
+            msg!("Tried to verify proof without fetching mind.");
+        }
+
+        if !self.fetched_root {
+            msg!("Tried to verify proof without fetching root.");
+        }
+
         let mut public_inputs = vec![
             self.merkle_root[..].to_vec(),
             self.public_amount[..].to_vec(),
@@ -198,12 +212,29 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             public_inputs,
             &self.verifyingkey
         ).unwrap();
-        verifier.verify().unwrap();
 
-        self.verified_proof = true;
-        Ok(())
+        match verifier.verify() {
+            Ok(_) => {
+                self.verified_proof = true;
+                Ok(())
+            },
+            Err(e) => {
+                msg!("Public Inputs:");
+                msg!("merkle tree root {:?}", self.merkle_root);
+                msg!("public_amount {:?}", self.public_amount);
+                msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
+                msg!("fee_amount {:?}", self.fee_amount);
+                msg!("mint_pubkey {:?}", self.mint_pubkey);
+                msg!("error {:?}", e);
+                err!(VerifierSdkError::ProofVerificationFailed)
+            }
+        }
+
     }
 
+    /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
+    /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
+    /// H(recipient||recipient_fee||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let input = [
             self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec(),
@@ -238,7 +269,38 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
+    /// Fetches the root according to an index from the passed-in Merkle tree.
+    pub fn fetch_root(&mut self) -> Result<()> {
+        let merkle_tree = self.accounts.unwrap().merkle_tree.load()?;
+        self.merkle_root = to_be_64(&merkle_tree.roots[self.merkle_root_index].to_vec());
+        self.fetched_root = true;
+        Ok(())
+    }
+
+    /// Fetches the token mint from passed in sender account. If the sender account is not a
+    /// token account, native mint is assumed.
+    pub fn fetch_mint(&mut self) -> Result<()> {
+         match spl_token::state::Account::unpack(&self.accounts.unwrap().sender.as_ref().unwrap().data.borrow()) {
+             Ok(sender_mint) => {
+                 self.mint_pubkey = [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat();
+                 self.fetched_mint = true;
+                 Ok(())
+             },
+             Err(_) => {
+                 self.mint_pubkey = vec![0u8;32];
+                 self.fetched_mint = true;
+                 Ok(())
+             }
+         }
+    }
+
+    /// Calls merkle tree via cpi to insert leaves.
     pub fn insert_leaves(&mut self) -> Result<()> {
+
+        if !self.verified_proof {
+            msg!("Tried to insert leaves without verifying the proof.");
+            return err!(VerifierSdkError::ProofNotVerified);
+        }
 
         if T::NR_NULLIFIERS != self.nullifiers.len() {
             msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", T::NR_NULLIFIERS, self.nullifiers.len());
@@ -274,21 +336,13 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         return Ok(());
     }
 
-    pub fn check_root(&mut self) -> Result<()> {
-        // check account integrities
-        msg!("implement rootcheck with index");
-        let merkle_tree = self.accounts.unwrap().merkle_tree.load()?;
-        if merkle_tree.roots[self.merkle_root_index].to_vec() != to_be_64(&self.merkle_root) {
-            msg!("self.merkle_root_index: {}", self.merkle_root_index);
-            msg!("merkle_tree.roots[self.merkle_root_index].to_vec() {:?}", merkle_tree.roots[self.merkle_root_index].to_vec());
-            msg!("to_be_64(self.merkle_root) {:?}", to_be_64(&self.merkle_root));
-            return err!(VerifierSdkError::InvalidMerkleTreeRoot);
-        }
-        self.checked_root = true;
-        Ok(())
-    }
-
+    /// Calls merkle tree via cpi to insert nullifiers.
     pub fn insert_nullifiers(&mut self) -> Result<()> {
+
+        if !self.verified_proof {
+            msg!("Tried to insert nullifiers without verifying the proof.");
+            return err!(VerifierSdkError::ProofNotVerified);
+        }
 
         if T::NR_NULLIFIERS != self.nullifiers.len() {
             msg!("NR_NULLIFIERS  {} != self.nullifiers.len() {}", T::NR_NULLIFIERS, self.nullifiers.len());
@@ -300,7 +354,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
 
-        initialize_nullifier_cpi(
+        insert_nullifiers_cpi(
             &self.accounts.unwrap().program_id,
             &self.accounts.unwrap().program_merkle_tree.to_account_info(),
             &self.accounts.unwrap().authority.to_account_info(),
@@ -315,12 +369,18 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
+    /// Transfers user funds either to or from a merkle tree liquidity pool.
     pub fn transfer_user_funds(&mut self) -> Result<()> {
+
+        if !self.verified_proof {
+            msg!("Tried to transfer funds without verifying the proof.");
+            return err!(VerifierSdkError::ProofNotVerified);
+        }
+
         msg!("transferring user funds");
         sol_log_compute_units();
         // check mintPubkey
-        let (pub_amount_checked, _) = self.check_external_amount(
-            0,
+        let (pub_amount_checked, _) = self.check_amount(
             0,
             to_be_64(&self.public_amount).try_into().unwrap(),
             false
@@ -336,23 +396,24 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             if self.is_deposit() {
                 // sender is user no check
                 // recipient is merkle tree pda, check correct derivation
-                self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key())?;
-
-                let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
-
-                create_and_check_pda(
-                    &self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().signing_address.to_account_info(),
-                    &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().system_program.to_account_info(),
-                    &rent,
-                    &b"escrow"[..],
-                    &Vec::new(),
-                    0,                  //bytes
-                    pub_amount_checked, //lamports
-                    false,               //rent_exempt
-                )?;
-                close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
+                self.deposit_sol(pub_amount_checked, &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
+                // self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key())?;
+                //
+                // let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
+                //
+                // create_and_check_pda(
+                //     &self.accounts.unwrap().program_id,
+                //     &self.accounts.unwrap().signing_address.to_account_info(),
+                //     &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
+                //     &self.accounts.unwrap().system_program.to_account_info(),
+                //     &rent,
+                //     &b"escrow"[..],
+                //     &Vec::new(),
+                //     0,                  //bytes
+                //     pub_amount_checked, //lamports
+                //     false,               //rent_exempt
+                // )?;
+                // close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
 
             } else {
                 // sender is merkle tree pda check correct derivation
@@ -378,7 +439,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
             // is a token deposit or withdrawal
-            // do I need another token pda check here?
 
             if self.is_deposit() {
                 self.check_spl_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key(), &recipient_mint.mint)?;
@@ -424,21 +484,19 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
-    fn is_deposit(&self) -> bool {
-        if self.public_amount[24..] != [0u8;8] && self.public_amount[..24] == [0u8;24] {
-            return true;
-        }
-        return false;
-    }
-
+    /// Transfers the relayer fee  to or from a merkle tree liquidity pool.
     pub fn transfer_fee(&self) -> Result<()> {
         // TODO: check that it is a native account
+
+        if !self.verified_proof {
+            msg!("Tried to transfer fees without verifying the proof.");
+            return err!(VerifierSdkError::ProofNotVerified);
+        }
 
         // check that it is the native token pool
         msg!("self.relayer_fee: {}", self.relayer_fee);
         msg!("self.fee_amount; {:?}", self.fee_amount);
-        let (fee_amount_checked, relayer_fee) = self.check_external_amount(
-            0,
+        let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
             to_be_64(&self.fee_amount).try_into().unwrap(),
             true
@@ -446,24 +504,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
 
-            self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient_fee.as_ref().unwrap().key())?;
-
-            msg!("is deposit");
-            let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
-
-            create_and_check_pda(
-                &self.accounts.unwrap().program_id,
-                &self.accounts.unwrap().signing_address.to_account_info(),
-                &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
-                &self.accounts.unwrap().system_program.to_account_info(),
-                &rent,
-                &b"escrow"[..],
-                &Vec::new(),
-                0,                  //bytes
-                fee_amount_checked, //lamports
-                false,               //rent_exempt
-            )?;
-            close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
+            // self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().sender_fee.as_ref().unwrap().key())?;
+            self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
 
         } else {
 
@@ -496,6 +538,36 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
+    pub fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
+        self.check_sol_pool_account_derivation(&recipient.key())?;
+
+        msg!("is deposit");
+        let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
+
+        create_and_check_pda(
+            &self.accounts.unwrap().program_id,
+            &self.accounts.unwrap().signing_address.to_account_info(),
+            &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
+            &self.accounts.unwrap().system_program.to_account_info(),
+            &rent,
+            &b"escrow"[..],
+            &Vec::new(),
+            0,                  //bytes
+            amount_checked, //lamports
+            false,               //rent_exempt
+        )?;
+        close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &recipient)
+    }
+
+    /// Checks whether a transaction is a deposit by inspecting the public amount.
+    pub fn is_deposit(&self) -> bool {
+        if self.public_amount[24..] != [0u8;8] && self.public_amount[..24] == [0u8;24] {
+            return true;
+        }
+        return false;
+    }
+
+
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey) -> Result<()> {
         let derived_pubkey =
             Pubkey::find_program_address(&[&[0u8;32], &self.pool_type, &POOL_CONFIG_SEED[..]], &MerkleTreeProgram::id());
@@ -505,6 +577,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
         Ok(())
     }
+
 
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey =
@@ -516,34 +589,32 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
+
     pub fn check_completion(&self) -> Result<()>{
         if self.transferred_funds &&
             self.computed_tx_integrity_hash &&
             self.verified_proof &&
             self.inserted_leaves &&
-            self.inserted_nullifier &&
-            self.checked_root
+            self.inserted_nullifier
         {
             return Ok(());
         }
         msg!("verified_proof {}", self.verified_proof);
         msg!("inserted_leaves {}", self.inserted_leaves);
         msg!("computed_tx_integrity_hash {}", self.computed_tx_integrity_hash);
-        msg!("checked_root {}", self.checked_root);
         msg!("transferred_funds {}", self.transferred_funds);
         err!(VerifierSdkError::TransactionIncomplete)
     }
 
+
     #[allow(clippy::comparison_chain)]
-    pub fn check_external_amount(
+    pub fn check_amount(
             &self,
-            ext_amount: i64,
             relayer_fee: u64,
             amount: [u8;32],
             is_fee_token: bool
         ) -> Result<(u64, u64)> {
-        // let ext_amount = i64::from_le_bytes(ext_amount);
-        // ext_amount includes relayer_fee
+
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         msg!("pub_amount: {:?}", pub_amount);
@@ -561,16 +632,16 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             }
 
             //check amount
-            if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 && ext_amount > 0 && relayer_fee > 0 {
-                msg!(
-                    "Deposit invalid external amount (relayer_fee) {} != {}",
-                    pub_amount.0[0] + relayer_fee,
-                    ext_amount
-                );
-                return Err(VerifierSdkError::WrongPubAmount.into());
-            }
-            msg!("returning public amount");
+            // if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 && ext_amount > 0 && relayer_fee > 0 {
+            //     msg!(
+            //         "Deposit invalid external amount (relayer_fee) {} != {}",
+            //         pub_amount.0[0] + relayer_fee,
+            //         ext_amount
+            //     );
+            //     return Err(VerifierSdkError::WrongPubAmount.into());
+            // }
             Ok((pub_amount.0[0], relayer_fee))
+
         } else if pub_amount.0[1] > 0 && pub_amount.0[2] > 0 && pub_amount.0[3] > 0 {
             // calculate ext_amount from pubAmount:
             let mut field = FrParameters::MODULUS;
@@ -598,27 +669,11 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            // if field.0[0]
-            //     != u64::try_from(-ext_amount)
-            //         .unwrap()
-            //         .checked_add(relayer_fee)
-            //         .unwrap() && is_fee_token
-            // {
-            //     msg!(
-            //         "Withdrawal invalid external amount: {} != {}",
-            //         pub_amount.0[0],
-            //         relayer_fee + u64::try_from(-ext_amount).unwrap()
-            //     );
-            //     return Err(VerifierSdkError::WrongPubAmount.into());
-            // }
             let pub_amount = field.0[0] - relayer_fee;
             msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
             Ok((pub_amount, relayer_fee))
-        }
-        //  else if ext_amount == 0 {
-        //     Ok((ext_amount.try_into().unwrap(), relayer_fee))
-        // }
-        else {
+
+        } else {
             msg!("Invalid state checking external amount.");
             Err(VerifierSdkError::WrongPubAmount.into())
         }

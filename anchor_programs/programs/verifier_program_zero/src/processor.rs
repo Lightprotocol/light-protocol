@@ -2,7 +2,7 @@ use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Transaction, Config},
+    light_transaction::{Config, Transaction},
 };
 
 use crate::LightInstruction;
@@ -25,17 +25,15 @@ impl Config for TransactionConfig {
 pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
     proof: Vec<u8>,
-    merkle_root: Vec<u8>,
     public_amount: Vec<u8>,
     nullifiers: Vec<Vec<u8>>,
     leaves: Vec<Vec<Vec<u8>>>,
     fee_amount: Vec<u8>,
-    mint_pubkey: Vec<u8>,
     encrypted_utxos: Vec<u8>,
     merkle_tree_index: u64,
     relayer_fee: u64,
     checked_public_inputs: Vec<Vec<u8>>,
-    pool_type: Vec<u8>
+    pool_type: Vec<u8>,
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -60,10 +58,8 @@ pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
 
     let mut transaction = Transaction::<TransactionConfig>::new(
         proof,
-        merkle_root,
         public_amount,
         fee_amount,
-        mint_pubkey,
         checked_public_inputs,
         nullifiers,
         leaves,
