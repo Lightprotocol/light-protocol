@@ -203,8 +203,7 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
              feeAmount:    publicInputsBytes[3],
              mintPubkey:   publicInputsBytes[4],
              nullifiers:   [publicInputsBytes[5], publicInputsBytes[6]],
-             leafLeft:     publicInputsBytes[7],
-             leafRight:    publicInputsBytes[8]
+             leaves:     [publicInputsBytes[7], publicInputsBytes[8]]
            };
         } else {
           publicInputs = {
@@ -214,8 +213,7 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
            feeAmount:    publicInputsBytes[3],
            mintPubkey:   publicInputsBytes[4],
            nullifiers:   Array.from(publicInputsBytes.slice(5,15)),
-           leafLeft:     publicInputsBytes[15],
-           leafRight:    publicInputsBytes[16]
+           leaves:     [publicInputsBytes[15], publicInputsBytes[16]]
          };
         }
 

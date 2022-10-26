@@ -34,4 +34,6 @@ pub enum ErrorCode {
     LeavesOfWrongTree,
     #[msg("InvalidAuthority")]
     InvalidAuthority,
+    #[msg("InvalidVerifier")]
+    InvalidVerifier,
 }

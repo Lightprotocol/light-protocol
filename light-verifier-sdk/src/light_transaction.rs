@@ -224,7 +224,9 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 msg!("public_amount {:?}", self.public_amount);
                 msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
                 msg!("fee_amount {:?}", self.fee_amount);
-                msg!("mint_pubkey {:?}", self.mint_pubkey);
+                msg!("nullifiers {:?}", self.nullifiers);
+                msg!("leaves {:?}", self.leaves);
+                msg!("checked_public_inputs {:?}", self.checked_public_inputs);
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)
             }
@@ -247,7 +249,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         // msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
         // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
         // msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
-        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        msg!("relayer_fee {}", self.relayer_fee);
         // msg!("integrity_hash inputs: {:?}", input);
         // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = Fr::from_be_bytes_mod_order(&anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?[..]);
@@ -256,15 +259,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         self.tx_integrity_hash = to_be_64(&bytes[..32]);
         msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
         msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
-        // disabled check to save bytes
-        // if Fr::from_be_bytes_mod_order(&hash[..]) != Fr::from_be_bytes_mod_order(&self.tx_integrity_hash) {
-        //     msg!(
-        //         "tx_integrity_hash verification failed.{:?} != {:?}",
-        //         &hash[..],
-        //         &self.tx_integrity_hash
-        //     );
-        //     return err!(VerifierSdkError::WrongTxIntegrityHash);
-        // }
         self.computed_tx_integrity_hash = true;
         Ok(())
     }
@@ -383,7 +377,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         let (pub_amount_checked, _) = self.check_amount(
             0,
             to_be_64(&self.public_amount).try_into().unwrap(),
-            false
         )?;
         msg!("self.public_amount {:?}", self.public_amount);
 
@@ -397,24 +390,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 // sender is user no check
                 // recipient is merkle tree pda, check correct derivation
                 self.deposit_sol(pub_amount_checked, &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
-                // self.check_sol_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key())?;
-                //
-                // let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
-                //
-                // create_and_check_pda(
-                //     &self.accounts.unwrap().program_id,
-                //     &self.accounts.unwrap().signing_address.to_account_info(),
-                //     &self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(),
-                //     &self.accounts.unwrap().system_program.to_account_info(),
-                //     &rent,
-                //     &b"escrow"[..],
-                //     &Vec::new(),
-                //     0,                  //bytes
-                //     pub_amount_checked, //lamports
-                //     false,               //rent_exempt
-                // )?;
-                // close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
-
             } else {
                 // sender is merkle tree pda check correct derivation
                 self.check_sol_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key())?;
@@ -486,7 +461,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
     /// Transfers the relayer fee  to or from a merkle tree liquidity pool.
     pub fn transfer_fee(&self) -> Result<()> {
-        // TODO: check that it is a native account
 
         if !self.verified_proof {
             msg!("Tried to transfer fees without verifying the proof.");
@@ -498,13 +472,11 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         msg!("self.fee_amount; {:?}", self.fee_amount);
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
-            to_be_64(&self.fee_amount).try_into().unwrap(),
-            true
+            to_be_64(&self.fee_amount).try_into().unwrap()
         )?;
         msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
 
-            // self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().sender_fee.as_ref().unwrap().key())?;
             self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
 
         } else {
@@ -538,6 +510,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         Ok(())
     }
 
+    /// Creates and closes an account such that deposited sol is part of the transaction fees.
     pub fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(&recipient.key())?;
 
@@ -553,8 +526,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             &b"escrow"[..],
             &Vec::new(),
             0,                  //bytes
-            amount_checked, //lamports
-            false,               //rent_exempt
+            amount_checked,     //lamports
+            false,              //rent_exempt
         )?;
         close_account(&self.accounts.unwrap().escrow.as_ref().unwrap().to_account_info(), &recipient)
     }
@@ -592,7 +565,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
     pub fn check_completion(&self) -> Result<()>{
         if self.transferred_funds &&
-            self.computed_tx_integrity_hash &&
             self.verified_proof &&
             self.inserted_leaves &&
             self.inserted_nullifier
@@ -601,7 +573,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
         msg!("verified_proof {}", self.verified_proof);
         msg!("inserted_leaves {}", self.inserted_leaves);
-        msg!("computed_tx_integrity_hash {}", self.computed_tx_integrity_hash);
         msg!("transferred_funds {}", self.transferred_funds);
         err!(VerifierSdkError::TransactionIncomplete)
     }
@@ -612,37 +583,16 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             &self,
             relayer_fee: u64,
             amount: [u8;32],
-            is_fee_token: bool
         ) -> Result<(u64, u64)> {
 
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
         msg!("pub_amount: {:?}", pub_amount);
         if pub_amount.0[0] > 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
-            if pub_amount.0[1] != 0 || pub_amount.0[2] != 0 || pub_amount.0[3] != 0 {
-                msg!("Public amount is larger than u64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
-            }
-            msg!("entered deposit");
-            let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
 
-            if pub_amount_fits_i64.is_err() {
-                msg!("Public amount is larger than i64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
-            }
+            Ok((pub_amount.0[0], 0))
 
-            //check amount
-            // if pub_amount.0[0].checked_add(relayer_fee).unwrap() != ext_amount as u64 && ext_amount > 0 && relayer_fee > 0 {
-            //     msg!(
-            //         "Deposit invalid external amount (relayer_fee) {} != {}",
-            //         pub_amount.0[0] + relayer_fee,
-            //         ext_amount
-            //     );
-            //     return Err(VerifierSdkError::WrongPubAmount.into());
-            // }
-            Ok((pub_amount.0[0], relayer_fee))
-
-        } else if pub_amount.0[1] > 0 && pub_amount.0[2] > 0 && pub_amount.0[3] > 0 {
+        } else if pub_amount.0[0] != 0 {
             // calculate ext_amount from pubAmount:
             let mut field = FrParameters::MODULUS;
             field.sub_noborrow(&pub_amount);
@@ -652,14 +602,9 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 msg!("Public amount is larger than u64.");
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
-            let pub_amount_fits_i64 = i64::try_from(pub_amount.0[0]);
-            if pub_amount_fits_i64.is_err() {
-                msg!("Public amount is larger than i64.");
-                return Err(VerifierSdkError::WrongPubAmount.into());
-            }
 
             if field.0[0]
-                < relayer_fee && is_fee_token
+                < relayer_fee
             {
                 msg!(
                     "Withdrawal invalid relayer_fee: {} < {}",
@@ -669,17 +614,24 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 return Err(VerifierSdkError::WrongPubAmount.into());
             }
 
-            let pub_amount = field.0[0] - relayer_fee;
+            let pub_amount = field.0[0].saturating_sub(relayer_fee);
             msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
             Ok((pub_amount, relayer_fee))
+        } else if pub_amount.0[0] == 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
+
+            Ok((0, 0))
 
         } else {
-            msg!("Invalid state checking external amount.");
-            Err(VerifierSdkError::WrongPubAmount.into())
+            return Err(VerifierSdkError::WrongPubAmount.into());
         }
     }
 
 }
+
+// test proof gen
+// test check amount
+// check account derivation
+
 
 /*
 #[cfg(test)]

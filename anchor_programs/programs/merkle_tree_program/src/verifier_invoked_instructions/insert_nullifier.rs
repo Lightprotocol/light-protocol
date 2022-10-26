@@ -6,16 +6,20 @@ use anchor_lang::solana_program::{
     sysvar::rent::Rent,
 };
 use std::convert::TryInto;
+use crate::errors::ErrorCode::{
+    InvalidVerifier,
+    InvalidAuthority
+};
 
 #[derive(Accounts)]
 pub struct InitializeNullifierMany<'info> {
-    /// CHECK:` Signer is owned by registered verifier program.
-    #[account(mut, seeds=[program_id.to_bytes().as_ref()],bump,seeds::program=registered_verifier_pda.pubkey)]
+    /// CHECK:` Signer is owned by registered verifier program. , @ErrorCode::InvalidAuthority,bump
+    #[account(mut, seeds=[program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts.
+    #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump )]
+    pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
 pub fn process_insert_many_nullifiers<'info>(

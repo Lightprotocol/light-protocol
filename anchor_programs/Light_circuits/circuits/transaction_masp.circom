@@ -13,34 +13,23 @@ Utxo structure:
     blinding, // random number
 }
 
-commitment = hash(amount, pubKey, blinding)
+commitment = hash(amountHash, pubKey, blinding, assetHash, instructionType)
 nullifier = hash(commitment, merklePath, sign(privKey, commitment, merklePath))
 */
-// helper function to adhere to quadratic constraints
-template ADD() {
-    signal input a;
-    signal input b;
-    signal output out;
-
-    out <== a + b;
-}
-
 
 // Checks that that for every i there is only one index == 1 for all assets
-template CheckIndices(nIns, nAssets) {
-  signal input indices[nIns][nAssets][nAssets];
-  signal input amounts[nIns][nAssets];
-  signal output out;
+template CheckIndices(n, nInAssets, nAssets) {
+  signal input indices[n][nInAssets][nAssets];
+  signal input amounts[n][nInAssets];
 
-  for (var i = 0; i < nIns; i++) {
-      for (var j = 0; j < nAssets; j++) {
+  for (var i = 0; i < n; i++) {
+      for (var j = 0; j < nInAssets; j++) {
           var varSumIndices = 0;
           for (var z = 0; z < nAssets; z++) {
               varSumIndices += indices[i][j][z];
               // all indices are 0 or 1
               indices[i][j][z] * (1 - indices[i][j][z]) === 0;
           }
-          log(varSumIndices);
           // only one index for one asset is 1
           varSumIndices * (1 - varSumIndices)=== 0;
           // if amount != 0 there should be one an asset assigned to it
@@ -54,10 +43,16 @@ template CheckIndices(nIns, nAssets) {
 // nIns s
 // nOuts outputs
 // nAssets
-// one feeAsset at indexOfFeeAsset in assetPubkeys[nAssets]
+// one feeAsset at indexFeeAsset in assetPubkeys[nAssets]
 // the asset in position 1 can be withdrawn
 // all other assets can only be used in internal txs
-template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAsset, nAssets) {
+template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
+
+    // Range Check to prevent an overflow of wrong circuit instantiation
+    assert( nIns * nAssets < 49);
+    assert( nInAssets <= nAssets);
+    assert( nOutAssets <= nAssets);
+
     signal input root;
     // extAmount = external amount used for deposits and withdrawals
     // correct extAmount range is enforced on the smart contract
@@ -68,8 +63,7 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
     signal input mintPubkey;
 
     signal input  inputNullifier[nIns];
-    signal input  inAmount[nIns][nAssets];
-    // signal input  inFeeAmount[nIns];
+    signal input  inAmount[nIns][nInAssets];
     signal input  inPrivateKey[nIns];
     signal input  inBlinding[nIns];
     signal input  inInstructionType[nIns];
@@ -77,40 +71,37 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
     signal  input inPathIndices[nIns];
     signal  input inPathElements[nIns][levels];
 
-    signal  input inIndices[nIns][nAssets][nAssets];
+    signal  input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
     signal  input outputCommitment[nOuts];
-    signal  input outAmount[nOuts][nAssets];
-    // signal  input outFeeAmount[nOuts];
+    signal  input outAmount[nOuts][nOutAssets];
     signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
     signal  input outInstructionType[nOuts];
-    signal  input outIndices[nOuts][nAssets][nAssets];
+    signal  input outIndices[nOuts][nOutAssets][nAssets];
 
     signal  input assetPubkeys[nAssets];
 
-    // feeAsset is asset 0
-    assetPubkeys[indexOfFeeAsset] === feeAsset * 1;
+    // feeAsset is asset indexFeeAsset
+    assetPubkeys[indexFeeAsset] === feeAsset;
 
-    // nAssets should be even plus one feeAsset
-    (nAssets - 1) % 2 === 0;
-
-    // If public amount is != 0 then check that assetPubkeys[1] == mintPubkey
-    log(55555555555);
-    log(assetPubkeys[1] == mintPubkey);
-    log(assetPubkeys[1]);
-    log(mintPubkey);
-    log(55555555555);
+    // If public amount is != 0 then check that assetPubkeys[indexPublicAsset] == mintPubkey
 
     component checkMintPubkey = ForceEqualIfEnabled();
-    checkMintPubkey.in[0] <== assetPubkeys[1];
+    checkMintPubkey.in[0] <== assetPubkeys[indexPublicAsset];
     checkMintPubkey.in[1] <== mintPubkey;
+
     checkMintPubkey.enabled <== publicAmount;
-    // defines which utxos are used in which instruction
+
+    component assetCheck[nAssets];
+    for (var i = 0; i < nAssets; i++) {
+        assetCheck[i] = Num2Bits(248);
+        assetCheck[i].in <== assetPubkeys[i];
+    }
 
     component inKeypair[nIns];
-    component wrapper[nIns][nAssets][(nAssets - 1) / 2];
+    component inGetAsset[nIns][nInAssets][nAssets];
 
     component inCommitmentHasher[nIns];
     component inAmountsHasher[nIns];
@@ -120,29 +111,27 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
     component inputNullifierHasher[nIns];
     component inTree[nIns];
     component inCheckRoot[nIns];
-    component sumIn[nIns][nAssets][nAssets];
+    component sumIn[nIns][nInAssets][nAssets];
+    component inAmountCheck[nIns][nInAssets];
 
     component inCheckMint[nIns];
     component selectorCheckMint[nIns];
-
     var sumIns[nAssets];
     for (var i = 0; i < nAssets; i++) {
       sumIns[i] = 0;
     }
-    log(1);
-    // checks that all indices are either 0 or 1
-    // checks that for every utxo exactly one asset is defined
 
+    // checks that all indices are either 0 or 1
+    // checks that there is exactly one asset defined for every utxo
     component checkInIndices;
-    checkInIndices = CheckIndices(nIns, nAssets);
+    checkInIndices = CheckIndices(nIns, nInAssets, nAssets);
     for (var i = 0; i < nIns; i++) {
-        for (var j = 0; j < nAssets; j++) {
+        for (var j = 0; j < nInAssets; j++) {
             checkInIndices.amounts[i][j] <== inAmount[i][j];
             for(var z = 0; z < nAssets ; z++) {
                 checkInIndices.indices[i][j][z] <== inIndices[i][j][z];
             }
         }
-
     }
 
     // verify correctness of transaction s
@@ -152,40 +141,38 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
         inKeypair[tx].privateKey <== inPrivateKey[tx];
 
         // determine the asset type
-        // and checks that the asset is included in assetPubkeys[nAssets]
+        // and checks that the asset is included in assetPubkeys[nInAssets]
         // skips first asset since that is the feeAsset
         // iterates over remaining assets and adds the assetPubkey if index is 1
         // all other indices are zero
-        inAssetsHasher[tx] = Poseidon(nAssets);
-        for (var a = 0; a < nAssets; a++) {
+        inAssetsHasher[tx] = Poseidon(nInAssets);
+        for (var a = 0; a < nInAssets; a++) {
             var assetPubkey = 0;
 
-            for (var i = 1; i <= (nAssets - 1) / 2; i+=2) {
-                wrapper[tx][a][i-1] = ADD();
-                wrapper[tx][a][i-1].a <== assetPubkeys[i] * inIndices[tx][a][i];
-                wrapper[tx][a][i-1].b <== assetPubkeys[i+1] * inIndices[tx][a][i+1];
-                assetPubkey += wrapper[tx][a][i-1].out;
+            for (var i = 0; i < nAssets; i++) {
+                inGetAsset[tx][a][i] = AND();
+                inGetAsset[tx][a][i].a <== assetPubkeys[i];
+                inGetAsset[tx][a][i].b <== inIndices[tx][a][i];
+                assetPubkey += inGetAsset[tx][a][i].out;
             }
-            inAssetsHasher[tx].inputs[a] <== assetPubkey  +  (feeAsset * inIndices[tx][a][indexOfFeeAsset]);
+            inAssetsHasher[tx].inputs[a] <== assetPubkey;
         }
 
-        inAmountsHasher[tx] = Poseidon(nAssets);
-        for (var a = 0; a < nAssets; a++) {
+        inAmountsHasher[tx] = Poseidon(nInAssets);
+        var sumInAmount = 0;
+        for (var a = 0; a < nInAssets; a++) {
+            inAmountCheck[tx][a] = Num2Bits(64);
+            inAmountCheck[tx][a].in <== inAmount[tx][a];
             inAmountsHasher[tx].inputs[a] <== inAmount[tx][a];
+            sumInAmount += inAmount[tx][a];
         }
+
         inCommitmentHasher[tx] = Poseidon(5);
         inCommitmentHasher[tx].inputs[0] <== inAmountsHasher[tx].out;
         inCommitmentHasher[tx].inputs[1] <== inKeypair[tx].publicKey;
         inCommitmentHasher[tx].inputs[2] <== inBlinding[tx];
         inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
         inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
-        log(inAmount[tx][0]);
-        log(inKeypair[tx].publicKey);
-        log(inBlinding[tx]);
-        log(inCommitmentHasher[tx].inputs[3]);
-        log(inCommitmentHasher[tx].inputs[4]);
-        log(inCommitmentHasher[tx].out);
-        log(11111);
 
         inSignature[tx] = Signature();
         inSignature[tx].privateKey <== inPrivateKey[tx];
@@ -196,14 +183,6 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
         inputNullifierHasher[tx].inputs[0] <== inCommitmentHasher[tx].out;
         inputNullifierHasher[tx].inputs[1] <== inPathIndices[tx];
         inputNullifierHasher[tx].inputs[2] <== inSignature[tx].out;
-        log(inCommitmentHasher[tx].out);
-        log(inPathIndices[tx]);
-        log(inSignature[tx].out);
-        log(inputNullifierHasher[tx].out);
-        log(inputNullifierHasher[tx].out == inputNullifier[tx]);
-        log(inputNullifier[tx]);
-        log(222222);
-
 
         inputNullifierHasher[tx].out === inputNullifier[tx];
 
@@ -218,51 +197,23 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
         inCheckRoot[tx] = ForceEqualIfEnabled();
         inCheckRoot[tx].in[0] <== root;
         inCheckRoot[tx].in[1] <== inTree[tx].root;
-        // assets should be 0 for zero utxos
-        inCheckRoot[tx].enabled <== inCommitmentHasher[tx].inputs[4];
+        inCheckRoot[tx].enabled <== sumInAmount;
 
-        // sumIns[0] += inFeeAmount[tx];
-
-        for (var i = 0; i < nAssets; i++) {
+        for (var i = 0; i < nInAssets; i++) {
             for (var j = 0; j < nAssets; j++) {
-            log(999999999999);
-            log(tx);
-            log(i);
-            log(j);
-            log(inAmount[tx][i]);
-            log(inIndices[tx][i][j]);
-            log(8888888888);
-
                 sumIn[tx][i][j] = AND();
                 sumIn[tx][i][j].a <== inAmount[tx][i];
                 sumIn[tx][i][j].b <== inIndices[tx][i][j];
-                log(sumIn[tx][i][j].out);
                 sumIns[j] += sumIn[tx][i][j].out;
             }
-            log(i);
-            log(sumIns[2]);
-            log(9999999999991);
 
-            // sumIns[a] += inAmount[tx][a];
         }
-
-        // check asset type for withdrawal
-        // asset has to be in
-        /*selectorCheckMint[tx] = IsEqual();
-        selectorCheckMint[tx].in[0] <== mintPubkey;
-        selectorCheckMint[tx].in[1] <== inCommitmentHasher[tx].inputs[3];//inIndices[tx][1][1];
-
-        inCheckMint[tx] = ForceEqualIfEnabled();
-        inCheckMint[tx].in[0] <== inCommitmentHasher[tx].inputs[3];
-        inCheckMint[tx].in[1] <== mintPubkey;
-        inCheckMint[tx].enabled <== selectorCheckMint[tx].out;*/
-
     }
 
-    component outWrapper[nOuts][nAssets][(nAssets - 1) / 2];
+    component outGetAsset[nOuts][nOutAssets][nAssets];
     component outCommitmentHasher[nOuts];
-    component outAmountCheck[nOuts][nAssets];
-    component sumOut[nIns][nAssets][nAssets];
+    component outAmountCheck[nOuts][nOutAssets];
+    component sumOut[nOuts][nOutAssets][nAssets];
     component outAmountHasher[nOuts];
     component outAssetHasher[nOuts];
 
@@ -271,9 +222,9 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
       sumOuts[i] = 0;
     }
 
-    component checkOutIndices = CheckIndices(nOuts, nAssets);
+    component checkOutIndices = CheckIndices(nOuts,nOutAssets, nAssets);
     for (var i = 0; i < nOuts; i++) {
-        for (var j = 0; j < nAssets; j++) {
+        for (var j = 0; j < nOutAssets; j++) {
           checkOutIndices.amounts[i][j] <== outAmount[i][j];
 
           for(var z = 0; z < nAssets; z++) {
@@ -285,65 +236,51 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
     // verify correctness of transaction outputs
     for (var tx = 0; tx < nOuts; tx++) {
 
-
         // for every asset for every tx only one index is 1 others are 0
         // select the asset corresponding to the index
         // and add it to the assetHasher
-        outAssetHasher[tx] = Poseidon(nAssets);
-        for (var a = 0; a < nAssets; a++) {
+        outAssetHasher[tx] = Poseidon(nOutAssets);
+
+        for (var a = 0; a < nOutAssets; a++) {
             var assetPubkey = 0;
-            for (var i = 1; i <= (nAssets - 1) / 2; i+=2) {
-            outWrapper[tx][a][i-1] = ADD();
-            outWrapper[tx][a][i-1].a <== assetPubkeys[i] * outIndices[tx][a][i];
-            outWrapper[tx][a][i-1].b <== assetPubkeys[i+1] * outIndices[tx][a][i+1];
-            assetPubkey += outWrapper[tx][a][i-1].out;
+
+            for (var i = 0; i < nAssets; i++) {
+                outGetAsset[tx][a][i] = AND();
+                outGetAsset[tx][a][i].a <== assetPubkeys[i];
+                outGetAsset[tx][a][i].b <== outIndices[tx][a][i];
+                assetPubkey += outGetAsset[tx][a][i].out;
             }
-            outAssetHasher[tx].inputs[a] <== assetPubkey + feeAsset * outIndices[tx][a][indexOfFeeAsset];
+            outAssetHasher[tx].inputs[a] <== assetPubkey;
         }
 
-        for (var i = 0; i < nAssets; i++) {
-            // Check that amount fits into 248 bits to prevent overflow
-            outAmountCheck[tx][i] = Num2Bits(248);
+        for (var i = 0; i < nOutAssets; i++) {
+            // Check that amount fits into 64 bits to prevent overflow
+            outAmountCheck[tx][i] = Num2Bits(64);
             outAmountCheck[tx][i].in <== outAmount[tx][i];
         }
-        log(77777777);
-        outAmountHasher[tx] = Poseidon(nAssets);
-        for (var i = 0; i < nAssets; i++) {
-            log(outAmount[tx][i]);
+
+        outAmountHasher[tx] = Poseidon(nOutAssets);
+        for (var i = 0; i < nOutAssets; i++) {
             outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
         }
-        log(77777777);
+
         outCommitmentHasher[tx] = Poseidon(5);
         outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
         outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
         outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
         outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
         outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
-        log(outCommitmentHasher[tx].inputs[0]);
-        log(outCommitmentHasher[tx].inputs[1]);
-        log(outCommitmentHasher[tx].inputs[2]);
-        log(outCommitmentHasher[tx].inputs[3]);
-        log(outCommitmentHasher[tx].inputs[4]);
-        log(outCommitmentHasher[tx].out);
-        log(outCommitmentHasher[tx].out == outputCommitment[tx]);
-        log(outputCommitment[tx]);
-        log(5);
-
         outCommitmentHasher[tx].out === outputCommitment[tx];
 
-        // sumOuts[0] += outFeeAmount[tx];
-
         // Increases sumOuts of the correct asset by outAmount
-        for (var i = 0; i < nAssets; i++) {
+        for (var i = 0; i < nOutAssets; i++) {
             for (var j = 0; j < nAssets; j++) {
                 sumOut[tx][i][j] = AND();
                 sumOut[tx][i][j].a <== outAmount[tx][i];
                 sumOut[tx][i][j].b <== outIndices[tx][i][j];
                 sumOuts[j] += sumOut[tx][i][j].out;
             }
-            // sumIns[a] += inAmount[tx][a];
         }
-
     }
 
     // check that there are no same nullifiers among all s
@@ -359,30 +296,15 @@ template TransactionAccount(levels, nIns, nOuts, zeroLeaf,indexOfFeeAsset, feeAs
       }
     }
 
-    log(11111111111111111111111111111112);
-    log(sumIns[0]);
-    log(feeAmount);
-    log(sumOuts[0]);
-    log(11111111111111111111111111111111);
-    log(sumIns[1]);
-    log(publicAmount);
-    log(sumOuts[1]);
-
-
     // verify amount invariant
     sumIns[0] + feeAmount === sumOuts[0];
     sumIns[1] + publicAmount === sumOuts[1];
 
     for (var a = 2; a < nAssets; a++) {
-      log(11111111111111111111111111111112);
-      log(sumIns[a]);
-      log(sumOuts[a]);
       sumIns[a] === sumOuts[a];
     }
 
-
     // optional safety constraint to make sure extDataHash cannot be changed
     signal extDataSquare <== extDataHash * extDataHash;
-
 
 }

@@ -52,6 +52,7 @@ export class shieldedTransaction {
     relayerRecipient,
     registeredVerifierPda,
     poseidon,
+    sendTransaction
   }) {
       if (relayerPubkey == null) {
           this.relayerPubkey = new PublicKey(payer.publicKey);
@@ -81,6 +82,7 @@ export class shieldedTransaction {
       this.registeredVerifierPda = registeredVerifierPda;
       this.merkleTree = merkleTree;
       this.poseidon = poseidon;
+      this.sendTransaction = sendTransaction;
     }
 
     async getMerkleTree() {
@@ -368,7 +370,7 @@ export class shieldedTransaction {
       let pdas = await getPdaAddresses({
         tx_integrity_hash: this.proofData.publicInputs.txIntegrityHash,
         nullifiers: this.proofData.publicInputs.nullifiers,
-        leftLeaves: [this.proofData.publicInputs.leafLeft],
+        leftLeaves: [this.proofData.publicInputs.leaves[0]],
         merkleTreeProgram: this.merkleTreeProgram,
         verifierProgram: this.verifierProgram
       })
@@ -381,361 +383,6 @@ export class shieldedTransaction {
       return this.proofData;
     }
 
-    async sendTransaction(insert = true){
-      console.log("this.relayerFee ", this.relayerFee);
-
-      this.recipientBalancePriorTx = (await getAccount(
-        this.provider.connection,
-        this.recipient,
-        TOKEN_PROGRAM_ID
-      )).amount;
-      this.recipientFeeBalancePriorTx = await this.provider.connection.getBalance(this.recipientFee);
-      console.log("recipientBalancePriorTx: ", this.recipientBalancePriorTx);
-      console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
-      console.log("sender_fee: ", this.senderFee);
-      this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
-      this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
-
-      console.log("signingAddress:     ", this.relayerPubkey)
-      console.log("systemProgram:      ", SystemProgram.programId)
-      console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
-      console.log("rent:               ", DEFAULT_PROGRAMS.rent)
-      console.log("merkleTree:         ", this.merkleTreePubkey)
-      console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
-      console.log("authority:          ", this.signerAuthorityPubkey)
-      console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
-      console.log("sender:             ", this.sender)
-      console.log("recipient:          ", this.recipient)
-      console.log("senderFee:          ", this.senderFee)
-      console.log("recipientFee:       ", this.recipientFee)
-      console.log("relayerRecipient:   ", this.relayerRecipient)
-      console.log("escrow:             ", this.escrow)
-      console.log("tokenAuthority:     ", this.tokenAuthority)
-      console.log("registeredVerifierPd",this.registeredVerifierPda)
-      console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
-      console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
-
-      const ix = await this.verifierProgram.methods.shieldedTransferInputs(
-        Buffer.from(this.proofData.proofBytes),
-        // Buffer.from(this.proofData.publicInputs.root),
-        Buffer.from(this.proofData.publicInputs.publicAmount),
-        // Buffer.from(this.proofData.publicInputs.extDataHash),
-        this.proofData.publicInputs.nullifiers,
-        [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
-        Buffer.from(this.proofData.publicInputs.feeAmount),
-        // Buffer.from(this.proofData.publicInputs.mintPubkey),
-        new anchor.BN(this.root_index.toString()),
-        new anchor.BN(this.relayerFee.toString()),
-        Buffer.from(this.proofData.encryptedOutputs.slice(0,174)) // remaining bytes can be used once tx sizes increase
-      ).accounts(
-        {
-          signingAddress:     this.relayerPubkey,
-          systemProgram:      SystemProgram.programId,
-          programMerkleTree:  this.merkleTreeProgram.programId,
-          rent:               DEFAULT_PROGRAMS.rent,
-          merkleTree:         this.merkleTreePubkey,
-          preInsertedLeavesIndex: this.preInsertedLeavesIndex,
-          authority:          this.signerAuthorityPubkey,
-          tokenProgram:       TOKEN_PROGRAM_ID,
-          sender:             this.sender,
-          recipient:          this.recipient,
-          senderFee:          this.senderFee,
-          recipientFee:       this.recipientFee,
-          relayerRecipient:   this.relayerRecipient,
-          escrow:             this.escrow,
-          tokenAuthority:     this.tokenAuthority,
-          registeredVerifierPda: this.registeredVerifierPda
-        }
-      )
-      .remainingAccounts([
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
-        { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
-      ])
-      .signers([this.payer]).instruction()
-      console.log("this.payer: ", this.payer);
-
-      let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
-      let txMsg = new TransactionMessage({
-            payerKey: this.payer.publicKey,
-            instructions: [
-              ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-              // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
-              ix
-            ],
-            recentBlockhash: recentBlockhash})
-      console.log(this.lookupTable.toBase58());
-
-      let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
-      console.log("lookupTableAccount: ", lookupTableAccount);
-
-      let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-      console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
-
-      let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
-      compiledTx.addressTableLookups[0].accountKey = this.lookupTable
-
-      let transaction = new VersionedTransaction(compiledTx);
-      let retries = 3;
-      let res
-      while (retries > 0) {
-        transaction.sign([this.payer])
-        console.log(transaction);
-        console.log(transaction.message.addressTableLookups);
-        recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
-        transaction.message.recentBlockhash = recentBlockhash;
-        let serializedTx = transaction.serialize();
-        // console.log(this.provider.connection);
-
-
-        try {
-          console.log("serializedTx: ");
-
-          res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
-            {
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
-            }
-          );
-          retries = 0;
-
-        } catch (e) {
-          console.log(e);
-          retries--;
-        }
-
-      }
-
-      // storing utxos
-      this.outputUtxos.map((utxo) => {
-        if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
-            this.utxos.push(utxo)
-        }
-        if (utxo.amounts[0] != 0 && utxo.assets[0].toString() == this.feeAsset.toString()) {
-          this.feeUtxos.push(utxo)
-        }
-      })
-      this.inIndices = null;
-      // inserting output utxos into merkle tree
-      if (insert != "NOINSERT") {
-        for (var i = 0; i<this.outputUtxos.length; i++) {
-          this.merkleTree.update(this.merkleTreeLeavesIndex, this.outputUtxos[i].getCommitment())
-          this.merkleTreeLeavesIndex++;
-        }
-      }
-
-      return res;
-    }
-
-    async sendTransaction10(insert = true){
-      assert(this.nullifierPdaPubkeys.length == 10);
-      console.log("this.relayerFee ", this.relayerFee);
-      let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
-      if (balance === 0) {
-        await this.provider.connection.confirmTransaction(await this.provider.connection.requestAirdrop(this.signerAuthorityPubkey, 1_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
-      }
-      this.recipientBalancePriorTx = (await getAccount(
-        this.provider.connection,
-        this.recipient,
-        TOKEN_PROGRAM_ID
-      )).amount;
-      this.recipientFeeBalancePriorTx = await this.provider.connection.getBalance(this.recipientFee);
-      console.log("recipientBalancePriorTx: ", this.recipientBalancePriorTx);
-      console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
-      console.log("sender_fee: ", this.senderFee);
-      this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
-      this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
-
-      console.log("signingAddress:     ", this.relayerPubkey)
-      console.log("systemProgram:      ", SystemProgram.programId)
-      console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
-      console.log("rent:               ", DEFAULT_PROGRAMS.rent)
-      console.log("merkleTree:         ", this.merkleTreePubkey)
-      console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
-      console.log("authority:          ", this.signerAuthorityPubkey)
-      console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
-      console.log("sender:             ", this.sender)
-      console.log("recipient:          ", this.recipient)
-      console.log("senderFee:          ", this.senderFee)
-      console.log("recipientFee:       ", this.recipientFee)
-      console.log("relayerRecipient:   ", this.relayerRecipient)
-      console.log("escrow:             ", this.escrow)
-      console.log("tokenAuthority:     ", this.tokenAuthority)
-      console.log("registeredVerifierPd",this.registeredVerifierPda)
-      console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
-      console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
-      console.log("this.verifierStatePubkey, ", this.verifierStatePubkey);
-      console.log("this.proofData.publicInputs.nullifiers, ", this.proofData.publicInputs.nullifiers);
-
-      console.log("this.root_index ", this.root_index);
-      console.log("this.relayerFee ", this.relayerFee);
-      console.log("this.encryptedOutputs ", this.proofData.encryptedOutputs);
-      let recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
-      try {
-        const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
-          // this.proofData.proofBytes,
-          // Buffer.from(this.proofData.publicInputs.root),
-          Buffer.from(this.proofData.publicInputs.publicAmount),
-          // Buffer.from(this.proofData.publicInputs.extDataHash),
-          this.proofData.publicInputs.nullifiers,
-          // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
-          [this.proofData.publicInputs.leafLeft, this.proofData.publicInputs.leafRight],
-          Buffer.from(this.proofData.publicInputs.feeAmount),
-          // Buffer.from(this.proofData.publicInputs.mintPubkey),
-          new anchor.BN(this.root_index.toString()),
-          new anchor.BN(this.relayerFee.toString()),
-          Buffer.from(this.proofData.encryptedOutputs)
-        ).accounts(
-          {
-            signingAddress:     this.relayerPubkey,
-            systemProgram:      SystemProgram.programId,
-            verifierState:      this.verifierStatePubkey
-          }
-        )
-        .signers([this.payer]).rpc({
-                commitment: 'finalized',
-                preflightCommitment: 'finalized',
-              });
-        console.log("ix1 success ", ix1);
-      } catch (e) {
-          console.log(e);
-
-      }
-
-      const solanaRPC = 'http://localhost:8899'
-      let connection = new Connection(solanaRPC, 'recent');
-      const version = await connection.getVersion()
-      // let recentBlockhash1 =(await connection.getLatestBlockhash()).blockhash;
-
-      const ix = await this.verifierProgram.methods.shieldedTransferSecond(
-        Buffer.from(this.proofData.proofBytes)
-      ).accounts(
-        {
-          signingAddress:     this.relayerPubkey,
-          verifierState:      this.verifierStatePubkey,
-          systemProgram:      SystemProgram.programId,
-          programMerkleTree:  this.merkleTreeProgram.programId,
-          rent:               DEFAULT_PROGRAMS.rent,
-          merkleTree:         this.merkleTreePubkey,
-          preInsertedLeavesIndex: this.preInsertedLeavesIndex,
-          authority:          this.signerAuthorityPubkey,
-          tokenProgram:       TOKEN_PROGRAM_ID,
-          sender:             this.sender,
-          recipient:          this.recipient,
-          senderFee:          this.senderFee,
-          recipientFee:       this.recipientFee,
-          relayerRecipient:   this.relayerRecipient,
-          escrow:             this.escrow,
-          tokenAuthority:     this.tokenAuthority,
-          registeredVerifierPda: this.registeredVerifierPda,
-          // nullifierPda0: this.nullifierPdaPubkeys[0],
-          // nullifierPda1: this.nullifierPdaPubkeys[1],
-          // nullifierPda2: this.nullifierPdaPubkeys[2],
-          // nullifierPda3: this.nullifierPdaPubkeys[3],
-          // nullifierPda4: this.nullifierPdaPubkeys[4],
-          // nullifierPda5: this.nullifierPdaPubkeys[5],
-          // nullifierPda6: this.nullifierPdaPubkeys[6],
-          // nullifierPda7: this.nullifierPdaPubkeys[7],
-          // nullifierPda8: this.nullifierPdaPubkeys[8],
-          // nullifierPda9: this.nullifierPdaPubkeys[9],
-        }
-      )
-      .remainingAccounts([
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[2]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[3]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[4]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[5]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[6]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[7]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[8]},
-        { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[9]},
-        { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
-      ])
-      // .preInstructions([
-      //   ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-      // ])
-      .signers([this.payer]).instruction();
-      // rpc({
-      //         commitment: 'finalized',
-      //         preflightCommitment: 'finalized',
-      //       });
-
-      console.log("this.payer: ", this.payer);
-
-      // let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
-      let txMsg = new TransactionMessage({
-            payerKey: this.payer.publicKey,
-            instructions: [
-              ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-              // ComputeBudgetProgram.requestHeapFrame({bytes: 256 * 1024}),
-              // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
-              ix
-            ],
-            recentBlockhash: recentBlockhash})
-      console.log(this.lookupTable.toBase58());
-
-      let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
-      console.log("lookupTableAccount: ", lookupTableAccount);
-
-      let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-      console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
-
-      let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
-      compiledTx.addressTableLookups[0].accountKey = this.lookupTable
-
-      let transaction = new VersionedTransaction(compiledTx);
-      let retries = 3;
-      let res
-      while (retries > 0) {
-        transaction.sign([this.payer])
-        console.log(transaction);
-        console.log(transaction.message.addressTableLookups);
-        recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
-        transaction.message.recentBlockhash = recentBlockhash;
-        let serializedTx = transaction.serialize();
-        // console.log(this.provider.connection);
-
-
-        try {
-          console.log("serializedTx: ");
-
-          res = await sendAndConfirmRawTransaction(/*this.provider.connection*/ connection, serializedTx,
-            {
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
-            }
-          );
-          retries = 0;
-
-        } catch (e) {
-          console.log(e);
-          retries--;
-        }
-
-      }
-      /*
-      // storing utxos
-      this.outputUtxos.map((utxo) => {
-        if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
-            this.utxos.push(utxo)
-        }
-        if (utxo.amounts[0] != 0 && utxo.assets[0].toString() == this.feeAsset.toString()) {
-          this.feeUtxos.push(utxo)
-        }
-      })
-      this.inIndices = null;
-      // inserting output utxos into merkle tree
-      if (insert != "NOINSERT") {
-        for (var i = 0; i<this.outputUtxos.length; i++) {
-          this.merkleTree.update(this.merkleTreeLeavesIndex, this.outputUtxos[i].getCommitment())
-          this.merkleTreeLeavesIndex++;
-        }
-      }
-      */
-      return res;
-    }
 
 
     async checkBalances(){
@@ -775,8 +422,10 @@ export class shieldedTransaction {
         //   connection: this.provider.connection
         // });
         try {
-          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leafLeft.toString(), "left leaf not inserted correctly")
-          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leafRight.toString(), "right leaf not inserted correctly")
+          console.log("leavesAccountData ", leavesAccountData);
+
+          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leaves[0].toString(), "left leaf not inserted correctly")
+          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leaves[1].toString(), "right leaf not inserted correctly")
           assert(leavesAccountData.merkleTreePubkey.toBase58() === this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
           for (var i in this.encrypedUtxos) {
 
@@ -937,6 +586,376 @@ export class shieldedTransaction {
 
 
 }
+
+export  async function sendTransaction(insert = true){
+    // console.log("this.relayerFee ", this.relayerFee);
+    try {
+      this.recipientBalancePriorTx = (await getAccount(
+        this.provider.connection,
+        this.recipient,
+        TOKEN_PROGRAM_ID
+      )).amount;
+    } catch(e) {
+        // covers the case of the recipient being a native sol address not a spl token address
+        try {
+          this.recipientBalancePriorTx = await this.provider.connection.getBalance(this.recipient);
+        } catch(e) {
+
+        }
+    }
+    this.recipientFeeBalancePriorTx = await this.provider.connection.getBalance(this.recipientFee);
+    // console.log("recipientBalancePriorTx: ", this.recipientBalancePriorTx);
+    // console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
+    // console.log("sender_fee: ", this.senderFee);
+    this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
+    this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
+
+    // console.log("signingAddress:     ", this.relayerPubkey)
+    // console.log("systemProgram:      ", SystemProgram.programId)
+    // console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
+    // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
+    // console.log("merkleTree:         ", this.merkleTreePubkey)
+    // console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
+    // console.log("authority:          ", this.signerAuthorityPubkey)
+    // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
+    // console.log("sender:             ", this.sender)
+    // console.log("recipient:          ", this.recipient)
+    // console.log("senderFee:          ", this.senderFee)
+    // console.log("recipientFee:       ", this.recipientFee)
+    // console.log("relayerRecipient:   ", this.relayerRecipient)
+    // console.log("escrow:             ", this.escrow)
+    // console.log("tokenAuthority:     ", this.tokenAuthority)
+    // console.log("registeredVerifierPd",this.registeredVerifierPda)
+    // console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
+    // console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
+
+    const ix = await this.verifierProgram.methods.shieldedTransferInputs(
+      Buffer.from(this.proofData.proofBytes),
+      // Buffer.from(this.proofData.publicInputs.root),
+      Buffer.from(this.proofData.publicInputs.publicAmount),
+      // Buffer.from(this.proofData.publicInputs.extDataHash),
+      this.proofData.publicInputs.nullifiers,
+      this.proofData.publicInputs.leaves,
+      Buffer.from(this.proofData.publicInputs.feeAmount),
+      // Buffer.from(this.proofData.publicInputs.mintPubkey),
+      new anchor.BN(this.root_index.toString()),
+      new anchor.BN(this.relayerFee.toString()),
+      Buffer.from(this.proofData.encryptedOutputs.slice(0,174)) // remaining bytes can be used once tx sizes increase
+    ).accounts(
+      {
+        signingAddress:     this.relayerPubkey,
+        systemProgram:      SystemProgram.programId,
+        programMerkleTree:  this.merkleTreeProgram.programId,
+        rent:               DEFAULT_PROGRAMS.rent,
+        merkleTree:         this.merkleTreePubkey,
+        preInsertedLeavesIndex: this.preInsertedLeavesIndex,
+        authority:          this.signerAuthorityPubkey,
+        tokenProgram:       TOKEN_PROGRAM_ID,
+        sender:             this.sender,
+        recipient:          this.recipient,
+        senderFee:          this.senderFee,
+        recipientFee:       this.recipientFee,
+        relayerRecipient:   this.relayerRecipient,
+        escrow:             this.escrow,
+        tokenAuthority:     this.tokenAuthority,
+        registeredVerifierPda: this.registeredVerifierPda
+      }
+    )
+    .remainingAccounts([
+      { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
+      { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
+      { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
+    ])
+    .signers([this.payer]).instruction()
+    console.log("this.payer: ", this.payer);
+
+    let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
+    let txMsg = new TransactionMessage({
+          payerKey: this.payer.publicKey,
+          instructions: [
+            ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+            // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
+            ix
+          ],
+          recentBlockhash: recentBlockhash})
+    console.log(this.lookupTable.toBase58());
+
+    let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
+    // console.log("lookupTableAccount: ", lookupTableAccount);
+
+    let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
+    // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
+
+    let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
+    compiledTx.addressTableLookups[0].accountKey = this.lookupTable
+
+    let transaction = new VersionedTransaction(compiledTx);
+    let retries = 3;
+    let res
+    while (retries > 0) {
+      transaction.sign([this.payer])
+      // console.log(transaction);
+      // console.log(transaction.message.addressTableLookups);
+      recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
+      transaction.message.recentBlockhash = recentBlockhash;
+      let serializedTx = transaction.serialize();
+      // console.log(this.provider.connection);
+
+
+      try {
+        console.log("serializedTx: ");
+
+        res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
+          {
+            commitment: 'finalized',
+            preflightCommitment: 'finalized',
+          }
+        );
+        retries = 0;
+
+      } catch (e) {
+        retries--;
+        if (retries == 0) {
+          console.log(e);
+          return e;
+        }
+      }
+
+    }
+
+    // storing utxos
+    this.outputUtxos.map((utxo) => {
+      if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
+          this.utxos.push(utxo)
+      }
+      if (utxo.amounts[0] != 0 && utxo.assets[0].toString() == this.feeAsset.toString()) {
+        this.feeUtxos.push(utxo)
+      }
+    })
+    this.inIndices = null;
+    // inserting output utxos into merkle tree
+    if (insert != "NOINSERT") {
+      for (var i = 0; i<this.outputUtxos.length; i++) {
+        this.merkleTree.update(this.merkleTreeLeavesIndex, this.outputUtxos[i].getCommitment())
+        this.merkleTreeLeavesIndex++;
+      }
+    }
+
+    return res;
+  }
+
+export  async function sendTransaction10(insert = true){
+  assert(this.nullifierPdaPubkeys.length == 10);
+  // console.log("this.relayerFee ", this.relayerFee);
+  let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
+  if (balance === 0) {
+    await this.provider.connection.confirmTransaction(await this.provider.connection.requestAirdrop(this.signerAuthorityPubkey, 1_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
+  }
+  try {
+    this.recipientBalancePriorTx = (await getAccount(
+      this.provider.connection,
+      this.recipient,
+      TOKEN_PROGRAM_ID
+    )).amount;
+
+  } catch (error) {
+
+  }
+  this.recipientFeeBalancePriorTx = await this.provider.connection.getBalance(this.recipientFee);
+  // console.log("recipientBalancePriorTx: ", this.recipientBalancePriorTx);
+  // console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
+  // console.log("sender_fee: ", this.senderFee);
+  this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
+  this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
+
+  // console.log("signingAddress:     ", this.relayerPubkey)
+  // console.log("systemProgram:      ", SystemProgram.programId)
+  // console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
+  // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
+  // console.log("merkleTree:         ", this.merkleTreePubkey)
+  // console.log("preInsertedLeavesInd", this.preInsertedLeavesIndex)
+  // console.log("authority:          ", this.signerAuthorityPubkey)
+  // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
+  // console.log("sender:             ", this.sender)
+  // console.log("recipient:          ", this.recipient)
+  // console.log("senderFee:          ", this.senderFee)
+  // console.log("recipientFee:       ", this.recipientFee)
+  // console.log("relayerRecipient:   ", this.relayerRecipient)
+  // console.log("escrow:             ", this.escrow)
+  // console.log("tokenAuthority:     ", this.tokenAuthority)
+  // console.log("registeredVerifierPd",this.registeredVerifierPda)
+  // console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
+  // console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
+  // console.log("this.verifierStatePubkey, ", this.verifierStatePubkey);
+  // console.log("this.proofData.publicInputs.nullifiers, ", this.proofData.publicInputs.nullifiers);
+  //
+  // console.log("this.root_index ", this.root_index);
+  // console.log("this.relayerFee ", this.relayerFee);
+  // console.log("this.encryptedOutputs ", this.proofData.encryptedOutputs);
+
+  try {
+    const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
+      // this.proofData.proofBytes,
+      // Buffer.from(this.proofData.publicInputs.root),
+      Buffer.from(this.proofData.publicInputs.publicAmount),
+      // Buffer.from(this.proofData.publicInputs.extDataHash),
+      this.proofData.publicInputs.nullifiers,
+      // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
+      this.proofData.publicInputs.leaves,
+      Buffer.from(this.proofData.publicInputs.feeAmount),
+      // Buffer.from(this.proofData.publicInputs.mintPubkey),
+      new anchor.BN(this.root_index.toString()),
+      new anchor.BN(this.relayerFee.toString()),
+      Buffer.from(this.proofData.encryptedOutputs)
+    ).accounts(
+      {
+        signingAddress:     this.relayerPubkey,
+        systemProgram:      SystemProgram.programId,
+        verifierState:      this.verifierStatePubkey
+      }
+    )
+    .signers([this.payer]).rpc({
+            commitment: 'finalized',
+            preflightCommitment: 'finalized',
+          });
+    console.log("ix1 success ", ix1);
+
+  } catch (e) {
+      console.log(e);
+
+  }
+
+  const solanaRPC = 'http://localhost:8899'
+  let connection = new Connection(solanaRPC, 'recent');
+  const version = await connection.getVersion()
+
+
+  const ix = await this.verifierProgram.methods.shieldedTransferSecond(
+    Buffer.from(this.proofData.proofBytes)
+  ).accounts(
+    {
+      signingAddress:     this.relayerPubkey,
+      verifierState:      this.verifierStatePubkey,
+      systemProgram:      SystemProgram.programId,
+      programMerkleTree:  this.merkleTreeProgram.programId,
+      rent:               DEFAULT_PROGRAMS.rent,
+      merkleTree:         this.merkleTreePubkey,
+      preInsertedLeavesIndex: this.preInsertedLeavesIndex,
+      authority:          this.signerAuthorityPubkey,
+      tokenProgram:       TOKEN_PROGRAM_ID,
+      sender:             this.sender,
+      recipient:          this.recipient,
+      senderFee:          this.senderFee,
+      recipientFee:       this.recipientFee,
+      relayerRecipient:   this.relayerRecipient,
+      escrow:             this.escrow,
+      tokenAuthority:     this.tokenAuthority,
+      registeredVerifierPda: this.registeredVerifierPda
+    }
+  )
+  .remainingAccounts([
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[2]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[3]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[4]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[5]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[6]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[7]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[8]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[9]},
+    { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
+  ])
+  // .preInstructions([
+  //   ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+  // ])
+  .signers([this.payer]).instruction();
+  let recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
+
+
+  let txMsg = new TransactionMessage({
+        payerKey: this.payer.publicKey,
+        instructions: [
+          ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ix
+        ],
+        recentBlockhash: recentBlockhash})
+
+  let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
+  // console.log("lookupTableAccount: ", lookupTableAccount);
+
+  let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
+  // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
+
+  let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
+  compiledTx.addressTableLookups[0].accountKey = this.lookupTable
+
+  let transaction = new VersionedTransaction(compiledTx);
+  let retries = 3;
+  let res
+  while (retries > 0) {
+    transaction.sign([this.payer])
+    console.log(transaction);
+    console.log(transaction.message.addressTableLookups);
+    recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
+    transaction.message.recentBlockhash = recentBlockhash;
+    let serializedTx = transaction.serialize();
+    // console.log(this.provider.connection);
+
+
+    try {
+      console.log("serializedTx: ");
+
+      res = await sendAndConfirmRawTransaction(/*this.provider.connection*/ connection, serializedTx,
+        {
+          commitment: 'finalized',
+          preflightCommitment: 'finalized',
+        }
+      );
+      retries = 0;
+
+    } catch (e) {
+      console.log(e);
+      retries--;
+      if (retries == 0 || e.logs != undefined) {
+        const ixClose = await this.verifierProgram.methods.closeVerifierState(
+        ).accounts(
+          {
+            signingAddress:     this.relayerPubkey,
+            verifierState:      this.verifierStatePubkey
+          }
+        )
+        .signers([this.payer]).rpc({
+                commitment: 'finalized',
+                preflightCommitment: 'finalized',
+              });
+        return e;
+      }
+    }
+
+  }
+  /*
+  // storing utxos
+  this.outputUtxos.map((utxo) => {
+    if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
+        this.utxos.push(utxo)
+    }
+    if (utxo.amounts[0] != 0 && utxo.assets[0].toString() == this.feeAsset.toString()) {
+      this.feeUtxos.push(utxo)
+    }
+  })
+  this.inIndices = null;
+  // inserting output utxos into merkle tree
+  if (insert != "NOINSERT") {
+    for (var i = 0; i<this.outputUtxos.length; i++) {
+      this.merkleTree.update(this.merkleTreeLeavesIndex, this.outputUtxos[i].getCommitment())
+      this.merkleTreeLeavesIndex++;
+    }
+  }
+  */
+  return res;
+}
+
 
 
 export async function getPdaAddresses({
