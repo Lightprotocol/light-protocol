@@ -926,7 +926,7 @@ dependencies = [
 name = "groth16-solana"
 version = "0.1.0"
 dependencies = [
- "solana-program 1.11.11",
+ "solana-program 1.15.0",
  "thiserror",
 ]
 
@@ -1181,7 +1181,7 @@ dependencies = [
  "borsh",
  "byteorder",
  "getrandom 0.2.7",
- "solana-program 1.11.11",
+ "solana-program 1.15.0",
  "solana-security-txt",
  "spl-token",
 ]
@@ -1690,7 +1690,7 @@ dependencies = [
 
 [[package]]
 name = "solana-frozen-abi"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "ahash",
  "blake3",
@@ -1715,7 +1715,7 @@ dependencies = [
  "serde_derive",
  "serde_json",
  "sha2 0.10.6",
- "solana-frozen-abi-macro 1.11.11",
+ "solana-frozen-abi-macro 1.15.0",
  "subtle",
  "thiserror",
 ]
@@ -1734,7 +1734,7 @@ dependencies = [
 
 [[package]]
 name = "solana-frozen-abi-macro"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1786,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "solana-program"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -1826,9 +1826,9 @@ dependencies = [
  "serde_json",
  "sha2 0.10.6",
  "sha3",
- "solana-frozen-abi 1.11.11",
- "solana-frozen-abi-macro 1.11.11",
- "solana-sdk-macro 1.11.11",
+ "solana-frozen-abi 1.15.0",
+ "solana-frozen-abi-macro 1.15.0",
+ "solana-sdk-macro 1.15.0",
  "thiserror",
  "tiny-bip39",
  "wasm-bindgen",
@@ -1850,7 +1850,7 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk-macro"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "bs58 0.4.0",
  "proc-macro2",

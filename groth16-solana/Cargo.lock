@@ -1134,7 +1134,7 @@ checksum = "2fd0db749597d91ff862fd1d55ea87f7855a744a8425a64695b6fca237d1dad1"
 
 [[package]]
 name = "solana-frozen-abi"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "ahash",
  "blake3",
@@ -1166,7 +1166,7 @@ dependencies = [
 
 [[package]]
 name = "solana-frozen-abi-macro"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -1176,7 +1176,7 @@ dependencies = [
 
 [[package]]
 name = "solana-program"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "ark-bn254",
  "ark-ec",
@@ -1227,7 +1227,7 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk-macro"
-version = "1.11.11"
+version = "1.15.0"
 dependencies = [
  "bs58",
  "proc-macro2",

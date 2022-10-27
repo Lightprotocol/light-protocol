@@ -677,15 +677,12 @@ describe("verifier_program", () => {
 
       const origin = await newAccountWithLamports(provider.connection)
       const relayer = await newAccountWithLamports(provider.connection)
-      // let ASSET = new anchor.BN(new anchor.web3.Account().publicKey._bn.toString()).mod(FIELD_SIZE);
 
       let RELAYER_FEE = U64(10_000);
 
       let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
       let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
-      // let KEYPAIR = new light.Keypair(POSEIDON);
-      // console.log("KEYPAIR: ", KEYPAIR);
 
       var userTokenAccount
       console.log("MINT: ", MINT);
@@ -758,18 +755,18 @@ describe("verifier_program", () => {
 
       await testTransaction(SHIELDED_TRANSACTION, true);
 
-      // try {
-      //   let res = await SHIELDED_TRANSACTION.sendTransaction();
-      //   console.log(res);
-      // } catch (e) {
-      //   console.log(e);
-      //   console.log("AUTHORITY: ", AUTHORITY.toBase58());
-      // }
-      // try {
-      //   await SHIELDED_TRANSACTION.checkBalances()
-      // } catch (e) {
-      //   console.log(e);
-      // }
+      try {
+        let res = await SHIELDED_TRANSACTION.sendTransaction();
+        console.log(res);
+      } catch (e) {
+        console.log(e);
+        console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      }
+      try {
+        await SHIELDED_TRANSACTION.checkBalances()
+      } catch (e) {
+        console.log(e);
+      }
 
     }
 

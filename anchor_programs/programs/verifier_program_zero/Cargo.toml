@@ -22,7 +22,7 @@ solana-security-txt = "0.1.0"
 merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
 
 #solana
-solana-program = { path = "../../../../solana_real/solana/sdk/program"}
+solana-program = { path = "../../../../solana_pr_updated/solana/sdk/program"}
 
 # Light Deps
 groth16-solana = {path = "../../../groth16-solana"}
