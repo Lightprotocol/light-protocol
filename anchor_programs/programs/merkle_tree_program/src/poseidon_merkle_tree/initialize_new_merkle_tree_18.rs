@@ -45,7 +45,6 @@ pub struct PreInsertedLeavesIndex {
     pub next_index: u64,
 }
 
-// TODO: print zero bytes [[u8;32];32]
 pub fn process_initialize_new_merkle_tree_18(
     merkle_tree_state_data: &mut RefMut<'_, MerkleTree>,
     height: u64,

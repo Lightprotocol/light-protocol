@@ -6,14 +6,10 @@ use anchor_lang::solana_program::{
     sysvar::rent::Rent,
 };
 use std::convert::TryInto;
-use crate::errors::ErrorCode::{
-    InvalidVerifier,
-    InvalidAuthority
-};
 
 #[derive(Accounts)]
 pub struct InitializeNullifierMany<'info> {
-    /// CHECK:` Signer is owned by registered verifier program. , @ErrorCode::InvalidAuthority,bump
+    /// CHECK:` Signer is owned by registered verifier program.
     #[account(mut, seeds=[program_id.to_bytes().as_ref()], bump,seeds::program=registered_verifier_pda.pubkey)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
