@@ -3,10 +3,6 @@
 
 #[cfg(test)]
 mod tests {
-    // mod batched_instructions;
-    // use batched_instructions::batched_instructions::*;
-    // mod merkle_tree_update_instructions;
-    // use crate::tests::merkle_tree_update_instructions::instructions::insert_last_double;
     use anchor_lang::prelude::Pubkey;
     use ark_crypto_primitives::{
         crh::{TwoToOneCRH, CRH},
@@ -762,7 +758,7 @@ mod tests {
     fn batch_update_smt_test() {
         //testing full arkforks_merkle tree vs sparse tornado cash fork tree for height 18
         let tree_height: u64 = 18;
-        const iterations: usize = 100;
+        const ITERATIONS: usize = 100;
 
         println!("tree_height: {}", tree_height);
 
@@ -802,7 +798,7 @@ mod tests {
         let mut tree = MerkleTree::new(&leaves).unwrap();
 
         let mut j = 0;
-        for i in 0..iterations {
+        for i in 0..ITERATIONS {
             let mut filled_leaves = Vec::<[[u8; 32]; 2]>::new();
             // filled_leaves.push([vec![
             //    97, 182, 164, 119,  88, 188,   3,   6,

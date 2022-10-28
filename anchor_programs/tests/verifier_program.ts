@@ -660,7 +660,7 @@ describe("verifier_program", () => {
   })
 
 
-  it("Deposit", async () => {
+  it.skip("Deposit", async () => {
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -879,8 +879,8 @@ describe("verifier_program", () => {
       // will result in wrong integrity hash
       SHIELDED_TRANSACTION.senderFee = origin.publicKey;
       e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:549. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
-      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:549. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
+      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:548. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
+      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:548. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
       SHIELDED_TRANSACTION.senderFee = _.cloneDeep(shieldedTxBackUp.senderFee);
       await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
@@ -965,7 +965,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it("Update Merkle Tree after Deposit", async () => {
+  it.skip("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 

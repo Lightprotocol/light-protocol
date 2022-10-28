@@ -37,7 +37,7 @@ pub fn sol_transfer(
 ) -> Result<()> {
     let from_starting_lamports = from_account.lamports();
     // msg!("from_starting_lamports: {}", from_starting_lamports);
-    let res = from_starting_lamports
+    from_starting_lamports
         .checked_sub(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
     **from_account.lamports.borrow_mut() = from_starting_lamports
@@ -49,7 +49,7 @@ pub fn sol_transfer(
     **dest_account.lamports.borrow_mut() = dest_starting_lamports
         .checked_add(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
-    let res = dest_starting_lamports
+    dest_starting_lamports
         .checked_add(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
     // msg!("dest_starting_lamports: {}", dest_starting_lamports);
