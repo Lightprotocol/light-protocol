@@ -25,7 +25,7 @@ pub fn process_spl_transfer<'info>(
     ctx: Context<'_, '_, '_, 'info, WithdrawSpl<'info>>,
     amount: u64,
 ) -> Result<()> {
-    msg!("Withdrawing spl token {}", amount);
+    // msg!("Withdrawing spl token {}", amount);
     let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
         &[&TOKEN_AUTHORITY_SEED.as_ref()],
         ctx.program_id,

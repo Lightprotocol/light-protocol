@@ -249,16 +249,16 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         // msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
         // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
         // msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
-        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
-        msg!("relayer_fee {}", self.relayer_fee);
+        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        // msg!("relayer_fee {}", self.relayer_fee);
         // msg!("integrity_hash inputs: {:?}", input);
         // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = Fr::from_be_bytes_mod_order(&anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?[..]);
         let mut bytes = Vec::<u8>::new();
         <Fp256::<FrParameters> as ToBytes>::write(&hash, &mut bytes).unwrap();
         self.tx_integrity_hash = to_be_64(&bytes[..32]);
-        msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
-        msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
+        // msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
+        // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
         self.computed_tx_integrity_hash = true;
         Ok(())
     }
@@ -378,7 +378,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             0,
             to_be_64(&self.public_amount).try_into().unwrap(),
         )?;
-        msg!("self.public_amount {:?}", self.public_amount);
+        // msg!("self.public_amount {:?}", self.public_amount);
 
 
         if *self.mint_pubkey == [0u8;32] {
@@ -437,7 +437,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             } else {
                 self.check_spl_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key(), &sender_mint.mint)?;
 
-                msg!("token authority might be wrong");
                 // withdraw_spl_cpi
                 withdraw_spl_cpi(
                     &self.accounts.unwrap().program_id,
@@ -468,13 +467,13 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
 
         // check that it is the native token pool
-        msg!("self.relayer_fee: {}", self.relayer_fee);
-        msg!("self.fee_amount; {:?}", self.fee_amount);
+        // msg!("self.relayer_fee: {}", self.relayer_fee);
+        // msg!("self.fee_amount; {:?}", self.fee_amount);
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
             to_be_64(&self.fee_amount).try_into().unwrap()
         )?;
-        msg!("fee_amount_checked: {}", fee_amount_checked);
+        // msg!("fee_amount_checked: {}", fee_amount_checked);
         if self.is_deposit() {
 
             self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
@@ -587,7 +586,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
-        msg!("pub_amount: {:?}", pub_amount);
+        // msg!("pub_amount: {:?}", pub_amount);
         if pub_amount.0[0] > 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
             Ok((pub_amount.0[0], 0))
 
@@ -614,7 +613,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             }
 
             let pub_amount = field.0[0].saturating_sub(relayer_fee);
-            msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
+            // msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
             Ok((pub_amount, relayer_fee))
         } else if pub_amount.0[0] == 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
 

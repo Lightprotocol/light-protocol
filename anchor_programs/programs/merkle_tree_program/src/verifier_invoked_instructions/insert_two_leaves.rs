@@ -47,6 +47,6 @@ pub fn process_insert_two_leaves(
 
     // Increase next index by 2 because we're inserting 2 leaves at once.
     ctx.accounts.pre_inserted_leaves_index.next_index += 2;
-    msg!("packed two_leaves_pda");
+    // msg!("packed two_leaves_pda");
     Ok(())
 }

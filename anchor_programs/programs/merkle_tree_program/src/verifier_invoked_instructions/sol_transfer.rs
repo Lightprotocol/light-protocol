@@ -22,7 +22,7 @@ pub fn process_sol_transfer<'info>(
     ctx: Context<'_, '_, '_, 'info, WithdrawSol<'info>>,
     amount: u64,
 ) -> Result<()> {
-    msg!("Withdrawing sol {}", amount);
+    // msg!("Withdrawing sol {}", amount);
     sol_transfer(
         &ctx.accounts.merkle_tree_token.to_account_info(),
         &ctx.accounts.recipient.to_account_info(),
@@ -36,14 +36,14 @@ pub fn sol_transfer(
     amount: u64,
 ) -> Result<()> {
     let from_starting_lamports = from_account.lamports();
-    msg!("from_starting_lamports: {}", from_starting_lamports);
+    // msg!("from_starting_lamports: {}", from_starting_lamports);
     let res = from_starting_lamports
         .checked_sub(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
     **from_account.lamports.borrow_mut() = from_starting_lamports
         .checked_sub(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
-    msg!("from_ending_lamports: {}", res);
+    // msg!("from_ending_lamports: {}", res);
 
     let dest_starting_lamports = dest_account.lamports();
     **dest_account.lamports.borrow_mut() = dest_starting_lamports
@@ -52,8 +52,8 @@ pub fn sol_transfer(
     let res = dest_starting_lamports
         .checked_add(amount)
         .ok_or(ProgramError::InvalidAccountData)?;
-    msg!("dest_starting_lamports: {}", dest_starting_lamports);
-    msg!("dest_res_lamports: {}", res);
+    // msg!("dest_starting_lamports: {}", dest_starting_lamports);
+    // msg!("dest_res_lamports: {}", res);
 
     Ok(())
 }

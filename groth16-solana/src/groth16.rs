@@ -1,4 +1,4 @@
-use solana_program::alt_bn128::{
+use solana_program::alt_bn128::prelude::{
     alt_bn128_addition,
     alt_bn128_pairing,
     alt_bn128_multiplication

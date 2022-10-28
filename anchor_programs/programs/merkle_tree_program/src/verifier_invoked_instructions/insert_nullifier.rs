@@ -59,7 +59,7 @@ pub fn create_and_check_pda<'a, 'b>(
     lamports: u64,
     rent_exempt: bool,
 ) -> Result<()> {
-    msg!("trying to derive pda");
+
     let derived_pubkey =
         Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id);
 
@@ -76,7 +76,7 @@ pub fn create_and_check_pda<'a, 'b>(
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
     }
 
-    msg!("account_lamports: {}", account_lamports);
+
     invoke_signed(
         &system_instruction::create_account(
             signer_account.key,   // from_pubkey

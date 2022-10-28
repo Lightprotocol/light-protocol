@@ -715,7 +715,7 @@ export  async function sendTransaction(insert = true){
 
       } catch (e) {
         retries--;
-        if (retries == 0) {
+        if (retries == 0 || e.logs != undefined) {
           console.log(e);
           return e;
         }
@@ -822,6 +822,7 @@ export  async function sendTransaction10(insert = true){
 
   } catch (e) {
       console.log(e);
+      return e;
 
   }
 
@@ -895,8 +896,8 @@ export  async function sendTransaction10(insert = true){
   let res
   while (retries > 0) {
     transaction.sign([this.payer])
-    console.log(transaction);
-    console.log(transaction.message.addressTableLookups);
+    // console.log(transaction);
+    // console.log(transaction.message.addressTableLookups);
     recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
     transaction.message.recentBlockhash = recentBlockhash;
     let serializedTx = transaction.serialize();
