@@ -25,7 +25,7 @@ pub use config_accounts::*;
 
 use crate::config_accounts::{
     init_asset_pda::{RegisterSolPool, RegisterSplPool},
-    merkle_tree_authority::{InitializeMerkleTreeAuthority, UpdateMerkleTreeAuthority},
+    merkle_tree_authority::{InitializeMerkleTreeAuthority, UpdateMerkleTreeAuthority, UpdateMerkleTreeAuthorityConfig},
     register_verifier::RegisterVerifier,
 };
 
@@ -81,28 +81,30 @@ pub mod merkle_tree_program {
     pub fn initialize_merkle_tree_authority(
         ctx: Context<InitializeMerkleTreeAuthority>,
     ) -> Result<()> {
-        ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
+        ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
         Ok(())
     }
 
+    /// Updates the merkle tree authority to a new authority.
     pub fn update_merkle_tree_authority(ctx: Context<UpdateMerkleTreeAuthority>) -> Result<()> {
         // account is checked in ctx struct
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
         Ok(())
     }
 
-    // pub fn enable_nfts() -> Result<()> {
-    //     ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_nfts;
-    //     Ok(())
-    // }
-    //
-    // pub fn enable_permissionless_spl_tokens() -> Result<()> {
-    //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless_spl_tokens;
-    //     Ok(())
-    // }
-    //
-    // pub fn enable_permissionless_merkle_tree_registration() -> Result<()> {
-    //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_merkle_tree_registration = enable_permissionless_merkle_tree_registration;
+    /// Enables permissionless deposits of any spl token with supply of one and zero decimals.
+    pub fn enable_nfts(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
+        ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_permissionless;
+        Ok(())
+    }
+
+    pub fn enable_permissionless_spl_tokens(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
+        ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless;
+        Ok(())
+    }
+
+    // pub fn enable_permissionless_merkle_tree_registration(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
+    //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_merkle_tree_registration = enable_permissionless;
     //     Ok(())
     // }
 
@@ -142,7 +144,23 @@ pub mod merkle_tree_program {
 
     /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
-        if !ctx
+        msg!("ctx.accounts.mint.decimals {}", ctx.accounts.mint.decimals);
+        msg!("ctx.accounts.mint.supply  {}", ctx.accounts.mint.supply);
+        let is_nft = if ctx.accounts.mint.decimals == 0 && ctx.accounts.mint.supply == 1 {true} else { false };
+        msg!("is_nft {}", is_nft);
+        // nfts enabled
+        if is_nft && !ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .enable_nfts
+        {
+            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
+                return err!(ErrorCode::InvalidAuthority);
+            }
+        }
+
+        // any token enabled
+        if !is_nft && !ctx
             .accounts
             .merkle_tree_authority_pda
             .enable_permissionless_spl_tokens
@@ -151,6 +169,7 @@ pub mod merkle_tree_program {
                 return err!(ErrorCode::InvalidAuthority);
             }
         }
+
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
             ctx.accounts.merkle_tree_pda_token.key();
         ctx.accounts.registered_asset_pool_pda.pool_type =

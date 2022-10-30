@@ -31,19 +31,26 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     /// CHECK:` Signer is merkle tree authority.
     #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::INITIAL_MERKLE_TREE_AUTHORITY) @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
-    /// CHECK:` New authority no need to be checked
-    pub new_authority: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTreeAuthority<'info> {
-    #[account(seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
+    #[account(mut, seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
-    #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
+    #[account(address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK:` New authority no need to be checked
     pub new_authority: UncheckedAccount<'info>,
+}
+
+#[derive(Accounts)]
+pub struct UpdateMerkleTreeAuthorityConfig<'info> {
+    #[account(mut, seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
+    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
+    /// CHECK:` Signer is merkle tree authority.
+    #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
+    pub authority: Signer<'info>,
 }

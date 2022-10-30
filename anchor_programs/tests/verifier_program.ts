@@ -53,6 +53,7 @@ import {
   testInputUtxo,
   testOutputUtxo
 } from './utils/testUtxos';
+import { MerkleTreeConfig } from './utils/merkleTree';
 
 import {
   MERKLE_TREE_KEY,
@@ -113,7 +114,8 @@ describe("verifier_program", () => {
   var REGISTERED_POOL_PDA;
   var SHIELDED_TRANSACTION;
   var REGISTERED_VERIFIER_ONE_PDA;
-
+  var INVALID_SIGNER;
+  var INVALID_MERKLE_TREE_AUTHORITY_PDA;
   var PRIOR_UTXO;
 
   var KEYPAIR :light.keypair =  {
@@ -129,6 +131,7 @@ describe("verifier_program", () => {
     if (balance === 0) {
       await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
     }
+    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: })
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
@@ -142,11 +145,18 @@ describe("verifier_program", () => {
         merkleTreeProgram.programId
       ))[0];
 
+    AUTHORITY = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer()],
+        verifierProgramZero.programId))[0];
+    AUTHORITY_ONE = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer()],
+        verifierProgramOne.programId))[0];
+
   console.log("MINT ", MINT.toBase58());
 
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)], // , Buffer.from(new Uint8Array(8).fill(0))
         merkleTreeProgram.programId))[0];
 
     PRE_INSERTED_LEAVES_INDEX = (await solana.PublicKey.findProgramAddress(
@@ -161,18 +171,14 @@ describe("verifier_program", () => {
     //     merkleTreeProgram.programId
     //   ))[0];
 
-    AUTHORITY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()],
-        verifierProgramZero.programId))[0];
-    AUTHORITY_ONE = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()],
-        verifierProgramOne.programId))[0];
+
 
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
       [anchor.utils.bytes.utf8.encode("spl")],
       merkleTreeProgram.programId
     ))[0];
+
 
     REGISTERED_POOL_PDA_SPL = (await solana.PublicKey.findProgramAddress(
         [MINT.toBytes(), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
@@ -189,7 +195,7 @@ describe("verifier_program", () => {
       ))[0];
   })
 
-  it("Initialize Merkle Tree", async () => {
+  it.skip("Initialize Merkle Tree", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )
@@ -205,12 +211,11 @@ describe("verifier_program", () => {
       try {
         const ix = await merkleTreeProgram.methods.initializeMerkleTreeAuthority().accounts({
           authority: ADMIN_AUTH_KEY,
-          newAuthority: ADMIN_AUTH_KEY,
           merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
           ...DEFAULT_PROGRAMS
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
         console.log("Registering Verifier success");
 
       } catch(e) {
@@ -250,8 +255,8 @@ describe("verifier_program", () => {
               ix,
               [ADMIN_AUTH_KEYPAIR],
               {
-                commitment: 'confirmed',
-                preflightCommitment: 'confirmed',
+                commitment: 'finalized',
+                preflightCommitment: 'finalized',
               },
           );
 
@@ -262,23 +267,24 @@ describe("verifier_program", () => {
 
 
 
-      // var merkleTreeAccountInfo = await provider.connection.getAccountInfo(
-      //   MERKLE_TREE_KEY
+      var merkleTreeAccountInfo = await merkleTreeProgram.account.merkleTree.fetch(
+        MERKLE_TREE_KEY
+      )
+      // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
+      //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
       // )
-      // // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
-      // //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
-      // // )
       // if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
       //   throw "merkle tree pda size wrong after initializing";
-      //
       // }
+      console.log(merkleTreeAccountInfo);
+
       // if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
       //   throw "merkle tree pda owner wrong after initializing";
       // }
-      // var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
-      //       PRE_INSERTED_LEAVES_INDEX
-      //     )
-      // assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
+      var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
+            PRE_INSERTED_LEAVES_INDEX
+          )
+      assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
 
 
 
@@ -344,36 +350,39 @@ describe("verifier_program", () => {
       // }
 
 
-      try {
-        let space = token.MINT_SIZE
-
-        let txCreateAccount = new solana.Transaction().add(
-          SystemProgram.createAccount({
-            fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-            lamports: provider.connection.getMinimumBalanceForRentExemption(space),
-            newAccountPubkey: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
-            programId: token.TOKEN_PROGRAM_ID,
-            space: space
-
-          })
-        )
-        let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [ADMIN_AUTH_KEYPAIR, solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)], {commitment: "confirmed", preflightCommitment: 'confirmed',});
-
-        let mint = await token.createMint(
-          provider.connection,
-          ADMIN_AUTH_KEYPAIR,
-          ADMIN_AUTH_KEYPAIR.publicKey,
-          null,
-          2,
-          solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
-        );
-        assert(MINT.toBase58() == mint.toBase58());
-        console.log("MINT: ", MINT.toBase58());
-
-      } catch(e) {
-        console.log(e)
-      }
-
+      // try {
+      //   let space = token.MINT_SIZE
+      //
+      //   let txCreateAccount = new solana.Transaction().add(
+      //     SystemProgram.createAccount({
+      //       fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
+      //       lamports: provider.connection.getMinimumBalanceForRentExemption(space),
+      //       newAccountPubkey: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
+      //       programId: token.TOKEN_PROGRAM_ID,
+      //       space: space
+      //
+      //     })
+      //   )
+      //   let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [ADMIN_AUTH_KEYPAIR, solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)], {commitment: "confirmed", preflightCommitment: 'confirmed',});
+      //
+      //   let mint = await token.createMint(
+      //     provider.connection,
+      //     ADMIN_AUTH_KEYPAIR,
+      //     ADMIN_AUTH_KEYPAIR.publicKey,
+      //     null,
+      //     2,
+      //     solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+      //   );
+      //   assert(MINT.toBase58() == mint.toBase58());
+      //   console.log("MINT: ", MINT.toBase58());
+      //
+      // } catch(e) {
+      //   console.log(e)
+      // }
+      await createMint({
+        authorityKeypair: ADMIN_AUTH_KEYPAIR,
+        mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+      })
 
         console.log("POOL_TYPE_PDA: ", POOL_TYPE_PDA);
       try {
@@ -446,6 +455,408 @@ describe("verifier_program", () => {
     }
   });
 
+  it("Initialize Merkle Tree Test", async () => {
+    var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
+      MERKLE_TREE_KEY
+    )
+    console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
+    INVALID_SIGNER =new anchor.web3.Account()
+    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(INVALID_SIGNER.publicKey, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
+
+
+    MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
+        [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
+        merkleTreeProgram.programId
+      ))[0];
+
+    INVALID_MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
+      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
+      merkleTreeProgram.programId
+    ))[0];
+    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY, payer: ADMIN_AUTH_KEYPAIR})
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+
+    let error
+
+
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.initMerkleTreeAuthority()
+      console.log("Registering AUTHORITY success");
+
+    } catch(e) {
+      console.log(e);
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    assert(error.logs.includes('Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account'));
+    error = undefined
+
+    // init merkle tree with invalid signer
+    try {
+      await merkleTreeConfig.initMerkleTreeAuthority(INVALID_SIGNER)
+      console.log("Registering AUTHORITY success");
+
+    } catch(e) {
+      console.log(e);
+      error = e;
+    }
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+
+    // initing real mt authority
+    await merkleTreeConfig.initMerkleTreeAuthority()
+    let newAuthority = new anchor.web3.Account();
+    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(newAuthority.publicKey, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
+      console.log("Registering AUTHORITY success");
+    } catch(e) {
+      console.log(e);
+      error =  e;
+    }
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
+      console.log("Registering AUTHORITY success");
+    } catch(e) {
+      console.log(e);
+      error =  e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
+    merkleTreeConfig.payer = newAuthority;
+    await merkleTreeConfig.updateMerkleTreeAuthority(ADMIN_AUTH_KEYPAIR.publicKey);
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
+
+
+    // invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER
+    try {
+      await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+      console.log("Registering Verifier success");
+
+    } catch(e) {
+      error = e;
+    }
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
+
+    // invalid pda
+    let tmp = merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda
+    merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = INVALID_SIGNER.publicKey
+    try {
+      await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+      console.log("Registering Verifier success");
+
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error.logs.includes('Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account'));
+    merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = tmp;
+    error = undefined
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.enableNfts(true);
+    } catch(e) {
+      error = e;
+    }
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.enableNfts(true);
+    } catch(e) {
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    console.log("---------------------------------------------------------");
+
+    await merkleTreeConfig.enableNfts(true);
+
+    let merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority);
+    assert(merkleTreeAuthority.enableNfts == true);
+    await merkleTreeConfig.enableNfts(false);
+    merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority);
+    assert(merkleTreeAuthority.enableNfts == false);
+
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.enablePermissionlessSplTokens(true);
+    } catch(e) {
+      error = e;
+    }
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.enablePermissionlessSplTokens(true);
+    } catch(e) {
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    console.log("---------------------------------------------------------");
+
+    await merkleTreeConfig.enablePermissionlessSplTokens(true);
+
+    merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority);
+    assert(merkleTreeAuthority.enablePermissionlessSplTokens == true);
+    await merkleTreeConfig.enablePermissionlessSplTokens(false);
+    merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority);
+    assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
+
+
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+    } catch(e) {
+      error = e;
+    }
+    console.log(error);
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+    } catch(e) {
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    console.log("error ", error);
+
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+
+    let registeredPoolTypePdaAccount = await merkleTreeProgram.account.registeredPoolType.fetch(merkleTreeConfig.poolTypes[0].poolPda)
+
+    console.log(registeredPoolTypePdaAccount);
+    // untested
+    assert(registeredPoolTypePdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
+
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+    } catch(e) {
+      error = e;
+    }
+    console.log(error);
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+    } catch(e) {
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    console.log("error ", error);
+
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    // valid
+    await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+
+    let registeredSolPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[0].pda)
+
+    console.log(registeredSolPdaAccount);
+    // untested
+    assert(registeredSolPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
+    assert(registeredSolPdaAccount.index == 0)
+    assert(registeredSolPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[0].pda.toBase58())
+
+
+    let mint = await createMint({
+      authorityKeypair: ADMIN_AUTH_KEYPAIR,
+      // mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+    })
+
+
+    // update merkle tree with invalid signer
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+    } catch(e) {
+      error = e;
+    }
+    console.log(error);
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+    } catch(e) {
+      error = e;
+    }
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    console.log("error ", error);
+
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+
+    // valid
+    await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+    console.log(merkleTreeConfig.poolPdas);
+
+    let registeredSplPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[0].pda)
+    registeredSplPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
+
+    console.log(registeredSplPdaAccount);
+    // untested
+    assert(registeredSplPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
+    assert(registeredSplPdaAccount.index.toString() == "1")
+    assert(registeredSplPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].token.toBase58())
+
+
+    let merkleTreeAuthority1 = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority1);
+    assert(merkleTreeAuthority1.registeredAssetIndex.toString() == "2");
+    let nftMint = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true})
+
+    var userTokenAccount = (await newAccountWithTokens({
+      connection: provider.connection,
+      MINT: nftMint,
+      ADMIN_AUTH_KEYPAIR,
+      userAccount: new anchor.web3.Account(),
+      amount: 1
+    }))
+    await merkleTreeConfig.enableNfts(true);
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), nftMint);
+
+    } catch (error) {
+      console.log(error);
+
+    }
+    let registeredNFTPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
+
+    assert(registeredNFTPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
+    assert(registeredNFTPdaAccount.index.toString() == "2")
+    assert(registeredNFTPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].token.toBase58())
+
+    let merkleTreeAuthority2 = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
+    console.log(merkleTreeAuthority2);
+    assert(merkleTreeAuthority2.registeredAssetIndex.toString() == "3");
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
+
+    await merkleTreeConfig.enablePermissionlessSplTokens(true);
+    merkleTreeConfig.payer = INVALID_SIGNER;
+
+    let mint2 = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true})
+
+    var userTokenAccount2 = (await newAccountWithTokens({
+      connection: provider.connection,
+      MINT: mint2,
+      ADMIN_AUTH_KEYPAIR,
+      userAccount: new anchor.web3.Account(),
+      amount: 2
+    }))
+    await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint2);
+    registeredNFTPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
+
+    assert(registeredNFTPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
+    assert(registeredNFTPdaAccount.index.toString() == "3")
+    assert(registeredNFTPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].token.toBase58())
+
+
+  });
+
+  async function createMint({authorityKeypair, mintKeypair = new anchor.web3.Account(),nft = false, decimals = 2}) {
+    if (nft == true) {
+      decimals = 0;
+    }
+    // await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(mintKeypair.publicKey, 1_000_000, {preflightCommitment: "confirmed", commitment: "confirmed"}));
+
+    try {
+      let space = token.MINT_SIZE
+
+      let txCreateAccount = new solana.Transaction().add(
+        SystemProgram.createAccount({
+          fromPubkey: authorityKeypair.publicKey,
+          lamports: provider.connection.getMinimumBalanceForRentExemption(space),
+          newAccountPubkey: mintKeypair.publicKey,
+          programId: token.TOKEN_PROGRAM_ID,
+          space: space
+
+        })
+      )
+
+      let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [authorityKeypair, mintKeypair], {commitment: "finalized", preflightCommitment: 'finalized',});
+
+      let mint = await token.createMint(
+        provider.connection,
+        authorityKeypair,
+        authorityKeypair.publicKey,
+        null, // freez auth
+        decimals, //2,
+        mintKeypair
+      );
+      // assert(MINT.toBase58() == mint.toBase58());
+      console.log("mintKeypair.publicKey: ", mintKeypair.publicKey.toBase58());
+      return mintKeypair.publicKey;
+    } catch(e) {
+      console.log(e)
+    }
+
+
+
+  }
+
   it.skip("Test", async () => {
     let nullifiers = []
     for (var i = 0; i < 10; i++) {
@@ -489,7 +900,7 @@ describe("verifier_program", () => {
     let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
   })
 
-  it("Init Address Lookup Table", async () => {
+  it.skip("Init Address Lookup Table", async () => {
     const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
     console.log("recentSlot: ", recentSlot);
 
@@ -555,6 +966,9 @@ describe("verifier_program", () => {
   });
 
   it.skip("Deposit 10 utxo", async () => {
+    if (LOOK_UP_TABLE === undefined) {
+      throw "undefined LOOK_UP_TABLE";
+    }
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -661,6 +1075,9 @@ describe("verifier_program", () => {
 
 
   it.skip("Deposit", async () => {
+    if (LOOK_UP_TABLE === undefined) {
+      throw "undefined LOOK_UP_TABLE";
+    }
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
     await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
@@ -1182,7 +1599,7 @@ describe("verifier_program", () => {
 
   })
 
-  it("Withdraw 10 utxos", async () => {
+  it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 

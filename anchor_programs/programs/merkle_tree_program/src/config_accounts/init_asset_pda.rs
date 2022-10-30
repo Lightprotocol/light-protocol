@@ -78,6 +78,7 @@ pub struct RegisterSplPool<'info> {
     )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
     /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
+    #[account(mut)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
@@ -102,5 +103,6 @@ pub struct RegisterSolPool<'info> {
     )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
     /// CHECK:` Is checked in instruction to account for the case of permissionless pool creations.
+    #[account(mut)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
