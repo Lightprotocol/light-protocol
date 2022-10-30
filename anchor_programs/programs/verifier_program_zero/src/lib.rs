@@ -30,27 +30,6 @@ declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 pub mod verifier_program_zero {
     use super::*;
 
-    /// Initializes the authority which is used to cpi the Merkle tree.
-    /// can only be invoked by Merkle tree authority.
-    pub fn initialize_authority(ctx: Context<InitializeAuthority>) -> anchor_lang::Result<()> {
-        let rent = &Rent::from_account_info(&ctx.accounts.rent.to_account_info())?;
-
-        create_and_check_pda(
-            &ctx.program_id,
-            &ctx.accounts.signing_address.to_account_info(),
-            &ctx.accounts.authority.to_account_info(),
-            &ctx.accounts.system_program.to_account_info(),
-            &rent,
-            MerkleTreeProgram::id().to_bytes().as_ref(),
-            &Vec::new(),
-            0,    //bytes
-            0,    //lamports
-            true, //rent_exempt
-        )?;
-
-        Ok(())
-    }
-
     /// This instruction is the first step of a shieled transaction.
     /// It creates and initializes a verifier state account to save state of a verification during
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
@@ -85,20 +64,6 @@ pub mod verifier_program_zero {
             vec![0u8; 32],         //pool_type
         )
     }
-}
-
-#[derive(Accounts)]
-pub struct InitializeAuthority<'info> {
-    /// CHECK:` Signer is merkle tree authority.
-    #[account(mut, address=merkle_tree_authority_pda.pubkey @MerkleTreeError::InvalidAuthority)]
-    pub signing_address: Signer<'info>,
-    #[account(seeds = [MERKLE_TREE_AUTHORITY_SEED], bump, seeds::program=MerkleTreeProgram::id())]
-    pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
-    /// CHECK:` Is checked here, but inited with 0 bytes.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 #[derive(Accounts)]

@@ -1,6 +1,8 @@
 import * as anchor from "@project-serum/anchor";
 const solana = require("@solana/web3.js");
 import { MerkleTreeProgram } from "../../target/types/merkle_tree_program";
+import { assert, expect } from "chai";
+const token = require('@solana/spl-token')
 
 import {
   DEFAULT_PROGRAMS
@@ -10,6 +12,7 @@ export class MerkleTreeConfig {
   constructor({
     merkleTreePubkey,
     payer,
+    connection
   }) {
       this.merkleTreePubkey =merkleTreePubkey;
       this.payer = payer;
@@ -18,24 +21,83 @@ export class MerkleTreeConfig {
       this.poolPdas = [];
       this.poolTypes = [];
       this.registeredVerifierPdas = [];
+      this.connection = connection;
     }
+
     async getMerkleTreeAccounts() {
       this.MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
         this.merkleTreeProgram.programId
       ))[0];
 
-      this.MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-          [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
-          merkleTreeProgram.programId))[0];
+      this.merkleTreePubkey = (await solana.PublicKey.findProgramAddress(
+          [this.merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+          this.merkleTreeProgram.programId))[0];
 
       this.PRE_INSERTED_LEAVES_INDEX = (await solana.PublicKey.findProgramAddress(
-          [MERKLE_TREE_KEY.toBuffer()],
-          merkleTreeProgram.programId))[0];
+          [this.merkleTreePubkey.toBuffer()],
+          this.merkleTreeProgram.programId))[0];
       this.TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("spl")],
-        merkleTreeProgram.programId
+        this.merkleTreeProgram.programId
       ))[0];
+    }
+
+    async getPreInsertedLeavesIndex() {
+        this.preInsertedLeavesIndex = (await solana.PublicKey.findProgramAddress(
+            [this.merkleTreePubkey.toBuffer()],
+            this.merkleTreeProgram.programId))[0];
+        return this.preInsertedLeavesIndex;
+    }
+
+    async initializeNewMerkleTree() {
+      await this.getPreInsertedLeavesIndex();
+      await this.getMerkleTreeAuthorityPda();
+      const tx = await this.merkleTreeProgram.methods.initializeNewMerkleTree(
+      ).accounts({
+        authority: this.payer.publicKey,
+        merkleTree: this.merkleTreePubkey,
+        preInsertedLeavesIndex: this.preInsertedLeavesIndex,
+        systemProgram: DEFAULT_PROGRAMS.systemProgram,
+        rent: DEFAULT_PROGRAMS.rent,
+        merkleTreeAuthorityPda: this.merkleTreeAuthorityPda
+      })
+      .signers([this.payer])
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+
+      await this.checkMerkleTreeIsInitialized()
+      await this.checkPreInsertedLeavesIndexIsInitialized()
+      return tx;
+    }
+
+    async checkMerkleTreeIsInitialized() {
+      var merkleTreeAccountInfo = await this.merkleTreeProgram.account.merkleTree.fetch(
+        this.merkleTreePubkey
+      )
+      assert(merkleTreeAccountInfo != null, "merkleTreeAccountInfo not initialized")
+      // zero values
+      // height is correct
+      // index == 0
+      // roots are empty save for 0
+      //
+
+    }
+
+    async checkPreInsertedLeavesIndexIsInitialized() {
+      var preInsertedLeavesIndexAccountInfo = await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
+        this.preInsertedLeavesIndex
+      )
+
+      assert(preInsertedLeavesIndexAccountInfo != null, "preInsertedLeavesIndexAccountInfo not initialized")
+      assert(preInsertedLeavesIndexAccountInfo.nextIndex.toString() == "0");
+    }
+
+    async printMerkleTree() {
+      var merkleTreeAccountInfo = await this.merkleTreeProgram.account.merkleTree.fetch(
+        MERKLE_TREE_KEY
+      )
+      console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
+
     }
 
     async getMerkleTreeAuthorityPda() {
@@ -62,13 +124,28 @@ export class MerkleTreeConfig {
       .signers([authority])
       .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
 
+      let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
+      assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
+      assert(merkleTreeAuthority.enableNfts == false);
+      assert(merkleTreeAuthority.pubkey.toBase58() ==  authority.publicKey.toBase58());
+      assert(merkleTreeAuthority.registeredAssetIndex.toString() ==  "0");
+
       return tx;
     }
 
-    async updateMerkleTreeAuthority(newAuthority) {
+    async updateMerkleTreeAuthority(newAuthority, test = false) {
       if (this.merkleTreeAuthorityPda == undefined) {
         await this.getMerkleTreeAuthorityPda()
       }
+      let merkleTreeAuthorityPrior
+      if (test != true) {
+        merkleTreeAuthorityPrior = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
+        if (merkleTreeAuthorityPrior == null) {
+          throw `Merkle tree authority ${this.merkleTreeAuthorityPda.toBase58()} not initialized`
+        }
+
+      }
+
       const tx = await this.merkleTreeProgram.methods.updateMerkleTreeAuthority().accounts({
         authority: this.payer.publicKey,
         newAuthority,
@@ -78,6 +155,13 @@ export class MerkleTreeConfig {
       .signers([this.payer])
       .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
 
+      if (test != true) {
+        let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
+
+        assert(merkleTreeAuthority.enablePermissionlessSplTokens == merkleTreeAuthorityPrior.enablePermissionlessSplTokens);
+        assert(merkleTreeAuthority.enableNfts == merkleTreeAuthorityPrior.enableNfts);
+        assert(merkleTreeAuthority.pubkey.toBase58() ==  newAuthority.toBase58());
+      }
       return tx;
     }
 
@@ -92,6 +176,9 @@ export class MerkleTreeConfig {
       })
       .signers([this.payer])
       .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
+      assert(merkleTreeAuthority.enableNfts == configValue);
+
       return tx;
     }
 
@@ -106,6 +193,8 @@ export class MerkleTreeConfig {
       })
       .signers([this.payer])
       .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
+      assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
       return tx;
     }
 
@@ -136,9 +225,24 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+
+      await this.checkVerifierIsRegistered(verifierPubkey);
 
       return tx;
+    }
+
+    async checkVerifierIsRegistered(verifierPubkey) {
+
+      let registeredVerifierPda = this.registeredVerifierPdas.filter((item) => {return item.verifierPubkey === verifierPubkey})[0]
+
+      var registeredVerifierAccountInfo = await this.merkleTreeProgram.account.registeredVerifier.fetch(
+        registeredVerifierPda.registeredVerifierPda
+      )
+
+      assert(registeredVerifierAccountInfo != null);
+      assert(registeredVerifierAccountInfo.pubkey.toBase58() == verifierPubkey.toBase58());
+
     }
 
     async getPoolTypePda(poolType) {
@@ -160,7 +264,6 @@ export class MerkleTreeConfig {
       if (!registeredPoolTypePda) {
           registeredPoolTypePda = await this.getPoolTypePda(poolType)
       }
-      console.log(registeredPoolTypePda);
 
       const tx = await this.merkleTreeProgram.methods.registerPoolType(
         Buffer.from(new Uint8Array(32).fill(0))
@@ -175,10 +278,38 @@ export class MerkleTreeConfig {
       return tx;
     }
 
+    async checkPoolRegistered(poolPda, poolType, mint = null) {
+      var registeredTokenConfigAccount = await this.merkleTreeProgram.account.registeredAssetPool.fetch(
+        poolPda.pda
+      )
+
+      var merkleTreeAuthorityPdaAccountInfo = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
+        this.merkleTreeAuthorityPda
+      )
+      assert(registeredTokenConfigAccount.poolType.toString() == poolType.toString())
+      assert(registeredTokenConfigAccount.index.toString() == (merkleTreeAuthorityPdaAccountInfo.registeredAssetIndex - 1).toString())
+
+
+      if (mint !== null) {
+
+        assert(registeredTokenConfigAccount.assetPoolPubkey.toBase58() == poolPda.token.toBase58())
+
+        var registeredTokenAccount = await token.getAccount(this.connection,
+          poolPda.token, {commitment: "confirmed", preflightCommitment: 'confirmed'}
+        )
+        assert(registeredTokenAccount != null);
+        assert(registeredTokenAccount.mint.toBase58() == mint.toBase58());
+
+      } else {
+        assert(registeredTokenConfigAccount.assetPoolPubkey.toBase58() == poolPda.pda.toBase58())
+
+      }
+
+    }
 
     async getSolPoolPda(poolType) {
       this.poolPdas.push({pda: (await solana.PublicKey.findProgramAddress(
-        [new Uint8Array(32).fill(0), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
+        [new Uint8Array(32).fill(0), poolType, anchor.utils.bytes.utf8.encode("pool-config")],
           this.merkleTreeProgram.programId
         ))[0], poolType: poolType});
         return this.poolPdas[this.poolPdas.length - 1]
@@ -202,7 +333,9 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+      .rpc({commitment: "confirmed", preflightCommitment: 'confirmed'});
+
+      await this.checkPoolRegistered(solPoolPda, poolType)
 
       return tx;
     }
@@ -223,11 +356,12 @@ export class MerkleTreeConfig {
       return this.poolPdas[this.poolPdas.length - 1];
     }
 
-    async getTokeAuthority() {
+    async getTokenAuthority() {
       this.tokenAuthority = (await solana.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("spl")],
         this.merkleTreeProgram.programId
       ))[0];
+      return this.tokenAuthority;
     }
 
     async registerSplPool(poolType, mint) {
@@ -236,15 +370,14 @@ export class MerkleTreeConfig {
       if (!registeredPoolTypePda) {
           registeredPoolTypePda = await this.getPoolTypePda(poolType)
       }
-      console.log(" mint ", mint);
+
 
       let splPoolPda = await this.getSplPoolPda(poolType, mint);
 
       if (!this.tokenAuthority) {
-          await this.getTokeAuthority()
+          await this.getTokenAuthority()
       }
 
-      console.log("splPoolPda.pda ", splPoolPda.pda.toBase58());
 
       const tx = await this.merkleTreeProgram.methods.registerSplPool(
       ).accounts({
@@ -259,6 +392,8 @@ export class MerkleTreeConfig {
       })
       .signers([this.payer])
       .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+
+      await this.checkPoolRegistered(splPoolPda, poolType, mint)
 
       return tx;
     }

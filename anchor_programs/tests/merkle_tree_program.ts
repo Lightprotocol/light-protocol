@@ -557,7 +557,7 @@ it("Merkle Tree update test", async () => {
     })
   })
 
-it("Shielded transactions", async () => {
+it.skip("Shielded transactions", async () => {
       const userAccount = await newAccountWithLamports(provider.connection)
       const recipientWithdrawal = await newAccountWithLamports(provider.connection)
 

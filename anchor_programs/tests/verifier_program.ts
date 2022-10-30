@@ -81,7 +81,7 @@ var UTXOS;
 var MERKLE_TREE_OLD;
 
 var MERKLE_TREE_USDC = 0
-var MERKLE_TREE_PDA_TOKEN_USDC = 0
+var REGISTERED_POOL_PDA_SPL_TOKEN = 0
 var PRE_INSERTED_LEAVES_INDEX_USDC
 var RENT_ESCROW
 var RENT_VERIFIER
@@ -117,6 +117,7 @@ describe("verifier_program", () => {
   var INVALID_SIGNER;
   var INVALID_MERKLE_TREE_AUTHORITY_PDA;
   var PRIOR_UTXO;
+  var POOL_TYPE = new Uint8Array(32).fill(0);
 
   var KEYPAIR :light.keypair =  {
       privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
@@ -131,19 +132,20 @@ describe("verifier_program", () => {
     if (balance === 0) {
       await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
     }
-    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: })
+
+    MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)],
+        merkleTreeProgram.programId))[0];
+
+    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY,payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection })
+    MERKLE_TREE_AUTHORITY_PDA = await merkleTreeConfig.getMerkleTreeAuthorityPda();
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
+    RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
 
-    REGISTERED_VERIFIER_PDA = (await solana.PublicKey.findProgramAddress(
-        [verifierProgramZero.programId.toBuffer()],
-        merkleTreeProgram.programId
-      ))[0];
-    REGISTERED_VERIFIER_ONE_PDA = (await solana.PublicKey.findProgramAddress(
-        [verifierProgramOne.programId.toBuffer()],
-        merkleTreeProgram.programId
-      ))[0];
+    REGISTERED_VERIFIER_PDA =     (await merkleTreeConfig.getRegisteredVerifierPda(verifierProgramZero.programId)).registeredVerifierPda;
+    REGISTERED_VERIFIER_ONE_PDA = (await merkleTreeConfig.getRegisteredVerifierPda(verifierProgramOne.programId)).registeredVerifierPda;
 
     AUTHORITY = (await solana.PublicKey.findProgramAddress(
         [merkleTreeProgram.programId.toBuffer()],
@@ -152,71 +154,60 @@ describe("verifier_program", () => {
         [merkleTreeProgram.programId.toBuffer()],
         verifierProgramOne.programId))[0];
 
-  console.log("MINT ", MINT.toBase58());
+    PRE_INSERTED_LEAVES_INDEX =  await merkleTreeConfig.getPreInsertedLeavesIndex();
+    POOL_TYPE_PDA = await merkleTreeConfig.getPoolTypePda(POOL_TYPE);
+    TOKEN_AUTHORITY = await merkleTreeConfig.getTokenAuthority();
+    REGISTERED_POOL_PDA_SPL = (await merkleTreeConfig.getSplPoolPda(POOL_TYPE, MINT)).pda;
+    REGISTERED_POOL_PDA_SPL_TOKEN   = (await merkleTreeConfig.getSplPoolPda(POOL_TYPE, MINT)).token;
+    REGISTERED_POOL_PDA_SOL = (await merkleTreeConfig.getSolPoolPda(POOL_TYPE)).pda;
+    console.log("MERKLE_TREE_KEY ", MERKLE_TREE_KEY.toBase58());
+    console.log("REGISTERED_VERIFIER_PDA ", REGISTERED_VERIFIER_PDA.toBase58());
+    console.log("REGISTERED_VERIFIER_ONE_PDA ", REGISTERED_VERIFIER_ONE_PDA.toBase58());
+    console.log("AUTHORITY ", AUTHORITY.toBase58());
+    console.log("AUTHORITY_ONE ", AUTHORITY_ONE.toBase58());
+    console.log("PRE_INSERTED_LEAVES_INDEX ", PRE_INSERTED_LEAVES_INDEX.toBase58());
+    console.log("TOKEN_AUTHORITY ", TOKEN_AUTHORITY.toBase58());
+    console.log("REGISTERED_POOL_PDA_SPL ", REGISTERED_POOL_PDA_SPL.toBase58());
+    console.log("REGISTERED_POOL_PDA_SPL_TOKEN ", REGISTERED_POOL_PDA_SPL_TOKEN.toBase58());
+    console.log("REGISTERED_POOL_PDA_SOL ", REGISTERED_POOL_PDA_SOL.toBase58());
 
-
-    MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)], // , Buffer.from(new Uint8Array(8).fill(0))
-        merkleTreeProgram.programId))[0];
-
-    PRE_INSERTED_LEAVES_INDEX = (await solana.PublicKey.findProgramAddress(
-        [MERKLE_TREE_KEY.toBuffer()],
-        merkleTreeProgram.programId))[0];
-    POOL_TYPE_PDA = (await solana.PublicKey.findProgramAddress(
-        [new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pooltype")],
-        merkleTreeProgram.programId
-      ))[0];
-    // MERKLE_TREE_PDA_TOKEN = (await solana.PublicKey.findProgramAddress(
-    //     [MERKLE_TREE_KEY.toBuffer(), anchor.utils.bytes.utf8.encode("MERKLE_TREE_PDA_TOKEN")],
-    //     merkleTreeProgram.programId
-    //   ))[0];
-
-
-
-    RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
-    TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
-      [anchor.utils.bytes.utf8.encode("spl")],
-      merkleTreeProgram.programId
-    ))[0];
-
-
-    REGISTERED_POOL_PDA_SPL = (await solana.PublicKey.findProgramAddress(
-        [MINT.toBytes(), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
-        merkleTreeProgram.programId
-      ))[0];
-
-    MERKLE_TREE_PDA_TOKEN_USDC  = (await solana.PublicKey.findProgramAddress(
-      [MINT.toBytes(), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool")],
-      merkleTreeProgram.programId
-    ))[0];
-    REGISTERED_POOL_PDA_SOL = (await solana.PublicKey.findProgramAddress(
-      [new Uint8Array(32).fill(0), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
-        merkleTreeProgram.programId
-      ))[0];
   })
 
-  it.skip("Initialize Merkle Tree", async () => {
+  it.skip("test initing account after deposited sol", async () => {
+    // validated not possible to reinit as long as there are funds in the address
+    try {
+      console.log(verifierProgramZero.methods.initializeAuthority);
+      console.log("sigbner ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+
+      const ix = await verifierProgramZero.methods.initializeAuthority().accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        authority: AUTHORITY,
+        merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      console.log("Initing Verifier AUTHORITY success");
+
+    } catch(e) {
+      console.log(e);
+    }
+  })
+
+  it("Initialize Merkle Tree", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
 
     if (merkleTreeAccountInfoInit == null) {
+      let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY,payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection })
 
       console.log("Initing MERKLE_TREE_AUTHORITY_PDA");
-      MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
-          [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
-          merkleTreeProgram.programId
-        ))[0];
+
       try {
-        const ix = await merkleTreeProgram.methods.initializeMerkleTreeAuthority().accounts({
-          authority: ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
-        console.log("Registering Verifier success");
+        const ix = await merkleTreeConfig.initMerkleTreeAuthority();
+        console.log("initMerkleTreeAuthority success");
 
       } catch(e) {
         console.log(e);
@@ -233,104 +224,32 @@ describe("verifier_program", () => {
       // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.prototype.slice.call(MERKLE_TREE_PDA_TOKEN.toBytes()))
       console.log(merkleTreeProgram.methods);
       let signer = new anchor.web3.Account();
-      console.log("signer, ", signer);
 
       try {
-        const ix = await merkleTreeProgram.methods.initializeNewMerkleTree(
-        ).accounts({
-          authority: ADMIN_AUTH_KEY,
-          merkleTree: MERKLE_TREE_KEY,
-          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-          systemProgram: DEFAULT_PROGRAMS.systemProgram,
-          rent: DEFAULT_PROGRAMS.rent,
-          merkleTreeAuthorityPda:MERKLE_TREE_AUTHORITY_PDA
-        })
-        .preInstructions([
-          solana.ComputeBudgetProgram.requestHeapFrame({bytes: 256 * 1024}),
-        ])
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .transaction()//rpc(); // {commitment: "finalized", preflightCommitment: 'finalized',}
-        let x = await solana.sendAndConfirmTransaction(
-              provider.connection,
-              ix,
-              [ADMIN_AUTH_KEYPAIR],
-              {
-                commitment: 'finalized',
-                preflightCommitment: 'finalized',
-              },
-          );
+        const ix = await merkleTreeConfig.initializeNewMerkleTree()
 
       } catch(e) {
         console.log(e);
-
       }
-
-
-
-      var merkleTreeAccountInfo = await merkleTreeProgram.account.merkleTree.fetch(
-        MERKLE_TREE_KEY
-      )
-      // assert_eq(constants.INIT_BYTES_MERKLE_TREE_18,
-      //   merkleTreeAccountInfo.data.slice(0,constants.INIT_BYTES_MERKLE_TREE_18.length)
-      // )
-      // if (merkleTreeAccountInfo.data.length !== MERKLE_TREE_SIZE) {
-      //   throw "merkle tree pda size wrong after initializing";
-      // }
-      console.log(merkleTreeAccountInfo);
-
-      // if (merkleTreeAccountInfo.owner.toBase58() !== merkleTreeProgram.programId.toBase58()) {
-      //   throw "merkle tree pda owner wrong after initializing";
-      // }
-      var merkleTreeIndexAccountInfo = await provider.connection.getAccountInfo(
-            PRE_INSERTED_LEAVES_INDEX
-          )
-      assert(merkleTreeIndexAccountInfo != null, "merkleTreeIndexAccountInfo not initialized")
-
-
-
 
       console.log("Registering Verifier");
-
-      console.log(verifierProgramZero.programId.toBytes());
+      try {
+        await merkleTreeConfig.registerVerifier(verifierProgramZero.programId)
+        console.log("Registering Verifier Zero success");
+      } catch(e) {
+        console.log(e);
+      }
 
       try {
-        await merkleTreeProgram.methods.registerVerifier(
-          verifierProgramZero.programId
-        ).accounts({
-          registeredVerifierPda: REGISTERED_VERIFIER_PDA,
-          authority: ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
-        console.log("Registering Verifier success");
-
+        await merkleTreeConfig.registerVerifier(verifierProgramOne.programId)
+        console.log("Registering Verifier One success");
       } catch(e) {
         console.log(e);
 
       }
 
-      try {
-        await merkleTreeProgram.methods.registerVerifier(
-          verifierProgramOne.programId
-        ).accounts({
-          registeredVerifierPda: REGISTERED_VERIFIER_ONE_PDA,
-          authority: ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
-        console.log("Registering Verifier success");
+      console.log("Initing Verifier AUTHORITY");
 
-      } catch(e) {
-        console.log(e);
-
-      }
-
-      // console.log("Initing Verifier AUTHORITY");
-      //
       // try {
       //   console.log(verifierProgramZero.methods.initializeAuthority);
       //   console.log("sigbner ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
@@ -348,114 +267,39 @@ describe("verifier_program", () => {
       // } catch(e) {
       //   console.log(e);
       // }
-
-
-      // try {
-      //   let space = token.MINT_SIZE
       //
-      //   let txCreateAccount = new solana.Transaction().add(
-      //     SystemProgram.createAccount({
-      //       fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
-      //       lamports: provider.connection.getMinimumBalanceForRentExemption(space),
-      //       newAccountPubkey: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
-      //       programId: token.TOKEN_PROGRAM_ID,
-      //       space: space
-      //
-      //     })
-      //   )
-      //   let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [ADMIN_AUTH_KEYPAIR, solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)], {commitment: "confirmed", preflightCommitment: 'confirmed',});
-      //
-      //   let mint = await token.createMint(
-      //     provider.connection,
-      //     ADMIN_AUTH_KEYPAIR,
-      //     ADMIN_AUTH_KEYPAIR.publicKey,
-      //     null,
-      //     2,
-      //     solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
-      //   );
-      //   assert(MINT.toBase58() == mint.toBase58());
-      //   console.log("MINT: ", MINT.toBase58());
-      //
-      // } catch(e) {
-      //   console.log(e)
-      // }
       await createMint({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
         mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
       })
 
-        console.log("POOL_TYPE_PDA: ", POOL_TYPE_PDA);
       try {
-        await merkleTreeProgram.methods.registerPoolType(
-          Buffer.from(new Uint8Array(32).fill(0))
-        ).accounts({
-          registeredPoolTypePda:  POOL_TYPE_PDA,
-          authority:              ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+        await merkleTreeConfig.registerPoolType(POOL_TYPE)
         console.log("Registering pool_type success");
-
       } catch(e) {
         console.log(e);
-
       }
 
       console.log("MINT: ", MINT);
-
-
-        console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL);
-
-
+      console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL);
       try {
-        await merkleTreeProgram.methods.registerSplPool(
-        ).accounts({
-          registeredAssetPoolPda:  REGISTERED_POOL_PDA_SPL,
-          authority:              ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          mint: MINT,
-          tokenAuthority: TOKEN_AUTHORITY,
-          registeredPoolTypePda:  POOL_TYPE_PDA,
-          merkleTreePdaToken: MERKLE_TREE_PDA_TOKEN_USDC,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+        await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT)
         console.log("Registering spl pool success");
-
       } catch(e) {
         console.log(e);
-
       }
 
-
-        console.log("REGISTERED_POOL_PDA_SOL: ", REGISTERED_POOL_PDA_SOL);
-
+      console.log("REGISTERED_POOL_PDA_SOL: ", REGISTERED_POOL_PDA_SOL);
       try {
-        await merkleTreeProgram.methods.registerSolPool(
-        ).accounts({
-          registeredAssetPoolPda:  REGISTERED_POOL_PDA_SOL,
-          authority:              ADMIN_AUTH_KEY,
-          merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-          mint: MINT,
-          tokenAuthority: TOKEN_AUTHORITY,
-          registeredPoolTypePda:  POOL_TYPE_PDA,
-          ...DEFAULT_PROGRAMS
-        })
-        .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+        await merkleTreeConfig.registerSolPool(POOL_TYPE)
         console.log("Registering sol pool success");
-
       } catch(e) {
         console.log(e);
-
       }
     }
   });
 
-  it("Initialize Merkle Tree Test", async () => {
+  it.skip("Initialize Merkle Tree Test", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )
@@ -473,7 +317,7 @@ describe("verifier_program", () => {
       [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
       merkleTreeProgram.programId
     ))[0];
-    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY, payer: ADMIN_AUTH_KEYPAIR})
+    let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY, payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection})
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
 
     let error
@@ -513,7 +357,7 @@ describe("verifier_program", () => {
     // update merkle tree with invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
+      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey, true);
       console.log("Registering AUTHORITY success");
     } catch(e) {
       console.log(e);
@@ -526,15 +370,18 @@ describe("verifier_program", () => {
     // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
     try {
-      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
+      await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey, true);
       console.log("Registering AUTHORITY success");
     } catch(e) {
       console.log(e);
       error =  e;
     }
+    console.log(error);
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
+
+
 
     await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
     merkleTreeConfig.payer = newAuthority;
@@ -597,7 +444,6 @@ describe("verifier_program", () => {
     await merkleTreeConfig.enableNfts(true);
 
     let merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
-    console.log(merkleTreeAuthority);
     assert(merkleTreeAuthority.enableNfts == true);
     await merkleTreeConfig.enableNfts(false);
     merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
@@ -806,6 +652,8 @@ describe("verifier_program", () => {
       userAccount: new anchor.web3.Account(),
       amount: 2
     }))
+
+
     await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint2);
     registeredNFTPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
 
@@ -900,7 +748,7 @@ describe("verifier_program", () => {
     let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
   })
 
-  it.skip("Init Address Lookup Table", async () => {
+  it("Init Address Lookup Table", async () => {
     const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
     console.log("recentSlot: ", recentSlot);
 
@@ -933,7 +781,7 @@ describe("verifier_program", () => {
       DEFAULT_PROGRAMS.rent,
       PRE_INSERTED_LEAVES_INDEX,
       token.TOKEN_PROGRAM_ID,
-      MERKLE_TREE_PDA_TOKEN_USDC,
+      REGISTERED_POOL_PDA_SPL_TOKEN,
       MERKLE_TREE_KEY,
       escrows,
       TOKEN_AUTHORITY,
@@ -1023,7 +871,7 @@ describe("verifier_program", () => {
         merkleTreeProgram,
         verifierProgram: verifierProgramOne,
 
-        merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
         merkleTreePubkey:       MERKLE_TREE_KEY,
         merkleTreeIndex:        1,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -1054,7 +902,8 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.proof();
 
-      await testTransaction(SHIELDED_TRANSACTION, true);
+      // await testTransaction(SHIELDED_TRANSACTION, true);
+
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -1074,13 +923,10 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Deposit", async () => {
+  it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
-    // subsidising transactions
-    let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
-    await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
 
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
@@ -1132,7 +978,7 @@ describe("verifier_program", () => {
         merkleTreeProgram,
         verifierProgram: verifierProgramZero,
 
-        merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
         merkleTreePubkey:       MERKLE_TREE_KEY,
         merkleTreeIndex:        1,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
@@ -1382,12 +1228,12 @@ describe("verifier_program", () => {
     })
   }
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        [merkleTreeProgram.programId.toBuffer(), Buffer.from(new Uint8Array(8).fill(0))],
         merkleTreeProgram.programId))[0];
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
 
@@ -1549,7 +1395,7 @@ describe("verifier_program", () => {
       merkleTreeProgram,
       verifierProgram: verifierProgramZero,
 
-      merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+      merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
       merkleTreePubkey:       MERKLE_TREE_KEY,
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       provider,
@@ -1604,7 +1450,7 @@ describe("verifier_program", () => {
 
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        [merkleTreeProgram.programId.toBuffer(), Buffer.from(new Uint8Array(8).fill(0))],
         merkleTreeProgram.programId))[0];
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
     let merkleTree = await buildMerkleTree({
@@ -1678,7 +1524,7 @@ describe("verifier_program", () => {
       merkleTreeProgram,
       verifierProgram: verifierProgramOne,
 
-      merkleTreeAssetPubkey:  MERKLE_TREE_PDA_TOKEN_USDC,
+      merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
       merkleTreePubkey:       MERKLE_TREE_KEY,
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       provider,
