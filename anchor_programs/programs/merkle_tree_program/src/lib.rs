@@ -103,6 +103,7 @@ pub mod merkle_tree_program {
         Ok(())
     }
 
+    // Unactivated feature listed for completeness.
     // pub fn enable_permissionless_merkle_tree_registration(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
     //     ctx.accounts.merkle_tree_authority_pda.enable_permissionless_merkle_tree_registration = enable_permissionless;
     //     Ok(())

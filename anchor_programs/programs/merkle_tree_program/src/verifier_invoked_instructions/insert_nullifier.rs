@@ -18,6 +18,7 @@ pub struct InitializeNullifierMany<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>, // nullifiers are sent in remaining accounts. @ErrorCode::InvalidVerifier
 }
 
+/// Inserts nullifiers, written in plain rust for memory optimization.
 pub fn process_insert_many_nullifiers<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeNullifierMany<'info>>,
     nullifiers: Vec<Vec<u8>>,
@@ -38,7 +39,7 @@ pub fn process_insert_many_nullifiers<'info>(
             true, //rent_exempt
         )
         .unwrap();
-        nullifier_pda.to_account_info().data.borrow_mut()[0] = 1u8; //[1u8;8]);
+        nullifier_pda.to_account_info().data.borrow_mut()[0] = 1u8;
     }
     Ok(())
 }

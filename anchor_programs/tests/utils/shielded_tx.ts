@@ -334,8 +334,8 @@ export class shieldedTransaction {
         try {
           console.log("leavesAccountData ", leavesAccountData);
 
-          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leaves[0].toString(), "left leaf not inserted correctly")
-          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leaves[1].toString(), "right leaf not inserted correctly")
+          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leaves[0].reverse().toString(), "left leaf not inserted correctly")
+          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leaves[1].reverse().toString(), "right leaf not inserted correctly")
           assert(leavesAccountData.merkleTreePubkey.toBase58() === this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
           for (var i in this.encrypedUtxos) {
 

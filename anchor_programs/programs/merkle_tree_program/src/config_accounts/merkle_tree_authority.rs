@@ -11,11 +11,11 @@ use anchor_lang::prelude::*;
 #[account]
 pub struct MerkleTreeAuthority {
     pub pubkey: Pubkey,
+    pub merkle_tree_index: u64,
+    pub registered_asset_index: u64,
     pub enable_nfts: bool,
     pub enable_permissionless_spl_tokens: bool,
     pub enable_permissionless_merkle_tree_registration: bool,
-    pub merkle_tree_index: u64,
-    pub registered_asset_index: u64,
 }
 
 #[derive(Accounts)]

@@ -223,13 +223,17 @@ export async function checkMerkleTreeUpdateStateCreated({
     MerkleTree
   )
 
-  console.log(merkleTreeUpdateStateData.leaves);
+  console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
+  console.log("merkleTreeUpdateStateData.numberOfLeaves ", merkleTreeUpdateStateData.numberOfLeaves);
+  console.log("leavesPdas.length ", leavesPdas.length);
+  console.log("merkleTreeUpdateStateData.currentInstructionIndex ", merkleTreeUpdateStateData.currentInstructionIndex);
+  console.log("current_instruction_index ", current_instruction_index);
 
   assert(merkleTreeUpdateStateData.relayer.toBase58() == relayer.toBase58(), "The incorrect signer has been saved")
-  assert(merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58()== MerkleTree.toBase58(), "the incorrect merkle tree pubkey was saved")
-  assert(merkleTreeUpdateStateData.numberOfLeaves== leavesPdas.length, "The incorrect number of leaves was saved")
-  assert(merkleTreeUpdateStateData.currentInstructionIndex== current_instruction_index, "The instruction index is wrong")
-  assert(MerkleTreeAccountInfo.pubkeyLocked.toBase58()== merkleTreeUpdateState.toBase58());
+  assert(merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58() == MerkleTree.toBase58(), "the incorrect merkle tree pubkey was saved")
+  assert(merkleTreeUpdateStateData.numberOfLeaves == leavesPdas.length, "The incorrect number of leaves was saved")
+  assert(merkleTreeUpdateStateData.currentInstructionIndex == current_instruction_index, "The instruction index is wrong")
+  assert(MerkleTreeAccountInfo.pubkeyLocked.toBase58() == merkleTreeUpdateState.toBase58());
   // assert(U64.readLE(MerkleTreeAccountInfo.data.slice(16658-8,16658), 0) >= (await connection.getSlot()) - 5, "Lock has not been taken at this or in the 5 prior slots");
   console.log("checkMerkleTreeUpdateStateCreated: success");
 

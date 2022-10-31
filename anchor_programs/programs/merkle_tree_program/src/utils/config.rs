@@ -10,7 +10,7 @@ pub const MERKLE_TREE_HISTORY_SIZE: u64 = 256;
 pub const MERKLE_TREE_HEIGHT: u64 = 18;
 // Lock duration in slots (is renewed with every successful transaction)
 #[constant]
-pub const LOCK_DURATION: u64 = 2000;
+pub const LOCK_DURATION: u64 = 10;
 #[constant]
 pub const INITIAL_MERKLE_TREE_AUTHORITY: [u8; 32] = [
     2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176,

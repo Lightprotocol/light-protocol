@@ -24,7 +24,6 @@ use merkle_tree_program::{
     utils::constants::MERKLE_TREE_AUTHORITY_SEED, MerkleTreeAuthority, RegisteredVerifier,
 };
 
-use crate::processor::process_shielded_transfer_first;
 use crate::processor::TransactionConfig;
 use light_verifier_sdk::state::VerifierStateTenNF;
 
@@ -48,15 +47,16 @@ pub mod verifier_program_one {
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
-        let mut nfs = Vec::<Vec<u8>>::new();
-        for nf in nullifiers {
-            nfs.push(nf.to_vec());
+        let mut nullifiers_vec = Vec::<Vec<u8>>::new();
+        for nullifier in nullifiers {
+            nullifiers_vec.push(nullifier.to_vec());
         }
-        process_shielded_transfer_first(
+
+        process_transfer_10_ins_2_outs_first(
             ctx,
             vec![0u8; 256],
             amount,
-            nfs,
+            nullifiers_vec,
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
             fee_amount,
             encrypted_utxos,
@@ -72,7 +72,7 @@ pub mod verifier_program_one {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: Vec<u8>,
     ) -> Result<()> {
-        process_shielded_transfer_second(ctx, proof, vec![0u8; 32])
+        process_transfer_10_ins_2_outs_second(ctx, proof, vec![0u8; 32])
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
@@ -92,7 +92,7 @@ pub struct LightInstructionFirst<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [VERIFIER_STATE_SEED], bump, space= 8 + 2048 /*776*/, payer = signing_address )]
+    #[account(init, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, space= 8 + 2048, payer = signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
 }
 
@@ -101,7 +101,7 @@ pub struct LightInstructionFirst<'info> {
 pub struct LightInstructionSecond<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [VERIFIER_STATE_SEED], bump, close=signing_address )]
+    #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
@@ -145,6 +145,6 @@ pub struct LightInstructionSecond<'info> {
 pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [VERIFIER_STATE_SEED], bump, close=signing_address )]
+    #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
 }

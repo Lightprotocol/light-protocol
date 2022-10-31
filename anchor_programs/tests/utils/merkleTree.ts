@@ -50,7 +50,10 @@ export class MerkleTreeConfig {
         return this.preInsertedLeavesIndex;
     }
 
-    async initializeNewMerkleTree() {
+    async initializeNewMerkleTree(merkleTreePubkey) {
+      if (merkleTreePubkey) {
+        this.merkleTreePubkey = merkleTreePubkey;
+      }
       await this.getPreInsertedLeavesIndex();
       await this.getMerkleTreeAuthorityPda();
       const tx = await this.merkleTreeProgram.methods.initializeNewMerkleTree(

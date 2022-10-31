@@ -63,18 +63,12 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
 
         let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
 
-        // let leaves_pda_data = account. deserialize_data::<TwoLeavesBytesPda>().unwrap();
-
-        // &mut tmp_storage_pda.data.borrow_mut()
-        msg!("leaves_pda_data {:?}", leaves_pda_data);
-
         // Checking that leaves are not inserted already.
         if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index.try_into().unwrap() {
-            // msg!(
-            //     "Leaf pda state {} with address {:?} is already inserted",
-            //     leaves_pda_data.is_inserted,
-            //     *account.key
-            // );
+            msg!(
+                "Leaf pda state with address {:?} is already inserted",
+                *account.key
+            );
             return err!(ErrorCode::LeafAlreadyInserted);
         }
 
@@ -88,18 +82,9 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
             return err!(ErrorCode::LeavesOfWrongTree);
         }
 
-        // Checking that index is correct.
-        if index == 0 && leaves_pda_data.left_leaf_index != merkle_tree_pda_data.next_index {
-            msg!(
-                "Leaves pda at index {} has index {} but should have {}",
-                index,
-                leaves_pda_data.left_leaf_index,
-                merkle_tree_pda_data.next_index
-            );
-            return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
-        }
+        // Checking that the lowest index is the next index of the merkle_tree.
         // Check that following leaves are correct and in the right order.
-        else if leaves_pda_data.left_leaf_index != tmp_index.try_into().unwrap() {
+        if leaves_pda_data.left_leaf_index != tmp_index.try_into().unwrap() {
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
         // Copy leaves to tmp account.
@@ -124,16 +109,13 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     if merkle_tree_pda_data.time_locked == 0
         || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
     {
-        merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
+        merkle_tree_pda_data.time_locked = current_slot;
         merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key().clone();
         msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
         msg!("Locked by: {:?}", merkle_tree_pda_data.pubkey_locked);
-    } else if merkle_tree_pda_data.time_locked + config::LOCK_DURATION > current_slot {
+    } else {
         msg!("Contract is still locked.");
         return err!(ErrorCode::ContractStillLocked);
-    } else {
-        merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
-        merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key();
     }
 
     // Copying Subtrees into update state.

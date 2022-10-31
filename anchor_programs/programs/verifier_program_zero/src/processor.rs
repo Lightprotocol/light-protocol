@@ -22,7 +22,7 @@ impl Config for TransactionConfig {
     const UTXO_SIZE: usize = 256;
 }
 
-pub fn process_shielded_transfer_2_inputs<'a, 'b, 'c, 'info>(
+pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
     proof: Vec<u8>,
     public_amount: Vec<u8>,

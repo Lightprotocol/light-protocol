@@ -6,6 +6,7 @@ use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sysvar};
+use crate::processor::pubkey_check;
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
@@ -45,6 +46,12 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         merkle_tree_pda_data.pubkey_locked
     );
 
+    pubkey_check(
+        ctx.accounts.merkle_tree_update_state.key(),
+        merkle_tree_pda_data.pubkey_locked,
+        String::from("Merkle tree locked by another account."),
+    )?;
+
     msg!(
         "ctx.accounts.merkle_tree_update_state.key(): {:?}",
         ctx.accounts.merkle_tree_update_state.key()
@@ -59,64 +66,6 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     merkle_tree_pda_data.time_locked = 0;
     merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
 
-    /*
-    // not necessary since we are already checking that the index of a leaves account is greater
-    // than the index of the merkle tree account which means the account is not part of the tree
-
-    // mark leaves as inserted
-    // check that leaves are the same as in first tx
-    for (index, account) in ctx.remaining_accounts.iter().enumerate() {
-        msg!("Checking leaves pair {}", index);
-        // let mut leaves_pda_data = TwoLeavesBytesPda::deserialize(&mut &**account.to_account_info().try_borrow_mut_data().unwrap())?;
-        let leaves_pda_data:  &mut Account<'info, TwoLeavesBytesPda> = &mut Account::try_from(account)?;
-
-        if index >= merkle_tree_update_state_data.number_of_leaves.into() {
-            msg!(
-                "Submitted to many remaining accounts {}",
-                ctx.remaining_accounts.len()
-            );
-            return err!(ErrorCode::WrongLeavesLastTx);
-        }
-        if merkle_tree_update_state_data.leaves[index][0][..] != leaves_pda_data.node_left {
-            msg!("Wrong leaf in position {}", index);
-            return err!(ErrorCode::WrongLeavesLastTx);
-        }
-        if  account.owner != ctx.program_id {
-            msg!("Wrong owner {}", index);
-            return err!(ErrorCode::WrongLeavesLastTx);
-        }
-
-        if leaves_pda_data.is_inserted {
-            msg!(
-                "Leaf pda with address {:?} is already inserted",
-                *account.key
-            );
-            return err!(ErrorCode::LeafAlreadyInserted);
-        }
-        // Checking that the Merkle tree is the same as in leaves account.
-        if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.merkle_tree.key() {
-            msg!(
-                "Leaf pda state {} with address {:?} is already inserted",
-                leaves_pda_data.merkle_tree_pubkey,
-                ctx.accounts.merkle_tree.key()
-            );
-            return err!(ErrorCode::LeafAlreadyInserted);
-        }
-        // msg!(
-        //     "account.data.borrow_mut()[1] {}",
-        //     account.data.borrow_mut()[1]
-        // );
-        // mark leaves pda as inserted
-        leaves_pda_data.is_inserted = true;
-        // let data = TwoLeavesBytesPda::serialize(&leaves_pda_data, &mut account.data.get_mut())?;
-        // let mut mut_leaves_pda =  account.data.borrow_mut()?;
-        // mut_leaves_pda = data;
-        // TwoLeavesBytesPda::pack_into_slice(
-        //     &leaves_pda_data,
-        //     &mut account.data.borrow_mut(),
-        // );
-    }
-    */
 
     Ok(())
 }

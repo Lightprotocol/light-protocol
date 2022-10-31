@@ -157,13 +157,10 @@ pub fn insert_last_double(
         .clone()
         .try_into()
         .unwrap();
-    //roots unpacks only the current root and write only this one
+
     merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
 
     merkle_tree_account.filled_subtrees = update_state_data.filled_subtrees.clone();
-    // for (i, node) in update_state_data.filled_subtrees.iter().enumerate() {
-    //     merkle_tree_account.filled_subtrees[i] = node.clone();
-    // }
 
     Ok(())
 }

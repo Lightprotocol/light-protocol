@@ -23,7 +23,7 @@ impl Config for TransactionConfig {
     const UTXO_SIZE: usize = 256;
 }
 
-pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
+pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
     proof: Vec<u8>,
     public_amount: Vec<u8>,
@@ -53,7 +53,7 @@ pub fn process_shielded_transfer_first<'a, 'b, 'c, 'info>(
     Ok(())
 }
 
-pub fn process_shielded_transfer_second<'a, 'b, 'c, 'info>(
+pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
     proof: Vec<u8>,
     pool_type: Vec<u8>,

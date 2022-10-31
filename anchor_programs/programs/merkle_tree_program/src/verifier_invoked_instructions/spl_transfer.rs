@@ -42,7 +42,5 @@ pub fn process_spl_transfer<'info>(
         accounts,
         seeds,
     );
-    anchor_spl::token::transfer(cpi_ctx, amount)?;
-
-    Ok(())
+    anchor_spl::token::transfer(cpi_ctx, amount)
 }

@@ -748,6 +748,7 @@ describe("verifier_program", () => {
     let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
   })
 
+
   it("Init Address Lookup Table", async () => {
     const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
     console.log("recentSlot: ", recentSlot);
@@ -928,7 +929,7 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
 
-    for (var i = 0; i < 1; i++) {
+    for (var i = 0; i < 2; i++) {
       console.log("Deposit ", i);
 
       const origin = await newAccountWithLamports(provider.connection)
@@ -1233,8 +1234,9 @@ describe("verifier_program", () => {
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer(), Buffer.from(new Uint8Array(8).fill(0))],
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)],
         merkleTreeProgram.programId))[0];
+
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
 
     // fetch uninserted utxos from chain
@@ -1274,6 +1276,395 @@ describe("verifier_program", () => {
     // assert(mtOnchain.roots[1] == mtAfter.root());
   })
 
+  it.skip("Update Merkle Tree Test", async () => {
+
+    console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
+    const signer = await newAccountWithLamports(provider.connection)
+    MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)],
+        merkleTreeProgram.programId))[0];
+
+    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
+
+    // fetch uninserted utxos from chain
+    let leavesPdas = await getUninsertedLeaves({
+        merkleTreeProgram,
+        merkleTreeIndex: mtFetched.nextIndex,
+        connection: provider.connection
+    });
+
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+    // build tree from chain
+    let merkleTreeWithdrawal = await buildMerkleTree({
+        connection:provider.connection,
+        config: {x:1}, // rnd filler
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        merkleTreeProgram: merkleTreeProgram,
+        poseidonHash: poseidon
+      }
+    );
+
+    // await executeUpdateMerkleTreeTransactions({
+    //   connection:       provider.connection,
+    //   signer:           ADMIN_AUTH_KEYPAIR,
+    //   merkleTreeProgram: merkleTreeProgram,
+    //   leavesPdas:       leavesPdas.slice(0,5),
+    //   merkleTree:       mtPrior,
+    //   merkle_tree_pubkey: MERKLE_TREE_KEY,
+    //   provider
+    // });
+  let merkleTreeUpdateState = (await solana.PublicKey.findProgramAddress(
+      [Buffer.from(new Uint8Array(signer.publicKey.toBytes())), anchor.utils.bytes.utf8.encode("storage")],
+      merkleTreeProgram.programId))[0];
+  let merkle_tree_pubkey = MERKLE_TREE_KEY
+  let connection = provider.connection;
+  console.log("leavesPdas ", leavesPdas);
+  console.log("");
+
+  leavesPdas.reverse()
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeUpdateState: merkleTreeUpdateState,
+              systemProgram: DEFAULT_PROGRAMS.systemProgram,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: merkle_tree_pubkey
+            }
+          ).remainingAccounts(
+            leavesPdas
+          ).preInstructions([
+            solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ]).signers([signer]).rpc()
+          console.log("success 0");
+
+  }catch (e) {
+    assert(e.error.errorCode.code == 'FirstLeavesPdaIncorrectIndex');
+  }
+  leavesPdas.reverse()
+  assert(await connection.getAccountInfo(merkleTreeUpdateState) == null)
+
+  console.log("Test property: 1");
+
+  // Test property: 1
+  // try with leavespda of higher index
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeUpdateState: merkleTreeUpdateState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: merkle_tree_pubkey
+            }
+          ).remainingAccounts(
+            leavesPdas[1]
+          ).preInstructions([
+            solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ]).signers([signer]).rpc()
+          console.log("success 1");
+
+  }catch (e) {
+    console.log(e);
+
+    assert(e.error.errorCode.code == 'FirstLeavesPdaIncorrectIndex');
+  }
+  assert(await connection.getAccountInfo(merkleTreeUpdateState) == null)
+  console.log("Test property: 3");
+
+  // Test property: 3
+  // try with different Merkle tree index than leaves are queued for
+
+  let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY,payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection })
+  let different_merkle_tree = (await solana.PublicKey.findProgramAddress(
+      [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(1), 8)],
+      merkleTreeProgram.programId))[0];
+
+  await merkleTreeConfig.initializeNewMerkleTree(different_merkle_tree)
+
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeUpdateState: merkleTreeUpdateState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: different_merkle_tree
+            }
+          ).remainingAccounts(
+            leavesPdas
+          ).preInstructions([
+            solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ]).signers([signer]).rpc()
+          console.log("success 3");
+
+  }catch (e) {
+    console.log(e);
+
+    assert(e.error.errorCode.code == 'ConstraintRaw');
+    assert(e.error.origin == 'merkle_tree');
+  }
+  assert(await connection.getAccountInfo(merkleTreeUpdateState) == null)
+
+  // insert leavesPda[0]
+  await executeUpdateMerkleTreeTransactions({
+    connection:       provider.connection,
+    signer,
+    merkleTreeProgram: merkleTreeProgram,
+    leavesPdas:       [leavesPdas[0]],
+    merkleTree:       merkleTreeWithdrawal,
+    merkle_tree_pubkey: MERKLE_TREE_KEY,
+    provider
+  });
+  console.log("Test property: 2");
+
+  // Test property: 2
+  // try to reinsert leavesPdas[0]
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeUpdateState: merkleTreeUpdateState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: merkle_tree_pubkey
+            }
+          ).remainingAccounts(
+            leavesPdas
+          ).preInstructions([
+            solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ]).signers([signer]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'LeafAlreadyInserted');
+  }
+  console.log("initing correct update state");
+
+  // correct
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        ).accounts(
+            {
+              authority: signer.publicKey,
+              merkleTreeUpdateState: merkleTreeUpdateState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: merkle_tree_pubkey
+            }
+          ).remainingAccounts(
+            [leavesPdas[1]]
+          ).preInstructions([
+            solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ]).signers([signer]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'LeafAlreadyInserted');
+  }
+  console.log("executeMerkleTreeUpdateTransactions 10");
+
+  await executeMerkleTreeUpdateTransactions({
+    signer,
+    merkleTreeProgram,
+    merkle_tree_pubkey,
+    provider,
+    merkleTreeUpdateState,
+    numberOfTransactions: 10
+  })
+  console.log("checkMerkleTreeUpdateStateCreated 22");
+
+  await checkMerkleTreeUpdateStateCreated({
+    connection: connection,
+    merkleTreeUpdateState,
+    MerkleTree: merkle_tree_pubkey,
+    relayer: signer.publicKey,
+    leavesPdas: [leavesPdas[1]],
+    current_instruction_index: 22, // 22 becaue one tx executes two instructions, it started out in ix index 1 and increments at the end of a tx
+    merkleTreeProgram
+  })
+
+  // Test property: 6
+  // trying to use merkleTreeUpdateState with different signer
+
+  let maliciousSigner = await newAccountWithLamports(provider.connection)
+  let maliciousMerkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
+      [Buffer.from(new Uint8Array(maliciousSigner.publicKey.toBytes())), anchor.utils.bytes.utf8.encode("storage")],
+      merkleTreeProgram.programId)[0];
+  let s = false
+  try {
+    await executeMerkleTreeUpdateTransactions({
+      signer: maliciousSigner,
+      merkleTreeProgram,
+      merkle_tree_pubkey,
+      provider,
+      merkleTreeUpdateState,
+      numberOfTransactions: 1
+    })
+    s = true
+  } catch (e) {
+    assert(e.logs.indexOf('Program log: AnchorError caused by account: authority. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.') != -1)
+  }
+  assert(s != true)
+  // Test property: 4
+  // try to take lock
+  try {
+    const tx1 = await merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
+        new anchor.BN(0) // merkle tree index
+        ).accounts(
+            {
+              authority: maliciousSigner.publicKey,
+              merkleTreeUpdateState: maliciousMerkleTreeUpdateState,
+              systemProgram: SystemProgram.programId,
+              rent: DEFAULT_PROGRAMS.rent,
+              merkleTree: merkle_tree_pubkey
+            }
+          ).remainingAccounts(
+            [leavesPdas[1]]
+          ).signers([maliciousSigner]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'ContractStillLocked');
+  }
+
+  // Test property: 10
+  // try insert root before completing update transaction
+  try {
+      await merkleTreeProgram.methods.insertRootMerkleTree(
+        new anchor.BN(254))
+      .accounts({
+        authority: signer.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: merkle_tree_pubkey
+      }).remainingAccounts(
+        leavesPdas
+      ).signers([signer]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'MerkleTreeUpdateNotInRootInsert')
+  }
+
+  // sending additional tx to finish the merkle tree update
+  await executeMerkleTreeUpdateTransactions({
+    signer,
+    merkleTreeProgram,
+    merkle_tree_pubkey,
+    provider,
+    merkleTreeUpdateState,
+    numberOfTransactions: 50
+  })
+
+  await checkMerkleTreeUpdateStateCreated({
+    connection: connection,
+    merkleTreeUpdateState,
+    MerkleTree: merkle_tree_pubkey,
+    relayer: signer.publicKey,
+    leavesPdas: [leavesPdas[1]],
+    current_instruction_index: 56,
+    merkleTreeProgram
+  })
+
+  // Test property: 9
+  // final tx to insert root more leaves
+  try {
+    console.log("final tx to insert root more leaves")
+      await merkleTreeProgram.methods.insertRootMerkleTree(
+        new anchor.BN(254))
+      .accounts({
+        authority: signer.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: merkle_tree_pubkey
+      }).remainingAccounts(
+        leavesPdas.reverse()
+      ).signers([signer]).rpc()
+  } catch (e) {
+    // console.log(e)
+    assert(e.logs.indexOf('Program log: Submitted to many remaining accounts 2') != -1)
+    assert(e.error.errorCode.code == 'WrongLeavesLastTx')
+  }
+  // reverse back
+  leavesPdas.reverse()
+
+  // Test property: 9
+  // final tx to insert root different leaves
+  try {
+    console.log("final tx to insert root different leaves")
+      await merkleTreeProgram.methods.insertRootMerkleTree(
+        new anchor.BN(254))
+      .accounts({
+        authority: signer.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: merkle_tree_pubkey
+      }).remainingAccounts(
+        [leavesPdas[0]]
+      ).signers([signer]).rpc()
+  } catch (e) {
+    // console.log(e)
+    assert(e.logs.indexOf('Program log: Wrong leaf in position 0') != -1)
+    assert(e.error.errorCode.code == 'WrongLeavesLastTx')
+  }
+
+  // Test property: 11
+  // final tx to insert root different UNREGISTERED_MERKLE_TREE
+  try {
+    console.log("final tx to insert root different UNREGISTERED_MERKLE_TREE")
+      await merkleTreeProgram.methods.insertRootMerkleTree(
+        new anchor.BN(254))
+      .accounts({
+        authority: signer.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: UNREGISTERED_MERKLE_TREE.publicKey
+      }).remainingAccounts(
+        [leavesPdas[1]]
+      ).signers([signer]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'ConstraintRaw')
+    assert(e.error.origin == 'merkle_tree_update_state')
+  }
+
+  // Test property: 13
+  // final tx to insert root different signer
+  try {
+      await merkleTreeProgram.methods.insertRootMerkleTree(
+        new anchor.BN(254))
+      .accounts({
+        authority: maliciousSigner.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: merkle_tree_pubkey
+      }).remainingAccounts(
+        [leavesPdas[1]]
+      ).signers([maliciousSigner]).rpc()
+  } catch (e) {
+    assert(e.error.errorCode.code == 'ConstraintAddress')
+    assert(e.error.origin == 'authority')
+  }
+
+
+  var merkleTreeAccountPrior = await connection.getAccountInfo(
+    merkle_tree_pubkey
+  )
+  merkleTree = await light.buildMerkelTree(provider.connection, MERKLE_TREE_KEY.toBytes());
+
+
+  // insert correctly
+  await merkleTreeProgram.methods.insertRootMerkleTree(
+    new anchor.BN(254))
+  .accounts({
+    authority: signer.publicKey,
+    merkleTreeUpdateState: merkleTreeUpdateState,
+    merkleTree: merkle_tree_pubkey
+  }).remainingAccounts(
+    [leavesPdas[1]]
+  ).signers([signer]).rpc()
+
+  await checkMerkleTreeBatchUpdateSuccess({
+    connection: provider.connection,
+    merkleTreeUpdateState: merkleTreeUpdateState,
+    merkleTreeAccountPrior,
+    numberOfLeaves: 2,
+    leavesPdas: [leavesPdas[1]],
+    merkleTree: merkleTree,
+    merkle_tree_pubkey: merkle_tree_pubkey
+  })
+})
 
   async function getInsertedLeaves({
     merkleTreeProgram,
@@ -1316,13 +1707,14 @@ describe("verifier_program", () => {
 
   })
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)],
         merkleTreeProgram.programId))[0];
+
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
     let merkleTree = await buildMerkleTree({
         connection:provider.connection,
@@ -1450,8 +1842,9 @@ describe("verifier_program", () => {
 
 
     MERKLE_TREE_KEY = (await solana.PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBuffer(), Buffer.from(new Uint8Array(8).fill(0))],
+        [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(0), 8)],
         merkleTreeProgram.programId))[0];
+
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
     let merkleTree = await buildMerkleTree({
         connection:provider.connection,

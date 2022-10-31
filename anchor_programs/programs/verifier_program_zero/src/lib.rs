@@ -14,7 +14,6 @@ pub mod processor;
 pub mod verifying_key;
 pub use processor::*;
 
-use crate::processor::process_shielded_transfer_2_inputs;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::utils::create_pda::create_and_check_pda;
@@ -46,7 +45,7 @@ pub mod verifier_program_zero {
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
-        process_shielded_transfer_2_inputs(
+        process_shielded_transfer_2_in_2_out(
             ctx,
             proof.to_vec(),
             amount.to_vec(),

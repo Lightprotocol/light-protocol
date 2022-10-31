@@ -69,6 +69,7 @@ pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result
 
         merkle_tree_update_state_data.current_instruction_index += 1;
         // renews lock
+        // Accepted potential for starvation could be solved with relayer whitelist if it becomes a problem.
         merkle_tree_pda_data.time_locked = <Clock as sysvar::Sysvar>::get()?.slot;
     }
 
