@@ -6,7 +6,6 @@ use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sysvar};
-use crate::processor::pubkey_check;
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
@@ -36,21 +35,17 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
     let mut merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
 
+    let id = IX_ORDER
+        [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
     msg!(
         "Root insert Instruction: {}",
-        IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()]
+        id
     );
 
     msg!(
         "merkle_tree_pda_data.pubkey_locked: {:?}",
         merkle_tree_pda_data.pubkey_locked
     );
-
-    pubkey_check(
-        ctx.accounts.merkle_tree_update_state.key(),
-        merkle_tree_pda_data.pubkey_locked,
-        String::from("Merkle tree locked by another account."),
-    )?;
 
     msg!(
         "ctx.accounts.merkle_tree_update_state.key(): {:?}",

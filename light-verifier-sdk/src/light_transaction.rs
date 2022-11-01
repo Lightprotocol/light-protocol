@@ -4,7 +4,7 @@ use anchor_lang::{
         log::sol_log_compute_units,
         program_pack::Pack,
         msg,
-        sysvar::rent::Rent
+        sysvar
     }
 };
 use anchor_spl::token::Transfer;
@@ -317,7 +317,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
                 &self.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i].to_account_info(),
                 &self.accounts.unwrap().pre_inserted_leaves_index.to_account_info(),
                 &self.accounts.unwrap().system_program.to_account_info(),
-                &self.accounts.unwrap().rent.to_account_info(),
                 &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
                 to_be_64(&leaves[0]).try_into().unwrap(),
                 to_be_64(&leaves[1]).try_into().unwrap(),
@@ -353,7 +352,6 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             &self.accounts.unwrap().program_merkle_tree.to_account_info(),
             &self.accounts.unwrap().authority.to_account_info(),
             &self.accounts.unwrap().system_program.to_account_info().clone(),
-            &self.accounts.unwrap().rent.to_account_info().clone(),
             &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
             self.nullifiers.to_vec(),
             self.accounts.unwrap().remaining_accounts.to_vec()
@@ -514,7 +512,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         self.check_sol_pool_account_derivation(&recipient.key())?;
 
         msg!("is deposit");
-        let rent = &Rent::from_account_info(&self.accounts.unwrap().rent.to_account_info())?;
+        let rent = <Rent as sysvar::Sysvar>::get()?;
 
         create_and_check_pda(
             &self.accounts.unwrap().program_id,

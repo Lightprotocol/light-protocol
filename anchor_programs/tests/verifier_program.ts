@@ -125,7 +125,7 @@ describe("verifier_program", () => {
       encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
   };
 
-  it("init pubkeys ", async () => {
+  it.only("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
     let balance = await connection.getBalance(ADMIN_AUTH_KEY, {preflightCommitment: "confirmed", commitment: "confirmed"});
@@ -299,7 +299,7 @@ describe("verifier_program", () => {
     }
   });
 
-  it.skip("Initialize Merkle Tree Test", async () => {
+  it.only("Initialize Merkle Tree Test", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )
@@ -351,6 +351,8 @@ describe("verifier_program", () => {
 
     // initing real mt authority
     await merkleTreeConfig.initMerkleTreeAuthority()
+    await merkleTreeConfig.initializeNewMerkleTree()
+
     let newAuthority = new anchor.web3.Account();
     await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(newAuthority.publicKey, 1_000_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})
 
@@ -449,6 +451,42 @@ describe("verifier_program", () => {
     merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
     console.log(merkleTreeAuthority);
     assert(merkleTreeAuthority.enableNfts == false);
+
+    // update lock duration with invalid signer
+    console.log("here");
+
+    merkleTreeConfig.payer = INVALID_SIGNER;
+    try {
+      await merkleTreeConfig.updateLockDuration(123);
+    } catch(e) {
+      error = e;
+    }
+    console.log(error);
+    console.log("here1");
+
+    assert(error.error.errorMessage === 'InvalidAuthority');
+    error = undefined
+    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR
+
+    // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
+    merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
+    try {
+      await merkleTreeConfig.updateLockDuration(123);
+    } catch(e) {
+      error = e;
+    }
+    console.log(error);
+
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    assert(error.error.errorMessage == 'The program expected this account to be already initialized');
+    error = undefined
+    console.log("updating lockDuration");
+
+    await merkleTreeConfig.updateLockDuration(123);
+    console.log("updated lockDuration 123");
+
+    await merkleTreeConfig.updateLockDuration(10);
+    console.log("updated lockDuration 10");
 
 
     // update merkle tree with invalid signer

@@ -20,6 +20,8 @@ pub enum ErrorCode {
     WithdrawalFailed,
     #[msg("MerkleTreeUpdateNotInRootInsert")]
     MerkleTreeUpdateNotInRootInsert,
+    #[msg("MerkleTreeUpdateNotInRootInsert")]
+    MerkleTreeUpdateNotInRootInsertState,
     #[msg("InvalidNumberOfLeaves")]
     InvalidNumberOfLeaves,
     #[msg("LeafAlreadyInserted")]

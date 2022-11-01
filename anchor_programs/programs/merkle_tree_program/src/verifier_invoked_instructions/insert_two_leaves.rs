@@ -21,7 +21,6 @@ pub struct InsertTwoLeaves<'info> {
     #[account(mut, seeds= [&merkle_tree_pda_pubkey.to_bytes()], bump)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }

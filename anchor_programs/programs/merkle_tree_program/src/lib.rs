@@ -37,7 +37,7 @@ use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 
 use crate::utils::config;
 use crate::verifier_invoked_instructions::{
-    insert_nullifier::{process_insert_many_nullifiers, InitializeNullifierMany},
+    insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
     sol_transfer::WithdrawSol,
     spl_transfer::{process_spl_transfer, WithdrawSpl},
@@ -60,7 +60,7 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>) -> Result<()> {
+    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>, lock_duration: u64) -> Result<()> {
         let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
 
         let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
@@ -72,6 +72,7 @@ pub mod merkle_tree_program {
         );
 
         ctx.accounts.merkle_tree_authority_pda.merkle_tree_index += 1;
+        merkle_tree.lock_duration = lock_duration;
 
         Ok(())
     }
@@ -79,7 +80,7 @@ pub mod merkle_tree_program {
     /// Initializes a new merkle tree authority which can register new verifiers and configure
     /// permissions to create new pools.
     pub fn initialize_merkle_tree_authority(
-        ctx: Context<InitializeMerkleTreeAuthority>,
+        ctx: Context<InitializeMerkleTreeAuthority>
     ) -> Result<()> {
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
         Ok(())
@@ -89,6 +90,12 @@ pub mod merkle_tree_program {
     pub fn update_merkle_tree_authority(ctx: Context<UpdateMerkleTreeAuthority>) -> Result<()> {
         // account is checked in ctx struct
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.new_authority.key();
+        Ok(())
+    }
+
+    /// Enables permissionless deposits of any spl token with supply of one and zero decimals.
+    pub fn update_lock_duration(ctx: Context<UpdateLockDuration>, lock_duration: u64) -> Result<()> {
+        ctx.accounts.merkle_tree.load_mut()?.lock_duration = lock_duration;
         Ok(())
     }
 
@@ -297,9 +304,9 @@ pub mod merkle_tree_program {
     }
 
     pub fn initialize_many_nullifiers<'a, 'b, 'c, 'info>(
-        ctx: Context<'a, 'b, 'c, 'info, InitializeNullifierMany<'info>>,
+        ctx: Context<'a, 'b, 'c, 'info, InitializeNullifiers<'info>>,
         nullifiers: Vec<Vec<u8>>,
     ) -> Result<()> {
-        process_insert_many_nullifiers(ctx, nullifiers)
+        process_insert_nullifiers(ctx, nullifiers)
     }
 }

@@ -44,6 +44,13 @@ inputs = 256 + 32 * 8 + 8 + 32 + 256 + 1
 160
 > inputs +  accounts
 974
+## Docs V3
+
+Merkle tree lock:
+- init update state takes the lock if lock in merkle tree is zero or expired
+- update merkle tree just resets the time after every instruction and checks that merkle tree still stores its own public key as lock, the lock could be expired but if nobody eles has take it it is ok to proceed with computing
+- the same applies to the last transaction the root insertion the instruction just checks that the account is still locked not whether it is expired.
+
 
 ## Current State
 

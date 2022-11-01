@@ -12,6 +12,7 @@ pub struct MerkleTree {
     pub time_locked: u64,
     pub height: u64,
     pub merkle_tree_nr: u64,
+    pub lock_duration: u64
 }
 
 #[account]

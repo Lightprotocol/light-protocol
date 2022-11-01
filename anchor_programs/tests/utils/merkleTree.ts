@@ -57,6 +57,7 @@ export class MerkleTreeConfig {
       await this.getPreInsertedLeavesIndex();
       await this.getMerkleTreeAuthorityPda();
       const tx = await this.merkleTreeProgram.methods.initializeNewMerkleTree(
+        new anchor.BN("20")
       ).accounts({
         authority: this.payer.publicKey,
         merkleTree: this.merkleTreePubkey,
@@ -79,10 +80,10 @@ export class MerkleTreeConfig {
       )
       assert(merkleTreeAccountInfo != null, "merkleTreeAccountInfo not initialized")
       // zero values
-      // height is correct
       // index == 0
       // roots are empty save for 0
-      //
+      // lock duration is correct
+      assert(merkleTreeAccountInfo.lockDuration.toString() == "20")
 
     }
 
@@ -198,6 +199,26 @@ export class MerkleTreeConfig {
       .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
       let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
       assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
+      return tx;
+    }
+
+    async updateLockDuration(lockDuration: Number) {
+      if (this.merkleTreeAuthorityPda == undefined) {
+        await this.getMerkleTreeAuthorityPda()
+      }
+
+      const tx = await this.merkleTreeProgram.methods.updateLockDuration(new anchor.BN(lockDuration.toString())).accounts({
+        authority: this.payer.publicKey,
+        merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
+        merkleTree: this.merkleTreePubkey,
+        ...DEFAULT_PROGRAMS
+      })
+      .signers([this.payer])
+      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      let merkleTree = await this.merkleTreeProgram.account.merkleTree.fetch(this.merkleTreePubkey)
+      assert(merkleTree.lockDuration == lockDuration);
+      console.log("lock duration updated to: ", lockDuration);
+
       return tx;
     }
 

@@ -95,7 +95,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     }
 
     // Get Merkle tree lock with update state account.
-    // The lock lasts config::LOCK_DURATION and is renewed every transaction.
+    // The lock lasts merkle_tree_pda_data.lock_duration and is renewed every transaction.
 
     let current_slot = <Clock as sysvar::Sysvar>::get()?.slot;
     msg!("Current slot: {:?}", current_slot);
@@ -103,11 +103,11 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     msg!("Locked at slot: {}", merkle_tree_pda_data.time_locked);
     msg!(
         "Lock ends at slot: {}",
-        merkle_tree_pda_data.time_locked + config::LOCK_DURATION
+        merkle_tree_pda_data.time_locked + merkle_tree_pda_data.lock_duration
     );
 
     if merkle_tree_pda_data.time_locked == 0
-        || merkle_tree_pda_data.time_locked + config::LOCK_DURATION < current_slot
+        || merkle_tree_pda_data.time_locked + merkle_tree_pda_data.lock_duration < current_slot
     {
         merkle_tree_pda_data.time_locked = current_slot;
         merkle_tree_pda_data.pubkey_locked = ctx.accounts.merkle_tree_update_state.key().clone();
