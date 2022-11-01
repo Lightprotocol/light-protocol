@@ -125,7 +125,7 @@ describe("verifier_program", () => {
       encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
   };
 
-  it.only("init pubkeys ", async () => {
+  it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
     let balance = await connection.getBalance(ADMIN_AUTH_KEY, {preflightCommitment: "confirmed", commitment: "confirmed"});
@@ -299,7 +299,7 @@ describe("verifier_program", () => {
     }
   });
 
-  it.only("Initialize Merkle Tree Test", async () => {
+  it.skip("Initialize Merkle Tree Test", async () => {
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     )

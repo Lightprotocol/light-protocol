@@ -40,7 +40,6 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         ctx.accounts.signing_address.to_account_info(),
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
-        &ctx.accounts.rent,
         &ctx.accounts.merkle_tree,
         &ctx.accounts.pre_inserted_leaves_index,
         ctx.accounts.authority.to_account_info(),

@@ -6,7 +6,7 @@ use borsh::{BorshSerialize, BorshDeserialize};
 /// Verifier state is a boiler plate struct which should be versatile enough to serve many use cases.
 /// For specialized use cases with less
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
-pub struct VerifierStateTenNF<T: Config> {
+pub struct VerifierState10Ins<T: Config> {
     pub signer: Pubkey,
     pub nullifiers: Vec<Vec<u8>>,
     pub leaves: Vec<Vec<u8>>,
@@ -21,20 +21,20 @@ pub struct VerifierStateTenNF<T: Config> {
     pub e_phantom: PhantomData<T>
 }
 
-impl <T: Config>VerifierStateTenNF<T> {
+impl <T: Config>VerifierState10Ins<T> {
     pub const LEN: usize = 2048;
 }
 
-impl <T: Config>anchor_lang::AccountDeserialize for VerifierStateTenNF<T> {
+impl <T: Config>anchor_lang::AccountDeserialize for VerifierState10Ins<T> {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        match VerifierStateTenNF::deserialize(buf) {
+        match VerifierState10Ins::deserialize(buf) {
             Ok(v) => Ok(v),
             Err(_) => err!(anchor_lang::error::ErrorCode::AccountDidNotDeserialize),
         }
     }
 }
 
-impl <T: Config>anchor_lang::AccountSerialize for VerifierStateTenNF<T> {
+impl <T: Config>anchor_lang::AccountSerialize for VerifierState10Ins<T> {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
         self.serialize(writer).unwrap();
         match self.serialize(writer) {
@@ -44,14 +44,14 @@ impl <T: Config>anchor_lang::AccountSerialize for VerifierStateTenNF<T> {
     }
 }
 
-impl <T: Config>anchor_lang::Owner for VerifierStateTenNF<T> {
+impl <T: Config>anchor_lang::Owner for VerifierState10Ins<T> {
     fn owner() -> Pubkey {
         Pubkey::new(&T::ID[..])
     }
 }
 
-impl <T: Config>From<Transaction<'_, '_, '_, T>> for VerifierStateTenNF<T> {
-    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierStateTenNF<T> {
+impl <T: Config>From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
+    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState10Ins<T> {
         let mut nullifiers = [[0u8;32]; 10];
         for (i, nf) in light_tx.nullifiers.iter().enumerate() {
                 nullifiers[i] = nf.clone().try_into().unwrap();
@@ -61,11 +61,11 @@ impl <T: Config>From<Transaction<'_, '_, '_, T>> for VerifierStateTenNF<T> {
                 leaves[i] = vec![leaf[0].clone().try_into().unwrap(), leaf[1].clone().try_into().unwrap()];
         }
 
-        VerifierStateTenNF {
+        VerifierState10Ins {
             merkle_root_index: <usize as TryInto::<u64>>::try_into(light_tx.merkle_root_index).unwrap(),
             signer: Pubkey::new(&[0u8;32]),
             nullifiers: light_tx.nullifiers,
-            leaves: leaves[0].clone(), // vec![vec![0u8;32]; 2], //
+            leaves: leaves[0].clone(),
             public_amount: light_tx.public_amount.try_into().unwrap(),
             fee_amount: light_tx.fee_amount.try_into().unwrap(),
             mint_pubkey: light_tx.mint_pubkey.try_into().unwrap(),
@@ -76,12 +76,4 @@ impl <T: Config>From<Transaction<'_, '_, '_, T>> for VerifierStateTenNF<T> {
             e_phantom: PhantomData,
         }
     }
-}
-
-#[test]
-fn test_into() {
-
-    // dbg!(person);
-
-
 }

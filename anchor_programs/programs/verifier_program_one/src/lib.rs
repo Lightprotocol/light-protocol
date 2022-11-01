@@ -25,7 +25,7 @@ use merkle_tree_program::{
 };
 
 use crate::processor::TransactionConfig;
-use light_verifier_sdk::state::VerifierStateTenNF;
+use light_verifier_sdk::state::VerifierState10Ins;
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
@@ -39,7 +39,7 @@ pub mod verifier_program_one {
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        amount: Vec<u8>,
+        public_amount: Vec<u8>,
         nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
         fee_amount: Vec<u8>,
@@ -55,7 +55,7 @@ pub mod verifier_program_one {
         process_transfer_10_ins_2_outs_first(
             ctx,
             vec![0u8; 256],
-            amount,
+            public_amount,
             nullifiers_vec,
             vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
             fee_amount,
@@ -72,6 +72,7 @@ pub mod verifier_program_one {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: Vec<u8>,
     ) -> Result<()> {
+        panic!("ED, &signing_address.key().to_bytes()], ");
         process_transfer_10_ins_2_outs_second(ctx, proof, vec![0u8; 32])
     }
 
@@ -93,7 +94,7 @@ pub struct LightInstructionFirst<'info> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, space= 8 + 2048, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
 }
 
 /// Executes light transaction with state created in the first instruction.
@@ -102,10 +103,10 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    pub rent: Sysvar<'info, Rent>,
+    /// CHECK: Is the same as in integrity hash.
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     #[account(
         mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
@@ -134,7 +135,7 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
-    #[account(mut)]
+    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
@@ -146,5 +147,5 @@ pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierStateTenNF<TransactionConfig>>,
+    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
 }

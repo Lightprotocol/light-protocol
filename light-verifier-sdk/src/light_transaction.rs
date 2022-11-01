@@ -276,6 +276,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
     pub fn fetch_mint(&mut self) -> Result<()> {
          match spl_token::state::Account::unpack(&self.accounts.unwrap().sender.as_ref().unwrap().data.borrow()) {
              Ok(sender_mint) => {
+                 // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
                  self.mint_pubkey = [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat();
                  self.fetched_mint = true;
                  Ok(())
@@ -307,9 +308,8 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
 
         // check merkle tree
-        for (i, leaves) in self.leaves.iter().enumerate()/*.zip(self.accounts.unwrap().remaining_accounts).skip(NR_NULLIFIERS)*/ {
+        for (i, leaves) in self.leaves.iter().enumerate() {
             // check account integrities
-
             insert_two_leaves_cpi(
                 &self.accounts.unwrap().program_id,
                 &self.accounts.unwrap().program_merkle_tree.to_account_info(),
@@ -326,7 +326,7 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
 
         self.inserted_leaves = true;
-        return Ok(());
+        Ok(())
     }
 
     /// Calls merkle tree via cpi to insert nullifiers.
@@ -370,85 +370,59 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
 
         msg!("transferring user funds");
-        sol_log_compute_units();
         // check mintPubkey
         let (pub_amount_checked, _) = self.check_amount(
             0,
             to_be_64(&self.public_amount).try_into().unwrap(),
         )?;
-        // msg!("self.public_amount {:?}", self.public_amount);
 
 
-        if *self.mint_pubkey == [0u8;32] {
-            // either sol withdrawal or normal withdrawal
-            // deposit
+        let recipient_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().recipient.as_ref().unwrap().data.borrow())?;
+        let sender_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().sender.as_ref().unwrap().data.borrow())?;
 
-
-            if self.is_deposit() {
-                // sender is user no check
-                // recipient is merkle tree pda, check correct derivation
-                self.deposit_sol(pub_amount_checked, &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info())?;
-            } else {
-                // sender is merkle tree pda check correct derivation
-                self.check_sol_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key())?;
-
-                withdraw_sol_cpi(
-                    &self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                    &self.accounts.unwrap().authority.to_account_info(),
-                    &self.accounts.unwrap().sender.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
-                    pub_amount_checked
-                )?;
-            }
-        } else {
-            let recipient_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().recipient.as_ref().unwrap().data.borrow())?;
-            let sender_mint = spl_token::state::Account::unpack(&self.accounts.unwrap().sender.as_ref().unwrap().data.borrow())?;
-
-            // check mint
-            if self.mint_pubkey[1..] != recipient_mint.mint.to_bytes()[..31] || self.mint_pubkey[1..] != sender_mint.mint.to_bytes()[..31] {
-                msg!("*self.mint_pubkey[..31] {:?}, {:?}, {:?}", self.mint_pubkey[1..].to_vec(), recipient_mint.mint.to_bytes()[..31].to_vec(), sender_mint.mint.to_bytes()[..31].to_vec() );
-                return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
-            }
-            // is a token deposit or withdrawal
-
-            if self.is_deposit() {
-                self.check_spl_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key(), &recipient_mint.mint)?;
-
-                let seed = merkle_tree_program::ID.to_bytes();
-                let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-                    &[seed.as_ref()],
-                    self.accounts.unwrap().program_id,
-                );
-                let bump = &[bump];
-                let seeds = &[&[seed.as_slice(), bump][..]];
-
-                let accounts = Transfer {
-                    from:       self.accounts.unwrap().sender.as_ref().unwrap().to_account_info().clone(),
-                    to:         self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info().clone(),
-                    authority:  self.accounts.unwrap().authority.to_account_info().clone()
-                };
-
-                let cpi_ctx = CpiContext::new_with_signer(self.accounts.unwrap().token_program.unwrap().to_account_info().clone(), accounts, seeds);
-                anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
-            } else {
-                self.check_spl_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key(), &sender_mint.mint)?;
-
-                // withdraw_spl_cpi
-                withdraw_spl_cpi(
-                    &self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                    &self.accounts.unwrap().authority.to_account_info(),
-                    &self.accounts.unwrap().sender.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().token_authority.as_ref().unwrap().to_account_info(), // token authority
-                    &self.accounts.unwrap().token_program.as_ref().unwrap().to_account_info(),
-                    &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
-                    pub_amount_checked
-                )?;
-            }
+        // check mint
+        if self.mint_pubkey[1..] != recipient_mint.mint.to_bytes()[..31] || self.mint_pubkey[1..] != sender_mint.mint.to_bytes()[..31] {
+            msg!("*self.mint_pubkey[..31] {:?}, {:?}, {:?}", self.mint_pubkey[1..].to_vec(), recipient_mint.mint.to_bytes()[..31].to_vec(), sender_mint.mint.to_bytes()[..31].to_vec() );
+            return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
         }
+        // is a token deposit or withdrawal
+
+        if self.is_deposit() {
+            self.check_spl_pool_account_derivation(&self.accounts.unwrap().recipient.as_ref().unwrap().key(), &recipient_mint.mint)?;
+
+            let seed = merkle_tree_program::ID.to_bytes();
+            let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
+                &[seed.as_ref()],
+                self.accounts.unwrap().program_id,
+            );
+            let bump = &[bump];
+            let seeds = &[&[seed.as_slice(), bump][..]];
+
+            let accounts = Transfer {
+                from:       self.accounts.unwrap().sender.as_ref().unwrap().to_account_info().clone(),
+                to:         self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info().clone(),
+                authority:  self.accounts.unwrap().authority.to_account_info().clone()
+            };
+
+            let cpi_ctx = CpiContext::new_with_signer(self.accounts.unwrap().token_program.unwrap().to_account_info().clone(), accounts, seeds);
+            anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
+        } else {
+            self.check_spl_pool_account_derivation(&self.accounts.unwrap().sender.as_ref().unwrap().key(), &sender_mint.mint)?;
+
+            // withdraw_spl_cpi
+            withdraw_spl_cpi(
+                &self.accounts.unwrap().program_id,
+                &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+                &self.accounts.unwrap().authority.to_account_info(),
+                &self.accounts.unwrap().sender.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().recipient.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().token_authority.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().token_program.as_ref().unwrap().to_account_info(),
+                &self.accounts.unwrap().registered_verifier_pda.to_account_info(),
+                pub_amount_checked
+            )?;
+        }
+
         self.transferred_funds = true;
         msg!("transferred");
         sol_log_compute_units();
@@ -465,13 +439,11 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
         }
 
         // check that it is the native token pool
-        // msg!("self.relayer_fee: {}", self.relayer_fee);
-        // msg!("self.fee_amount; {:?}", self.fee_amount);
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
             to_be_64(&self.fee_amount).try_into().unwrap()
         )?;
-        // msg!("fee_amount_checked: {}", fee_amount_checked);
+
         if self.is_deposit() {
 
             self.deposit_sol(fee_amount_checked, &self.accounts.unwrap().recipient_fee.as_ref().unwrap().to_account_info())?;
@@ -584,8 +556,16 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
 
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
-        // msg!("pub_amount: {:?}", pub_amount);
+
+        // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
+        // only the first limb is greater than 0.
+        // Amounts in shielded accounts are limited to 64bit therefore a withdrawal will always be greater
+        // than one U64::max().
         if pub_amount.0[0] > 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
+            if relayer_fee != 0 {
+                msg!("relayer_fee {}", relayer_fee);
+                return Err(VerifierSdkError::WrongPubAmount.into());
+            }
             Ok((pub_amount.0[0], 0))
 
         } else if pub_amount.0[0] != 0 {
@@ -611,24 +591,15 @@ impl <T: Config>Transaction<'_, '_, '_, T> {
             }
 
             let pub_amount = field.0[0].saturating_sub(relayer_fee);
-            // msg!("pub amount: {}, relayer fee {}",pub_amount, relayer_fee);
             Ok((pub_amount, relayer_fee))
         } else if pub_amount.0[0] == 0 && pub_amount.0[1] == 0 && pub_amount.0[2] == 0 && pub_amount.0[3] == 0 {
-
             Ok((0, 0))
 
         } else {
-            msg!("here");
-            return Err(VerifierSdkError::WrongPubAmount.into());
+            Err(VerifierSdkError::WrongPubAmount.into())
         }
     }
-
 }
-
-// test proof gen
-// test check amount
-// check account derivation
-
 
 
 #[cfg(test)]
@@ -640,6 +611,14 @@ mod tests {
     use ark_bn254;
     use std::ops::Neg;
     use crate::light_transaction::Transaction;
+    use anchor_lang::solana_program::account_info::AccountInfo;
+    use ark_ff::biginteger::BigInteger;
+    use ark_ff::biginteger::BigInteger256;
+    use ark_bn254::{
+        FrParameters,
+        Fr
+    };
+    use ark_ff::fields::PrimeField;
 
     pub const VERIFYING_KEY: Groth16Verifyingkey =  Groth16Verifyingkey {
         nr_pubinputs: 10,
@@ -747,7 +726,6 @@ mod tests {
         ];
         const UTXO_SIZE: usize = 256;
     }
-
 
     #[test]
     fn proof_verification_should_succeed() {
@@ -886,7 +864,6 @@ mod tests {
         assert!(tx.check_amount(0u64, to_be_64(&bytes).clone().try_into().unwrap()).is_err());
     }
 
-
     #[test]
     fn test_derivation_checks() {
         let mut public_inputs_vec = Vec::new();
@@ -972,66 +949,5 @@ mod tests {
 
 
     }
-    use anchor_lang::solana_program::account_info::AccountInfo;
-    use ark_ff::biginteger::BigInteger;
-    use ark_ff::biginteger::BigInteger256;
-    use ark_bn254::{
-        FrParameters,
-        Fr
-    };
-    use ark_ff::fields::PrimeField;
-    /*
-    #[test]
-    fn tx_hash_succeed() {
-        let mut public_inputs_vec = Vec::new();
-        for input in PUBLIC_INPUTS.chunks(32) {
-            public_inputs_vec.push(input.to_vec());
-        }
-        let proof_a: G1 =  <G1 as FromBytes>::read(&*[&to_be_64(&PROOF[0..64])[..], &[0u8][..]].concat()).unwrap();
-        let mut proof_a_neg = [0u8;65];
-        <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
-
-
-        let mut tx: Transaction<'_, '_, '_, TransactionConfig> = Transaction {
-            merkle_root: public_inputs_vec[0].clone(),
-            public_amount: public_inputs_vec[1].clone(),
-            tx_integrity_hash: public_inputs_vec[2].clone(),
-            fee_amount: public_inputs_vec[3].clone(),
-            mint_pubkey: public_inputs_vec[4].clone(),
-            checked_public_inputs: Vec::<Vec<u8>>::new(),
-            nullifiers: public_inputs_vec[5..7].to_vec(),
-            leaves: vec![vec![public_inputs_vec[7].to_vec(), public_inputs_vec[8].to_vec()]],
-            relayer_fee: 0,
-            proof_a: to_be_64(&proof_a_neg[..64]).to_vec(),
-            proof_b: PROOF[64..64 + 128].to_vec(),
-            proof_c: PROOF[64 + 128..256].to_vec(),
-            encrypted_utxos: Vec::<u8>::new(),
-            merkle_root_index: 0,
-            transferred_funds: false,
-            computed_tx_integrity_hash: false,
-            verified_proof : false,
-            inserted_leaves : false,
-            inserted_nullifier : false,
-            fetched_root : false,
-            fetched_mint: false,
-            e_phantom: PhantomData,
-            verifyingkey:&VERIFYING_KEY,
-            accounts: None,
-            pool_type: Vec::<u8>::new()
-        };
-        tx.compute_tx_integrity_hash()
-        assert!(tx.verify().is_ok());
-
-        let mut stash = tx.merkle_root;
-        tx.merkle_root = vec![2u8;32];
-        assert!(tx.verify().is_err());
-        tx.merkle_root = stash;
-
-        let mut stash = tx.merkle_root;
-        tx.merkle_root = vec![2u8;32];
-        assert!(tx.verify().is_err());
-        tx.merkle_root = stash;
-    }
-    */
 
 }

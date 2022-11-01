@@ -67,18 +67,13 @@ pub mod verifier_program_zero {
 
 #[derive(Accounts)]
 pub struct LightInstruction<'info> {
-    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    pub rent: Sysvar<'info, Rent>,
     /// CHECK: Is the same as in integrity hash.
-    // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    #[account(
-        mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
-    )]
+    #[account(mut)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
