@@ -7,7 +7,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     nullifiers: Vec<Vec<u8>>,
-    nullifier_pdas: Vec<AccountInfo<'a>>
+    nullifier_pdas: Vec<AccountInfo<'a>>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
@@ -21,8 +21,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     cpi_ctx = cpi_ctx.with_remaining_accounts(nullifier_pdas);
 
-    let res = merkle_tree_program::cpi::initialize_many_nullifiers(cpi_ctx, nullifiers);
-    res
+    merkle_tree_program::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
 }
 
 pub fn withdraw_sol_cpi<'a, 'b>(
@@ -48,9 +47,9 @@ pub fn withdraw_sol_cpi<'a, 'b>(
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::withdraw_sol(cpi_ctx, pub_amount_checked)
-
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn withdraw_spl_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -60,25 +59,26 @@ pub fn withdraw_spl_cpi<'a, 'b>(
     token_authority: &'b AccountInfo<'a>,
     token_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
-    pub_amount_checked: u64
+    pub_amount_checked: u64,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
     let bump = &[bump];
     let seeds = &[&[seed.as_slice(), bump][..]];
 
     let accounts = merkle_tree_program::cpi::accounts::WithdrawSpl {
-        authority:          authority.clone(),
-        merkle_tree_token:  merkle_tree_token.clone(),
-        token_authority:    token_authority.clone(),
-        token_program:      token_program.clone(),
+        authority: authority.clone(),
+        merkle_tree_token: merkle_tree_token.clone(),
+        token_authority: token_authority.clone(),
+        token_program: token_program.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
-        recipient: recipient.clone()
+        recipient: recipient.clone(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
     merkle_tree_program::cpi::withdraw_spl(cpi_ctx, pub_amount_checked)
 }
 
+#[allow(clippy::too_many_arguments)]
 pub fn insert_two_leaves_cpi<'a, 'b>(
     program_id: &Pubkey,
     merkle_tree_program_id: &'b AccountInfo<'a>,
@@ -101,7 +101,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         two_leaves_pda: two_leaves_pda.clone(),
         system_program: system_program.clone(),
         pre_inserted_leaves_index: pre_inserted_leaves_index_account.clone(),
-        registered_verifier_pda: registered_verifier_pda.clone()
+        registered_verifier_pda: registered_verifier_pda.clone(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
@@ -109,7 +109,13 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         cpi_ctx,
         leaf_left,
         leaf_right,
-        [encrypted_utxos.to_vec(), vec![0u8; 256 - encrypted_utxos.len()]].concat().try_into().unwrap(),
+        [
+            encrypted_utxos.to_vec(),
+            vec![0u8; 256 - encrypted_utxos.len()],
+        ]
+        .concat()
+        .try_into()
+        .unwrap(),
         merkle_tree_tmp_account,
     )
 }

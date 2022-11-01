@@ -1,6 +1,5 @@
 // This file stores constants which do not have to be configured.
 use anchor_lang::constant;
-
 //instruction order
 #[constant]
 pub const IX_ORDER: [u8; 57] = [
@@ -26,7 +25,7 @@ pub const STORAGE_SEED: &[u8] = b"storage";
 #[constant]
 pub const LEAVES_SEED: &[u8] = b"leaves";
 #[constant]
-pub const NF_SEED: &[u8] = b"nf";
+pub const NULLIFIER_SEED: &[u8] = b"nf";
 #[constant]
 pub const POOL_TYPE_SEED: &[u8] = b"pooltype";
 #[constant]

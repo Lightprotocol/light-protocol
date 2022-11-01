@@ -12,7 +12,7 @@ pub struct UpdateMerkleTree<'info> {
     #[account(mut, address=merkle_tree_update_state.load()?.relayer)]
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
-    #[account(mut, seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()], bump,
+    #[account(mut, seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED], bump,
         constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key()
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,

@@ -25,7 +25,9 @@ pub use config_accounts::*;
 
 use crate::config_accounts::{
     init_asset_pda::{RegisterSolPool, RegisterSplPool},
-    merkle_tree_authority::{InitializeMerkleTreeAuthority, UpdateMerkleTreeAuthority, UpdateMerkleTreeAuthorityConfig},
+    merkle_tree_authority::{
+        InitializeMerkleTreeAuthority, UpdateMerkleTreeAuthority, UpdateMerkleTreeAuthorityConfig,
+    },
     register_verifier::RegisterVerifier,
 };
 
@@ -33,9 +35,10 @@ use crate::errors::ErrorCode;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
+use crate::utils::{
+    config::{self, ZERO_BYTES_MERKLE_TREE_18}
+};
 
-use crate::utils::config;
 use crate::verifier_invoked_instructions::{
     insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
@@ -60,7 +63,10 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_tree(ctx: Context<InitializeNewMerkleTree>, lock_duration: u64) -> Result<()> {
+    pub fn initialize_new_merkle_tree(
+        ctx: Context<InitializeNewMerkleTree>,
+        lock_duration: u64,
+    ) -> Result<()> {
         let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
 
         let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
@@ -80,7 +86,7 @@ pub mod merkle_tree_program {
     /// Initializes a new merkle tree authority which can register new verifiers and configure
     /// permissions to create new pools.
     pub fn initialize_merkle_tree_authority(
-        ctx: Context<InitializeMerkleTreeAuthority>
+        ctx: Context<InitializeMerkleTreeAuthority>,
     ) -> Result<()> {
         ctx.accounts.merkle_tree_authority_pda.pubkey = ctx.accounts.authority.key();
         Ok(())
@@ -94,19 +100,30 @@ pub mod merkle_tree_program {
     }
 
     /// Enables permissionless deposits of any spl token with supply of one and zero decimals.
-    pub fn update_lock_duration(ctx: Context<UpdateLockDuration>, lock_duration: u64) -> Result<()> {
+    pub fn update_lock_duration(
+        ctx: Context<UpdateLockDuration>,
+        lock_duration: u64,
+    ) -> Result<()> {
         ctx.accounts.merkle_tree.load_mut()?.lock_duration = lock_duration;
         Ok(())
     }
 
     /// Enables permissionless deposits of any spl token with supply of one and zero decimals.
-    pub fn enable_nfts(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
+    pub fn enable_nfts(
+        ctx: Context<UpdateMerkleTreeAuthorityConfig>,
+        enable_permissionless: bool,
+    ) -> Result<()> {
         ctx.accounts.merkle_tree_authority_pda.enable_nfts = enable_permissionless;
         Ok(())
     }
 
-    pub fn enable_permissionless_spl_tokens(ctx: Context<UpdateMerkleTreeAuthorityConfig>, enable_permissionless: bool) -> Result<()> {
-        ctx.accounts.merkle_tree_authority_pda.enable_permissionless_spl_tokens = enable_permissionless;
+    pub fn enable_permissionless_spl_tokens(
+        ctx: Context<UpdateMerkleTreeAuthorityConfig>,
+        enable_permissionless: bool,
+    ) -> Result<()> {
+        ctx.accounts
+            .merkle_tree_authority_pda
+            .enable_permissionless_spl_tokens = enable_permissionless;
         Ok(())
     }
 
@@ -126,10 +143,9 @@ pub mod merkle_tree_program {
             .accounts
             .merkle_tree_authority_pda
             .enable_permissionless_merkle_tree_registration
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
         {
-            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
-                return err!(ErrorCode::InvalidAuthority);
-            }
+            return err!(ErrorCode::InvalidAuthority);
         }
         ctx.accounts.registered_verifier_pda.pubkey = verifier_pubkey;
         Ok(())
@@ -141,10 +157,9 @@ pub mod merkle_tree_program {
             .accounts
             .merkle_tree_authority_pda
             .enable_permissionless_spl_tokens
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
         {
-            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
-                return err!(ErrorCode::InvalidAuthority);
-            }
+            return err!(ErrorCode::InvalidAuthority);
         }
         ctx.accounts.registered_pool_type_pda.pool_type = pool_type;
         Ok(())
@@ -152,30 +167,27 @@ pub mod merkle_tree_program {
 
     /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
-        msg!("ctx.accounts.mint.decimals {}", ctx.accounts.mint.decimals);
-        msg!("ctx.accounts.mint.supply  {}", ctx.accounts.mint.supply);
-        let is_nft = if ctx.accounts.mint.decimals == 0 && ctx.accounts.mint.supply == 1 {true} else { false };
+
+        let is_nft = false;
+            // ctx.accounts.mint.decimals == 0
+            // && ctx.accounts.mint.supply == 1
+            // should add check that authority is metaplex nft
+            // && metaplex_token_metadata::state::get_master_edition(&ctx.accounts.metaplex_token.to_account_info()).is_ok();
         msg!("is_nft {}", is_nft);
         // nfts enabled
-        if is_nft && !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_nfts
-        {
-            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
-                return err!(ErrorCode::InvalidAuthority);
-            }
+        if is_nft && !ctx.accounts.merkle_tree_authority_pda.enable_nfts && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
+            return err!(ErrorCode::InvalidAuthority);
         }
 
         // any token enabled
-        if !is_nft && !ctx
-            .accounts
-            .merkle_tree_authority_pda
-            .enable_permissionless_spl_tokens
-        {
-            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
+        if !is_nft
+            && !ctx
+                .accounts
+                .merkle_tree_authority_pda
+                .enable_permissionless_spl_tokens
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
                 return err!(ErrorCode::InvalidAuthority);
-            }
+
         }
 
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
@@ -185,8 +197,7 @@ pub mod merkle_tree_program {
         ctx.accounts.registered_asset_pool_pda.index = ctx
             .accounts
             .merkle_tree_authority_pda
-            .registered_asset_index
-            .clone();
+            .registered_asset_index;
         ctx.accounts
             .merkle_tree_authority_pda
             .registered_asset_index += 1;
@@ -199,10 +210,8 @@ pub mod merkle_tree_program {
             .accounts
             .merkle_tree_authority_pda
             .enable_permissionless_spl_tokens
-        {
-            if ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
                 return err!(ErrorCode::InvalidAuthority);
-            }
         }
 
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
@@ -212,8 +221,7 @@ pub mod merkle_tree_program {
         ctx.accounts.registered_asset_pool_pda.index = ctx
             .accounts
             .merkle_tree_authority_pda
-            .registered_asset_index
-            .clone();
+            .registered_asset_index;
         ctx.accounts
             .merkle_tree_authority_pda
             .registered_asset_index += 1;
@@ -303,7 +311,7 @@ pub mod merkle_tree_program {
         process_spl_transfer(ctx, amount)
     }
 
-    pub fn initialize_many_nullifiers<'a, 'b, 'c, 'info>(
+    pub fn initialize_nullifiers<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InitializeNullifiers<'info>>,
         nullifiers: Vec<Vec<u8>>,
     ) -> Result<()> {

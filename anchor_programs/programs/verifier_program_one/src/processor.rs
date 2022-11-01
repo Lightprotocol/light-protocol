@@ -20,7 +20,6 @@ impl Config for TransactionConfig {
         34, 112, 33, 68, 178, 147, 230, 193, 113, 82, 213, 107, 154, 193, 174, 159, 246, 190, 23,
         138, 211, 16, 120, 183, 7, 91, 10, 173, 20, 245, 75, 167,
     ];
-    const UTXO_SIZE: usize = 256;
 }
 
 pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(

@@ -16,11 +16,12 @@ pub use processor::*;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use merkle_tree_program::{
-    errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
-    utils::constants::MERKLE_TREE_AUTHORITY_SEED, MerkleTreeAuthority, RegisteredVerifier,
+    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    poseidon_merkle_tree::state::MerkleTree,
+    program::MerkleTreeProgram,
+    utils::constants::TOKEN_AUTHORITY_SEED,
+    RegisteredVerifier,
 };
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
@@ -98,7 +99,7 @@ pub struct LightInstruction<'info> {
     #[account(mut)]
     pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
-    #[account(mut)]
+    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: AccountInfo<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]

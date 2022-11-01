@@ -310,7 +310,9 @@ export async function newAccountWithTokens ({
     // await solana.sendAndConfirmTransaction(connection, transaction, [ADMIN_AUTH_KEYPAIR]);
 
     let space = token.ACCOUNT_SIZE
-
+    console.log(MINT);
+    console.log(ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+    
     tokenAccount = await   token.createAccount(
         connection,
         ADMIN_AUTH_KEYPAIR,
@@ -319,10 +321,12 @@ export async function newAccountWithTokens ({
         // userAccount
       )
 
+      console.log(tokenAccount);
 
   } catch (e) {
     console.log(e);
   }
+  console.log("fere");
 
   try{
 

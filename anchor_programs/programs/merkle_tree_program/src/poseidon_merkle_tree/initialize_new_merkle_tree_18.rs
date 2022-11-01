@@ -31,7 +31,7 @@ pub struct InitializeNewMerkleTree<'info> {
         space = 16,
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    #[account(seeds = [&MERKLE_TREE_AUTHORITY_SEED[..]], bump)]
+    #[account(seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
@@ -51,9 +51,8 @@ pub fn process_initialize_new_merkle_tree_18(
     zero_bytes: Vec<[u8; 32]>,
     mt_index: u64,
 ) {
-    for i in 0..height as usize {
-        merkle_tree_state_data.filled_subtrees[i] = zero_bytes[i];
-    }
+    merkle_tree_state_data.filled_subtrees[..usize::try_from(height).unwrap()].copy_from_slice(&zero_bytes[..usize::try_from(height).unwrap()]);
+
     merkle_tree_state_data.height = merkle_tree_state_data
         .filled_subtrees
         .len()
@@ -76,7 +75,6 @@ mod test {
 
     #[test]
     fn test_init_merkle_tree() {
-
         let mt = MerkleTree {
             filled_subtrees: [[0u8; 32]; 18],
             current_root_index: 0u64,

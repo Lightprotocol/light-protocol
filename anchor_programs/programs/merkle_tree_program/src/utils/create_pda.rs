@@ -4,6 +4,7 @@ use anchor_lang::solana_program::{
 };
 use std::convert::TryInto;
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_and_check_pda<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,

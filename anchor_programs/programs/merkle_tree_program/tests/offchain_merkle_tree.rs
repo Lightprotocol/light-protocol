@@ -16,29 +16,24 @@ use ark_serialize::{Read, Write};
 use ark_std::vec::Vec;
 use ark_std::{test_rng, UniformRand};
 
-use std::convert::TryInto;
-use merkle_tree::merkle_tree::{
-    hash_64_to_vec,
-    Path,
-    MerkleTree,
-    PoseidonCircomCRH3
-};
-use merkle_tree_program;
-use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::instructions::insert_last_double;
-use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::processor::compute_updated_merkle_tree;
-use solana_program::program_pack::Pack;
-use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
-use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::MerkleTreeUpdateState;
-use merkle_tree_program::utils::config;
-use merkle_tree_program::poseidon_merkle_tree::state;
-use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
-use std::cell::RefMut;
-use arkworks_gadgets::utils::{
-    get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
-};
 use arkworks_gadgets::poseidon::{
     circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
 };
+use arkworks_gadgets::utils::{
+    get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3, parse_vec,
+};
+use merkle_tree::merkle_tree::{hash_64_to_vec, MerkleTree, Path, PoseidonCircomCRH3};
+use merkle_tree_program;
+use merkle_tree_program::poseidon_merkle_tree::state;
+use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree as MerkleTreeOnchain;
+use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::instructions::insert_last_double;
+use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::processor::compute_updated_merkle_tree;
+use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::MerkleTreeUpdateState;
+use merkle_tree_program::utils::config;
+use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
+use solana_program::program_pack::Pack;
+use std::cell::RefMut;
+use std::convert::TryInto;
 const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 3] = [0, 1, 2];
 
 #[test]
@@ -72,8 +67,7 @@ fn merkle_tree_verify_init_bytes_merkle_tree_18() {
 
     //generating leaf hash from zero value
     let mut current_level_hash =
-        <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value)
-            .unwrap();
+        <PoseidonCircomCRH3 as TwoToOneCRH>::evaluate(&params, &zero_value, &zero_value).unwrap();
     <Fp256<ark_ed_on_bn254::FqParameters> as ToBytes>::write(
         &current_level_hash,
         &mut zero_value[..],
@@ -112,18 +106,20 @@ fn print_zero_values() {
     let tree_height = 18;
 
     let zero_value = vec![
-        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144,
-        67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
+        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67,
+        82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
     ]; //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
     let mut zero_values = Vec::new();
     let mut current_zero = zero_value.clone();
     zero_values.push(current_zero.clone());
-    println!("pub const ZERO_BYTES_MERKLE_TREE_18: [[u8;32];{}] = [\n \t {:?},",tree_height, current_zero);
+    println!(
+        "pub const ZERO_BYTES_MERKLE_TREE_18: [[u8;32];{}] = [\n \t {:?},",
+        tree_height, current_zero
+    );
     for i in 0..32 {
         current_zero = hash_64_to_vec([current_zero.clone(), current_zero].concat()).to_vec();
         zero_values.push(current_zero.clone());
         println!("\t {:?},", current_zero);
-
     }
     println!("]; ");
 }
@@ -133,8 +129,8 @@ fn test_initialize() {
     let tree_height = 18;
 
     let zero_value = vec![
-        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144,
-        67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
+        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67,
+        82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
     ];
 
     let mut mt = MerkleTreeOnchain {
@@ -196,8 +192,8 @@ fn batch_update_smt_test() {
 
     let initial_zero_hash = config::ZERO_BYTES_MERKLE_TREE_18[0].to_vec();
     let zero_value = vec![
-        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144,
-        67, 82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
+        40, 66, 58, 227, 48, 224, 249, 227, 188, 18, 133, 168, 156, 214, 220, 144, 244, 144, 67,
+        82, 76, 6, 135, 78, 64, 186, 52, 113, 234, 47, 27, 32,
     ]; //hash_64_to_vec(vec![1u8;64]).to_vec();//Fq::one().into_repr().to_bytes_le();
     assert_eq!(initial_zero_hash, zero_value);
 

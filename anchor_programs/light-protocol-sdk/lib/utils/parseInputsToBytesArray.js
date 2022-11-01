@@ -15,6 +15,8 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const parseInputsToBytesArray = function (data) {
     return __awaiter(this, void 0, void 0, function* () {
         var mydata = JSON.parse(data.toString());
+        console.log("prior reverse; ", mydata);
+
         for (var i in mydata) {
             mydata[i] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i]), 32)).reverse();
         }
@@ -26,7 +28,7 @@ const parseInputsToBytesArray = function (data) {
         //     });
         // });
         // console.log(x.toString())
-
+        console.log("after reverse; ", mydata);
         return mydata;
     });
 };

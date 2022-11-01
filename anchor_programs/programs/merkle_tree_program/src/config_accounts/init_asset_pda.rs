@@ -24,7 +24,7 @@ pub struct RegisterPoolType<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&pool_type, &POOL_TYPE_SEED[..]],
+        seeds = [&pool_type, POOL_TYPE_SEED],
         bump,
         space = 8 + 32
     )]
@@ -43,7 +43,7 @@ pub struct RegisterSplPool<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, &POOL_CONFIG_SEED[..]],
+        seeds = [&mint.key().to_bytes(), &registered_pool_type_pda.pool_type, POOL_CONFIG_SEED],
         bump,
         space = 8 + 32 + 32 + 8
     )]
@@ -51,7 +51,7 @@ pub struct RegisterSplPool<'info> {
     #[account(init,
               seeds = [
                   &mint.key().to_bytes(), &registered_pool_type_pda.pool_type,
-                  &POOL_SEED[..]
+                  POOL_SEED
               ],
               bump,
               payer = authority,
@@ -73,7 +73,7 @@ pub struct RegisterSplPool<'info> {
     pub token_program: Program<'info, Token>,
     /// Just needs to exist and be derived correctly.
     #[account(
-        seeds = [&registered_pool_type_pda.pool_type[..], &POOL_TYPE_SEED[..]],
+        seeds = [&registered_pool_type_pda.pool_type[..], POOL_TYPE_SEED],
         bump,
     )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,
@@ -87,7 +87,7 @@ pub struct RegisterSolPool<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, &POOL_CONFIG_SEED[..]],
+        seeds = [&[0u8;32], &registered_pool_type_pda.pool_type, POOL_CONFIG_SEED],
         bump,
         space = 8 + 32 + 32 + 8
     )]
@@ -98,7 +98,7 @@ pub struct RegisterSolPool<'info> {
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(
-        seeds = [&registered_pool_type_pda.pool_type[..], &POOL_TYPE_SEED[..]],
+        seeds = [&registered_pool_type_pda.pool_type[..], POOL_TYPE_SEED],
         bump,
     )]
     pub registered_pool_type_pda: Account<'info, RegisteredPoolType>,

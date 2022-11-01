@@ -17,11 +17,12 @@ pub use processor::*;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use light_verifier_sdk::utils::create_pda::create_and_check_pda;
 use merkle_tree_program::{
-    errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
-    utils::constants::MERKLE_TREE_AUTHORITY_SEED, MerkleTreeAuthority, RegisteredVerifier,
+    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    poseidon_merkle_tree::state::MerkleTree,
+    program::MerkleTreeProgram,
+    utils::constants::TOKEN_AUTHORITY_SEED,
+    RegisteredVerifier,
 };
 
 use crate::processor::TransactionConfig;
@@ -72,7 +73,6 @@ pub mod verifier_program_one {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         proof: Vec<u8>,
     ) -> Result<()> {
-        panic!("ED, &signing_address.key().to_bytes()], ");
         process_transfer_10_ins_2_outs_second(ctx, proof, vec![0u8; 32])
     }
 
@@ -93,7 +93,7 @@ pub struct LightInstructionFirst<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, space= 8 + 2048, payer = signing_address )]
+    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 2048/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
     pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
 }
 
@@ -102,7 +102,7 @@ pub struct LightInstructionFirst<'info> {
 pub struct LightInstructionSecond<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
@@ -135,7 +135,7 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut)]
     pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
-    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
+    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]

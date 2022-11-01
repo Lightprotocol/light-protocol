@@ -27,5 +27,5 @@ pub enum VerifierSdkError {
     #[msg("InvalidSenderorRecipient")]
     InvalidSenderorRecipient,
     #[msg("Proof not verified")]
-    ProofNotVerified
+    ProofNotVerified,
 }

@@ -1,8 +1,8 @@
 use crate::config;
 use crate::errors::ErrorCode;
+use crate::state::MerkleTree;
 use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
 use anchor_lang::prelude::*;
-use crate::state::MerkleTree;
 
 /// Configures the authority of the merkle tree which can:
 /// - register new verifiers
@@ -24,7 +24,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     #[account(
         init,
         payer = authority,
-        seeds = [&MERKLE_TREE_AUTHORITY_SEED],
+        seeds = [MERKLE_TREE_AUTHORITY_SEED],
         bump,
         space = 8 + 32 + 8 + 8 + 8
     )]
@@ -38,7 +38,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTreeAuthority<'info> {
-    #[account(mut, seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
+    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
     #[account(address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
@@ -49,7 +49,7 @@ pub struct UpdateMerkleTreeAuthority<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTreeAuthorityConfig<'info> {
-    #[account(mut, seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
+    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
     #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
@@ -58,7 +58,7 @@ pub struct UpdateMerkleTreeAuthorityConfig<'info> {
 
 #[derive(Accounts)]
 pub struct UpdateLockDuration<'info> {
-    #[account(mut, seeds = [&MERKLE_TREE_AUTHORITY_SEED], bump)]
+    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree authority.
     #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]

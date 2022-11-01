@@ -84,12 +84,12 @@ pub fn insert_1_inner_loop(
             update_state_data.current_level_hash
         );
 
-        update_state_data.node_left = update_state_data.current_level_hash.clone();
+        update_state_data.node_left = update_state_data.current_level_hash;
         update_state_data.node_right =
             ZERO_BYTES_MERKLE_TREE_18[usize::try_from(update_state_data.current_level).unwrap()];
         update_state_data.filled_subtrees
             [usize::try_from(update_state_data.current_level).unwrap()] =
-            update_state_data.current_level_hash.clone();
+            update_state_data.current_level_hash;
         // check if there is another queued leaves pair
         if update_state_data.insert_leaves_index < update_state_data.number_of_leaves {
             msg!(
@@ -109,11 +109,8 @@ pub fn insert_1_inner_loop(
         }
     } else {
         update_state_data.node_left = update_state_data.filled_subtrees
-            [usize::try_from(update_state_data.current_level).unwrap()]
-        .clone()
-        .try_into()
-        .unwrap();
-        update_state_data.node_right = update_state_data.current_level_hash.clone();
+            [usize::try_from(update_state_data.current_level).unwrap()];
+        update_state_data.node_right = update_state_data.current_level_hash;
     }
     update_state_data.current_index /= 2;
     update_state_data.current_level += 1;
@@ -134,16 +131,14 @@ pub fn insert_last_double(
     merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
-    merkle_tree_account.current_root_index = ((merkle_tree_account.current_root_index + 1)
-        % u64::try_from(merkle_tree_account.roots.len()).unwrap())
-    .try_into()
-    .unwrap();
+    merkle_tree_account.current_root_index = (merkle_tree_account.current_root_index + 1)
+        % u64::try_from(merkle_tree_account.roots.len()).unwrap();
 
     msg!(
         "merkle_tree_account.current_root_index {}",
         merkle_tree_account.current_root_index
     );
-    merkle_tree_account.next_index = update_state_data.tmp_leaves_index.try_into().unwrap();
+    merkle_tree_account.next_index = update_state_data.tmp_leaves_index;
     msg!(
         "merkle_tree_account.next_index {:?}",
         merkle_tree_account.next_index
@@ -154,13 +149,12 @@ pub fn insert_last_double(
     );
     let index: usize = merkle_tree_account
         .current_root_index
-        .clone()
         .try_into()
         .unwrap();
 
     merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
 
-    merkle_tree_account.filled_subtrees = update_state_data.filled_subtrees.clone();
+    merkle_tree_account.filled_subtrees = update_state_data.filled_subtrees;
 
     Ok(())
 }

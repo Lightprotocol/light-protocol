@@ -17,7 +17,7 @@ pub struct InsertRoot<'info> {
     /// The account is closed to the authority at the end of the instruction.
     #[account(
         mut,
-        seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED],
         bump,
         constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key(),
         constraint= IX_ORDER[usize::try_from(merkle_tree_update_state.load()?.current_instruction_index).unwrap()] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
@@ -33,14 +33,11 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     ctx: &mut Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
 ) -> Result<()> {
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
-    let mut merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
+    let merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
 
-    let id = IX_ORDER
-        [usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
-    msg!(
-        "Root insert Instruction: {}",
-        id
-    );
+    let id =
+        IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
+    msg!("Root insert Instruction: {}", id);
 
     msg!(
         "merkle_tree_pda_data.pubkey_locked: {:?}",
@@ -53,14 +50,13 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     );
 
     // insert root into merkle tree
-    insert_last_double(&mut merkle_tree_pda_data, merkle_tree_update_state_data)?;
+    insert_last_double(merkle_tree_pda_data, merkle_tree_update_state_data)?;
 
     // Release lock
     msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
     msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
     merkle_tree_pda_data.time_locked = 0;
     merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
-
 
     Ok(())
 }

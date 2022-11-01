@@ -282,7 +282,8 @@ export class shieldedTransaction {
         nullifiers: this.proofData.publicInputs.nullifiers,
         leftLeaves: [this.proofData.publicInputs.leaves[0]],
         merkleTreeProgram: this.merkleTreeProgram,
-        verifierProgram: this.verifierProgram
+        verifierProgram: this.verifierProgram,
+        signer: this.payer.publicKey
       })
       this.escrow = pdas.escrow;
       this.leavesPdaPubkeys = pdas.leavesPdaPubkeys;
@@ -696,7 +697,7 @@ export  async function sendTransaction10(insert = true){
   // console.log("registeredVerifierPd",this.registeredVerifierPda)
   // console.log("encryptedOutputs len ", this.proofData.encryptedOutputs.length);
   // console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
-  // console.log("this.verifierStatePubkey, ", this.verifierStatePubkey);
+  console.log("this.verifierStatePubkey, ", this.verifierStatePubkey.toBase58());
   // console.log("this.proofData.publicInputs.nullifiers, ", this.proofData.publicInputs.nullifiers);
   //
   // console.log("this.root_index ", this.root_index);
@@ -874,7 +875,8 @@ export async function getPdaAddresses({
   nullifiers,
   leftLeaves,
   merkleTreeProgram,
-  verifierProgram
+  verifierProgram,
+  signer
 }) {
   console.log("new Uint8Array(nullifier0) ", new Uint8Array(nullifiers[0]));
   console.log("nullifiers.len ", nullifiers.length);
@@ -904,7 +906,7 @@ export async function getPdaAddresses({
         [anchor.utils.bytes.utf8.encode("escrow")],
         verifierProgram.programId))[0],
     verifierStatePubkey: (await PublicKey.findProgramAddress(
-        [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+        [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
         verifierProgram.programId))[0],
     feeEscrowStatePubkey: (await PublicKey.findProgramAddress(
         [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("escrow")],

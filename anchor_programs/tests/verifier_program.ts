@@ -72,7 +72,8 @@ import {
 
 var MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
 let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
-let ASSET_1 = new anchor.BN(new anchor.web3.Account().publicKey._bn.toBuffer(32).slice(0,31));
+let ASSET_1_ORG = new anchor.web3.Account()
+let ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
 
 var UNREGISTERED_MERKLE_TREE;
 var UNREGISTERED_MERKLE_TREE_PDA_TOKEN;
@@ -852,7 +853,8 @@ describe("verifier_program", () => {
 
   });
 
-  it.skip("Deposit 10 utxo", async () => {
+
+  it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -933,7 +935,7 @@ describe("verifier_program", () => {
         outputUtxos,
         action: "DEPOSIT",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
-        relayerFee: U64(depositFeeAmount),
+        relayerFee: U64(0),
         shuffle: true,
         mintPubkey: MINT_CIRCUIT,
         sender: userTokenAccount
@@ -962,7 +964,7 @@ describe("verifier_program", () => {
   })
 
 
-  it("Deposit", async () => {
+  it.skip("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -1040,15 +1042,19 @@ describe("verifier_program", () => {
         outputUtxos,
         action: "DEPOSIT",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
-        relayerFee: U64(depositFeeAmount),
+        relayerFee: U64(0),
         shuffle: true,
-        mintPubkey: MINT_CIRCUIT,
+        mintPubkey: new anchor.BN("123"), // input is apparently irrelevant
         sender: userTokenAccount
       });
 
       await SHIELDED_TRANSACTION.proof();
 
-      await testTransaction(SHIELDED_TRANSACTION);
+      // await testTransaction(SHIELDED_TRANSACTION);
+
+      console.log("MINT_CIRCUIT: ", Array.from((MINT._bn.toBuffer(32).slice(0,31))));
+
+      console.log(SHIELDED_TRANSACTION.input);
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -1083,7 +1089,7 @@ describe("verifier_program", () => {
 
     console.log("Wrong wrongPubAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount = _.cloneDeep(shieldedTxBackUp.proofData.publicInputs.publicAmount);
+    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
     // Wrong feeAmount
     let wrongFeeAmount = new anchor.BN("123213").toArray()
@@ -1093,7 +1099,26 @@ describe("verifier_program", () => {
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong feeAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount = _.cloneDeep(shieldedTxBackUp.proofData.publicInputs.publicAmount);
+    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
+
+    let wrongMint = new anchor.BN("123213").toArray()
+    console.log("wrongMint ", wrongMint);
+    console.log("SHIELDED_TRANSACTION.proofData.publicInputs ", SHIELDED_TRANSACTION.proofData.publicInputs);
+    let relayer = new anchor.web3.Account();
+    await createMint({
+      authorityKeypair: ADMIN_AUTH_KEYPAIR,
+      mintKeypair: ASSET_1_ORG
+    })
+    SHIELDED_TRANSACTION.sender = await newAccountWithTokens({connection: provider.connection,
+    MINT: ASSET_1_ORG.publicKey,
+    ADMIN_AUTH_KEYPAIR,
+    userAccount: relayer,
+    amount: 0})
+    e = await SHIELDED_TRANSACTION.sendTransaction();
+    console.log("Wrong wrongMint", e.logs.includes('Program log: error ProofVerificationFailed'));
+    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
+    SHIELDED_TRANSACTION = _.cloneDeep(shieldedTxBackUp);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
     // Wrong encryptedOutputs
@@ -1181,8 +1206,8 @@ describe("verifier_program", () => {
       // will result in wrong integrity hash
       SHIELDED_TRANSACTION.senderFee = origin.publicKey;
       e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:548. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
-      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:548. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
+      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:546. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
+      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:546. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
       SHIELDED_TRANSACTION.senderFee = _.cloneDeep(shieldedTxBackUp.senderFee);
       await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
@@ -1267,7 +1292,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it("Update Merkle Tree after Deposit", async () => {
+  it.skip("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -1313,6 +1338,7 @@ describe("verifier_program", () => {
 
     // assert(mtOnchain.roots[1] == mtAfter.root());
   })
+
 
   it.skip("Update Merkle Tree Test", async () => {
 
@@ -1745,7 +1771,8 @@ describe("verifier_program", () => {
 
   })
 
-  it("Withdraw", async () => {
+
+  it.skip("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 
@@ -1874,6 +1901,7 @@ describe("verifier_program", () => {
 
 
   })
+
 
   it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();

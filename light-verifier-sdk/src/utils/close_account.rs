@@ -1,5 +1,5 @@
-use anchor_lang::prelude::*;
 use crate::errors::VerifierSdkError;
+use anchor_lang::prelude::*;
 use std::ops::DerefMut;
 pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Result<()> {
     //close account by draining lamports

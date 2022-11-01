@@ -19,7 +19,6 @@ impl Config for TransactionConfig {
         252, 178, 75, 149, 78, 219, 142, 17, 53, 237, 47, 4, 42, 105, 173, 204, 248, 16, 209, 38,
         219, 222, 123, 242, 5, 68, 240, 131, 3, 211, 184, 81,
     ];
-    const UTXO_SIZE: usize = 256;
 }
 
 pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(

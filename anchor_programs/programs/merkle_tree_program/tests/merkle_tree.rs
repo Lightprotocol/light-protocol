@@ -2,28 +2,23 @@
 
 pub mod merkle_tree {
 
-    use ark_crypto_primitives::{
-        crh::TwoToOneCRH,
-        Error,
-    };
-    use ark_ff::ToBytes;
+    use ark_crypto_primitives::{crh::TwoToOneCRH, Error};
     use ark_ed_on_bn254;
     use ark_ed_on_bn254::Fq;
+    use ark_ff::ToBytes;
 
-    use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
-    use arkworks_gadgets::poseidon::{
-        circom::CircomCRH, PoseidonParameters,
-    };
+    use arkworks_gadgets::poseidon::{circom::CircomCRH, PoseidonParameters};
     use arkworks_gadgets::utils::{
         get_mds_poseidon_circom_bn254_x5_3, get_rounds_poseidon_circom_bn254_x5_3,
     };
+    use merkle_tree_program::poseidon_merkle_tree::instructions_poseidon::PoseidonCircomRounds3;
     pub type PoseidonCircomCRH3 = CircomCRH<Fq, PoseidonCircomRounds3>;
 
     /*
-    * before the actual tests a reference merkle tree implementation with poseidon is defined for
-    * the onchain tree to test against.
-    *
-    */
+     * before the actual tests a reference merkle tree implementation with poseidon is defined for
+     * the onchain tree to test against.
+     *
+     */
 
     pub fn hash_64_to_vec(input_bytes: Vec<u8>) -> [u8; 32] {
         let rounds = get_rounds_poseidon_circom_bn254_x5_3::<Fq>();

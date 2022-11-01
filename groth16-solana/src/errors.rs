@@ -11,5 +11,5 @@ pub enum Groth16Error {
     #[error("InvalidG2Length")]
     InvalidG2Length,
     #[error("InvalidPublicInputsLength")]
-    InvalidPublicInputsLength
+    InvalidPublicInputsLength,
 }

@@ -38,14 +38,12 @@ pub fn process_insert_two_leaves(
     ctx.accounts.two_leaves_pda.left_leaf_index = ctx
         .accounts
         .pre_inserted_leaves_index
-        .next_index
-        .try_into()
-        .unwrap();
+        .next_index;
+
     ctx.accounts.two_leaves_pda.merkle_tree_pubkey = merkle_tree_pda_pubkey;
     ctx.accounts.two_leaves_pda.encrypted_utxos = encrypted_utxos;
 
     // Increase next index by 2 because we're inserting 2 leaves at once.
     ctx.accounts.pre_inserted_leaves_index.next_index += 2;
-    // msg!("packed two_leaves_pda");
     Ok(())
 }

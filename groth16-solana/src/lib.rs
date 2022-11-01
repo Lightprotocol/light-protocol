@@ -1,2 +1,2 @@
-pub mod groth16;
 pub mod errors;
+pub mod groth16;

@@ -27,11 +27,11 @@ pub fn process_spl_transfer<'info>(
 ) -> Result<()> {
     // msg!("Withdrawing spl token {}", amount);
     let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-        &[&TOKEN_AUTHORITY_SEED.as_ref()],
+        &[TOKEN_AUTHORITY_SEED],
         ctx.program_id,
     );
     let bump = &[bump][..];
-    let seeds = &[&[&TOKEN_AUTHORITY_SEED.as_ref(), bump][..]];
+    let seeds = &[&[TOKEN_AUTHORITY_SEED, bump][..]];
     let accounts = Transfer {
         from: ctx.accounts.merkle_tree_token.to_account_info(),
         to: ctx.accounts.recipient.to_account_info(),

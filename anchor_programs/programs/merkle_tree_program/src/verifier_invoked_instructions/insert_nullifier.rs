@@ -1,11 +1,7 @@
-use crate::utils::constants::NF_SEED;
+use crate::utils::{constants::NULLIFIER_SEED, create_pda::create_and_check_pda};
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{
-    account_info::AccountInfo, msg, program::invoke_signed, pubkey::Pubkey, system_instruction,
-    sysvar
-};
-use std::convert::TryInto;
+use anchor_lang::solana_program::{pubkey::Pubkey, sysvar};
 
 #[derive(Accounts)]
 pub struct InitializeNullifiers<'info> {
@@ -26,13 +22,13 @@ pub fn process_insert_nullifiers<'info>(
 
     for (nullifier_pda, nullifier) in ctx.remaining_accounts.iter().zip(nullifiers) {
         create_and_check_pda(
-            &ctx.program_id,
+            ctx.program_id,
             &ctx.accounts.authority.to_account_info(),
             &nullifier_pda.to_account_info(),
             &ctx.accounts.system_program.to_account_info(),
             &rent,
             &nullifier,
-            &NF_SEED,
+            NULLIFIER_SEED,
             1,    //bytes
             0,    //lamports
             true, //rent_exempt
@@ -43,65 +39,65 @@ pub fn process_insert_nullifiers<'info>(
     Ok(())
 }
 
-pub fn create_and_check_pda<'a, 'b>(
-    program_id: &Pubkey,
-    signer_account: &'a AccountInfo<'b>,
-    passed_in_pda: &'a AccountInfo<'b>,
-    system_program: &'a AccountInfo<'b>,
-    rent: &Rent,
-    _instruction_data: &[u8],
-    domain_separation_seed: &[u8],
-    number_storage_bytes: u64,
-    lamports: u64,
-    rent_exempt: bool,
-) -> Result<()> {
-
-    let derived_pubkey =
-        Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id);
-
-    if derived_pubkey.0 != *passed_in_pda.key {
-        msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
-        msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
-        msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
-        msg!("Instruction data seed  {:?}", _instruction_data);
-        return err!(ErrorCode::AccountDidNotDeserialize);
-    }
-
-    let mut account_lamports = lamports;
-    if rent_exempt {
-        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
-    }
-
-
-    invoke_signed(
-        &system_instruction::create_account(
-            signer_account.key,   // from_pubkey
-            passed_in_pda.key,    // to_pubkey
-            account_lamports,     // lamports
-            number_storage_bytes, // space
-            program_id,           // owner
-        ),
-        &[
-            signer_account.clone(),
-            passed_in_pda.clone(),
-            system_program.clone(),
-        ],
-        &[&[
-            _instruction_data,
-            domain_separation_seed,
-            &[derived_pubkey.1],
-        ]],
-    )?;
-
-    // Check for rent exemption
-    if rent_exempt
-        && !rent.is_exempt(
-            **passed_in_pda.lamports.borrow(),
-            number_storage_bytes.try_into().unwrap(),
-        )
-    {
-        msg!("Account is not rent exempt.");
-        return err!(ErrorCode::ConstraintRentExempt);
-    }
-    Ok(())
-}
+// pub fn create_and_check_pda<'a, 'b>(
+//     program_id: &Pubkey,
+//     signer_account: &'a AccountInfo<'b>,
+//     passed_in_pda: &'a AccountInfo<'b>,
+//     system_program: &'a AccountInfo<'b>,
+//     rent: &Rent,
+//     _instruction_data: &[u8],
+//     domain_separation_seed: &[u8],
+//     number_storage_bytes: u64,
+//     lamports: u64,
+//     rent_exempt: bool,
+// ) -> Result<()> {
+//
+//     let derived_pubkey =
+//         Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id);
+//
+//     if derived_pubkey.0 != *passed_in_pda.key {
+//         msg!("Passed-in pda pubkey != on-chain derived pda pubkey.");
+//         msg!("On-chain derived pda pubkey {:?}", derived_pubkey);
+//         msg!("Passed-in pda pubkey {:?}", *passed_in_pda.key);
+//         msg!("Instruction data seed  {:?}", _instruction_data);
+//         return err!(ErrorCode::AccountDidNotDeserialize);
+//     }
+//
+//     let mut account_lamports = lamports;
+//     if rent_exempt {
+//         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
+//     }
+//
+//
+//     invoke_signed(
+//         &system_instruction::create_account(
+//             signer_account.key,   // from_pubkey
+//             passed_in_pda.key,    // to_pubkey
+//             account_lamports,     // lamports
+//             number_storage_bytes, // space
+//             program_id,           // owner
+//         ),
+//         &[
+//             signer_account.clone(),
+//             passed_in_pda.clone(),
+//             system_program.clone(),
+//         ],
+//         &[&[
+//             _instruction_data,
+//             domain_separation_seed,
+//             &[derived_pubkey.1],
+//         ]],
+//     )?;
+//
+//     // Check for rent exemption
+//     if rent_exempt
+//         && !rent.is_exempt(
+//             **passed_in_pda.lamports.borrow(),
+//             number_storage_bytes.try_into().unwrap(),
+//         )
+//     {
+//         msg!("Account is not rent exempt.");
+//         return err!(ErrorCode::ConstraintRentExempt);
+//     }
+//     Ok(())
+// }
