@@ -202,6 +202,7 @@ export async function checkLastTxSuccess({
 * merkle tree is locked by updateState account
 * lock has been taken less than 5 slots ago
 */
+let CONFIRMATION = {preflightCommitment: "finalized", commitment: "finalized"};
 
 export async function checkMerkleTreeUpdateStateCreated({
     connection,
@@ -213,7 +214,7 @@ export async function checkMerkleTreeUpdateStateCreated({
     merkleTreeProgram
   }) {
   var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
-    merkleTreeUpdateState
+    merkleTreeUpdateState, CONFIRMATION
   )
 
   assert(merkleTreeTmpAccountInfo.owner.toBase58() === merkleTreeProgram.programId.toBase58(), "merkle tree pda owner wrong after initializing")
@@ -223,7 +224,7 @@ export async function checkMerkleTreeUpdateStateCreated({
     MerkleTree
   )
 
-  console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
+  // console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
   console.log("merkleTreeUpdateStateData.numberOfLeaves ", merkleTreeUpdateStateData.numberOfLeaves);
   console.log("leavesPdas.length ", leavesPdas.length);
   console.log("merkleTreeUpdateStateData.currentInstructionIndex ", merkleTreeUpdateStateData.currentInstructionIndex);

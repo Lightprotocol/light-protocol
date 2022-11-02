@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{log::sol_log_compute_units, msg, program_pack::Pack, sysvar},
+    solana_program::{msg, program_pack::Pack, sysvar},
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{

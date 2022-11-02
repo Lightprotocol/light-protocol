@@ -250,7 +250,7 @@ export async function executeMerkleTreeUpdateTransactions({
 
     arr.push({tx:transaction, signers: [signer]})
   }
-
+  let error
   await Promise.all(arr.map(async (tx, index) => {
 
   try {
@@ -260,10 +260,11 @@ export async function executeMerkleTreeUpdateTransactions({
       });
   } catch(e) {
       console.log(e);
-
+      error =  e;
   }
 
   }));
+  return error;
 }
 
 
@@ -312,7 +313,7 @@ export async function newAccountWithTokens ({
     let space = token.ACCOUNT_SIZE
     console.log(MINT);
     console.log(ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
-    
+
     tokenAccount = await   token.createAccount(
         connection,
         ADMIN_AUTH_KEYPAIR,

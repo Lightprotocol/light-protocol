@@ -32,7 +32,7 @@ import {unpackLeavesAccount} from './unpack_accounts';
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
 // input custom verifier with three functions by default prepare, proof, send
 // include functions from sdk in shieldedTransaction
-// 
+//
 export class shieldedTransaction {
   constructor({
     keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
@@ -100,25 +100,16 @@ export class shieldedTransaction {
     }
 
     async getRootIndex() {
-      console.log("this.merkleTree.root ", this.merkleTree.root());
       let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
       let merkle_tree_account = await this.provider.connection.getAccountInfo(this.merkleTreePubkey);
       let merkle_tree_account_data  = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode('MerkleTree', merkle_tree_account.data);
-      console.log("root: ", root);
-
-      console.log("merkle_tree_account_data.roots[0], ", merkle_tree_account_data.roots[0]);
 
        merkle_tree_account_data.roots.map((x, index)=> {
-        console.log(x.toString());
-        console.log(root.toString());
-
         if (x.toString() === root.toString()) {
           this.root_index =  index;
         }
       })
 
-      console.log("this.merkleTree: ", this.merkleTree);
-      console.log("this.root_index ", this.root_index);
     }
 
     async prepareTransaction() {
@@ -166,15 +157,12 @@ export class shieldedTransaction {
         throw "feeAsset should be assetPubkeys[0]";
       }
       if (action == "DEPOSIT") {
-        this.relayerFee = relayerFee;
-        console.log(this.payer);
+        console.log("Deposit");
 
+        this.relayerFee = relayerFee;
         this.sender = sender;
-        console.log("setting recipient to this.merkleTreeAssetPubkey");
         this.senderFee  = new PublicKey(this.payer.publicKey);
         this.recipient = this.merkleTreeAssetPubkey;
-        console.log("this.recipient: ", this.recipient);
-        console.log("this.merkleTreeAssetPubkey: ", this.merkleTreeAssetPubkey);
         this.recipientFee = this.merkleTreeFeeAssetPubkey;
 
         if (this.relayerPubkey.toBase58() != new PublicKey(this.payer.publicKey).toBase58()) {
@@ -200,9 +188,6 @@ export class shieldedTransaction {
       }
     }
 
-    console.log("this.recipientFee: ", this.recipientFee);
-
-
       this.assetPubkeys = assetPubkeys;
       this.mintPubkey = mintPubkey;
       this.action = action;
@@ -216,7 +201,6 @@ export class shieldedTransaction {
           this.poseidon,
           shuffle
       );
-      console.log(" light.prepareUtxos res ", res);
 
       this.inputUtxos = res.inputUtxos;
       this.outputUtxos = res.outputUtxos;
@@ -277,44 +261,17 @@ export class shieldedTransaction {
       )
 
       this.proofData = proofData;
-      console.log("proofData ", proofData);
-      // let pdas = await getPdaAddresses({
-      //   tx_integrity_hash: this.proofData.publicInputs.txIntegrityHash,
-      //   nullifiers: this.proofData.publicInputs.nullifiers,
-      //   leftLeaves: [this.proofData.publicInputs.leaves[0]],
-      //   merkleTreeProgram: this.merkleTreeProgram,
-      //   verifierProgram: this.verifierProgram,
-      //   signer: this.payer.publicKey
-      // })
-      // this.escrow = pdas.escrow;
-      // this.leavesPdaPubkeys = pdas.leavesPdaPubkeys;
-      // this.nullifierPdaPubkeys = pdas.nullifierPdaPubkeys;
-      // this.signerAuthorityPubkey = pdas.signerAuthorityPubkey;
-      // this.tokenAuthority = pdas.tokenAuthority;
-      // this.verifierStatePubkey = pdas.verifierStatePubkey;
       await this.getPdaAddresses()
       return this.proofData;
     }
 
-    async getPdaAddresses(
-    //   {
-    //   tx_integrity_hash,
-    //   nullifiers,
-    //   leftLeaves,
-    //   merkleTreeProgram,
-    //   verifierProgram,
-    //   signer
-    // }
-  ) {
+    async getPdaAddresses() {
       let tx_integrity_hash = this.proofData.publicInputs.txIntegrityHash;
       let nullifiers = this.proofData.publicInputs.nullifiers;
       let leftLeaves = [this.proofData.publicInputs.leaves[0]];
       let merkleTreeProgram = this.merkleTreeProgram;
       let verifierProgram = this.verifierProgram;
       let signer = this.payer.publicKey;
-
-      console.log("new Uint8Array(nullifier0) ", new Uint8Array(nullifiers[0]));
-      console.log("nullifiers.len ", nullifiers.length);
 
       let nullifierPdaPubkeys = [];
       for (var i in nullifiers) {
@@ -369,7 +326,6 @@ export class shieldedTransaction {
       this.is_token = true;
 
       for (var i in this.nullifierPdaPubkeys) {
-        console.log(i);
 
         var nullifierAccount = await this.provider.connection.getAccountInfo(
           this.nullifierPdaPubkeys[i],
@@ -378,7 +334,6 @@ export class shieldedTransaction {
           preflightCommitment: 'confirmed',
         }
         );
-        console.log(nullifierAccount);
 
         await checkRentExemption({
           account: nullifierAccount,
@@ -389,19 +344,12 @@ export class shieldedTransaction {
       var leavesAccountData
       // Checking that leaves were inserted
       for (var i in this.leavesPdaPubkeys) {
-        console.log(i);
 
         leavesAccountData = await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.leavesPdaPubkeys[i]
         );
-        console.log(leavesAccountData);
 
-        // await checkRentExemption({
-        //   account: leavesAccount,
-        //   connection: this.provider.connection
-        // });
         try {
-          console.log("leavesAccountData ", leavesAccountData);
 
           assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leaves[0].reverse().toString(), "left leaf not inserted correctly")
           assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leaves[1].reverse().toString(), "right leaf not inserted correctly")
@@ -413,7 +361,6 @@ export class shieldedTransaction {
             }
             assert(leavesAccountData.encryptedUtxos[i] === this.encrypedUtxos[i], "encryptedUtxos not inserted correctly");
           }
-          // assert(Array.from(leavesAccountData.encryptedUtxos.slice(0,178)).toString() === this.encrypedUtxos.toString(), "encryptedUtxos not inserted correctly")
 
         } catch(e) {
           console.log("leaves: ", e);
@@ -440,12 +387,6 @@ export class shieldedTransaction {
         console.log("preInsertedLeavesIndex: ", e);
 
       }
-
-
-      if (this.action == "WITHDRAWAL") {
-
-      }
-
 
       if (this.action == "DEPOSIT" && this.is_token == false) {
         var recipientAccount = await this.provider.connection.getAccountInfo(this.recipient)
@@ -494,32 +435,9 @@ export class shieldedTransaction {
 
         var recipientAccount = await this.provider.connection.getAccountInfo(recipient)
         // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.proofData.extAmount, 0))).add(I64(relayerFee))).toString()}
-        // Number(this.recipientBalancePriorTx): ${Number(this.recipientBalancePriorTx)}
-        // relayerFee: ${Number(relayerFee)}
-        // `)
+
         assert(recipientAccount.lamports == ((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.proofData.extAmount, 0)))).toString(), "amount not transferred correctly");
-        // var relayerAccount = await this.provider.connection.getAccountInfo(
-        //   relayer
-        // )
-        // console.log("relayer: ", relayer.toBase58())
-        // let rent_verifier = await connection.getMinimumBalanceForRentExemption(5120)
-        // // let rent_escrow = await connection.getMinimumBalanceForRentExemption(256)
-        // let rent_nullifier = await connection.getMinimumBalanceForRentExemption(0)
-        // let rent_leaves = await connection.getMinimumBalanceForRentExemption(256)
-        // console.log("rent_verifier: ", rent_verifier)
-        // console.log("rent_nullifier: ", rent_nullifier)
-        // console.log("rent_leaves: ", rent_leaves)
-        //
-        // let expectedBalanceRelayer = I64(relayerFee)
-        //   .add(I64(Number(this.relayerRecipientAccountBalancePriorLastTx)))
-        //   .add(I64(Number(rent_verifier)))
-        //   // .add(I64(Number(rent_escrow)))
-        //   .sub(I64(Number(rent_nullifier)))
-        //   .sub(I64(Number(rent_nullifier)))
-        //   .sub(I64(Number(rent_leaves)))
-        // console.log("this.relayerRecipientAccountBalancePriorLastTx: ", this.relayerRecipientAccountBalancePriorLastTx)
-        // console.log(`${relayerAccount.lamports } == ${expectedBalanceRelayer}`)
-        // assert(relayerAccount.lamports == expectedBalanceRelayer.toString())
+
 
       }  else if (this.action == "WITHDRAWAL" && this.is_token == true) {
         var senderAccount = await getAccount(
@@ -566,7 +484,6 @@ export class shieldedTransaction {
 
 export  async function sendTransaction(insert = true){
 
-    // console.log("this.relayerFee ", this.relayerFee);
     try {
       this.recipientBalancePriorTx = (await getAccount(
         this.provider.connection,
@@ -609,13 +526,10 @@ export  async function sendTransaction(insert = true){
 
     const ix = await this.verifierProgram.methods.shieldedTransferInputs(
       Buffer.from(this.proofData.proofBytes),
-      // Buffer.from(this.proofData.publicInputs.root),
       Buffer.from(this.proofData.publicInputs.publicAmount),
-      // Buffer.from(this.proofData.publicInputs.extDataHash),
       this.proofData.publicInputs.nullifiers,
       this.proofData.publicInputs.leaves,
       Buffer.from(this.proofData.publicInputs.feeAmount),
-      // Buffer.from(this.proofData.publicInputs.mintPubkey),
       new anchor.BN(this.root_index.toString()),
       new anchor.BN(this.relayerFee.toString()),
       Buffer.from(this.proofData.encryptedOutputs.slice(0,174)) // remaining bytes can be used once tx sizes increase
@@ -652,17 +566,13 @@ export  async function sendTransaction(insert = true){
           payerKey: this.payer.publicKey,
           instructions: [
             ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-            // SystemProgram.transfer({fromPubkey:payer.publicKey, toPubkey: AUTHORITY, lamports: 3173760 * 3}),
             ix
           ],
           recentBlockhash: recentBlockhash})
-    console.log(this.lookupTable.toBase58());
 
     let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
-    // console.log("lookupTableAccount: ", lookupTableAccount);
 
     let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-    // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
 
     let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
     compiledTx.addressTableLookups[0].accountKey = this.lookupTable
@@ -672,13 +582,9 @@ export  async function sendTransaction(insert = true){
     let res
     while (retries > 0) {
       transaction.sign([this.payer])
-      // console.log(transaction);
-      // console.log(transaction.message.addressTableLookups);
       recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
       transaction.message.recentBlockhash = recentBlockhash;
       let serializedTx = transaction.serialize();
-      // console.log(this.provider.connection);
-
 
       try {
         console.log("serializedTx: ");
@@ -728,10 +634,8 @@ export async function transferFirst(this) {
   const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
     Buffer.from(this.proofData.publicInputs.publicAmount),
     this.proofData.publicInputs.nullifiers,
-    // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
     this.proofData.publicInputs.leaves,
     Buffer.from(this.proofData.publicInputs.feeAmount),
-    // Buffer.from(this.proofData.publicInputs.mintPubkey),
     new anchor.BN(this.root_index.toString()),
     new anchor.BN(this.relayerFee.toString()),
     Buffer.from(this.proofData.encryptedOutputs)
@@ -800,10 +704,8 @@ export async function transferSecond(this) {
         recentBlockhash: recentBlockhash})
 
   let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
-  // console.log("lookupTableAccount: ", lookupTableAccount);
 
   let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-  // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
 
   let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
   compiledTx.addressTableLookups[0].accountKey = this.lookupTable
@@ -852,7 +754,6 @@ export async function transferSecond(this) {
 
 export async function sendTransaction10(insert = true){
   assert(this.nullifierPdaPubkeys.length == 10);
-  // console.log("this.relayerFee ", this.relayerFee);
   let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
   if (balance === 0) {
     await this.provider.connection.confirmTransaction(await this.provider.connection.requestAirdrop(this.signerAuthorityPubkey, 1_000_000_000), {preflightCommitment: "confirmed", commitment: "confirmed"})

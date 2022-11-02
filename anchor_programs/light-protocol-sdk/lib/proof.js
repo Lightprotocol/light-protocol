@@ -38,7 +38,6 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         // console.log(`input utxos -> `, inputUtxos)
         // console.log(`outputUtxos -> `, outputUtxos)
         // console.log(`merkelTree -> `, merkelTree)
-        console.log(`externalAmountBigNumber -> `, externalAmountBigNumber)
         // console.log(`relayerFee -> `, relayerFee)
         // console.log(`recipient -> `, recipient)
         // console.log(`Action[action] -> `, Action[action])
@@ -51,7 +50,6 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         /// and fill the path to the leaf with 0s
 
         for (const inputUtxo of inputUtxos) {
-            console.log(merkelTree);
             if (test) {
               inputMerklePathIndices.push(0);
               inputMerklePathElements.push(new Array(merkelTree.levels).fill(0));
@@ -82,10 +80,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         else {
             int64 = I64(externalAmountBigNumber.toNumber());
         }
-        console.log("int64: ", int64);
         let z = new Uint8Array(8);
         int64.writeLE(z, 0);
-        console.log("relayerFee: ", relayerFee);
         let feesLE = new Uint8Array(8);
         if (enums_1.Action[action] !== 'deposit') {
             relayerFee.writeLE(feesLE, 0);
@@ -105,13 +101,10 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         // TODO: should be a hardcoded keypair in production not the one of the sender
         let encryptedOutputs = [ ];
         outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, encryptionKeypair)));
-        // test decrypt: same?
-        // console.log("encryptedOutputs: ", encryptedOutputs.toString())
-        // console.log("encryptedOutputs.length: ", encryptedOutputs.length);
-        // console.log("recipientFee: ", recipientFee);
-        console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
+
+        // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
         let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
-        console.log(relayer);
+
         const extData = {
             recipient: new solana.PublicKey(recipient).toBytes(),
             recipientFee: recipientFee.toBytes(),
@@ -121,7 +114,6 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
         };
         const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.recipientFee, extData.relayer, extData.relayer_fee,merkleTreeIndex, encryptedUtxos);
 
-        console.log("feeAmount: ", feeAmount);
         let input = {
             root: merkelTree.root(),
             inputNullifier: inputUtxos.map((x) => x.getNullifier()),
@@ -153,14 +145,14 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
             inInstructionType: inputUtxos.map((x) => x.instructionType),
             outInstructionType: outputUtxos.map((x) => x.instructionType)
         };
-        console.log("extDataHash: ", input.extDataHash);
-        console.log("input.inputNullifier ",input.inputNullifier[0] );
-        console.log("input feeAmount: ", input.feeAmount);
-        console.log("input publicAmount: ", input.publicAmount);
-        console.log("input relayerFee: ", relayerFee);
-
-        console.log("inIndices ", JSON.stringify(inIndices, null, 4));
-        console.log("outIndices ", JSON.stringify(outIndices, null, 4));
+        // console.log("extDataHash: ", input.extDataHash);
+        // console.log("input.inputNullifier ",input.inputNullifier[0] );
+        // console.log("input feeAmount: ", input.feeAmount);
+        // console.log("input publicAmount: ", input.publicAmount);
+        // console.log("input relayerFee: ", relayerFee);
+        //
+        // console.log("inIndices ", JSON.stringify(inIndices, null, 4));
+        // console.log("outIndices ", JSON.stringify(outIndices, null, 4));
 
         return {
                 extAmount: extData.extAmount,
@@ -187,14 +179,9 @@ const getProofMasp = function (input, extAmount, externalAmountBigNumber, extDat
         })
 
         var publicInputsBytes = JSON.parse(publicInputsJson.toString());
-        console.log("before reverse publicInputsBytes ", publicInputsBytes);
         for (var i in publicInputsBytes) {
             publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
         }
-        console.log("after reverse publicInputsBytes ", publicInputsBytes);
-
-        // console.log("Public inputs bytes", (new Uint8Array([...publicInputsBytes[0], ...publicInputsBytes[1], ...publicInputsBytes[2], ...publicInputsBytes[3], ...publicInputsBytes[4], ...publicInputsBytes[5], ...publicInputsBytes[6], ...publicInputsBytes[7], ...publicInputsBytes[8]])).toString());
-        // console.log("proof bytes: ", (yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson)).toString());
         console.log("publicInputsBytes ", publicInputsBytes);
         let publicInputs
 

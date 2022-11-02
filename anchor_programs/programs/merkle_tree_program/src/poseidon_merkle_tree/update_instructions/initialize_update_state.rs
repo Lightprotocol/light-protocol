@@ -74,7 +74,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
         // Checking that the Merkle tree is the same as in leaves account.
         if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.merkle_tree.key() {
             msg!(
-                "Leaf pda state {} with address {:?} is already inserted",
+                "Leaf pda state merkle tree {} is different than passed in merkle tree {:?}",
                 leaves_pda_data.merkle_tree_pubkey,
                 ctx.accounts.merkle_tree.key()
             );

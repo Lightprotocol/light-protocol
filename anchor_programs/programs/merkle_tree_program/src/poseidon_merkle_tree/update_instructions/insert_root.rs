@@ -9,7 +9,7 @@ use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sys
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
-    #[account(mut, address=merkle_tree_update_state.load()?.relayer)]
+    #[account(mut, address=merkle_tree_update_state.load()?.relayer @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK:` merkle_tree_update_state is derived correctly
     /// Merkle tree is locked by merkle_tree_update_state
@@ -19,13 +19,13 @@ pub struct InsertRoot<'info> {
         mut,
         seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED],
         bump,
-        constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key(),
+        constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key() @ErrorCode::ContractStillLocked,
         constraint= IX_ORDER[usize::try_from(merkle_tree_update_state.load()?.current_instruction_index).unwrap()] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
         close = authority
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state.
-    #[account(mut)]
+    #[account(mut, address= merkle_tree_update_state.load()?.merkle_tree_pda_pubkey @ErrorCode::InvalidMerkleTree)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
 }
 

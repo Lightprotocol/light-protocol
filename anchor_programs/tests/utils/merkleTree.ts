@@ -38,7 +38,7 @@ export class MerkleTreeConfig {
       await this.getPreInsertedLeavesIndex();
       await this.getMerkleTreeAuthorityPda();
       const tx = await this.merkleTreeProgram.methods.initializeNewMerkleTree(
-        new anchor.BN("20")
+        new anchor.BN("50")
       ).accounts({
         authority: this.payer.publicKey,
         merkleTree: this.merkleTreePubkey,
@@ -64,7 +64,7 @@ export class MerkleTreeConfig {
       // index == 0
       // roots are empty save for 0
       // lock duration is correct
-      assert(merkleTreeAccountInfo.lockDuration.toString() == "20")
+      assert(merkleTreeAccountInfo.lockDuration.toString() == "50")
 
     }
 

@@ -28,7 +28,7 @@ const prepareUtxos = (
     // swapSetupKeypair = new keypair_1.Keypair()
   ) => {
     /// Validation
-    if (inputUtxos.length > 16 || outputUtxos.length > 2) {
+    if (inputUtxos.length > 10 || outputUtxos.length > 2) {
         throw new Error('Incorrect inputUtxos/outputUtxos count');
     }
     // generates an setup utxo
@@ -82,7 +82,7 @@ const prepareUtxos = (
     }
     */
     console.log("inputUtxos.length ", inputUtxos.length);
-    /// fill inputUtxos until 2 or 16
+    /// fill inputUtxos until 2 or 10
     while (inputUtxos.length !== 2 && inputUtxos.length < 10) {
       inputUtxos.push(new utxos_1.default(poseidon));
       // throw "inputUtxos.length > 2 are not implemented";
@@ -104,33 +104,17 @@ const prepareUtxos = (
     } else {
       console.log("commented shuffle")
     }
-    console.log("inputUtxos", inputUtxos[0]);
-    console.log("outputUtxos", outputUtxos);
+
 
     /// the fee plus the amount to pay has to be bigger than the amount in the input utxo
     // which doesn't make sense it should be the other way arround right
     // the external amount can only be made up of utxos of asset[0]
-    console.log("here before extNumber");
     const externalAmountBigNumber =  new anchor.BN(0)
         .add(outputUtxos.filter((utxo) => {return utxo.assets[1] == assets[1]}).reduce((sum, utxo) => (
           // add all utxos of the same asset
-          // console.log("utxo add: ",  utxo.amount[1]);
-          // console.log("utxo add asset: ",  utxo.assets[1]);
-          // console.log("assets[1]: ", assets[1])
-          // console.log("utxo add: ",  utxo.assets.toString()== assets[1].toString());
           sum.add(utxo.amounts[1])
-          // if (utxo.assets.toString() == assets[1].toString()) {
-          //   console.log("sum: ",  sum);
-          //   sum.add(utxo.amount)
-          //   console.log("sum: ",  sum);
-          // }
         ), new anchor.BN(0)))
         .sub(inputUtxos.filter((utxo) => {return utxo.assets[1] == assets[1]}).reduce((sum, utxo) =>
-          // console.log("utxo sub: ",  utxo.amount);
-          //
-          // if (utxo.assets == assets[1]) {
-          //   sum.add(utxo.amount)
-          // }
           sum.add(utxo.amounts[1]),
           new anchor.BN(0)
       ));
@@ -138,23 +122,9 @@ const prepareUtxos = (
     var feeAmount =  new anchor.BN(0)
         .add(outputUtxos.filter((utxo) => {return utxo.assets[0] == assets[0]}).reduce((sum, utxo) => (
           // add all utxos of the same asset
-          // console.log("utxo add: ",  utxo.amount[1]);
-          // console.log("utxo add asset: ",  utxo.assets[1]);
-          // console.log("assets[1]: ", assets[1])
-          // console.log("utxo add: ",  utxo.assets.toString()== assets[1].toString());
           sum.add(utxo.amounts[0])
-          // if (utxo.assets.toString() == assets[1].toString()) {
-          //   console.log("sum: ",  sum);
-          //   sum.add(utxo.amount)
-          //   console.log("sum: ",  sum);
-          // }
         ), new anchor.BN(0)))
         .sub(inputUtxos.filter((utxo) => {return utxo.assets[0] == assets[0]}).reduce((sum, utxo) =>
-          // console.log("utxo sub: ",  utxo.amount);
-          //
-          // if (utxo.assets == assets[1]) {
-          //   sum.add(utxo.amount)
-          // }
           sum.add(utxo.amounts[0]),
           new anchor.BN(0)
       ));
@@ -228,10 +198,8 @@ const prepareUtxos = (
 
     })
 
-
-
-    console.log("inIndices: ", inIndices)
-    console.log("outIndices: ", outIndices)
+    // console.log("inIndices: ", inIndices)
+    // console.log("outIndices: ", outIndices)
 
     return {
         inputUtxos,

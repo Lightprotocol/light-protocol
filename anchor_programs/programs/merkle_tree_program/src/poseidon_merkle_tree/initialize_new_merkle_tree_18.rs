@@ -31,7 +31,7 @@ pub struct InitializeNewMerkleTree<'info> {
         space = 16,
     )]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
-    #[account(seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
+    #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
 
