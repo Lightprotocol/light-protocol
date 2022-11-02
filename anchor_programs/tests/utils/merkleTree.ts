@@ -24,25 +24,6 @@ export class MerkleTreeConfig {
       this.connection = connection;
     }
 
-    async getMerkleTreeAccounts() {
-      this.MERKLE_TREE_AUTHORITY_PDA = (await solana.PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
-        this.merkleTreeProgram.programId
-      ))[0];
-
-      this.merkleTreePubkey = (await solana.PublicKey.findProgramAddress(
-          [this.merkleTreeProgram.programId.toBuffer()], // , Buffer.from(new Uint8Array(8).fill(0))
-          this.merkleTreeProgram.programId))[0];
-
-      this.PRE_INSERTED_LEAVES_INDEX = (await solana.PublicKey.findProgramAddress(
-          [this.merkleTreePubkey.toBuffer()],
-          this.merkleTreeProgram.programId))[0];
-      this.TOKEN_AUTHORITY = (await solana.PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("spl")],
-        this.merkleTreeProgram.programId
-      ))[0];
-    }
-
     async getPreInsertedLeavesIndex() {
         this.preInsertedLeavesIndex = (await solana.PublicKey.findProgramAddress(
             [this.merkleTreePubkey.toBuffer()],

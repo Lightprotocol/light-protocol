@@ -327,10 +327,8 @@ describe("verifier_program", () => {
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA
     try {
       await merkleTreeConfig.initMerkleTreeAuthority()
-      console.log("Registering AUTHORITY success");
 
     } catch(e) {
-      console.log(e);
       error = e;
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
@@ -343,7 +341,6 @@ describe("verifier_program", () => {
       console.log("Registering AUTHORITY success");
 
     } catch(e) {
-      console.log(e);
       error = e;
     }
 
@@ -363,7 +360,6 @@ describe("verifier_program", () => {
       await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey, true);
       console.log("Registering AUTHORITY success");
     } catch(e) {
-      console.log(e);
       error =  e;
     }
     assert(error.error.errorMessage === 'InvalidAuthority');
@@ -376,10 +372,8 @@ describe("verifier_program", () => {
       await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey, true);
       console.log("Registering AUTHORITY success");
     } catch(e) {
-      console.log(e);
       error =  e;
     }
-    console.log(error);
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
@@ -396,7 +390,6 @@ describe("verifier_program", () => {
     merkleTreeConfig.payer = INVALID_SIGNER
     try {
       await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
-      console.log("Registering Verifier success");
 
     } catch(e) {
       error = e;
@@ -410,7 +403,6 @@ describe("verifier_program", () => {
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = INVALID_SIGNER.publicKey
     try {
       await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
-      console.log("Registering Verifier success");
 
     } catch(e) {
       error = e;
@@ -442,15 +434,12 @@ describe("verifier_program", () => {
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
 
-    console.log("---------------------------------------------------------");
-
     await merkleTreeConfig.enableNfts(true);
 
     let merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
     assert(merkleTreeAuthority.enableNfts == true);
     await merkleTreeConfig.enableNfts(false);
     merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
-    console.log(merkleTreeAuthority);
     assert(merkleTreeAuthority.enableNfts == false);
 
     // update lock duration with invalid signer
@@ -462,8 +451,6 @@ describe("verifier_program", () => {
     } catch(e) {
       error = e;
     }
-    console.log(error);
-    console.log("here1");
 
     assert(error.error.errorMessage === 'InvalidAuthority');
     error = undefined
@@ -476,18 +463,14 @@ describe("verifier_program", () => {
     } catch(e) {
       error = e;
     }
-    console.log(error);
 
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
-    console.log("updating lockDuration");
 
     await merkleTreeConfig.updateLockDuration(123);
-    console.log("updated lockDuration 123");
 
     await merkleTreeConfig.updateLockDuration(10);
-    console.log("updated lockDuration 10");
 
 
     // update merkle tree with invalid signer
@@ -514,16 +497,13 @@ describe("verifier_program", () => {
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
 
-    console.log("---------------------------------------------------------");
 
     await merkleTreeConfig.enablePermissionlessSplTokens(true);
 
     merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
-    console.log(merkleTreeAuthority);
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == true);
     await merkleTreeConfig.enablePermissionlessSplTokens(false);
     merkleTreeAuthority = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
-    console.log(merkleTreeAuthority);
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
 
 
@@ -535,7 +515,6 @@ describe("verifier_program", () => {
     } catch(e) {
       error = e;
     }
-    console.log(error);
 
     assert(error.error.errorMessage === 'InvalidAuthority');
     error = undefined
@@ -549,7 +528,6 @@ describe("verifier_program", () => {
       error = e;
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
-    console.log("error ", error);
 
     assert(error.error.errorMessage == 'The program expected this account to be already initialized');
     error = undefined
@@ -558,8 +536,6 @@ describe("verifier_program", () => {
 
     let registeredPoolTypePdaAccount = await merkleTreeProgram.account.registeredPoolType.fetch(merkleTreeConfig.poolTypes[0].poolPda)
 
-    console.log(registeredPoolTypePdaAccount);
-    // untested
     assert(registeredPoolTypePdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
 
 
@@ -659,48 +635,6 @@ describe("verifier_program", () => {
       userAccount: new anchor.web3.Account(),
       amount: 1
     }))
-    await merkleTreeConfig.enableNfts(true);
-    merkleTreeConfig.payer = INVALID_SIGNER;
-    try {
-      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), nftMint);
-
-    } catch (error) {
-      console.log(error);
-
-    }
-    let registeredNFTPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
-
-    assert(registeredNFTPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
-    assert(registeredNFTPdaAccount.index.toString() == "2")
-    assert(registeredNFTPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].token.toBase58())
-
-    let merkleTreeAuthority2 = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
-    console.log(merkleTreeAuthority2);
-    assert(merkleTreeAuthority2.registeredAssetIndex.toString() == "3");
-    merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
-
-    await merkleTreeConfig.enablePermissionlessSplTokens(true);
-    merkleTreeConfig.payer = INVALID_SIGNER;
-
-    let mint2 = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true})
-
-    var userTokenAccount2 = (await newAccountWithTokens({
-      connection: provider.connection,
-      MINT: mint2,
-      ADMIN_AUTH_KEYPAIR,
-      userAccount: new anchor.web3.Account(),
-      amount: 2
-    }))
-
-
-    await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint2);
-    registeredNFTPdaAccount = await merkleTreeProgram.account.registeredAssetPool.fetch(merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda)
-
-    assert(registeredNFTPdaAccount.poolType.toString() == new Uint8Array(32).fill(0).toString())
-    assert(registeredNFTPdaAccount.index.toString() == "3")
-    assert(registeredNFTPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].token.toBase58())
-
-
   });
 
   async function createMint({authorityKeypair, mintKeypair = new anchor.web3.Account(),nft = false, decimals = 2}) {
@@ -964,12 +898,12 @@ describe("verifier_program", () => {
   })
 
 
-  it("Deposit", async () => {
+  it.skip("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
 
-    for (var i = 0; i < 2; i++) {
+    for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
       const origin = await newAccountWithLamports(provider.connection)
@@ -1297,7 +1231,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it("Update Merkle Tree after Deposit", async () => {
+  it.skip("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -1934,7 +1868,7 @@ describe("verifier_program", () => {
     }
 
   }
-  it("Withdraw 10 utxos", async () => {
+  it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 
