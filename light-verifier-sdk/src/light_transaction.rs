@@ -546,12 +546,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                     pub_amount_checked,
                 )?;
             }
-
-            self.transferred_funds = true;
             msg!("transferred");
-            sol_log_compute_units();
         }
-
+        self.transferred_funds = true;
         Ok(())
     }
 

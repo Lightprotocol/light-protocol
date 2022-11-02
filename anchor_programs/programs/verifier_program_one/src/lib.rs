@@ -146,6 +146,6 @@ pub struct LightInstructionSecond<'info> {
 pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
-    #[account(mut, seeds = [VERIFIER_STATE_SEED, &signing_address.key().to_bytes()], bump, close=signing_address )]
+    #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
 }

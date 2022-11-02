@@ -854,7 +854,7 @@ describe("verifier_program", () => {
   });
 
 
-  it("Deposit 10 utxo", async () => {
+  it.skip("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -943,7 +943,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.proof();
 
-      // await testTransaction(SHIELDED_TRANSACTION, true);
+      await testTransaction(SHIELDED_TRANSACTION, true, false);
 
 
       try {
@@ -964,7 +964,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Deposit", async () => {
+  it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -1050,7 +1050,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.proof();
 
-      // await testTransaction(SHIELDED_TRANSACTION);
+      await testTransaction(SHIELDED_TRANSACTION);
 
       console.log("MINT_CIRCUIT: ", Array.from((MINT._bn.toBuffer(32).slice(0,31))));
 
@@ -1073,7 +1073,7 @@ describe("verifier_program", () => {
 
   })
 
-  async function testTransaction(SHIELDED_TRANSACTION, deposit = true) {
+  async function testTransaction(SHIELDED_TRANSACTION, deposit = true, enabledSignerTest = true) {
     const origin = await newAccountWithLamports(provider.connection)
 
     const shieldedTxBackUp = _.cloneDeep(SHIELDED_TRANSACTION);
@@ -1118,7 +1118,7 @@ describe("verifier_program", () => {
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong wrongMint", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION = _.cloneDeep(shieldedTxBackUp);
+    SHIELDED_TRANSACTION.sender = _.cloneDeep(shieldedTxBackUp.sender);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
     // Wrong encryptedOutputs
@@ -1161,17 +1161,19 @@ describe("verifier_program", () => {
     /**
     * -------- Checking Accounts -------------
     **/
+    if (enabledSignerTest) {
+      // Wrong signingAddress
+      // will result in wrong integrity hash
+      SHIELDED_TRANSACTION.relayerPubkey = origin.publicKey;
+      SHIELDED_TRANSACTION.payer = origin;
+      e = await SHIELDED_TRANSACTION.sendTransaction();
+      console.log("Wrong signingAddress", e.logs.includes('Program log: error ProofVerificationFailed'));
+      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true || e.logs.includes('Program log: AnchorError caused by account: signing_address. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.') == true);
+      SHIELDED_TRANSACTION.relayerPubkey = _.cloneDeep(shieldedTxBackUp.relayerPubkey);
+      SHIELDED_TRANSACTION.payer = _.cloneDeep(shieldedTxBackUp.payer);
+      await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
-    // Wrong signingAddress
-    // will result in wrong integrity hash
-    SHIELDED_TRANSACTION.relayerPubkey = origin.publicKey;
-    SHIELDED_TRANSACTION.payer = origin;
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong signingAddress", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true || e.logs.includes('Program log: AnchorError caused by account: signing_address. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.') == true);
-    SHIELDED_TRANSACTION.relayerPubkey = _.cloneDeep(shieldedTxBackUp.relayerPubkey);
-    SHIELDED_TRANSACTION.payer = _.cloneDeep(shieldedTxBackUp.payer);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
+    }
 
     // Wrong recipient
     // will result in wrong integrity hash
@@ -1206,8 +1208,9 @@ describe("verifier_program", () => {
       // will result in wrong integrity hash
       SHIELDED_TRANSACTION.senderFee = origin.publicKey;
       e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:546. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
-      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:546. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
+      console.log(e); // 546
+      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:699. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
+      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:699. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
       SHIELDED_TRANSACTION.senderFee = _.cloneDeep(shieldedTxBackUp.senderFee);
       await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
@@ -1223,7 +1226,7 @@ describe("verifier_program", () => {
       SHIELDED_TRANSACTION.registeredVerifierPda = REGISTERED_VERIFIER_ONE_PDA
     }
     e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong registeredVerifierPda",e.logs.includes('Program log: AnchorError caused by account: registered_verifier_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.'));
+    console.log("Wrong registeredVerifierPda",e);
     assert(e.logs.includes('Program log: AnchorError caused by account: registered_verifier_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.') == true);
     SHIELDED_TRANSACTION.registeredVerifierPda = _.cloneDeep(shieldedTxBackUp.registeredVerifierPda);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
@@ -1232,7 +1235,9 @@ describe("verifier_program", () => {
     // Wrong authority
     SHIELDED_TRANSACTION.signerAuthorityPubkey = new anchor.web3.Account().publicKey;
     e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong authority", e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.'));
+    console.log(e);
+
+    console.log("Wrong authority1 ", e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.'));
     assert(e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.') == true);
     SHIELDED_TRANSACTION.signerAuthorityPubkey = _.cloneDeep(shieldedTxBackUp.signerAuthorityPubkey);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
@@ -1264,7 +1269,7 @@ describe("verifier_program", () => {
       var accountInfo = await connection.getAccountInfo(
         pubkeys[i]
       )
-      // console.log("accountInfo ", i," ", accountInfo);
+      console.log("accountInfo ", i," ", accountInfo);
 
       assert(accountInfo == null);
     }
@@ -1292,7 +1297,7 @@ describe("verifier_program", () => {
     })
   }
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -1799,12 +1804,12 @@ describe("verifier_program", () => {
     console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
 
     // decrypt first leaves account and build utxo
-    let decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
-    console.log("decryptedUtxo1: ", decryptedUtxo1);
-
-    let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
-    console.log("decryptedUtxo2: ", decryptedUtxo2);
-
+    // let decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
+    // console.log("decryptedUtxo1: ", decryptedUtxo1);
+    //
+    // let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
+    // console.log("decryptedUtxo2: ", decryptedUtxo2);
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas);
 
 
     // subsidising transactions
@@ -1872,7 +1877,7 @@ describe("verifier_program", () => {
     let utxoIndex = 0;
 
     let inputUtxos = []
-    inputUtxos.push(decryptedUtxo1[1])
+    inputUtxos.push(decryptedUtxo1)
 
 
     await SHIELDED_TRANSACTION.prepareTransactionFull({
@@ -1881,7 +1886,6 @@ describe("verifier_program", () => {
         action: "WITHDRAWAL",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
         mintPubkey: MINT_CIRCUIT,
-        // relayerFee: U64(0),//RELAYER_FEE,
         recipientFee: origin.publicKey,
         recipient: tokenRecipient
     });
@@ -1889,6 +1893,10 @@ describe("verifier_program", () => {
     await SHIELDED_TRANSACTION.proof();
 
     await testTransaction(SHIELDED_TRANSACTION, false);
+
+    console.log("MINT_CIRCUIT: ", MINT_CIRCUIT);
+    console.log("MINT_CIRCUIT: ", Array.from( MINT_CIRCUIT.toBuffer(32)));
+    console.log("ASSET_1: ", Array.from( ASSET_1.toBuffer(32)));
 
     try {
       let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -1902,8 +1910,31 @@ describe("verifier_program", () => {
 
   })
 
+  async function getUnspentUtxo(leavesPdas) {
+    let decryptedUtxo1
+    for (var i = 0; i < leavesPdas.length; i++) {
+      console.log("iter ", i);
 
-  it.skip("Withdraw 10 utxos", async () => {
+      // decrypt first leaves account and build utxo
+      decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
+      let nullifier = decryptedUtxo1.getNullifier();
+
+      let nullifierPubkey = (await solana.PublicKey.findProgramAddress(
+          [new anchor.BN(nullifier.toString()).toBuffer(), anchor.utils.bytes.utf8.encode("nf")],
+          merkleTreeProgram.programId))[0]
+      let accountInfo = await provider.connection.getAccountInfo(nullifierPubkey);
+
+      if (accountInfo == null && decryptedUtxo1.amounts[1].toString() != "0" && decryptedUtxo1.amounts[0].toString() != "0") {
+        console.log("found unspent leaf");
+        return decryptedUtxo1;
+      } else if (i == leavesPdas.length - 1) {
+        throw "no unspent leaf found";
+      }
+
+    }
+
+  }
+  it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 
@@ -1927,15 +1958,8 @@ describe("verifier_program", () => {
         merkleTreeIndex: mtFetched.nextIndex,
         connection: provider.connection
     });
-    console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
-
-    // decrypt first leaves account and build utxo
-    let decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
-    console.log("decryptedUtxo1: ", decryptedUtxo1);
-
-    let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
-    console.log("decryptedUtxo2: ", decryptedUtxo2);
-
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas)
+    let decryptedUtxo2
 
 
     // subsidising transactions
@@ -2001,7 +2025,7 @@ describe("verifier_program", () => {
     let utxoIndex = 0;
 
     let inputUtxos = []
-    inputUtxos.push(decryptedUtxo1[1])
+    inputUtxos.push(decryptedUtxo1)
     inputUtxos.push(new light.Utxo(POSEIDON))
     inputUtxos.push(new light.Utxo(POSEIDON))
     inputUtxos.push(new light.Utxo(POSEIDON))
@@ -2012,14 +2036,13 @@ describe("verifier_program", () => {
         action: "WITHDRAWAL",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
         mintPubkey: MINT_CIRCUIT,
-        // relayerFee: U64(0),//RELAYER_FEE,
         recipientFee: origin.publicKey,
         recipient: tokenRecipient
     });
 
     await SHIELDED_TRANSACTION.proof();
 
-    await testTransaction(SHIELDED_TRANSACTION, false);
+    await testTransaction(SHIELDED_TRANSACTION, false, false);
 
     try {
       let res = await SHIELDED_TRANSACTION.sendTransaction();

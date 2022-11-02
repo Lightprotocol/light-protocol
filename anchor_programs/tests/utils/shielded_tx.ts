@@ -28,7 +28,11 @@ import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import {checkRentExemption} from './test_checks';
 import {unpackLeavesAccount} from './unpack_accounts';
 
-
+// add verifier class which is passed in with the constructor
+// this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
+// input custom verifier with three functions by default prepare, proof, send
+// include functions from sdk in shieldedTransaction
+// 
 export class shieldedTransaction {
   constructor({
     keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
@@ -94,8 +98,6 @@ export class shieldedTransaction {
       this.merkleTreeLeavesIndex = 0;
 
     }
-
-
 
     async getRootIndex() {
       console.log("this.merkleTree.root ", this.merkleTree.root());
@@ -276,25 +278,91 @@ export class shieldedTransaction {
 
       this.proofData = proofData;
       console.log("proofData ", proofData);
+      // let pdas = await getPdaAddresses({
+      //   tx_integrity_hash: this.proofData.publicInputs.txIntegrityHash,
+      //   nullifiers: this.proofData.publicInputs.nullifiers,
+      //   leftLeaves: [this.proofData.publicInputs.leaves[0]],
+      //   merkleTreeProgram: this.merkleTreeProgram,
+      //   verifierProgram: this.verifierProgram,
+      //   signer: this.payer.publicKey
+      // })
+      // this.escrow = pdas.escrow;
+      // this.leavesPdaPubkeys = pdas.leavesPdaPubkeys;
+      // this.nullifierPdaPubkeys = pdas.nullifierPdaPubkeys;
+      // this.signerAuthorityPubkey = pdas.signerAuthorityPubkey;
+      // this.tokenAuthority = pdas.tokenAuthority;
+      // this.verifierStatePubkey = pdas.verifierStatePubkey;
+      await this.getPdaAddresses()
+      return this.proofData;
+    }
 
-      let pdas = await getPdaAddresses({
-        tx_integrity_hash: this.proofData.publicInputs.txIntegrityHash,
-        nullifiers: this.proofData.publicInputs.nullifiers,
-        leftLeaves: [this.proofData.publicInputs.leaves[0]],
-        merkleTreeProgram: this.merkleTreeProgram,
-        verifierProgram: this.verifierProgram,
-        signer: this.payer.publicKey
-      })
+    async getPdaAddresses(
+    //   {
+    //   tx_integrity_hash,
+    //   nullifiers,
+    //   leftLeaves,
+    //   merkleTreeProgram,
+    //   verifierProgram,
+    //   signer
+    // }
+  ) {
+      let tx_integrity_hash = this.proofData.publicInputs.txIntegrityHash;
+      let nullifiers = this.proofData.publicInputs.nullifiers;
+      let leftLeaves = [this.proofData.publicInputs.leaves[0]];
+      let merkleTreeProgram = this.merkleTreeProgram;
+      let verifierProgram = this.verifierProgram;
+      let signer = this.payer.publicKey;
+
+      console.log("new Uint8Array(nullifier0) ", new Uint8Array(nullifiers[0]));
+      console.log("nullifiers.len ", nullifiers.length);
+
+      let nullifierPdaPubkeys = [];
+      for (var i in nullifiers) {
+        nullifierPdaPubkeys.push(
+        (await PublicKey.findProgramAddress(
+            [Buffer.from(new Uint8Array(nullifiers[i])), anchor.utils.bytes.utf8.encode("nf")],
+            merkleTreeProgram.programId))[0]);
+      }
+
+      let leavesPdaPubkeys = [];
+      for (var i in leftLeaves) {
+        leavesPdaPubkeys.push(
+        (await PublicKey.findProgramAddress(
+            [Buffer.from(Array.from(leftLeaves[i]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
+            merkleTreeProgram.programId))[0]);
+      }
+
+      let pdas = {
+        signerAuthorityPubkey: (await PublicKey.findProgramAddress(
+            [merkleTreeProgram.programId.toBytes()],
+            verifierProgram.programId))[0],
+
+        escrow: (await PublicKey.findProgramAddress(
+            [anchor.utils.bytes.utf8.encode("escrow")],
+            verifierProgram.programId))[0],
+        verifierStatePubkey: (await PublicKey.findProgramAddress(
+            [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+            verifierProgram.programId))[0],
+        feeEscrowStatePubkey: (await PublicKey.findProgramAddress(
+            [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("escrow")],
+            verifierProgram.programId))[0],
+        merkleTreeUpdateState: (await PublicKey.findProgramAddress(
+            [Buffer.from(new Uint8Array(leftLeaves[0])), anchor.utils.bytes.utf8.encode("storage")],
+            merkleTreeProgram.programId))[0],
+        nullifierPdaPubkeys,
+        leavesPdaPubkeys,
+        tokenAuthority: (await PublicKey.findProgramAddress(
+            [anchor.utils.bytes.utf8.encode("spl")],
+            merkleTreeProgram.programId
+          ))[0],
+      };
       this.escrow = pdas.escrow;
       this.leavesPdaPubkeys = pdas.leavesPdaPubkeys;
       this.nullifierPdaPubkeys = pdas.nullifierPdaPubkeys;
       this.signerAuthorityPubkey = pdas.signerAuthorityPubkey;
       this.tokenAuthority = pdas.tokenAuthority;
       this.verifierStatePubkey = pdas.verifierStatePubkey;
-      return this.proofData;
     }
-
-
 
     async checkBalances(){
       // Checking that nullifiers were inserted
@@ -494,11 +562,10 @@ export class shieldedTransaction {
         throw Error("mode not supplied");
       }
     }
-
-
 }
 
 export  async function sendTransaction(insert = true){
+
     // console.log("this.relayerFee ", this.relayerFee);
     try {
       this.recipientBalancePriorTx = (await getAccount(
@@ -655,7 +722,135 @@ export  async function sendTransaction(insert = true){
     return res;
   }
 
-export  async function sendTransaction10(insert = true){
+export async function transferFirst(this) {
+  console.log("in transferFirst");
+
+  const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
+    Buffer.from(this.proofData.publicInputs.publicAmount),
+    this.proofData.publicInputs.nullifiers,
+    // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
+    this.proofData.publicInputs.leaves,
+    Buffer.from(this.proofData.publicInputs.feeAmount),
+    // Buffer.from(this.proofData.publicInputs.mintPubkey),
+    new anchor.BN(this.root_index.toString()),
+    new anchor.BN(this.relayerFee.toString()),
+    Buffer.from(this.proofData.encryptedOutputs)
+  ).accounts(
+    {
+      signingAddress:     this.relayerPubkey,
+      systemProgram:      SystemProgram.programId,
+      verifierState:      this.verifierStatePubkey
+    }
+  )
+  .signers([this.payer])
+  .rpc({
+    commitment: 'finalized',
+    preflightCommitment: 'finalized',
+  });
+  console.log("ix1 success ", ix1);
+}
+
+export async function transferSecond(this) {
+  const ix = await this.verifierProgram.methods.shieldedTransferSecond(
+    Buffer.from(this.proofData.proofBytes)
+  ).accounts(
+    {
+      signingAddress:     this.relayerPubkey,
+      verifierState:      this.verifierStatePubkey,
+      systemProgram:      SystemProgram.programId,
+      programMerkleTree:  this.merkleTreeProgram.programId,
+      rent:               DEFAULT_PROGRAMS.rent,
+      merkleTree:         this.merkleTreePubkey,
+      preInsertedLeavesIndex: this.preInsertedLeavesIndex,
+      authority:          this.signerAuthorityPubkey,
+      tokenProgram:       TOKEN_PROGRAM_ID,
+      sender:             this.sender,
+      recipient:          this.recipient,
+      senderFee:          this.senderFee,
+      recipientFee:       this.recipientFee,
+      relayerRecipient:   this.relayerRecipient,
+      escrow:             this.escrow,
+      tokenAuthority:     this.tokenAuthority,
+      registeredVerifierPda: this.registeredVerifierPda
+    }
+  )
+  .remainingAccounts([
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[2]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[3]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[4]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[5]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[6]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[7]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[8]},
+    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[9]},
+    { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
+  ])
+  .signers([this.payer]).instruction();
+  let recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
+
+
+  let txMsg = new TransactionMessage({
+        payerKey: this.payer.publicKey,
+        instructions: [
+          ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
+          ix
+        ],
+        recentBlockhash: recentBlockhash})
+
+  let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
+  // console.log("lookupTableAccount: ", lookupTableAccount);
+
+  let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
+  // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
+
+  let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
+  compiledTx.addressTableLookups[0].accountKey = this.lookupTable
+
+  let transaction = new VersionedTransaction(compiledTx);
+  let retries = 3;
+  let res
+  while (retries > 0) {
+    transaction.sign([this.payer])
+    recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
+    transaction.message.recentBlockhash = recentBlockhash;
+    let serializedTx = transaction.serialize();
+
+    try {
+      console.log("serializedTx: ");
+
+      res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
+        {
+          commitment: 'finalized',
+          preflightCommitment: 'finalized',
+        }
+      );
+      retries = 0;
+
+    } catch (e) {
+      console.log(e);
+      retries--;
+      if (retries == 0 || e.logs != undefined) {
+        const ixClose = await this.verifierProgram.methods.closeVerifierState(
+        ).accounts(
+          {
+            signingAddress:     this.relayerPubkey,
+            verifierState:      this.verifierStatePubkey
+          }
+        )
+        .signers([this.payer]).rpc({
+                commitment: 'finalized',
+                preflightCommitment: 'finalized',
+              });
+        return e;
+      }
+    }
+
+  }
+}
+
+export async function sendTransaction10(insert = true){
   assert(this.nullifierPdaPubkeys.length == 10);
   // console.log("this.relayerFee ", this.relayerFee);
   let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
@@ -699,226 +894,14 @@ export  async function sendTransaction10(insert = true){
   // console.log("this.proofData.encryptedOutputs[0], ", this.proofData.encryptedOutputs);
   console.log("this.verifierStatePubkey, ", this.verifierStatePubkey.toBase58());
   // console.log("this.proofData.publicInputs.nullifiers, ", this.proofData.publicInputs.nullifiers);
-  //
   // console.log("this.root_index ", this.root_index);
   // console.log("this.relayerFee ", this.relayerFee);
   // console.log("this.encryptedOutputs ", this.proofData.encryptedOutputs);
+  this.transferFirst = transferFirst;
+  this.transferSecond = transferSecond;
 
-  try {
-    const ix1 = await this.verifierProgram.methods.shieldedTransferFirst(
-      // this.proofData.proofBytes,
-      // Buffer.from(this.proofData.publicInputs.root),
-      Buffer.from(this.proofData.publicInputs.publicAmount),
-      // Buffer.from(this.proofData.publicInputs.extDataHash),
-      this.proofData.publicInputs.nullifiers,
-      // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
-      this.proofData.publicInputs.leaves,
-      Buffer.from(this.proofData.publicInputs.feeAmount),
-      // Buffer.from(this.proofData.publicInputs.mintPubkey),
-      new anchor.BN(this.root_index.toString()),
-      new anchor.BN(this.relayerFee.toString()),
-      Buffer.from(this.proofData.encryptedOutputs)
-    ).accounts(
-      {
-        signingAddress:     this.relayerPubkey,
-        systemProgram:      SystemProgram.programId,
-        verifierState:      this.verifierStatePubkey
-      }
-    )
-    .signers([this.payer]).rpc({
-            commitment: 'finalized',
-            preflightCommitment: 'finalized',
-          });
-    console.log("ix1 success ", ix1);
+  let res = await this.transferFirst();
+  res = await this.transferSecond();
 
-  } catch (e) {
-      console.log(e);
-      return e;
-
-  }
-
-  const solanaRPC = 'http://localhost:8899'
-  let connection = new Connection(solanaRPC, 'recent');
-  const version = await connection.getVersion()
-
-
-  const ix = await this.verifierProgram.methods.shieldedTransferSecond(
-    Buffer.from(this.proofData.proofBytes)
-  ).accounts(
-    {
-      signingAddress:     this.relayerPubkey,
-      verifierState:      this.verifierStatePubkey,
-      systemProgram:      SystemProgram.programId,
-      programMerkleTree:  this.merkleTreeProgram.programId,
-      rent:               DEFAULT_PROGRAMS.rent,
-      merkleTree:         this.merkleTreePubkey,
-      preInsertedLeavesIndex: this.preInsertedLeavesIndex,
-      authority:          this.signerAuthorityPubkey,
-      tokenProgram:       TOKEN_PROGRAM_ID,
-      sender:             this.sender,
-      recipient:          this.recipient,
-      senderFee:          this.senderFee,
-      recipientFee:       this.recipientFee,
-      relayerRecipient:   this.relayerRecipient,
-      escrow:             this.escrow,
-      tokenAuthority:     this.tokenAuthority,
-      registeredVerifierPda: this.registeredVerifierPda
-    }
-  )
-  .remainingAccounts([
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[0]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[1]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[2]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[3]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[4]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[5]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[6]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[7]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[8]},
-    { isSigner: false, isWritable: true, pubkey: this.nullifierPdaPubkeys[9]},
-    { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
-  ])
-  // .preInstructions([
-  //   ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-  // ])
-  .signers([this.payer]).instruction();
-  let recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
-
-
-  let txMsg = new TransactionMessage({
-        payerKey: this.payer.publicKey,
-        instructions: [
-          ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
-          ix
-        ],
-        recentBlockhash: recentBlockhash})
-
-  let lookupTableAccount = await this.provider.connection.getAccountInfo(this.lookupTable, "confirmed");
-  // console.log("lookupTableAccount: ", lookupTableAccount);
-
-  let unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(lookupTableAccount.data);
-  // console.log("unpackedLookupTableAccount ", unpackedLookupTableAccount);
-
-  let compiledTx = txMsg.compileToV0Message([{state: unpackedLookupTableAccount}]);
-  compiledTx.addressTableLookups[0].accountKey = this.lookupTable
-
-  let transaction = new VersionedTransaction(compiledTx);
-  let retries = 3;
-  let res
-  while (retries > 0) {
-    transaction.sign([this.payer])
-    // console.log(transaction);
-    // console.log(transaction.message.addressTableLookups);
-    recentBlockhash = (await this.provider.connection.getRecentBlockhash("finalized")).blockhash;
-    transaction.message.recentBlockhash = recentBlockhash;
-    let serializedTx = transaction.serialize();
-    // console.log(this.provider.connection);
-
-
-    try {
-      console.log("serializedTx: ");
-
-      res = await sendAndConfirmRawTransaction(/*this.provider.connection*/ connection, serializedTx,
-        {
-          commitment: 'finalized',
-          preflightCommitment: 'finalized',
-        }
-      );
-      retries = 0;
-
-    } catch (e) {
-      console.log(e);
-      retries--;
-      if (retries == 0 || e.logs != undefined) {
-        const ixClose = await this.verifierProgram.methods.closeVerifierState(
-        ).accounts(
-          {
-            signingAddress:     this.relayerPubkey,
-            verifierState:      this.verifierStatePubkey
-          }
-        )
-        .signers([this.payer]).rpc({
-                commitment: 'finalized',
-                preflightCommitment: 'finalized',
-              });
-        return e;
-      }
-    }
-
-  }
-  /*
-  // storing utxos
-  this.outputUtxos.map((utxo) => {
-    if (utxo.amounts[1] != 0 && utxo.assets[1] != this.feeAsset) {
-        this.utxos.push(utxo)
-    }
-    if (utxo.amounts[0] != 0 && utxo.assets[0].toString() == this.feeAsset.toString()) {
-      this.feeUtxos.push(utxo)
-    }
-  })
-  this.inIndices = null;
-  // inserting output utxos into merkle tree
-  if (insert != "NOINSERT") {
-    for (var i = 0; i<this.outputUtxos.length; i++) {
-      this.merkleTree.update(this.merkleTreeLeavesIndex, this.outputUtxos[i].getCommitment())
-      this.merkleTreeLeavesIndex++;
-    }
-  }
-  */
   return res;
-}
-
-
-
-export async function getPdaAddresses({
-  tx_integrity_hash,
-  nullifiers,
-  leftLeaves,
-  merkleTreeProgram,
-  verifierProgram,
-  signer
-}) {
-  console.log("new Uint8Array(nullifier0) ", new Uint8Array(nullifiers[0]));
-  console.log("nullifiers.len ", nullifiers.length);
-
-  let nullifierPdaPubkeys = [];
-  for (var i in nullifiers) {
-    nullifierPdaPubkeys.push(
-    (await PublicKey.findProgramAddress(
-        [Buffer.from(new Uint8Array(nullifiers[i])), anchor.utils.bytes.utf8.encode("nf")],
-        merkleTreeProgram.programId))[0]);
-  }
-
-  let leavesPdaPubkeys = [];
-  for (var i in leftLeaves) {
-    leavesPdaPubkeys.push(
-    (await PublicKey.findProgramAddress(
-        [Buffer.from(Array.from(leftLeaves[i]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
-        merkleTreeProgram.programId))[0]);
-  }
-
-  return {
-    signerAuthorityPubkey: (await PublicKey.findProgramAddress(
-        [merkleTreeProgram.programId.toBytes()],
-        verifierProgram.programId))[0],
-
-    escrow: (await PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgram.programId))[0],
-    verifierStatePubkey: (await PublicKey.findProgramAddress(
-        [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        verifierProgram.programId))[0],
-    feeEscrowStatePubkey: (await PublicKey.findProgramAddress(
-        [Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgram.programId))[0],
-    merkleTreeUpdateState: (await PublicKey.findProgramAddress(
-        [Buffer.from(new Uint8Array(leftLeaves[0])), anchor.utils.bytes.utf8.encode("storage")],
-        merkleTreeProgram.programId))[0],
-    nullifierPdaPubkeys,
-    leavesPdaPubkeys,
-    tokenAuthority: (await PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("spl")],
-        merkleTreeProgram.programId
-      ))[0],
-  }
 }
