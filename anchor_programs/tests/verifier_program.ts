@@ -33,6 +33,8 @@ import {
   newProgramOwnedAccount,
   executeUpdateMerkleTreeTransactions,
   executeMerkleTreeUpdateTransactions,
+  testTransaction,
+  createMint
 } from "./utils/test_transactions";
 
 import {
@@ -46,7 +48,7 @@ import {
   testInputUtxo,
   testOutputUtxo
 } from './utils/testUtxos';
-import { MerkleTreeConfig } from './utils/merkleTree';
+import { MerkleTreeConfig, getUninsertedLeaves, getInsertedLeaves, getUnspentUtxo } from './utils/merkleTree';
 
 import {
   checkEscrowAccountCreated,
@@ -92,6 +94,33 @@ var PRE_INSERTED_LEAVES_INDEX_USDC
 var RENT_ESCROW
 var RENT_VERIFIER
 var RENT_TOKEN_ACCOUNT
+
+var REGISTERED_VERIFIER_PDA;
+var PRE_INSERTED_LEAVES_INDEX;
+var MERKLE_TREE_PDA_TOKEN;
+var AUTHORITY;
+var AUTHORITY_ONE;
+var LOOK_UP_TABLE;
+var POSEIDON;
+var RELAYER_RECIPIENT;
+var MERKLE_TREE_AUTHORITY_PDA;
+var TOKEN_AUTHORITY;
+var POOL_TYPE_PDA;
+var REGISTERED_POOL_PDA_SPL;
+var REGISTERED_POOL_PDA_SOL;
+var REGISTERED_POOL_PDA;
+var SHIELDED_TRANSACTION;
+var REGISTERED_VERIFIER_ONE_PDA;
+var INVALID_SIGNER;
+var INVALID_MERKLE_TREE_AUTHORITY_PDA;
+var PRIOR_UTXO;
+var POOL_TYPE = new Uint8Array(32).fill(0);
+var KEYPAIR :light.keypair =  {
+    privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
+    pubkey: '11764594559652842781365480184568685555721424202471696567480221588056785654892',
+    encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
+};
+
 const sleep = (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms))
 }
@@ -103,33 +132,6 @@ describe("verifier_program", () => {
   const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
   const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
   const verifierProgramOne = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
-
-  var REGISTERED_VERIFIER_PDA;
-  var PRE_INSERTED_LEAVES_INDEX;
-  var MERKLE_TREE_PDA_TOKEN;
-  var AUTHORITY;
-  var AUTHORITY_ONE;
-  var LOOK_UP_TABLE;
-  var POSEIDON;
-  var RELAYER_RECIPIENT;
-  var MERKLE_TREE_AUTHORITY_PDA;
-  var TOKEN_AUTHORITY;
-  var POOL_TYPE_PDA;
-  var REGISTERED_POOL_PDA_SPL;
-  var REGISTERED_POOL_PDA_SOL;
-  var REGISTERED_POOL_PDA;
-  var SHIELDED_TRANSACTION;
-  var REGISTERED_VERIFIER_ONE_PDA;
-  var INVALID_SIGNER;
-  var INVALID_MERKLE_TREE_AUTHORITY_PDA;
-  var PRIOR_UTXO;
-  var POOL_TYPE = new Uint8Array(32).fill(0);
-
-  var KEYPAIR :light.keypair =  {
-      privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
-      pubkey: '11764594559652842781365480184568685555721424202471696567480221588056785654892',
-      encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
-  };
 
   it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
@@ -254,29 +256,10 @@ describe("verifier_program", () => {
 
       }
 
-      console.log("Initing Verifier AUTHORITY");
-
-      // try {
-      //   console.log(verifierProgramZero.methods.initializeAuthority);
-      //   console.log("sigbner ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
-      //
-      //   const ix = await verifierProgramZero.methods.initializeAuthority().accounts({
-      //     signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
-      //     authority: AUTHORITY,
-      //     merkleTreeAuthorityPda: MERKLE_TREE_AUTHORITY_PDA,
-      //     ...DEFAULT_PROGRAMS
-      //   })
-      //   .signers([ADMIN_AUTH_KEYPAIR])
-      //   .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
-      //   console.log("Initing Verifier AUTHORITY success");
-      //
-      // } catch(e) {
-      //   console.log(e);
-      // }
-      //
       await createMint({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
-        mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+        mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY),
+        provider
       })
 
       try {
@@ -591,6 +574,7 @@ describe("verifier_program", () => {
     let mint = await createMint({
       authorityKeypair: ADMIN_AUTH_KEYPAIR,
       // mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
+      provider
     })
 
 
@@ -637,7 +621,7 @@ describe("verifier_program", () => {
     let merkleTreeAuthority1 = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
     console.log(merkleTreeAuthority1);
     assert(merkleTreeAuthority1.registeredAssetIndex.toString() == "2");
-    let nftMint = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true})
+    let nftMint = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true, provider})
 
     var userTokenAccount = (await newAccountWithTokens({
       connection: provider.connection,
@@ -647,90 +631,6 @@ describe("verifier_program", () => {
       amount: 1
     }))
   });
-
-  async function createMint({authorityKeypair, mintKeypair = new anchor.web3.Account(),nft = false, decimals = 2}) {
-    if (nft == true) {
-      decimals = 0;
-    }
-    // await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(mintKeypair.publicKey, 1_000_000, {preflightCommitment: "confirmed", commitment: "confirmed"}));
-
-    try {
-      let space = token.MINT_SIZE
-
-      let txCreateAccount = new solana.Transaction().add(
-        SystemProgram.createAccount({
-          fromPubkey: authorityKeypair.publicKey,
-          lamports: provider.connection.getMinimumBalanceForRentExemption(space),
-          newAccountPubkey: mintKeypair.publicKey,
-          programId: token.TOKEN_PROGRAM_ID,
-          space: space
-
-        })
-      )
-
-      let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [authorityKeypair, mintKeypair], {commitment: "finalized", preflightCommitment: 'finalized',});
-
-      let mint = await token.createMint(
-        provider.connection,
-        authorityKeypair,
-        authorityKeypair.publicKey,
-        null, // freez auth
-        decimals, //2,
-        mintKeypair
-      );
-      // assert(MINT.toBase58() == mint.toBase58());
-      console.log("mintKeypair.publicKey: ", mintKeypair.publicKey.toBase58());
-      return mintKeypair.publicKey;
-    } catch(e) {
-      console.log(e)
-    }
-
-
-
-  }
-
-  it.skip("Test", async () => {
-    let nullifiers = []
-    for (var i = 0; i < 10; i++) {
-      nullifiers.push(new Uint8Array(32).fill(1))
-    }
-    let verifierStatePubkey = (await solana.PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        verifierProgramOne.programId))[0];
-    try {
-      const ix1 = await verifierProgramOne.methods.shieldedTransferFirst(
-        // this.proofData.proofBytes,
-        new Uint8Array(32).fill(1),
-        new Uint8Array(32).fill(1),
-        new Uint8Array(32).fill(1),
-        nullifiers,
-        // [Buffer.from(this.proofData.publicInputs.nullifier0), Buffer.from(this.proofData.publicInputs.nullifier1)],
-        [new Uint8Array(32).fill(1), new Uint8Array(32).fill(1)],
-        new Uint8Array(32).fill(1),
-        new Uint8Array(32).fill(1),
-        new anchor.BN("0"),
-        new anchor.BN("0"),
-        Buffer.from(new Uint8Array(174).fill(1))
-      ).accounts(
-        {
-          signingAddress:     ADMIN_AUTH_KEY,
-          systemProgram:      SystemProgram.programId,
-          verifierState:      verifierStatePubkey
-        }
-      )
-      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
-              commitment: 'confirmed',
-              preflightCommitment: 'confirmed',
-            });
-      console.log(ix1);
-
-    } catch(e) {
-      console.log(e);
-
-    }
-
-    let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
-  })
 
 
   it("Init Address Lookup Table", async () => {
@@ -888,8 +788,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.proof();
 
-      await testTransaction(SHIELDED_TRANSACTION, true, false);
-
+      await testTransaction({SHIELDED_TRANSACTION, deposit: true, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -909,7 +808,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Deposit", async () => {
+  it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -986,7 +885,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.proof();
 
-      await testTransaction(SHIELDED_TRANSACTION);
+      await testTransaction({SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -1003,240 +902,9 @@ describe("verifier_program", () => {
     }
 
   })
-  // move to new file test shielded transaction
-  // security claims
-  // - only the tokens of the mint included in the zkp can be withdrawn
-  // - only the amounts of the tokens in ZKP can be withdrawn
-  // - only the designated relayer can execute the transaction
-  // - relayer cannot alter recipient, recipientFee, relayer fee
-  // - amounts can only be withdrawn once
-  // -
-  async function testTransaction(SHIELDED_TRANSACTION, deposit = true, enabledSignerTest = true) {
-    const origin = await newAccountWithLamports(provider.connection)
 
-    const shieldedTxBackUp = _.cloneDeep(SHIELDED_TRANSACTION);
-    console.log("SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount ", SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount);
 
-    // Wrong pub amount
-    let wrongAmount = new anchor.BN("123213").toArray()
-    console.log("wrongAmount ", wrongAmount);
-
-    SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount = Array.from([...new Array(29).fill(0), ...wrongAmount]);
-    let e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log(e);
-
-    console.log("Wrong wrongPubAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-    // Wrong feeAmount
-    let wrongFeeAmount = new anchor.BN("123213").toArray()
-    console.log("wrongFeeAmount ", wrongFeeAmount);
-
-    SHIELDED_TRANSACTION.proofData.publicInputs.feeAmount = Array.from([...new Array(29).fill(0), ...wrongFeeAmount]);
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong feeAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    let wrongMint = new anchor.BN("123213").toArray()
-    console.log("wrongMint ", wrongMint);
-    console.log("SHIELDED_TRANSACTION.proofData.publicInputs ", SHIELDED_TRANSACTION.proofData.publicInputs);
-    let relayer = new anchor.web3.Account();
-    await createMint({
-      authorityKeypair: ADMIN_AUTH_KEYPAIR,
-      mintKeypair: ASSET_1_ORG
-    })
-    SHIELDED_TRANSACTION.sender = await newAccountWithTokens({connection: provider.connection,
-    MINT: ASSET_1_ORG.publicKey,
-    ADMIN_AUTH_KEYPAIR,
-    userAccount: relayer,
-    amount: 0})
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong wrongMint", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.sender = _.cloneDeep(shieldedTxBackUp.sender);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    // Wrong encryptedOutputs
-    SHIELDED_TRANSACTION.proofData.encryptedOutputs = new Uint8Array(174).fill(2);
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong encryptedOutputs", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    // Wrong relayerFee
-    // will result in wrong integrity hash
-    SHIELDED_TRANSACTION.relayerFee = new anchor.BN("90");
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong relayerFee", e.logs.includes('Program log: error ProofVerificationFailed'));
-    assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.relayerFee = _.cloneDeep(shieldedTxBackUp.relayerFee);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    for (var i in SHIELDED_TRANSACTION.proofData.publicInputs.nullifiers) {
-      SHIELDED_TRANSACTION.proofData.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong nullifier ", i, " ", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-      SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
-      await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    }
-
-    for (var i = 0; i < SHIELDED_TRANSACTION.proofData.publicInputs.leaves.length; i++) {
-      // Wrong leafLeft
-      SHIELDED_TRANSACTION.proofData.publicInputs.leaves[i] = new Uint8Array(32).fill(2);
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong leafLeft", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-      SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
-    }
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    /**
-    * -------- Checking Accounts -------------
-    **/
-    if (enabledSignerTest) {
-      // Wrong signingAddress
-      // will result in wrong integrity hash
-      SHIELDED_TRANSACTION.relayerPubkey = origin.publicKey;
-      SHIELDED_TRANSACTION.payer = origin;
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong signingAddress", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true || e.logs.includes('Program log: AnchorError caused by account: signing_address. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.') == true);
-      SHIELDED_TRANSACTION.relayerPubkey = _.cloneDeep(shieldedTxBackUp.relayerPubkey);
-      SHIELDED_TRANSACTION.payer = _.cloneDeep(shieldedTxBackUp.payer);
-      await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    }
-
-    // Wrong recipient
-    // will result in wrong integrity hash
-    console.log("Wrong recipient ");
-
-    if (deposit == true) {
-
-      SHIELDED_TRANSACTION.recipient = origin.publicKey;
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong recipient", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-      SHIELDED_TRANSACTION.recipient = _.cloneDeep(shieldedTxBackUp.recipient);
-
-      console.log("Wrong recipientFee ");
-      // Wrong recipientFee
-      // will result in wrong integrity hash
-      SHIELDED_TRANSACTION.recipientFee = origin.publicKey;
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong recipientFee", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-      SHIELDED_TRANSACTION.recipientFee = _.cloneDeep(shieldedTxBackUp.recipientFee);
-    } else {
-      SHIELDED_TRANSACTION.sender = origin.publicKey;
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log("Wrong sender", e.logs.includes('Program log: error ProofVerificationFailed'));
-      assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-      SHIELDED_TRANSACTION.sender = _.cloneDeep(shieldedTxBackUp.sender);
-      await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-      console.log("Wrong senderFee ");
-      // Wrong recipientFee
-      // will result in wrong integrity hash
-      SHIELDED_TRANSACTION.senderFee = origin.publicKey;
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log(e); // 546
-      console.log("Wrong senderFee", e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:699. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.'));
-      assert(e.logs.includes('Program log: AnchorError thrown in src/light_transaction.rs:699. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.') == true);
-      SHIELDED_TRANSACTION.senderFee = _.cloneDeep(shieldedTxBackUp.senderFee);
-      await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    }
-
-    console.log("Wrong registeredVerifierPda ");
-    // Wrong registeredVerifierPda
-    if (SHIELDED_TRANSACTION.registeredVerifierPda.toBase58() == REGISTERED_VERIFIER_ONE_PDA.toBase58()) {
-      SHIELDED_TRANSACTION.registeredVerifierPda = REGISTERED_VERIFIER_PDA
-
-    } else {
-
-      SHIELDED_TRANSACTION.registeredVerifierPda = REGISTERED_VERIFIER_ONE_PDA
-    }
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log("Wrong registeredVerifierPda",e);
-    assert(e.logs.includes('Program log: AnchorError caused by account: registered_verifier_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.') == true);
-    SHIELDED_TRANSACTION.registeredVerifierPda = _.cloneDeep(shieldedTxBackUp.registeredVerifierPda);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    console.log("Wrong authority ");
-    // Wrong authority
-    SHIELDED_TRANSACTION.signerAuthorityPubkey = new anchor.web3.Account().publicKey;
-    e = await SHIELDED_TRANSACTION.sendTransaction();
-    console.log(e);
-
-    console.log("Wrong authority1 ", e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.'));
-    assert(e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.') == true);
-    SHIELDED_TRANSACTION.signerAuthorityPubkey = _.cloneDeep(shieldedTxBackUp.signerAuthorityPubkey);
-    await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
-
-    // console.log("Wrong preInsertedLeavesIndex ");
-    // // Wrong authority
-    // SHIELDED_TRANSACTION.preInsertedLeavesIndex = SHIELDED_TRANSACTION.tokenAuthority;
-    // e = await SHIELDED_TRANSACTION.sendTransaction();
-    // console.log(e);
-    // console.log("Wrong preInsertedLeavesIndex", e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.'));
-    // assert(e.logs.includes('Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.') == true);
-    // SHIELDED_TRANSACTION.preInsertedLeavesIndex = _.cloneDeep(shieldedTxBackUp.preInsertedLeavesIndex);
-    for (var i = 0; i < SHIELDED_TRANSACTION.nullifierPdaPubkeys.length; i++) {
-      console.log("SHIELDED_TRANSACTION.nullifierPdaPubkeys.length ", SHIELDED_TRANSACTION.nullifierPdaPubkeys.length);
-
-      // Wrong authority
-      SHIELDED_TRANSACTION.nullifierPdaPubkeys[i] = SHIELDED_TRANSACTION.nullifierPdaPubkeys[(i + 1) % (SHIELDED_TRANSACTION.nullifierPdaPubkeys.length)];
-      assert(SHIELDED_TRANSACTION.nullifierPdaPubkeys[i] != shieldedTxBackUp.nullifierPdaPubkeys[i]);
-      e = await SHIELDED_TRANSACTION.sendTransaction();
-      console.log(e);
-
-      console.log("Wrong nullifierPdaPubkeys ", i," ", e.logs.includes('Program log: Passed-in pda pubkey != on-chain derived pda pubkey.'));
-      assert(e.logs.includes('Program log: Passed-in pda pubkey != on-chain derived pda pubkey.') == true);
-      SHIELDED_TRANSACTION.nullifierPdaPubkeys[i] = _.cloneDeep(shieldedTxBackUp.nullifierPdaPubkeys[i]);
-    }
-  }
-
-  async function  checkNfInserted(pubkeys, connection) {
-    for (var i = 0; i < pubkeys.length; i++) {
-      var accountInfo = await connection.getAccountInfo(
-        pubkeys[i]
-      )
-      console.log("accountInfo ", i," ", accountInfo);
-
-      assert(accountInfo == null);
-    }
-
-  }
-  async function getUninsertedLeaves({
-    merkleTreeProgram,
-    merkleTreeIndex,
-    connection
-    // merkleTreePubkey
-  }) {
-    var leave_accounts: Array<{
-      pubkey: PublicKey
-      account: Account<Buffer>
-    }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
-    console.log("Total nr of accounts. ", leave_accounts.length);
-
-    let filteredLeaves = leave_accounts
-    .filter((pda) => {
-      return pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber()
-    }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
-
-    return filteredLeaves.map((pda) => {
-        return { isSigner: false, isWritable: false, pubkey: pda.publicKey};
-    })
-  }
-
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -1283,8 +951,8 @@ describe("verifier_program", () => {
     // assert(mtOnchain.roots[1] == mtAfter.root());
   })
 
-  // needs two leaves accounts as input
-  it("Update Merkle Tree Test", async () => {
+
+  it.skip("Update Merkle Tree Test", async () => {
     // Security Claims
     // CreateUpdateState
     // 1 leaves can only be inserted in the correct index order
@@ -1674,25 +1342,6 @@ describe("verifier_program", () => {
 
 })
 
-  async function getInsertedLeaves({
-    merkleTreeProgram,
-    merkleTreeIndex,
-    connection
-    // merkleTreePubkey
-  }) {
-    var leave_accounts: Array<{
-      pubkey: PublicKey
-      account: Account<Buffer>
-    }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
-    console.log("Total nr of accounts. ", leave_accounts.length);
-
-    let filteredLeaves = leave_accounts
-    .filter((pda) => {
-      return pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber()
-    }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
-
-    return filteredLeaves;
-  }
 
   it.skip("Test Utxo encryption", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
@@ -1716,7 +1365,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
 
@@ -1748,7 +1397,7 @@ describe("verifier_program", () => {
     //
     // let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
     // console.log("decryptedUtxo2: ", decryptedUtxo2);
-    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas);
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram);
 
 
     // subsidising transactions
@@ -1831,7 +1480,8 @@ describe("verifier_program", () => {
 
     await SHIELDED_TRANSACTION.proof();
 
-    await testTransaction(SHIELDED_TRANSACTION, false);
+
+    await testTransaction({SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
     console.log("MINT_CIRCUIT: ", MINT_CIRCUIT);
     console.log("MINT_CIRCUIT: ", Array.from( MINT_CIRCUIT.toBuffer(32)));
@@ -1849,30 +1499,7 @@ describe("verifier_program", () => {
 
   })
 
-  async function getUnspentUtxo(leavesPdas) {
-    let decryptedUtxo1
-    for (var i = 0; i < leavesPdas.length; i++) {
-      console.log("iter ", i);
 
-      // decrypt first leaves account and build utxo
-      decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
-      let nullifier = decryptedUtxo1.getNullifier();
-
-      let nullifierPubkey = (await solana.PublicKey.findProgramAddress(
-          [new anchor.BN(nullifier.toString()).toBuffer(), anchor.utils.bytes.utf8.encode("nf")],
-          merkleTreeProgram.programId))[0]
-      let accountInfo = await provider.connection.getAccountInfo(nullifierPubkey);
-
-      if (accountInfo == null && decryptedUtxo1.amounts[1].toString() != "0" && decryptedUtxo1.amounts[0].toString() != "0") {
-        console.log("found unspent leaf");
-        return decryptedUtxo1;
-      } else if (i == leavesPdas.length - 1) {
-        throw "no unspent leaf found";
-      }
-
-    }
-
-  }
   it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
@@ -1897,8 +1524,7 @@ describe("verifier_program", () => {
         merkleTreeIndex: mtFetched.nextIndex,
         connection: provider.connection
     });
-    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas)
-    let decryptedUtxo2
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram);
 
 
     // subsidising transactions
@@ -1981,7 +1607,8 @@ describe("verifier_program", () => {
 
     await SHIELDED_TRANSACTION.proof();
 
-    await testTransaction(SHIELDED_TRANSACTION, false, false);
+
+    await testTransaction({SHIELDED_TRANSACTION, deposit: false, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
     try {
       let res = await SHIELDED_TRANSACTION.sendTransaction();

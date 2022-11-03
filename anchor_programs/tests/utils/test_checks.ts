@@ -325,3 +325,14 @@ export async function checkRentExemption({
   }
 
 }
+
+export async function  checkNfInserted(pubkeys, connection) {
+  for (var i = 0; i < pubkeys.length; i++) {
+    var accountInfo = await connection.getAccountInfo(
+      pubkeys[i]
+    )
+
+    assert(accountInfo == null);
+  }
+
+}
