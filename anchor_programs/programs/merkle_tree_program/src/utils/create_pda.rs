@@ -4,6 +4,7 @@ use anchor_lang::solana_program::{
 };
 use std::convert::TryInto;
 
+#[allow(clippy::too_many_arguments)]
 pub fn create_and_check_pda<'a, 'b>(
     program_id: &Pubkey,
     signer_account: &'a AccountInfo<'b>,
@@ -31,9 +32,8 @@ pub fn create_and_check_pda<'a, 'b>(
     let mut account_lamports = lamports;
     if rent_exempt {
         account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap());
-    } else {
-        account_lamports += rent.minimum_balance(number_storage_bytes.try_into().unwrap()) / 365;
     }
+
     msg!("account_lamports: {}", account_lamports);
     invoke_signed(
         &system_instruction::create_account(
