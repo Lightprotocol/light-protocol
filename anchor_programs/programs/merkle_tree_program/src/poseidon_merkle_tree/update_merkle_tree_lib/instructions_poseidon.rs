@@ -62,7 +62,7 @@ pub fn poseidon_0(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
-            tmp_state[i * 32 + j] = inner_elem.clone();
+            tmp_state[i * 32 + j] = *inner_elem;
         }
     }
     verifier_state_data.state = tmp_state.try_into().unwrap();
@@ -77,7 +77,7 @@ pub fn poseidon_1(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
 
     let mut state_new1 = Vec::new();
     for i in verifier_state_data.state.chunks(32) {
-        state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
+        state_new1.push(<Fq as FromBytes>::read(i).unwrap());
     }
 
     for _i in 0..4 {
@@ -102,7 +102,7 @@ pub fn poseidon_1(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
-            tmp_state[i * 32 + j] = inner_elem.clone();
+            tmp_state[i * 32 + j] = *inner_elem;
         }
     }
     verifier_state_data.state = tmp_state.try_into().unwrap();
@@ -123,7 +123,7 @@ pub fn poseidon_2(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
 
     let mut state_new1 = Vec::new();
     for i in verifier_state_data.state.chunks(32) {
-        state_new1.push(<Fq as FromBytes>::read(&i[..]).unwrap());
+        state_new1.push(<Fq as FromBytes>::read(i).unwrap());
     }
     state_new1 = permute_custom_split(&params, state_new1, current_round, 6).unwrap();
     current_round += 6;
@@ -148,7 +148,7 @@ pub fn poseidon_2(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
     let rounds = poseidon_round_constants_split::get_rounds_poseidon_circom_bn254_x5_3_split(
         current_round_index,
     );
-    let params = PoseidonParameters::<Fq>::new(rounds, mds.clone());
+    let params = PoseidonParameters::<Fq>::new(rounds, mds);
     state_new1 = permute_custom_split(&params, state_new1, current_round, 4).unwrap();
 
     let mut state_final = vec![vec![0u8; 32]; 3];
@@ -160,7 +160,7 @@ pub fn poseidon_2(verifier_state_data: &mut MerkleTreeUpdateState) -> Result<()>
     let mut tmp_state = vec![0u8; 96];
     for (i, elem) in state_final.iter().enumerate() {
         for (j, inner_elem) in elem.iter().enumerate() {
-            tmp_state[i * 32 + j] = inner_elem.clone();
+            tmp_state[i * 32 + j] = *inner_elem;
         }
     }
     verifier_state_data.state = tmp_state.try_into().unwrap();
@@ -186,7 +186,7 @@ pub fn prepare_inputs(
         .chain(right_input.iter())
         .copied()
         .collect();
-
+    msg!("chained: {:?}", chained);
     let f_inputs = utils::to_field_elements(&chained).unwrap();
     if f_inputs.len() >= PoseidonCircomRounds3::WIDTH {
         panic!(
