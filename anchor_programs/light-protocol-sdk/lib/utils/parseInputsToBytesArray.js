@@ -15,16 +15,21 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const parseInputsToBytesArray = function (data) {
     return __awaiter(this, void 0, void 0, function* () {
         var mydata = JSON.parse(data.toString());
+        console.log("prior reverse; ", mydata);
+
         for (var i in mydata) {
-            mydata[i] = leInt2Buff(unstringifyBigInts(mydata[i]), 32);
+            mydata[i] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i]), 32)).reverse();
         }
-        let x = [];
-        mydata.map((array) => {
-            array.map((byte) => {
-                x.push(byte);
-            });
-        });
-        return x;
+        // console.log(mydata)
+        // let x = [];
+        // mydata.map((array) => {
+        //     array.map((byte) => {
+        //         x.push(byte);
+        //     });
+        // });
+        // console.log(x.toString())
+        console.log("after reverse; ", mydata);
+        return mydata;
     });
 };
 exports.parseInputsToBytesArray = parseInputsToBytesArray;

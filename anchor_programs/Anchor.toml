@@ -9,14 +9,14 @@ url = "https://api.devnet.solana.com"
 address = "HKwwxmW1WroCFXa5y4txaGgzzQ1S7r8fU16aqq78w3Et"
 
 [programs.localnet]
-verifier_program = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+verifier_program_one = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
+verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
 merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
-attacker_program = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
 
 [programs.mainnet]
-verifier_program = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+verifier_program_one = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
+verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
 merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
-attacker_program = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
 
 [test]
 startup_wait = 100_000
@@ -28,7 +28,4 @@ cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-# test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/merkle_tree_program.ts"
-test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/verifier_program.ts"
-# test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/infinite_sol_test.ts" # infinite_sol_test
-# test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/infinite_spl_test.ts" #infinite_spl_test
+test = "yarn run ts-mocha ./tsconfig.json -t 100000000 tests/tests.ts"

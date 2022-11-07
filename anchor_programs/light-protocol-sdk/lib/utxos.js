@@ -1,37 +1,72 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Utxo = void 0;
-const poseidonHash_1 = require("./utils/poseidonHash");
+const poseidon = require("./utils/poseidonHash");
 const randomBN_1 = require("./utils/randomBN");
 const toBuffer_1 = require("./utils/toBuffer");
-const ethers_1 = require("ethers");
 const nacl = require('tweetnacl');
 nacl.util = require('tweetnacl-util');
 const keypair_1 = require("./utils/keypair");
+const constants_1 = require("./constants");
+const toFixedHex_1 = require("./utils/toFixedHex");
+const anchor = require("@project-serum/anchor")
+const toBufferLE = require('bigint-buffer');
+// import { BigNumber } from 'ethers';
+
+const N_ASSETS = 3;
 class Utxo {
-    constructor(amount = 0, keypair = new keypair_1.Keypair(), // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding = (0, randomBN_1.randomBN)(), index = null, _commitment = null, // I added null as default if there is an error could be that
+    constructor(poseidon, assets = [0, 0, 0],amounts = [0, 0, 0],/*feeAmount = 0, */keypair = null, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    instructionType = "0", blinding = (0, randomBN_1.randomBN)(), index = null, _commitment = null, // I added null as default if there is an error could be that
     _nullifier = null) {
-        // I added null as default if there is an error could be that
-        this.amount = ethers_1.BigNumber.from(amount);
-        this.blinding = ethers_1.BigNumber.from(blinding);
+        if (assets.length != amounts.length) {
+          throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
+        }
+        while (assets.length < N_ASSETS) {
+          assets.push(new anchor.BN(0))
+        }
+        for (var i= 0; i < N_ASSETS; i++) {
+          if (amounts[i] < 0) {
+              throw `utxo constructor: amount cannot be negative, amounts[${i}] = ${amounts[i]}`
+          }
+        }
+
+        while (amounts.length < N_ASSETS) {
+          amounts.push(0)
+        }
+        if (keypair == null) {
+          keypair = new keypair_1.Keypair(poseidon)
+
+        }
+
+        this.amounts = amounts.map((x) => new anchor.BN(x));
+        this.blinding = new anchor.BN(blinding);
         this.keypair = keypair;
         this.index = index;
+        this.assets = assets.map((x) => new anchor.BN(x));
+        this.instructionType = instructionType;
         this._commitment = _commitment;
         this._nullifier = _nullifier;
+        this.poseidon = poseidon;
     }
     /**
      * Returns commitment for this UTXO
-     *
+     *signature:
      * @returns {BigNumber}
      */
     getCommitment() {
         if (!this._commitment) {
-            this._commitment = (0, poseidonHash_1.poseidonHash)([
-                this.amount,
-                this.keypair.pubkey,
-                this.blinding,
-            ]);
+          let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
+
+          let assetHash = this.poseidon.F.toString(this.poseidon(this.assets));
+          this._commitment = this.poseidon.F.toString(this.poseidon([
+              amountHash,
+              this.keypair.pubkey,
+              this.blinding,
+              assetHash,
+              this.instructionType
+          ]));
+
+
         }
         return this._commitment;
     }
@@ -49,14 +84,16 @@ class Utxo {
                     this.keypair.privkey === null)) {
                 throw new Error('Can not compute nullifier without utxo index or private key');
             }
+
             const signature = this.keypair.privkey
                 ? this.keypair.sign(this.getCommitment(), this.index || 0)
                 : 0;
-            this._nullifier = (0, poseidonHash_1.poseidonHash)([
+
+            this._nullifier = this.poseidon.F.toString(this.poseidon([
                 this.getCommitment(),
                 this.index || 0,
                 signature,
-            ]);
+            ]))
         }
         return this._nullifier;
     }
@@ -66,31 +103,32 @@ class Utxo {
      * @returns {string}
      */
     encrypt(nonce, encryptionKeypair, senderThrowAwayKeypair) {
+        console.log(this.amounts[0]);
+
         const bytes_message = Buffer.concat([
-            (0, toBuffer_1.toBuffer)(this.blinding, 31),
-            (0, toBuffer_1.toBuffer)(this.amount, 8),
+            this.blinding.toBuffer(),
+            toBufferLE.toBufferLE(BigInt(this.amounts[0]), 8),
+            toBufferLE.toBufferLE(BigInt(this.amounts[1]), 8)
         ]);
-        // console.log("bytes_message", bytes_message)
-        // console.log("nonce", nonce)
-        // console.log("encryptionKeypair", encryptionKeypair)
-        // console.log("senderThrowAwayKeypair", senderThrowAwayKeypair)
         const ciphertext = nacl.box(bytes_message, nonce, encryptionKeypair.publicKey, senderThrowAwayKeypair.secretKey);
-        // console.log("CIPHERTEXT", ciphertext)
-        // console.log("CIPHERTEXT TYPE", typeof ciphertext)
+
         return ciphertext;
     }
-    static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, index) {
+    static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
+
         const cleartext = nacl.box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
         if (!cleartext) {
             return [false, null];
         }
         const buf = Buffer.from(cleartext);
-        const utxoAmount = ethers_1.BigNumber.from('0x' + buf.slice(31, 39).toString('hex'));
-        const utxoBlinding = ethers_1.BigNumber.from('0x' + buf.slice(0, 31).toString('hex'));
+        const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
+        const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
+
+        const utxoBlinding = new anchor.BN( buf.slice(0, 31));
+
         return [
             true,
-            new Utxo(utxoAmount, shieldedKeypair, // only recipient can decrypt, has full keypair
-            utxoBlinding, index),
+            new Utxo(POSEIDON, assets, [utxoAmount1, utxoAmount2], shieldedKeypair,"0", utxoBlinding, index)
         ];
     }
 }
