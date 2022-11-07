@@ -10,7 +10,7 @@ pub struct CloseUpdateState<'info> {
     /// CHECK:` Is the merkle_tree_update_state of an authority.
     #[account(
         mut,
-        seeds = [&authority.key().to_bytes().as_ref(), STORAGE_SEED.as_ref()],
+        seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED],
         bump,
         close=authority
     )]
