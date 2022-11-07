@@ -20,6 +20,8 @@ pub enum ErrorCode {
     WithdrawalFailed,
     #[msg("MerkleTreeUpdateNotInRootInsert")]
     MerkleTreeUpdateNotInRootInsert,
+    #[msg("MerkleTreeUpdateNotInRootInsert")]
+    MerkleTreeUpdateNotInRootInsertState,
     #[msg("InvalidNumberOfLeaves")]
     InvalidNumberOfLeaves,
     #[msg("LeafAlreadyInserted")]
@@ -31,6 +33,9 @@ pub enum ErrorCode {
     #[msg("NullifierAlreadyExists")]
     NullifierAlreadyExists,
     #[msg("LeavesOfWrongTree")]
-    LeavesOfWrongTree
-
+    LeavesOfWrongTree,
+    #[msg("InvalidAuthority")]
+    InvalidAuthority,
+    #[msg("InvalidVerifier")]
+    InvalidVerifier,
 }
