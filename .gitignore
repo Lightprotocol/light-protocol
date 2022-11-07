@@ -13,3 +13,8 @@
 
 /program_merkle_tree/dist/
 /program_merkle_tree/docker-target
+groth16-solana/target
+light-verifier-sdk/target
+*/target/*
+/anchor_programs/build/*
+/anchor_programs/Light_Circuits/build/circuits/ptau17
