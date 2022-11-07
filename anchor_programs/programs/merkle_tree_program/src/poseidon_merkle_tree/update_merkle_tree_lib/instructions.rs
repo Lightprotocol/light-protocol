@@ -6,7 +6,7 @@ use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 use std::cell::RefMut;
 
 pub fn insert_0_double(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     update_state_data.current_index = (merkle_tree_account.next_index as u64
@@ -29,15 +29,15 @@ pub fn insert_0_double(
         msg!("Merkle tree full");
         return Err(ProgramError::InvalidInstructionData);
     }
-    update_state_data.node_left =
-        update_state_data.leaves[usize::try_from(update_state_data.insert_leaves_index).unwrap()][0];
-    update_state_data.node_right =
-        update_state_data.leaves[usize::try_from(update_state_data.insert_leaves_index).unwrap()][1];
-    println!(
+    update_state_data.node_left = update_state_data.leaves
+        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][0];
+    update_state_data.node_right = update_state_data.leaves
+        [usize::try_from(update_state_data.insert_leaves_index).unwrap()][1];
+    msg!(
         "update_state_data.node_left {:?}",
         update_state_data.node_left
     );
-    println!(
+    msg!(
         "update_state_data.node_right {:?}",
         update_state_data.node_right
     );
@@ -45,13 +45,12 @@ pub fn insert_0_double(
     update_state_data.current_level = 1;
     // increase insert leaves index to insert the next leaf
     update_state_data.insert_leaves_index += 1;
-    println!(
+    msg!(
         "update_state_data.insert_leaves_index {}",
         update_state_data.insert_leaves_index
     );
     update_state_data.tmp_leaves_index += 2;
 
-    merkle_tree_account.inserted_leaf = true;
     //zeroing out prior state since the account was used for prior computation
     update_state_data.state = [0u8; 96];
     update_state_data.current_round = 0;
@@ -61,7 +60,7 @@ pub fn insert_0_double(
 }
 
 pub fn insert_1_inner_loop(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     msg!(
@@ -73,8 +72,7 @@ pub fn insert_1_inner_loop(
         update_state_data.current_level_hash
     );
     if update_state_data.current_level != 0 {
-        update_state_data.current_level_hash =
-            update_state_data.state[0..32].try_into().unwrap();
+        update_state_data.current_level_hash = update_state_data.state[0..32].try_into().unwrap();
     }
     msg!(
         "update_state_data.current_index {}",
@@ -86,14 +84,12 @@ pub fn insert_1_inner_loop(
             update_state_data.current_level_hash
         );
 
-        update_state_data.node_left = update_state_data.current_level_hash.clone();
+        update_state_data.node_left = update_state_data.current_level_hash;
         update_state_data.node_right =
-            ZERO_BYTES_MERKLE_TREE_18[usize::try_from(update_state_data.current_level).unwrap() * 32
-                ..(usize::try_from(update_state_data.current_level).unwrap() * 32 + 32)]
-                .try_into()
-                .unwrap();
-        update_state_data.filled_subtrees[usize::try_from(update_state_data.current_level).unwrap()] =
-            update_state_data.current_level_hash.clone();
+            ZERO_BYTES_MERKLE_TREE_18[usize::try_from(update_state_data.current_level).unwrap()];
+        update_state_data.filled_subtrees
+            [usize::try_from(update_state_data.current_level).unwrap()] =
+            update_state_data.current_level_hash;
         // check if there is another queued leaves pair
         if update_state_data.insert_leaves_index < update_state_data.number_of_leaves {
             msg!(
@@ -113,11 +109,8 @@ pub fn insert_1_inner_loop(
         }
     } else {
         update_state_data.node_left = update_state_data.filled_subtrees
-            [usize::try_from(update_state_data.current_level).unwrap()]
-            .clone()
-            .try_into()
-            .unwrap();
-        update_state_data.node_right = update_state_data.current_level_hash.clone();
+            [usize::try_from(update_state_data.current_level).unwrap()];
+        update_state_data.node_right = update_state_data.current_level_hash;
     }
     update_state_data.current_index /= 2;
     update_state_data.current_level += 1;
@@ -135,19 +128,17 @@ pub fn insert_1_inner_loop(
 }
 
 pub fn insert_last_double(
-    merkle_tree_account: &mut MerkleTree,
+    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
-    merkle_tree_account.current_root_index = ((merkle_tree_account.current_root_index + 1)
-        % merkle_tree_account.root_history_size)
-        .try_into()
-        .unwrap();
-    //
+    merkle_tree_account.current_root_index = (merkle_tree_account.current_root_index + 1)
+        % u64::try_from(merkle_tree_account.roots.len()).unwrap();
+
     msg!(
         "merkle_tree_account.current_root_index {}",
         merkle_tree_account.current_root_index
     );
-    merkle_tree_account.next_index = update_state_data.tmp_leaves_index.try_into().unwrap();
+    merkle_tree_account.next_index = update_state_data.tmp_leaves_index;
     msg!(
         "merkle_tree_account.next_index {:?}",
         merkle_tree_account.next_index
@@ -156,13 +147,14 @@ pub fn insert_last_double(
         "update_state_data.state[0..32].to_vec() {:?}",
         update_state_data.state[0..32].to_vec()
     );
-    //roots unpacks only the current root and write only this one
-    merkle_tree_account.roots = update_state_data.state[0..32].to_vec();
-    merkle_tree_account.inserted_root = true;
+    let index: usize = merkle_tree_account
+        .current_root_index
+        .try_into()
+        .unwrap();
 
-    for (i, node) in update_state_data.filled_subtrees.iter().enumerate() {
-        merkle_tree_account.filled_subtrees[i] = node.clone().to_vec();
-    }
+    merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
+
+    merkle_tree_account.filled_subtrees = update_state_data.filled_subtrees;
 
     Ok(())
 }

@@ -8,11 +8,12 @@ use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey};
 
 use crate::errors::ErrorCode;
+use std::cell::RefMut;
 
 pub fn compute_updated_merkle_tree(
     id: u8,
     merkle_tree_update_state_data: &mut MerkleTreeUpdateState,
-    merkle_tree_pda_data: &mut MerkleTree,
+    merkle_tree_pda_data: &mut RefMut<'_, MerkleTree>,
 ) -> Result<()> {
     msg!("executing instruction {}", id);
     // Hash computation is split into three parts which can be executed in ~2m compute units
