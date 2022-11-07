@@ -1,0 +1,13 @@
+[package]
+name = "groth16-solana"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+solana-program = { path = "../../solana/sdk/program"}
+thiserror = "1.0"
+
+[dev-dependencies]
+ark-ec = "0.3.0"
+ark-bn254 = "0.3.0"
+ark-ff = "0.3.0"
