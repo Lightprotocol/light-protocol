@@ -84,6 +84,7 @@ mod test {
             time_locked: 0u64,
             height: 0u64,
             merkle_tree_nr: 0u64,
+            lock_duration: 20u64
         };
         let height = 18;
         let mt_index = 0;
