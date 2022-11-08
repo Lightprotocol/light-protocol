@@ -142,6 +142,7 @@ fn test_initialize() {
         time_locked: 0u64,
         height: 0u64,
         merkle_tree_nr: 0u64,
+        lock_duration: 20u64
     };
     let mt_index = 0;
     let binding = &mut RefCell::new(mt);
@@ -179,6 +180,7 @@ fn batch_update_smt_test() {
         time_locked: 0u64,
         height: 0u64,
         merkle_tree_nr: 0u64,
+        lock_duration: 0u64
     };
     let mt_index = 0;
     let binding = &mut RefCell::new(mt);
