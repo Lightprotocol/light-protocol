@@ -127,6 +127,19 @@ describe("verifier_program", () => {
   const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
   const verifierProgramOne = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
 
+  it.skip("test pubkey truncation < FIELD_SIZE", async() => {
+    // let asset = new anchor.web3.Account().publicKey
+    // is not always true there are ed25519 pubkeys < FIELD_SIZE
+    // console.log(`${asset._bn.mod(FIELD_SIZE)} != ${asset._bn.toString()}`);
+    // assert(asset._bn.mod(FIELD_SIZE).toString() != asset._bn.toString());
+    for (var i= 0; i < 1000; i++) {
+      let asset = new anchor.web3.Account().publicKey
+      let asset_truncated = new anchor.BN(asset._bn.toBuffer(32).slice(0,31))
+      console.log(`${asset_truncated.mod(FIELD_SIZE)} == ${asset_truncated}`);
+      assert(asset_truncated.mod(FIELD_SIZE) == asset_truncated);
+    }
+  })
+
   it("init pubkeys ", async () => {
     // provider = await anchor.getProvider('https://api.devnet.solana.com', {preflightCommitment: "confirmed", commitment: "confirmed"});
     const connection = provider.connection;
@@ -605,8 +618,156 @@ describe("verifier_program", () => {
     }))
   });
 
+  it.skip("Test", async () => {
+    // const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
+    // console.log("recentSlot: ", recentSlot);
+    //
+    //
+    // const authorityPubkey = solana.Keypair.generate().publicKey;
+    // const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
+    // const [lookupTableAddress, bumpSeed] = await solana.PublicKey.findProgramAddress(
+    //   [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
+    //   solana.AddressLookupTableProgram.programId,
+    // );
+    //
+    // const createInstruction = solana.AddressLookupTableProgram.createLookupTable({
+    //   authority: payerPubkey,
+    //   payer: payerPubkey,
+    //   recentSlot,
+    // })[0];
+    // let escrows = (await solana.PublicKey.findProgramAddress(
+    //     [anchor.utils.bytes.utf8.encode("escrow")],
+    //     verifierProgramZero.programId))[0];
+    //
+    // let ix0 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_0000});
+    // // let ix1 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: MERKLE_TREE_PDA_TOKEN, lamports: 1_000_000_0000});
+    //
+    // var transaction = new solana.Transaction().add(createInstruction);
+    // LOOK_UP_TABLE = lookupTableAddress;
+    // const addressesToAdd = [
+    //   AUTHORITY,
+    //   SystemProgram.programId,
+    //   merkleTreeProgram.programId,
+    //   DEFAULT_PROGRAMS.rent,
+    //   PRE_INSERTED_LEAVES_INDEX,
+    //   token.TOKEN_PROGRAM_ID,
+    //   MERKLE_TREE_PDA_TOKEN_USDC,
+    //   MERKLE_TREE_KEY,
+    //   escrows,
+    //   TOKEN_AUTHORITY,
+    //   REGISTERED_POOL_PDA_SOL
+    // ];
+    // const extendInstruction = solana.AddressLookupTableProgram.extendLookupTable({
+    //   lookupTable: lookupTableAddress,
+    //   authority: payerPubkey,
+    //   payer: payerPubkey,
+    //   addresses: addressesToAdd,
+    // });
+    //
+    // transaction.add(extendInstruction);
+    // transaction.add(ix0);
+    // // transaction.add(ix1);
+    // let recentBlockhash = await provider.connection.getRecentBlockhash("confirmed");
+    // transaction.feePayer = payerPubkey;
+    // transaction.recentBlockhash = recentBlockhash;
+    //
+    // try {
+    //   let res = await solana.sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR], {commitment: "finalized", preflightCommitment: 'finalized',});
+    // } catch(e) {
+    //   console.log("e : ", e);
+    // }
+    //
+    // console.log("LOOK_UP_TABLE: ", LOOK_UP_TABLE.toBase58());
+    // let lookupTableAccount = await provider.connection.getAccountInfo(LOOK_UP_TABLE, "confirmed");
+    // assert(lookupTableAccount != null);
+
+    let nullifiers = []
+    for (var i = 0; i < 4; i++) {
+      nullifiers.push(new Uint8Array(32).fill(1))
+    }
+    let verifierStatePubkey = (await solana.PublicKey.findProgramAddress(
+        [anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+        verifierProgramOne.programId))[0];
+    try {
+      console.log("here");
+
+      const ix1 = await verifierMarketplace.methods.shieldedInteractionFirst(
+        // this.proofData.proofBytes,
+        Buffer.from(new Array(32).fill(1)), // root
+        Buffer.from(new Array(32).fill(1)), // pb
+        Buffer.from(new Array(32).fill(1)), // etx
+        nullifiers,
+        // nullifiers,// leaves
+        // [new Uint8Array(32).fill(1), new Uint8Array(32).fill(1)],
+        Buffer.from(new Array(32).fill(1)),
+        Buffer.from(new Array(32).fill(1)),
+        new anchor.BN("0"),
+        new anchor.BN("0"),
+        Buffer.from(new Array(256 - 33).fill(1)),
+        Buffer.from(new Array(32).fill(1)),
+        Buffer.from(new Array(32).fill(1)),
+        new anchor.BN("0"),
+        Buffer.from(new Array(256).fill(1))
+      ).accounts(
+        {
+          signingAddress:     ADMIN_AUTH_KEY,
+          systemProgram:      SystemProgram.programId,
+          verifierState:      new anchor.web3.Account().publicKey
+        }
+      )
+      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
+            });
+      console.log(ix1);
+      let remainingAccounts = []
+      for (var i = 0; i < 8; i++) {
+        remainingAccounts.push({ isSigner: false, isWritable: true, pubkey: new anchor.web3.Account().publicKey})
+      }
+      const ix2 = await verifierMarketplace.methods.shieldedInteractionSecond(
+        Buffer.from(new Array(256).fill(1)),
+        nullifiers,
+        Buffer.from(new Array(256 + 33).fill(1)),
+      ).accounts(
+        {
+          signingAddress:     ADMIN_AUTH_KEY,
+          systemProgram:      SystemProgram.programId,
+          verifierState:      new anchor.web3.Account().publicKey,
+          programMerkleTree:  pubkeys[0],
+          rent:               pubkeys[1],
+          merkleTree:         pubkeys[2],
+          preInsertedLeavesIndex: pubkeys[3],
+          authority:          pubkeys[4],
+          tokenProgram:       pubkeys[5],
+          sender:             new anchor.web3.Account().publicKey,
+          recipient:          new anchor.web3.Account().publicKey,
+          senderFee:          new anchor.web3.Account().publicKey,
+          recipientFee:       new anchor.web3.Account().publicKey,
+          relayerRecipient:   pubkeys[6],
+          escrow:             pubkeys[7],
+          tokenAuthority:     pubkeys[8],
+          registeredVerifierPda: pubkeys[9],
+        }
+      )
+      .remainingAccounts(remainingAccounts)
+      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
+            });
+      console.log(ix1);
+
+    } catch(e) {
+      console.log(e);
+
+    }
+
+    let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
+  })
 
   it("Init Address Lookup Table", async () => {
+    // write pubkey into file
+    // check whether lookup table with this pubkey exist
+    // if not create a new lookup table
     const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
     console.log("recentSlot: ", recentSlot);
 

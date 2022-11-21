@@ -1,5 +1,5 @@
-console.log("logs disabled -- remove top two lines in tests/tests.ts to enable logs");
-console.log = () => {}
+// console.log("logs disabled -- remove top two lines in tests/tests.ts to enable logs");
+// console.log = () => {}
 
 const solana = require("@solana/web3.js");
 const {U64, I64} = require('n64');
