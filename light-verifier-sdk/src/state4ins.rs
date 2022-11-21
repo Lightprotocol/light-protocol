@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 /// Verifier state is a boiler plate struct which should be versatile enough to serve many use cases.
 /// For specialized use cases with less
 #[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
-pub struct VerifierState10Ins<T: Config> {
+pub struct VerifierState4Ins<T: Config> {
     pub signer: Pubkey,
     pub nullifiers: Vec<Vec<u8>>,
     pub leaves: Vec<Vec<u8>>,
@@ -22,20 +22,20 @@ pub struct VerifierState10Ins<T: Config> {
     pub e_phantom: PhantomData<T>,
 }
 
-impl<T: Config> VerifierState10Ins<T> {
+impl<T: Config> VerifierState4Ins<T> {
     pub const LEN: usize = 2048;
 }
 
-impl<T: Config> anchor_lang::AccountDeserialize for VerifierState10Ins<T> {
+impl<T: Config> anchor_lang::AccountDeserialize for VerifierState4Ins<T> {
     fn try_deserialize_unchecked(buf: &mut &[u8]) -> Result<Self> {
-        match VerifierState10Ins::deserialize(buf) {
+        match VerifierState4Ins::deserialize(buf) {
             Ok(v) => Ok(v),
             Err(_) => err!(anchor_lang::error::ErrorCode::AccountDidNotDeserialize),
         }
     }
 }
 
-impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
+impl<T: Config> anchor_lang::AccountSerialize for VerifierState4Ins<T> {
     fn try_serialize<W: std::io::Write>(&self, writer: &mut W) -> Result<()> {
         self.serialize(writer).unwrap();
         match self.serialize(writer) {
@@ -45,43 +45,45 @@ impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
     }
 }
 
-impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
+impl<T: Config> anchor_lang::Owner for VerifierState4Ins<T> {
     fn owner() -> Pubkey {
         Pubkey::new(&T::ID[..])
     }
 }
 
-impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
-    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState10Ins<T> {
-        assert_eq!(T::NR_LEAVES, light_tx.leaves.len() / 2);
-        assert_eq!(T::NR_NULLIFIERS, light_tx.nullifiers.len());
-        assert_eq!(T::NR_CHECKED_PUBLIC_INPUTS, light_tx.checked_public_inputs.len());
-
-        // need to remove one nested layer because serde cannot handle three layered nesting
-        let mut leaves = Vec::new();
-        for pair in light_tx.leaves.iter() {
-            leaves.push(pair[0].clone());
-            leaves.push(pair[1].clone());
+impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState4Ins<T> {
+    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState4Ins<T> {
+        let mut nullifiers = [[0u8; 32]; 4];
+        for (i, nf) in light_tx.nullifiers.iter().enumerate() {
+            nullifiers[i] = nf.clone().try_into().unwrap();
+        }
+        let mut leaves = vec![vec![vec![0u8; 32]; 2]; 2];
+        for (i, leaf) in light_tx.leaves.iter().enumerate() {
+            leaves[i] = vec![leaf[0].clone(), leaf[1].clone()];
+        }
+        let mut checked_public_inputs = vec![vec![0u8; 32]; 4];
+        for (i, checked_public_input) in light_tx.checked_public_inputs.iter().enumerate() {
+            checked_public_inputs[i] = checked_public_input.clone().try_into().unwrap();
         }
 
-        VerifierState10Ins {
+        VerifierState4Ins {
             merkle_root_index: <usize as TryInto<u64>>::try_into(light_tx.merkle_root_index)
                 .unwrap(),
             signer: Pubkey::new(&[0u8; 32]),
             nullifiers: light_tx.nullifiers,
-            leaves,
+            leaves: leaves[0].clone(),
             public_amount: light_tx.public_amount.try_into().unwrap(),
             fee_amount: light_tx.fee_amount.try_into().unwrap(),
             mint_pubkey: light_tx.mint_pubkey.try_into().unwrap(),
             relayer_fee: light_tx.relayer_fee,
             encrypted_utxos: [
                 light_tx.encrypted_utxos.clone(),
-                vec![0u8; 256 - light_tx.encrypted_utxos.len()],
+                vec![0u8; 512 - light_tx.encrypted_utxos.len()],
             ]
             .concat(),
+            checked_public_inputs,
             merkle_root: light_tx.merkle_root.try_into().unwrap(),
             tx_integrity_hash: light_tx.tx_integrity_hash.try_into().unwrap(),
-            checked_public_inputs: light_tx.checked_public_inputs,
             e_phantom: PhantomData,
         }
     }
