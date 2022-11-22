@@ -5,7 +5,6 @@ const solana = require("@solana/web3.js");
 const {U64, I64} = require('n64');
 import { assert, expect } from "chai";
 import { BigNumber, providers } from 'ethers'
-const light = require('../../light-protocol-sdk');
 import * as anchor from "@project-serum/anchor";
 const { SystemProgram } = require('@solana/web3.js');
 const token = require('@solana/spl-token')

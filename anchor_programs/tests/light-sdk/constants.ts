@@ -8,7 +8,6 @@ export const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
 export const TYPE_SEED = {defined: "&[u8]"};
 export const TYPE_INIT_DATA = { array: [ 'u8', 642 ] };
 // const constants:any = {};
-// import { MerkleTreeProgram, IDL } from "../target/types/merkle_tree_program";
 
 // IDL.constants.map((item) => {
 //   if(_.isEqual(item.type, TYPE_SEED)) {

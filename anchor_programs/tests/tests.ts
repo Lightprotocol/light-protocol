@@ -1,16 +1,12 @@
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
-import { verifierProgramZero } from "../target/types/verifier_program_zero";
-import { VerifierProgramOne } from "../target/types/verifier_program_one";
 const { SystemProgram } = require('@solana/web3.js');
 const nacl = require('tweetnacl');
-import { MerkleTreeProgram } from "../target/types/merkle_tree_program";
 import { findProgramAddress } from "@project-serum/anchor/dist/cjs/utils/pubkey";
 const solana = require("@solana/web3.js");
 const {U64, I64} = require('n64');
 import nacl from "tweetnacl";
 import { BigNumber, providers } from 'ethers'
-const light = require('../light-protocol-sdk');
 import _ from "lodash";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token');
@@ -20,13 +16,27 @@ var _ = require('lodash');
 
 import {
   buildMerkleTree
-} from "./utils/build_merkle_tree";
+} from "./light-sdk/merkleTree/buildMerkleTree";
+
 import {
   shieldedTransaction,
-  sendTransaction,
-  sendTransaction10,
   createEncryptionKeypair
-} from "./utils/shielded_tx";
+} from "./light-sdk/transaction/transaction";
+
+import {
+  VerifierZero
+} from "./light-sdk/transaction/veriferZero";
+
+import {
+  VerifierOne
+} from "./light-sdk/transaction/veriferOne";
+
+import {
+  Keypair
+} from "./light-sdk/keypair";
+
+import {Utxo} from "./light-sdk/utxo";
+
 import {
   newAccountWithLamports,
   newAccountWithTokens,
@@ -48,8 +58,9 @@ import {
   testInputUtxo,
   testOutputUtxo
 } from './utils/testUtxos';
-import { MerkleTreeConfig, getUninsertedLeaves, getInsertedLeaves, getUnspentUtxo } from './utils/merkleTree';
 
+import { getUninsertedLeaves, getInsertedLeaves, getUnspentUtxo } from './light-sdk/wallet/buildBalance';
+import { MerkleTreeConfig } from './light-sdk/merkleTree/merkleTreeConfig'
 import {
   checkMerkleTreeUpdateStateCreated,
   checkMerkleTreeBatchUpdateSuccess,
@@ -69,25 +80,16 @@ import {
   MINT_PRIVATE_KEY,
   MINT,
   ENCRYPTION_KEYPAIR
-  } from "./utils/constants";
+} from "./utils/constants";
 
 var MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
 let FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
 let ASSET_1_ORG = new anchor.web3.Account()
 let ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
 
-var UNREGISTERED_MERKLE_TREE;
-var UNREGISTERED_MERKLE_TREE_PDA_TOKEN;
-var UNREGISTERED_PRE_INSERTED_LEAVES_INDEX;
 var UTXOS;
-var MERKLE_TREE_OLD;
 
-var MERKLE_TREE_USDC = 0
 var REGISTERED_POOL_PDA_SPL_TOKEN = 0
-var PRE_INSERTED_LEAVES_INDEX_USDC
-var RENT_ESCROW
-var RENT_VERIFIER
-var RENT_TOKEN_ACCOUNT
 
 var REGISTERED_VERIFIER_PDA;
 var PRE_INSERTED_LEAVES_INDEX;
@@ -102,18 +104,16 @@ var TOKEN_AUTHORITY;
 var POOL_TYPE_PDA;
 var REGISTERED_POOL_PDA_SPL;
 var REGISTERED_POOL_PDA_SOL;
-var REGISTERED_POOL_PDA;
 var SHIELDED_TRANSACTION;
 var REGISTERED_VERIFIER_ONE_PDA;
 var INVALID_SIGNER;
 var INVALID_MERKLE_TREE_AUTHORITY_PDA;
-var PRIOR_UTXO;
 var POOL_TYPE = new Uint8Array(32).fill(0);
-var KEYPAIR :light.keypair =  {
-    privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
-    pubkey: '11764594559652842781365480184568685555721424202471696567480221588056785654892',
-    encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
-};
+// var KEYPAIR :light.keypair =  {
+//     privkey: '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896',
+//     pubkey: '11764594559652842781365480184568685555721424202471696567480221588056785654892',
+//     encryptionKey: 'qY7dymrKn4UjOe5bE4lL6jH1qfNcyX40d0plHOj2hjU='
+// };
 
 const sleep = (ms) => {
   return new Promise((resolve) => setTimeout(resolve, ms))
@@ -123,9 +123,6 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
   const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "finalized", commitment: "finalized"});//anchor.getProvider();
-  const merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
-  const verifierProgramZero = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
-  const verifierProgramOne = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
 
   it.skip("test pubkey truncation < FIELD_SIZE", async() => {
     // let asset = new anchor.web3.Account().publicKey
@@ -156,7 +153,7 @@ describe("verifier_program", () => {
     MERKLE_TREE_AUTHORITY_PDA = await merkleTreeConfig.getMerkleTreeAuthorityPda();
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new light.Keypair(POSEIDON, KEYPAIR.privkey)
+    KEYPAIR = new Keypair(POSEIDON, KEYPAIR.privkey)
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
 
     REGISTERED_VERIFIER_PDA =     (await merkleTreeConfig.getRegisteredVerifierPda(verifierProgramZero.programId)).registeredVerifierPda;
@@ -618,152 +615,6 @@ describe("verifier_program", () => {
     }))
   });
 
-  it.skip("Test", async () => {
-    // const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
-    // console.log("recentSlot: ", recentSlot);
-    //
-    //
-    // const authorityPubkey = solana.Keypair.generate().publicKey;
-    // const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
-    // const [lookupTableAddress, bumpSeed] = await solana.PublicKey.findProgramAddress(
-    //   [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
-    //   solana.AddressLookupTableProgram.programId,
-    // );
-    //
-    // const createInstruction = solana.AddressLookupTableProgram.createLookupTable({
-    //   authority: payerPubkey,
-    //   payer: payerPubkey,
-    //   recentSlot,
-    // })[0];
-    // let escrows = (await solana.PublicKey.findProgramAddress(
-    //     [anchor.utils.bytes.utf8.encode("escrow")],
-    //     verifierProgramZero.programId))[0];
-    //
-    // let ix0 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_0000});
-    // // let ix1 = solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: MERKLE_TREE_PDA_TOKEN, lamports: 1_000_000_0000});
-    //
-    // var transaction = new solana.Transaction().add(createInstruction);
-    // LOOK_UP_TABLE = lookupTableAddress;
-    // const addressesToAdd = [
-    //   AUTHORITY,
-    //   SystemProgram.programId,
-    //   merkleTreeProgram.programId,
-    //   DEFAULT_PROGRAMS.rent,
-    //   PRE_INSERTED_LEAVES_INDEX,
-    //   token.TOKEN_PROGRAM_ID,
-    //   MERKLE_TREE_PDA_TOKEN_USDC,
-    //   MERKLE_TREE_KEY,
-    //   escrows,
-    //   TOKEN_AUTHORITY,
-    //   REGISTERED_POOL_PDA_SOL
-    // ];
-    // const extendInstruction = solana.AddressLookupTableProgram.extendLookupTable({
-    //   lookupTable: lookupTableAddress,
-    //   authority: payerPubkey,
-    //   payer: payerPubkey,
-    //   addresses: addressesToAdd,
-    // });
-    //
-    // transaction.add(extendInstruction);
-    // transaction.add(ix0);
-    // // transaction.add(ix1);
-    // let recentBlockhash = await provider.connection.getRecentBlockhash("confirmed");
-    // transaction.feePayer = payerPubkey;
-    // transaction.recentBlockhash = recentBlockhash;
-    //
-    // try {
-    //   let res = await solana.sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR], {commitment: "finalized", preflightCommitment: 'finalized',});
-    // } catch(e) {
-    //   console.log("e : ", e);
-    // }
-    //
-    // console.log("LOOK_UP_TABLE: ", LOOK_UP_TABLE.toBase58());
-    // let lookupTableAccount = await provider.connection.getAccountInfo(LOOK_UP_TABLE, "confirmed");
-    // assert(lookupTableAccount != null);
-
-    let nullifiers = []
-    for (var i = 0; i < 4; i++) {
-      nullifiers.push(new Uint8Array(32).fill(1))
-    }
-    let verifierStatePubkey = (await solana.PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        verifierProgramOne.programId))[0];
-    try {
-      console.log("here");
-
-      const ix1 = await verifierMarketplace.methods.shieldedInteractionFirst(
-        // this.proofData.proofBytes,
-        Buffer.from(new Array(32).fill(1)), // root
-        Buffer.from(new Array(32).fill(1)), // pb
-        Buffer.from(new Array(32).fill(1)), // etx
-        nullifiers,
-        // nullifiers,// leaves
-        // [new Uint8Array(32).fill(1), new Uint8Array(32).fill(1)],
-        Buffer.from(new Array(32).fill(1)),
-        Buffer.from(new Array(32).fill(1)),
-        new anchor.BN("0"),
-        new anchor.BN("0"),
-        Buffer.from(new Array(256 - 33).fill(1)),
-        Buffer.from(new Array(32).fill(1)),
-        Buffer.from(new Array(32).fill(1)),
-        new anchor.BN("0"),
-        Buffer.from(new Array(256).fill(1))
-      ).accounts(
-        {
-          signingAddress:     ADMIN_AUTH_KEY,
-          systemProgram:      SystemProgram.programId,
-          verifierState:      new anchor.web3.Account().publicKey
-        }
-      )
-      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
-              commitment: 'confirmed',
-              preflightCommitment: 'confirmed',
-            });
-      console.log(ix1);
-      let remainingAccounts = []
-      for (var i = 0; i < 8; i++) {
-        remainingAccounts.push({ isSigner: false, isWritable: true, pubkey: new anchor.web3.Account().publicKey})
-      }
-      const ix2 = await verifierMarketplace.methods.shieldedInteractionSecond(
-        Buffer.from(new Array(256).fill(1)),
-        nullifiers,
-        Buffer.from(new Array(256 + 33).fill(1)),
-      ).accounts(
-        {
-          signingAddress:     ADMIN_AUTH_KEY,
-          systemProgram:      SystemProgram.programId,
-          verifierState:      new anchor.web3.Account().publicKey,
-          programMerkleTree:  pubkeys[0],
-          rent:               pubkeys[1],
-          merkleTree:         pubkeys[2],
-          preInsertedLeavesIndex: pubkeys[3],
-          authority:          pubkeys[4],
-          tokenProgram:       pubkeys[5],
-          sender:             new anchor.web3.Account().publicKey,
-          recipient:          new anchor.web3.Account().publicKey,
-          senderFee:          new anchor.web3.Account().publicKey,
-          recipientFee:       new anchor.web3.Account().publicKey,
-          relayerRecipient:   pubkeys[6],
-          escrow:             pubkeys[7],
-          tokenAuthority:     pubkeys[8],
-          registeredVerifierPda: pubkeys[9],
-        }
-      )
-      .remainingAccounts(remainingAccounts)
-      .signers([ADMIN_AUTH_KEYPAIR]).rpc({
-              commitment: 'confirmed',
-              preflightCommitment: 'confirmed',
-            });
-      console.log(ix1);
-
-    } catch(e) {
-      console.log(e);
-
-    }
-
-    let recentBlockhash = (await provider.connection.getRecentBlockhash()).blockhash;
-  })
-
   it("Init Address Lookup Table", async () => {
     // write pubkey into file
     // check whether lookup table with this pubkey exist
@@ -904,8 +755,8 @@ describe("verifier_program", () => {
       });
 
       await SHIELDED_TRANSACTION.getMerkleTree();
-      let inputUtxos = [new light.Utxo(POSEIDON), new light.Utxo(POSEIDON), new light.Utxo(POSEIDON), new light.Utxo(POSEIDON)];
-      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+      let inputUtxos = [new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON)];
+      let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
       let outputUtxos = [deposit_utxo1];
 
@@ -1002,7 +853,7 @@ describe("verifier_program", () => {
 
       await SHIELDED_TRANSACTION.getMerkleTree();
 
-      let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
+      let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
       let outputUtxos = [deposit_utxo1];
 
@@ -1479,9 +1330,9 @@ describe("verifier_program", () => {
 
   it.skip("Test Utxo encryption", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
-    KEYPAIR = new light.Keypair(POSEIDON)
+    KEYPAIR = new Keypair(POSEIDON)
 
-    let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
+    let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
     deposit_utxo1.index = 0;
     let preCommitHash = deposit_utxo1.getCommitment();
     let preNullifier = deposit_utxo1.getNullifier();
@@ -1489,7 +1340,7 @@ describe("verifier_program", () => {
     let nonce = nacl.randomBytes(24);
     let encUtxo = deposit_utxo1.encrypt(nonce, ENCRYPTION_KEYPAIR, ENCRYPTION_KEYPAIR);
     console.log(encUtxo);
-    let decUtxo = light.Utxo.decrypt(new Uint8Array(Array.from(encUtxo.slice(0,63))),nonce, ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
+    let decUtxo = Utxo.decrypt(new Uint8Array(Array.from(encUtxo.slice(0,63))),nonce, ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
     // console.log(decUtxo);
 
     assert(preCommitHash == decUtxo.getCommitment(), "commitment doesnt match")
@@ -1526,10 +1377,10 @@ describe("verifier_program", () => {
     console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
 
     // decrypt first leaves account and build utxo
-    // let decryptedUtxo1 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
+    // let decryptedUtxo1 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(63, 87))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON);
     // console.log("decryptedUtxo1: ", decryptedUtxo1);
     //
-    // let decryptedUtxo2 = light.Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
+    // let decryptedUtxo2 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87,87 + 63))), new Uint8Array(Array.from(leavesPdas[0].account.encryptedUtxos.slice(87 + 63, 87 + 63 + 24))), ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET, MINT_CIRCUIT], POSEIDON);
     // console.log("decryptedUtxo2: ", decryptedUtxo2);
     let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram);
 
@@ -1592,7 +1443,7 @@ describe("verifier_program", () => {
       sendTransaction
     });
 
-    // let deposit_utxo1 = new light.Utxo(POSEIDON,[FEE_ASSET,MINT._bn], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
+    // let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT._bn], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
 
     let outputUtxos = [];
 
@@ -1725,9 +1576,9 @@ describe("verifier_program", () => {
 
     let inputUtxos = []
     inputUtxos.push(decryptedUtxo1)
-    inputUtxos.push(new light.Utxo(POSEIDON))
-    inputUtxos.push(new light.Utxo(POSEIDON))
-    inputUtxos.push(new light.Utxo(POSEIDON))
+    inputUtxos.push(new Utxo(POSEIDON))
+    inputUtxos.push(new Utxo(POSEIDON))
+    inputUtxos.push(new Utxo(POSEIDON))
 
     await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos: inputUtxos,
