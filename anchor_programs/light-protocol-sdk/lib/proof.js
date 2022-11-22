@@ -164,6 +164,8 @@ const prepareTransaction = function (inputUtxos = [], outputUtxos = [], merkelTr
             };
     });
 };
+
+
 exports.prepareTransaction = prepareTransaction;
 
 

@@ -2,7 +2,6 @@ const solana = require("@solana/web3.js");
 const {U64, I64} = require('n64');
 import { assert, expect } from "chai";
 import { BigNumber, providers } from 'ethers'
-const light = require('../../light-protocol-sdk');
 const token = require('@solana/spl-token')
 import * as anchor from "@project-serum/anchor";
 
@@ -146,7 +145,6 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   //   merkleTree.root().toHexString()
   // )
   // // Comparing locally generated root with merkle tree built from leaves fetched from chain.
-  // assert(merkleTree.root().toHexString() == (await light.buildMerkelTree(connection, merkle_tree_pubkey.toBytes())).root().toHexString());
 
 }
 
