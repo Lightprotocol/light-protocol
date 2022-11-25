@@ -407,7 +407,7 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
 
   console.log("Wrong wrongPubAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
   assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-  SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+  SHIELDED_TRANSACTION.publicInputs.publicAmount = _.cloneDeep(shieldedTxBackUp.publicInputs.publicAmount);
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
   // Wrong feeAmount
   let wrongFeeAmount = new anchor.BN("123213").toArray()
@@ -417,11 +417,11 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
   e = await SHIELDED_TRANSACTION.sendTransaction();
   console.log("Wrong feeAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
   assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-  SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+  SHIELDED_TRANSACTION.publicInputs = _.cloneDeep(shieldedTxBackUp.publicInputs);
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
   let wrongMint = new anchor.BN("123213").toArray()
-  console.log("wrongMint ", wrongMint);
+  console.log("wrongMint ", ASSET_1_ORG.publicKey.toBase58());
   console.log("SHIELDED_TRANSACTION.publicInputs ", SHIELDED_TRANSACTION.publicInputs);
   let relayer = new anchor.web3.Account();
   await createMint({
@@ -440,12 +440,12 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
   SHIELDED_TRANSACTION.sender = _.cloneDeep(shieldedTxBackUp.sender);
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
-  // Wrong encryptedOutputs
-  SHIELDED_TRANSACTION.proofData.encryptedOutputs = new Uint8Array(174).fill(2);
+  // Wrong encryptedUtxos
+  SHIELDED_TRANSACTION.encryptedUtxos = new Uint8Array(174).fill(2);
   e = await SHIELDED_TRANSACTION.sendTransaction();
-  console.log("Wrong encryptedOutputs", e.logs.includes('Program log: error ProofVerificationFailed'));
+  console.log("Wrong encryptedUtxos", e.logs.includes('Program log: error ProofVerificationFailed'));
   assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-  SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+  SHIELDED_TRANSACTION.encryptedUtxos = _.cloneDeep(shieldedTxBackUp.encryptedUtxos);
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
   // Wrong relayerFee
@@ -462,7 +462,7 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong nullifier ", i, " ", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+    SHIELDED_TRANSACTION.publicInputs = _.cloneDeep(shieldedTxBackUp.publicInputs);
     await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
   }
@@ -473,13 +473,13 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong leafLeft", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
-    SHIELDED_TRANSACTION.proofData = _.cloneDeep(shieldedTxBackUp.proofData);
+    SHIELDED_TRANSACTION.publicInputs.leaves[i] = _.cloneDeep(shieldedTxBackUp).publicInputs.leaves[i];
   }
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
-  /**
-  * -------- Checking Accounts -------------
-  **/
+  //
+  // * -------- Checking Accounts -------------
+  //
   if (enabledSignerTest) {
     // Wrong signingAddress
     // will result in wrong integrity hash
@@ -494,6 +494,8 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
 
   }
 
+
+  // probably above
   // Wrong recipient
   // will result in wrong integrity hash
   console.log("Wrong recipient ");

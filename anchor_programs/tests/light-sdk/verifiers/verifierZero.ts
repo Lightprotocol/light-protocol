@@ -56,7 +56,6 @@ export class VerifierZero {
   }
 
   async sendTransaction(insert = true){
-    console.log("sendTransaction: this ", this);
 
     // await this.getPdaAddresses();
 

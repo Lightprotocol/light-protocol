@@ -96,16 +96,6 @@ export class shieldedTransaction {
       this.shuffle = shuffleEnabled;
     }
 
-    // async getMerkleTree() {
-    //   this.poseidon = await circomlibjs.buildPoseidonOpt();
-    //   if (this.keypair == null) {
-    //     this.keypair = new light.Keypair(this.poseidon);
-    //   }
-    //   this.merkleTree = await light.buildMerkelTree(this.poseidon, 18, []);
-    //   this.merkleTreeLeavesIndex = 0;
-    //
-    // }
-
     async getRootIndex() {
       let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
       let merkle_tree_account = await this.provider.connection.getAccountInfo(this.merkleTreePubkey);
@@ -118,6 +108,7 @@ export class shieldedTransaction {
       })
 
     }
+
     prepareUtxos() {
         /// Validation
         if (this.inputUtxos.length > 10 || this.outputUtxos.length > 2) {
@@ -223,35 +214,7 @@ export class shieldedTransaction {
     };
 
     prepareTransaction () {
-      // inputUtxos = [],
-      // outputUtxos = [],
-      // merkelTree,
-      // merkleTreeIndex,
-      // merkleTreePubkeyBytes,
-      // externalAmountBigNumber,
-      // relayerFee,
-      // recipient,
-      // relayer,
-      // action,
-      // encryptionKeypair,
-      // inIndices,
-      // outIndices,
-      // assetPubkeys,
-      // mintPubkey,
-      // test,
-      // feeAmount,
-      // recipientFee
-          /// mixes the input utxos
-          /// mixes the output utxos
-          // inputUtxos = (0, shuffle_1.shuffle)(inputUtxos);
-          // outputUtxos = (0, shuffle_1.shuffle)(outputUtxos);
-          // console.log(`input utxos -> `, inputUtxos)
-          // console.log(`outputUtxos -> `, outputUtxos)
-          // console.log(`merkelTree -> `, merkelTree)
-          // console.log(`relayerFee -> `, relayerFee)
-          // console.log(`recipient -> `, recipient)
-          // console.log(`Action[action] -> `, Action[action])
-          // console.log(`encryptionKeypair -> `, encryptionKeypair)
+
           let inputMerklePathIndices = [];
           let inputMerklePathElements = [];
           /// if the input utxo has an amount bigger than 0 and it has an valid index add it to the indices of the merkel tree
@@ -268,11 +231,19 @@ export class shieldedTransaction {
 
               else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0|| inputUtxo.amounts[2] > 0)  {
                   inputUtxo.index = this.merkleTree.indexOf(inputUtxo.getCommitment());
+                  console.log("inputUtxo.index ",inputUtxo.index);
+
                   if (inputUtxo.index || inputUtxo.index == 0) {
+                      console.log("here");
+
                       if (inputUtxo.index < 0) {
                           throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
                       }
-                      inputMerklePathIndices.push(this.inputUtxo.index);
+                      console.log("here1");
+
+                      inputMerklePathIndices.push(inputUtxo.index);
+                      console.log("here2");
+
                       inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
                   }
               }
@@ -285,7 +256,7 @@ export class shieldedTransaction {
 
           let relayer_fee
           if (this.action !== 'DEPOSIT') {
-              relayer_fee = toBufferLE(new anchor.BN(this.relayerFee.toString()), 8);
+              relayer_fee = toBufferLE(BigInt(this.relayerFee.toString()), 8);
           }
           else {
               relayer_fee = new Uint8Array(8).fill(0);
@@ -308,14 +279,7 @@ export class shieldedTransaction {
           // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
           this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
 
-          // const extData = {toBufferLE
-          //     recipient: this.recipient.toBytes(),
-          //     recipientFee: this.recipientFee.toBytes(),
-          //     relayer:      this.payer.publicKey.toBytes(),
-          //     relayer_fee: feesLE,
-          //     merkleTreePubkeyBytes: merkleTreePubkeyBytes
-          // };
-          // const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.recipientFee, extData.relayer, extData.relayer_fee,merkleTreeIndex, encryptedUtxos);
+
           let extDataBytes = new Uint8Array([
               ...this.recipient.toBytes(),
               ...this.recipientFee.toBytes(),
@@ -369,15 +333,6 @@ export class shieldedTransaction {
           //
           // console.log("inIndices ", JSON.stringify(inIndices, null, 4));
           // console.log("outIndices ", JSON.stringify(outIndices, null, 4));
-
-          // return {
-          //         extAmount: extData.extAmount,
-          //         externalAmountBigNumber,
-          //         extDataBytes,
-          //         encryptedUtxos,
-          //         input,
-          //         relayerFee
-          //     };
     }
 
     async prepareTransactionFull({
@@ -436,52 +391,12 @@ export class shieldedTransaction {
     this.action = action;
 
     this.prepareUtxos();
-      // let res = light.prepareUtxos(
-      //     inputUtxos,
-      //     outputUtxos,
-      //     this.relayerFee,
-      //     this.assetPubkeys,
-      //     this.action,
-      //     this.poseidon,
-      //     shuffle
-      // );
-
-      // this.inputUtxos = res.inputUtxos;
-      // this.outputUtxos = res.outputUtxos;
-      // this.inIndices = res.inIndices;
-      // this.outIndices = res.outIndices;
-      // this.externalAmountBigNumber = res.externalAmountBigNumber;
-      // this.feeAmount = res.feeAmount;
-
     await this.prepareTransaction();
     await this.getRootIndex();
-     //  let data = await light.prepareTransaction(
-     //   this.inputUtxos,
-     //   this.outputUtxos,
-     //   this.merkleTree,
-     //   this.merkleTreeIndex,
-     //   this.merkleTreePubkey.toBytes(),
-     //   this.externalAmountBigNumber,
-     //   this.relayerFee,
-     //   this.recipient,
-     //   this.relayerPubkey,
-     //   this.action,
-     //   this.encryptionKeypair,
-     //   this.inIndices,
-     //   this.outIndices,
-     //   this.assetPubkeys,
-     //   this.mintPubkey,
-     //   false,
-     //   this.feeAmount,
-     //   this.recipientFee
-     // )
-     // this.input = data.input;
+
      assert(this.input.mintPubkey == this.mintPubkey);
      assert(this.input.mintPubkey == this.assetPubkeys[1]);
-     // this.extAmount = data.extAmount;
-     // this.externalAmountBigNumber = data.externalAmountBigNumber;
-     // this.extDataBytes = data.extDataBytes;
-     // this.encrypedUtxos = data.encryptedUtxos
+
      if (this.externalAmountBigNumber != 0) {
        if (assetPubkeys[1].toString() != mintPubkey.toString()) {
          throw "mintPubkey should be assetPubkeys[1]";
@@ -524,24 +439,13 @@ export class shieldedTransaction {
           this.publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32)).reverse();
       }
 
-
-      // return {
-      //         extAmount: extAmount,
-      //         externalAmountBigNumber,
-      //         extDataBytes,
-      //         publicInputs,//
-      //         proofBytes: yield (0, parseProofToBytesArray_1.parseProofToBytesArray)(proofJson),
-      //         encryptedOutputs: encryptedOutputs,
-      //         relayerFee
-      //     };
-
       this.proofBytes = await parseProofToBytesArray(this.proofJson);
 
       this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
+      console.log("this.publicInputs ", this.publicInputs);
 
-      // this = proofData;
       await this.getPdaAddresses()
-      // return this;
+
     }
 
     async getPdaAddresses() {
@@ -759,11 +663,6 @@ export class shieldedTransaction {
       }
     }
 
-    // async sendTransaction() {
-    //   console.log("sending tx");
-    //
-    //   await this.verifier.sendTransaction(this);
-    // }
 }
 
 const shuffle = function (utxos: Utxo[]) {
@@ -792,45 +691,41 @@ export const parseProofToBytesArray = async function (data: any) {
   for (var i in mydata) {
     if (i == 'pi_a') {
       for (var j in mydata[i]) {
-        mydata[i][j] = leInt2Buff(
+        mydata[i][j] = Array.from(leInt2Buff(
           unstringifyBigInts(mydata[i][j]),
           32, // 48
-        ).reverse()
+        )).reverse()
       }
     } else if (i == 'pi_b') {
       for (var j in mydata[i]) {
         for (var z in mydata[i][j]) {
-          mydata[i][j][z] = leInt2Buff(
+          mydata[i][j][z] = Array.from(leInt2Buff(
             unstringifyBigInts(mydata[i][j][z]),
             32, // 48
-          )
+          ))
         }
       }
     } else if (i == 'pi_c') {
       for (var j in mydata[i]) {
-        mydata[i][j] = leInt2Buff(
+        mydata[i][j] = Array.from(leInt2Buff(
           unstringifyBigInts(mydata[i][j]),
           32, //48
-        ).reverse()
+        )).reverse()
       }
     }
   }
+
+
   let mydataStripped = [
     mydata.pi_a[0],
     mydata.pi_a[1],
-    Array.from([].concat.apply([], mydata.pi_b[0])).reverse(),
-    Array.from([].concat.apply([], mydata.pi_b[1])).reverse(),
+    mydata.pi_b[0].flat().reverse(),
+    mydata.pi_b[1].flat().reverse(),
     mydata.pi_c[0],
     mydata.pi_c[1],
-  ]
-  // TODO: replace x with Array.flat()
-  var merged = [].concat.apply([], mydataStripped)
-  let x: any = []
-  merged.map((array: any) => {
-    array.map((byte: any) => {
-      x.push(byte)
-    })
-  })
+  ].flat()
+  console.log("mydataStripped ", mydataStripped);
 
-  return x
+
+  return mydataStripped;
 }

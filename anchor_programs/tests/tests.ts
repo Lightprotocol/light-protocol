@@ -762,7 +762,8 @@ describe("verifier_program", () => {
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
         registeredVerifierPda:  REGISTERED_VERIFIER_ONE_PDA,
         verifier: new VerifierOne(),
-        merkleTree: new MerkleTree(18, POSEIDON)
+        merkleTree: new MerkleTree(18, POSEIDON),
+        shuffleEnabled: false
       });
 
       let inputUtxos = [new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON)];
@@ -853,7 +854,6 @@ describe("verifier_program", () => {
 
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
         merkleTreePubkey:       MERKLE_TREE_KEY,
-        merkleTreeIndex:        1,
         preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
         provider,
         payer:                  ADMIN_AUTH_KEYPAIR,
@@ -861,10 +861,9 @@ describe("verifier_program", () => {
         relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
         registeredVerifierPda:  REGISTERED_VERIFIER_PDA,
         verifier: new VerifierZero(),
-        merkleTree: new MerkleTree(18, POSEIDON)
+        merkleTree: new MerkleTree(18, POSEIDON),
+        shuffleEnabled: false
       });
-
-      // await SHIELDED_TRANSACTION.getMerkleTree();
 
       let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
 
@@ -877,13 +876,14 @@ describe("verifier_program", () => {
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
         relayerFee: U64(0),
         shuffle: true,
-        mintPubkey: new anchor.BN("123"), // input is apparently irrelevant
         sender: userTokenAccount
       });
 
       await SHIELDED_TRANSACTION.proof();
 
-      // await testTransaction({SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
+      await testTransaction({SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
+      console.log("SHIELDED_TRANSACTION.publicInputs.publicAmount ", SHIELDED_TRANSACTION.publicInputs.publicAmount);
+      console.log("SHIELDED_TRANSACTION.publicInputs ", SHIELDED_TRANSACTION.publicInputs);
 
       try {
         let res = await SHIELDED_TRANSACTION.sendTransaction();
@@ -902,7 +902,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
     console.log("ENCRYPTION_KEYPAIR ", createEncryptionKeypair());
 
@@ -918,6 +918,7 @@ describe("verifier_program", () => {
         merkleTreeIndex: mtFetched.nextIndex,
         connection: provider.connection
     });
+    console.log("leavesPdas ", leavesPdas);
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
     // build tree from chain
@@ -929,12 +930,13 @@ describe("verifier_program", () => {
         poseidonHash: poseidon
       }
     );
+    console.log("here");
 
     await executeUpdateMerkleTreeTransactions({
       connection:       provider.connection,
       signer:           ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram: merkleTreeProgram,
-      leavesPdas:       leavesPdas.slice(0,5),
+      leavesPdas:       leavesPdas.slice(0,1),
       merkleTree:       mtPrior,
       merkle_tree_pubkey: MERKLE_TREE_KEY,
       provider
@@ -1338,7 +1340,7 @@ describe("verifier_program", () => {
   }
   assert(error.error.errorCode.code == 'LeafAlreadyInserted');
 
-})
+  })
 
 
   it.skip("Test Utxo encryption", async () => {
@@ -1453,10 +1455,9 @@ describe("verifier_program", () => {
       registeredVerifierPda:  REGISTERED_VERIFIER_PDA,
       merkleTree: merkleTree,
       poseidon: POSEIDON,
-      verifier: new VerifierZero()
+      verifier: new VerifierZero(),
+      shuffleEnabled: false
     });
-
-    // let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT._bn], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
 
     let outputUtxos = [];
 
