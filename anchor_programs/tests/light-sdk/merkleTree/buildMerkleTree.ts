@@ -35,7 +35,7 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
     }
   }
 
-  let fetchedMerkleTree = new MerkleTree(poseidonHash, MERKLE_TREE_HEIGHT, leaves)
+  let fetchedMerkleTree = new MerkleTree(MERKLE_TREE_HEIGHT,poseidonHash, leaves)
 
   if (Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()) {
     throw `building merkle tree from chain failed: root local ${Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString()} != root fetched ${mtFetched.roots[mtFetched.currentRootIndex]}`;

@@ -35,11 +35,15 @@ export async function getUnspentUtxo(leavesPdas, provider, encryptionKeypair, KE
     // decrypt first leaves account and build utxo
     decryptedUtxo1 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(63, 87))), encryptionKeypair.publicKey, encryptionKeypair, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
     let nullifier = decryptedUtxo1.getNullifier();
+    console.log("decryptedUtxo1", decryptedUtxo1);
 
     let nullifierPubkey = (await PublicKey.findProgramAddress(
         [new anchor.BN(nullifier.toString()).toBuffer(), anchor.utils.bytes.utf8.encode("nf")],
         merkleTreeProgram.programId))[0]
     let accountInfo = await provider.connection.getAccountInfo(nullifierPubkey);
+    console.log("accountInfo ", accountInfo);
+    console.log("decryptedUtxo1.amounts[1].toString()  ", decryptedUtxo1.amounts[1].toString() );
+    console.log("decryptedUtxo1.amounts[0].toString()  ", decryptedUtxo1.amounts[0].toString() );
 
     if (accountInfo == null && decryptedUtxo1.amounts[1].toString() != "0" && decryptedUtxo1.amounts[0].toString() != "0") {
       console.log("found unspent leaf");
