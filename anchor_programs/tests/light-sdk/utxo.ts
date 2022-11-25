@@ -5,6 +5,8 @@ nacl.util = require('tweetnacl-util')
 const crypto = require('crypto');
 const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
+const anchor = require("@project-serum/anchor")
+import {toBufferLE} from 'bigint-buffer';
 
 const N_ASSETS = 3;
 export class Utxo {
@@ -18,13 +20,10 @@ export class Utxo {
   blinding: BigNumber
   keypair: Keypair
   index: number | null
-  _nullifier: any
-  _commitment: any
   // _commitment: BigNumber | null
   // _nullifier: BigNumber | null
 
-  constructor({
-    index = null,
+  constructor(
     poseidon,
     assets = [0, 0, 0],
     amounts = [0, 0, 0],
@@ -34,7 +33,7 @@ export class Utxo {
     index = null,
     _commitment = null,
     _nullifier = null
-  }: {
+  ) {
     if (assets.length != amounts.length) {
       throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
     }
@@ -51,8 +50,7 @@ export class Utxo {
       amounts.push(0)
     }
     if (keypair == null) {
-      keypair = new keypair_1.Keypair(poseidon)
-
+      keypair = new Keypair(poseidon)
     }
 
     this.amounts = amounts.map((x) => new anchor.BN(x));
@@ -127,8 +125,8 @@ export class Utxo {
       // TODO: if other stuff is missing
       const bytes_message = Buffer.concat([
           this.blinding.toBuffer(),
-          toBufferLE.toBufferLE(BigInt(this.amounts[0]), 8),
-          toBufferLE.toBufferLE(BigInt(this.amounts[1]), 8)
+          toBufferLE(BigInt(this.amounts[0]), 8),
+          toBufferLE(BigInt(this.amounts[1]), 8)
       ]);
       const ciphertext = nacl.box(bytes_message, nonce, encryptionKeypair.publicKey, senderThrowAwayKeypair.secretKey);
 

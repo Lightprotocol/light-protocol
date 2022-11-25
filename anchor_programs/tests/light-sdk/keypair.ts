@@ -1,6 +1,6 @@
 const nacl = require('tweetnacl');
 const anchor = require("@project-serum/anchor")
-
+const eth_sig_util = require("eth-sig-util");
 export class Keypair {
   /**
    * Initialize a new keypair. Generates a random private key if not defined
@@ -16,7 +16,7 @@ export class Keypair {
   ) {
       this.privkey = privkey;
       this.pubkey = poseidon.F.toString(poseidon([this.privkey]));
-      this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(privkey.slice(2));
+      this.encryptionKey = eth_sig_util.getEncryptionPublicKey(privkey.slice(2));
       this.poseidon = poseidon;
   }
 

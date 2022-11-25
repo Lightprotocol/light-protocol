@@ -109,7 +109,8 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             nullifiers,
             leaves,
             relayer_fee,
-            proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
+            // proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
+            proof_a: proof[..64].to_vec(),
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
             encrypted_utxos,
@@ -185,7 +186,8 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             self.verifyingkey,
         )
         .unwrap();
-
+        // self.verified_proof = true;
+        // Ok(())
         match verifier.verify() {
             Ok(_) => {
                 self.verified_proof = true;

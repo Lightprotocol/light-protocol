@@ -1,14 +1,19 @@
 const {U64, I64} = require('n64');
 const anchor = require("@project-serum/anchor")
 const nacl = require('tweetnacl')
-const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+// const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
 let circomlibjs = require("circomlibjs")
 var ffjavascript = require('ffjavascript');
-const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
 import { MerkleTreeProgram } from "../idls/merkle_tree_program";
 import {toBufferLE} from 'bigint-buffer';
+// import { BigNumber, utils } from 'ethers'
+const ethers = require("ethers");
+const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+const { readFileSync, writeFile } = require("fs");
+const snarkjs = require('snarkjs');
 
 import {
   MERKLE_TREE_KEY,
@@ -22,14 +27,13 @@ import {
   FIELD_SIZE,
   MINT_PRIVATE_KEY,
   MINT
-  } from "./constants";
+} from "../constants";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import { newAccountWithLamports  } from "./test_transactions";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
-import {checkRentExemption} from './test_checks';
-import {unpackLeavesAccount} from './unpack_accounts';
+import {checkRentExemption} from '../test-utils/test_checks';
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-
+import {Utxo } from "../utxo";
 
 
 // add verifier class which is passed in with the constructor
@@ -123,13 +127,13 @@ export class shieldedTransaction {
         console.log("inputUtxos.length ", this.inputUtxos.length);
         /// fill inputUtxos until 2 or 10
         while (this.inputUtxos.length !== 2 && this.inputUtxos.length < 10) {
-          this.inputUtxos.push(new utxos_1.default(poseidon));
+          this.inputUtxos.push(new Utxo(this.poseidon));
           // throw "inputUtxos.length > 2 are not implemented";
         }
 
         /// if there are no outputUtxo add one
         while (this.outputUtxos.length < 2) {
-          this.outputUtxos.push(new utxos_1.default(poseidon));
+          this.outputUtxos.push(new Utxo(this.poseidon));
         }
         /// mixes the input utxos
         /// mixes the output utxos
@@ -149,7 +153,7 @@ export class shieldedTransaction {
         // the external amount can only be made up of utxos of asset[0]
 
         // This might be too specific since the circuit allows assets to be in any index
-        const getExternalAmount (assetIndex) => {
+        const getExternalAmount = (assetIndex) => {
           return new anchor.BN(0)
               .add(this.outputUtxos.filter((utxo) => {return utxo.assets[assetIndex] == this.assetPubkeys[assetIndex]}).reduce((sum, utxo) => (
                 // add all utxos of the same asset
@@ -183,22 +187,23 @@ export class shieldedTransaction {
           }
         });
 
-        let assetPubkeys = [feeAsset,assets].concat();
-        if (assets.length != 3) {
-          throw new Error(`assetPubkeys.length != 3 ${assets}`);
+        let assetPubkeys = [this.feeAsset,this.assetPubkeys].concat();
+        if (this.assetPubkeys.length != 3) {
+          throw new Error(`assetPubkeys.length != 3 ${this.assetPubkeys}`);
         }
 
-        if (assets[0] === assets[1] || assets[1] === assets[2] || assets[0] === assets[2]) {
-          throw new Error(`asset pubKeys need to be distinct ${assets}`);
+        if (this.assetPubkeys[0] === this.assetPubkeys[1] || this.assetPubkeys[1] === this.assetPubkeys[2] || this.assetPubkeys[0] === this.assetPubkeys[2]) {
+          throw new Error(`asset pubKeys need to be distinct ${this.assetPubkeys}`);
         }
 
         const getIndices = (utxos) => {
-          return utxos.map((utxo) => {
+          let inIndices = []
+          utxos.map((utxo) => {
             let tmpInIndices = []
             for (var a = 0; a < 3; a++) {
               let tmpInIndices1 = []
                 for (var i = 0; i < utxo.assets.length; i++) {
-                  if (utxo.assets[i] === assets[a]) {
+                  if (utxo.assets[i] === this.assetPubkeys[a]) {
                     tmpInIndices1.push("1")
                   } else {
                     tmpInIndices1.push("0")
@@ -208,15 +213,16 @@ export class shieldedTransaction {
             }
             inIndices.push(tmpInIndices)
           });
+          return inIndices;
         };
 
         this.inIndices = getIndices(this.inputUtxos);
         this.outIndices = getIndices(this.outputUtxos);
-        console.log("inIndices: ", inIndices)
-        console.log("outIndices: ", outIndices)
+        console.log("inIndices: ", this.inIndices)
+        console.log("outIndices: ", this.outIndices)
     };
 
-    prepareTransaction (
+    prepareTransaction () {
       // inputUtxos = [],
       // outputUtxos = [],
       // merkelTree,
@@ -235,7 +241,6 @@ export class shieldedTransaction {
       // test,
       // feeAmount,
       // recipientFee
-    ) {
           /// mixes the input utxos
           /// mixes the output utxos
           // inputUtxos = (0, shuffle_1.shuffle)(inputUtxos);
@@ -258,23 +263,23 @@ export class shieldedTransaction {
           for (const inputUtxo of this.inputUtxos) {
               if (this.test) {
                 inputMerklePathIndices.push(0);
-                inputMerklePathElements.push(new Array(this.merkelTree.levels).fill(0));
+                inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
               }
 
-              else if (this.inputUtxo.amounts[0] > 0 || this.inputUtxo.amounts[1] > 0|| this.inputUtxo.amounts[2] > 0)  {
-                  this.inputUtxo.index = this.merkelTree.indexOf(this.inputUtxo.getCommitment());
-                  if (this.inputUtxo.index || this.inputUtxo.index == 0) {
-                      if (this.inputUtxo.index < 0) {
-                          throw new Error(`Input commitment ${this.inputUtxo.getCommitment()} was not found`);
+              else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0|| inputUtxo.amounts[2] > 0)  {
+                  inputUtxo.index = this.merkleTree.indexOf(inputUtxo.getCommitment());
+                  if (inputUtxo.index || inputUtxo.index == 0) {
+                      if (inputUtxo.index < 0) {
+                          throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
                       }
                       inputMerklePathIndices.push(this.inputUtxo.index);
-                      inputMerklePathElements.push(this.merkelTree.path(this.inputUtxo.index).pathElements);
+                      inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
                   }
               }
 
               else {
                   inputMerklePathIndices.push(0);
-                  inputMerklePathElements.push(new Array(this.merkelTree.levels).fill(0));
+                  inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
               }
           }
 
@@ -298,62 +303,63 @@ export class shieldedTransaction {
           // removed throwaway keypairs since we already have message integrity with integrity_hashes
           // TODO: should be a hardcoded keypair in production not the one of the sender
           let encryptedOutputs = [ ];
-          outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], encryptionKeypair, encryptionKeypair)));
+          this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
 
           // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
-          let encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
+          this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
 
-          const extData = {
-              recipient: this.recipient.toBytes(),
-              recipientFee: this.recipientFee.toBytes(),
-              relayer:      this.payer.publicKey.toBytes(),
-              relayer_fee: feesLE,
-              merkleTreePubkeyBytes: merkleTreePubkeyBytes
-          };
+          // const extData = {toBufferLE
+          //     recipient: this.recipient.toBytes(),
+          //     recipientFee: this.recipientFee.toBytes(),
+          //     relayer:      this.payer.publicKey.toBytes(),
+          //     relayer_fee: feesLE,
+          //     merkleTreePubkeyBytes: merkleTreePubkeyBytes
+          // };
           // const { extDataHash, extDataBytes } = (0, getExternalDataHash_1.getExtDataHash)(extData.recipient, extData.recipientFee, extData.relayer, extData.relayer_fee,merkleTreeIndex, encryptedUtxos);
           let extDataBytes = new Uint8Array([
               ...this.recipient.toBytes(),
               ...this.recipientFee.toBytes(),
               ...this.payer.publicKey.toBytes(),
               ...relayer_fee,
-              ...encryptedUtxos
+              ...this.encryptedUtxos
           ]);
           const hash = ethers.ethers.utils.keccak256(Buffer.from(extDataBytes));
           // const hash = anchor.utils.sha256.hash(extDataBytes)
           console.log("Hash: ", hash);
-          this.extDataHash = ethers.BigNumber.from(hash).mod(FIELD_SIZE), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
+          this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(FIELD_SIZE_ETHERS), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
+          console.log(this.merkleTree);
 
           // ----------------------- building input object -------------------
           this.input = {
-              root: merkelTree.root(),
+              root: this.merkleTree.root(),
               inputNullifier: this.inputUtxos.map((x) => x.getNullifier()),
               outputCommitment: this.outputUtxos.map((x) => x.getCommitment()),
               // TODO: move public and fee amounts into tx preparation
               publicAmount: this.externalAmountBigNumber
-                  .add(constants_1.FIELD_SIZE)
-                  .mod(constants_1.FIELD_SIZE)
+                  .add(FIELD_SIZE)
+                  .mod(FIELD_SIZE)
                   .toString(),
-              extDataHash: extDataHash.toString(),
-              feeAmount: new anchor.BN(feeAmount)
-                  .add(constants_1.FIELD_SIZE)
-                  .mod(constants_1.FIELD_SIZE)
+              extDataHash: this.extDataHash.toString(),
+              feeAmount: new anchor.BN(this.feeAmount)
+                  .add(FIELD_SIZE)
+                  .mod(FIELD_SIZE)
                   .toString(),
-              mintPubkey,
+              mintPubkey: this.mintPubkey,
               // data for 2 transaction inputUtxos
               inAmount: this.inputUtxos.map((x) => x.amounts),
               inPrivateKey: this.inputUtxos.map((x) => x.keypair.privkey),
               inBlinding: this.inputUtxos.map((x) => x.blinding),
               inPathIndices: inputMerklePathIndices,
               inPathElements: inputMerklePathElements,
-              assetPubkeys,
+              assetPubkeys: this.assetPubkeys,
               // data for 2 transaction outputUtxos
               outAmount: this.outputUtxos.map((x) => x.amounts),
               outBlinding: this.outputUtxos.map((x) => x.blinding),
               outPubkey: this.outputUtxos.map((x) => x.keypair.pubkey),
               inIndices: this.inIndices,
               outIndices: this.outIndices,
-              inInstructionType: inputUtxos.map((x) => x.instructionType),
-              outInstructionType: outputUtxos.map((x) => x.instructionType)
+              inInstructionType: this.inputUtxos.map((x) => x.instructionType),
+              outInstructionType: this.outputUtxos.map((x) => x.instructionType)
           };
           // console.log("extDataHash: ", input.extDataHash);
           // console.log("input.inputNullifier ",input.inputNullifier[0] );
@@ -386,6 +392,7 @@ export class shieldedTransaction {
       recipientFee,
       sender
     }) {
+      this.poseidon = await circomlibjs.buildPoseidonOpt();
       mintPubkey = assetPubkeys[1];
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
@@ -421,6 +428,8 @@ export class shieldedTransaction {
         throw "recipientFee undefined";
       }
     }
+    this.inputUtxos = inputUtxos;
+    this.outputUtxos = outputUtxos;
 
     this.assetPubkeys = assetPubkeys;
     this.mintPubkey = mintPubkey;
@@ -491,9 +500,9 @@ export class shieldedTransaction {
 
       const buffer = readFileSync(`${this.verifier.wtnsGenPath}.wasm`);
 
-      let witnessCalculator =  await calculateWtns(buffer)
+      let witnessCalculator =  await this.verifier.calculateWtns(buffer)
       console.time('Proof generation');
-      wtns= await witnessCalculator.calculateWTNSBin(stringifyBigInts(this.input),0);
+      let wtns = await witnessCalculator.calculateWTNSBin(stringifyBigInts(this.input),0);
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(`${this.verifier.zkeyPath}.zkey`, wtns);
       this.proofJson = JSON.stringify(proof, null, 1);
@@ -510,7 +519,7 @@ export class shieldedTransaction {
           throw new Error('Invalid Proof');
       }
 
-      this.publicInputsBytes = JSON.parse(publicInputsJson.toString());
+      this.publicInputsBytes = JSON.parse(this.publicInputsJson.toString());
       for (var i in this.publicInputsBytes) {
           this.publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32)).reverse();
       }
@@ -526,18 +535,19 @@ export class shieldedTransaction {
       //         relayerFee
       //     };
 
-      this.proofBytes = parseProofToBytesArray(proofJson),
+      this.proofBytes = await parseProofToBytesArray(this.proofJson);
 
+      this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
 
-      this.proofData = proofData;
+      // this = proofData;
       await this.getPdaAddresses()
-      return this.proofData;
+      // return this;
     }
 
     async getPdaAddresses() {
-      let tx_integrity_hash = this.proofData.publicInputs.txIntegrityHash;
-      let nullifiers = this.proofData.publicInputs.nullifiers;
-      let leftLeaves = [this.proofData.publicInputs.leaves[0]];
+      let tx_integrity_hash = this.publicInputs.txIntegrityHash;
+      let nullifiers = this.publicInputs.nullifiers;
+      let leftLeaves = [this.publicInputs.leaves[0]];
       let merkleTreeProgram = this.merkleTreeProgram;
       let signer = this.payer.publicKey;
 
@@ -619,8 +629,8 @@ export class shieldedTransaction {
 
         try {
 
-          assert(leavesAccountData.nodeLeft.toString() === this.proofData.publicInputs.leaves[0].reverse().toString(), "left leaf not inserted correctly")
-          assert(leavesAccountData.nodeRight.toString() === this.proofData.publicInputs.leaves[1].reverse().toString(), "right leaf not inserted correctly")
+          assert(leavesAccountData.nodeLeft.toString() === this.publicInputs.leaves[0].reverse().toString(), "left leaf not inserted correctly")
+          assert(leavesAccountData.nodeRight.toString() === this.publicInputs.leaves[1].reverse().toString(), "right leaf not inserted correctly")
           assert(leavesAccountData.merkleTreePubkey.toBase58() === this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
           for (var i in this.encrypedUtxos) {
 
@@ -658,7 +668,7 @@ export class shieldedTransaction {
 
       if (this.action == "DEPOSIT" && this.is_token == false) {
         var recipientAccount = await this.provider.connection.getAccountInfo(this.recipient)
-        assert(recipientAccount.lamports == (I64(this.recipientBalancePriorTx).add(this.proofData.externalAmountBigNumber.toString())).toString(), "amount not transferred correctly");
+        assert(recipientAccount.lamports == (I64(this.recipientBalancePriorTx).add(this.externalAmountBigNumber.toString())).toString(), "amount not transferred correctly");
 
       } else if (this.action == "DEPOSIT" && this.is_token == true) {
         console.log("DEPOSIT and token");
@@ -672,15 +682,15 @@ export class shieldedTransaction {
         var recipientFeeAccountBalance = await this.provider.connection.getBalance(this.recipientFee);
 
         // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
-        // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.proofData.extAmount, 0)).toString(), "amount not transferred correctly");
+        // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
 
         console.log(`Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`)
-        console.log(`Balance now ${recipientAccount.amount} balance beginning ${(Number(this.recipientBalancePriorTx) + Number(this.proofData.externalAmountBigNumber))}`)
-        assert(recipientAccount.amount == (Number(this.recipientBalancePriorTx) + Number(this.proofData.externalAmountBigNumber)).toString(), "amount not transferred correctly");
+        console.log(`Balance now ${recipientAccount.amount} balance beginning ${(Number(this.recipientBalancePriorTx) + Number(this.externalAmountBigNumber))}`)
+        assert(recipientAccount.amount == (Number(this.recipientBalancePriorTx) + Number(this.externalAmountBigNumber)).toString(), "amount not transferred correctly");
         console.log(`Blanace now ${recipientFeeAccountBalance} ${Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)}`);
         console.log("fee amount: ", this.feeAmount);
-        console.log("fee amount from inputs. ", new anchor.BN(this.proofData.publicInputs.feeAmount.slice(24,32)).toString());
-        console.log("pub amount from inputs. ", new anchor.BN(this.proofData.publicInputs.publicAmount.slice(24,32)).toString());
+        console.log("fee amount from inputs. ", new anchor.BN(this.publicInputs.feeAmount.slice(24,32)).toString());
+        console.log("pub amount from inputs. ", new anchor.BN(this.publicInputs.publicAmount.slice(24,32)).toString());
 
         console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
 
@@ -697,14 +707,14 @@ export class shieldedTransaction {
         var recipientAccount = await this.provider.connection.getAccountInfo(this.recipient)
         // console.log("senderAccount.lamports: ", senderAccount.lamports)
         // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
-        // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.proofData.extAmount, 0))).sub(I64(relayerFee))).toString())
+        // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString())
 
-        assert(senderAccount.lamports == ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.proofData.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+        assert(senderAccount.lamports == ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
 
         var recipientAccount = await this.provider.connection.getAccountInfo(recipient)
-        // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.proofData.extAmount, 0))).add(I64(relayerFee))).toString()}
+        // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0))).add(I64(relayerFee))).toString()}
 
-        assert(recipientAccount.lamports == ((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.proofData.extAmount, 0)))).toString(), "amount not transferred correctly");
+        assert(recipientAccount.lamports == ((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0)))).toString(), "amount not transferred correctly");
 
 
       }  else if (this.action == "WITHDRAWAL" && this.is_token == true) {
@@ -720,9 +730,9 @@ export class shieldedTransaction {
         );
 
 
-        // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.proofData.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
-        console.log(`${recipientAccount.amount}, ${((new anchor.BN(this.recipientBalancePriorTx)).sub(this.proofData.externalAmountBigNumber)).toString()}`)
-        assert(recipientAccount.amount.toString() == ((new anchor.BN(this.recipientBalancePriorTx)).sub(this.proofData.externalAmountBigNumber)).toString(), "amount not transferred correctly");
+        // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+        console.log(`${recipientAccount.amount}, ${((new anchor.BN(this.recipientBalancePriorTx)).sub(this.externalAmountBigNumber)).toString()}`)
+        assert(recipientAccount.amount.toString() == ((new anchor.BN(this.recipientBalancePriorTx)).sub(this.externalAmountBigNumber)).toString(), "amount not transferred correctly");
 
 
 
@@ -749,6 +759,11 @@ export class shieldedTransaction {
       }
     }
 
+    // async sendTransaction() {
+    //   console.log("sending tx");
+    //
+    //   await this.verifier.sendTransaction(this);
+    // }
 }
 
 const shuffle = function (utxos: Utxo[]) {

@@ -7,7 +7,7 @@ import {Connection, PublicKey, Keypair} from "@solana/web3.js";
 
 import {
   DEFAULT_PROGRAMS
-} from "./constants";
+} from "../constants";
 
 export class MerkleTreeConfig {
   constructor({
