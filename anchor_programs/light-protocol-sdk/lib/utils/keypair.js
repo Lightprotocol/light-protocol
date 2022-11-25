@@ -88,6 +88,6 @@ class Keypair {
     sign(commitment, merklePath) {
         return this.poseidon.F.toString(this.poseidon([this.privkey, commitment, merklePath]));
     }
-    
+
 }
 exports.Keypair = Keypair;

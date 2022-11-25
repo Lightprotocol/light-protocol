@@ -17,6 +17,7 @@ export const TYPE_INIT_DATA = { array: [ 'u8', 642 ] };
 //     constants[item.name] = JSON.parse(item.value)
 //   }
 // });
+export const DEFAULT_ZERO = "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 
 export const PRIVATE_KEY = [
   17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187, 228, 110, 146,

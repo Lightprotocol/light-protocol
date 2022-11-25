@@ -10,14 +10,6 @@ const { SystemProgram } = require('@solana/web3.js');
 const token = require('@solana/spl-token')
 var _ = require('lodash');
 
-// import {
-//   read_and_parse_instruction_data_bytes,
-//   parse_instruction_data_bytes,
-//   readAndParseAccountDataMerkleTreeTmpState,
-//   getPdaAddresses,
-//   unpackLeavesAccount,
-// } from "./unpack_accounts"
-
 import {
   checkEscrowAccountCreated,
   checkVerifierStateAccountCreated,
@@ -31,7 +23,7 @@ import {
 
 import {
     DEFAULT_PROGRAMS,
-} from "./constants"
+} from "../constants"
 const PREPARED_INPUTS_TX_COUNT = 42
 const MILLER_LOOP_TX_COUNT = 42
 const FINAL_EXPONENTIATION_TX_COUNT = 19
@@ -399,15 +391,17 @@ export async function createMint({authorityKeypair, mintKeypair = new anchor.web
 // -
 export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, enabledSignerTest = true, provider, signer, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA}) {
   const origin = await newAccountWithLamports(provider.connection)
+  console.log(SHIELDED_TRANSACTION.verifier.publicInputs);
+  console.log(SHIELDED_TRANSACTION);
 
   const shieldedTxBackUp = _.cloneDeep(SHIELDED_TRANSACTION);
-  console.log("SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount ", SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount);
+  console.log("SHIELDED_TRANSACTION.publicInputs.publicAmount ", SHIELDED_TRANSACTION.publicInputs.publicAmount);
 
   // Wrong pub amount
   let wrongAmount = new anchor.BN("123213").toArray()
   console.log("wrongAmount ", wrongAmount);
 
-  SHIELDED_TRANSACTION.proofData.publicInputs.publicAmount = Array.from([...new Array(29).fill(0), ...wrongAmount]);
+  SHIELDED_TRANSACTION.publicInputs.publicAmount = Array.from([...new Array(29).fill(0), ...wrongAmount]);
   let e = await SHIELDED_TRANSACTION.sendTransaction();
   console.log(e);
 
@@ -419,7 +413,7 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
   let wrongFeeAmount = new anchor.BN("123213").toArray()
   console.log("wrongFeeAmount ", wrongFeeAmount);
 
-  SHIELDED_TRANSACTION.proofData.publicInputs.feeAmount = Array.from([...new Array(29).fill(0), ...wrongFeeAmount]);
+  SHIELDED_TRANSACTION.publicInputs.feeAmount = Array.from([...new Array(29).fill(0), ...wrongFeeAmount]);
   e = await SHIELDED_TRANSACTION.sendTransaction();
   console.log("Wrong feeAmount", e.logs.includes('Program log: error ProofVerificationFailed'));
   assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
@@ -428,7 +422,7 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
 
   let wrongMint = new anchor.BN("123213").toArray()
   console.log("wrongMint ", wrongMint);
-  console.log("SHIELDED_TRANSACTION.proofData.publicInputs ", SHIELDED_TRANSACTION.proofData.publicInputs);
+  console.log("SHIELDED_TRANSACTION.publicInputs ", SHIELDED_TRANSACTION.publicInputs);
   let relayer = new anchor.web3.Account();
   await createMint({
     authorityKeypair: signer,
@@ -463,8 +457,8 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
   SHIELDED_TRANSACTION.relayerFee = _.cloneDeep(shieldedTxBackUp.relayerFee);
   await checkNfInserted(  SHIELDED_TRANSACTION.nullifierPdaPubkeys, provider.connection)
 
-  for (var i in SHIELDED_TRANSACTION.proofData.publicInputs.nullifiers) {
-    SHIELDED_TRANSACTION.proofData.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
+  for (var i in SHIELDED_TRANSACTION.publicInputs.nullifiers) {
+    SHIELDED_TRANSACTION.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong nullifier ", i, " ", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);
@@ -473,9 +467,9 @@ export async function testTransaction({SHIELDED_TRANSACTION, deposit = true, ena
 
   }
 
-  for (var i = 0; i < SHIELDED_TRANSACTION.proofData.publicInputs.leaves.length; i++) {
+  for (var i = 0; i < SHIELDED_TRANSACTION.publicInputs.leaves.length; i++) {
     // Wrong leafLeft
-    SHIELDED_TRANSACTION.proofData.publicInputs.leaves[i] = new Uint8Array(32).fill(2);
+    SHIELDED_TRANSACTION.publicInputs.leaves[i] = new Uint8Array(32).fill(2);
     e = await SHIELDED_TRANSACTION.sendTransaction();
     console.log("Wrong leafLeft", e.logs.includes('Program log: error ProofVerificationFailed'));
     assert(e.logs.includes('Program log: error ProofVerificationFailed') == true);

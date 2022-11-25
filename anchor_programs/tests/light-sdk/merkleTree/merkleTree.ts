@@ -31,6 +31,7 @@ export class MerkleTree {
     elements: any[] = [],
     { zeroElement = DEFAULT_ZERO } = {},
   ) {
+    
     this.levels = levels
     this.capacity = 2 ** levels
     this.zeroElement = zeroElement

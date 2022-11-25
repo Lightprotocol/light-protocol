@@ -3,11 +3,12 @@ import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 
 
-exports class verifierOne {
+export class VerifierOne {
   constructor() {
     this.verifierProgram = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
     this.wtnsGenPath = "./Light_circuits/build/circuits/transactionMasp10_js/transactionMasp10";
     this.zkeyPath = './Light_circuits/build/circuits/transactionMasp10'
+    this.calculateWtns = require('../../../Light_circuits/build/circuits/transactionMasp10_js/witness_calculator.js')
 
   }
 
