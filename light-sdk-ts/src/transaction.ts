@@ -1,39 +1,28 @@
 const {U64, I64} = require('n64');
 const anchor = require("@project-serum/anchor")
 const nacl = require('tweetnacl')
-// const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
 let circomlibjs = require("circomlibjs")
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
+import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
 import {toBufferLE} from 'bigint-buffer';
-// import { BigNumber, utils } from 'ethers'
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
-const { readFileSync, writeFile } = require("fs");
+import { readFileSync, writeFile } from "fs";
 const snarkjs = require('snarkjs');
 
 import {
-  MERKLE_TREE_KEY,
-  DEFAULT_PROGRAMS,
-  ADMIN_AUTH_KEYPAIR,
-  ADMIN_AUTH_KEY,
-  MERKLE_TREE_SIZE,
-  MERKLE_TREE_KP,
-  MERKLE_TREE_SIGNER_AUTHORITY,
-  PRIVATE_KEY,
-  FIELD_SIZE,
-  MINT_PRIVATE_KEY,
-  MINT
-} from "../constants";
+  FIELD_SIZE
+} from "./constants";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
-import { newAccountWithLamports  } from "./test_transactions";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
-import {checkRentExemption} from '../test-utils/test_checks';
+import {checkRentExemption} from './test-utils/testChecks';
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-import {Utxo } from "../utxo";
+import { Utxo } from "./utxo";
+import { AnchorProvider, BN, Program } from "@project-serum/anchor";
+import { PublicInputs } from "./verifiers";
 
 
 // add verifier class which is passed in with the constructor
@@ -44,18 +33,81 @@ import {Utxo } from "../utxo";
 // Changes for instantiation
 // replace verifierProgram with verifier class
 // remove merkleTreeProgram
-export class shieldedTransaction {
+export class Transaction {
+  relayerPubkey: PublicKey
+  relayerRecipient: PublicKey
+  preInsertedLeavesIndex: PublicKey
+  merkleTreeProgram: Program<MerkleTreeProgram>
+  verifier: any
+  lookupTable: PublicKey
+  feeAsset: PublicKey
+  merkleTreePubkey: PublicKey
+  merkleTreeAssetPubkey: PublicKey
+  merkleTree: any
+  utxos: any
+  payer: Keypair
+  provider: AnchorProvider
+  merkleTreeFeeAssetPubkey: PublicKey
+  registeredVerifierPda: PublicKey
+  poseidon: any
+  sendTransaction: Function 
+  shuffle: Boolean
+  publicInputs: PublicInputs | undefined
+  encryptionKeypair: any
+  rootIndex: any
+  inputUtxos: Utxo[] | undefined
+  outputUtxos: Utxo[]| undefined
+  feeAmount: BN | undefined
+  assetPubkeys: PublicKey[] | undefined
+  inIndices: Number[][][] | undefined
+  outIndices: Number[][][] | undefined
+  relayerFee: BN | null
+  sender: PublicKey
+  senderFee: PublicKey
+  recipient: PublicKey
+  recipientFee: PublicKey
+  mintPubkey: PublicKey
+  externalAmountBigNumber: BN
+  escrow: PublicKey
+  leavesPdaPubkeys: any
+  nullifierPdaPubkeys: any
+  signerAuthorityPubkey: any
+  tokenAuthority: any
+  verifierStatePubkey: any
+  publicInputsBytes: Number[][]
+  encryptedUtxos: Uint8Array
+  proofBytes: any
+  
+  /** 
+     * Initialize transaction
+     * 
+     * @param encryptionKeypair encryptionKeypair used for encryption 
+     * @param relayerFee recipient of the unshielding 
+     * @param merkleTreePubkey 
+     * @param merkleTree 
+     * @param merkleTreeAssetPubkey 
+     * @param recipient utxos to pay with
+     * @param lookupTable fee for the relayer
+     * @param payer RPC connection
+     * @param preInsertedLeavesIndex shieldedKeypair
+     * @param provider shieldedKeypair
+     * @param merkleTreeFeeAssetPubkey shieldedKeypair
+     * @param relayerRecipient shieldedKeypair
+     * @param poseidon shieldedKeypair
+     * @param verifier shieldedKeypair
+     * @param shuffleEnabled
+     */
   constructor({
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     encryptionKeypair = createEncryptionKeypair(),
     relayerFee = U64(10_000),
     merkleTreePubkey,
-    merkleTree = null,
-    merkleTreeAssetPubkey = null,
+    merkleTree,
+    merkleTreeAssetPubkey,
     recipient, //PublicKey
     lookupTable, //PublicKey
     payer, //: Keypair
-    relayerPubkey = null, //PublicKey
+    relayerPubkey, //PublicKey
     preInsertedLeavesIndex,
     provider,
     merkleTreeFeeAssetPubkey,
@@ -82,7 +134,6 @@ export class shieldedTransaction {
       this.merkleTreeAssetPubkey = merkleTreeAssetPubkey;
       this.merkleTree = null;
       this.utxos = [];
-      this.feeUtxos = [];
       this.encryptionKeypair = encryptionKeypair;
       this.payer = payer;
 
@@ -103,7 +154,7 @@ export class shieldedTransaction {
 
        merkle_tree_account_data.roots.map((x, index)=> {
         if (x.toString() === root.toString()) {
-          this.root_index =  index;
+          this.rootIndex =  index;
         }
       })
 
@@ -341,11 +392,22 @@ export class shieldedTransaction {
       action,
       assetPubkeys,
       recipient,
-      mintPubkey = 0,
+      mintPubkey,
       relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
       recipientFee,
       sender
+    }: {
+      inputUtxos: Array<Utxo>,
+      outputUtxos: Array<Utxo>,
+      action: String,
+      assetPubkeys: Array<PublicKey>,
+      recipient: PublicKey,
+      mintPubkey: PublicKey,
+      relayerFee: BN| null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
+      shuffle: Boolean,
+      recipientFee: PublicKey,
+      sender: PublicKey
     }) {
       this.poseidon = await circomlibjs.buildPoseidonOpt();
       mintPubkey = assetPubkeys[1];
@@ -457,10 +519,13 @@ export class shieldedTransaction {
 
       let nullifierPdaPubkeys = [];
       for (var i in nullifiers) {
+        console.log("nullifiers[i]: ", nullifiers[i]);
+        
         nullifierPdaPubkeys.push(
         (await PublicKey.findProgramAddress(
-            [Buffer.from(new Uint8Array(nullifiers[i])), anchor.utils.bytes.utf8.encode("nf")],
+            [Buffer.from(nullifiers[i]), anchor.utils.bytes.utf8.encode("nf")],
             merkleTreeProgram.programId))[0]);
+        console.log(nullifierPdaPubkeys[i].toBase58());
       }
 
       let leavesPdaPubkeys = [];
@@ -689,11 +754,11 @@ export const parseProofToBytesArray = async function (data: any) {
   var mydata = JSON.parse(data.toString())
 
   for (var i in mydata) {
-    if (i == 'pi_a') {
+    if (i == 'pi_a' || i == 'pi_c') {
       for (var j in mydata[i]) {
         mydata[i][j] = Array.from(leInt2Buff(
           unstringifyBigInts(mydata[i][j]),
-          32, // 48
+          32,
         )).reverse()
       }
     } else if (i == 'pi_b') {
@@ -701,31 +766,18 @@ export const parseProofToBytesArray = async function (data: any) {
         for (var z in mydata[i][j]) {
           mydata[i][j][z] = Array.from(leInt2Buff(
             unstringifyBigInts(mydata[i][j][z]),
-            32, // 48
+            32,
           ))
         }
       }
-    } else if (i == 'pi_c') {
-      for (var j in mydata[i]) {
-        mydata[i][j] = Array.from(leInt2Buff(
-          unstringifyBigInts(mydata[i][j]),
-          32, //48
-        )).reverse()
-      }
     }
   }
-
-
-  let mydataStripped = [
+  return [
     mydata.pi_a[0],
     mydata.pi_a[1],
     mydata.pi_b[0].flat().reverse(),
     mydata.pi_b[1].flat().reverse(),
     mydata.pi_c[0],
     mydata.pi_c[1],
-  ].flat()
-  console.log("mydataStripped ", mydataStripped);
-
-
-  return mydataStripped;
+  ].flat();
 }

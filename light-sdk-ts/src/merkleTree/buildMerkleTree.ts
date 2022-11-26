@@ -3,7 +3,6 @@ import {MerkleTree } from './merkleTree';
 const anchor = require("@project-serum/anchor")
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
-const { U64 } = require('n64')
 const  MERKLE_TREE_HEIGHT = 18
 
 

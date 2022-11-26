@@ -40,7 +40,7 @@ Further tests are:
 
 - ``npm install``
 
-- ./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program_zero.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/merkle_tree_program.so --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL  /home/ananas/test_light/light-protocol-onchain/anchor_programs/target/deploy/verifier_program_one.so
+- ./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_zero.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/merkle_tree_program.so --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL  /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_one.so
 
 - ``anchor test --skip-build --skip-deploy --skip-local-validator``
 

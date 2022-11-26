@@ -1,6 +1,6 @@
 import {Utxo} from "../utxo";
 import * as anchor from "@project-serum/anchor";
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
+import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
 import {Connection, PublicKey, Keypair} from "@solana/web3.js";
@@ -10,6 +10,11 @@ export async function getUninsertedLeaves({
   merkleTreeIndex,
   connection
   // merkleTreePubkey
+}: {
+  merkleTreeProgram: MerkleTreeProgram,
+  merkleTreeIndex: any,
+  connection: Connection
+
 }) {
   var leave_accounts: Array<{
     pubkey: PublicKey
@@ -27,13 +32,16 @@ export async function getUninsertedLeaves({
   })
 }
 
-export async function getUnspentUtxo(leavesPdas, provider, encryptionKeypair, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram) {
+export async function getUnspentUtxo(leavesPdas, provider: anchor.Provider, 
+    encryptionKeypair, KEYPAIR, FEE_ASSET,MINT_CIRCUIT,
+    POSEIDON, merkleTreeProgram: MerkleTreeProgram
+  ) {
   let decryptedUtxo1
   for (var i = 0; i < leavesPdas.length; i++) {
     console.log("iter ", i);
 
     // decrypt first leaves account and build utxo
-    decryptedUtxo1 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(63, 87))), encryptionKeypair.publicKey, encryptionKeypair, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
+    decryptedUtxo1 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,63))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(63, 87))), encryptionKeypair.PublicKey, encryptionKeypair, KEYPAIR, [FEE_ASSET,MINT_CIRCUIT], POSEIDON)[1];
     let nullifier = decryptedUtxo1.getNullifier();
     console.log("decryptedUtxo1", decryptedUtxo1);
 
@@ -61,7 +69,11 @@ export async function getInsertedLeaves({
   merkleTreeIndex,
   connection
   // merkleTreePubkey
-}) {
+}: {
+  merkleTreeProgram: MerkleTreeProgram,
+  connection: Connection,
+  merkleTreeIndex: any
+})/*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
   var leave_accounts: Array<{
     pubkey: PublicKey
     account: Account<Buffer>

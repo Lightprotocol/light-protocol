@@ -1,12 +1,12 @@
 import * as anchor from "@project-serum/anchor";
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
+import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
 import {Connection, PublicKey, Keypair} from "@solana/web3.js";
 
 
 import {
-  DEFAULT_PROGRAMS
+  DEFAULT_PROGRAMS, merkleTreeProgram
 } from "../constants";
 
 export class MerkleTreeConfig {
@@ -17,7 +17,7 @@ export class MerkleTreeConfig {
   }) {
       this.merkleTreePubkey =merkleTreePubkey;
       this.payer = payer;
-      this.merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
+      this.merkleTreeProgram = merkleTreeProgram;
       // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type
       this.poolPdas = [];
       this.poolTypes = [];
@@ -94,7 +94,7 @@ export class MerkleTreeConfig {
       return this.merkleTreeAuthorityPda;
     }
 
-    async initMerkleTreeAuthority(authority) {
+    async initMerkleTreeAuthority(authority: Keypair | undefined) {
       if (authority == undefined) {
         authority = this.payer
       }

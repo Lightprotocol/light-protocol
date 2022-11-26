@@ -7,6 +7,7 @@ const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
 const anchor = require("@project-serum/anchor")
 import {toBufferLE} from 'bigint-buffer';
+import { LogLevel } from '@ethersproject/logger';
 
 const N_ASSETS = 3;
 export class Utxo {
@@ -123,12 +124,17 @@ export class Utxo {
 
       // TODO: add asset to encrypted bytes
       // TODO: if other stuff is missing
-      const bytes_message = Buffer.concat([
-          this.blinding.toBuffer(),
-          toBufferLE(BigInt(this.amounts[0]), 8),
-          toBufferLE(BigInt(this.amounts[1]), 8)
+      const bytes_message = new Uint8Array([
+          ...this.blinding.toBuffer(),
+          ...toBufferLE(BigInt(this.amounts[0]), 8),
+          ...toBufferLE(BigInt(this.amounts[1]), 8)
       ]);
-      const ciphertext = nacl.box(bytes_message, nonce, encryptionKeypair.publicKey, senderThrowAwayKeypair.secretKey);
+      console.log("bytes_message ", bytes_message);
+      console.log("encryptionKeypair ", encryptionKeypair);
+      console.log("senderThrowAwayKeypair ", senderThrowAwayKeypair);
+      
+      
+      const ciphertext = nacl.box(bytes_message, nonce, encryptionKeypair.PublicKey, senderThrowAwayKeypair.secretKey);
 
       return ciphertext;
   }

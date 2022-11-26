@@ -1,40 +1,30 @@
-import { VerifierProgramOne } from "../idls/verifier_program_one";
+import { VerifierProgramOne } from "../../idls/verifier_program_one";
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  MERKLE_TREE_KEY,
   DEFAULT_PROGRAMS,
-  ADMIN_AUTH_KEYPAIR,
-  ADMIN_AUTH_KEY,
-  MERKLE_TREE_SIZE,
-  MERKLE_TREE_KP,
-  MERKLE_TREE_SIGNER_AUTHORITY,
-  PRIVATE_KEY,
-  FIELD_SIZE,
-  MINT_PRIVATE_KEY,
-  MINT
 } from "../constants";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
-import {checkRentExemption} from '../test-utils/test_checks';
-import {Utxo } from "../utxo";
-import { assert, expect } from "chai";
+import { assert } from "chai";
+import { Transaction } from "../transaction";
+import { Verifier, PublicInputs } from ".";
+import {verifierProgramOne } from "../constants"
 
-export class VerifierOne {
+export class VerifierOne implements Verifier {
+  verifierProgram: Program<VerifierProgramOne>
+  wtnsGenPath: String
+  zkeyPath: String
+  calculateWtns: NodeRequire
   constructor() {
-    this.verifierProgram = anchor.workspace.VerifierProgramOne as Program<VerifierProgramOne>;
-    this.wtnsGenPath = "./Light_circuits/build/circuits/transactionMasp10_js/transactionMasp10";
-    this.zkeyPath = './Light_circuits/build/circuits/transactionMasp10'
-    this.calculateWtns = require('../../../Light_circuits/build/circuits/transactionMasp10_js/witness_calculator.js')
+    this.verifierProgram = verifierProgramOne;
+    this.wtnsGenPath = "./build-circuits/transactionMasp10_js/transactionMasp10";
+    this.zkeyPath = './build-circuits/transactionMasp10'
+    this.calculateWtns = require('../../build-circuits/transactionMasp10_js/witness_calculator.js')
 
   }
-  parsePublicInputsFromArray(transaction) {
 
-    // console.log("here");
-    console.log("this ", transaction);
-
-
-    console.log("publicInputsBytes; ", transaction.publicInputsBytes.length);
+  parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
 
     if (transaction.publicInputsBytes.length == 17) {
         return {
@@ -51,17 +41,17 @@ export class VerifierOne {
     }
 
   }
-  async transferFirst(transfer) {
+
+  async transferFirst(transfer: Transaction) {
     console.log("in transferFirst");
 
-    console.log("this ", transfer);
 
     const ix1 = await transfer.verifier.verifierProgram.methods.shieldedTransferFirst(
       Buffer.from(transfer.publicInputs.publicAmount),
       transfer.publicInputs.nullifiers,
       transfer.publicInputs.leaves,
       Buffer.from(transfer.publicInputs.feeAmount),
-      new anchor.BN(transfer.root_index.toString()),
+      new anchor.BN(transfer.rootIndex.toString()),
       new anchor.BN(transfer.relayerFee.toString()),
       Buffer.from(transfer.encryptedUtxos)
     ).accounts(
@@ -79,7 +69,7 @@ export class VerifierOne {
     console.log("ix1 success ", ix1);
   }
 
-  async transferSecond(transfer) {
+  async transferSecond(transfer: Transaction) {
     const ix = await transfer.verifier.verifierProgram.methods.shieldedTransferSecond(
       Buffer.from(transfer.proofBytes)
     ).accounts(
@@ -177,7 +167,7 @@ export class VerifierOne {
       }
     }
 
-  async sendTransaction(insert = true){
+  async sendTransaction(insert: Boolean = true): Promise<any> {
       assert(this.nullifierPdaPubkeys.length == 10);
       let balance = await this.provider.connection.getBalance(this.signerAuthorityPubkey, {preflightCommitment: "confirmed", commitment: "confirmed"});
       if (balance === 0) {
@@ -220,7 +210,7 @@ export class VerifierOne {
       // console.log("this.encryptedUtxos[0], ", this.encryptedUtxos);
       console.log("this.verifierStatePubkey, ", this.verifierStatePubkey.toBase58());
       // console.log("this.publicInputs.nullifiers, ", this.publicInputs.nullifiers);
-      // console.log("this.root_index ", this.root_index);
+      // console.log("this.rootIndex ", this.rootIndex);
       // console.log("this.relayerFee ", this.relayerFee);
       // console.log("this.encryptedUtxos ", this.encryptedUtxos);
       // this.transferFirst = transferFirst;

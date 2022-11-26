@@ -1,36 +1,30 @@
-import { verifierProgramZero } from "../idls/verifier_program_zero";
+import { VerifierProgramZero } from "../../idls/verifier_program_zero";
 import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  MERKLE_TREE_KEY,
   DEFAULT_PROGRAMS,
-  ADMIN_AUTH_KEYPAIR,
-  ADMIN_AUTH_KEY,
-  MERKLE_TREE_SIZE,
-  MERKLE_TREE_KP,
-  MERKLE_TREE_SIGNER_AUTHORITY,
-  PRIVATE_KEY,
-  FIELD_SIZE,
-  MINT_PRIVATE_KEY,
-  MINT
 } from "../constants";
-import { newAccountWithLamports  } from "./test_transactions";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
-import {checkRentExemption} from '../test-utils/test_checks';
-const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-import {Utxo } from "../utxo";
+import { Transaction } from "../transaction";
+import { Verifier, PublicInputs } from ".";
+import {verifierProgramZero } from "../constants"
 
-export class VerifierZero {
+export class VerifierZero implements Verifier {
+  verifierProgram: Program<VerifierProgramZero>
+  wtnsGenPath: String
+  zkeyPath: String
+  calculateWtns: NodeRequire
   constructor() {
-    this.verifierProgram = anchor.workspace.VerifierProgramZero as Program<VerifierProgramZero>;
-    this.wtnsGenPath = "./Light_circuits/build/circuits/transactionMasp2_js/transactionMasp2";
-    this.zkeyPath = `./Light_circuits/build/circuits/transactionMasp2`
-    this.calculateWtns = require('../../../Light_circuits/build/circuits/transactionMasp2_js/witness_calculator.js')
-
+    this.verifierProgram = verifierProgramZero;
+    // Does not work within sdk 
+    // TODO: bundle files in npm package
+    this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
+    this.zkeyPath = `./build-circuits/transactionMasp2`
+    this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js')    
   }
 
-  parsePublicInputsFromArray(transaction) {
+  parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
 
     // console.log("here");
     console.log("this ", transaction);
@@ -50,12 +44,11 @@ export class VerifierZero {
        };
     } else {
       throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != 9`;
-
     }
 
   }
 
-  async sendTransaction(insert = true){
+  async sendTransaction(insert: Boolean = true): Promise<any> {
 
     // await this.getPdaAddresses();
 
@@ -79,7 +72,13 @@ export class VerifierZero {
       // console.log("sender_fee: ", this.senderFee);
       this.senderFeeBalancePriorTx = await this.provider.connection.getBalance(this.senderFee);
       this.relayerRecipientAccountBalancePriorLastTx = await this.provider.connection.getBalance(this.relayerRecipient);
-
+      // ain derived pda pubkey (Dz5VbR8yVXNg9DsSujFL9mE7U9zTkxBy9NPgH24CEocJ, 254)',
+      // 'Program log: Passed-in pda pubkey 7youSP8CcfuvSWxGyJf1JVwaHux6k2Wq15dFPAJUTJvS',
+      // 'Program log: Instruction data seed  [32, 221, 13, 181, 197, 157, 122, 91, 137, 50, 220, 253, 86, 14, 185, 235, 248, 65, 247, 142, 135, 232, 230, 228, 140, 194, 44, 128, 82, 67, 8, 147]',
+      // "Program log: panicked at 'called `Result::unwrap()` on an `Err` value: InvalidInstructionData', programs/merkle_tree_program/src/verifier_invoked_instructions/insert_nullifier.rs:36:10",
+      // 'Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 consumed 1196752 of 1196752 compute units',
+      // 'Program failed to complete: SBF program panicked',
+  
       // console.log("signingAddress:     ", this.relayerPubkey)
       // console.log("systemProgram:      ", SystemProgram.programId)
       // console.log("programMerkleTree:  ", this.merkleTreeProgram.programId)
@@ -98,14 +97,15 @@ export class VerifierZero {
       // console.log("registeredVerifierPd",this.registeredVerifierPda)
       // console.log("encryptedOutputs len ", this.encryptedOutputs.length);
       // console.log("this.encryptedOutputs[0], ", this.encryptedOutputs);
-
+      console.log("this.nullifierPdaPubkeys ", this.nullifierPdaPubkeys);
+      
       const ix = await this.verifier.verifierProgram.methods.shieldedTransferInputs(
         Buffer.from(this.proofBytes),
         Buffer.from(this.publicInputs.publicAmount),
         this.publicInputs.nullifiers,
         this.publicInputs.leaves,
         Buffer.from(this.publicInputs.feeAmount),
-        new anchor.BN(this.root_index.toString()),
+        new anchor.BN(this.rootIndex.toString()),
         new anchor.BN(this.relayerFee.toString()),
         Buffer.from(this.encryptedUtxos.slice(0,174)) // remaining bytes can be used once tx sizes increase
       ).accounts(
