@@ -1,16 +1,15 @@
 import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
 const { SystemProgram } = require('@solana/web3.js');
 const solana = require("@solana/web3.js");
-const {U64, I64} = require('n64');
+const {U64} = require('n64');
 import nacl from "tweetnacl";
 import _ from "lodash";
-import { assert, expect } from "chai";
+import { assert } from "chai";
 const token = require('@solana/spl-token');
 let circomlibjs = require("circomlibjs");
 import {toBufferLE} from 'bigint-buffer';
-var _ = require('lodash');
-import {buildMerkleTree, MerkleTree, Transaction,
+import {
+  buildMerkleTree, MerkleTree, Transaction,
   VerifierZero, VerifierOne
   , Keypair, Utxo,
   newAccountWithLamports,
@@ -26,7 +25,8 @@ import {buildMerkleTree, MerkleTree, Transaction,
   ENCRYPTION_KEYPAIR,
   DEFAULT_PROGRAMS,
   setUpMerkleTree,
-  initLookUpTableFromFile
+  initLookUpTableFromFile,
+  testTransaction
  } from "../../light-sdk-ts/src/index";
 
  import {
@@ -59,8 +59,6 @@ import {buildMerkleTree, MerkleTree, Transaction,
 let ASSET_1_ORG = new anchor.web3.Account()
 let ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
 
-var UTXOS;
-
 var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER_RECIPIENT;
@@ -69,12 +67,6 @@ var SHIELDED_TRANSACTION;
 var INVALID_SIGNER;
 var INVALID_MERKLE_TREE_AUTHORITY_PDA;
 var KEYPAIR
-
-
-const sleep = (ms) => {
-  return new Promise((resolve) => setTimeout(resolve, ms))
-}
-
 
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
@@ -467,7 +459,8 @@ describe("verifier_program", () => {
 
   });
 
-
+  // Something is wrong with the approve
+  // error owner does not match
   it.skip("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -477,64 +470,39 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit with 10 utxos ", i);
 
-      const origin = await newAccountWithLamports(provider.connection)
-      const relayer = await newAccountWithLamports(provider.connection)
-
-      let RELAYER_FEE = U64(10_000);
 
       let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
       let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
 
       console.log("MINT: ", MINT);
       console.log("ADMIN_AUTH_KEYPAIR: ", ADMIN_AUTH_KEYPAIR);
-      console.log("origin: ", origin);
       console.log("depositAmount: ", depositAmount);
 
-      try {
-        // create associated token account
-        userTokenAccount = (await newAccountWithTokens({
-          connection: provider.connection,
-          MINT,
-          ADMIN_AUTH_KEYPAIR,
-          userAccount: origin,
-          amount: depositAmount
-        }))
-        console.log("userTokenAccount ", userTokenAccount.toBase58());
-
-      } catch(e) {
-        console.log(e);
-      }
-
-      
       await token.approve(
         provider.connection,
-        origin,
+        ADMIN_AUTH_KEYPAIR,
         userTokenAccount,
-        AUTHORITY_ONE, //delegate
-        origin, // owner
-        depositAmount, //I64.readLE(1_000_000_000_00,0).toNumber(), // amount
-        [origin]
+        AUTHORITY, //delegate
+        USER_TOKEN_ACCOUNT, // owner
+        depositAmount * 2,
+        [USER_TOKEN_ACCOUNT]
       )
 
       SHIELDED_TRANSACTION = new Transaction({
         // four static config fields
-        lookupTable:            LOOK_UP_TABLE,
-        merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
-        merkleTreeProgram,
-        verifierProgram: verifierProgramOne,
-
-        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-        merkleTreePubkey:       MERKLE_TREE_KEY,
-        merkleTreeIndex:        1,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        provider,
         payer:                  ADMIN_AUTH_KEYPAIR,
         encryptionKeypair:      ENCRYPTION_KEYPAIR,
-        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
-        registeredVerifierPda:  REGISTERED_VERIFIER_ONE_PDA,
-        verifier: new VerifierOne(),
+
+        // four static config fields
         merkleTree: new MerkleTree(18, POSEIDON),
-        shuffleEnabled: false
+        provider,
+        lookupTable:            LOOK_UP_TABLE,
+
+        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+
+        verifier: new VerifierOne(),
+        shuffleEnabled: false,
+        poseidon: POSEIDON
       });
 
       let inputUtxos = [new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON), new Utxo(POSEIDON)];
@@ -542,18 +510,28 @@ describe("verifier_program", () => {
 
       let outputUtxos = [deposit_utxo1];
 
+      // await SHIELDED_TRANSACTION.prepareTransactionFull({
+      //   inputUtxos,
+      //   outputUtxos,
+      //   action: "DEPOSIT",
+      //   assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
+      //   relayerFee: new anchor.BN('0'),
+      //   mintPubkey: MINT_CIRCUIT,
+      //   sender: userTokenAccount,
+      //   merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
+      // });
       await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos,
         outputUtxos,
         action: "DEPOSIT",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
         relayerFee: U64(0),
-        shuffle: true,
+        sender: userTokenAccount,
         mintPubkey: MINT_CIRCUIT,
-        sender: userTokenAccount
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
       });
 
-      await SHIELDED_TRANSACTION.proof();
+      await SHIELDED_TRANSACTION.getProof();
 
       // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: true, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
@@ -603,23 +581,19 @@ describe("verifier_program", () => {
       console.log("Deposit ", i);
 
       SHIELDED_TRANSACTION = new Transaction({
-        // four static config fields
-        lookupTable:            LOOK_UP_TABLE,
-        merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
-        merkleTreeProgram,
-        verifierProgram: verifierProgramZero,
-
-        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-        merkleTreePubkey:       MERKLE_TREE_KEY,
-        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-        provider,
         payer:                  ADMIN_AUTH_KEYPAIR,
         encryptionKeypair:      ENCRYPTION_KEYPAIR,
-        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
-        registeredVerifierPda:  REGISTERED_VERIFIER_PDA,
-        verifier: new VerifierZero(),
+
+        // four static config fields
         merkleTree: new MerkleTree(18, POSEIDON),
-        shuffleEnabled: false
+        provider,
+        lookupTable:            LOOK_UP_TABLE,
+
+        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+
+        verifier: new VerifierZero(),
+        shuffleEnabled: false,
+        poseidon: POSEIDON
       });
 
       let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT_CIRCUIT], [new anchor.BN(depositFeeAmount),new anchor.BN(depositAmount)], KEYPAIR)
@@ -632,12 +606,12 @@ describe("verifier_program", () => {
         action: "DEPOSIT",
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
         relayerFee: U64(0),
-        shuffle: true,
         sender: userTokenAccount,
-        mintPubkey: MINT_CIRCUIT
+        mintPubkey: MINT_CIRCUIT,
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
       });
 
-      await SHIELDED_TRANSACTION.proof();
+      await SHIELDED_TRANSACTION.getProof();
 
       // await testTransaction({transaction: SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
       console.log("SHIELDED_TRANSACTION.publicInputs.publicAmount ", SHIELDED_TRANSACTION.publicInputs.publicAmount);
@@ -1144,24 +1118,19 @@ describe("verifier_program", () => {
 
 
     SHIELDED_TRANSACTION = new Transaction({
-      // four static config fields
-      lookupTable:            LOOK_UP_TABLE,
-      merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
-      merkleTreeProgram,
-      verifierProgram: verifierProgramZero,
-
-      merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-      merkleTreePubkey:       MERKLE_TREE_KEY,
-      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-      provider,
       payer:                  ADMIN_AUTH_KEYPAIR,
-      encryptionKeypair:      ENCRYPTION_KEYPAIR,
-      relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
-      registeredVerifierPda:  REGISTERED_VERIFIER_PDA,
-      merkleTree: merkleTree,
-      poseidon: POSEIDON,
-      verifier: new VerifierZero(),
-      shuffleEnabled: false
+        encryptionKeypair:      ENCRYPTION_KEYPAIR,
+
+        // four static config fields
+        merkleTree,
+        provider,
+        lookupTable:            LOOK_UP_TABLE,
+
+        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+
+        verifier: new VerifierZero(),
+        shuffleEnabled: false,
+        poseidon: POSEIDON
     });
 
     let outputUtxos = [];
@@ -1179,10 +1148,12 @@ describe("verifier_program", () => {
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
         mintPubkey: MINT_CIRCUIT,
         recipientFee: origin.publicKey,
-        recipient: tokenRecipient
+        recipient: tokenRecipient,
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
+        relayerFee: new anchor.BN('10000')
     });
 
-    await SHIELDED_TRANSACTION.proof();
+    await SHIELDED_TRANSACTION.getProof();
 
 
     // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
@@ -1229,47 +1200,20 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account()
 
     var tokenRecipient = recipientTokenAccount
-    // try {
-    //   // create associated token account
-    //   userTokenAccount = (await newAccountWithTokens({
-    //     connection: provider.connection,
-    //     MINT,
-    //     ADMIN_AUTH_KEYPAIR,
-    //     userAccount: relayer,
-    //     amount: depositAmount
-    //   }))
-
-    //   tokenRecipient = (await newAccountWithTokens({
-    //     connection: provider.connection,
-    //     MINT,
-    //     ADMIN_AUTH_KEYPAIR,
-    //     userAccount: origin,
-    //     amount: 0
-    //   }))
-    //   console.log("userTokenAccount ", userTokenAccount.toBase58());
-
-    // } catch(e) {
-    //   console.log(e);
-    // }
 
     SHIELDED_TRANSACTION = new Transaction({
-      // four static config fields
-      lookupTable:            LOOK_UP_TABLE,
-      merkleTreeFeeAssetPubkey: REGISTERED_POOL_PDA_SOL,
-      merkleTreeProgram,
-      verifierProgram: verifierProgramOne,
-
-      merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-      merkleTreePubkey:       MERKLE_TREE_KEY,
-      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-      provider,
       payer:                  ADMIN_AUTH_KEYPAIR,
-      encryptionKeypair:      ENCRYPTION_KEYPAIR,
-      relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
-      registeredVerifierPda:  REGISTERED_VERIFIER_ONE_PDA,
-      merkleTree: merkleTree,
-      poseidon: POSEIDON,
-      verifier: new VerifierOne()
+        encryptionKeypair:      ENCRYPTION_KEYPAIR,
+
+        // four static config fields
+        merkleTree,
+        provider,
+        lookupTable:            LOOK_UP_TABLE,
+
+        relayerRecipient:       ADMIN_AUTH_KEYPAIR.publicKey,
+        shuffleEnabled: false,
+        poseidon: POSEIDON,
+        verifier: new VerifierOne()
     });
 
     let outputUtxos = [];
@@ -1288,10 +1232,12 @@ describe("verifier_program", () => {
         assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
         mintPubkey: MINT_CIRCUIT,
         recipientFee: origin.publicKey,
-        recipient: tokenRecipient
+        recipient: tokenRecipient,
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
+        relayerFee: new anchor.BN('10000')
     });
 
-    await SHIELDED_TRANSACTION.proof();
+    await SHIELDED_TRANSACTION.getProof();
 
 
     // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});

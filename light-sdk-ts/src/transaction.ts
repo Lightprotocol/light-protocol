@@ -1,4 +1,3 @@
-const {U64, I64} = require('n64');
 const anchor = require("@project-serum/anchor")
 const nacl = require('tweetnacl')
 export const createEncryptionKeypair = () => nacl.box.keyPair()
@@ -14,6 +13,7 @@ import { readFileSync, writeFile } from "fs";
 const snarkjs = require('snarkjs');
 
 import {
+  FEE_ASSET,
   FIELD_SIZE
 } from "./constants";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
@@ -24,6 +24,7 @@ import { Utxo } from "./utxo";
 import { AnchorProvider, BN, Program } from "@project-serum/anchor";
 import { PublicInputs } from "./verifiers";
 
+import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY } from "./constants";
 
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
@@ -48,7 +49,6 @@ export class Transaction {
   payer: Keypair
   provider: AnchorProvider
   merkleTreeFeeAssetPubkey: PublicKey
-  registeredVerifierPda: PublicKey
   poseidon: any
   sendTransaction: Function 
   shuffle: Boolean
@@ -89,9 +89,7 @@ export class Transaction {
      * @param recipient utxos to pay with
      * @param lookupTable fee for the relayer
      * @param payer RPC connection
-     * @param preInsertedLeavesIndex shieldedKeypair
      * @param provider shieldedKeypair
-     * @param merkleTreeFeeAssetPubkey shieldedKeypair
      * @param relayerRecipient shieldedKeypair
      * @param poseidon shieldedKeypair
      * @param verifier shieldedKeypair
@@ -99,52 +97,66 @@ export class Transaction {
      */
   constructor({
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    encryptionKeypair = createEncryptionKeypair(),
-    relayerFee = U64(10_000),
-    merkleTreePubkey,
-    merkleTree,
-    merkleTreeAssetPubkey,
-    recipient, //PublicKey
-    lookupTable, //PublicKey
+    // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
     payer, //: Keypair
+    encryptionKeypair = createEncryptionKeypair(),
+
+    // need to check how to handle several merkle trees here
+    merkleTree,
+
+    // relayer 
     relayerPubkey, //PublicKey
-    preInsertedLeavesIndex,
-    provider,
-    merkleTreeFeeAssetPubkey,
     relayerRecipient,
-    registeredVerifierPda,
+    // relayer fee
+    
+    // network
+    provider,
+    lookupTable, //PublicKey
+
     poseidon,
+
     verifier,
+
     shuffleEnabled = true,
   }) {
-      if (relayerPubkey == null) {
-          this.relayerPubkey = new PublicKey(payer.publicKey);
-      } else {
-         this.relayerPubkey = relayerPubkey;
-      }
-      this.relayerRecipient = relayerRecipient;
-      this.preInsertedLeavesIndex = preInsertedLeavesIndex;
-      this.merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
-      this.verifier = verifier;
-      this.lookupTable = lookupTable;
-      this.feeAsset = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE);
-      this.relayerFee = relayerFee;
-      // this.merkleTreeIndex = merkleTreeIndex;
-      this.merkleTreePubkey = merkleTreePubkey;
-      this.merkleTreeAssetPubkey = merkleTreeAssetPubkey;
-      this.merkleTree = null;
-      this.utxos = [];
-      this.encryptionKeypair = encryptionKeypair;
-      this.payer = payer;
 
-      this.provider = provider;
-      this.recipient = recipient;
-      this.merkleTreeFeeAssetPubkey = merkleTreeFeeAssetPubkey;
-      this.registeredVerifierPda = registeredVerifierPda;
-      this.merkleTree = merkleTree;
-      this.poseidon = poseidon;
-      this.sendTransaction = verifier.sendTransaction;
-      this.shuffle = shuffleEnabled;
+    // user
+    this.encryptionKeypair = encryptionKeypair;
+    this.payer = payer;
+
+    // relayer
+    if (relayerPubkey == null) {
+        this.relayerPubkey = new PublicKey(payer.publicKey);
+    } else {
+        this.relayerPubkey = relayerPubkey;
+    }
+    this.relayerRecipient = relayerRecipient;
+    // this.relayerFee = new anchor.BN('10_000'); //U64(10_000),;
+
+    // merkle tree
+    this.merkleTree = merkleTree;
+    this.merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
+    this.merkleTreePubkey = MERKLE_TREE_KEY;
+    this.merkleTreeFeeAssetPubkey = REGISTERED_POOL_PDA_SOL;
+    this.preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX;
+    this.feeAsset = FEE_ASSET;
+
+    // network
+    this.provider = provider;
+    this.lookupTable = lookupTable;
+
+
+    // verifier
+    this.verifier = verifier;
+    this.sendTransaction = verifier.sendTransaction;
+
+    // misc
+    this.poseidon = poseidon;
+    this.shuffle = shuffleEnabled;
+
+    // init stuff for ts
+    this.utxos = [];
+    this.outputUtxos = [];
     }
 
     async getRootIndex() {
@@ -395,8 +407,9 @@ export class Transaction {
       mintPubkey,
       relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
-      recipientFee,
-      sender
+      recipientFee, 
+      sender,
+      merkleTreeAssetPubkey
     }: {
       inputUtxos: Array<Utxo>,
       outputUtxos: Array<Utxo>,
@@ -407,9 +420,14 @@ export class Transaction {
       relayerFee: BN| null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle: Boolean,
       recipientFee: PublicKey,
-      sender: PublicKey
+      sender: PublicKey,
+      merkleTreeAssetPubkey: PublicKey
     }) {
+      // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
+      this.merkleTreeAssetPubkey = merkleTreeAssetPubkey
       this.poseidon = await circomlibjs.buildPoseidonOpt();
+
+      // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
       mintPubkey = assetPubkeys[1];
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
@@ -466,7 +484,7 @@ export class Transaction {
      }
     }
 
-    async proof() {
+    async getProof() {
       if (this.merkleTree == null) {
         throw "merkle tree not built";
       }
@@ -730,6 +748,7 @@ export class Transaction {
 
 }
 
+// TODO: use higher entropy rnds
 const shuffle = function (utxos: Utxo[]) {
   let currentIndex: number = utxos.length
   let randomIndex: number
@@ -750,6 +769,7 @@ const shuffle = function (utxos: Utxo[]) {
   return utxos
 }
 
+// also converts lE to BE
 export const parseProofToBytesArray = async function (data: any) {
   var mydata = JSON.parse(data.toString())
 

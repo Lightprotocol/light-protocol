@@ -3,7 +3,7 @@ import * as anchor from "@project-serum/anchor";
 import { Program } from "@project-serum/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  DEFAULT_PROGRAMS,
+  DEFAULT_PROGRAMS, REGISTERED_VERIFIER_ONE_PDA,
 } from "../constants";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import { assert } from "chai";
@@ -16,11 +16,13 @@ export class VerifierOne implements Verifier {
   wtnsGenPath: String
   zkeyPath: String
   calculateWtns: NodeRequire
+  registeredVerifierPda: PublicKey
   constructor() {
     this.verifierProgram = verifierProgramOne;
     this.wtnsGenPath = "./build-circuits/transactionMasp10_js/transactionMasp10";
     this.zkeyPath = './build-circuits/transactionMasp10'
     this.calculateWtns = require('../../build-circuits/transactionMasp10_js/witness_calculator.js')
+    this.registeredVerifierPda =  REGISTERED_VERIFIER_ONE_PDA
 
   }
 
@@ -90,7 +92,7 @@ export class VerifierOne implements Verifier {
         relayerRecipient:   transfer.relayerRecipient,
         escrow:             transfer.escrow,
         tokenAuthority:     transfer.tokenAuthority,
-        registeredVerifierPda: transfer.registeredVerifierPda
+        registeredVerifierPda: transfer.verifier.registeredVerifierPda
       }
     )
     .remainingAccounts([

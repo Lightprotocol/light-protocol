@@ -1,4 +1,3 @@
- 
 import { Provider } from "@project-serum/anchor";
 import {PublicKey, AddressLookupTableProgram, Keypair, SystemProgram, sendAndConfirmTransaction, Transaction} from "@solana/web3.js"
 import * as anchor from "@project-serum/anchor";
@@ -21,26 +20,42 @@ import {
 
 } from "../constants"
 
+// TODO: create cli function to create a lookup table for apps
+
+// Probably only works for testing
+// TODO: extend with custom accounts to add
 export async function initLookUpTableFromFile(provider: anchor.Provider,path: PathOrFileDescriptor = `lookUpTable.txt`)/*: Promise<PublicKey>*/ {
-    var lookUpTable = null
+    const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
+
+    const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
+    var [lookUpTable] = await PublicKey.findProgramAddress(
+        [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
+        AddressLookupTableProgram.programId,
+    );
     try {
-      lookUpTable = new PublicKey(readFileSync(path,'utf8'))
+      let lookUpTableRead = new PublicKey(readFileSync(path,'utf8'))
+      let lookUpTableInfoInit = await provider.connection.getAccountInfo(
+        lookUpTableRead
+    )
+      if (lookUpTableInfoInit) {
+        lookUpTable = lookUpTableRead
+      }
     } catch(e) {
       console.log(e)
     }
 
-    let LOOK_UP_TABLE = await initLookUpTable(provider, lookUpTable);
-
+    let LOOK_UP_TABLE = await initLookUpTable(provider, lookUpTable, recentSlot);
+    
     writeFile(path, LOOK_UP_TABLE.toString(),  function(err) {
       if (err) {
           return console.error(err);
       }
     });
 
-    return LOOK_UP_TABLE;
+    return LOOK_UP_TABLE; //new Promise((resolveOuter) => {LOOK_UP_TABLE});
 }
 
-export async function initLookUpTable(provider: Provider, lookupTableAddress: PublicKey |undefined) {
+export async function initLookUpTable(provider: Provider, lookupTableAddress: PublicKey, recentSlot: number): Promise<PublicKey> {
 
     var lookUpTableInfoInit = null;
     if (lookupTableAddress != undefined) {
@@ -50,15 +65,9 @@ export async function initLookUpTable(provider: Provider, lookupTableAddress: Pu
     }
     
     if (lookUpTableInfoInit == null) {
-        const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
         console.log("recentSlot: ", recentSlot);
-
-        const authorityPubkey = Keypair.generate().publicKey;
         const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
-        [lookupTableAddress] = await PublicKey.findProgramAddress(
-            [payerPubkey.toBuffer(), toBufferLE(BigInt(recentSlot), 8)],
-            AddressLookupTableProgram.programId,
-        );
+
 
         const createInstruction = AddressLookupTableProgram.createLookupTable({
             authority: payerPubkey,
