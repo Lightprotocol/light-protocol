@@ -8,20 +8,24 @@ import {
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import {verifierProgramZero } from "../constants"
+import {verifierProgramZero, REGISTERED_VERIFIER_PDA } from "../constants"
 
+// TODO: Explore alternative architecture in which verifiers inherit/extend or include
+// the Transaction class not the other way around like it is right now
 export class VerifierZero implements Verifier {
   verifierProgram: Program<VerifierProgramZero>
   wtnsGenPath: String
   zkeyPath: String
   calculateWtns: NodeRequire
+  registeredVerifierPda: PublicKey
   constructor() {
     this.verifierProgram = verifierProgramZero;
     // Does not work within sdk 
     // TODO: bundle files in npm package
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
     this.zkeyPath = `./build-circuits/transactionMasp2`
-    this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js')    
+    this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js')   
+    this.registeredVerifierPda =  REGISTERED_VERIFIER_PDA
   }
 
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
@@ -125,7 +129,7 @@ export class VerifierZero implements Verifier {
           relayerRecipient:   this.relayerRecipient,
           escrow:             this.escrow,
           tokenAuthority:     this.tokenAuthority,
-          registeredVerifierPda: this.registeredVerifierPda
+          registeredVerifierPda: this.verifier.registeredVerifierPda
         }
       )
       .remainingAccounts([
