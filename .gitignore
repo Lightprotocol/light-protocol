@@ -18,3 +18,4 @@ light-verifier-sdk/target
 */target/*
 /anchor_programs/build/*
 /anchor_programs/Light_Circuits/build/circuits/ptau17
+light-sdk/node_modules/*
