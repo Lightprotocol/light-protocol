@@ -1,13 +1,11 @@
 import { Keypair } from './keypair'
 import { BigNumber } from 'ethers'
-const nacl = require('tweetnacl')
-nacl.util = require('tweetnacl-util')
+import { box} from 'tweetnacl'
 const crypto = require('crypto');
 const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
 const anchor = require("@project-serum/anchor")
 import {toBufferLE} from 'bigint-buffer';
-import { LogLevel } from '@ethersproject/logger';
 
 const N_ASSETS = 3;
 export class Utxo {
@@ -132,16 +130,16 @@ export class Utxo {
       console.log("bytes_message ", bytes_message);
       console.log("encryptionKeypair ", encryptionKeypair);
       console.log("senderThrowAwayKeypair ", senderThrowAwayKeypair);
-      
-      
-      const ciphertext = nacl.box(bytes_message, nonce, encryptionKeypair.PublicKey, senderThrowAwayKeypair.secretKey);
+      console.log("nonce ", nonce);
+
+      const ciphertext = box(bytes_message, nonce, encryptionKeypair.PublicKey, senderThrowAwayKeypair.secretKey);
 
       return ciphertext;
   }
 
   static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
 
-      const cleartext = nacl.box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
+      const cleartext = box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
       if (!cleartext) {
           return [false, null];
       }

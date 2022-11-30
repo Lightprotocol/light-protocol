@@ -48,11 +48,12 @@ pub mod verifier_program_two {
         // kyc_root: Vec<u8>,
         app_hash: Vec<u8>,
     ) -> Result<()> {
+        msg!("shielded_transfer_inputs");
         process_shielded_transfer(
             ctx,
             proof,
             app_hash,
-        );
+        )?;
         //     vec![kyc_root, app_hash, ctx.accounts.invoking_verifier.pubkey.to_bytes().to_vec()],
         //     ctx,
         //     proof,
@@ -74,8 +75,9 @@ pub mod verifier_program_two {
 
 #[derive(Accounts)]
 pub struct LightInstruction<'info> {
-    /// CHECK: Evaluate whether this account needs to be checked.
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
+    /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
+    #[account(mut)]
+    pub verifier_state: UncheckedAccount<'info>,
     /// First time therefore the signing address is not checked but saved to be checked in future instructions.
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
@@ -86,15 +88,18 @@ pub struct LightInstruction<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     // #[account(mut, address = Pubkey::new(&MERKLE_TREE_ACC_BYTES_ARRAY[usize::try_from(self.load()?.merkle_tree_index).unwrap()].0))]
+    #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     // #[account(
     //     mut,
     //     address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
     // )]
     /// CHECK: Is the same as in integrity hash.
+    #[account(mut)]
     pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     // #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
+    #[account(mut)]
     pub authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
@@ -121,6 +126,7 @@ pub struct LightInstruction<'info> {
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     // #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     /// CHECK: Is the same as in integrity hash.
+    #[account(mut)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     // #[account(seeds= [invoking_verifier.to_account_info().owner.key().to_bytes().as_ref()], bump, seeds::program=invoking_verifier.to_account_info().owner)]
     /// CHECK: Signer check to acertain the invoking program ID to be used as a public input.

@@ -730,7 +730,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
     pub fn check_amount(&self, relayer_fee: u64, amount: [u8; 32]) -> Result<(u64, u64)> {
         // pub_amount is the public amount included in public inputs for proof verification
         let pub_amount = <BigInteger256 as FromBytes>::read(&amount[..]).unwrap();
-
+        msg!("pub_amount {:?}", pub_amount);
         // Big integers are stored in 4 u64 limbs, if the number is <= U64::max() and encoded in little endian,
         // only the first limb is greater than 0.
         // Amounts in shielded accounts are limited to 64bit therefore a withdrawal will always be greater
