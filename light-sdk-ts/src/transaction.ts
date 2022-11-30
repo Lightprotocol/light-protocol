@@ -24,7 +24,7 @@ import { Utxo } from "./utxo";
 import { AnchorProvider, BN, Program } from "@project-serum/anchor";
 import { PublicInputs } from "./verifiers";
 
-import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY } from "./constants";
+import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY, merkleTreeProgram } from "./constants";
 
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
@@ -43,7 +43,7 @@ export class Transaction {
   lookupTable: PublicKey
   feeAsset: PublicKey
   merkleTreePubkey: PublicKey
-  merkleTreeAssetPubkey: PublicKey
+  merkleTreeAssetPubkey?: PublicKey
   merkleTree: any
   utxos: any
   payer: Keypair
@@ -52,31 +52,32 @@ export class Transaction {
   poseidon: any
   sendTransaction: Function 
   shuffle: Boolean
-  publicInputs: PublicInputs | undefined
+  publicInputs: PublicInputs
   encryptionKeypair: any
   rootIndex: any
-  inputUtxos: Utxo[] | undefined
-  outputUtxos: Utxo[]| undefined
-  feeAmount: BN | undefined
-  assetPubkeys: PublicKey[] | undefined
-  inIndices: Number[][][] | undefined
-  outIndices: Number[][][] | undefined
-  relayerFee: BN | null
-  sender: PublicKey
-  senderFee: PublicKey
-  recipient: PublicKey
-  recipientFee: PublicKey
-  mintPubkey: PublicKey
-  externalAmountBigNumber: BN
-  escrow: PublicKey
+  inputUtxos?: Utxo[] 
+  outputUtxos?: Utxo[]
+  feeAmount?: BN
+  assetPubkeys?: PublicKey[]
+  inIndices?: Number[][][]
+  outIndices?: Number[][][]
+  relayerFee?: BN | null
+  sender?: PublicKey
+  senderFee?: PublicKey
+  recipient?: PublicKey
+  recipientFee?: PublicKey
+  mintPubkey?: PublicKey
+  externalAmountBigNumber?: BN
+  escrow?: PublicKey
   leavesPdaPubkeys: any
   nullifierPdaPubkeys: any
   signerAuthorityPubkey: any
   tokenAuthority: any
   verifierStatePubkey: any
-  publicInputsBytes: Number[][]
-  encryptedUtxos: Uint8Array
+  publicInputsBytes?: Number[][]
+  encryptedUtxos?: Uint8Array
   proofBytes: any
+  config?: {in: number, out: number}
   
   /** 
      * Initialize transaction
@@ -135,7 +136,7 @@ export class Transaction {
 
     // merkle tree
     this.merkleTree = merkleTree;
-    this.merkleTreeProgram = anchor.workspace.MerkleTreeProgram as Program<MerkleTreeProgram>;
+    this.merkleTreeProgram = merkleTreeProgram;
     this.merkleTreePubkey = MERKLE_TREE_KEY;
     this.merkleTreeFeeAssetPubkey = REGISTERED_POOL_PDA_SOL;
     this.preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX;
@@ -153,6 +154,15 @@ export class Transaction {
     // misc
     this.poseidon = poseidon;
     this.shuffle = shuffleEnabled;
+    this.publicInputs =  {
+      root: new Array<Number>,
+      publicAmount: new Array<Number>,
+      extDataHash: new Array<Number>,
+      feeAmount: new Array<Number>,
+      mintPubkey: new Array<Number>,
+      nullifiers: new Array<Uint8Array>,
+      leaves: new Array<Array<Number>>
+    };
 
     // init stuff for ts
     this.utxos = [];
@@ -174,19 +184,19 @@ export class Transaction {
 
     prepareUtxos() {
         /// Validation
-        if (this.inputUtxos.length > 10 || this.outputUtxos.length > 2) {
+        if (this.inputUtxos.length > this.config.in || this.outputUtxos.length > this.config.out) {
             throw new Error('Incorrect inputUtxos/outputUtxos count');
         }
 
         console.log("inputUtxos.length ", this.inputUtxos.length);
         /// fill inputUtxos until 2 or 10
-        while (this.inputUtxos.length !== 2 && this.inputUtxos.length < 10) {
+        while (this.inputUtxos.length < this.config.in) {
           this.inputUtxos.push(new Utxo(this.poseidon));
           // throw "inputUtxos.length > 2 are not implemented";
         }
 
         /// if there are no outputUtxo add one
-        while (this.outputUtxos.length < 2) {
+        while (this.outputUtxos.length < this.config.out) {
           this.outputUtxos.push(new Utxo(this.poseidon));
         }
         /// mixes the input utxos
@@ -327,7 +337,10 @@ export class Transaction {
           console.log("feesLE: ", relayer_fee);
 
           // ----------------------- getting integrity hash -------------------
-          const nonces = [newNonce(), newNonce()];
+          const nonces: Array<Uint8Array> = new Array(this.config.out).fill(newNonce());
+          console.log("nonces ", nonces);
+          console.log("newNonce()", nonces[0]);
+          
           // const senderThrowAwayKeypairs = [
           //     newKeypair(),
           //     newKeypair()
@@ -336,12 +349,23 @@ export class Transaction {
           /// Encrypt outputUtxos to bytes
           // removed throwaway keypairs since we already have message integrity with integrity_hashes
           // TODO: should be a hardcoded keypair in production not the one of the sender
-          let encryptedOutputs = [ ];
+          let encryptedOutputs = new Array<any>;
           this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
 
           // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
-          this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
-
+          if (this.config.out == 2) {
+            this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
+          } else {
+            let tmpArray = new Array<any>;
+            for (var i = 0; i < this.config.out; i++) {
+              tmpArray.push(...encryptedOutputs[i]);
+              tmpArray.push(...nonces[i]);
+            }
+            tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0))
+            this.encryptedUtxos = new Uint8Array(tmpArray.flat());
+          }
+          console.log("this.encryptedUtxos ", this.encryptedUtxos);
+          
 
           let extDataBytes = new Uint8Array([
               ...this.recipient.toBytes(),
@@ -409,7 +433,8 @@ export class Transaction {
       shuffle = true,
       recipientFee, 
       sender,
-      merkleTreeAssetPubkey
+      merkleTreeAssetPubkey,
+      config
     }: {
       inputUtxos: Array<Utxo>,
       outputUtxos: Array<Utxo>,
@@ -421,11 +446,13 @@ export class Transaction {
       shuffle: Boolean,
       recipientFee: PublicKey,
       sender: PublicKey,
-      merkleTreeAssetPubkey: PublicKey
+      merkleTreeAssetPubkey: PublicKey,
+      config: {in: number, out: number}
     }) {
       // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
       this.merkleTreeAssetPubkey = merkleTreeAssetPubkey
       this.poseidon = await circomlibjs.buildPoseidonOpt();
+      this.config = config;
 
       // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
       mintPubkey = assetPubkeys[1];
@@ -482,6 +509,10 @@ export class Transaction {
          throw "mintPubkey should be assetPubkeys[1]";
        }
      }
+    }
+
+    getPublicInputs() {
+      this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
     }
 
     async getProof() {
@@ -547,12 +578,17 @@ export class Transaction {
       }
 
       let leavesPdaPubkeys = [];
-      for (var i in leftLeaves) {
+      for (var i in this.publicInputs.leaves) {
         leavesPdaPubkeys.push(
         (await PublicKey.findProgramAddress(
-            [Buffer.from(Array.from(leftLeaves[i]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
+            [Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
             merkleTreeProgram.programId))[0]);
       }
+      console.log("this.verifier.verifierProgram.programId ", this.verifier.verifierProgram.programId.toBase58());
+      console.log("this.merkleTreeProgram.programId ", this.merkleTreeProgram.programId.toBase58());
+      console.log("signerAuthorityPubkey ", (await PublicKey.findProgramAddress(
+        [merkleTreeProgram.programId.toBytes()],
+        this.verifier.verifierProgram.programId))[0].toBase58());
 
       let pdas = {
         signerAuthorityPubkey: (await PublicKey.findProgramAddress(

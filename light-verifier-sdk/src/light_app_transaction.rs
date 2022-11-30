@@ -49,7 +49,7 @@ use crate::light_transaction::Config;
 
 #[derive(Clone)]
 pub struct AppTransaction<'a, T: Config> {
-    pub connecting_hash: Vec<u8>,
+    // pub connecting_hash: Vec<u8>,
     pub checked_public_inputs: Vec<Vec<u8>>,
     pub proof_a: Vec<u8>,
     pub proof_b: Vec<u8>,
@@ -64,12 +64,11 @@ impl<T: Config> AppTransaction<'_, T> {
     #[allow(clippy::too_many_arguments)]
     pub fn new<'a>(
         proof: Vec<u8>,
-        connecting_hash: Vec<u8>,
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<T> {
 
-
+        msg!("commented negate proof a");
         let proof_a: G1 =
             <G1 as FromBytes>::read(&*[&change_endianness(&proof[0..64])[..], &[0u8][..]].concat())
                 .unwrap();
@@ -77,7 +76,6 @@ impl<T: Config> AppTransaction<'_, T> {
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
         AppTransaction {
-            connecting_hash,
             proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
             proof_b: proof[64..64 + 128].to_vec(),
             proof_c: proof[64 + 128..256].to_vec(),
@@ -100,9 +98,7 @@ impl<T: Config> AppTransaction<'_, T> {
     pub fn verify(&mut self) -> Result<()> {
 
         // do I need to add the merkle tree? don't think so but think this through
-        let mut public_inputs = vec![
-            self.connecting_hash[..].to_vec(),
-        ];
+        let mut public_inputs = Vec::new();
 
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input.to_vec());
@@ -124,7 +120,7 @@ impl<T: Config> AppTransaction<'_, T> {
             }
             Err(e) => {
                 msg!("Public Inputs:");
-                msg!("connecting_hash {:?}", self.connecting_hash);
+                // msg!("connecting_hash {:?}", self.connecting_hash);
                 msg!("checked_public_inputs {:?}", self.checked_public_inputs);
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)

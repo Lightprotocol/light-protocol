@@ -70,7 +70,7 @@ export const newProgramOwnedAccount = async ({connection, owner, lamports = 0}) 
           newAccountPubkey: account.publicKey,
           space: 0,
           lamports: await connection.getMinimumBalanceForRentExemption(1),
-          programId: owner.programId,
+          Id: owner.programId,
         })
       );
 

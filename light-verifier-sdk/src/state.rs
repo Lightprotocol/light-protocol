@@ -53,9 +53,9 @@ impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
 
 impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
     fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState10Ins<T> {
-        assert_eq!(T::NR_LEAVES, light_tx.leaves.len() / 2);
+        assert_eq!(T::NR_LEAVES / 2, light_tx.leaves.len());
         assert_eq!(T::NR_NULLIFIERS, light_tx.nullifiers.len());
-        assert_eq!(T::NR_CHECKED_PUBLIC_INPUTS, light_tx.checked_public_inputs.len());
+        // assert_eq!(T::NR_CHECKED_PUBLIC_INPUTS, light_tx.checked_public_inputs.len());
 
         // need to remove one nested layer because serde cannot handle three layered nesting
         let mut leaves = Vec::new();

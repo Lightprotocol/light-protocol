@@ -9,11 +9,13 @@ url = "https://api.devnet.solana.com"
 address = "HKwwxmW1WroCFXa5y4txaGgzzQ1S7r8fU16aqq78w3Et"
 
 [programs.localnet]
+verifier_program_two = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"
 verifier_program_one = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
 verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
 merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
 
 [programs.mainnet]
+verifier_program_two = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"
 verifier_program_one = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
 verifier_program_zero = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
 merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"

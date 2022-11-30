@@ -7,6 +7,7 @@ import {
     merkleTreeProgram,
     verifierProgramZero,
     verifierProgramOne,
+    verifierProgramTwo,
     MINT_PRIVATE_KEY,
     POOL_TYPE,
     MINT,
@@ -27,6 +28,7 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
     console.log("ADMIN_AUTH_KEYPAIR ", ADMIN_AUTH_KEYPAIR);
     
     if (merkleTreeAccountInfoInit == null) {
+    
     let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY,payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection })
     
     console.log("Initing MERKLE_TREE_AUTHORITY_PDA");
@@ -42,12 +44,14 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
     console.log("AUTHORITY: ", AUTHORITY);
     
     console.log("AUTHORITY: ", Array.from(AUTHORITY.toBytes()));
+    console.log(verifierProgramZero);
+    
     console.log("verifierProgramZero.programId: ", Array.from(verifierProgramZero.programId.toBytes()));
     console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
     console.log("MERKLE_TREE_KEY: ", Array.from(MERKLE_TREE_KEY.toBytes()))
     // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
     // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.from(MERKLE_TREE_PDA_TOKEN.toBytes()))
-    console.log(merkleTreeProgram.methods);
+    console.log("merkleTreeProgram.methods ", merkleTreeProgram.methods);
     let signer = new anchor.web3.Account();
     
     try {
@@ -71,6 +75,13 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
     } catch(e) {
         console.log(e);
     
+    }
+
+    try {
+        await merkleTreeConfig.registerVerifier(verifierProgramTwo.programId)
+        console.log("Registering Verifier One success");
+    } catch(e) {
+        console.log(e);
     }    
     
     try {
