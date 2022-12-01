@@ -36,7 +36,7 @@ export class VerifierOne implements Verifier {
          feeAmount:    transaction.publicInputsBytes[3],
          mintPubkey:   transaction.publicInputsBytes[4],
          nullifiers:   Array.from(transaction.publicInputsBytes.slice(5,15)),
-         leaves:     [transaction.publicInputsBytes[15], transaction.publicInputsBytes[16]]
+         leaves:     [[transaction.publicInputsBytes[15], transaction.publicInputsBytes[16]]]
        };
     } else {
       throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != 17`;
@@ -51,7 +51,7 @@ export class VerifierOne implements Verifier {
     const ix1 = await transfer.verifier.verifierProgram.methods.shieldedTransferFirst(
       Buffer.from(transfer.publicInputs.publicAmount),
       transfer.publicInputs.nullifiers,
-      transfer.publicInputs.leaves,
+      transfer.publicInputs.leaves[0],
       Buffer.from(transfer.publicInputs.feeAmount),
       new anchor.BN(transfer.rootIndex.toString()),
       new anchor.BN(transfer.relayerFee.toString()),
