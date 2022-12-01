@@ -482,7 +482,7 @@ describe("verifier_program", () => {
         provider.connection,
         ADMIN_AUTH_KEYPAIR,
         userTokenAccount,
-        AUTHORITY, //delegate
+        AUTHORITY_ONE, //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT]
@@ -528,7 +528,8 @@ describe("verifier_program", () => {
         relayerFee: U64(0),
         sender: userTokenAccount,
         mintPubkey: MINT_CIRCUIT,
-        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
+        config: {in: 10, out: 2}
       });
 
       await SHIELDED_TRANSACTION.getProof();
@@ -608,7 +609,8 @@ describe("verifier_program", () => {
         relayerFee: U64(0),
         sender: userTokenAccount,
         mintPubkey: MINT_CIRCUIT,
-        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
+        merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
+        config: {in: 2, out: 2}
       });
 
       await SHIELDED_TRANSACTION.getProof();
@@ -634,7 +636,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
 
   let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
@@ -1089,7 +1091,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
@@ -1150,7 +1152,8 @@ describe("verifier_program", () => {
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-        relayerFee: new anchor.BN('10000')
+        relayerFee: new anchor.BN('10000'),
+        config: {in: 2, out: 2}
     });
 
     await SHIELDED_TRANSACTION.getProof();
@@ -1234,7 +1237,8 @@ describe("verifier_program", () => {
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
-        relayerFee: new anchor.BN('10000')
+        relayerFee: new anchor.BN('10000'),
+        config: {in: 10, out: 2}
     });
 
     await SHIELDED_TRANSACTION.getProof();

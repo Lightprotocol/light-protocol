@@ -44,7 +44,7 @@ export class VerifierZero implements Verifier {
          feeAmount:    transaction.publicInputsBytes[3],
          mintPubkey:   transaction.publicInputsBytes[4],
          nullifiers:   [transaction.publicInputsBytes[5], transaction.publicInputsBytes[6]],
-         leaves:     [transaction.publicInputsBytes[7], transaction.publicInputsBytes[8]]
+         leaves:     [[transaction.publicInputsBytes[7], transaction.publicInputsBytes[8]]]
        };
     } else {
       throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != 9`;
@@ -101,13 +101,14 @@ export class VerifierZero implements Verifier {
       // console.log("registeredVerifierPd",this.registeredVerifierPda)
       // console.log("encryptedOutputs len ", this.encryptedOutputs.length);
       // console.log("this.encryptedOutputs[0], ", this.encryptedOutputs);
-      console.log("this.nullifierPdaPubkeys ", this.nullifierPdaPubkeys);
-      
+      console.log("this.leavesPdaPubkeys ", this.leavesPdaPubkeys[0].toBase58());
+      console.log("this.signerAuthorityPubkey ", this.signerAuthorityPubkey.toBase58());
+
       const ix = await this.verifier.verifierProgram.methods.shieldedTransferInputs(
         Buffer.from(this.proofBytes),
         Buffer.from(this.publicInputs.publicAmount),
         this.publicInputs.nullifiers,
-        this.publicInputs.leaves,
+        this.publicInputs.leaves[0],
         Buffer.from(this.publicInputs.feeAmount),
         new anchor.BN(this.rootIndex.toString()),
         new anchor.BN(this.relayerFee.toString()),

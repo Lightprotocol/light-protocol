@@ -4,7 +4,7 @@ export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
 let circomlibjs = require("circomlibjs")
 var ffjavascript = require('ffjavascript');
-const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
 import {toBufferLE} from 'bigint-buffer';
 const ethers = require("ethers");
@@ -155,13 +155,13 @@ export class Transaction {
     this.poseidon = poseidon;
     this.shuffle = shuffleEnabled;
     this.publicInputs =  {
-      root: new Array<Number>,
-      publicAmount: new Array<Number>,
-      extDataHash: new Array<Number>,
-      feeAmount: new Array<Number>,
-      mintPubkey: new Array<Number>,
-      nullifiers: new Array<Uint8Array>,
-      leaves: new Array<Array<Number>>
+      root: new Array<Number>(),
+      publicAmount: new Array<Number>(),
+      extDataHash: new Array<Number>(),
+      feeAmount: new Array<Number>(),
+      mintPubkey: new Array<Number>(),
+      nullifiers: new Array<Uint8Array>(),
+      leaves: new Array<Array<Number>>()
     };
 
     // init stuff for ts
@@ -349,14 +349,14 @@ export class Transaction {
           /// Encrypt outputUtxos to bytes
           // removed throwaway keypairs since we already have message integrity with integrity_hashes
           // TODO: should be a hardcoded keypair in production not the one of the sender
-          let encryptedOutputs = new Array<any>;
+          let encryptedOutputs = new Array<any>();
           this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
 
           // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
           if (this.config.out == 2) {
             this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
           } else {
-            let tmpArray = new Array<any>;
+            let tmpArray = new Array<any>();
             for (var i = 0; i < this.config.out; i++) {
               tmpArray.push(...encryptedOutputs[i]);
               tmpArray.push(...nonces[i]);
@@ -531,6 +531,9 @@ export class Transaction {
       let wtns = await witnessCalculator.calculateWTNSBin(stringifyBigInts(this.input),0);
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(`${this.verifier.zkeyPath}.zkey`, wtns);
+
+
+      
       this.proofJson = JSON.stringify(proof, null, 1);
       this.publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd('Proof generation');
@@ -555,8 +558,66 @@ export class Transaction {
       this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
       console.log("this.publicInputs ", this.publicInputs);
 
+      console.log("proof ", proof);
+      console.log("publicSignals ", publicSignals);
+
+      // await this.checkProof()
+
       await this.getPdaAddresses()
 
+    }
+    async checkProof() {
+
+      let publicSignals = [
+        leBuff2int(Buffer.from(this.publicInputs.root.reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.publicAmount.reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.extDataHash.reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.feeAmount.reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.mintPubkey.reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.nullifiers[0].reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.nullifiers[1].reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.leaves[0].reverse())).toString(),
+        leBuff2int(Buffer.from(this.publicInputs.leaves[1].reverse())).toString(),
+      ];
+      let pi_b_0 = this.proofBytes.slice(64,128).reverse()
+      let pi_b_1 = this.proofBytes.slice(128,192).reverse()
+      let proof = {
+        pi_a: [
+          leBuff2int(Buffer.from(this.proofBytes.slice(0,32).reverse())).toString(), 
+          leBuff2int(Buffer.from(this.proofBytes.slice(32,64).reverse())).toString(),
+          '1'
+        ],
+        pi_b: [
+          [
+          leBuff2int(Buffer.from(pi_b_0.slice(0,32))).toString(), 
+          leBuff2int(Buffer.from(pi_b_0.slice(32,64))).toString()
+        ], 
+        [
+          leBuff2int(Buffer.from(pi_b_1.slice(0,32))).toString(), 
+          leBuff2int(Buffer.from(pi_b_1.slice(32,64))).toString()
+        ],
+        [ '1', '0' ]
+      ],
+        pi_c: [
+          leBuff2int(Buffer.from(this.proofBytes.slice(192,224).reverse())).toString(), 
+          leBuff2int(Buffer.from(this.proofBytes.slice(224,256).reverse())).toString(),
+          '1'
+        ],
+        protocol: 'groth16',
+        curve: 'bn128'
+      };
+      console.log("backparsed proof: ", proof);
+      console.log("backparsed publicSignals: ", publicSignals);
+
+      const vKey = await snarkjs.zKey.exportVerificationKey(`${this.verifier.zkeyPath}.zkey`);
+      const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+      if (res === true) {
+          console.log('Verification OK');
+      }
+      else {
+          console.log('Invalid proof');
+          throw new Error('Invalid Proof');
+      }
     }
 
     async getPdaAddresses() {
@@ -579,6 +640,8 @@ export class Transaction {
 
       let leavesPdaPubkeys = [];
       for (var i in this.publicInputs.leaves) {
+        console.log("123this.publicInputs.leaves ", this.publicInputs.leaves);
+        
         leavesPdaPubkeys.push(
         (await PublicKey.findProgramAddress(
             [Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()), anchor.utils.bytes.utf8.encode("leaves")],
