@@ -12,6 +12,7 @@ export class Keypair {
   encryptionKey: any
   constructor(
     poseidon,
+    // TODO: change into bytes
     privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))
   ) {
       this.privkey = privkey;
