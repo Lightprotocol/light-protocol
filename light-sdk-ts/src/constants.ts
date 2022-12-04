@@ -9,11 +9,13 @@ import VerifierProgramOne from "../idls/verifier_program_one";
 import VerifierProgramZero from "../idls/verifier_program_zero";
 import MerkleTreeProgram  from "../idls/merkle_tree_program";
 import { PublicKey } from "@solana/web3.js";
+import { BigNumber } from "ethers";
 export const ASSET_1_ORG = new anchor.web3.Account()
 export const ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
 
 
 export const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
+export const FIELD_SIZE_ETHERS = BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const MERKLE_TREE_SIGNER_AUTHORITY = new solana.PublicKey([59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42, 153, 232, 210, 107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225])
 export const TYPE_PUBKEY = { array: [ 'u8', 32 ] };
 export const TYPE_SEED = {defined: "&[u8]"};

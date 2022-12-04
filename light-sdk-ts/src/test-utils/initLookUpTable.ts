@@ -17,6 +17,7 @@ import {
     TOKEN_AUTHORITY,
     REGISTERED_POOL_PDA_SPL_TOKEN,
     PRE_INSERTED_LEAVES_INDEX,
+    verifierProgramTwoProgramId,
 
 } from "../constants"
 
@@ -24,7 +25,11 @@ import {
 
 // Probably only works for testing
 // TODO: extend with custom accounts to add
-export async function initLookUpTableFromFile(provider: anchor.Provider,path: PathOrFileDescriptor = `lookUpTable.txt`)/*: Promise<PublicKey>*/ {
+export async function initLookUpTableFromFile(
+    provider: anchor.Provider,
+    path: PathOrFileDescriptor = `lookUpTable.txt`,
+    extraAccounts?: Array<PublicKey>
+    )/*: Promise<PublicKey>*/ {
     const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
 
     const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
@@ -44,7 +49,7 @@ export async function initLookUpTableFromFile(provider: anchor.Provider,path: Pa
       console.log(e)
     }
 
-    let LOOK_UP_TABLE = await initLookUpTable(provider, lookUpTable, recentSlot);
+    let LOOK_UP_TABLE = await initLookUpTable(provider, lookUpTable, recentSlot, extraAccounts);
     
     writeFile(path, LOOK_UP_TABLE.toString(),  function(err) {
       if (err) {
@@ -55,7 +60,8 @@ export async function initLookUpTableFromFile(provider: anchor.Provider,path: Pa
     return LOOK_UP_TABLE; //new Promise((resolveOuter) => {LOOK_UP_TABLE});
 }
 
-export async function initLookUpTable(provider: Provider, lookupTableAddress: PublicKey, recentSlot: number): Promise<PublicKey> {
+export async function initLookUpTable(
+    provider: Provider, lookupTableAddress: PublicKey, recentSlot: number, extraAccounts?: Array<PublicKey>): Promise<PublicKey> {
 
     var lookUpTableInfoInit = null;
     if (lookupTableAddress != undefined) {
@@ -92,8 +98,13 @@ export async function initLookUpTable(provider: Provider, lookupTableAddress: Pu
             MERKLE_TREE_KEY,
             escrows,
             TOKEN_AUTHORITY,
-            REGISTERED_POOL_PDA_SOL
+            REGISTERED_POOL_PDA_SOL,
+            verifierProgramTwoProgramId,
+
         ];
+        for (var i in extraAccounts) {
+            addressesToAdd.push(extraAccounts[i]);
+        }
         const extendInstruction = AddressLookupTableProgram.extendLookupTable({
             lookupTable: lookupTableAddress,
             authority: payerPubkey,

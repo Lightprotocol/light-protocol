@@ -55,7 +55,13 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,
     )?;
-    msg!("here1");
+    // msg!("here1 {:?}", verifier_state);
+    for i in verifier_state.nullifiers.iter() {
+        msg!("nullifier: {:?}", i);
+    }
+    for i in verifier_state.leaves.iter() {
+        msg!("leaves: {:?}", i);
+    }
     let mut tx = Transaction::<TransactionConfig>::new(
         proof,
         verifier_state.public_amount.to_vec(),

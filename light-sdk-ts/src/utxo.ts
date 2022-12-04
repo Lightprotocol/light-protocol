@@ -7,7 +7,8 @@ exports.randomBN = randomBN;
 const anchor = require("@project-serum/anchor")
 import {toBufferLE, toBigIntLE} from 'bigint-buffer';
 import { thawAccountInstructionData } from '@solana/spl-token';
-import { FEE_ASSET, MINT, MINT_CIRCUIT } from './constants';
+import { FEE_ASSET, FIELD_SIZE, FIELD_SIZE_ETHERS, MINT, MINT_CIRCUIT } from './constants';
+import {hashAndTruncateToCircuit} from './utils';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 // import { BN } from 'bn.js';
 var ffjavascript = require('ffjavascript');
@@ -29,7 +30,8 @@ export class Utxo {
   keypair: Keypair
   index: number | null
   appData: Array<any>
-  verifierAddress: PublicKey
+  verifierAddress: BN
+  verifierAddressCircuit: BN
   instructionType: BigNumber
   poolType: BN
   _commitment: BN | null
@@ -74,24 +76,39 @@ export class Utxo {
     // console.log("appDataArray.flat() ",appDataArray.flat());
     
     if (appData.length > 0) {
-     
-      this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString());
+      this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
     } else {
       this.instructionType = new BN('0');
     }
 
+    //TODO: add check that amounts are U64
     this.amounts = amounts.map((x) => new BN(x.toString()));
     this.blinding = new BN(randomBN());
     this.keypair = keypair;
     this.index = index;
+    // TODO: add hashAndTruncateToCircuit for assets
+    console.log("assets ", assets);
+    
     this.assets = assets.map((x) => new BN(x.toString()));
+    // this.assetsCircuit =  assets.map((x) => new BN(x.toString()))
+    // this.hashAndTruncateToCircuit(verifierAddress.toBytes());
+
     this._commitment = null;
     this._nullifier = null;
     this.poseidon = poseidon;
     this.appData = appData;
     this.poolType = poolType;
+    // TODO: add hashAndTruncateToCircuit for verifierAddress
     this.verifierAddress = verifierAddress;
+    this.verifierAddressCircuit = hashAndTruncateToCircuit(verifierAddress.toBytes());
   }
+
+  // TODO: rethink this is headache because we cannot invert the derivation. Thus we need to look up the pubkey.
+  // TODO: implement lookup logic.
+  // Hashes and truncates ed25519 pubkey to fit field size of bn254
+  // hashAndTruncateToCircuit(data: Uint8Array) {
+  //   return new BN(leInt2Buff(BigNumber.from(ethers.utils.keccak256(data).toString()), 32).slice(0,31), undefined, 'le')
+  // }
 
  
   toBytes() {
@@ -104,14 +121,12 @@ export class Utxo {
       
       return new Uint8Array([
         ...this.blinding.toBuffer(),
-        ...leInt2Buff(this.amounts[0], 8),
-        ...leInt2Buff(this.amounts[1], 8),
-        ...leInt2Buff(new BN(assetIndex), 8)
+        ...this.amounts[0].toArray('le', 8),
+        ...this.amounts[1].toArray('le', 8),
+        ...new BN(assetIndex).toArray('le', 8)
     ]);
     }
 
-    let appDataArray = this.appData;
-   
     console.log("this.instructionType" ,this.instructionType);
     
     return new Uint8Array([
@@ -121,11 +136,13 @@ export class Utxo {
       ...assetIndex.toArray('le', 8),
       ...leInt2Buff(unstringifyBigInts(this.instructionType.toString()), 32),
       ...this.poolType.toArray('le', 8),
-      ...this.verifierAddress.toBytes(),
-      ...appDataArray
+      ...this.verifierAddressCircuit.toArray('le', 31),
+      ...new Array(1),
+      ...this.appData
     ]);
   }
-
+  // take a decrypted byteArray as input
+  // TODO: make robust and versatile for any combination of filled in fields or not
   fromBytes(bytes: Uint8Array, keypair = null) {
     console.log("here");
     
@@ -147,9 +164,20 @@ export class Utxo {
     console.log("here4");
     this.blinding =  new BN(bytes.slice(0,31), undefined, 'le'), // blinding
     console.log("here5 ", this.blinding.toString());
-    this.verifierAddress =  new PublicKey(bytes.slice(95,127)), // verifierAddress
+
+    this.verifierAddressCircuit =  new BN(bytes.slice(95,126), undefined, 'le'), // verifierAddress
     console.log("here6");
-    this.appData =  Array.from(bytes.slice(127,bytes.length - 1))
+    
+    if(bytes[127]) {
+      if (bytes.length < 129) {
+        throw "no app data provided";
+      }
+
+      this.appData =  Array.from(bytes.slice(127,bytes.length))
+    } else {
+      this.appData = new Array<any>();
+    }
+    
     // return new Utxo(
     //   poseidon,
     //   [FEE_ASSET, MINT], // assets
@@ -186,6 +214,7 @@ export class Utxo {
       }
       return this._commitment;
   }
+
   /**
    * Returns nullifier for this UTXO
    *
@@ -219,17 +248,13 @@ export class Utxo {
    *
    * @returns {string}
    */
+  // TODO: hardcode senderThrowAwayKeypair
+  // TODO: add filled length
+  // TODO: add actual length which is filled up with 0s
   encrypt(nonce, encryptionKeypair, senderThrowAwayKeypair) {
       console.log("at least asset missing in encrypted bytes");
 
-      // TODO: add assetIndex to encrypted bytes
-      // TODO: if other stuff is missing
-      // TODO: use toBytes
-      const bytes_message = new Uint8Array([
-          ...this.blinding.toBuffer(),
-          ...toBufferLE(new BN(this.amounts[0]), 8),
-          ...toBufferLE(new BN(this.amounts[1]), 8)
-      ]);
+      const bytes_message = this.toBytes()
 
       const ciphertext = box(bytes_message, nonce, encryptionKeypair.PublicKey, senderThrowAwayKeypair.secretKey);
 
@@ -244,12 +269,13 @@ export class Utxo {
           return [false, null];
       }
       const buf = Buffer.from(cleartext);
+      // TODO: use fromBytes()
       const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
       const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
 
       const utxoBlinding = new anchor.BN( buf.slice(0, 31));
 
-      // TODO: find a better way to make this fails since this can be a footgun
+      // TODO: find a better way to make this fail since this can be a footgun
       return [
           true,
           new Utxo(POSEIDON, assets, [utxoAmount1, utxoAmount2], shieldedKeypair,"0", utxoBlinding, index)

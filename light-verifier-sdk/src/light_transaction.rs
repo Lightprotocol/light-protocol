@@ -321,6 +321,11 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
 
         // check merkle tree
         for (i, leaves) in self.leaves.iter().enumerate() {
+            let mut msg = Vec::new();
+            if self.encrypted_utxos.len() > (i + 1) * 256 {
+                msg.append(&mut self.encrypted_utxos[i*256..(i + 1)* 256].to_vec());
+            }
+            msg!("len encUtxos {}",msg.len() );
             // check account integrities
             insert_two_leaves_cpi(
                 self.accounts.unwrap().program_id,
@@ -341,7 +346,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                 change_endianness(&leaves[0]).try_into().unwrap(),
                 change_endianness(&leaves[1]).try_into().unwrap(),
                 self.accounts.unwrap().merkle_tree.key(),
-                self.encrypted_utxos.clone(),
+                msg
             )?;
         }
 
