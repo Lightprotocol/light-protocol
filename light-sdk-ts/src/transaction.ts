@@ -34,6 +34,8 @@ import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY, me
 // Changes for instantiation
 // replace verifierProgram with verifier class
 // remove merkleTreeProgram
+
+// TODO: write functional test for every method
 export class Transaction {
   relayerPubkey: PublicKey
   relayerRecipient: PublicKey
@@ -58,7 +60,7 @@ export class Transaction {
   inputUtxos?: Utxo[] 
   outputUtxos?: Utxo[]
   feeAmount?: BN
-  assetPubkeys?: PublicKey[]
+  assetPubkeys?: BN[]
   inIndices?: Number[][][]
   outIndices?: Number[][][]
   relayerFee?: BN | null
@@ -187,17 +189,18 @@ export class Transaction {
         if (this.inputUtxos.length > this.config.in || this.outputUtxos.length > this.config.out) {
             throw new Error('Incorrect inputUtxos/outputUtxos count');
         }
-
+        console.log(this.poseidon);
+        
         console.log("inputUtxos.length ", this.inputUtxos.length);
         /// fill inputUtxos until 2 or 10
         while (this.inputUtxos.length < this.config.in) {
-          this.inputUtxos.push(new Utxo(this.poseidon));
+          this.inputUtxos.push(new Utxo({poseidon: this.poseidon}));
           // throw "inputUtxos.length > 2 are not implemented";
         }
 
         /// if there are no outputUtxo add one
         while (this.outputUtxos.length < this.config.out) {
-          this.outputUtxos.push(new Utxo(this.poseidon));
+          this.outputUtxos.push(new Utxo({poseidon: this.poseidon}));
         }
         /// mixes the input utxos
         /// mixes the output utxos
@@ -219,18 +222,20 @@ export class Transaction {
         // This might be too specific since the circuit allows assets to be in any index
         const getExternalAmount = (assetIndex) => {
           return new anchor.BN(0)
-              .add(this.outputUtxos.filter((utxo) => {return utxo.assets[assetIndex] == this.assetPubkeys[assetIndex]}).reduce((sum, utxo) => (
+              .add(this.outputUtxos.filter((utxo) => {return utxo.assets[assetIndex].toString() == this.assetPubkeys[assetIndex].toString()}).reduce((sum, utxo) => (
                 // add all utxos of the same asset
                 sum.add(utxo.amounts[assetIndex])
               ), new anchor.BN(0)))
-              .sub(this.inputUtxos.filter((utxo) => {return utxo.assets[assetIndex] == this.assetPubkeys[assetIndex]}).reduce((sum, utxo) =>
+              .sub(this.inputUtxos.filter((utxo) => {return utxo.assets[assetIndex].toString()  == this.assetPubkeys[assetIndex].toString() }).reduce((sum, utxo) =>
                 sum.add(utxo.amounts[assetIndex]),
                 new anchor.BN(0)
             ));
         }
 
+        
         this.externalAmountBigNumber = getExternalAmount(1)
 
+        
         this.feeAmount =  getExternalAmount(0);
 
         /// if it is a deposit and the amount going in is smaller than 0 throw error
@@ -286,7 +291,7 @@ export class Transaction {
         console.log("outIndices: ", this.outIndices)
     };
 
-    prepareTransaction () {
+    prepareTransaction (encrypedUtxos?: Uint8Array) {
 
           let inputMerklePathIndices = [];
           let inputMerklePathElements = [];
@@ -350,21 +355,32 @@ export class Transaction {
           // removed throwaway keypairs since we already have message integrity with integrity_hashes
           // TODO: should be a hardcoded keypair in production not the one of the sender
           let encryptedOutputs = new Array<any>();
-          this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
-
-          // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
-          if (this.config.out == 2) {
-            this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
+          if (encrypedUtxos) {
+            encryptedOutputs = Array.from(encrypedUtxos);
           } else {
-            let tmpArray = new Array<any>();
-            for (var i = 0; i < this.config.out; i++) {
-              tmpArray.push(...encryptedOutputs[i]);
-              tmpArray.push(...nonces[i]);
+            this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
+
+            // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
+            if (this.config.out == 2) {
+              this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
+            } else {
+              let tmpArray = new Array<any>();
+              for (var i = 0; i < this.config.out; i++) {
+                tmpArray.push(...encryptedOutputs[i]);
+                tmpArray.push(...nonces[i]);
+              }
+              console.log(this.config);
+              console.log(tmpArray.length);
+              console.log(this.config.out * 128 - tmpArray.length);
+              if(tmpArray.length < 512) {
+                tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0))
+              }
+              this.encryptedUtxos = new Uint8Array(tmpArray.flat());
             }
-            tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0))
-            this.encryptedUtxos = new Uint8Array(tmpArray.flat());
+            console.log("this.encryptedUtxos ", this.encryptedUtxos);
           }
-          console.log("this.encryptedUtxos ", this.encryptedUtxos);
+          
+          
           
 
           let extDataBytes = new Uint8Array([
@@ -428,26 +444,28 @@ export class Transaction {
       action,
       assetPubkeys,
       recipient,
-      mintPubkey,
+      // mintPubkey,
       relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle = true,
       recipientFee, 
       sender,
       merkleTreeAssetPubkey,
-      config
+      config,
+      encrypedUtxos
     }: {
       inputUtxos: Array<Utxo>,
       outputUtxos: Array<Utxo>,
       action: String,
       assetPubkeys: Array<PublicKey>,
       recipient: PublicKey,
-      mintPubkey: PublicKey,
+      // mintPubkey: PublicKey,
       relayerFee: BN| null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
       shuffle: Boolean,
       recipientFee: PublicKey,
       sender: PublicKey,
       merkleTreeAssetPubkey: PublicKey,
-      config: {in: number, out: number}
+      config: {in: number, out: number},
+      encrypedUtxos?: Uint8Array,
     }) {
       // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
       this.merkleTreeAssetPubkey = merkleTreeAssetPubkey
@@ -455,7 +473,7 @@ export class Transaction {
       this.config = config;
 
       // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
-      mintPubkey = assetPubkeys[1];
+      let mintPubkey = assetPubkeys[1];
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
       }
@@ -498,7 +516,10 @@ export class Transaction {
     this.action = action;
 
     this.prepareUtxos();
-    await this.prepareTransaction();
+    console.log(`preparedUtxos ${this.outputUtxos[0].amounts[1].toString()} == ${'1000'}`);
+    
+    assert(this.outputUtxos[0].amounts[1].toString() == '1000');
+    await this.prepareTransaction(encrypedUtxos);
     await this.getRootIndex();
 
      assert(this.input.mintPubkey == this.mintPubkey);
@@ -509,6 +530,11 @@ export class Transaction {
          throw "mintPubkey should be assetPubkeys[1]";
        }
      }
+    }
+
+    overWriteEncryptedUtxos(bytes: Uint8Array, offSet: number = 0) {
+      // this.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
+      this.encryptedUtxos = Uint8Array.from([...this.encryptedUtxos.slice(0,offSet), ...bytes, ...this.encryptedUtxos.slice(offSet + bytes.length, this.encryptedUtxos.length)])
     }
 
     getPublicInputs() {

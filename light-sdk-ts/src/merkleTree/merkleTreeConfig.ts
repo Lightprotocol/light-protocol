@@ -25,7 +25,7 @@ export class MerkleTreeConfig {
     connection
   }: {
     merkleTreePubkey: PublicKey,
-    payer: Keypair,
+    payer?: Keypair,
     connection: Connection
   }) {
       this.merkleTreePubkey =merkleTreePubkey;
@@ -372,7 +372,7 @@ export class MerkleTreeConfig {
         [mint.toBytes(), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
           this.merkleTreeProgram.programId
         ))[0], poolType: poolType, token: await this.getSplPoolPdaToken(poolType, mint)});
-      return this.poolPdas[this.poolPdas.length - 1];
+      return this.poolPdas[this.poolPdas.length - 1].pda;
     }
 
     async getTokenAuthority() {
