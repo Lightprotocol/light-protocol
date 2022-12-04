@@ -416,7 +416,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             0,
             change_endianness(&self.public_amount).try_into().unwrap(),
         )?;
-
+        msg!("here1 {}", pub_amount_checked);
         // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
@@ -585,7 +585,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             } else {
                 self.check_sol_pool_account_derivation(
                     &self.accounts.unwrap().sender_fee.as_ref().unwrap().key(),
+                    &mut &*self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info().data.take()
                 )?;
+                // TODO: add check that sender account is initialized
 
                 // withdraws sol for the user
                 withdraw_sol_cpi(
@@ -648,7 +650,10 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
 
     /// Creates and closes an account such that deposited sol is part of the transaction fees.
     fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
-        self.check_sol_pool_account_derivation(&recipient.key())?;
+        self.check_sol_pool_account_derivation(&recipient.key(),
+            &mut &*recipient.data.take()
+        )?;
+        // TODO: add check that recipient account is initialized
 
         msg!("is deposit");
         let rent = <Rent as sysvar::Sysvar>::get()?;
@@ -691,11 +696,12 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         false
     }
 
-    pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey) -> Result<()> {
+    pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &mut &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], &self.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
+        merkle_tree_program::RegisteredAssetPool::try_deserialize(data)?;
 
         if derived_pubkey.0 != *pubkey {
             return err!(VerifierSdkError::InvalidSenderorRecipient);
