@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{msg, program_pack::Pack, sysvar},
+    solana_program::{msg, program_pack::Pack, sysvar, log},
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{
@@ -416,7 +416,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             0,
             change_endianness(&self.public_amount).try_into().unwrap(),
         )?;
-        msg!("here1 {}", pub_amount_checked);
+
         // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
@@ -569,9 +569,10 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             self.relayer_fee,
             change_endianness(&self.fee_amount).try_into().unwrap(),
         )?;
-
+        msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
-            if self.is_deposit() {
+            if self.is_deposit_fee() {
+                msg!("is deposit");
                 self.deposit_sol(
                     fee_amount_checked,
                     &self
@@ -696,11 +697,20 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         false
     }
 
+    /// Checks whether a transaction is a deposit by inspecting the public amount.
+    pub fn is_deposit_fee(&self) -> bool {
+        if self.fee_amount[24..] != [0u8; 8] && self.fee_amount[..24] == [0u8; 24] {
+            return true;
+        }
+        false
+    }
+
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &mut &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], &self.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
+
         merkle_tree_program::RegisteredAssetPool::try_deserialize(data)?;
 
         if derived_pubkey.0 != *pubkey {
