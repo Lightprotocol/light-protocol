@@ -1,33 +1,62 @@
 const nacl = require('tweetnacl');
 const anchor = require("@project-serum/anchor")
-const eth_sig_util = require("eth-sig-util");
+import {getEncryptionPublicKey} from "eth-sig-util"
+import {BN, utils } from '@project-serum/anchor'
+
 export class Keypair {
   /**
    * Initialize a new keypair. Generates a random private key if not defined
    *
    * @param {string} privkey
    */
-  privkey: string
-  pubkey: any
+  privkey: BN
+  pubkey: BN
   encryptionKey: any
+  poseidon: any
+
   constructor(
     poseidon,
     // TODO: change into bytes
-    privkey = anchor.utils.bytes.hex.encode(nacl.randomBytes(32))
+    privkey = new BN(nacl.randomBytes(32))
   ) {
+      // TODO: change key derivation and write tests
+      // privkey should be Sha3([ed25519Sig(),"shielded"].concat())
       this.privkey = privkey;
-      this.pubkey = poseidon.F.toString(poseidon([this.privkey]));
-      this.encryptionKey = eth_sig_util.getEncryptionPublicKey(privkey.slice(2));
+      console.log(this.privkey);
+      
+      this.pubkey = new BN(poseidon.F.toString(poseidon([this.privkey])));
+      // Should be getEncryptionPublicKey(Sha3([ed25519Sig(),"encryption"].concat()))
+      this.encryptionKey = getEncryptionPublicKey(privkey.toString("hex", 32));
       this.poseidon = poseidon;
   }
 
   // add these methods and just json stringify the object
-  toString() {
+  pubKeyToBytes() {
     console.log("not implemented");
   }
 
-  fromString() {
+  privKeyToBytes() {
     console.log("not implemented");
+  }
+
+  encryptionKeyToBytes() {
+    console.log("not implemented");
+  }
+
+
+  fromBytes(
+    {pubkey, encPubkey, privkey}:
+    {pubkey: Array<any>, encPubkey: Array<any>, privkey: Array<any>}
+    ) {
+    if(privkey != undefined) {
+      this.privkey = anchor.utils.bytes.hex.encode(privkey);
+      this.pubkey = new BN(poseidon.F.toString(this.poseidon([new BN(privkey, undefined, 'le')])));
+      this.encryptionKey = getEncryptionPublicKey(new BN(privkey, undefined, 'le').toString("hex", 32));
+
+    } else {
+      this.pubkey = new BN(pubkey, undefined, 'le');
+      this.encryptionKey = utils.bytes.base64.encode(encPubkey);
+    }
   }
 
   /**

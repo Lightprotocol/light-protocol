@@ -3,7 +3,7 @@ import { ethers } from "ethers"
 import { merkleTreeProgram, MERKLE_TREE_KEY, MINT } from "./constants";
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
-import {Connection, PublicKey} from '@solana/web3.js';
+import {Connection, PublicKey, SystemProgram} from '@solana/web3.js';
 import { MerkleTreeConfig } from "./merkleTree";
 
 // TODO: get rid of ether dep
@@ -25,22 +25,24 @@ export async function getAssetLookUpId({
   let mtConf = new MerkleTreeConfig({connection, merkleTreePubkey: MERKLE_TREE_KEY})
   let pubkey = await mtConf.getSplPoolPda(poolType,asset);
   
-  let registeredAssets = await merkleTreeProgram.account.registeredAssetPool.fetch(pubkey);
-
+  let registeredAssets = await merkleTreeProgram.account.registeredAssetPool.fetch(pubkey.pda);
+ 
   return registeredAssets.index;
 }
 
 
-export async function fetchAssetIdByLookUp({
+export function fetchAssetByIdLookUp({
   assetIndex
 } : {
   assetIndex: BN,
-}): Promise<any> {
+}): PublicKey {
   // TODO: find smarter way to do this maybe query from account
-  console.log("here", assetIndex);
+  console.log("here ", assetIndex);
   let poolType = new Uint8Array(32).fill(0);
-  if (assetIndex.toString() == '1' ) {
+  if (assetIndex.toString() == '0' ) {
     return MINT;
+  } else if (assetIndex.toString() == '1' ) {
+    return SystemProgram.programId;
   } else {
     throw `no entry for index ${assetIndex}`;
   }

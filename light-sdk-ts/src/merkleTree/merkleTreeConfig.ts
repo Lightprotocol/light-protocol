@@ -355,7 +355,8 @@ export class MerkleTreeConfig {
       .rpc({commitment: "confirmed", preflightCommitment: 'confirmed'});
 
       await this.checkPoolRegistered(solPoolPda, poolType)
-
+      console.log("registered sol pool ", this.merkleTreeAuthorityPda.toBase58());
+      
       return tx;
     }
 
@@ -372,7 +373,7 @@ export class MerkleTreeConfig {
         [mint.toBytes(), new Uint8Array(32).fill(0), anchor.utils.bytes.utf8.encode("pool-config")],
           this.merkleTreeProgram.programId
         ))[0], poolType: poolType, token: await this.getSplPoolPdaToken(poolType, mint)});
-      return this.poolPdas[this.poolPdas.length - 1].pda;
+      return this.poolPdas[this.poolPdas.length - 1];
     }
 
     async getTokenAuthority() {
@@ -391,7 +392,7 @@ export class MerkleTreeConfig {
       }
 
       let splPoolPda = await this.getSplPoolPda(poolType, mint);
-
+      
       if (!this.tokenAuthority) {
           await this.getTokenAuthority()
       }

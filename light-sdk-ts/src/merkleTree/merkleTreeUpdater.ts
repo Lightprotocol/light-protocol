@@ -91,6 +91,7 @@ try {
     current_instruction_index: 56,
     merkleTreeProgram
   })
+  
   // final tx to insert root
   let success = false;
   try {
