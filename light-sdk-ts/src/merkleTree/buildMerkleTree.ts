@@ -20,20 +20,21 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
     pubkey: PublicKey
     account: AccountInfo<Buffer>
   }> = await merkleTreeProgram.account.twoLeavesBytesPda.all()
-
+  
   leave_accounts
   .sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
+  console.log(leave_accounts);
 
   const leaves: string[] = []
   if(leave_accounts.length > 0){
     for (let i: number = 0; i < leave_accounts.length; i++) {
       if (leave_accounts[i].account.leftLeafIndex.toNumber() < mtFetched.nextIndex.toNumber()) {
-        leaves.push(new anchor.BN(leave_accounts[i].account.nodeLeft.reverse()).toString()) // .reverse()
-        leaves.push(new anchor.BN(leave_accounts[i].account.nodeRight.reverse()).toString())
+        leaves.push(new anchor.BN(leave_accounts[i].account.nodeLeft, undefined, 'le').toString()) // .reverse()
+        leaves.push(new anchor.BN(leave_accounts[i].account.nodeRight, undefined, 'le').toString())
       }
     }
   }
-
+  
   let fetchedMerkleTree = new MerkleTree(MERKLE_TREE_HEIGHT,poseidonHash, leaves)
 
   if (Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()) {

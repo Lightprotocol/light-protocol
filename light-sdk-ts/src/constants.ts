@@ -10,6 +10,7 @@ import VerifierProgramZero from "../idls/verifier_program_zero";
 import MerkleTreeProgram  from "../idls/merkle_tree_program";
 import { PublicKey } from "@solana/web3.js";
 import { BigNumber } from "ethers";
+import { BN } from "bn.js";
 export const ASSET_1_ORG = new anchor.web3.Account()
 export const ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
 
@@ -133,6 +134,6 @@ export const REGISTERED_POOL_PDA_SPL_TOKEN = new solana.PublicKey("2mobV36eNyFGa
 export const REGISTERED_POOL_PDA_SOL = new solana.PublicKey("Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU")
 export const POOL_TYPE = new Uint8Array(32).fill(0)
 export const MERKLE_TREE_AUTHORITY_PDA = new solana.PublicKey("5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y")
-export var KEYPAIR_PRIVKEY = '0xd67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896';
+export var KEYPAIR_PRIVKEY = new BN('d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896', "hex");
 export const MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
 export const FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)

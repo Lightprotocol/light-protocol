@@ -102,6 +102,8 @@ export class Transaction {
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
     payer, //: Keypair
+
+    // TODO: remove and take this from utxo keypairs
     encryptionKeypair = createEncryptionKeypair(),
 
     // need to check how to handle several merkle trees here
@@ -222,21 +224,32 @@ export class Transaction {
         // This might be too specific since the circuit allows assets to be in any index
         const getExternalAmount = (assetIndex) => {
           return new anchor.BN(0)
-              .add(this.outputUtxos.filter((utxo) => {return utxo.assets[assetIndex].toString() == this.assetPubkeys[assetIndex].toString()}).reduce((sum, utxo) => (
+              .add(this.outputUtxos.filter((utxo) => {
+                console.log("this.assetPubkeys ", this.assetPubkeys);
+                console.log("utxo.assetsCircuit ", utxo.assetsCircuit);
+                
+                console.log(`${utxo.assetsCircuit[assetIndex].toString('hex')} == ${this.assetPubkeys[assetIndex].toString('hex')}`);
+                
+                return utxo.assetsCircuit[assetIndex].toString('hex') == this.assetPubkeys[assetIndex].toString('hex');
+              }).reduce((sum, utxo) => (
                 // add all utxos of the same asset
                 sum.add(utxo.amounts[assetIndex])
               ), new anchor.BN(0)))
-              .sub(this.inputUtxos.filter((utxo) => {return utxo.assets[assetIndex].toString()  == this.assetPubkeys[assetIndex].toString() }).reduce((sum, utxo) =>
+              .sub(this.inputUtxos.filter((utxo) => {return utxo.assetsCircuit[assetIndex].toString('hex')  == this.assetPubkeys[assetIndex].toString('hex') }).reduce((sum, utxo) =>
                 sum.add(utxo.amounts[assetIndex]),
                 new anchor.BN(0)
             ));
         }
 
+        console.log();
         
         this.externalAmountBigNumber = getExternalAmount(1)
 
         
         this.feeAmount =  getExternalAmount(0);
+
+        console.log("this.externalAmountBigNumber ", this.externalAmountBigNumber);
+        console.log("this.feeAmount ", this.feeAmount);
 
         /// if it is a deposit and the amount going in is smaller than 0 throw error
         if (this.action === 'DEPOSIT' &&
@@ -325,7 +338,6 @@ export class Transaction {
                       inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
                   }
               }
-
               else {
                   inputMerklePathIndices.push(0);
                   inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
@@ -515,10 +527,8 @@ export class Transaction {
     this.mintPubkey = mintPubkey;
     this.action = action;
 
-    this.prepareUtxos();
-    console.log(`preparedUtxos ${this.outputUtxos[0].amounts[1].toString()} == ${'1000'}`);
+    this.prepareUtxos();  
     
-    assert(this.outputUtxos[0].amounts[1].toString() == '1000');
     await this.prepareTransaction(encrypedUtxos);
     await this.getRootIndex();
 
@@ -592,6 +602,7 @@ export class Transaction {
       await this.getPdaAddresses()
 
     }
+
     async checkProof() {
 
       let publicSignals = [
