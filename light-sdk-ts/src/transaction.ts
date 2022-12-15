@@ -202,6 +202,7 @@ export class Transaction {
 
         /// if there are no outputUtxo add one
         while (this.outputUtxos.length < this.config.out) {
+          // TODO: add algorithm to select utxos to be merged in here
           this.outputUtxos.push(new Utxo({poseidon: this.poseidon}));
         }
         /// mixes the input utxos
