@@ -122,14 +122,6 @@ export class Utxo {
     
   }
 
-  // TODO: rethink this is headache because we cannot invert the derivation. Thus we need to look up the pubkey.
-  // TODO: implement lookup logic.
-  // Hashes and truncates ed25519 pubkey to fit field size of bn254
-  // hashAndTruncateToCircuit(data: Uint8Array) {
-  //   return new BN(leInt2Buff(BigNumber.from(ethers.utils.keccak256(data).toString()), 32).slice(0,31), undefined, 'le')
-  // }
-
- 
   toBytes() {
     //TODO: get assetIndex(this.asset[1])
     let assetIndex = new BN("0");
