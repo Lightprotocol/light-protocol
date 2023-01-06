@@ -71,7 +71,10 @@ var KEYPAIR
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "finalized", commitment: "finalized"});//anchor.getProvider();
+  console.time("init provider")
+
+  const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "confirmed", commitment: "confirmed"});//anchor.getProvider();
+  console.timeEnd("init provider")
 
   it.skip("test pubkey truncation < FIELD_SIZE", async() => {
     // let asset = new anchor.web3.Account().publicKey
@@ -87,7 +90,7 @@ describe("verifier_program", () => {
   })
 
   it("init pubkeys ", async () => {
-    await createTestAccounts(provider);
+    await createTestAccounts(provider.connection);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Keypair(POSEIDON, KEYPAIR_PRIVKEY)

@@ -1,4 +1,5 @@
 import * as anchor from "@project-serum/anchor";
+import { assert } from "chai";
 
 import {
     MERKLE_TREE_KEY,
@@ -14,6 +15,7 @@ import {
     REGISTERED_POOL_PDA_SPL,
     REGISTERED_POOL_PDA_SOL,
     MERKLE_TREE_AUTHORITY_PDA,
+    confirmConfig,
 } from "../constants"
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig"
 
@@ -35,8 +37,8 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
     
     try {
         const ix = await merkleTreeConfig.initMerkleTreeAuthority();
-        console.log("initMerkleTreeAuthority success");
-    
+        console.log("initMerkleTreeAuthority success, ", ix);
+        // assert(await provider.connection.getTransaction(ix, {commitment:"confirmed"}) != null, "init failed");
     } catch(e) {
         console.log(e);
     }
@@ -44,19 +46,17 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
     console.log("AUTHORITY: ", AUTHORITY);
     
     console.log("AUTHORITY: ", Array.from(AUTHORITY.toBytes()));
-    console.log(verifierProgramZero);
     
     console.log("verifierProgramZero.programId: ", Array.from(verifierProgramZero.programId.toBytes()));
     console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58())
     console.log("MERKLE_TREE_KEY: ", Array.from(MERKLE_TREE_KEY.toBytes()))
     // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
     // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.from(MERKLE_TREE_PDA_TOKEN.toBytes()))
-    console.log("merkleTreeProgram.methods ", merkleTreeProgram.methods);
-    let signer = new anchor.web3.Account();
     
     try {
         const ix = await merkleTreeConfig.initializeNewMerkleTree()
-    
+        assert(await provider.connection.getTransaction(ix, {commitment:"confirmed"}) != null, "init failed");
+
     } catch(e) {
         console.log(e);
     }
@@ -76,7 +76,7 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
         console.log(e);
     
     }
-
+    
     try {
         await merkleTreeConfig.registerVerifier(verifierProgramTwo.programId)
         console.log("Registering Verifier One success");
@@ -91,8 +91,8 @@ export async function setUpMerkleTree (provider: anchor.Provider) {
         console.log(e);
     }
     
-    console.log("MINT: ", MINT);
-    console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL);
+    console.log("MINT: ", MINT.toBase58());
+    console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL.toBase58());
     try {
         await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT)
         console.log("Registering spl pool success");

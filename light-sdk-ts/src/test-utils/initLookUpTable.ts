@@ -18,6 +18,7 @@ import {
     REGISTERED_POOL_PDA_SPL_TOKEN,
     PRE_INSERTED_LEAVES_INDEX,
     verifierProgramTwoProgramId,
+    confirmConfig,
 
 } from "../constants"
 
@@ -30,7 +31,7 @@ export async function initLookUpTableFromFile(
     path: PathOrFileDescriptor = `lookUpTable.txt`,
     extraAccounts?: Array<PublicKey>
     )/*: Promise<PublicKey>*/ {
-    const recentSlot = (await provider.connection.getSlot("finalized")) - 10;
+    const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
     const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
     var [lookUpTable] = await PublicKey.findProgramAddress(
@@ -120,7 +121,7 @@ export async function initLookUpTable(
         transaction.recentBlockhash = recentBlockhash;
 
         try {
-            await sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR], {commitment: "finalized", preflightCommitment: 'finalized',});
+            await sendAndConfirmTransaction(provider.connection, transaction, [ADMIN_AUTH_KEYPAIR], confirmConfig);
         } catch(e) {
             console.log("e : ", e);
         }

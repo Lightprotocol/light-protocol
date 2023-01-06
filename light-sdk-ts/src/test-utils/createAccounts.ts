@@ -1,11 +1,11 @@
 const solana = require("@solana/web3.js");
 import * as anchor from "@project-serum/anchor";
-import { Connection, Keypair } from "@solana/web3.js";
+import { Connection, Keypair, sendAndConfirmTransaction } from "@solana/web3.js";
 const { SystemProgram } = require('@solana/web3.js');
-const token = require('@solana/spl-token')
+// const token = require('@solana/spl-token')
 var _ = require('lodash');
-import {getAccount, TOKEN_PROGRAM_ID} from "@solana/spl-token"
-
+import {ACCOUNT_SIZE, createAccount, getAccount, mintTo, MINT_SIZE, TOKEN_PROGRAM_ID} from "@solana/spl-token"
+import {createMint} from '@solana/spl-token';
 import {
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
@@ -15,8 +15,10 @@ import {
   USER_TOKEN_ACCOUNT,
   RECIPIENT_TOKEN_ACCOUNT,
   ADMIN_AUTH_KEY,
-  userTokenAccount
+  userTokenAccount,
+  confirmConfig
 } from "../constants"
+import { assert } from "chai";
 let circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
@@ -109,11 +111,10 @@ export async function newAccountWithTokens ({
   try {
     console.log("userAccount.publicKey: ", userAccount.publicKey.toBase58());
 
-    let space = token.ACCOUNT_SIZE
     console.log(MINT);
     console.log(ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
 
-    tokenAccount = await   token.createAccount(
+    tokenAccount = await createAccount(
         connection,
         ADMIN_AUTH_KEYPAIR,
         MINT,
@@ -130,7 +131,7 @@ export async function newAccountWithTokens ({
 
   try{
 
-    await token.mintTo(
+    await mintTo(
       connection,
       ADMIN_AUTH_KEYPAIR,
       MINT,
@@ -147,37 +148,42 @@ export async function newAccountWithTokens ({
   return tokenAccount;
 }
 
-export async function createMint({authorityKeypair, mintKeypair = new Keypair(),nft = false, decimals = 2, provider}) {
+export async function createMintWrapper(
+  {authorityKeypair, mintKeypair = new Keypair(),nft = false, decimals = 2, connection}: 
+  {authorityKeypair: Keypair, mintKeypair: Keypair, nft: Boolean, decimals: number, connection: Connection}
+  ) {
   if (nft == true) {
     decimals = 0;
   }
   // await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(mintKeypair.publicKey, 1_000_000, {preflightCommitment: "confirmed", commitment: "confirmed"}));
 
   try {
-    let space = token.MINT_SIZE
+    let space = MINT_SIZE
 
     let txCreateAccount = new solana.Transaction().add(
       SystemProgram.createAccount({
         fromPubkey: authorityKeypair.publicKey,
-        lamports: provider.connection.getMinimumBalanceForRentExemption(space),
+        lamports: connection.getMinimumBalanceForRentExemption(space),
         newAccountPubkey: mintKeypair.publicKey,
-        programId: token.TOKEN_PROGRAM_ID,
+        programId: TOKEN_PROGRAM_ID,
         space: space
 
       })
     )
 
-    let res = await solana.sendAndConfirmTransaction(provider.connection, txCreateAccount, [authorityKeypair, mintKeypair], {commitment: "finalized", preflightCommitment: 'finalized',});
-
-    let mint = await token.createMint(
-      provider.connection,
+    let res = await sendAndConfirmTransaction(connection, txCreateAccount, [authorityKeypair, mintKeypair], confirmConfig);
+    assert(await connection.getTransaction(res, {
+      commitment: "confirmed"
+    }) != null, "create mint account failed");
+    let mint = await createMint(
+      connection,
       authorityKeypair,
       authorityKeypair.publicKey,
       null, // freez auth
       decimals, //2,
       mintKeypair
     );
-    // assert(MINT.toBase58() == mint.toBase58());
+    assert(await connection.getAccountInfo(mint) != null, "create mint failed");
     console.log("mintKeypair.publicKey: ", mintKeypair.publicKey.toBase58());
     return mintKeypair.publicKey;
   } catch(e) {
@@ -187,22 +193,37 @@ export async function createMint({authorityKeypair, mintKeypair = new Keypair(),
 }
 
 
-export async function createTestAccounts(provider: anchor.Provider) {
-  const connection = provider.connection;
+export async function createTestAccounts(connection) {
+  // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
     if (balance === 0) {
-      await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(ADMIN_AUTH_KEY, 1_000_000_000_000), "finalized")
+      let amount = 1_000_000_000_000;
+      console.time("requestAirdrop")
+
+      let res = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount)
+      console.timeEnd("requestAirdrop")
+      console.time("confirmAirdrop")
+
+      await connection.confirmTransaction(res, confirmConfig);
+      console.timeEnd("confirmAirdrop")
+
+      let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
+      console.log(res);
+      console.log(`${Newbalance} == ${balance + amount}`);
+      
+      assert(Newbalance == balance + amount, "airdrop failed");
+      // await provider.connection.confirmTransaction(, confirmConfig)
           // subsidising transactions
       let txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_000}));
-      await provider.sendAndConfirm(txTransfer1, [ADMIN_AUTH_KEYPAIR]);
+      await sendAndConfirmTransaction(connection, txTransfer1, [ADMIN_AUTH_KEYPAIR], confirmConfig);
     }
     
-    if (await connection.getBalance(solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey, "finalized") == 0) {
-      await createMint({
+    if (await connection.getBalance(solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey, "confirmed") == 0) {
+      await createMintWrapper({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
-        mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY),
-        provider
+        mintKeypair: Keypair.fromSecretKey(MINT_PRIVATE_KEY),
+        connection
       })
       console.log("created mint");
     }
@@ -226,7 +247,7 @@ export async function createTestAccounts(provider: anchor.Provider) {
       if (balanceUserToken == null) {
         // create associated token account
          (await newAccountWithTokens({
-          connection: provider.connection,
+          connection: connection,
           MINT,
           ADMIN_AUTH_KEYPAIR,
           userAccount: USER_TOKEN_ACCOUNT,
@@ -242,7 +263,7 @@ export async function createTestAccounts(provider: anchor.Provider) {
       if (balanceUserToken == null) {
         // create associated token account
         (await newAccountWithTokens({
-          connection: provider.connection,
+          connection: connection,
           MINT,
           ADMIN_AUTH_KEYPAIR,
           userAccount: RECIPIENT_TOKEN_ACCOUNT,
