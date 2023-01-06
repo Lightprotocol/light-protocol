@@ -25,6 +25,7 @@ import { AnchorProvider, BN, Program } from "@project-serum/anchor";
 import { PublicInputs } from "./verifiers";
 
 import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY, merkleTreeProgram } from "./constants";
+import { LogDescription } from "ethers/lib/utils";
 
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
@@ -766,11 +767,19 @@ export class Transaction {
           this.leavesPdaPubkeys[i]
         );
 
-        try {
+        // try {
+          console.log("leavesAccountData ", leavesAccountData);
+          console.log("this.publicInputs ", this.publicInputs);
+          
+          console.log(`nodeLeft ${leavesAccountData.nodeLeft.toString()} != ${this.publicInputs.leaves[i][0].reverse().toString()}`);
+          console.log(`nodeLeft ${leavesAccountData.nodeLeft.toString() === this.publicInputs.leaves[i][0].reverse().toString()}`);
 
-          assert(leavesAccountData.nodeLeft.toString() === this.publicInputs.leaves[0].reverse().toString(), "left leaf not inserted correctly")
-          assert(leavesAccountData.nodeRight.toString() === this.publicInputs.leaves[1].reverse().toString(), "right leaf not inserted correctly")
-          assert(leavesAccountData.merkleTreePubkey.toBase58() === this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
+          console.log(`nodeRight ${leavesAccountData.nodeRight.toString()} !=  ${this.publicInputs.leaves[i][1].reverse().toString()}`);
+          console.log(`nodeRight ${leavesAccountData.nodeRight.toString() === this.publicInputs.leaves[i][1].reverse().toString()}`);
+
+          assert(leavesAccountData.nodeLeft.toString() == this.publicInputs.leaves[i][0].reverse().toString(), "left leaf not inserted correctly")
+          assert(leavesAccountData.nodeRight.toString() == this.publicInputs.leaves[i][1].reverse().toString(), "right leaf not inserted correctly")
+          assert(leavesAccountData.merkleTreePubkey.toBase58() == this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
           for (var i in this.encrypedUtxos) {
 
             if (leavesAccountData.encryptedUtxos[i] !== this.encrypedUtxos[i]) {
@@ -779,9 +788,9 @@ export class Transaction {
             assert(leavesAccountData.encryptedUtxos[i] === this.encrypedUtxos[i], "encryptedUtxos not inserted correctly");
           }
 
-        } catch(e) {
-          console.log("leaves: ", e);
-        }
+        // } catch(e) {
+        //   console.log("leaves: ", e);
+        // }
       }
 
       console.log(`mode ${this.action}, this.is_token ${this.is_token}`);

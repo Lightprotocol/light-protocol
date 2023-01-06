@@ -36,7 +36,7 @@ export function assert_eq(
 * merkle tree is locked by updateState account
 * lock has been taken less than 5 slots ago
 */
-let CONFIRMATION = {preflightCommitment: "finalized", commitment: "finalized"};
+let CONFIRMATION = {preflightCommitment: "confirmed", commitment: "confirmed"};
 
 export async function checkMerkleTreeUpdateStateCreated({
     connection,

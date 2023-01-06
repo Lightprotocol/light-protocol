@@ -65,8 +65,8 @@ export class VerifierOne implements Verifier {
     )
     .signers([transfer.payer])
     .rpc({
-      commitment: 'finalized',
-      preflightCommitment: 'finalized',
+      commitment: 'confirmed',
+      preflightCommitment: 'confirmed',
     });
     console.log("ix1 success ", ix1);
   }
@@ -109,7 +109,7 @@ export class VerifierOne implements Verifier {
       { isSigner: false, isWritable: true, pubkey: transfer.leavesPdaPubkeys[0]}
     ])
     .signers([transfer.payer]).instruction();
-    let recentBlockhash = (await transfer.provider.connection.getRecentBlockhash("finalized")).blockhash;
+    let recentBlockhash = (await transfer.provider.connection.getRecentBlockhash("confirmed")).blockhash;
 
 
     let txMsg = new TransactionMessage({
@@ -132,7 +132,7 @@ export class VerifierOne implements Verifier {
       let res
       while (retries > 0) {
         transaction.sign([transfer.payer])
-        recentBlockhash = (await transfer.provider.connection.getRecentBlockhash("finalized")).blockhash;
+        recentBlockhash = (await transfer.provider.connection.getRecentBlockhash("confirmed")).blockhash;
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
 
@@ -141,8 +141,8 @@ export class VerifierOne implements Verifier {
 
           res = await sendAndConfirmRawTransaction(transfer.provider.connection, serializedTx,
             {
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
             }
           );
           retries = 0;
@@ -159,8 +159,8 @@ export class VerifierOne implements Verifier {
               }
             )
             .signers([transfer.payer]).rpc({
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
             });
             return e;
           }

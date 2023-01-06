@@ -8,7 +8,7 @@ import { MerkleTreeConfig } from "./merkleTree";
 
 // TODO: get rid of ether dep
 export function hashAndTruncateToCircuit(data: Uint8Array) {
-    return new BN(leInt2Buff(unstringifyBigInts(ethers.utils.keccak256(data).toString()), 32).slice(0,31), undefined, 'le')
+    return new BN(leInt2Buff(unstringifyBigInts(ethers.utils.keccak256(data).toString()), 32).reverse().slice(1,32), undefined, 'be')
 }
 
 
