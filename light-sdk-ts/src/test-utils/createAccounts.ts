@@ -193,7 +193,7 @@ export async function createMintWrapper(
 }
 
 
-export async function createTestAccounts(connection) {
+export async function createTestAccounts(connection: Connection) {
   // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
@@ -205,7 +205,7 @@ export async function createTestAccounts(connection) {
       console.timeEnd("requestAirdrop")
       console.time("confirmAirdrop")
 
-      await connection.confirmTransaction(res, confirmConfig);
+      await connection.confirmTransaction(res, "confirmed");
       console.timeEnd("confirmAirdrop")
 
       let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
