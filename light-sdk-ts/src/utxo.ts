@@ -45,7 +45,7 @@ export class Utxo {
     assets = [SystemProgram.programId, SystemProgram.programId, SystemProgram.programId],
     amounts = [new BN('0'), new BN('0'), new BN('0')],
     keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    // blinding = randomBN(),
+    blinding = new BN(randomBN()),
     poolType = new BN('0'),
     verifierAddress = SystemProgram.programId,
     appData = [],
@@ -91,7 +91,7 @@ export class Utxo {
 
     //TODO: add check that amounts are U64
     this.amounts = amounts.map((x) => new BN(x.toString()));
-    this.blinding = new BN(randomBN());
+    this.blinding = blinding;
     this.keypair = keypair;
     this.index = index;
 
@@ -306,24 +306,29 @@ export class Utxo {
   }
 
   // TODO: add parse asset from assetIndex
-  static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
+  static decrypt(encryptedUtxo: Uint8Array, nonce:Uint8Array, senderThrowAwayPubkey:Uint8Array, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
+    console.log("recipientEncryptionKeypair ", recipientEncryptionKeypair);
+    console.log("encryptedUtxo ", encryptedUtxo);
+    console.log("nonce ", nonce);
+    console.log("senderThrowAwayPubkey ", senderThrowAwayPubkey);
 
-      const cleartext = box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
-      if (!cleartext) {
-          return [false, null];
-      }
-      const buf = Buffer.from(cleartext);
-      // TODO: use fromBytes()
-      const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
-      const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
+    
+    const cleartext = box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
+    if (!cleartext) {
+        return [false, null];
+    }
+    const buf = Buffer.from(cleartext);
+    // TODO: use fromBytes()
+    const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
+    const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
 
-      const utxoBlinding = new anchor.BN( buf.slice(0, 31));
+    const utxoBlinding = new anchor.BN( buf.slice(0, 31));
 
-      // TODO: find a better way to make this fail since this can be a footgun
-      return [
-          true,
-          new Utxo(POSEIDON, assets, [utxoAmount1, utxoAmount2], shieldedKeypair,"0", utxoBlinding, index)
-      ];
+    // TODO: find a better way to make this fail since this can be a footgun
+    return [
+        true,
+        new Utxo({poseidon: POSEIDON, assets, amounts: [utxoAmount1, utxoAmount2], keypair: shieldedKeypair, blinding: utxoBlinding, index})
+    ];
   }
 
 }

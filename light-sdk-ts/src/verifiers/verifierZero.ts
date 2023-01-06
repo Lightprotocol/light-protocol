@@ -145,7 +145,7 @@ export class VerifierZero implements Verifier {
 
       console.log("this.payer: ", this.payer);
 
-      let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
+      let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("confirmed"))).blockhash;
       let txMsg = new TransactionMessage({
             payerKey: this.payer.publicKey,
             instructions: [
@@ -166,7 +166,7 @@ export class VerifierZero implements Verifier {
       let res
       while (retries > 0) {
         transaction.sign([this.payer])
-        recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;
+        recentBlockhash = (await this.provider.connection.getRecentBlockhash(("confirmed"))).blockhash;
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
 
@@ -175,8 +175,8 @@ export class VerifierZero implements Verifier {
 
           res = await sendAndConfirmRawTransaction(this.provider.connection, serializedTx,
             {
-              commitment: 'finalized',
-              preflightCommitment: 'finalized',
+              commitment: 'confirmed',
+              preflightCommitment: 'confirmed',
             }
           );
           retries = 0;

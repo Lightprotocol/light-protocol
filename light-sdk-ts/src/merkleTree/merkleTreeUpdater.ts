@@ -54,8 +54,8 @@ try {
   ).preInstructions([
     solana.ComputeBudgetProgram.setComputeUnitLimit({units:1_400_000}),
   ]).signers([signer]).rpc({
-    commitment: 'finalized',
-    preflightCommitment: 'finalized',
+    commitment: 'confirmed',
+    preflightCommitment: 'confirmed',
   })
 } catch(e) {
   console.log(" init Merkle tree update", e);
@@ -104,8 +104,8 @@ try {
       }).remainingAccounts(
         leavesPdas
       ).signers([signer]).rpc({
-        commitment: 'finalized',
-        preflightCommitment: 'finalized',
+        commitment: 'confirmed',
+        preflightCommitment: 'confirmed',
       })
   } catch (e) {
     console.log(e)
@@ -168,8 +168,8 @@ export async function executeMerkleTreeUpdateTransactions({
 
   try {
       await provider.sendAndConfirm(tx.tx, tx.signers,{
-        commitment: 'finalized',
-        preflightCommitment: 'finalized',
+        commitment: 'confirmed',
+        preflightCommitment: 'confirmed',
       });
   } catch(e) {
       console.log(e);

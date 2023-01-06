@@ -31,6 +31,7 @@ use merkle_tree_program::{
         create_pda::create_and_check_pda,
     },
 };
+use anchor_lang::solana_program::keccak::hash;
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
@@ -133,14 +134,14 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         self.compute_tx_integrity_hash()?;
         self.fetch_root()?;
         self.fetch_mint()?;
-        // self.verify()?;
+        self.verify()?;
         self.verified_proof = true;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
         self.transfer_user_funds()?;
         self.transfer_fee()?;
-        // self.check_completion()
-        Ok(())
+        self.check_completion()
+        // Ok(())
     }
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
@@ -248,7 +249,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         msg!("integrity_hash inputs: {:?}", input);
         msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = Fr::from_be_bytes_mod_order(
-            &anchor_lang::solana_program::keccak::hash(&input[..]).try_to_vec()?[..],
+            &hash(&input[..]).try_to_vec()?[..],
         );
         let mut bytes = Vec::<u8>::new();
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes).unwrap();
@@ -284,7 +285,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             Ok(sender_mint) => {
                 // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
                 msg!("{:?}", [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat());
-                self.mint_pubkey = [vec![0u8], anchor_lang::solana_program::keccak::hash(&sender_mint.mint.to_bytes()).try_to_vec()?[..31].to_vec()].concat();
+                self.mint_pubkey = [vec![0u8], hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()].concat();
                 self.fetched_mint = true;
                 Ok(())
             }
@@ -444,19 +445,19 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             )?;
 
             // check mint
-            if self.mint_pubkey[1..] != recipient_mint.mint.to_bytes()[..31] {
+            if self.mint_pubkey[1..] != hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, recipient mint",
                     self.mint_pubkey[1..].to_vec(),
-                    recipient_mint.mint.to_bytes()[..31].to_vec()
+                    hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }
-            if self.mint_pubkey[1..] != sender_mint.mint.to_bytes()[..31] {
+            if self.mint_pubkey[1..] != hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
                     "*self.mint_pubkey[..31] {:?}, {:?}, sender mint",
                     self.mint_pubkey[1..].to_vec(),
-                    sender_mint.mint.to_bytes()[..31].to_vec()
+                    hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
                 return err!(VerifierSdkError::InconsistentMintProofSenderOrRecipient);
             }

@@ -16,7 +16,7 @@ import {
   newAccountWithTokens,
   executeUpdateMerkleTreeTransactions,
   executeMerkleTreeUpdateTransactions,
-  createMint,
+  createMintWrapper,
   getUninsertedLeaves, getInsertedLeaves, getUnspentUtxo,
   MerkleTreeConfig,
   checkMerkleTreeUpdateStateCreated,
@@ -26,7 +26,8 @@ import {
   DEFAULT_PROGRAMS,
   setUpMerkleTree,
   initLookUpTableFromFile,
-  testTransaction
+  testTransaction,
+  hashAndTruncateToCircuit
  } from "../../light-sdk-ts/src/index";
 
  import {
@@ -52,7 +53,6 @@ import {
   createTestAccounts,
   userTokenAccount,
   recipientTokenAccount,
-  MINT_CIRCUIT,
   FEE_ASSET
 } from "../../light-sdk-ts/src/index"
 
@@ -396,7 +396,7 @@ describe("verifier_program", () => {
   assert(registeredSolPdaAccount.assetPoolPubkey.toBase58() == merkleTreeConfig.poolPdas[0].pda.toBase58())
 
 
-  let mint = await createMint({
+  let mint = await createMintWrapper({
     authorityKeypair: ADMIN_AUTH_KEYPAIR,
     // mintKeypair: solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY)
     provider
@@ -446,7 +446,7 @@ describe("verifier_program", () => {
   let merkleTreeAuthority1 = await merkleTreeProgram.account.merkleTreeAuthority.fetch(merkleTreeConfig.merkleTreeAuthorityPda)
   console.log(merkleTreeAuthority1);
   assert(merkleTreeAuthority1.registeredAssetIndex.toString() == "2");
-  let nftMint = await createMint({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true, provider})
+  let nftMint = await createMintWrapper({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true, provider})
 
   var userTokenAccount = (await newAccountWithTokens({
     connection: provider.connection,
@@ -457,7 +457,7 @@ describe("verifier_program", () => {
   }))
   });
 
-  it.skip("Init Address Lookup Table", async () => {
+  it("Init Address Lookup Table", async () => {
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
 
   });
@@ -522,9 +522,9 @@ describe("verifier_program", () => {
       //   inputUtxos,
       //   outputUtxos,
       //   action: "DEPOSIT",
-      //   assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
+      //   assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), ASSET_1],
       //   relayerFee: new anchor.BN('0'),
-      //   mintPubkey: MINT_CIRCUIT,
+      //   mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
       //   sender: userTokenAccount,
       //   merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
       // });
@@ -532,10 +532,10 @@ describe("verifier_program", () => {
         inputUtxos,
         outputUtxos,
         action: "DEPOSIT",
-        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, ASSET_1],
+        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), ASSET_1],
         relayerFee: U64(0),
         sender: userTokenAccount,
-        mintPubkey: MINT_CIRCUIT,
+        mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
         config: {in: 10, out: 2}
       });
@@ -562,7 +562,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Deposit", async () => {
+  it("Deposit", async () => {
 
 
     if (LOOK_UP_TABLE === undefined) {
@@ -616,7 +616,7 @@ describe("verifier_program", () => {
         assetPubkeys: [FEE_ASSET, outputUtxos[0].assetsCircuit[1], ASSET_1],
         relayerFee: U64(0),
         sender: userTokenAccount,
-        mintPubkey: outputUtxos[0].assetsCircuit[1],
+        mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
         config: {in: 2, out: 2}
       });
@@ -739,7 +739,7 @@ describe("verifier_program", () => {
   let merkle_tree_pubkey = MERKLE_TREE_KEY
   let connection = provider.connection;
   console.log("leavesPdas ", leavesPdas);
-  let CONFIRMATION = {preflightCommitment: "finalized", commitment: "finalized"};
+  let CONFIRMATION = {preflightCommitment: "confirmed", commitment: "confirmed"};
   if (leavesPdas.length > 1) {
 
     // test leaves with higher starting index than merkle tree next index
@@ -1081,7 +1081,13 @@ describe("verifier_program", () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     KEYPAIR = new Keypair(POSEIDON)
 
-    let deposit_utxo1 = new Utxo(POSEIDON,[FEE_ASSET,MINT], [new anchor.BN(1),new anchor.BN(1)], KEYPAIR)
+    let deposit_utxo1 = new Utxo({
+      poseidon:POSEIDON,
+      assets: [FEE_ASSET,MINT],
+      amounts: [new anchor.BN(1),new anchor.BN(1)],
+      keypair: KEYPAIR
+    })
+
     deposit_utxo1.index = 0;
     let preCommitHash = deposit_utxo1.getCommitment();
     let preNullifier = deposit_utxo1.getNullifier();
@@ -1089,7 +1095,17 @@ describe("verifier_program", () => {
     let nonce = nacl.randomBytes(24);
     let encUtxo = deposit_utxo1.encrypt(nonce, ENCRYPTION_KEYPAIR, ENCRYPTION_KEYPAIR);
     console.log(encUtxo);
-    let decUtxo = Utxo.decrypt(new Uint8Array(Array.from(encUtxo.slice(0,63))),nonce, ENCRYPTION_KEYPAIR.publicKey, ENCRYPTION_KEYPAIR, KEYPAIR, [FEE_ASSET,MINT], POSEIDON)[1];
+    let decUtxo = Utxo.decrypt(
+      encUtxo,
+      nonce,
+      ENCRYPTION_KEYPAIR.PublicKey,
+      ENCRYPTION_KEYPAIR,
+      KEYPAIR,
+      [FEE_ASSET,MINT],
+      POSEIDON,
+      0
+    )[1];
+
     // console.log(decUtxo);
 
     assert(preCommitHash == decUtxo.getCommitment(), "commitment doesnt match")
@@ -1119,8 +1135,9 @@ describe("verifier_program", () => {
         connection: provider.connection
     });
     console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
-
-    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram);
+    console.log(leavesPdas);
+    
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,hashAndTruncateToCircuit(MINT.toBytes()), POSEIDON, merkleTreeProgram);
 
     const origin = new anchor.web3.Account()
 
@@ -1150,13 +1167,14 @@ describe("verifier_program", () => {
     let inputUtxos = []
     inputUtxos.push(decryptedUtxo1)
 
-
+    console.log("inputUtxos ", inputUtxos);
+    
     await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos: inputUtxos,
         outputUtxos: outputUtxos,
         action: "WITHDRAWAL",
-        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
-        mintPubkey: MINT_CIRCUIT,
+        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), 0],
+        mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
@@ -1169,8 +1187,8 @@ describe("verifier_program", () => {
 
     // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
-    console.log("MINT_CIRCUIT: ", MINT_CIRCUIT);
-    console.log("MINT_CIRCUIT: ", Array.from( MINT_CIRCUIT.toBuffer(32)));
+    console.log("hashAndTruncateToCircuit(MINT.toBytes()): ", hashAndTruncateToCircuit(MINT.toBytes()));
+    console.log("hashAndTruncateToCircuit(MINT.toBytes()): ", Array.from( hashAndTruncateToCircuit(MINT.toBytes()).toBuffer(32)));
     console.log("ASSET_1: ", Array.from( ASSET_1.toBuffer(32)));
 
     try {
@@ -1206,7 +1224,7 @@ describe("verifier_program", () => {
         merkleTreeIndex: mtFetched.nextIndex,
         connection: provider.connection
     });
-    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT_CIRCUIT, POSEIDON, merkleTreeProgram);
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,hashAndTruncateToCircuit(MINT.toBytes()), POSEIDON, merkleTreeProgram);
 
     const origin = new anchor.web3.Account()
 
@@ -1240,8 +1258,8 @@ describe("verifier_program", () => {
         inputUtxos: inputUtxos,
         outputUtxos: outputUtxos,
         action: "WITHDRAWAL",
-        assetPubkeys: [FEE_ASSET, MINT_CIRCUIT, 0],
-        mintPubkey: MINT_CIRCUIT,
+        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), 0],
+        mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
