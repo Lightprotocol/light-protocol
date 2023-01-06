@@ -191,7 +191,6 @@ export class Transaction {
         if (this.inputUtxos.length > this.config.in || this.outputUtxos.length > this.config.out) {
             throw new Error('Incorrect inputUtxos/outputUtxos count');
         }
-        console.log(this.poseidon);
         
         console.log("inputUtxos.length ", this.inputUtxos.length);
         /// fill inputUtxos until 2 or 10
@@ -226,10 +225,10 @@ export class Transaction {
         const getExternalAmount = (assetIndex) => {
           return new anchor.BN(0)
               .add(this.outputUtxos.filter((utxo) => {
-                console.log("this.assetPubkeys ", this.assetPubkeys);
-                console.log("utxo.assetsCircuit ", utxo.assetsCircuit);
+                // console.log("this.assetPubkeys ", this.assetPubkeys);
+                // console.log("utxo.assetsCircuit ", utxo.assetsCircuit);
                 
-                console.log(`${utxo.assetsCircuit[assetIndex].toString('hex')} == ${this.assetPubkeys[assetIndex].toString('hex')}`);
+                // console.log(`${utxo.assetsCircuit[assetIndex].toString('hex')} == ${this.assetPubkeys[assetIndex].toString('hex')}`);
                 
                 return utxo.assetsCircuit[assetIndex].toString('hex') == this.assetPubkeys[assetIndex].toString('hex');
               }).reduce((sum, utxo) => (
@@ -241,8 +240,6 @@ export class Transaction {
                 new anchor.BN(0)
             ));
         }
-
-        console.log();
         
         this.externalAmountBigNumber = getExternalAmount(1)
 
@@ -286,7 +283,9 @@ export class Transaction {
             for (var a = 0; a < 3; a++) {
               let tmpInIndices1 = []
                 for (var i = 0; i < utxo.assets.length; i++) {
-                  if (utxo.assets[i] === this.assetPubkeys[a]) {
+                  console.log(`utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`);
+
+                  if (utxo.assetsCircuit[i] === this.assetPubkeys[a] && utxo.amounts[a].toString() > '0') {
                     tmpInIndices1.push("1")
                   } else {
                     tmpInIndices1.push("0")
@@ -303,152 +302,162 @@ export class Transaction {
         this.outIndices = getIndices(this.outputUtxos);
         console.log("inIndices: ", this.inIndices)
         console.log("outIndices: ", this.outIndices)
+        // console.log("utxos ", this.outputUtxos);
+        
     };
 
     prepareTransaction (encrypedUtxos?: Uint8Array) {
 
-          let inputMerklePathIndices = [];
-          let inputMerklePathElements = [];
-          /// if the input utxo has an amount bigger than 0 and it has an valid index add it to the indices of the merkel tree
-          /// also push the path to the leaf
-          /// else push a 0 to the indices
-          /// and fill the path to the leaf with 0s
+      let inputMerklePathIndices = [];
+      let inputMerklePathElements = [];
+      /// if the input utxo has an amount bigger than 0 and it has an valid index add it to the indices of the merkel tree
+      /// also push the path to the leaf
+      /// else push a 0 to the indices
+      /// and fill the path to the leaf with 0s
 
-          // getting merkle proofs
-          for (const inputUtxo of this.inputUtxos) {
-              if (this.test) {
-                inputMerklePathIndices.push(0);
-                inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
-              }
-
-              else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0|| inputUtxo.amounts[2] > 0)  {
-                  inputUtxo.index = this.merkleTree.indexOf(inputUtxo.getCommitment());
-                  console.log("inputUtxo.index ",inputUtxo.index);
-
-                  if (inputUtxo.index || inputUtxo.index == 0) {
-                      console.log("here");
-
-                      if (inputUtxo.index < 0) {
-                          throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
-                      }
-                      console.log("here1");
-
-                      inputMerklePathIndices.push(inputUtxo.index);
-                      console.log("here2");
-
-                      inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
-                  }
-              }
-              else {
-                  inputMerklePathIndices.push(0);
-                  inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
-              }
+      // getting merkle proofs
+      for (const inputUtxo of this.inputUtxos) {
+          if (this.test) {
+            inputMerklePathIndices.push(0);
+            inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
           }
 
-          let relayer_fee
-          if (this.action !== 'DEPOSIT') {
-              relayer_fee = toBufferLE(BigInt(this.relayerFee.toString()), 8);
+          else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0|| inputUtxo.amounts[2] > 0)  {
+              inputUtxo.index = this.merkleTree.indexOf(inputUtxo.getCommitment());
+              console.log("inputUtxo.index ",inputUtxo.index);
+
+              if (inputUtxo.index || inputUtxo.index == 0) {
+                  console.log("here");
+
+                  if (inputUtxo.index < 0) {
+                      throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
+                  }
+                  console.log("here1");
+
+                  inputMerklePathIndices.push(inputUtxo.index);
+                  console.log("here2");
+
+                  inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
+              }
           }
           else {
-              relayer_fee = new Uint8Array(8).fill(0);
+              inputMerklePathIndices.push(0);
+              inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
           }
-          console.log("feesLE: ", relayer_fee);
+      }
 
-          // ----------------------- getting integrity hash -------------------
-          const nonces: Array<Uint8Array> = new Array(this.config.out).fill(newNonce());
-          console.log("nonces ", nonces);
-          console.log("newNonce()", nonces[0]);
-          
-          // const senderThrowAwayKeypairs = [
-          //     newKeypair(),
-          //     newKeypair()
-          // ];
-          // console.log(outputUtxos)
-          /// Encrypt outputUtxos to bytes
-          // removed throwaway keypairs since we already have message integrity with integrity_hashes
-          // TODO: should be a hardcoded keypair in production not the one of the sender
-          let encryptedOutputs = new Array<any>();
-          if (encrypedUtxos) {
-            encryptedOutputs = Array.from(encrypedUtxos);
-          } else {
-            this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
+      let relayer_fee
+      if (this.action !== 'DEPOSIT') {
+          relayer_fee = toBufferLE(BigInt(this.relayerFee.toString()), 8);
+      }
+      else {
+          relayer_fee = new Uint8Array(8).fill(0);
+      }
+      console.log("feesLE: ", relayer_fee);
 
-            // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
-            if (this.config.out == 2) {
-              this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 174).fill(0)]);
-            } else {
-              let tmpArray = new Array<any>();
-              for (var i = 0; i < this.config.out; i++) {
-                tmpArray.push(...encryptedOutputs[i]);
-                tmpArray.push(...nonces[i]);
-              }
-              console.log(this.config);
-              console.log(tmpArray.length);
-              console.log(this.config.out * 128 - tmpArray.length);
-              if(tmpArray.length < 512) {
-                tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0))
-              }
-              this.encryptedUtxos = new Uint8Array(tmpArray.flat());
-            }
-            console.log("this.encryptedUtxos ", this.encryptedUtxos);
+      // ----------------------- getting integrity hash -------------------
+      const nonces: Array<Uint8Array> = new Array(this.config.out).fill(newNonce());
+      console.log("nonces ", nonces);
+      console.log("newNonce()", nonces[0]);
+      
+      // const senderThrowAwayKeypairs = [
+      //     newKeypair(),
+      //     newKeypair()
+      // ];
+      // console.log(outputUtxos)
+      /// Encrypt outputUtxos to bytes
+      // removed throwaway keypairs since we already have message integrity with integrity_hashes
+      // TODO: should be a hardcoded keypair in production not the one of the sender
+      let encryptedOutputs = new Array<any>();
+      if (encrypedUtxos) {
+        encryptedOutputs = Array.from(encrypedUtxos);
+      } else {
+        this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
+
+        // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
+        if (this.config.out == 2) {
+          this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 190).fill(0)]);
+        } else {
+          let tmpArray = new Array<any>();
+          for (var i = 0; i < this.config.out; i++) {
+            tmpArray.push(...encryptedOutputs[i]);
+            tmpArray.push(...nonces[i]);
           }
-          
-          
-          
+          console.log(this.config);
+          console.log(tmpArray.length);
+          console.log(this.config.out * 128 - tmpArray.length);
+          if(tmpArray.length < 512) {
+            tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0))
+          }
+          this.encryptedUtxos = new Uint8Array(tmpArray.flat());
+        }
+        console.log("this.encryptedUtxos ", this.encryptedUtxos.toString());
+      }
+      
+      
+      
+      console.log("this.recipient.toBytes(), ", Array.from(this.recipient.toBytes()));
+      console.log("this.recipientFee.toBytes(), ", Array.from(this.recipientFee.toBytes()));
+      console.log("this.payer.toBytes(), ", Array.from(this.payer.publicKey.toBytes()));
 
-          let extDataBytes = new Uint8Array([
-              ...this.recipient.toBytes(),
-              ...this.recipientFee.toBytes(),
-              ...this.payer.publicKey.toBytes(),
-              ...relayer_fee,
-              ...this.encryptedUtxos
-          ]);
-          const hash = ethers.ethers.utils.keccak256(Buffer.from(extDataBytes));
-          // const hash = anchor.utils.sha256.hash(extDataBytes)
-          console.log("Hash: ", hash);
-          this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(FIELD_SIZE_ETHERS), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
-          console.log(this.merkleTree);
+      console.log("relayer_fee ", relayer_fee);
+      console.log("this.encryptedUtxos ", this.encryptedUtxos?.length);
 
-          // ----------------------- building input object -------------------
-          this.input = {
-              root: this.merkleTree.root(),
-              inputNullifier: this.inputUtxos.map((x) => x.getNullifier()),
-              outputCommitment: this.outputUtxos.map((x) => x.getCommitment()),
-              // TODO: move public and fee amounts into tx preparation
-              publicAmount: this.externalAmountBigNumber
-                  .add(FIELD_SIZE)
-                  .mod(FIELD_SIZE)
-                  .toString(),
-              extDataHash: this.extDataHash.toString(),
-              feeAmount: new anchor.BN(this.feeAmount)
-                  .add(FIELD_SIZE)
-                  .mod(FIELD_SIZE)
-                  .toString(),
-              mintPubkey: this.mintPubkey,
-              // data for 2 transaction inputUtxos
-              inAmount: this.inputUtxos.map((x) => x.amounts),
-              inPrivateKey: this.inputUtxos.map((x) => x.keypair.privkey),
-              inBlinding: this.inputUtxos.map((x) => x.blinding),
-              inPathIndices: inputMerklePathIndices,
-              inPathElements: inputMerklePathElements,
-              assetPubkeys: this.assetPubkeys,
-              // data for 2 transaction outputUtxos
-              outAmount: this.outputUtxos.map((x) => x.amounts),
-              outBlinding: this.outputUtxos.map((x) => x.blinding),
-              outPubkey: this.outputUtxos.map((x) => x.keypair.pubkey),
-              inIndices: this.inIndices,
-              outIndices: this.outIndices,
-              inInstructionType: this.inputUtxos.map((x) => x.instructionType),
-              outInstructionType: this.outputUtxos.map((x) => x.instructionType)
-          };
-          // console.log("extDataHash: ", input.extDataHash);
-          // console.log("input.inputNullifier ",input.inputNullifier[0] );
-          // console.log("input feeAmount: ", input.feeAmount);
-          // console.log("input publicAmount: ", input.publicAmount);
-          // console.log("input relayerFee: ", relayerFee);
-          //
-          // console.log("inIndices ", JSON.stringify(inIndices, null, 4));
-          // console.log("outIndices ", JSON.stringify(outIndices, null, 4));
+      let extDataBytes = new Uint8Array([
+          ...this.recipient.toBytes(),
+          ...this.recipientFee.toBytes(),
+          ...this.payer.publicKey.toBytes(),
+          ...relayer_fee,
+          ...this.encryptedUtxos
+      ]);
+      console.log("extDataBytes ", extDataBytes.toString());
+      
+      const hash = ethers.ethers.utils.keccak256(Buffer.from(extDataBytes));
+      // const hash = anchor.utils.sha256.hash(extDataBytes)
+      console.log("Hash: ", hash);
+      this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(FIELD_SIZE_ETHERS), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
+      console.log(this.merkleTree);
+
+      // ----------------------- building input object -------------------
+      this.input = {
+          root: this.merkleTree.root(),
+          inputNullifier: this.inputUtxos.map((x) => x.getNullifier()),
+          outputCommitment: this.outputUtxos.map((x) => x.getCommitment()),
+          // TODO: move public and fee amounts into tx preparation
+          publicAmount: this.externalAmountBigNumber
+              .add(FIELD_SIZE)
+              .mod(FIELD_SIZE)
+              .toString(),
+          extDataHash: this.extDataHash.toString(),
+          feeAmount: new anchor.BN(this.feeAmount)
+              .add(FIELD_SIZE)
+              .mod(FIELD_SIZE)
+              .toString(),
+          mintPubkey: this.mintPubkey,
+          // data for 2 transaction inputUtxos
+          inAmount: this.inputUtxos.map((x) => x.amounts),
+          inPrivateKey: this.inputUtxos.map((x) => x.keypair.privkey),
+          inBlinding: this.inputUtxos.map((x) => x.blinding),
+          inPathIndices: inputMerklePathIndices,
+          inPathElements: inputMerklePathElements,
+          assetPubkeys: this.assetPubkeys,
+          // data for 2 transaction outputUtxos
+          outAmount: this.outputUtxos.map((x) => x.amounts),
+          outBlinding: this.outputUtxos.map((x) => x.blinding),
+          outPubkey: this.outputUtxos.map((x) => x.keypair.pubkey),
+          inIndices: this.inIndices,
+          outIndices: this.outIndices,
+          inInstructionType: this.inputUtxos.map((x) => x.instructionType),
+          outInstructionType: this.outputUtxos.map((x) => x.instructionType)
+      };
+      // console.log("extDataHash: ", input.extDataHash);
+      // console.log("input.inputNullifier ",input.inputNullifier[0] );
+      // console.log("input feeAmount: ", input.feeAmount);
+      // console.log("input publicAmount: ", input.publicAmount);
+      // console.log("input relayerFee: ", relayerFee);
+      //
+      // console.log("inIndices ", JSON.stringify(inIndices, null, 4));
+      // console.log("outIndices ", JSON.stringify(outIndices, null, 4));
     }
 
     async prepareTransactionFull({
@@ -487,12 +496,16 @@ export class Transaction {
 
       // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
       let mintPubkey = assetPubkeys[1];
+      if (typeof(mintPubkey) != BN) {
+
+      }
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
       }
       if (action == "DEPOSIT") {
         console.log("Deposit");
-
+        console.log();
+        
         this.relayerFee = relayerFee;
         this.sender = sender;
         this.senderFee  = new PublicKey(this.payer.publicKey);
@@ -525,6 +538,7 @@ export class Transaction {
     this.outputUtxos = outputUtxos;
 
     this.assetPubkeys = assetPubkeys;
+
     this.mintPubkey = mintPubkey;
     this.action = action;
 
@@ -559,7 +573,8 @@ export class Transaction {
       if (this.inIndices == null) {
         throw "transaction not prepared";
       }
-
+      console.log("this.input ", this.input);
+      
 
       const buffer = readFileSync(`${this.verifier.wtnsGenPath}.wasm`);
 
