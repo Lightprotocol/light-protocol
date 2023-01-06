@@ -5,7 +5,7 @@ var fs = require("fs")
 
 
 async function main() {
-  let file = await fs.readFile("verification_key_mainnet10.json", async function(err, fd) {
+  let file = await fs.readFile("verification_key_mainnet.json", async function(err, fd) {
    if (err) {
       return console.error(err);
    }

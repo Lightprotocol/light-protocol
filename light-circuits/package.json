@@ -9,7 +9,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "circomlib": "^0.5.5",
+    "circomlib": "^2.0.5",
     "ffjavascript": "^0.2.48"
   }
 }
