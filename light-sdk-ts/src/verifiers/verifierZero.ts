@@ -51,6 +51,9 @@ export class VerifierZero implements Verifier {
     }
 
   }
+  // TODO: serializeTransaction for relayer
+
+
 
   async sendTransaction(insert: Boolean = true): Promise<any> {
 
@@ -112,7 +115,7 @@ export class VerifierZero implements Verifier {
         Buffer.from(this.publicInputs.feeAmount),
         new anchor.BN(this.rootIndex.toString()),
         new anchor.BN(this.relayerFee.toString()),
-        Buffer.from(this.encryptedUtxos.slice(0,174)) // remaining bytes can be used once tx sizes increase
+        Buffer.from(this.encryptedUtxos.slice(0,190)) // remaining bytes can be used once tx sizes increase
       ).accounts(
         {
           signingAddress:     this.relayerPubkey,
@@ -139,6 +142,7 @@ export class VerifierZero implements Verifier {
         { isSigner: false, isWritable: true, pubkey: this.leavesPdaPubkeys[0]}
       ])
       .signers([this.payer]).instruction()
+
       console.log("this.payer: ", this.payer);
 
       let recentBlockhash = (await this.provider.connection.getRecentBlockhash(("finalized"))).blockhash;

@@ -28,6 +28,6 @@ url = "https://anchor.projectserum.com"
 [provider]
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
-
+# ./tsconfig.json
 [scripts]
-test = "yarn run ts-mocha ./tsconfig.json -t 100000000 tests/tests.ts"
+test = "yarn run ts-mocha  -t 100000000 tests/tests.ts"

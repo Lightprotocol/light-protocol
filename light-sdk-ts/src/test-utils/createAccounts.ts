@@ -218,7 +218,6 @@ export async function createTestAccounts(provider: anchor.Provider) {
         TOKEN_PROGRAM_ID
       );
     } catch(e) {
-      console.log(e);
       
     }
     console.log( "balanceUserToken ", balanceUserToken);

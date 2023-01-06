@@ -15,6 +15,7 @@ var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 const N_ASSETS = 3;
 import {BN } from '@project-serum/anchor'
+import { assert } from 'chai';
 
 // TODO: write test
 export class Utxo {
@@ -71,9 +72,7 @@ export class Utxo {
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = new BN(0)
-    } else {
-
-    }
+    } else {  }
     // let appDataArray = new Array<any>;
     // for (let elem in appData) {
     //   console.log(Array.from(appData[elem].toString()));
@@ -95,17 +94,21 @@ export class Utxo {
     this.blinding = new BN(randomBN());
     this.keypair = keypair;
     this.index = index;
-    // TODO: add hashAndTruncateToCircuit for assets
+
     console.log("assets ", assets);
     
     this.assets = assets;
     // TODO: make variable length
     if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
       this.assetsCircuit = [FEE_ASSET, hashAndTruncateToCircuit(this.assets[1].toBytes()), new BN(0)]
+      // console.log("this.assetsCircuit ", this.assetsCircuit);
+      // console.log("MINT_CIRCUIT ", MINT_CIRCUIT);
+      
+      // assert(MINT_CIRCUIT.toString() == this.assetsCircuit[1].toString(), "MINT_CIRCUIT != this.assetsCircuit[1]");
     } else {
       this.assetsCircuit = [FEE_ASSET, new BN(0), new BN(0)];
     }
-
+    console.log("assetsCircuit ", this.assetsCircuit);
     this._commitment = null;
     this._nullifier = null;
     this.poseidon = poseidon;
@@ -243,7 +246,7 @@ export class Utxo {
             this.blinding,
             assetHash,
             this.instructionType,
-            this.poolType
+            // this.poolType
         ]));
 
 
@@ -279,6 +282,8 @@ export class Utxo {
               signature,
           ]))
       }
+      console.log("this._nullifier ", this._nullifier);
+      
       return this._nullifier;
   }
 

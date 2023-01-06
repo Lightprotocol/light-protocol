@@ -58,5 +58,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     merkle_tree_pda_data.time_locked = 0;
     merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
 
+    
+
     Ok(())
 }
