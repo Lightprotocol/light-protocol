@@ -8,7 +8,7 @@ import VerifierProgramTwo from "../idls/verifier_program_two";
 import VerifierProgramOne from "../idls/verifier_program_one";
 import VerifierProgramZero from "../idls/verifier_program_zero";
 import MerkleTreeProgram  from "../idls/merkle_tree_program";
-import { PublicKey } from "@solana/web3.js";
+import { ConfirmOptions, Keypair, PublicKey } from "@solana/web3.js";
 import { BigNumber } from "ethers";
 import { BN } from "bn.js";
 export const ASSET_1_ORG = new anchor.web3.Account()
@@ -32,7 +32,7 @@ export const merkleTreeProgram:   Program<MerkleTreeProgram> = new Program(Merkl
 export const verifierProgramZero: Program<VerifierProgramZero> = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
 export const verifierProgramOne:  Program<VerifierProgramOne> = new Program(VerifierProgramOne, verifierProgramOneProgramId);
 export const verifierProgramTwo:  Program<VerifierProgramTwo> = new Program(VerifierProgramTwo, verifierProgramTwoProgramId);
-
+export const confirmConfig: ConfirmOptions = {commitment: "confirmed", preflightCommitment: 'confirmed'};
 
 // TODO: reactivate this
 // const constants:any = {};
@@ -73,8 +73,8 @@ export const MINT = new solana.PublicKey([
     5, 182, 141,  86,   7,  23, 246, 215
 ])
 
-export const ADMIN_AUTH_KEY = new solana.PublicKey(new Uint8Array(MERKLE_TREE_INIT_AUTHORITY));
-export const ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
+export const ADMIN_AUTH_KEY: PublicKey = new solana.PublicKey(new Uint8Array(MERKLE_TREE_INIT_AUTHORITY));
+export const ADMIN_AUTH_KEYPAIR: Keypair = solana.Keypair.fromSecretKey(new Uint8Array(PRIVATE_KEY));
 
 export const AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED")
 export const DEFAULT_PROGRAMS = {

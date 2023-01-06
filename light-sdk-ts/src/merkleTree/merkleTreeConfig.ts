@@ -2,10 +2,11 @@ import * as anchor from "@project-serum/anchor";
 import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
-import {Connection, PublicKey, Keypair} from "@solana/web3.js";
+import {Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction} from "@solana/web3.js";
 
 
 import {
+  confirmConfig,
   DEFAULT_PROGRAMS, merkleTreeProgram
 } from "../constants";
 
@@ -62,7 +63,7 @@ export class MerkleTreeConfig {
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
 
       await this.checkMerkleTreeIsInitialized()
       await this.checkPreInsertedLeavesIndexIsInitialized()
@@ -107,7 +108,7 @@ export class MerkleTreeConfig {
       return this.merkleTreeAuthorityPda;
     }
 
-    async initMerkleTreeAuthority(authority: Keypair | undefined) {
+    async initMerkleTreeAuthority(authority?: Keypair | undefined) {
       if (authority == undefined) {
         authority = this.payer
       }
@@ -121,8 +122,11 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([authority])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
 
+      // await sendAndConfirmTransaction(this.connection, new Transaction([authority]).add(tx), [authority], confirmConfig);
+      // rpc(confirmConfig);
+      assert(this.connection.getAccountInfo(this.merkleTreeAuthorityPda, "confirmed")!= null, "init authority failed");
       let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
       assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
       assert(merkleTreeAuthority.enableNfts == false);
@@ -152,7 +156,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
 
       if (test != true) {
         let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
@@ -174,7 +178,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
       let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
       assert(merkleTreeAuthority.enableNfts == configValue);
 
@@ -191,7 +195,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
       let merkleTreeAuthority = await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(this.merkleTreeAuthorityPda)
       assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
       return tx;
@@ -209,7 +213,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
       let merkleTree = await this.merkleTreeProgram.account.merkleTree.fetch(this.merkleTreePubkey)
       assert(merkleTree.lockDuration == lockDuration);
       console.log("lock duration updated to: ", lockDuration);
@@ -244,7 +248,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "finalized", preflightCommitment: 'finalized',});
+      .rpc(confirmConfig);
 
       await this.checkVerifierIsRegistered(verifierPubkey);
 
@@ -293,7 +297,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+      .rpc(confirmConfig);
       return tx;
     }
 
@@ -410,7 +414,7 @@ export class MerkleTreeConfig {
         ...DEFAULT_PROGRAMS
       })
       .signers([this.payer])
-      .rpc({commitment: "confirmed", preflightCommitment: 'confirmed',});
+      .rpc(confirmConfig);
 
       await this.checkPoolRegistered(splPoolPda, poolType, mint)
 
