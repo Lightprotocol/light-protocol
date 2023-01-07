@@ -42,7 +42,7 @@ use crate::utils::{
 use crate::verifier_invoked_instructions::{
     insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
     insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
-    sol_transfer::WithdrawSol,
+    sol_transfer::{process_sol_transfer, WithdrawSol},
     spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 
@@ -294,8 +294,8 @@ pub mod merkle_tree_program {
         ctx: Context<'a, 'b, 'c, 'info, WithdrawSol<'info>>,
         amount: u64,
     ) -> Result<()> {
-        // process_sol_transfer(ctx, amount)
-        sol_transfer(
+        msg!("withdraw_sol");
+        process_sol_transfer(
             &ctx.accounts.merkle_tree_token.to_account_info(),
             &ctx.accounts.recipient.to_account_info(),
             amount,

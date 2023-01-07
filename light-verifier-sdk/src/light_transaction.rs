@@ -22,6 +22,7 @@ use crate::{
     utils::{change_endianness, close_account::close_account},
 };
 
+use core::panic;
 use std::ops::Neg;
 
 use merkle_tree_program::{
@@ -135,13 +136,11 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         self.fetch_root()?;
         self.fetch_mint()?;
         self.verify()?;
-        self.verified_proof = true;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
         self.transfer_user_funds()?;
         self.transfer_fee()?;
         self.check_completion()
-        // Ok(())
     }
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
@@ -241,13 +240,13 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             self.encrypted_utxos.clone(),
         ]
         .concat();
-        msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
-        msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
-        msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
-        msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
-        msg!("relayer_fee {}", self.relayer_fee);
-        msg!("integrity_hash inputs: {:?}", input);
-        msg!("integrity_hash inputs.len(): {}", input.len());
+        // msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
+        // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
+        // msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
+        // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
+        // msg!("relayer_fee {}", self.relayer_fee);
+        // msg!("integrity_hash inputs: {:?}", input);
+        // msg!("integrity_hash inputs.len(): {}", input.len());
         let hash = Fr::from_be_bytes_mod_order(
             &hash(&input[..]).try_to_vec()?[..],
         );
@@ -326,7 +325,8 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         // check merkle tree
         for (i, leaves) in self.leaves.iter().enumerate() {
             let mut msg = Vec::new();
-            if self.encrypted_utxos.len() > (i + 1) * 256 {
+            msg!("self.encrypted_utxos.len() {:?}", self.encrypted_utxos.len());
+            if self.encrypted_utxos.len() > i * 256 {
                 msg.append(&mut self.encrypted_utxos[i*256..(i + 1)* 256].to_vec());
             }
             msg!("len encUtxos {}",msg.len() );
@@ -420,7 +420,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             0,
             change_endianness(&self.public_amount).try_into().unwrap(),
         )?;
-
+        
         // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
@@ -557,6 +557,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             }
             msg!("transferred");
         }
+        
         self.transferred_funds = true;
         Ok(())
     }
@@ -567,7 +568,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             msg!("Tried to transfer fees without verifying the proof.");
             return err!(VerifierSdkError::ProofNotVerified);
         }
-
+        
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
@@ -588,12 +589,12 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .to_account_info(),
                 )?;
             } else {
+                msg!("is withdrawal");
+
                 self.check_sol_pool_account_derivation(
                     &self.accounts.unwrap().sender_fee.as_ref().unwrap().key(),
-                    &mut &*self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info().data.take()
+                    &*self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info().data.try_borrow().unwrap()
                 )?;
-                // TODO: add check that sender account is initialized
-
                 // withdraws sol for the user
                 withdraw_sol_cpi(
                     self.accounts.unwrap().program_id,
@@ -610,6 +611,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .accounts
                         .unwrap()
                         .recipient_fee
+                        // .sender_fee
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -618,9 +620,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .unwrap()
                         .registered_verifier_pda
                         .to_account_info(),
-                    fee_amount_checked,
+                        fee_amount_checked,
                 )?;
-
+                msg!("withdrew sol for the user");
                 // pays the relayer fee
                 withdraw_sol_cpi(
                     self.accounts.unwrap().program_id,
@@ -647,16 +649,17 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .to_account_info(),
                     relayer_fee,
                 )?;
+
             }
         }
-
+        
         Ok(())
     }
 
     /// Creates and closes an account such that deposited sol is part of the transaction fees.
     fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(&recipient.key(),
-            &mut &*recipient.data.take()
+            &*recipient.data.try_borrow().unwrap()
         )?;
         // TODO: add check that recipient account is initialized
 
@@ -709,13 +712,14 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         false
     }
 
-    pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &mut &[u8]) -> Result<()> {
+    pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
             &[&[0u8; 32], &self.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
-
-        merkle_tree_program::RegisteredAssetPool::try_deserialize(data)?;
+        let mut cloned_data = data.clone();
+        let x = merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
+        // merkle_tree_program::RegisteredAssetPool::try_serialize(&x, data)?;
 
         if derived_pubkey.0 != *pubkey {
             return err!(VerifierSdkError::InvalidSenderorRecipient);

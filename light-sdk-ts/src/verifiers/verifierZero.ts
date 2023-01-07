@@ -96,7 +96,9 @@ export class VerifierZero implements Verifier {
       // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
       // console.log("sender:             ", this.sender)
       // console.log("recipient:          ", this.recipient)
-      // console.log("senderFee:          ", this.senderFee)
+      console.log("senderFee:          ", this.senderFee)
+      console.log("senderFee account: ", await this.provider.connection.getAccountInfo(this.senderFee, "confirmed"));
+      
       // console.log("recipientFee:       ", this.recipientFee)
       // console.log("relayerRecipient:   ", this.relayerRecipient)
       // console.log("escrow:             ", this.escrow)
@@ -106,7 +108,8 @@ export class VerifierZero implements Verifier {
       // console.log("this.encryptedOutputs[0], ", this.encryptedOutputs);
       console.log("this.leavesPdaPubkeys ", this.leavesPdaPubkeys[0].toBase58());
       console.log("this.signerAuthorityPubkey ", this.signerAuthorityPubkey.toBase58());
-
+      console.log("this.encryptedUtxos.slice(0,190) ", this.encryptedUtxos.slice(0,190));
+      
       const ix = await this.verifier.verifierProgram.methods.shieldedTransferInputs(
         Buffer.from(this.proofBytes),
         Buffer.from(this.publicInputs.publicAmount),

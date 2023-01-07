@@ -102,6 +102,6 @@ pub struct LightInstruction<'info> {
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: AccountInfo<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
-    #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
+    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }

@@ -34,6 +34,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
     checked_public_inputs: Vec<Vec<u8>>,
     pool_type: Vec<u8>,
 ) -> Result<()> {
+    msg!("sneder fee: {:?}", ctx.accounts.sender_fee);
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),

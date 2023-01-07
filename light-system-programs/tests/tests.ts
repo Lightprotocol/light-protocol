@@ -644,7 +644,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Update Merkle Tree after Deposit", async () => {
+  it("Update Merkle Tree after Deposit", async () => {
 
 
   let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
@@ -1115,7 +1115,7 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
@@ -1137,7 +1137,7 @@ describe("verifier_program", () => {
     console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
     console.log(leavesPdas);
     
-    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,hashAndTruncateToCircuit(MINT.toBytes()), POSEIDON, merkleTreeProgram);
+    let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT, POSEIDON, merkleTreeProgram);
 
     const origin = new anchor.web3.Account()
 
@@ -1168,6 +1168,9 @@ describe("verifier_program", () => {
     inputUtxos.push(decryptedUtxo1)
 
     console.log("inputUtxos ", inputUtxos);
+    assert(hashAndTruncateToCircuit(MINT.toBytes()).toString() === inputUtxos[0].assetsCircuit[1].toString(), "inputUtxos[1] asset werid");
+    console.log("Circuit mint ", hashAndTruncateToCircuit(MINT.toBytes()).toString());
+
     
     await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos: inputUtxos,
