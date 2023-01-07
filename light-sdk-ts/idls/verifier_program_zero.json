@@ -77,7 +77,7 @@
         },
         {
           "name": "registeredVerifierPda",
-          "isMut": false,
+          "isMut": true,
           "isSigner": false
         }
       ],

@@ -13,8 +13,10 @@ import { readFileSync, writeFile } from "fs";
 const snarkjs = require('snarkjs');
 
 import {
+  ENCRYPTION_KEYPAIR,
   FEE_ASSET,
-  FIELD_SIZE
+  FIELD_SIZE,
+  MINT
 } from "./constants";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
@@ -247,8 +249,8 @@ export class Transaction {
         
         this.feeAmount =  getExternalAmount(0);
 
-        console.log("this.externalAmountBigNumber ", this.externalAmountBigNumber);
-        console.log("this.feeAmount ", this.feeAmount);
+        console.log("this.externalAmountBigNumber ", this.externalAmountBigNumber?.toString());
+        console.log("this.feeAmount ", this.feeAmount?.toString());
 
         /// if it is a deposit and the amount going in is smaller than 0 throw error
         if (this.action === 'DEPOSIT' &&
@@ -285,8 +287,9 @@ export class Transaction {
               let tmpInIndices1 = []
                 for (var i = 0; i < utxo.assets.length; i++) {
                   console.log(`utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`);
-
-                  if (utxo.assetsCircuit[i] === this.assetPubkeys[a] && utxo.amounts[a].toString() > '0') {
+                  console.log(`utxo asset ${utxo.assetsCircuit[i].toString() ===  this.assetPubkeys[a].toString()} utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > '0'}`);
+                  
+                  if (utxo.assetsCircuit[i].toString() === this.assetPubkeys[a].toString() && utxo.amounts[a].toString() > '0' && !tmpInIndices1.includes('1')) {
                     tmpInIndices1.push("1")
                   } else {
                     tmpInIndices1.push("0")
@@ -295,6 +298,8 @@ export class Transaction {
                 tmpInIndices.push(tmpInIndices1)
             }
             inIndices.push(tmpInIndices)
+            console.log("-----------");
+            
           });
           return inIndices;
         };
@@ -303,8 +308,8 @@ export class Transaction {
         this.outIndices = getIndices(this.outputUtxos);
         console.log("inIndices: ", this.inIndices)
         console.log("outIndices: ", this.outIndices)
-        // console.log("utxos ", this.outputUtxos);
-        
+        // console.log("utxos ", this.inputUtxos);
+        // process.exit()
     };
 
     prepareTransaction (encrypedUtxos?: Uint8Array) {
@@ -377,6 +382,12 @@ export class Transaction {
 
         // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
         if (this.config.out == 2) {
+          console.log("nonces[0] ", nonces[0]);
+          console.log("this.encryptionKeypair ", this.encryptionKeypair);
+          console.log("encryptedOutputs[0] ", encryptedOutputs[0]);
+          
+          console.log("nonces[1] ", nonces[1]);
+
           this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 190).fill(0)]);
         } else {
           let tmpArray = new Array<any>();
@@ -748,8 +759,7 @@ export class Transaction {
         var nullifierAccount = await this.provider.connection.getAccountInfo(
           this.nullifierPdaPubkeys[i],
           {
-          commitment: 'confirmed',
-          preflightCommitment: 'confirmed',
+          commitment: 'confirmed'
         }
         );
 
@@ -778,14 +788,35 @@ export class Transaction {
           console.log(`nodeRight ${leavesAccountData.nodeRight.toString() === this.publicInputs.leaves[i][1].reverse().toString()}`);
 
           assert(leavesAccountData.nodeLeft.toString() == this.publicInputs.leaves[i][0].reverse().toString(), "left leaf not inserted correctly")
+          console.log("here1");
           assert(leavesAccountData.nodeRight.toString() == this.publicInputs.leaves[i][1].reverse().toString(), "right leaf not inserted correctly")
+          console.log("here2");
           assert(leavesAccountData.merkleTreePubkey.toBase58() == this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly")
-          for (var i in this.encrypedUtxos) {
+          console.log("here3");
 
-            if (leavesAccountData.encryptedUtxos[i] !== this.encrypedUtxos[i]) {
-              console.log(i);
+          
+          for (var j= 0; j < this.encryptedUtxos.length / 256; j++) {
+            console.log(j);
+            
+            if (leavesAccountData.encryptedUtxos.toString() !== this.encryptedUtxos.toString()) {
+              console.log(j);
+              // throw `encrypted utxo ${i} was not stored correctly`;
             }
-            assert(leavesAccountData.encryptedUtxos[i] === this.encrypedUtxos[i], "encryptedUtxos not inserted correctly");
+            console.log(`${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`);
+            
+            // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
+            let decryptedUtxo1 = Utxo.decrypt(
+              new Uint8Array(Array.from(this.encryptedUtxos.slice(0,71))),
+              new Uint8Array(Array.from(this.encryptedUtxos.slice(71, 71+24))),
+              this.encryptionKeypair.PublicKey,
+              this.encryptionKeypair,
+              this.outputUtxos[0].keypair,
+              [FEE_ASSET,MINT],
+              this.poseidon,
+              i
+            )[1];
+            console.log("decryptedUtxo1 ", decryptedUtxo1);
+            
           }
 
         // } catch(e) {
@@ -896,8 +927,11 @@ export class Transaction {
         console.log("relayerRecipientAccountBalancePriorLastTx ", this.relayerRecipientAccountBalancePriorLastTx);
         console.log(`relayerFeeAccount ${new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx)}`)
 
-        // console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`)
-        assert((new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString()))).toString() == new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString());
+        console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`)
+       
+        console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString())).toString()}  != ${new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString()}`);
+
+        assert(new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString())).toString() == new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString());
         assert(new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).add(new anchor.BN("5000")).toString() == new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).toString());
 
 
