@@ -1,5 +1,5 @@
-import * as anchor from "@project-serum/anchor";
-import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
+import * as anchor from "@coral-xyz/anchor";
+import { MerkleTreeProgram } from "../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
 import {Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction} from "@solana/web3.js";

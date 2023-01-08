@@ -1,4 +1,4 @@
-import { BN } from "@project-serum/anchor"
+import { BN } from "@coral-xyz/anchor"
 import { ethers } from "ethers"
 import { merkleTreeProgram, MERKLE_TREE_KEY, MINT } from "./constants";
 var ffjavascript = require('ffjavascript');

@@ -8,6 +8,12 @@
       "esModuleInterop": true,
       "resolveJsonModule": true,
       "moduleResolution": "node",
+      "rootDirs": ["src", "generated"],
+      "baseUrl": "src",
+      "paths": {
+        "@merkleTree": ["./merkleTree"],
+        "constantss": ["./constants"]
+      }
     },
     "include": [
       "src",
@@ -17,5 +23,7 @@
     "exclude": [
       "node_modules",
       "**/tests/*"
-    ]
+    ],
+    "dry": false,
+    "debug": false
   }

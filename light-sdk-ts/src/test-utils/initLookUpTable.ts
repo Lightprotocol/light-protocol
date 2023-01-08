@@ -1,6 +1,6 @@
-import { Provider } from "@project-serum/anchor";
+import { Provider } from "@coral-xyz/anchor";
 import {PublicKey, AddressLookupTableProgram, Keypair, SystemProgram, sendAndConfirmTransaction, Transaction} from "@solana/web3.js"
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import {assert } from "chai";
 import {toBufferLE} from 'bigint-buffer';

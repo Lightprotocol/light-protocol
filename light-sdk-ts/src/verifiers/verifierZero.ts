@@ -1,9 +1,9 @@
-import { VerifierProgramZero } from "../../idls/verifier_program_zero";
-import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import { VerifierProgramZero, VerifierProgramZeroIdl } from "../idls/verifier_program_zero";
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  DEFAULT_PROGRAMS,
+  DEFAULT_PROGRAMS, verifierProgramZeroProgramId,
 } from "../constants";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import { Transaction } from "../transaction";
@@ -13,13 +13,13 @@ import {verifierProgramZero, REGISTERED_VERIFIER_PDA } from "../constants"
 // TODO: Explore alternative architecture in which verifiers inherit/extend or include
 // the Transaction class not the other way around like it is right now
 export class VerifierZero implements Verifier {
-  verifierProgram: Program<VerifierProgramZero>
+  verifierProgram: Program<VerifierProgramZeroIdl>
   wtnsGenPath: String
   zkeyPath: String
   calculateWtns: NodeRequire
   registeredVerifierPda: PublicKey
   constructor() {
-    this.verifierProgram = verifierProgramZero;
+    this.verifierProgram = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
     // Does not work within sdk 
     // TODO: bundle files in npm package
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";

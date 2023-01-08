@@ -1,4 +1,4 @@
-import {BN} from '@project-serum/anchor'
+import {BN} from '@coral-xyz/anchor'
 
 export const offerBurnerPrivkey    =  new BN(Buffer.from([237,38,4,149,204,158,213,144,83,16,191,94,68,105,127,237,66,153,151,133,243,205,71,208,223,215,88,171,195,137,213,159]));
 export const offerAuthorityPrivkey =  new BN(Buffer.from([42,150,26,78,235,21,149,49,116,215,34,161,176,34,26,16,147,30,65,203,209,221,162,85,222,209,157,53,59,28,2,253]))
