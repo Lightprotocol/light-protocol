@@ -4,17 +4,17 @@ import { box} from 'tweetnacl'
 const crypto = require('crypto');
 const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
-const anchor = require("@project-serum/anchor")
+const anchor = require("@coral-xyz/anchor")
 import {toBufferLE, toBigIntLE} from 'bigint-buffer';
 import { thawAccountInstructionData } from '@solana/spl-token';
-import { FEE_ASSET, FIELD_SIZE, FIELD_SIZE_ETHERS, MINT, MINT_CIRCUIT } from './constants';
+// import { FEE_ASSET, FIELD_SIZE, FIELD_SIZE_ETHERS, MINT, MINT_CIRCUIT } from './constants';
 import {fetchAssetByIdLookUp, hashAndTruncateToCircuit} from './utils';
 import { PublicKey, SystemProgram } from '@solana/web3.js';
 // import { BN } from 'bn.js';
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 const N_ASSETS = 3;
-import {BN } from '@project-serum/anchor'
+import {BN } from '@coral-xyz/anchor'
 import { assert } from 'chai';
 
 // TODO: write test
@@ -50,6 +50,17 @@ export class Utxo {
     verifierAddress = SystemProgram.programId,
     appData = [],
     index = null
+  }: {
+    poseidon: any,
+    assets: PublicKey[],
+    amounts: BN[],
+    keypair: Keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    blinding: BN,
+    poolType: BN,
+    verifierAddress: PublicKey,
+    appData: Array<any>,
+    index: any
+
   }) {
     if (assets.length != amounts.length) {
       throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
@@ -84,7 +95,7 @@ export class Utxo {
     
     if (appData.length > 0) {
       // TODO: change to poseidon hash which is reproducable in circuit
-      this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
+      // this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
     } else {
       this.instructionType = new BN('0');
     }
@@ -100,13 +111,13 @@ export class Utxo {
     this.assets = assets;
     // TODO: make variable length
     if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
-      this.assetsCircuit = [FEE_ASSET, hashAndTruncateToCircuit(this.assets[1].toBytes()), new BN(0)]
+      this.assetsCircuit = [new BN(SystemProgram.programId.toBase58()), hashAndTruncateToCircuit(this.assets[1].toBytes()), new BN(0)]
       // console.log("this.assetsCircuit ", this.assetsCircuit);
       // console.log("MINT_CIRCUIT ", MINT_CIRCUIT);
       
       // assert(MINT_CIRCUIT.toString() == this.assetsCircuit[1].toString(), "MINT_CIRCUIT != this.assetsCircuit[1]");
     } else {
-      this.assetsCircuit = [FEE_ASSET, new BN(0), new BN(0)];
+      this.assetsCircuit = [new BN(SystemProgram.programId.toBase58()), new BN(0), new BN(0)];
     }
     console.log("assetsCircuit ", this.assetsCircuit);
     this._commitment = null;

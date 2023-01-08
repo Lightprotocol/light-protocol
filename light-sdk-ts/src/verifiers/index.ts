@@ -3,7 +3,7 @@ export * from './verifierZero'
 export * from './verifierTwo'
 
 // export * from './verifierTwo'
-import { Program } from "@project-serum/anchor";
+import { Program } from "@coral-xyz/anchor";
 import { Transaction } from "../transaction";
 
 export interface PublicInputs {

@@ -3,7 +3,7 @@ const {U64, I64} = require('n64');
 import { assert, expect } from "chai";
 import { BigNumber, providers } from 'ethers'
 const token = require('@solana/spl-token')
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 
 export function assert_eq(
   value0: unknown,

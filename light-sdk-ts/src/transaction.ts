@@ -1,11 +1,11 @@
-const anchor = require("@project-serum/anchor")
+const anchor = require("@coral-xyz/anchor")
 const nacl = require('tweetnacl')
 export const createEncryptionKeypair = () => nacl.box.keyPair()
 var assert = require('assert');
 let circomlibjs = require("circomlibjs")
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
-import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
+import { MerkleTreeProgram, MerkleTreeProgramIdl } from "./idls/merkle_tree_program";
 import {toBufferLE} from 'bigint-buffer';
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
@@ -16,6 +16,7 @@ import {
   ENCRYPTION_KEYPAIR,
   FEE_ASSET,
   FIELD_SIZE,
+  merkleTreeProgramId,
   MINT
 } from "./constants";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
@@ -23,7 +24,7 @@ import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import {checkRentExemption} from './test-utils/testChecks';
 const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 import { Utxo } from "./utxo";
-import { AnchorProvider, BN, Program } from "@project-serum/anchor";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import { PublicInputs } from "./verifiers";
 
 import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY, merkleTreeProgram } from "./constants";
@@ -43,7 +44,7 @@ export class Transaction {
   relayerPubkey: PublicKey
   relayerRecipient: PublicKey
   preInsertedLeavesIndex: PublicKey
-  merkleTreeProgram: Program<MerkleTreeProgram>
+  merkleTreeProgram: Program<MerkleTreeProgramIdl>
   verifier: any
   lookupTable: PublicKey
   feeAsset: PublicKey
@@ -143,7 +144,7 @@ export class Transaction {
 
     // merkle tree
     this.merkleTree = merkleTree;
-    this.merkleTreeProgram = merkleTreeProgram;
+    this.merkleTreeProgram = new Program(MerkleTreeProgram, merkleTreeProgramId);
     this.merkleTreePubkey = MERKLE_TREE_KEY;
     this.merkleTreeFeeAssetPubkey = REGISTERED_POOL_PDA_SOL;
     this.preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX;

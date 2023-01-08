@@ -2,7 +2,7 @@
 // console.log = () => {}
 
 import { assert } from "chai";
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 var _ = require('lodash');
 import { newAccountWithLamports, createMint,  newAccountWithTokens} from "./createAccounts"
 import {

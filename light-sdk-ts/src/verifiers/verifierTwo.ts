@@ -1,9 +1,9 @@
-import { VerifierProgramTwo } from "../../idls/verifier_program_one";
-import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import { VerifierProgramTwo, VerifierProgramTwoIdl } from "../idls/verifier_program_two";
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  DEFAULT_PROGRAMS, REGISTERED_VERIFIER_TWO_PDA,
+  DEFAULT_PROGRAMS, REGISTERED_VERIFIER_TWO_PDA, verifierProgramTwoProgramId,
 } from "../constants";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import { assert } from "chai";
@@ -12,14 +12,15 @@ import { Verifier, PublicInputs } from ".";
 import {verifierProgramTwo } from "../constants"
 
 export class VerifierTwo implements Verifier {
-  verifierProgram: Program<VerifierProgramTwo>
+  verifierProgram: Program<VerifierProgramTwoIdl>
   wtnsGenPath: String
   zkeyPath: String
   calculateWtns: NodeRequire
   registeredVerifierPda: PublicKey
   nrPublicInputs: number
   constructor() {
-    this.verifierProgram = verifierProgramTwo;
+    this.verifierProgram = new Program(VerifierProgramTwo, verifierProgramTwoProgramId);
+
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
     this.zkeyPath = './build-circuits/transactionMasp2'
     this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js')

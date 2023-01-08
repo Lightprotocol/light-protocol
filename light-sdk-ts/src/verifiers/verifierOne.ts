@@ -1,9 +1,9 @@
-import { VerifierProgramOne } from "../../idls/verifier_program_one";
-import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import { VerifierProgramOne, VerifierProgramOneIdl } from "../idls/verifier_program_one";
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import {
-  DEFAULT_PROGRAMS, REGISTERED_VERIFIER_ONE_PDA,
+  DEFAULT_PROGRAMS, REGISTERED_VERIFIER_ONE_PDA, verifierProgramOneProgramId,
 } from "../constants";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import { assert } from "chai";
@@ -12,13 +12,13 @@ import { Verifier, PublicInputs } from ".";
 import {verifierProgramOne } from "../constants"
 
 export class VerifierOne implements Verifier {
-  verifierProgram: Program<VerifierProgramOne>
+  verifierProgram: Program<VerifierProgramOneIdl>
   wtnsGenPath: String
   zkeyPath: String
   calculateWtns: NodeRequire
   registeredVerifierPda: PublicKey
   constructor() {
-    this.verifierProgram = verifierProgramOne;
+    this.verifierProgram = new Program(VerifierProgramOne, verifierProgramOneProgramId);
     this.wtnsGenPath = "./build-circuits/transactionMasp10_js/transactionMasp10";
     this.zkeyPath = './build-circuits/transactionMasp10'
     this.calculateWtns = require('../../build-circuits/transactionMasp10_js/witness_calculator.js')

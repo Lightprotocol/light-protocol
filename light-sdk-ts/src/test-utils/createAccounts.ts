@@ -1,5 +1,5 @@
 const solana = require("@solana/web3.js");
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair, sendAndConfirmTransaction } from "@solana/web3.js";
 const { SystemProgram } = require('@solana/web3.js');
 // const token = require('@solana/spl-token')

@@ -1,6 +1,6 @@
 import { AccountInfo, Connection, PublicKey } from '@solana/web3.js'
 import {MerkleTree } from './merkleTree';
-const anchor = require("@project-serum/anchor")
+const anchor = require("@coral-xyz/anchor")
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const  MERKLE_TREE_HEIGHT = 18

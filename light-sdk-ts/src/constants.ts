@@ -1,18 +1,18 @@
 // TODO: clean this up
 // TODO: move test only stuff to other file
 const solana = require("@solana/web3.js");
-import * as anchor from "@project-serum/anchor";
-import {Program} from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
+import {Program} from "@coral-xyz/anchor";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
-import VerifierProgramTwo from "../idls/verifier_program_two";
-import VerifierProgramOne from "../idls/verifier_program_one";
-import VerifierProgramZero from "../idls/verifier_program_zero";
-import MerkleTreeProgram  from "../idls/merkle_tree_program";
+import {VerifierProgramTwo, VerifierProgramTwoIdl} from "./idls/verifier_program_two";
+import {VerifierProgramOne, VerifierProgramOneIdl} from "./idls/verifier_program_one";
+import {VerifierProgramZero, VerifierProgramZeroIdl} from "./idls/verifier_program_zero";
+import {MerkleTreeProgram, MerkleTreeProgramIdl}  from "./index";
 import { ConfirmOptions, Keypair, PublicKey } from "@solana/web3.js";
 import { BigNumber } from "ethers";
 import { BN } from "bn.js";
 export const ASSET_1_ORG = new anchor.web3.Account()
-export const ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0,31));
+export const ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey.toBytes().slice(0,31));
 
 
 export const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
@@ -27,11 +27,13 @@ export const verifierProgramZeroProgramId = new PublicKey("J1RRetZ4ujphU75LP8Rad
 export const verifierProgramOneProgramId =  new PublicKey("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL")
 export const verifierProgramTwoProgramId =  new PublicKey("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8")
 
-
-export const merkleTreeProgram:   Program<MerkleTreeProgram> = new Program(MerkleTreeProgram, merkleTreeProgramId);
-export const verifierProgramZero: Program<VerifierProgramZero> = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
-export const verifierProgramOne:  Program<VerifierProgramOne> = new Program(VerifierProgramOne, verifierProgramOneProgramId);
-export const verifierProgramTwo:  Program<VerifierProgramTwo> = new Program(VerifierProgramTwo, verifierProgramTwoProgramId);
+export type merkleTreeProgram =   Program<MerkleTreeProgramIdl>;
+export type verifierProgramZero =   Program<VerifierProgramZeroIdl>;
+export type verifierProgramOne =   Program<VerifierProgramOneIdl>;
+export type verifierProgramTwo =   Program<VerifierProgramTwoIdl>;
+// export const verifierProgramZero: Program<VerifierProgramZero> = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
+// export const verifierProgramOne:  Program<VerifierProgramOne> = new Program(VerifierProgramOne, verifierProgramOneProgramId);
+// export const verifierProgramTwo:  Program<VerifierProgramTwo> = new Program(VerifierProgramTwo, verifierProgramTwoProgramId);
 export const confirmConfig: ConfirmOptions = {commitment: "confirmed", preflightCommitment: 'confirmed'};
 
 // TODO: reactivate this
@@ -136,4 +138,4 @@ export const POOL_TYPE = new Uint8Array(32).fill(0)
 export const MERKLE_TREE_AUTHORITY_PDA = new solana.PublicKey("5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y")
 export var KEYPAIR_PRIVKEY = new BN('d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896', "hex");
 export const MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
-export const FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+export const FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId.toBytes().slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)

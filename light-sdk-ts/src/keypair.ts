@@ -1,8 +1,9 @@
 const nacl = require('tweetnacl');
-const anchor = require("@project-serum/anchor")
+const anchor = require("@coral-xyz/anchor")
 import {getEncryptionPublicKey} from "eth-sig-util"
-import {BN, utils } from '@project-serum/anchor'
-
+import {BN, utils } from '@coral-xyz/anchor'
+const { blake2b } = require('@noble/hashes/blake2b');
+const b2params = {dkLen: 32 };
 export class Keypair {
   /**
    * Initialize a new keypair. Generates a random private key if not defined
@@ -11,24 +12,52 @@ export class Keypair {
    */
   privkey: BN
   pubkey: BN
-  encryptionKey: any
+  encryptionKey: String
   poseidon: any
 
   constructor(
-    poseidon,
-    // TODO: change into bytes
-    privkey = new BN(nacl.randomBytes(32))
+    poseidon: any,
+    seed = new BN(nacl.randomBytes(32)).toString(),
+    index?: BN
   ) {
-      // TODO: change key derivation and write tests
-      // privkey should be Sha3([ed25519Sig(),"shielded"].concat())
-      this.privkey = privkey;
-      console.log(this.privkey);
-      
+
+      // creates a burner utxo by using the index for domain separation
+      if (index) {
+        let encSeed = seed + "encryption" +  index.toString();
+        this.encryptionKey = getEncryptionPublicKey(
+          blake2b
+          .create(b2params)
+          .update(encSeed)
+          .digest()
+        );
+
+        let privkeySeed = seed + "burner" +  index.toString();
+        this.privkey = new BN(blake2b
+        .create(b2params)
+        .update(privkeySeed)
+        .digest())
+      } else {
+        
+        let encSeed = seed + "encryption";
+        this.encryptionKey = getEncryptionPublicKey(
+          blake2b
+          .create(b2params)
+          .update(encSeed)
+          .digest()
+        );
+  
+        let privkeySeed = seed + "privkey";
+        this.privkey = new BN(blake2b.create(b2params)
+          .update(privkeySeed)
+          .digest())
+        
+      }
       this.pubkey = new BN(poseidon.F.toString(poseidon([this.privkey])));
       // Should be getEncryptionPublicKey(Sha3([ed25519Sig(),"encryption"].concat()))
-      this.encryptionKey = getEncryptionPublicKey(privkey.toString("hex", 32));
+      // this.encryptionKey = getEncryptionPublicKey(privkey.toString("hex", 32));
       this.poseidon = poseidon;
   }
+
 
   // add these methods and just json stringify the object
   pubKeyToBytes() {
@@ -45,8 +74,8 @@ export class Keypair {
 
 
   fromBytes(
-    {pubkey, encPubkey, privkey}:
-    {pubkey: Array<any>, encPubkey: Array<any>, privkey: Array<any>}
+    {pubkey, encPubkey, privkey, poseidon}:
+    {pubkey: Array<any>, encPubkey: Array<any>, privkey: Array<any>, poseidon: any}
     ) {
     if(privkey != undefined) {
       this.privkey = anchor.utils.bytes.hex.encode(privkey);
@@ -66,7 +95,7 @@ export class Keypair {
    * @param {string|number|BigNumber} merklePath a hex string with merkle path
    * @returns {BigNumber} a hex string with signature
    */
-  sign(commitment, merklePath) {
+  sign(commitment: any, merklePath: any) {
       return this.poseidon.F.toString(this.poseidon([this.privkey, commitment, merklePath]));
   }
 
