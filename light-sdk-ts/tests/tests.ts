@@ -145,15 +145,16 @@ describe("verifier_program", () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString()
     let keypair = new Keypair({poseidon: POSEIDON,seed: seed32});
-
-
-    // let keypair = new Keypair(POSEIDON, "12321");
+    let amountFee = "1";
+    let amountToken = "2";
     let assetPubkey = MINT;
+    let assets = [SystemProgram.programId, assetPubkey]
+    let amounts = [new anchor.BN(amountFee),new anchor.BN(amountToken)];
     let utxo0 = new Utxo(
       {
         poseidon:   POSEIDON,
-        assets:     [SystemProgram.programId, assetPubkey],
-        amounts:    [new anchor.BN(1),new anchor.BN(2)],
+        assets,
+        amounts,
         keypair
       }
     )
@@ -161,6 +162,16 @@ describe("verifier_program", () => {
     console.log(utxo0);
 
     // functional
+    assert.equal(utxo0.amounts[0].toString(), amountFee);
+    assert.equal(utxo0.amounts[1].toString(), amountToken);
+    assert.equal(utxo0.assets[0].toBase58(), SystemProgram.programId.toBase58());
+    assert.equal(utxo0.assets[1].toBase58(), assetPubkey.toBase58());
+    assert.equal(utxo0.assetsCircuit[0].toString(), "0");
+    assert.equal(utxo0.assetsCircuit[1].toString(), hashAndTruncateToCircuit(assetPubkey.toBytes()).toString());
+    assert.equal(utxo0.instructionType.toString(), "0");
+    assert.equal(utxo0.poolType.toString(), "0");
+    assert.equal(utxo0.verifierAddress.toString(), "0");
+    assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
 
     // toBytes
 
@@ -172,10 +183,7 @@ describe("verifier_program", () => {
 
     // getNullifier when no privkey
     
-    // assert.equal(utxo0.amounts[0].toString(), "1");
-    // assert.equal(utxo0.amounts[1].toString(), "2");
-    // assert.equal(utxo0.assets[0].toBase58(), SystemProgram.programId.toBase58());
-    // assert.equal(utxo0.assets[1].toBase58(), assetPubkey.toBase58());
+    
 
     // console.log(utxo0);
     
@@ -221,6 +229,9 @@ describe("verifier_program", () => {
 
   // test functional circuit
   it("Test functional circuit", async () => {
+    console.log("disabled following prints");
+    
+    console.log = () => {}
     POSEIDON = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString()
     let keypair = new Keypair({poseidon: POSEIDON,seed: seed32});
