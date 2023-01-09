@@ -2,7 +2,7 @@
 import { Keypair } from './keypair';
 import { BigNumber } from 'ethers';
 import { PublicKey } from '@solana/web3.js';
-import { BN } from '@project-serum/anchor';
+import { BN } from '@coral-xyz/anchor';
 export declare class Utxo {
     /** Initialize a new UTXO - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
      *
@@ -25,14 +25,14 @@ export declare class Utxo {
     constructor({ poseidon, assets, amounts, keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding, poolType, verifierAddress, appData, index }: {
         poseidon: any;
-        assets?: PublicKey[] | undefined;
-        amounts?: BN[] | undefined;
-        keypair: any;
-        blinding?: BN | undefined;
-        poolType?: BN | undefined;
-        verifierAddress?: PublicKey | undefined;
-        appData?: never[] | undefined;
-        index?: null | undefined;
+        assets: PublicKey[];
+        amounts: BN[];
+        keypair: Keypair;
+        blinding: BN;
+        poolType: BN;
+        verifierAddress: PublicKey;
+        appData: Array<any>;
+        index: any;
     });
     toBytes(): Uint8Array;
     fromBytes(bytes: Uint8Array, keypairInAppDataOffset?: number): this;
@@ -53,6 +53,6 @@ export declare class Utxo {
      *
      * @returns {string}
      */
-    encrypt(nonce: any, encryptionKeypair: any, senderThrowAwayKeypair: any): Uint8Array;
+    encrypt(encryptionPublicKey: Uint8Array): Uint8Array;
     static decrypt(encryptedUtxo: Uint8Array, nonce: Uint8Array, senderThrowAwayPubkey: Uint8Array, recipientEncryptionKeypair: any, shieldedKeypair: any, assets: never[] | undefined, POSEIDON: any, index: any): (boolean | null)[] | (boolean | Utxo)[];
 }

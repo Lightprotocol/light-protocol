@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseProofToBytesArray = exports.Transaction = exports.createEncryptionKeypair = void 0;
-const anchor = require("@project-serum/anchor");
+const anchor = require("@coral-xyz/anchor");
 const nacl = require('tweetnacl');
 const createEncryptionKeypair = () => nacl.box.keyPair();
 exports.createEncryptionKeypair = createEncryptionKeypair;
@@ -18,6 +18,7 @@ var assert = require('assert');
 let circomlibjs = require("circomlibjs");
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
+const merkle_tree_program_1 = require("./idls/merkle_tree_program");
 const bigint_buffer_1 = require("bigint-buffer");
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
@@ -27,9 +28,8 @@ const constants_1 = require("./constants");
 const web3_js_1 = require("@solana/web3.js");
 const spl_token_1 = require("@solana/spl-token");
 const testChecks_1 = require("./test-utils/testChecks");
-const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 const utxo_1 = require("./utxo");
-const anchor_1 = require("@project-serum/anchor");
+const anchor_1 = require("@coral-xyz/anchor");
 const constants_2 = require("./constants");
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
@@ -86,7 +86,7 @@ class Transaction {
         // this.relayerFee = new anchor.BN('10_000'); //U64(10_000),;
         // merkle tree
         this.merkleTree = merkleTree;
-        this.merkleTreeProgram = constants_2.merkleTreeProgram;
+        this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
         this.merkleTreePubkey = constants_2.MERKLE_TREE_KEY;
         this.merkleTreeFeeAssetPubkey = constants_2.REGISTERED_POOL_PDA_SOL;
         this.preInsertedLeavesIndex = constants_2.PRE_INSERTED_LEAVES_INDEX;
@@ -156,6 +156,7 @@ class Transaction {
         // which doesn't make sense it should be the other way arround right
         // the external amount can only be made up of utxos of asset[0]
         // This might be too specific since the circuit allows assets to be in any index
+        // TODO: write test
         const getExternalAmount = (assetIndex) => {
             return new anchor.BN(0)
                 .add(this.outputUtxos.filter((utxo) => {
@@ -194,6 +195,7 @@ class Transaction {
         if (this.assetPubkeys[0] === this.assetPubkeys[1] || this.assetPubkeys[1] === this.assetPubkeys[2] || this.assetPubkeys[0] === this.assetPubkeys[2]) {
             throw new Error(`asset pubKeys need to be distinct ${this.assetPubkeys}`);
         }
+        // TODO: write test
         const getIndices = (utxos) => {
             let inIndices = [];
             utxos.map((utxo) => {
@@ -378,8 +380,6 @@ class Transaction {
             this.config = config;
             // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
             let mintPubkey = assetPubkeys[1];
-            if (typeof (mintPubkey) != anchor_1.BN) {
-            }
             if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
                 throw "feeAsset should be assetPubkeys[0]";
             }

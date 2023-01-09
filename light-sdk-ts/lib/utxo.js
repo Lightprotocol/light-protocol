@@ -7,15 +7,17 @@ const tweetnacl_1 = require("tweetnacl");
 const crypto = require('crypto');
 const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
-const anchor = require("@project-serum/anchor");
-const constants_1 = require("./constants");
+const anchor = require("@coral-xyz/anchor");
+// import { FEE_ASSET, FIELD_SIZE, FIELD_SIZE_ETHERS, MINT, MINT_CIRCUIT } from './constants';
 const utils_1 = require("./utils");
 const web3_js_1 = require("@solana/web3.js");
 // import { BN } from 'bn.js';
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 const N_ASSETS = 3;
-const anchor_1 = require("@project-serum/anchor");
+const anchor_1 = require("@coral-xyz/anchor");
+const constants_1 = require("./constants");
+const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: write test
 class Utxo {
     constructor({ poseidon, 
@@ -52,7 +54,7 @@ class Utxo {
         // console.log("appDataArray.flat() ",appDataArray.flat());
         if (appData.length > 0) {
             // TODO: change to poseidon hash which is reproducable in circuit
-            this.instructionType = ethers_1.BigNumber.from(ethers_1.ethers.utils.keccak256(appData).toString()).mod(constants_1.FIELD_SIZE_ETHERS);
+            // this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
         }
         else {
             this.instructionType = new anchor_1.BN('0');
@@ -65,14 +67,15 @@ class Utxo {
         console.log("assets ", assets);
         this.assets = assets;
         // TODO: make variable length
+        // TODO: evaluate whether to hashAndTruncate feeAsset as well
         if (assets[1].toBase58() != web3_js_1.SystemProgram.programId.toBase58()) {
-            this.assetsCircuit = [constants_1.FEE_ASSET, (0, utils_1.hashAndTruncateToCircuit)(this.assets[1].toBytes()), new anchor_1.BN(0)];
+            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), (0, utils_1.hashAndTruncateToCircuit)(this.assets[1].toBytes()), new anchor_1.BN(0)];
             // console.log("this.assetsCircuit ", this.assetsCircuit);
             // console.log("MINT_CIRCUIT ", MINT_CIRCUIT);
             // assert(MINT_CIRCUIT.toString() == this.assetsCircuit[1].toString(), "MINT_CIRCUIT != this.assetsCircuit[1]");
         }
         else {
-            this.assetsCircuit = [constants_1.FEE_ASSET, new anchor_1.BN(0), new anchor_1.BN(0)];
+            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), new anchor_1.BN(0), new anchor_1.BN(0)];
         }
         console.log("assetsCircuit ", this.assetsCircuit);
         this._commitment = null;
@@ -125,10 +128,10 @@ class Utxo {
             console.log("here1");
         console.log("new BN(bytes.slice(47,55) ", new anchor_1.BN(bytes.slice(47, 55), undefined, 'le'));
         this.amounts = [new anchor_1.BN(bytes.slice(31, 39), undefined, 'le'), new anchor_1.BN(bytes.slice(39, 47), undefined, 'le'), new anchor_1.BN(0)]; // amounts
-        this.assets = [constants_1.FEE_ASSET, (0, utils_1.fetchAssetByIdLookUp)({ assetIndex: new anchor_1.BN(bytes.slice(47, 55), undefined, 'le') }), 0]; // assets MINT
+        this.assets = [FEE_ASSET, (0, utils_1.fetchAssetByIdLookUp)({ assetIndex: new anchor_1.BN(bytes.slice(47, 55), undefined, 'le') }), 0]; // assets MINT
         console.log(this.assets[1]);
         console.log(this.assets[1].toBytes());
-        this.assetsCircuit = [constants_1.FEE_ASSET, (0, utils_1.hashAndTruncateToCircuit)(Uint8Array.from(this.assets[1].toBuffer())), new anchor_1.BN(0)];
+        this.assetsCircuit = [FEE_ASSET, (0, utils_1.hashAndTruncateToCircuit)(Uint8Array.from(this.assets[1].toBuffer())), new anchor_1.BN(0)];
         console.log("here2");
         this.instructionType = ethers_1.BigNumber.from(leBuff2int(Uint8Array.from(bytes.slice(55, 87))).toString()); // instruction Type
         console.log("here3");
@@ -231,10 +234,14 @@ class Utxo {
     // TODO: hardcode senderThrowAwayKeypair
     // TODO: add filled length
     // TODO: add actual length which is filled up with 0s
-    encrypt(nonce, encryptionKeypair, senderThrowAwayKeypair) {
+    encrypt(encryptionPublicKey) {
         console.log("at least asset missing in encrypted bytes");
         const bytes_message = this.toBytes();
-        const ciphertext = (0, tweetnacl_1.box)(bytes_message, nonce, encryptionKeypair.PublicKey, senderThrowAwayKeypair.secretKey);
+        const nonce = newNonce();
+        // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+        // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+        // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+        const ciphertext = (0, tweetnacl_1.box)(bytes_message, nonce, encryptionPublicKey, constants_1.CONSTANT_SECRET_AUTHKEY);
         return ciphertext;
     }
     // TODO: add parse asset from assetIndex
@@ -249,7 +256,7 @@ class Utxo {
         }
         const buf = Buffer.from(cleartext);
         // TODO: use fromBytes()
-        const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)).reverse());
+        const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)), undefined, 'le');
         const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
         const utxoBlinding = new anchor.BN(buf.slice(0, 31));
         // TODO: find a better way to make this fail since this can be a footgun

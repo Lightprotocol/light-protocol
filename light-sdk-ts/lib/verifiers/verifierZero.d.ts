@@ -1,11 +1,11 @@
 /// <reference types="node" />
-import { VerifierProgramZero } from "../../idls/verifier_program_zero";
-import { Program } from "@project-serum/anchor";
+import { VerifierProgramZeroIdl } from "../idls/verifier_program_zero";
+import { Program } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
 export declare class VerifierZero implements Verifier {
-    verifierProgram: Program<VerifierProgramZero>;
+    verifierProgram: Program<VerifierProgramZeroIdl>;
     wtnsGenPath: String;
     zkeyPath: String;
     calculateWtns: NodeRequire;

@@ -33,16 +33,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MerkleTreeConfig = void 0;
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
+const merkle_tree_program_1 = require("../idls/merkle_tree_program");
 const chai_1 = require("chai");
 const token = require('@solana/spl-token');
 const web3_js_1 = require("@solana/web3.js");
 const constants_1 = require("../constants");
+const anchor_1 = require("@coral-xyz/anchor");
 class MerkleTreeConfig {
     constructor({ merkleTreePubkey, payer, connection }) {
         this.merkleTreePubkey = merkleTreePubkey;
         this.payer = payer;
-        this.merkleTreeProgram = constants_1.merkleTreeProgram;
+        this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
         // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type
         this.poolPdas = [];
         this.poolTypes = [];

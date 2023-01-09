@@ -10,11 +10,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifierTwo = void 0;
+const verifier_program_two_1 = require("../idls/verifier_program_two");
+const anchor_1 = require("@coral-xyz/anchor");
 const constants_1 = require("../constants");
-const constants_2 = require("../constants");
 class VerifierTwo {
     constructor() {
-        this.verifierProgram = constants_2.verifierProgramTwo;
+        this.verifierProgram = new anchor_1.Program(verifier_program_two_1.VerifierProgramTwo, constants_1.verifierProgramTwoProgramId);
         this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
         this.zkeyPath = './build-circuits/transactionMasp2';
         this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js');

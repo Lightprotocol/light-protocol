@@ -1,4 +1,4 @@
-export type verifierProgramTwo = {
+export type VerifierProgramTwoIdl = {
     "version": "0.1.0";
     "name": "verifier_program_two";
     "instructions": [
@@ -101,7 +101,8 @@ export type verifierProgramTwo = {
                     "type": "bytes";
                 }
             ];
-            "returns": null;
         }
     ];
 };
+export declare const VerifierProgramTwo: VerifierProgramTwoIdl;
+export default VerifierProgramTwo;

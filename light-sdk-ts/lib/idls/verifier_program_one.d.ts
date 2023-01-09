@@ -1,4 +1,5 @@
-export type verifierProgramOne = {
+export declare const VerifierProgramOne: VerifierProgramOneIdl;
+export type VerifierProgramOneIdl = {
     "version": "0.1.0";
     "name": "verifier_program_one";
     "instructions": [
@@ -71,7 +72,6 @@ export type verifierProgramOne = {
                     "type": "bytes";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "shieldedTransferSecond";
@@ -163,7 +163,6 @@ export type verifierProgramOne = {
                     "type": "bytes";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "closeVerifierState";
@@ -180,7 +179,7 @@ export type verifierProgramOne = {
                 }
             ];
             "args": [];
-            "returns": null;
         }
     ];
 };
+export default VerifierProgramOne;

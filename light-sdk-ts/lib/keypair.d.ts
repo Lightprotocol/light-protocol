@@ -1,24 +1,26 @@
 /// <reference types="bn.js" />
-import { BN } from '@project-serum/anchor';
+/// <reference types="node" />
+import { BN } from '@coral-xyz/anchor';
 export declare class Keypair {
     /**
      * Initialize a new keypair. Generates a random private key if not defined
      *
-     * @param {string} privkey
+     * @param {BN} privkey
      */
     privkey: BN;
     pubkey: BN;
-    encryptionKey: any;
+    encryptionPublicKey: Uint8Array;
     poseidon: any;
-    constructor(poseidon: any, privkey?: BN);
-    fromSeed(seed: String, poseidon: any): void;
-    pubKeyToBytes(): void;
-    privKeyToBytes(): void;
-    encryptionKeyToBytes(): void;
-    fromBytes({ pubkey, encPubkey, privkey }: {
+    burnerSeed: Uint8Array;
+    fromBurnerSeed(burnerSeed: Uint8Array, poseidon: any): Keypair;
+    constructor(poseidon: any, seed?: String, index?: BN);
+    encryptionPublicKeyToBytes(): Buffer;
+    fromBytes({ pubkey, encPubkey, privkey, poseidon, burnerSeed }: {
         pubkey: Array<any>;
-        encPubkey: Array<any>;
+        encPubkey: Buffer;
         privkey: Array<any>;
+        poseidon: any;
+        burnerSeed: Uint8Array;
     }): void;
     /**
      * Sign a message using keypair private key

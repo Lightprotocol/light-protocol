@@ -36,7 +36,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.testTransaction = void 0;
 const chai_1 = require("chai");
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 var _ = require('lodash');
 const createAccounts_1 = require("./createAccounts");
 const testChecks_1 = require("./testChecks");

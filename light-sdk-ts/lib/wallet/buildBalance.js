@@ -34,7 +34,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInsertedLeaves = exports.getUnspentUtxo = exports.getUninsertedLeaves = void 0;
 const utxo_1 = require("../utxo");
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 const token = require('@solana/spl-token');
 const web3_js_1 = require("@solana/web3.js");
 function getUninsertedLeaves({ merkleTreeProgram, merkleTreeIndex, connection

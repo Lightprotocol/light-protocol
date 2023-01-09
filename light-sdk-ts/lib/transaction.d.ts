@@ -1,15 +1,15 @@
 /// <reference types="bn.js" />
 export declare const createEncryptionKeypair: () => any;
-import { MerkleTreeProgram } from "../../idls/merkle_tree_program";
+import { MerkleTreeProgramIdl } from "./idls/merkle_tree_program";
 import { PublicKey, Keypair } from "@solana/web3.js";
 import { Utxo } from "./utxo";
-import { AnchorProvider, BN, Program } from "@project-serum/anchor";
+import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import { PublicInputs } from "./verifiers";
 export declare class Transaction {
     relayerPubkey: PublicKey;
     relayerRecipient: PublicKey;
     preInsertedLeavesIndex: PublicKey;
-    merkleTreeProgram: Program<MerkleTreeProgram>;
+    merkleTreeProgram: Program<MerkleTreeProgramIdl>;
     verifier: any;
     lookupTable: PublicKey;
     feeAsset: PublicKey;
