@@ -2,6 +2,7 @@
 // TODO: move test only stuff to other file
 const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
+
 import {Program} from "@coral-xyz/anchor";
 import { ASSOCIATED_TOKEN_PROGRAM_ID, TOKEN_PROGRAM_ID } from '@solana/spl-token';
 import {VerifierProgramTwo, VerifierProgramTwoIdl} from "./idls/verifier_program_two";
@@ -13,7 +14,12 @@ import { BigNumber } from "ethers";
 import { BN } from "bn.js";
 export const ASSET_1_ORG = new anchor.web3.Account()
 export const ASSET_1 = new anchor.BN(ASSET_1_ORG.publicKey.toBytes().slice(0,31));
-
+export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
+  155, 249, 234,  55,   8,  49,   0,  14,
+   84,  72,  10, 224,  21, 139,  87, 102,
+  115,  88, 217,  72, 137,  38,   0, 179,
+   93, 202, 220,  31, 143,  79, 247, 200
+]);
 
 export const FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 export const FIELD_SIZE_ETHERS = BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');

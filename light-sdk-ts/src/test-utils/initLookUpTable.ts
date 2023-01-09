@@ -1,4 +1,4 @@
-import { Provider } from "@coral-xyz/anchor";
+import { Program, Provider } from "@coral-xyz/anchor";
 import {PublicKey, AddressLookupTableProgram, Keypair, SystemProgram, sendAndConfirmTransaction, Transaction} from "@solana/web3.js"
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -10,8 +10,6 @@ import {
     MERKLE_TREE_KEY,
     ADMIN_AUTH_KEYPAIR,
     AUTHORITY,
-    merkleTreeProgram,
-    verifierProgramZero,
     REGISTERED_POOL_PDA_SOL,
     DEFAULT_PROGRAMS,
     TOKEN_AUTHORITY,
@@ -19,13 +17,15 @@ import {
     PRE_INSERTED_LEAVES_INDEX,
     verifierProgramTwoProgramId,
     confirmConfig,
+    verifierProgramZeroProgramId,
+    merkleTreeProgramId,
 
 } from "../constants"
+import VerifierProgramZero, { VerifierProgramZeroIdl } from "../idls/verifier_program_zero";
+import { MerkleTreeProgram, MerkleTreeProgramIdl } from "../idls";
 
 // TODO: create cli function to create a lookup table for apps
-
 // Probably only works for testing
-// TODO: extend with custom accounts to add
 export async function initLookUpTableFromFile(
     provider: anchor.Provider,
     path: PathOrFileDescriptor = `lookUpTable.txt`,
@@ -81,17 +81,19 @@ export async function initLookUpTable(
             payer: payerPubkey,
             recentSlot,
         })[0];
+        const verifierProgramZero: Program<VerifierProgramZeroIdl> = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
         let escrows = (await PublicKey.findProgramAddress(
             [anchor.utils.bytes.utf8.encode("escrow")],
             verifierProgramZero.programId))[0];
 
         let ix0 = SystemProgram.transfer({fromPubkey:ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: AUTHORITY, lamports: 1_000_000_0000});
-
+            
         var transaction = new Transaction().add(createInstruction);
+
         const addressesToAdd = [
             AUTHORITY,
             SystemProgram.programId,
-            merkleTreeProgram.programId,
+            merkleTreeProgramId,
             DEFAULT_PROGRAMS.rent,
             PRE_INSERTED_LEAVES_INDEX,
             TOKEN_PROGRAM_ID,

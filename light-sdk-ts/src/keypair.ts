@@ -1,102 +1,141 @@
 const nacl = require('tweetnacl');
 const anchor = require("@coral-xyz/anchor")
-import {getEncryptionPublicKey} from "eth-sig-util"
-import {BN, utils } from '@coral-xyz/anchor'
+import {BN } from '@coral-xyz/anchor'
 const { blake2b } = require('@noble/hashes/blake2b');
 const b2params = {dkLen: 32 };
+
 export class Keypair {
   /**
    * Initialize a new keypair. Generates a random private key if not defined
    *
-   * @param {string} privkey
+   * @param {BN} privkey
    */
   privkey: BN
   pubkey: BN
-  encryptionKey: String
+  // is this the private or public Key?
+  encryptionPublicKey: Uint8Array
   poseidon: any
+  burnerSeed: Uint8Array
 
   constructor(
-    poseidon: any,
-    seed = new BN(nacl.randomBytes(32)).toString(),
-    index?: BN
-  ) {
-
-      // creates a burner utxo by using the index for domain separation
-      if (index) {
-        let encSeed = seed + "encryption" +  index.toString();
-        this.encryptionKey = getEncryptionPublicKey(
-          blake2b
-          .create(b2params)
-          .update(encSeed)
-          .digest()
-        );
-
-        let privkeySeed = seed + "burner" +  index.toString();
-        this.privkey = new BN(blake2b
-        .create(b2params)
-        .update(privkeySeed)
-        .digest())
-      } else {
-        
-        let encSeed = seed + "encryption";
-        this.encryptionKey = getEncryptionPublicKey(
-          blake2b
-          .create(b2params)
-          .update(encSeed)
-          .digest()
-        );
-  
-        let privkeySeed = seed + "privkey";
-        this.privkey = new BN(blake2b.create(b2params)
-          .update(privkeySeed)
-          .digest())
-        
+    {
+      poseidon,
+      seed = new BN(nacl.randomBytes(32)).toString("hex"),
+      burner = false,
+      privateKey,
+      publicKey
+    }:
+    {
+      poseidon: any,
+      seed?: string,
+      burner?: Boolean,
+      privateKey?: BN,
+      publicKey?: BN
       }
-      this.pubkey = new BN(poseidon.F.toString(poseidon([this.privkey])));
-      // Should be getEncryptionPublicKey(Sha3([ed25519Sig(),"encryption"].concat()))
-      // this.encryptionKey = getEncryptionPublicKey(privkey.toString("hex", 32));
-      this.poseidon = poseidon;
+  ) {
+    if (seed.length < 32) {throw "seed too short length less than 32"}
+    this.poseidon = poseidon;
+    this.burnerSeed = new Uint8Array()
+    // creates a burner utxo by using the index for domain separation
+    if (burner) {
+      // burnerSeed can be shared since hash cannot be inverted - only share this for app utxos
+      // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
+      // the encryption and private key of a utxo
+      this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
+      this.privkey = Keypair.generateShieldedKeyPrivateKey(seed)
+      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
+      this.pubkey = Keypair.generateShieldedKeyPublicKey(this.privkey, this.poseidon);
+    } else if (privateKey) {
+      this.privkey = privateKey;
+      this.encryptionPublicKey = new Uint8Array()
+      this.pubkey = Keypair.generateShieldedKeyPublicKey(this.privkey, this.poseidon);
+    } else if (publicKey) {
+      this.pubkey = publicKey;
+      this.privkey = new BN('0');
+      this.encryptionPublicKey = new Uint8Array()
+    }  else {
+      this.privkey = Keypair.generateShieldedKeyPrivateKey(seed)
+      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
+      this.pubkey = Keypair.generateShieldedKeyPublicKey(this.privkey, this.poseidon);
+    }
   }
 
-
-  // add these methods and just json stringify the object
-  pubKeyToBytes() {
-    console.log("not implemented");
+  encryptionPublicKeyToBytes() {
+    return new BN(this.encryptionPublicKey).toBuffer('be', 32);
   }
 
-  privKeyToBytes() {
-    console.log("not implemented");
-  }
-
-  encryptionKeyToBytes() {
-    console.log("not implemented");
-  }
-
-
+  // might  be obsolete
+  // make general for cases in which only pubkey, encPubkey, privkey or pairs of these are defined
   fromBytes(
-    {pubkey, encPubkey, privkey, poseidon}:
-    {pubkey: Array<any>, encPubkey: Array<any>, privkey: Array<any>, poseidon: any}
+    {pubkey, encPubkey, privkey, poseidon, burnerSeed}:
+    {pubkey: Array<any>, encPubkey: Buffer, privkey: Array<any>, poseidon: any, burnerSeed: Uint8Array}
     ) {
     if(privkey != undefined) {
       this.privkey = anchor.utils.bytes.hex.encode(privkey);
       this.pubkey = new BN(poseidon.F.toString(this.poseidon([new BN(privkey, undefined, 'le')])));
-      this.encryptionKey = getEncryptionPublicKey(new BN(privkey, undefined, 'le').toString("hex", 32));
+      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(new BN(burnerSeed).toString("hex")).publicKey; //getEncryptionPublicKey(new BN(privkey, undefined, 'le').toString("hex", 32));
 
     } else {
       this.pubkey = new BN(pubkey, undefined, 'le');
-      this.encryptionKey = utils.bytes.base64.encode(encPubkey);
+      this.encryptionPublicKey = encPubkey;
     }
   }
 
   /**
-   * Sign a message using keypair private key
-   *
-   * @param {string|number|BigNumber} commitment a hex string with commitment
-   * @param {string|number|BigNumber} merklePath a hex string with merkle path
-   * @returns {BigNumber} a hex string with signature
-   */
+     * Sign a message using keypair private key
+     *
+     * @param {string|number|BigNumber} commitment a hex string with commitment
+     * @param {string|number|BigNumber} merklePath a hex string with merkle path
+     * @returns {BigNumber} a hex string with signature
+     */
   sign(commitment: any, merklePath: any) {
-      return this.poseidon.F.toString(this.poseidon([this.privkey, commitment, merklePath]));
+    return this.poseidon.F.toString(this.poseidon([this.privkey.toString(), commitment.toString(), merklePath]));
+  }
+
+  static createBurner(poseidon: any, seed: String, index: BN): Keypair {
+    const burnerSeed = blake2b
+    .create(b2params)
+    .update(seed + "burnerSeed" + index.toString("hex"))
+    .digest()
+    const burnerSeedString = new BN(burnerSeed).toString("hex");
+
+    return new Keypair({poseidon,seed: burnerSeedString,burner: true});
+  }
+
+  static fromBurnerSeed(poseidon: any, burnerSeed: Uint8Array): Keypair {
+    const burnerSeedString = new BN(burnerSeed).toString("hex");    
+    return new Keypair({poseidon,seed: burnerSeedString,burner: true});
+  }
+
+  static fromPrivkey(poseidon: any, privateKey: Uint8Array): Keypair {
+    const privkey = new BN(privateKey);
+    return new Keypair({poseidon, privateKey: privkey});
+  }
+
+  static fromPubkey(poseidon: any, publicKey: Uint8Array): Keypair {
+    const pubKey = new BN(publicKey, undefined, "be");  
+    return new Keypair({poseidon, publicKey: pubKey});
+  }
+
+  static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {
+    const encSeed = seed + "encryption";
+    const encryptionPrivateKey = blake2b
+    .create(b2params)
+    .update(encSeed)
+    .digest();
+    return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey)
+  };
+
+  static generateShieldedKeyPrivateKey(seed: String): BN {
+    const privkeySeed = seed + "shielded";
+    const privateKey = new BN(blake2b.create(b2params)
+            .update(privkeySeed)
+            .digest())
+    return privateKey
+  };
+
+  static generateShieldedKeyPublicKey(privateKey: BN, poseidon: any): BN {
+    return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
 
 }

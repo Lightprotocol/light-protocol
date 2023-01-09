@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
+import { MerkleTreeProgram, MerkleTreeProgramIdl } from "../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require('@solana/spl-token')
 import {Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction} from "@solana/web3.js";
@@ -7,11 +7,12 @@ import {Connection, PublicKey, Keypair, sendAndConfirmTransaction, Transaction} 
 
 import {
   confirmConfig,
-  DEFAULT_PROGRAMS, merkleTreeProgram
+  DEFAULT_PROGRAMS, merkleTreeProgramId
 } from "../constants";
+import { Program } from "@coral-xyz/anchor";
 
 export class MerkleTreeConfig {
-  merkleTreeProgram: MerkleTreeProgram
+  merkleTreeProgram: Program<MerkleTreeProgramIdl>
   merkleTreePubkey: PublicKey
   connection: Connection
   registeredVerifierPdas: any
@@ -31,7 +32,7 @@ export class MerkleTreeConfig {
   }) {
       this.merkleTreePubkey =merkleTreePubkey;
       this.payer = payer;
-      this.merkleTreeProgram = merkleTreeProgram;
+      this.merkleTreeProgram = new Program(MerkleTreeProgram, merkleTreeProgramId);
       // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type
       this.poolPdas = [];
       this.poolTypes = [];

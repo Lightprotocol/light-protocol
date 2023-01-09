@@ -22,8 +22,7 @@ import {
 import {Connection, PublicKey, Keypair, SystemProgram, TransactionMessage, ComputeBudgetProgram,  AddressLookupTableAccount, VersionedTransaction, sendAndConfirmRawTransaction } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount  } from '@solana/spl-token';
 import {checkRentExemption} from './test-utils/testChecks';
-const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
-import { Utxo } from "./utxo";
+import { newNonce, N_ASSETS, Utxo } from "./utxo";
 import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
 import { PublicInputs } from "./verifiers";
 
@@ -101,13 +100,13 @@ export class Transaction {
      * @param poseidon shieldedKeypair
      * @param verifier shieldedKeypair
      * @param shuffleEnabled
-     */
+  */
   constructor({
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
     payer, //: Keypair
 
-    // TODO: remove and take this from utxo keypairs
+    // TODO: remove and take this from user object
     encryptionKeypair = createEncryptionKeypair(),
 
     // need to check how to handle several merkle trees here
@@ -124,6 +123,7 @@ export class Transaction {
 
     poseidon,
 
+    // Can this be passed as a generic?
     verifier,
 
     shuffleEnabled = true,
@@ -144,7 +144,7 @@ export class Transaction {
 
     // merkle tree
     this.merkleTree = merkleTree;
-    this.merkleTreeProgram = new Program(MerkleTreeProgram, merkleTreeProgramId);
+
     this.merkleTreePubkey = MERKLE_TREE_KEY;
     this.merkleTreeFeeAssetPubkey = REGISTERED_POOL_PDA_SOL;
     this.preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX;
@@ -178,6 +178,7 @@ export class Transaction {
     }
 
     async getRootIndex() {
+      this.merkleTreeProgram = new Program(MerkleTreeProgram, merkleTreeProgramId);
       let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
       let merkle_tree_account = await this.provider.connection.getAccountInfo(this.merkleTreePubkey);
       let merkle_tree_account_data  = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode('MerkleTree', merkle_tree_account.data);
@@ -226,6 +227,7 @@ export class Transaction {
         // the external amount can only be made up of utxos of asset[0]
 
         // This might be too specific since the circuit allows assets to be in any index
+        // TODO: write test
         const getExternalAmount = (assetIndex) => {
           return new anchor.BN(0)
               .add(this.outputUtxos.filter((utxo) => {
@@ -272,20 +274,21 @@ export class Transaction {
         });
 
         let assetPubkeys = [this.feeAsset,this.assetPubkeys].concat();
-        if (this.assetPubkeys.length != 3) {
-          throw new Error(`assetPubkeys.length != 3 ${this.assetPubkeys}`);
+        if (this.assetPubkeys.length != N_ASSETS){
+          throw new Error(`assetPubkeys.length != ${N_ASSETS} ${this.assetPubkeys}`);
         }
 
-        if (this.assetPubkeys[0] === this.assetPubkeys[1] || this.assetPubkeys[1] === this.assetPubkeys[2] || this.assetPubkeys[0] === this.assetPubkeys[2]) {
+        if (this.assetPubkeys[0] === this.assetPubkeys[1]) {
           throw new Error(`asset pubKeys need to be distinct ${this.assetPubkeys}`);
         }
 
-        const getIndices = (utxos) => {
-          let inIndices = []
+        // TODO: write test
+        const getIndices = (utxos: Utxo[]) => {
+          let inIndices: String[] = [];
           utxos.map((utxo) => {
-            let tmpInIndices = []
-            for (var a = 0; a < 3; a++) {
-              let tmpInIndices1 = []
+            let tmpInIndices: String[] = []
+            for (var a = 0; a < N_ASSETS; a++) {
+              let tmpInIndices1: String[] = []
                 for (var i = 0; i < utxo.assets.length; i++) {
                   console.log(`utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`);
                   console.log(`utxo asset ${utxo.assetsCircuit[i].toString() ===  this.assetPubkeys[a].toString()} utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > '0'}`);
@@ -509,9 +512,7 @@ export class Transaction {
 
       // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
       let mintPubkey = assetPubkeys[1];
-      if (typeof(mintPubkey) != BN) {
 
-      }
       if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
         throw "feeAsset should be assetPubkeys[0]";
       }
@@ -558,7 +559,14 @@ export class Transaction {
     this.prepareUtxos();  
     
     await this.prepareTransaction(encrypedUtxos);
-    await this.getRootIndex();
+    if (this.provider) {
+      await this.getRootIndex();
+
+    } else {
+      console.log("provider not defined did not fetch rootIndex set root index to 0");
+      this.rootIndex =  0;
+      
+    }
 
      assert(this.input.mintPubkey == this.mintPubkey);
      assert(this.input.mintPubkey == this.assetPubkeys[1]);
@@ -627,8 +635,9 @@ export class Transaction {
       console.log("publicSignals ", publicSignals);
 
       // await this.checkProof()
-
-      await this.getPdaAddresses()
+      if(this.provider) {
+        await this.getPdaAddresses()
+      }
 
     }
 
