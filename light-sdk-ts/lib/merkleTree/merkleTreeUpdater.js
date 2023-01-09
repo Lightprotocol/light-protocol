@@ -35,7 +35,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeMerkleTreeUpdateTransactions = exports.executeUpdateMerkleTreeTransactions = void 0;
 const solana = require("@solana/web3.js");
 const { U64, I64 } = require('n64');
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 const { SystemProgram } = require('@solana/web3.js');
 const token = require('@solana/spl-token');
 var _ = require('lodash');

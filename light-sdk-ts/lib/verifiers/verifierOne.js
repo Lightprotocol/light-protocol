@@ -33,15 +33,16 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifierOne = void 0;
-const anchor = __importStar(require("@project-serum/anchor"));
+const verifier_program_one_1 = require("../idls/verifier_program_one");
+const anchor = __importStar(require("@coral-xyz/anchor"));
+const anchor_1 = require("@coral-xyz/anchor");
 const web3_js_1 = require("@solana/web3.js");
 const constants_1 = require("../constants");
 const spl_token_1 = require("@solana/spl-token");
 const chai_1 = require("chai");
-const constants_2 = require("../constants");
 class VerifierOne {
     constructor() {
-        this.verifierProgram = constants_2.verifierProgramOne;
+        this.verifierProgram = new anchor_1.Program(verifier_program_one_1.VerifierProgramOne, constants_1.verifierProgramOneProgramId);
         this.wtnsGenPath = "./build-circuits/transactionMasp10_js/transactionMasp10";
         this.zkeyPath = './build-circuits/transactionMasp10';
         this.calculateWtns = require('../../build-circuits/transactionMasp10_js/witness_calculator.js');

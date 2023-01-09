@@ -34,7 +34,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.createTestAccounts = exports.createMintWrapper = exports.newAccountWithTokens = exports.newProgramOwnedAccount = exports.newAddressWithLamports = exports.newAccountWithLamports = void 0;
 const solana = require("@solana/web3.js");
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 const web3_js_1 = require("@solana/web3.js");
 const { SystemProgram } = require('@solana/web3.js');
 // const token = require('@solana/spl-token')

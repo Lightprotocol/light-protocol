@@ -1,4 +1,4 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { Connection, Keypair } from "@solana/web3.js";
 export declare const newAccountWithLamports: (connection: any, account?: anchor.web3.Account, lamports?: number) => Promise<anchor.web3.Account>;
 export declare const newAddressWithLamports: (connection: any, address?: anchor.web3.PublicKey, lamports?: number) => Promise<anchor.web3.PublicKey>;

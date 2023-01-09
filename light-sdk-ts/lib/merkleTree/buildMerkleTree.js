@@ -11,7 +11,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.buildMerkleTree = void 0;
 const merkleTree_1 = require("./merkleTree");
-const anchor = require("@project-serum/anchor");
+const anchor = require("@coral-xyz/anchor");
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const MERKLE_TREE_HEIGHT = 18;

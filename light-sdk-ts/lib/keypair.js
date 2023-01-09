@@ -2,47 +2,61 @@
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Keypair = void 0;
 const nacl = require('tweetnacl');
-const anchor = require("@project-serum/anchor");
-const eth_sig_util_1 = require("eth-sig-util");
-const anchor_1 = require("@project-serum/anchor");
-const circomlibjs_1 = require("circomlibjs");
+const anchor = require("@coral-xyz/anchor");
+const anchor_1 = require("@coral-xyz/anchor");
+const { blake2b } = require('@noble/hashes/blake2b');
+const b2params = { dkLen: 32 };
 class Keypair {
-    constructor(poseidon, 
-    // TODO: change into bytes
-    privkey = new anchor_1.BN(nacl.randomBytes(32))) {
-        // TODO: change key derivation and write tests
-        // privkey should be Sha3([ed25519Sig(),"shielded"].concat())
-        this.privkey = privkey;
-        console.log(this.privkey);
-        this.pubkey = new anchor_1.BN(poseidon.F.toString(poseidon([this.privkey])));
-        // Should be getEncryptionPublicKey(Sha3([ed25519Sig(),"encryption"].concat()))
-        this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(privkey.toString("hex", 32));
+    constructor(poseidon, seed = new anchor_1.BN(nacl.randomBytes(32)).toString("hex"), index) {
+        if (seed.length < 32) {
+            throw "seed too short length less than 32";
+        }
         this.poseidon = poseidon;
+        this.burnerSeed = new Uint8Array();
+        // creates a burner utxo by using the index for domain separation
+        if (index) {
+            // seed can be shared since hash cannot be inverted
+            // sharing the burnerSeed saves 32 bytes in onchain data
+            this.burnerSeed = blake2b
+                .create(b2params)
+                .update(seed + "burnerSeed" + index.toString())
+                .digest();
+            const burnerSeedString = new anchor_1.BN(this.burnerSeed).toString("hex");
+            this.encryptionPublicKey = getEncryptionKeyPair(burnerSeedString).publicKey;
+            this.privkey = generateShieldedKeyPrivateKey(burnerSeedString);
+        }
+        else {
+            this.encryptionPublicKey = getEncryptionKeyPair(seed).publicKey;
+            this.privkey = generateShieldedKeyPrivateKey(seed);
+        }
+        this.pubkey = generateShieldedKeyPublicKey(this.privkey, this.poseidon);
     }
-    // seed is currently a signature the user signs
-    fromSeed(seed, poseidon) {
+    encryptionPublicKeyToBytes() {
+        return new anchor_1.BN(this.encryptionPublicKey).toBuffer('be', 32);
     }
-    // add these methods and just json stringify the object
-    pubKeyToBytes() {
-        console.log("not implemented");
-    }
-    privKeyToBytes() {
-        console.log("not implemented");
-    }
-    encryptionKeyToBytes() {
-        console.log("not implemented");
-    }
-    fromBytes({ pubkey, encPubkey, privkey }) {
+    // make general for cases in which only pubkey, encPubkey, privkey or pairs of these are defined
+    fromBytes({ pubkey, encPubkey, privkey, poseidon, burnerSeed }) {
         if (privkey != undefined) {
             this.privkey = anchor.utils.bytes.hex.encode(privkey);
-            this.pubkey = new anchor_1.BN(circomlibjs_1.poseidon.F.toString(this.poseidon([new anchor_1.BN(privkey, undefined, 'le')])));
-            this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(new anchor_1.BN(privkey, undefined, 'le').toString("hex", 32));
+            this.pubkey = new anchor_1.BN(poseidon.F.toString(this.poseidon([new anchor_1.BN(privkey, undefined, 'le')])));
+            this.encryptionPublicKey = getEncryptionKeyPair(new anchor_1.BN(burnerSeed).toString("hex")).publicKey; //getEncryptionPublicKey(new BN(privkey, undefined, 'le').toString("hex", 32));
         }
         else {
             this.pubkey = new anchor_1.BN(pubkey, undefined, 'le');
-            this.encryptionKey = anchor_1.utils.bytes.base64.encode(encPubkey);
+            this.encryptionPublicKey = encPubkey;
         }
     }
+    fromBurnerSeed(burnerSeed, poseidon) {
+        this.poseidon = poseidon;
+        this.burnerSeed = burnerSeed;
+        const burnerSeedString = new anchor_1.BN(burnerSeed).toString("hex");
+        this.encryptionPublicKey = getEncryptionKeyPair(burnerSeedString).publicKey;
+        this.privkey = generateShieldedKeyPrivateKey(burnerSeedString);
+        this.pubkey = generateShieldedKeyPublicKey(this.privkey, this.poseidon);
+        return this;
+    }
+    // fromPubkey(pubkey): Keypair {
+    // }
     /**
      * Sign a message using keypair private key
      *
@@ -55,3 +69,23 @@ class Keypair {
     }
 }
 exports.Keypair = Keypair;
+function getEncryptionKeyPair(seed) {
+    const encSeed = seed + "encryption";
+    const encryptionPrivateKey = blake2b
+        .create(b2params)
+        .update(encSeed)
+        .digest();
+    return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
+}
+;
+function generateShieldedKeyPrivateKey(seed) {
+    const privkeySeed = seed + "shielded";
+    const privateKey = new anchor_1.BN(blake2b.create(b2params)
+        .update(privkeySeed)
+        .digest());
+    return privateKey;
+}
+;
+function generateShieldedKeyPublicKey(privateKey, poseidon) {
+    return new anchor_1.BN(poseidon.F.toString(poseidon([privateKey.toBuffer('be', 32)])));
+}

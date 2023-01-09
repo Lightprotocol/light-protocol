@@ -22,26 +22,24 @@ var __importStar = (this && this.__importStar) || function (mod) {
     __setModuleDefault(result, mod);
     return result;
 };
-var __importDefault = (this && this.__importDefault) || function (mod) {
-    return (mod && mod.__esModule) ? mod : { "default": mod };
-};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.FEE_ASSET = exports.MINT_CIRCUIT = exports.KEYPAIR_PRIVKEY = exports.MERKLE_TREE_AUTHORITY_PDA = exports.POOL_TYPE = exports.REGISTERED_POOL_PDA_SOL = exports.REGISTERED_POOL_PDA_SPL_TOKEN = exports.REGISTERED_POOL_PDA_SPL = exports.TOKEN_AUTHORITY = exports.PRE_INSERTED_LEAVES_INDEX = exports.AUTHORITY_ONE = exports.AUTHORITY = exports.REGISTERED_VERIFIER_TWO_PDA = exports.REGISTERED_VERIFIER_ONE_PDA = exports.REGISTERED_VERIFIER_PDA = exports.MERKLE_TREE_KEY = exports.RECIPIENT_TOKEN_ACCOUNT = exports.USER_TOKEN_ACCOUNT = exports.ENCRYPTION_KEYPAIR = exports.recipientTokenAccount = exports.userTokenAccount = exports.DEFAULT_PROGRAMS = exports.AUTHORITY_SEED = exports.ADMIN_AUTH_KEYPAIR = exports.ADMIN_AUTH_KEY = exports.MINT = exports.MINT_PRIVATE_KEY = exports.MERKLE_TREE_INIT_AUTHORITY = exports.PRIVATE_KEY = exports.DEFAULT_ZERO = exports.confirmConfig = exports.verifierProgramTwo = exports.verifierProgramOne = exports.verifierProgramZero = exports.merkleTreeProgram = exports.verifierProgramTwoProgramId = exports.verifierProgramOneProgramId = exports.verifierProgramZeroProgramId = exports.merkleTreeProgramId = exports.TYPE_INIT_DATA = exports.TYPE_SEED = exports.TYPE_PUBKEY = exports.MERKLE_TREE_SIGNER_AUTHORITY = exports.FIELD_SIZE_ETHERS = exports.FIELD_SIZE = exports.ASSET_1 = exports.ASSET_1_ORG = void 0;
+exports.FEE_ASSET = exports.MINT_CIRCUIT = exports.KEYPAIR_PRIVKEY = exports.MERKLE_TREE_AUTHORITY_PDA = exports.POOL_TYPE = exports.REGISTERED_POOL_PDA_SOL = exports.REGISTERED_POOL_PDA_SPL_TOKEN = exports.REGISTERED_POOL_PDA_SPL = exports.TOKEN_AUTHORITY = exports.PRE_INSERTED_LEAVES_INDEX = exports.AUTHORITY_ONE = exports.AUTHORITY = exports.REGISTERED_VERIFIER_TWO_PDA = exports.REGISTERED_VERIFIER_ONE_PDA = exports.REGISTERED_VERIFIER_PDA = exports.MERKLE_TREE_KEY = exports.RECIPIENT_TOKEN_ACCOUNT = exports.USER_TOKEN_ACCOUNT = exports.ENCRYPTION_KEYPAIR = exports.recipientTokenAccount = exports.userTokenAccount = exports.DEFAULT_PROGRAMS = exports.AUTHORITY_SEED = exports.ADMIN_AUTH_KEYPAIR = exports.ADMIN_AUTH_KEY = exports.MINT = exports.MINT_PRIVATE_KEY = exports.MERKLE_TREE_INIT_AUTHORITY = exports.PRIVATE_KEY = exports.DEFAULT_ZERO = exports.confirmConfig = exports.verifierProgramTwoProgramId = exports.verifierProgramOneProgramId = exports.verifierProgramZeroProgramId = exports.merkleTreeProgramId = exports.TYPE_INIT_DATA = exports.TYPE_SEED = exports.TYPE_PUBKEY = exports.MERKLE_TREE_SIGNER_AUTHORITY = exports.FIELD_SIZE_ETHERS = exports.FIELD_SIZE = exports.CONSTANT_SECRET_AUTHKEY = exports.ASSET_1 = exports.ASSET_1_ORG = void 0;
 // TODO: clean this up
 // TODO: move test only stuff to other file
 const solana = require("@solana/web3.js");
-const anchor = __importStar(require("@project-serum/anchor"));
-const anchor_1 = require("@project-serum/anchor");
+const anchor = __importStar(require("@coral-xyz/anchor"));
 const spl_token_1 = require("@solana/spl-token");
-const verifier_program_two_1 = __importDefault(require("../idls/verifier_program_two"));
-const verifier_program_one_1 = __importDefault(require("../idls/verifier_program_one"));
-const verifier_program_zero_1 = __importDefault(require("../idls/verifier_program_zero"));
-const merkle_tree_program_1 = __importDefault(require("../idls/merkle_tree_program"));
 const web3_js_1 = require("@solana/web3.js");
 const ethers_1 = require("ethers");
 const bn_js_1 = require("bn.js");
 exports.ASSET_1_ORG = new anchor.web3.Account();
-exports.ASSET_1 = new anchor.BN(exports.ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0, 31));
+exports.ASSET_1 = new anchor.BN(exports.ASSET_1_ORG.publicKey.toBytes().slice(0, 31));
+exports.CONSTANT_SECRET_AUTHKEY = Uint8Array.from([
+    155, 249, 234, 55, 8, 49, 0, 14,
+    84, 72, 10, 224, 21, 139, 87, 102,
+    115, 88, 217, 72, 137, 38, 0, 179,
+    93, 202, 220, 31, 143, 79, 247, 200
+]);
 exports.FIELD_SIZE = new anchor.BN('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 exports.FIELD_SIZE_ETHERS = ethers_1.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 exports.MERKLE_TREE_SIGNER_AUTHORITY = new solana.PublicKey([59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42, 153, 232, 210, 107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225]);
@@ -52,10 +50,9 @@ exports.merkleTreeProgramId = new web3_js_1.PublicKey("JA5cjkRJ1euVi9xLWsCJVzsRz
 exports.verifierProgramZeroProgramId = new web3_js_1.PublicKey("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 exports.verifierProgramOneProgramId = new web3_js_1.PublicKey("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 exports.verifierProgramTwoProgramId = new web3_js_1.PublicKey("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
-exports.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.default, exports.merkleTreeProgramId);
-exports.verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, exports.verifierProgramZeroProgramId);
-exports.verifierProgramOne = new anchor_1.Program(verifier_program_one_1.default, exports.verifierProgramOneProgramId);
-exports.verifierProgramTwo = new anchor_1.Program(verifier_program_two_1.default, exports.verifierProgramTwoProgramId);
+// export const verifierProgramZero: Program<VerifierProgramZero> = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
+// export const verifierProgramOne:  Program<VerifierProgramOne> = new Program(VerifierProgramOne, verifierProgramOneProgramId);
+// export const verifierProgramTwo:  Program<VerifierProgramTwo> = new Program(VerifierProgramTwo, verifierProgramTwoProgramId);
 exports.confirmConfig = { commitment: "confirmed", preflightCommitment: 'confirmed' };
 // TODO: reactivate this
 // const constants:any = {};
@@ -148,4 +145,4 @@ exports.POOL_TYPE = new Uint8Array(32).fill(0);
 exports.MERKLE_TREE_AUTHORITY_PDA = new solana.PublicKey("5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y");
 exports.KEYPAIR_PRIVKEY = new bn_js_1.BN('d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896', "hex");
 exports.MINT_CIRCUIT = new anchor.BN(exports.MINT._bn.toBuffer(32).slice(0, 31));
-exports.FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0, 31)); //new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+exports.FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId.toBytes().slice(0, 31)); //new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)

@@ -1,4 +1,5 @@
-export type verifierProgramZero = {
+export declare const VerifierProgramZero: VerifierProgramZeroIdl;
+export type VerifierProgramZeroIdl = {
     "version": "0.1.0";
     "name": "verifier_program_zero";
     "instructions": [
@@ -135,7 +136,7 @@ export type verifierProgramZero = {
                     "type": "bytes";
                 }
             ];
-            "returns": null;
         }
     ];
 };
+export default VerifierProgramZero;

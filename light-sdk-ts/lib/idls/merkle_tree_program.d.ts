@@ -1,4 +1,4 @@
-export type merkleTreeProgram = {
+export type MerkleTreeProgramIdl = {
     "version": "0.1.0";
     "name": "merkle_tree_program";
     "constants": [
@@ -173,7 +173,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "initializeMerkleTreeAuthority";
@@ -200,7 +199,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "updateMerkleTreeAuthority";
@@ -222,7 +220,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "updateLockDuration";
@@ -249,7 +246,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "enableNfts";
@@ -271,7 +267,6 @@ export type merkleTreeProgram = {
                     "type": "bool";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "enablePermissionlessSplTokens";
@@ -293,7 +288,6 @@ export type merkleTreeProgram = {
                     "type": "bool";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "registerVerifier";
@@ -330,7 +324,6 @@ export type merkleTreeProgram = {
                     "type": "publicKey";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "registerPoolType";
@@ -372,7 +365,6 @@ export type merkleTreeProgram = {
                     };
                 }
             ];
-            "returns": null;
         },
         {
             "name": "registerSplPool";
@@ -429,7 +421,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "registerSolPool";
@@ -466,7 +457,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "initializeMerkleTreeUpdateState";
@@ -498,7 +488,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "updateMerkleTree";
@@ -525,7 +514,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "insertRootMerkleTree";
@@ -552,7 +540,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "closeMerkleTreeUpdateState";
@@ -569,7 +556,6 @@ export type merkleTreeProgram = {
                 }
             ];
             "args": [];
-            "returns": null;
         },
         {
             "name": "insertTwoLeaves";
@@ -633,7 +619,6 @@ export type merkleTreeProgram = {
                     "type": "publicKey";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "withdrawSol";
@@ -665,7 +650,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "withdrawSpl";
@@ -707,7 +691,6 @@ export type merkleTreeProgram = {
                     "type": "u64";
                 }
             ];
-            "returns": null;
         },
         {
             "name": "initializeNullifiers";
@@ -736,7 +719,6 @@ export type merkleTreeProgram = {
                     };
                 }
             ];
-            "returns": null;
         }
     ];
     "accounts": [
@@ -1181,3 +1163,5 @@ export type merkleTreeProgram = {
         }
     ];
 };
+export declare const MerkleTreeProgram: MerkleTreeProgramIdl;
+export default MerkleTreeProgram;

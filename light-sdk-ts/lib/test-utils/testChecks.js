@@ -37,7 +37,7 @@ const solana = require("@solana/web3.js");
 const { U64, I64 } = require('n64');
 const chai_1 = require("chai");
 const token = require('@solana/spl-token');
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 function assert_eq(value0, value1, message) {
     if (value0.length !== value1.length) {
         console.log("value0: ", value0);

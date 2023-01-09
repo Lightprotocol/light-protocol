@@ -31,18 +31,25 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
+var __importDefault = (this && this.__importDefault) || function (mod) {
+    return (mod && mod.__esModule) ? mod : { "default": mod };
+};
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.initLookUpTable = exports.initLookUpTableFromFile = void 0;
+const anchor_1 = require("@coral-xyz/anchor");
 const web3_js_1 = require("@solana/web3.js");
-const anchor = __importStar(require("@project-serum/anchor"));
+const anchor = __importStar(require("@coral-xyz/anchor"));
 const spl_token_1 = require("@solana/spl-token");
 const chai_1 = require("chai");
 const bigint_buffer_1 = require("bigint-buffer");
 const fs_1 = require("fs");
 const constants_1 = require("../constants");
+const verifier_program_zero_1 = __importDefault(require("../idls/verifier_program_zero"));
+const idls_1 = require("../idls");
+const verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, constants_1.verifierProgramZeroProgramId);
+const merkleTreeProgram = new anchor_1.Program(idls_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
-// TODO: extend with custom accounts to add
 function initLookUpTableFromFile(provider, path = `lookUpTable.txt`, extraAccounts) {
     return __awaiter(this, void 0, void 0, function* () {
         const recentSlot = (yield provider.connection.getSlot("confirmed")) - 10;
@@ -82,13 +89,13 @@ function initLookUpTable(provider, lookupTableAddress, recentSlot, extraAccounts
                 payer: payerPubkey,
                 recentSlot,
             })[0];
-            let escrows = (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("escrow")], constants_1.verifierProgramZero.programId))[0];
+            let escrows = (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("escrow")], verifierProgramZero.programId))[0];
             let ix0 = web3_js_1.SystemProgram.transfer({ fromPubkey: constants_1.ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: constants_1.AUTHORITY, lamports: 10000000000 });
             var transaction = new web3_js_1.Transaction().add(createInstruction);
             const addressesToAdd = [
                 constants_1.AUTHORITY,
                 web3_js_1.SystemProgram.programId,
-                constants_1.merkleTreeProgram.programId,
+                merkleTreeProgram.programId,
                 constants_1.DEFAULT_PROGRAMS.rent,
                 constants_1.PRE_INSERTED_LEAVES_INDEX,
                 spl_token_1.TOKEN_PROGRAM_ID,

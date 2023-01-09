@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.feeRecipient1Privkey = exports.feeRecipientPrivkey = exports.bidderPrivkey = exports.offerAuthorityPrivkey = exports.offerBurnerPrivkey = void 0;
-const anchor_1 = require("@project-serum/anchor");
+const anchor_1 = require("@coral-xyz/anchor");
 exports.offerBurnerPrivkey = new anchor_1.BN(Buffer.from([237, 38, 4, 149, 204, 158, 213, 144, 83, 16, 191, 94, 68, 105, 127, 237, 66, 153, 151, 133, 243, 205, 71, 208, 223, 215, 88, 171, 195, 137, 213, 159]));
 exports.offerAuthorityPrivkey = new anchor_1.BN(Buffer.from([42, 150, 26, 78, 235, 21, 149, 49, 116, 215, 34, 161, 176, 34, 26, 16, 147, 30, 65, 203, 209, 221, 162, 85, 222, 209, 157, 53, 59, 28, 2, 253]));
 exports.bidderPrivkey = new anchor_1.BN(Buffer.from([226, 46, 122, 35, 45, 227, 24, 192, 49, 124, 94, 100, 208, 151, 189, 53, 30, 52, 105, 191, 89, 191, 222, 95, 10, 224, 189, 95, 68, 242, 176, 69]));

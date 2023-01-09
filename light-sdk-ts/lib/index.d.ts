@@ -7,3 +7,4 @@ export * from './transaction';
 export * from './constants';
 export * from './wallet';
 export * from './utils';
+export * from './idls';

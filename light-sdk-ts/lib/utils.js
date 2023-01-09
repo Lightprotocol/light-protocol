@@ -10,7 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.fetchAssetByIdLookUp = exports.getAssetLookUpId = exports.hashAndTruncateToCircuit = void 0;
-const anchor_1 = require("@project-serum/anchor");
+const anchor_1 = require("@coral-xyz/anchor");
 const ethers_1 = require("ethers");
 const constants_1 = require("./constants");
 var ffjavascript = require('ffjavascript');

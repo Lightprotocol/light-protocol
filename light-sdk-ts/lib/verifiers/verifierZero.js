@@ -33,7 +33,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifierZero = void 0;
-const anchor = __importStar(require("@project-serum/anchor"));
+const verifier_program_zero_1 = require("../idls/verifier_program_zero");
+const anchor = __importStar(require("@coral-xyz/anchor"));
+const anchor_1 = require("@coral-xyz/anchor");
 const web3_js_1 = require("@solana/web3.js");
 const constants_1 = require("../constants");
 const spl_token_1 = require("@solana/spl-token");
@@ -42,7 +44,7 @@ const constants_2 = require("../constants");
 // the Transaction class not the other way around like it is right now
 class VerifierZero {
     constructor() {
-        this.verifierProgram = constants_2.verifierProgramZero;
+        this.verifierProgram = new anchor_1.Program(verifier_program_zero_1.VerifierProgramZero, constants_1.verifierProgramZeroProgramId);
         // Does not work within sdk 
         // TODO: bundle files in npm package
         this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
