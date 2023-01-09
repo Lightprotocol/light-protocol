@@ -1,14 +1,14 @@
 import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
+import VerifierProgramOne, { VerifierProgramOneIdl } from "../idls/verifier_program_one";
+import VerifierProgramTwo, { VerifierProgramTwoIdl } from "../idls/verifier_program_two";
+import VerifierProgramZero, { VerifierProgramZeroIdl } from "../idls/verifier_program_zero";
 
 import {
     MERKLE_TREE_KEY,
     ADMIN_AUTH_KEYPAIR,
     AUTHORITY,
-    merkleTreeProgram,
-    verifierProgramZero,
-    verifierProgramOne,
-    verifierProgramTwo,
+    
     MINT_PRIVATE_KEY,
     POOL_TYPE,
     MINT,
@@ -16,12 +16,17 @@ import {
     REGISTERED_POOL_PDA_SOL,
     MERKLE_TREE_AUTHORITY_PDA,
     confirmConfig,
+    verifierProgramZeroProgramId,
+    verifierProgramOneProgramId,
+    verifierProgramTwoProgramId,
 } from "../constants"
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig"
 
-import {createMint } from "./createAccounts"
-
 export async function setUpMerkleTree (provider: anchor.Provider) {
+    const verifierProgramZero: anchor.Program<VerifierProgramZeroIdl> = new anchor.Program(VerifierProgramZero, verifierProgramZeroProgramId);
+    const verifierProgramOne: anchor.Program<VerifierProgramOneIdl> = new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
+    const verifierProgramTwo: anchor.Program<VerifierProgramTwoIdl> = new anchor.Program(VerifierProgramTwo, verifierProgramTwoProgramId);
+
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
         MERKLE_TREE_KEY
     )

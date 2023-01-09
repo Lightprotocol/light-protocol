@@ -1,4 +1,6 @@
+import { Program } from '@coral-xyz/anchor';
 import { AccountInfo, Connection, PublicKey } from '@solana/web3.js'
+import { MerkleTreeProgramIdl } from 'idls';
 import {MerkleTree } from './merkleTree';
 const anchor = require("@coral-xyz/anchor")
 var ffjavascript = require('ffjavascript');
@@ -11,7 +13,7 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
   connection: Connection,
   config: any, //NetworkConfig,
   merkleTreePubkey: PublicKey, // pubkey to bytes
-  merkleTreeProgram: any,
+  merkleTreeProgram: Program<MerkleTreeProgramIdl>,
   poseidonHash: any
 }) {
   let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(merkleTreePubkey)

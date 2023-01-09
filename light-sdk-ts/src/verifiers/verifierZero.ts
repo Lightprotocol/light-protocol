@@ -19,7 +19,6 @@ export class VerifierZero implements Verifier {
   calculateWtns: NodeRequire
   registeredVerifierPda: PublicKey
   constructor() {
-    this.verifierProgram = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
     // Does not work within sdk 
     // TODO: bundle files in npm package
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
@@ -56,6 +55,7 @@ export class VerifierZero implements Verifier {
 
 
   async sendTransaction(insert: Boolean = true): Promise<any> {
+    this.verifierProgram = new Program(VerifierProgramZero, verifierProgramZeroProgramId);
 
     // await this.getPdaAddresses();
 
