@@ -140,7 +140,6 @@ export class Utxo {
       this.verifierAddress = new BN(verifierAddress.toBytes());
       this.verifierAddressCircuit = hashAndTruncateToCircuit(verifierAddress.toBytes());
     }
-    
   }
 
   toBytes() {
@@ -264,8 +263,8 @@ export class Utxo {
             this.blinding.toString(),
             assetHash.toString(),
             this.instructionType.toString(),
-            // this.poolType,
-            // this.verifierPubkey
+            this.poolType,
+            this.verifierAddressCircuit
         ]));
       }
       return this._commitment;

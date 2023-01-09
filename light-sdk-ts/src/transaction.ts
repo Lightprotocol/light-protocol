@@ -451,20 +451,24 @@ export class Transaction {
               .toString(),
           mintPubkey: this.mintPubkey,
           // data for 2 transaction inputUtxos
-          inAmount: this.inputUtxos.map((x) => x.amounts),
-          inPrivateKey: this.inputUtxos.map((x) => x.keypair.privkey),
-          inBlinding: this.inputUtxos.map((x) => x.blinding),
+          inAmount: this.inputUtxos?.map((x) => x.amounts),
+          inPrivateKey: this.inputUtxos?.map((x) => x.keypair.privkey),
+          inBlinding: this.inputUtxos?.map((x) => x.blinding),
           inPathIndices: inputMerklePathIndices,
           inPathElements: inputMerklePathElements,
           assetPubkeys: this.assetPubkeys,
           // data for 2 transaction outputUtxos
-          outAmount: this.outputUtxos.map((x) => x.amounts),
-          outBlinding: this.outputUtxos.map((x) => x.blinding),
-          outPubkey: this.outputUtxos.map((x) => x.keypair.pubkey),
+          outAmount: this.outputUtxos?.map((x) => x.amounts),
+          outBlinding: this.outputUtxos?.map((x) => x.blinding),
+          outPubkey: this.outputUtxos?.map((x) => x.keypair.pubkey),
           inIndices: this.inIndices,
           outIndices: this.outIndices,
-          inInstructionType: this.inputUtxos.map((x) => x.instructionType),
-          outInstructionType: this.outputUtxos.map((x) => x.instructionType)
+          inInstructionType: this.inputUtxos?.map((x) => x.instructionType),
+          outInstructionType: this.outputUtxos?.map((x) => x.instructionType),
+          inPoolType: this.inputUtxos?.map((x) => x.poolType),
+          outPoolType: this.outputUtxos?.map((x) => x.poolType),
+          inVerifierPubkey: this.inputUtxos?.map((x) => x.verifierAddressCircuit),
+          outVerifierPubkey: this.outputUtxos?.map((x) => x.verifierAddressCircuit)
       };
       // console.log("extDataHash: ", input.extDataHash);
       // console.log("input.inputNullifier ",input.inputNullifier[0] );
