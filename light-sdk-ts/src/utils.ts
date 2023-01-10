@@ -30,22 +30,27 @@ export async function getAssetLookUpId({
   return registeredAssets.index;
 }
 
+// TODO: fetch from chain
+export const assetLookupTable = [
+  SystemProgram.programId,
+  MINT
+];
 
-export function fetchAssetByIdLookUp({
-  assetIndex
-} : {
-  assetIndex: BN,
-}): PublicKey {
-  // TODO: find smarter way to do this maybe query from account
-  console.log("here ", assetIndex);
-  let poolType = new Uint8Array(32).fill(0);
-  if (assetIndex.toString() == '0' ) {
-    return MINT;
-  } else if (assetIndex.toString() == '1' ) {
-    return SystemProgram.programId;
-  } else {
-    throw `no entry for index ${assetIndex}`;
-  }
+export function getAssetIndex(assetPubkey: PublicKey): BN {
+  return new BN(assetLookupTable.indexOf(assetPubkey));
+}
+
+export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
+  return assetLookupTable[assetIndex.toNumber()]
+  // console.log("here ", assetIndex);
+  // let poolType = new Uint8Array(32).fill(0);
+  // if (assetIndex.toString() == '1' ) {
+  //   return MINT;
+  // } else if (assetIndex.toString() == '0' ) {
+  //   return SystemProgram.programId;
+  // } else {
+  //   throw `no entry for index ${assetIndex}`;
+  // }
 
   // let registeredAssets = await merkleTreeProgram.account.registeredAssetPool.all();
   // // console.log("registeredAssets ", registeredAssets.publictoBase58());

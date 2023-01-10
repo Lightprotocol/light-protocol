@@ -152,6 +152,8 @@ export async function checkRentExemption({
   connection,
   account
 }) {
+  console.log("rent exemption: ", account);
+  
   let requiredBalance = await connection.getMinimumBalanceForRentExemption(account.data.length);
   if (account.lamports  < requiredBalance) {
     throw Error(`Account of size ${account.data.length} not rentexempt balance ${account.lamports} should be${requiredBalance}`)

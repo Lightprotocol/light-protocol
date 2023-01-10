@@ -44,7 +44,6 @@ const constants_2 = require("../constants");
 // the Transaction class not the other way around like it is right now
 class VerifierZero {
     constructor() {
-        this.verifierProgram = new anchor_1.Program(verifier_program_zero_1.VerifierProgramZero, constants_1.verifierProgramZeroProgramId);
         // Does not work within sdk 
         // TODO: bundle files in npm package
         this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
@@ -53,7 +52,6 @@ class VerifierZero {
         this.registeredVerifierPda = constants_2.REGISTERED_VERIFIER_PDA;
     }
     parsePublicInputsFromArray(transaction) {
-        // console.log("here");
         console.log("this ", transaction);
         console.log("publicInputsBytes; ", transaction.publicInputsBytes.length);
         if (transaction.publicInputsBytes.length == 9) {
@@ -74,6 +72,7 @@ class VerifierZero {
     // TODO: serializeTransaction for relayer
     sendTransaction(insert = true) {
         return __awaiter(this, void 0, void 0, function* () {
+            this.verifierProgram = new anchor_1.Program(verifier_program_zero_1.VerifierProgramZero, constants_1.verifierProgramZeroProgramId);
             // await this.getPdaAddresses();
             try {
                 this.recipientBalancePriorTx = (yield (0, spl_token_1.getAccount)(this.provider.connection, this.recipient, spl_token_1.TOKEN_PROGRAM_ID)).amount;

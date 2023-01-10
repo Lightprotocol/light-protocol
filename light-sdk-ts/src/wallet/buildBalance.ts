@@ -41,8 +41,9 @@ export async function getUnspentUtxo(leavesPdas, provider: anchor.Provider,
   for (var i = 0; i < leavesPdas.length; i++) {
     console.log("iter ", i);
     try {
-       // decrypt first leaves account and build utxo
-      decryptedUtxo1 = Utxo.decrypt(new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(0,71))), new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos.slice(71, 71+24))), encryptionKeypair.PublicKey, encryptionKeypair, KEYPAIR, [FEE_ASSET,mint], POSEIDON, 0)[1];
+      // decrypt first leaves account and build utxo
+      console.log("error utxo decrypt changed this is untested I am in buildBalance.ts");
+      decryptedUtxo1 = Utxo.decrypt({poseidon: POSEIDON, encBytes: new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos)), keypair: KEYPAIR});
       console.log("decryptedUtxo1 ", decryptedUtxo1);
       
       let nullifier = decryptedUtxo1.getNullifier();

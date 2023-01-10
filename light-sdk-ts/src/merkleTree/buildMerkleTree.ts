@@ -1,6 +1,8 @@
 import { Program } from '@coral-xyz/anchor';
 import { AccountInfo, Connection, PublicKey } from '@solana/web3.js'
+import { assert } from 'chai';
 import { MerkleTreeProgramIdl } from 'idls';
+import { merkleTreeProgram } from 'index';
 import {MerkleTree } from './merkleTree';
 const anchor = require("@coral-xyz/anchor")
 var ffjavascript = require('ffjavascript');
@@ -16,7 +18,7 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
   merkleTreeProgram: Program<MerkleTreeProgramIdl>,
   poseidonHash: any
 }) {
-  let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(merkleTreePubkey)
+  const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(merkleTreePubkey)
   // Fetch all the accounts owned by the specified program id
   const leave_accounts: Array<{
     pubkey: PublicKey
@@ -40,7 +42,7 @@ export const buildMerkleTree = async function ({connection, config, merkleTreePu
   let fetchedMerkleTree = new MerkleTree(MERKLE_TREE_HEIGHT,poseidonHash, leaves)
 
   if (Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()) {
-    throw `building merkle tree from chain failed: root local ${Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString()} != root fetched ${mtFetched.roots[mtFetched.currentRootIndex]}`;
+    throw new Error(`building merkle tree from chain failed: root local ${Array.from(leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)).toString()} != root fetched ${mtFetched.roots[mtFetched.currentRootIndex]}`);
   }
 
   return fetchedMerkleTree;

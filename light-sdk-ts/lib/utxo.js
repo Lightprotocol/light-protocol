@@ -1,46 +1,74 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || function (mod) {
+    if (mod && mod.__esModule) return mod;
+    var result = {};
+    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
+    __setModuleDefault(result, mod);
+    return result;
+};
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.Utxo = void 0;
+exports.Utxo = exports.N_ASSETS = exports.newNonce = void 0;
 const keypair_1 = require("./keypair");
-const ethers_1 = require("ethers");
-const tweetnacl_1 = require("tweetnacl");
+const tweetnacl_1 = __importStar(require("tweetnacl"));
 const crypto = require('crypto');
-const randomBN = (nbytes = 31) => new anchor.BN(crypto.randomBytes(nbytes));
+const randomBN = (nbytes = 30) => new anchor.BN(crypto.randomBytes(nbytes));
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
-// import { FEE_ASSET, FIELD_SIZE, FIELD_SIZE_ETHERS, MINT, MINT_CIRCUIT } from './constants';
 const utils_1 = require("./utils");
 const web3_js_1 = require("@solana/web3.js");
-// import { BN } from 'bn.js';
 var ffjavascript = require('ffjavascript');
-const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
-const N_ASSETS = 3;
+const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const anchor_1 = require("@coral-xyz/anchor");
 const constants_1 = require("./constants");
-const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
+const newNonce = () => tweetnacl_1.default.randomBytes(tweetnacl_1.default.box.nonceLength);
+exports.newNonce = newNonce;
+// TODO: move to constants
+exports.N_ASSETS = 2;
 // TODO: write test
 class Utxo {
     constructor({ poseidon, 
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
-    assets = [web3_js_1.SystemProgram.programId, web3_js_1.SystemProgram.programId, web3_js_1.SystemProgram.programId], amounts = [new anchor_1.BN('0'), new anchor_1.BN('0'), new anchor_1.BN('0')], keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding = new anchor_1.BN(randomBN()), poolType = new anchor_1.BN('0'), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], index = null }) {
+    assets = [web3_js_1.SystemProgram.programId], amounts = [new anchor_1.BN('0')], keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    blinding = new anchor_1.BN(randomBN(), 31, "le"), poolType = new anchor_1.BN('0'), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], index = null }) {
+        // check that blinding is 31 bytes
+        blinding.toArray('le', 31);
         if (assets.length != amounts.length) {
             throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
         }
-        while (assets.length < N_ASSETS) {
-            assets.push(new anchor.BN(0));
+        if (assets.length > exports.N_ASSETS) {
+            throw `assets.lengt ${assets.length} > N_ASSETS ${exports.N_ASSETS}`;
         }
-        for (var i = 0; i < N_ASSETS; i++) {
-            if (amounts[i] < 0) {
+        while (assets.length < exports.N_ASSETS) {
+            assets.push(web3_js_1.SystemProgram.programId);
+        }
+        for (var i = 0; i < exports.N_ASSETS; i++) {
+            if (amounts[i] < new anchor_1.BN(0)) {
                 throw `utxo constructor: amount cannot be negative, amounts[${i}] = ${amounts[i]}`;
             }
         }
-        while (amounts.length < N_ASSETS) {
-            amounts.push(0);
+        while (amounts.length < exports.N_ASSETS) {
+            amounts.push(new anchor_1.BN(0));
         }
         if (!keypair) {
-            keypair = new keypair_1.Keypair(poseidon);
+            keypair = new keypair_1.Keypair({ poseidon });
         }
+        // TODO: check that this does not lead to hickups since publicAmount cannot withdraw the fee asset sol
         if (assets[1].toBase58() == web3_js_1.SystemProgram.programId.toBase58()) {
             amounts[0] = amounts[0].add(amounts[1]);
             amounts[1] = new anchor_1.BN(0);
@@ -54,42 +82,47 @@ class Utxo {
         // console.log("appDataArray.flat() ",appDataArray.flat());
         if (appData.length > 0) {
             // TODO: change to poseidon hash which is reproducable in circuit
+            // TODO: write function which creates the instructionTypeHash
             // this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
         }
         else {
             this.instructionType = new anchor_1.BN('0');
         }
-        //TODO: add check that amounts are U64
-        this.amounts = amounts.map((x) => new anchor_1.BN(x.toString()));
+        this.amounts = amounts.map((x) => {
+            try {
+                // check that amounts are U64
+                // TODO: add test
+                x.toArray("be", 8);
+            }
+            catch (_) {
+                throw new Error("amount not u64");
+            }
+            return new anchor_1.BN(x.toString());
+        });
         this.blinding = blinding;
         this.keypair = keypair;
         this.index = index;
-        console.log("assets ", assets);
         this.assets = assets;
-        // TODO: make variable length
-        // TODO: evaluate whether to hashAndTruncate feeAsset as well
-        if (assets[1].toBase58() != web3_js_1.SystemProgram.programId.toBase58()) {
-            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), (0, utils_1.hashAndTruncateToCircuit)(this.assets[1].toBytes()), new anchor_1.BN(0)];
-            // console.log("this.assetsCircuit ", this.assetsCircuit);
-            // console.log("MINT_CIRCUIT ", MINT_CIRCUIT);
-            // assert(MINT_CIRCUIT.toString() == this.assetsCircuit[1].toString(), "MINT_CIRCUIT != this.assetsCircuit[1]");
-        }
-        else {
-            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), new anchor_1.BN(0), new anchor_1.BN(0)];
-        }
-        console.log("assetsCircuit ", this.assetsCircuit);
         this._commitment = null;
         this._nullifier = null;
         this.poseidon = poseidon;
         this.appData = appData;
         this.poolType = poolType;
-        // TODO: add hashAndTruncateToCircuit for verifierAddress
+        // TODO: make variable length
+        // TODO: evaluate whether to hashAndTruncate feeAsset as well
+        if (assets[1].toBase58() != web3_js_1.SystemProgram.programId.toBase58()) {
+            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), (0, utils_1.hashAndTruncateToCircuit)(this.assets[1].toBytes())];
+        }
+        else {
+            this.assetsCircuit = [new anchor_1.BN(web3_js_1.SystemProgram.programId.toBytes()), new anchor_1.BN(0)];
+        }
+        console.log("assetsCircuit ", this.assetsCircuit);
         if (verifierAddress.toBase58() == web3_js_1.SystemProgram.programId.toBase58()) {
-            this.verifierAddress = verifierAddress;
+            this.verifierAddress = new anchor_1.BN(verifierAddress.toBytes());
             this.verifierAddressCircuit = new anchor_1.BN(0);
         }
         else {
-            this.verifierAddress = verifierAddress;
+            this.verifierAddress = new anchor_1.BN(verifierAddress.toBytes());
             this.verifierAddressCircuit = (0, utils_1.hashAndTruncateToCircuit)(verifierAddress.toBytes());
         }
     }
@@ -100,7 +133,7 @@ class Utxo {
         if (this.instructionType.toString() == '0') {
             console.log("isntruction type is 0");
             return new Uint8Array([
-                ...this.blinding.toBuffer(),
+                ...this.blinding.toArray('be', 31),
                 ...this.amounts[0].toArray('le', 8),
                 ...this.amounts[1].toArray('le', 8),
                 ...new anchor_1.BN(assetIndex).toArray('le', 8)
@@ -122,33 +155,40 @@ class Utxo {
     // take a decrypted byteArray as input
     // TODO: make robust and versatile for any combination of filled in fields or not
     // TODO: find a better solution to get the private key in
-    fromBytes(bytes, keypairInAppDataOffset) {
-        console.log("here");
-        this.blinding = new anchor_1.BN(bytes.slice(0, 31), undefined, 'le'), // blinding
-            console.log("here1");
-        console.log("new BN(bytes.slice(47,55) ", new anchor_1.BN(bytes.slice(47, 55), undefined, 'le'));
-        this.amounts = [new anchor_1.BN(bytes.slice(31, 39), undefined, 'le'), new anchor_1.BN(bytes.slice(39, 47), undefined, 'le'), new anchor_1.BN(0)]; // amounts
-        this.assets = [FEE_ASSET, (0, utils_1.fetchAssetByIdLookUp)({ assetIndex: new anchor_1.BN(bytes.slice(47, 55), undefined, 'le') }), 0]; // assets MINT
-        console.log(this.assets[1]);
-        console.log(this.assets[1].toBytes());
-        this.assetsCircuit = [FEE_ASSET, (0, utils_1.hashAndTruncateToCircuit)(Uint8Array.from(this.assets[1].toBuffer())), new anchor_1.BN(0)];
-        console.log("here2");
-        this.instructionType = ethers_1.BigNumber.from(leBuff2int(Uint8Array.from(bytes.slice(55, 87))).toString()); // instruction Type
-        console.log("here3");
-        this.poolType = new anchor_1.BN(bytes.slice(87, 95), undefined, 'le'); // pool Type
-        console.log("here4");
-        console.log("here5 ", this.blinding.toString());
-        // TODO: put the verifier address into the utxo not the circuit one then I can derive the circuit verifier address
-        this.verifierAddressCircuit = new anchor_1.BN(bytes.slice(95, 126), undefined, 'le'), // verifierAddress
-            console.log("here6");
-        this.appData = Array.from(bytes.slice(127, bytes.length));
-        if (keypairInAppDataOffset != undefined) {
-            console.log("restoring keypair");
-            console.log("bytes: ", Array.from(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32)));
-            console.log("bytes: ", Array.from(this.appData).toString());
-            this.keypair = new keypair_1.Keypair(this.poseidon, new anchor_1.BN(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32), undefined, 'le'));
-            console.log("this.keypair ", this.keypair.pubkey);
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset }) {
+        if (keypair) {
+            const blinding = new anchor_1.BN(bytes.slice(0, 31), undefined, 'le'); // blinding
+            const amounts = [new anchor_1.BN(bytes.slice(31, 39), undefined, 'le'), new anchor_1.BN(bytes.slice(39, 47), undefined, 'le')]; // amounts
+            const assets = [web3_js_1.SystemProgram.programId, (0, utils_1.fetchAssetByIdLookUp)({ assetIndex: new anchor_1.BN(bytes.slice(47, 55), undefined, 'le') })]; // assets MINT
+            return new Utxo({
+                poseidon,
+                assets,
+                amounts,
+                keypair,
+                blinding
+            });
         }
+        else {
+            throw "fromBytes only implemented for standard utxo";
+            return new Utxo({ poseidon });
+        }
+        // console.log("here2");
+        // this.instructionType =  BigNumber.from(leBuff2int(Uint8Array.from(bytes.slice(55,87))).toString()) // instruction Type
+        // console.log("here3");
+        // this.poolType =  new BN(bytes.slice(87,95), undefined, 'le'); // pool Type
+        // console.log("here4");
+        // console.log("here5 ", this.blinding.toString());
+        // // TODO: put the verifier address into the utxo not the circuit one then I can derive the circuit verifier address
+        // this.verifierAddressCircuit =  new BN(bytes.slice(95,126), undefined, 'le'), // verifierAddress
+        // console.log("here6");
+        // this.appData =  Array.from(bytes.slice(127,bytes.length))
+        // if (keypairInAppDataOffset != undefined) {
+        //   console.log("restoring keypair");
+        //   console.log("bytes: ", Array.from(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32)));
+        //   console.log("bytes: ", Array.from(this.appData).toString());
+        //   this.keypair = new Keypair(this.poseidon, new BN(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32), undefined, 'le'))
+        //   console.log("this.keypair ", this.keypair.pubkey);
+        // }
         // if(bytes[127]) {
         //   if (bytes.length < 129) {
         //     throw "no app data provided";
@@ -167,32 +207,31 @@ class Utxo {
         //   toBigIntLE(bytes.slice(95,127)), // verifierAddress
         //   JSON.parse(bytes.slice(127,).toString())
         // );
-        return this;
+        // return this
     }
     /**
      * Returns commitment for this UTXO
      *signature:
-     * @returns {BigNumber}
+     * @returns {BN}
      */
     getCommitment() {
         if (!this._commitment) {
-            console.log("this.amounts ", this.amounts);
             let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
-            console.log("this.assetsCircuit ", this.assetsCircuit);
             let assetHash = this.poseidon.F.toString(this.poseidon(this.assetsCircuit));
-            console.log("amountHash ", amountHash);
-            console.log("assetHash ", assetHash);
-            console.log("this.keypair.pubkey ", this.keypair.pubkey);
-            console.log("this.blinding ", this.blinding);
-            console.log("this.instructionType ", this.instructionType);
-            console.log("this.poolType ", this.poolType);
+            // console.log("amountHash ", amountHash.toString());
+            // console.log("assetHash ", assetHash.toString());
+            // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());
+            // console.log("this.blinding ", this.blinding.toString());
+            // console.log("this.instructionType ", this.instructionType.toString());
+            // console.log("this.poolType ", this.poolType.toString());
             this._commitment = this.poseidon.F.toString(this.poseidon([
                 amountHash,
-                this.keypair.pubkey,
-                this.blinding,
-                assetHash,
-                this.instructionType,
-                // this.poolType
+                this.keypair.pubkey.toString(),
+                this.blinding.toString(),
+                assetHash.toString(),
+                this.instructionType.toString(),
+                this.poolType,
+                this.verifierAddressCircuit
             ]));
         }
         return this._commitment;
@@ -200,11 +239,13 @@ class Utxo {
     /**
      * Returns nullifier for this UTXO
      *
-     * @returns {BigNumber}
+     * @returns {BN}
      */
     getNullifier() {
+        console.log("this.keypair.privkey", this.keypair.privkey);
         if (!this._nullifier) {
-            if (this.amount > 0 &&
+            if ( //(this.amounts[0] > new BN(0) || this.amounts[0] > new BN(0)) 
+            false &&
                 (this.index === undefined ||
                     this.index === null ||
                     this.keypair.privkey === undefined ||
@@ -214,16 +255,16 @@ class Utxo {
             const signature = this.keypair.privkey
                 ? this.keypair.sign(this.getCommitment(), this.index || 0)
                 : 0;
-            console.log("this.getCommitment() ", this.getCommitment());
-            console.log("this.index || 0 ", this.index || 0);
-            console.log("signature ", signature);
+            // console.log("this.getCommitment() ", this.getCommitment());
+            // console.log("this.index || 0 ", this.index || 0);
+            // console.log("signature ", signature);
             this._nullifier = this.poseidon.F.toString(this.poseidon([
                 this.getCommitment(),
                 this.index || 0,
                 signature,
             ]));
         }
-        console.log("this._nullifier ", this._nullifier);
+        // console.log("this._nullifier ", this._nullifier);
         return this._nullifier;
     }
     /**
@@ -231,39 +272,35 @@ class Utxo {
      *
      * @returns {string}
      */
-    // TODO: hardcode senderThrowAwayKeypair
-    // TODO: add filled length
-    // TODO: add actual length which is filled up with 0s
-    encrypt(encryptionPublicKey) {
+    // TODO: add fill option to 128 bytes to be filled with 0s
+    // TODO: add encrypt custom (app utxos with idl)
+    encrypt() {
         console.log("at least asset missing in encrypted bytes");
         const bytes_message = this.toBytes();
-        const nonce = newNonce();
+        const nonce = (0, exports.newNonce)();
         // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
         // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
         // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
-        const ciphertext = (0, tweetnacl_1.box)(bytes_message, nonce, encryptionPublicKey, constants_1.CONSTANT_SECRET_AUTHKEY);
-        return ciphertext;
+        const ciphertext = (0, tweetnacl_1.box)(bytes_message, nonce, this.keypair.encryptionPublicKey, constants_1.CONSTANT_SECRET_AUTHKEY);
+        return new Uint8Array([...ciphertext, ...nonce]);
     }
-    // TODO: add parse asset from assetIndex
-    static decrypt(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index) {
-        console.log("recipientEncryptionKeypair ", recipientEncryptionKeypair);
-        console.log("encryptedUtxo ", encryptedUtxo);
-        console.log("nonce ", nonce);
-        console.log("senderThrowAwayPubkey ", senderThrowAwayPubkey);
-        const cleartext = tweetnacl_1.box.open(encryptedUtxo, nonce, senderThrowAwayPubkey, recipientEncryptionKeypair.secretKey);
-        if (!cleartext) {
-            return [false, null];
+    // TODO: add decrypt custom (app utxos with idl)
+    static decrypt({ poseidon, encBytes, keypair }
+    // encryptedUtxo: Uint8Array, nonce:Uint8Array, senderThrowAwayPubkey:Uint8Array, recipientEncryptionKeypair, shieldedKeypair, assets = [], POSEIDON, index
+    ) {
+        const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
+        const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
+        if (keypair.encPrivateKey) {
+            const cleartext = tweetnacl_1.box.open(encryptedUtxo, nonce, tweetnacl_1.default.box.keyPair.fromSecretKey(constants_1.CONSTANT_SECRET_AUTHKEY).publicKey, keypair.encPrivateKey);
+            if (!cleartext) {
+                return null;
+            }
+            const bytes = Buffer.from(cleartext);
+            return Utxo.fromBytes({ poseidon, bytes, keypair });
         }
-        const buf = Buffer.from(cleartext);
-        // TODO: use fromBytes()
-        const utxoAmount1 = new anchor.BN(Array.from(buf.slice(31, 39)), undefined, 'le');
-        const utxoAmount2 = new anchor.BN(Array.from(buf.slice(39, 47)).reverse());
-        const utxoBlinding = new anchor.BN(buf.slice(0, 31));
-        // TODO: find a better way to make this fail since this can be a footgun
-        return [
-            true,
-            new Utxo({ poseidon: POSEIDON, assets, amounts: [utxoAmount1, utxoAmount2], keypair: shieldedKeypair, blinding: utxoBlinding, index })
-        ];
+        else {
+            return null;
+        }
     }
 }
 exports.Utxo = Utxo;

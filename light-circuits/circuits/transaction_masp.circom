@@ -81,6 +81,19 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal  input outInstructionType[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
 
+    
+    signal  input outPoolType[nOuts];
+    signal  input outVerifierPubkey[nOuts];
+
+    signal  input inPoolType[nIns];
+    signal  input inVerifierPubkey[nIns];
+
+    for (var tx = 0; tx < nIns; tx++) {
+        inInstructionType[tx] === 0;
+        inPoolType[tx] === 0;
+        inVerifierPubkey[tx] === 0;
+    }
+    
     signal  input assetPubkeys[nAssets];
 
     // feeAsset is asset indexFeeAsset
@@ -167,12 +180,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             sumInAmount += inAmount[tx][a];
         }
 
-        inCommitmentHasher[tx] = Poseidon(5);
+        inCommitmentHasher[tx] = Poseidon(7);
         inCommitmentHasher[tx].inputs[0] <== inAmountsHasher[tx].out;
         inCommitmentHasher[tx].inputs[1] <== inKeypair[tx].publicKey;
         inCommitmentHasher[tx].inputs[2] <== inBlinding[tx];
         inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
         inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
+        inCommitmentHasher[tx].inputs[5] <== inPoolType[tx];
+        inCommitmentHasher[tx].inputs[6] <== inVerifierPubkey[tx];
 
         inSignature[tx] = Signature();
         inSignature[tx].privateKey <== inPrivateKey[tx];
@@ -264,12 +279,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
         }
 
-        outCommitmentHasher[tx] = Poseidon(5);
+        outCommitmentHasher[tx] = Poseidon(7);
         outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
         outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
         outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
         outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
         outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
+        outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
+        outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
         outCommitmentHasher[tx].out === outputCommitment[tx];
 
         // Increases sumOuts of the correct asset by outAmount

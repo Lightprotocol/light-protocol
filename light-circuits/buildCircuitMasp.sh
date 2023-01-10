@@ -11,4 +11,5 @@ circom --r1cs --wasm --sym circuits/transactionMasp$1.circom -o ../light-sdk-ts/
 #mv "transactionMasp$1.sym" ../light-sdk-ts/build-circuits/transactionMasp$1.sym;
 npx snarkjs groth16 setup ../light-sdk-ts/build-circuits/transactionMasp$1.r1cs ../light-sdk-ts/build-circuits/ptau$POWERS_OF_TAU ../light-sdk-ts/build-circuits/transactionMasp$1.zkey
 # echo "qwe" | npx snarkjs zkey contribute build/circuits/tmp_transactionMasp$1.zkey build/circuits/transactionMasp$1.zkey
-#npx snarkjs zkey export verificationkey build/circuits/final_transactionMasp2.zkey verification_key_mainnet.json
+npx snarkjs zkey export verificationkey ../light-sdk-ts/build-circuits/transactionMasp$1.zkey verification_key_mainnet$1.json
+node parse_pvk_to_bytes_254.js $1
