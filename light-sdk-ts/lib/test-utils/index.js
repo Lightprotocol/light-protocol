@@ -20,3 +20,4 @@ __exportStar(require("./testTransactions"), exports);
 __exportStar(require("./setUpMerkleTree"), exports);
 __exportStar(require("./initLookUpTable"), exports);
 __exportStar(require("./constants"), exports);
+__exportStar(require("./functionalCircuit"), exports);

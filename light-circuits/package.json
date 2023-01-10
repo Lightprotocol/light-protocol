@@ -4,10 +4,11 @@
   "description": "",
   "main": "parse_pvk_to_bytes_254.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "build": "sh buildCircuitMasp.sh ",
+    "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts",
+    "format": "prettier --write \"src/**/*.{ts,js}\""
   },
   "author": "",
-  "license": "ISC",
   "dependencies": {
     "circomlib": "^2.0.5",
     "ffjavascript": "^0.2.48"

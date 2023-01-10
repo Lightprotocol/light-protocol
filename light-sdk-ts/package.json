@@ -2,7 +2,7 @@
   "name": "light-sdk",
   "version": "0.0.1",
   "description": "",
-  "main": "src/index.ts",
+  "main": "lib/index.d.ts",
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts",
     "build": "tsc",

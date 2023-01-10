@@ -1,13 +1,12 @@
 import * as anchor from "@project-serum/anchor";
+const x = 1;
 const { SystemProgram } = require('@solana/web3.js');
 const solana = require("@solana/web3.js");
-const {U64} = require('n64');
 import nacl from "tweetnacl";
 import _ from "lodash";
 import { assert } from "chai";
 const token = require('@solana/spl-token');
 let circomlibjs = require("circomlibjs");
-import {toBufferLE} from 'bigint-buffer';
 import {
   buildMerkleTree, MerkleTree, Transaction,
   VerifierZero, VerifierOne
@@ -27,16 +26,16 @@ import {
   setUpMerkleTree,
   initLookUpTableFromFile,
   testTransaction,
-  hashAndTruncateToCircuit
+  hashAndTruncateToCircuit,
+  MerkleTreeProgram,
+  merkleTreeProgramId,
+  MerkleTreeProgramIdl
  } from "../../light-sdk-ts/src/index";
 
  import {
   MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
-  merkleTreeProgram,
-  verifierProgramZero,
-  verifierProgramOne,
   MINT,
   REGISTERED_POOL_PDA_SPL,
   REGISTERED_POOL_PDA_SOL,
@@ -75,6 +74,7 @@ describe("verifier_program", () => {
 
   const provider = anchor.AnchorProvider.local('http://127.0.0.1:8899', {preflightCommitment: "confirmed", commitment: "confirmed"});//anchor.getProvider();
   console.timeEnd("init provider")
+  const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> = new anchor.Program(MerkleTreeProgram, merkleTreeProgramId)
 
   it.skip("test pubkey truncation < FIELD_SIZE", async() => {
     // let asset = new anchor.web3.Account().publicKey
@@ -93,7 +93,7 @@ describe("verifier_program", () => {
     await createTestAccounts(provider.connection);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new Keypair(POSEIDON, KEYPAIR_PRIVKEY)
+    KEYPAIR = new Keypair({poseidon: POSEIDON, seed: KEYPAIR_PRIVKEY.toString()})
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     console.log("USER_TOKEN_ACCOUNT ", USER_TOKEN_ACCOUNT.publicKey.toBase58());
     console.log("RECIPIENT_TOKEN_ACCOUNT ", RECIPIENT_TOKEN_ACCOUNT.publicKey.toBase58());
@@ -522,7 +522,7 @@ describe("verifier_program", () => {
       //   inputUtxos,
       //   outputUtxos,
       //   action: "DEPOSIT",
-      //   assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), ASSET_1],
+      //   assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes())],
       //   relayerFee: new anchor.BN('0'),
       //   mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
       //   sender: userTokenAccount,
@@ -532,8 +532,8 @@ describe("verifier_program", () => {
         inputUtxos,
         outputUtxos,
         action: "DEPOSIT",
-        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), ASSET_1],
-        relayerFee: U64(0),
+        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes())],
+        relayerFee: 0,
         sender: userTokenAccount,
         mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
@@ -561,9 +561,8 @@ describe("verifier_program", () => {
 
   })
 
-
+  var deposit_utxo1
   it("Deposit", async () => {
-
 
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -605,16 +604,17 @@ describe("verifier_program", () => {
         poseidon: POSEIDON
       });
 
-      let deposit_utxo1 = new Utxo({poseidon: POSEIDON, assets: [FEE_ASSET,MINT], amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],  keypair: KEYPAIR})
+      deposit_utxo1 = new Utxo({poseidon: POSEIDON, assets: [FEE_ASSET,MINT], amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],  keypair: KEYPAIR})
 
       let outputUtxos = [deposit_utxo1];
-
+      console.log("outputUtxos[0].assetsCircuit[1]: ", outputUtxos[0].assetsCircuit[1]);
+      
       await SHIELDED_TRANSACTION.prepareTransactionFull({
         inputUtxos: [],
         outputUtxos,
         action: "DEPOSIT",
-        assetPubkeys: [FEE_ASSET, outputUtxos[0].assetsCircuit[1], ASSET_1],
-        relayerFee: U64(0),
+        assetPubkeys: [new anchor.BN(0), outputUtxos[0].assetsCircuit[1]],
+        relayerFee: 0,
         sender: userTokenAccount,
         mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN,
@@ -646,45 +646,55 @@ describe("verifier_program", () => {
 
   it("Update Merkle Tree after Deposit", async () => {
 
+    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
 
-  let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
+    // fetch uninserted utxos from chain
+    let leavesPdas = await getUninsertedLeaves({
+        merkleTreeProgram,
+        merkleTreeIndex: mtFetched.nextIndex,
+        connection: provider.connection
+    });
+    console.log("leavesPdas ", leavesPdas);
 
-  // fetch uninserted utxos from chain
-  let leavesPdas = await getUninsertedLeaves({
-      merkleTreeProgram,
-      merkleTreeIndex: mtFetched.nextIndex,
-      connection: provider.connection
-  });
-  console.log("leavesPdas ", leavesPdas);
+    let poseidon = await circomlibjs.buildPoseidonOpt();
+    // build tree from chain
+    let mtPrior = await buildMerkleTree({
+        connection:provider.connection,
+        config: {x:1}, // rnd filler
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        merkleTreeProgram: merkleTreeProgram,
+        poseidonHash: poseidon
+      }
+    );
 
-  let poseidon = await circomlibjs.buildPoseidonOpt();
-  // build tree from chain
-  let mtPrior = await buildMerkleTree({
-      connection:provider.connection,
-      config: {x:1}, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
+    await executeUpdateMerkleTreeTransactions({
+      connection:       provider.connection,
+      signer:           ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram: merkleTreeProgram,
-      poseidonHash: poseidon
-    }
-  );
+      leavesPdas:       leavesPdas.slice(0,1),
+      merkleTree:       mtPrior,
+      merkle_tree_pubkey: MERKLE_TREE_KEY,
+      provider
+    });
+    let mtAfter = await merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY)
 
-  await executeUpdateMerkleTreeTransactions({
-    connection:       provider.connection,
-    signer:           ADMIN_AUTH_KEYPAIR,
-    merkleTreeProgram: merkleTreeProgram,
-    leavesPdas:       leavesPdas.slice(0,1),
-    merkleTree:       mtPrior,
-    merkle_tree_pubkey: MERKLE_TREE_KEY,
-    provider
-  });
-
-
+    let merkleTree = await buildMerkleTree({
+        connection:provider.connection,
+        config: {x:1}, // rnd filler
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        merkleTreeProgram: merkleTreeProgram,
+        poseidonHash: POSEIDON
+      }
+    );
     //check correct insert
-    //  let mtOnchain = await merkleTreeProgram.account.merkleTree.all()
-    // console.log("mtOnchain.roots[1] ", mtOnchain.roots[1]);
-    // console.log("mtAfter.root() ", mtAfter.root());
 
-    // assert(mtOnchain.roots[1] == mtAfter.root());
+    console.log("mtOnchain.roots[1] ", mtAfter.roots[1]);
+    console.log("mtAfter.root() ", merkleTree.root());
+    console.log("mtAfter: ", merkleTree);
+    console.log("should have inserted: ", deposit_utxo1);
+    
+
+    assert.equal(new anchor.BN(mtAfter.roots[mtAfter.currentRootIndex], undefined, "le").toString(), merkleTree.root());
   })
 
 
@@ -807,7 +817,7 @@ describe("verifier_program", () => {
   // index might be broken it is wasn't set to mut didn't update
   let merkleTreeConfig = new MerkleTreeConfig({merkleTreePubkey: MERKLE_TREE_KEY,payer: ADMIN_AUTH_KEYPAIR, connection: provider.connection })
   let different_merkle_tree = (await solana.PublicKey.findProgramAddress(
-      [merkleTreeProgram.programId.toBuffer(), toBufferLE(BigInt(1), 8)],
+      [merkleTreeProgram.programId.toBuffer(), new anchor.BN(1).toArray("le", 8)],
       merkleTreeProgram.programId))[0];
   if (await connection.getAccountInfo(different_merkle_tree) == null) {
     await merkleTreeConfig.initializeNewMerkleTree(different_merkle_tree)
@@ -1077,44 +1087,6 @@ describe("verifier_program", () => {
   })
 
 
-  it.skip("Test Utxo encryption", async () => {
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
-    KEYPAIR = new Keypair(POSEIDON)
-
-    let deposit_utxo1 = new Utxo({
-      poseidon:POSEIDON,
-      assets: [FEE_ASSET,MINT],
-      amounts: [new anchor.BN(1),new anchor.BN(1)],
-      keypair: KEYPAIR
-    })
-
-    deposit_utxo1.index = 0;
-    let preCommitHash = deposit_utxo1.getCommitment();
-    let preNullifier = deposit_utxo1.getNullifier();
-
-    let nonce = nacl.randomBytes(24);
-    let encUtxo = deposit_utxo1.encrypt(nonce, ENCRYPTION_KEYPAIR, ENCRYPTION_KEYPAIR);
-    console.log(encUtxo);
-    let decUtxo = Utxo.decrypt(
-      encUtxo,
-      nonce,
-      ENCRYPTION_KEYPAIR.PublicKey,
-      ENCRYPTION_KEYPAIR,
-      KEYPAIR,
-      [FEE_ASSET,MINT],
-      POSEIDON,
-      0
-    )[1];
-
-    // console.log(decUtxo);
-
-    assert(preCommitHash == decUtxo.getCommitment(), "commitment doesnt match")
-    assert(preNullifier == decUtxo.getNullifier(), "nullifier doesnt match")
-
-
-  })
-
-
   it("Withdraw", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
@@ -1134,11 +1106,19 @@ describe("verifier_program", () => {
         merkleTreeIndex: mtFetched.nextIndex,
         connection: provider.connection
     });
-    console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
-    console.log(leavesPdas);
+    // console.log("leavesPdas: ", leavesPdas[0].account.encryptedUtxos.toString());
+    // console.log(leavesPdas);
     
     let decryptedUtxo1 = await getUnspentUtxo(leavesPdas, provider, ENCRYPTION_KEYPAIR, KEYPAIR, FEE_ASSET,MINT, POSEIDON, merkleTreeProgram);
-
+    decryptedUtxo1.getCommitment();
+    console.log("merkle tree: ", merkleTree);
+    console.log(decryptedUtxo1.getCommitment());
+    console.log(decryptedUtxo1);
+    
+    
+    console.log("merkle tree index of ", merkleTree.indexOf(decryptedUtxo1.getCommitment()))
+    // process.exit()
+    
     const origin = new anchor.web3.Account()
 
     var tokenRecipient = recipientTokenAccount
@@ -1176,7 +1156,7 @@ describe("verifier_program", () => {
         inputUtxos: inputUtxos,
         outputUtxos: outputUtxos,
         action: "WITHDRAWAL",
-        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), 0],
+        assetPubkeys: [new anchor.BN(0), hashAndTruncateToCircuit(MINT.toBytes())],
         mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,
@@ -1261,7 +1241,7 @@ describe("verifier_program", () => {
         inputUtxos: inputUtxos,
         outputUtxos: outputUtxos,
         action: "WITHDRAWAL",
-        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes()), 0],
+        assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes())],
         mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
         recipientFee: origin.publicKey,
         recipient: tokenRecipient,

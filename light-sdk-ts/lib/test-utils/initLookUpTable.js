@@ -45,9 +45,6 @@ const bigint_buffer_1 = require("bigint-buffer");
 const fs_1 = require("fs");
 const constants_1 = require("../constants");
 const verifier_program_zero_1 = __importDefault(require("../idls/verifier_program_zero"));
-const idls_1 = require("../idls");
-const verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, constants_1.verifierProgramZeroProgramId);
-const merkleTreeProgram = new anchor_1.Program(idls_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
 function initLookUpTableFromFile(provider, path = `lookUpTable.txt`, extraAccounts) {
@@ -89,13 +86,14 @@ function initLookUpTable(provider, lookupTableAddress, recentSlot, extraAccounts
                 payer: payerPubkey,
                 recentSlot,
             })[0];
+            const verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, constants_1.verifierProgramZeroProgramId);
             let escrows = (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("escrow")], verifierProgramZero.programId))[0];
             let ix0 = web3_js_1.SystemProgram.transfer({ fromPubkey: constants_1.ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: constants_1.AUTHORITY, lamports: 10000000000 });
             var transaction = new web3_js_1.Transaction().add(createInstruction);
             const addressesToAdd = [
                 constants_1.AUTHORITY,
                 web3_js_1.SystemProgram.programId,
-                merkleTreeProgram.programId,
+                constants_1.merkleTreeProgramId,
                 constants_1.DEFAULT_PROGRAMS.rent,
                 constants_1.PRE_INSERTED_LEAVES_INDEX,
                 spl_token_1.TOKEN_PROGRAM_ID,

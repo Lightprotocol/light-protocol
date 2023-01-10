@@ -6,10 +6,9 @@ let circomlibjs = require("circomlibjs")
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 import { MerkleTreeProgram, MerkleTreeProgramIdl } from "./idls/merkle_tree_program";
-import {toBufferLE} from 'bigint-buffer';
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
-import { readFileSync, writeFile } from "fs";
+import { readFileSync} from "fs";
 const snarkjs = require('snarkjs');
 
 import {
@@ -28,7 +27,7 @@ import { PublicInputs } from "./verifiers";
 
 import { PRE_INSERTED_LEAVES_INDEX, REGISTERED_POOL_PDA_SOL, MERKLE_TREE_KEY, merkleTreeProgram } from "./constants";
 import { LogDescription } from "ethers/lib/utils";
-
+import {Verifier} from "index"
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
 // input custom verifier with three functions by default prepare, proof, send
@@ -55,7 +54,6 @@ export class Transaction {
   provider: AnchorProvider
   merkleTreeFeeAssetPubkey: PublicKey
   poseidon: any
-  sendTransaction: Function 
   shuffle: Boolean
   publicInputs: PublicInputs
   encryptionKeypair: any
@@ -101,15 +99,15 @@ export class Transaction {
      * @param verifier shieldedKeypair
      * @param shuffleEnabled
   */
+  // TODO: design config objects which pass in 
   constructor({
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
-    payer, //: Keypair
-
     // TODO: remove and take this from user object
+    payer, //: Keypair
     encryptionKeypair = createEncryptionKeypair(),
 
-    // need to check how to handle several merkle trees here
+    // TODO: check how to handle several merkle trees here
     merkleTree,
 
     // relayer 
@@ -123,7 +121,7 @@ export class Transaction {
 
     poseidon,
 
-    // Can this be passed as a generic?
+    // TODO: pass in as a generic if beneficial
     verifier,
 
     shuffleEnabled = true,
@@ -148,7 +146,7 @@ export class Transaction {
     this.merkleTreePubkey = MERKLE_TREE_KEY;
     this.merkleTreeFeeAssetPubkey = REGISTERED_POOL_PDA_SOL;
     this.preInsertedLeavesIndex = PRE_INSERTED_LEAVES_INDEX;
-    this.feeAsset = FEE_ASSET;
+    this.feeAsset = new BN(0);
 
     // network
     this.provider = provider;
@@ -157,7 +155,8 @@ export class Transaction {
 
     // verifier
     this.verifier = verifier;
-    this.sendTransaction = verifier.sendTransaction;
+    // this.verifier.initVerifierProgram();
+    // this.sendTransaction = verifier.sendTransaction;
 
     // misc
     this.poseidon = poseidon;
@@ -358,7 +357,7 @@ export class Transaction {
 
       let relayer_fee
       if (this.action !== 'DEPOSIT') {
-          relayer_fee = toBufferLE(BigInt(this.relayerFee.toString()), 8);
+          relayer_fee = this.relayerFee?.toArray("le", 8);
       }
       else {
           relayer_fee = new Uint8Array(8).fill(0);
@@ -367,32 +366,22 @@ export class Transaction {
 
       // ----------------------- getting integrity hash -------------------
       const nonces: Array<Uint8Array> = new Array(this.config.out).fill(newNonce());
-      console.log("nonces ", nonces);
-      console.log("newNonce()", nonces[0]);
-      
-      // const senderThrowAwayKeypairs = [
-      //     newKeypair(),
-      //     newKeypair()
-      // ];
-      // console.log(outputUtxos)
+    
       /// Encrypt outputUtxos to bytes
-      // removed throwaway keypairs since we already have message integrity with integrity_hashes
-      // TODO: should be a hardcoded keypair in production not the one of the sender
       let encryptedOutputs = new Array<any>();
       if (encrypedUtxos) {
         encryptedOutputs = Array.from(encrypedUtxos);
       } else {
-        this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
+        this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt()));
 
-        // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
         if (this.config.out == 2) {
           console.log("nonces[0] ", nonces[0]);
           console.log("this.encryptionKeypair ", this.encryptionKeypair);
           console.log("encryptedOutputs[0] ", encryptedOutputs[0]);
           
           console.log("nonces[1] ", nonces[1]);
-
-          this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 190).fill(0)]);
+          // TODO: investigate where the additional byte came from
+          this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0],, ...encryptedOutputs[1], ...new Array(256 - 191).fill(0)]);
         } else {
           let tmpArray = new Array<any>();
           for (var i = 0; i < this.config.out; i++) {
@@ -415,9 +404,8 @@ export class Transaction {
       console.log("this.recipient.toBytes(), ", Array.from(this.recipient.toBytes()));
       console.log("this.recipientFee.toBytes(), ", Array.from(this.recipientFee.toBytes()));
       console.log("this.payer.toBytes(), ", Array.from(this.payer.publicKey.toBytes()));
-
       console.log("relayer_fee ", relayer_fee);
-      console.log("this.encryptedUtxos ", this.encryptedUtxos?.length);
+      console.log("this.encryptedUtxos ", this.encryptedUtxos?.toString());
 
       let extDataBytes = new Uint8Array([
           ...this.recipient.toBytes(),
@@ -426,15 +414,15 @@ export class Transaction {
           ...relayer_fee,
           ...this.encryptedUtxos
       ]);
-      console.log("extDataBytes ", extDataBytes.toString());
+      // console.log("extDataBytes ", extDataBytes.toString());
       
       const hash = ethers.ethers.utils.keccak256(Buffer.from(extDataBytes));
       // const hash = anchor.utils.sha256.hash(extDataBytes)
       console.log("Hash: ", hash);
+      // TODO: replace with noble hash
       this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(FIELD_SIZE_ETHERS), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
-      console.log(this.merkleTree);
 
-      // ----------------------- building input object -------------------
+      // ----------------------- building proof input object -------------------
       this.input = {
           root: this.merkleTree.root(),
           inputNullifier: this.inputUtxos.map((x) => x.getNullifier()),
@@ -588,7 +576,13 @@ export class Transaction {
     }
 
     getPublicInputs() {
+      this.verifier.initVerifierProgram();
       this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
+    }
+
+    async sendTransaction() {
+      this.verifier.initVerifierProgram();
+      await this.verifier.sendTransaction(this);
     }
 
     async getProof() {
@@ -600,7 +594,6 @@ export class Transaction {
       }
       console.log("this.input ", this.input);
       
-
       const buffer = readFileSync(`${this.verifier.wtnsGenPath}.wasm`);
 
       let witnessCalculator =  await this.verifier.calculateWtns(buffer)
@@ -608,8 +601,6 @@ export class Transaction {
       let wtns = await witnessCalculator.calculateWTNSBin(stringifyBigInts(this.input),0);
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(`${this.verifier.zkeyPath}.zkey`, wtns);
-
-
       
       this.proofJson = JSON.stringify(proof, null, 1);
       this.publicInputsJson = JSON.stringify(publicSignals, null, 1);
@@ -700,6 +691,7 @@ export class Transaction {
     }
 
     async getPdaAddresses() {
+      this.verifier.initVerifierProgram();
       let tx_integrity_hash = this.publicInputs.txIntegrityHash;
       let nullifiers = this.publicInputs.nullifiers;
       let leftLeaves = [this.publicInputs.leaves[0]];
@@ -819,23 +811,27 @@ export class Transaction {
             console.log(`${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`);
             
             // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
-            let decryptedUtxo1 = Utxo.decrypt(
-              new Uint8Array(Array.from(this.encryptedUtxos.slice(0,71))),
-              new Uint8Array(Array.from(this.encryptedUtxos.slice(71, 71+24))),
-              this.encryptionKeypair.PublicKey,
-              this.encryptionKeypair,
-              this.outputUtxos[0].keypair,
-              [FEE_ASSET,MINT],
-              this.poseidon,
-              i
-            )[1];
-            console.log("decryptedUtxo1 ", decryptedUtxo1);
-            
+            let decryptedUtxo1 = Utxo.decrypt({poseidon: this.poseidon, encBytes: this.encryptedUtxos, keypair: this.outputUtxos[0].keypair}
+            );
+            const utxoEqual= (utxo0: Utxo, utxo1: Utxo) => {
+              assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
+              assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
+              assert.equal(utxo0.assets[0].toString(), utxo1.assets[0].toString());
+              assert.equal(utxo0.assets[1].toString(), utxo1.assets[1].toString());
+              assert.equal(utxo0.assetsCircuit[0].toString(), utxo1.assetsCircuit[0].toString());
+              assert.equal(utxo0.assetsCircuit[1].toString(), utxo1.assetsCircuit[1].toString());
+              assert.equal(utxo0.instructionType.toString(), utxo1.instructionType.toString());
+              assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
+              assert.equal(utxo0.verifierAddress.toString(), utxo1.verifierAddress.toString());
+              assert.equal(utxo0.verifierAddressCircuit.toString(), utxo1.verifierAddressCircuit.toString());
+            }
+            console.log("decryptedUtxo ", decryptedUtxo1);
+            console.log("this.outputUtxos[0] ", this.outputUtxos[0]);
+
+            utxoEqual(decryptedUtxo1, this.outputUtxos[0]);
+                        
           }
 
-        // } catch(e) {
-        //   console.log("leaves: ", e);
-        // }
       }
 
       console.log(`mode ${this.action}, this.is_token ${this.is_token}`);

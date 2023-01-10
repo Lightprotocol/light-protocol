@@ -1,11 +1,21 @@
+const { throws } = require('assert');
 var ffjavascript = require('ffjavascript');
 const {unstringifyBigInts, leInt2Buff} = ffjavascript.utils;
 const Scalar = ffjavascript.Scalar;
 var fs = require("fs")
+const process = require('process');
+  
+// Printing process.argv property value
 
 
 async function main() {
-  let file = await fs.readFile("verification_key_mainnet.json", async function(err, fd) {
+  let nrInputs = process.argv[2];
+  if (!nrInputs) {
+    throw new Error("circuit nrInputs not specified");
+  }
+  console.log = () => {};
+
+  let file = await fs.readFile("./verification_key_mainnet"+ nrInputs +".json", async function(err, fd) {
    if (err) {
       return console.error(err);
    }
@@ -90,21 +100,20 @@ async function main() {
          }
        }
      }
-     // for (var j in mydata[i]) {
-     //   for (var z in mydata[i][j]){
-     //     console.log(mydata[i][j][z])
-     //
-     //   }
-     // }
-
-     // for (var j in i) {
-     //   console.log(j)
-     //
-     // }
 
    }
-   console.log(mydata)
-   let resFile = await fs.openSync("verification_key_bytes_mainnet.rs","w")
+   let program = ""
+   if (nrInputs == "2") {
+    program = "verifier_program_zero"
+   } else if (nrInputs == "10") {
+    program = "verifier_program_one"
+   } else if (nrInputs == "4") {
+    program = "verifier_program_two"
+   } else {
+    throw new Error("invalid nr of inputs");
+   }
+
+   let resFile = await fs.openSync("../light-system-programs/programs/" + program +"/src/verifying_key.rs","w")
    let s = `use groth16_solana::groth16::Groth16Verifyingkey;\n\npub const VERIFYINGKEY: Groth16Verifyingkey =  Groth16Verifyingkey {\n\tnr_pubinputs: ${mydata.IC.length},\n\n`
    s += "\tvk_alpha_g1: [\n"
    for (var j = 0; j < mydata.vk_alpha_1.length -1 ; j++) {

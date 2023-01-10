@@ -68,7 +68,7 @@ export declare class Transaction {
        * @param poseidon shieldedKeypair
        * @param verifier shieldedKeypair
        * @param shuffleEnabled
-       */
+    */
     constructor({ payer, //: Keypair
     encryptionKeypair, merkleTree, relayerPubkey, //PublicKey
     relayerRecipient, provider, lookupTable, //PublicKey

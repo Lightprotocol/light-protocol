@@ -144,4 +144,4 @@ export const POOL_TYPE = new Uint8Array(32).fill(0)
 export const MERKLE_TREE_AUTHORITY_PDA = new solana.PublicKey("5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y")
 export var KEYPAIR_PRIVKEY = new BN('d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896', "hex");
 export const MINT_CIRCUIT = new anchor.BN(MINT._bn.toBuffer(32).slice(0,31));
-export const FEE_ASSET = new anchor.BN(anchor.web3.SystemProgram.programId.toBytes().slice(0,31))//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)
+export const FEE_ASSET = anchor.web3.SystemProgram.programId//new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)

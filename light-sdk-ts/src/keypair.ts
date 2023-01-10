@@ -12,8 +12,9 @@ export class Keypair {
    */
   privkey: BN
   pubkey: BN
-  // is this the private or public Key?
+
   encryptionPublicKey: Uint8Array
+  encPrivateKey?: Uint8Array
   poseidon: any
   burnerSeed: Uint8Array
 
@@ -44,6 +45,7 @@ export class Keypair {
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
       this.privkey = Keypair.generateShieldedKeyPrivateKey(seed)
       this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
+      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedKeyPublicKey(this.privkey, this.poseidon);
     } else if (privateKey) {
       this.privkey = privateKey;
@@ -56,6 +58,7 @@ export class Keypair {
     }  else {
       this.privkey = Keypair.generateShieldedKeyPrivateKey(seed)
       this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
+      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedKeyPublicKey(this.privkey, this.poseidon);
     }
   }

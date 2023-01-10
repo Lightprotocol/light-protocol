@@ -19,7 +19,6 @@ let circomlibjs = require("circomlibjs");
 var ffjavascript = require('ffjavascript');
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 const merkle_tree_program_1 = require("./idls/merkle_tree_program");
-const bigint_buffer_1 = require("bigint-buffer");
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 const fs_1 = require("fs");
@@ -56,12 +55,12 @@ class Transaction {
        * @param poseidon shieldedKeypair
        * @param verifier shieldedKeypair
        * @param shuffleEnabled
-       */
+    */
     constructor({ 
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
     payer, //: Keypair
-    // TODO: remove and take this from utxo keypairs
+    // TODO: remove and take this from user object
     encryptionKeypair = (0, exports.createEncryptionKeypair)(), 
     // need to check how to handle several merkle trees here
     merkleTree, 
@@ -71,7 +70,9 @@ class Transaction {
     // relayer fee
     // network
     provider, lookupTable, //PublicKey
-    poseidon, verifier, shuffleEnabled = true, }) {
+    poseidon, 
+    // Can this be passed as a generic?
+    verifier, shuffleEnabled = true, }) {
         // user
         this.encryptionKeypair = encryptionKeypair;
         this.payer = payer;
@@ -86,7 +87,6 @@ class Transaction {
         // this.relayerFee = new anchor.BN('10_000'); //U64(10_000),;
         // merkle tree
         this.merkleTree = merkleTree;
-        this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
         this.merkleTreePubkey = constants_2.MERKLE_TREE_KEY;
         this.merkleTreeFeeAssetPubkey = constants_2.REGISTERED_POOL_PDA_SOL;
         this.preInsertedLeavesIndex = constants_2.PRE_INSERTED_LEAVES_INDEX;
@@ -115,6 +115,7 @@ class Transaction {
     }
     getRootIndex() {
         return __awaiter(this, void 0, void 0, function* () {
+            this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
             let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
             let merkle_tree_account = yield this.provider.connection.getAccountInfo(this.merkleTreePubkey);
             let merkle_tree_account_data = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode('MerkleTree', merkle_tree_account.data);
@@ -189,10 +190,10 @@ class Transaction {
             }
         });
         let assetPubkeys = [this.feeAsset, this.assetPubkeys].concat();
-        if (this.assetPubkeys.length != 3) {
-            throw new Error(`assetPubkeys.length != 3 ${this.assetPubkeys}`);
+        if (this.assetPubkeys.length != utxo_1.N_ASSETS) {
+            throw new Error(`assetPubkeys.length != ${utxo_1.N_ASSETS} ${this.assetPubkeys}`);
         }
-        if (this.assetPubkeys[0] === this.assetPubkeys[1] || this.assetPubkeys[1] === this.assetPubkeys[2] || this.assetPubkeys[0] === this.assetPubkeys[2]) {
+        if (this.assetPubkeys[0] === this.assetPubkeys[1]) {
             throw new Error(`asset pubKeys need to be distinct ${this.assetPubkeys}`);
         }
         // TODO: write test
@@ -200,7 +201,7 @@ class Transaction {
             let inIndices = [];
             utxos.map((utxo) => {
                 let tmpInIndices = [];
-                for (var a = 0; a < 3; a++) {
+                for (var a = 0; a < utxo_1.N_ASSETS; a++) {
                     let tmpInIndices1 = [];
                     for (var i = 0; i < utxo.assets.length; i++) {
                         console.log(`utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`);
@@ -228,7 +229,7 @@ class Transaction {
     }
     ;
     prepareTransaction(encrypedUtxos) {
-        var _a;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
         let inputMerklePathIndices = [];
         let inputMerklePathElements = [];
         /// if the input utxo has an amount bigger than 0 and it has an valid index add it to the indices of the merkel tree
@@ -262,37 +263,28 @@ class Transaction {
         }
         let relayer_fee;
         if (this.action !== 'DEPOSIT') {
-            relayer_fee = (0, bigint_buffer_1.toBufferLE)(BigInt(this.relayerFee.toString()), 8);
+            relayer_fee = (_a = this.relayerFee) === null || _a === void 0 ? void 0 : _a.toArray("le", 8);
         }
         else {
             relayer_fee = new Uint8Array(8).fill(0);
         }
         console.log("feesLE: ", relayer_fee);
         // ----------------------- getting integrity hash -------------------
-        const nonces = new Array(this.config.out).fill(newNonce());
-        console.log("nonces ", nonces);
-        console.log("newNonce()", nonces[0]);
-        // const senderThrowAwayKeypairs = [
-        //     newKeypair(),
-        //     newKeypair()
-        // ];
-        // console.log(outputUtxos)
+        const nonces = new Array(this.config.out).fill((0, utxo_1.newNonce)());
         /// Encrypt outputUtxos to bytes
-        // removed throwaway keypairs since we already have message integrity with integrity_hashes
-        // TODO: should be a hardcoded keypair in production not the one of the sender
         let encryptedOutputs = new Array();
         if (encrypedUtxos) {
             encryptedOutputs = Array.from(encrypedUtxos);
         }
         else {
-            this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt(nonces[index], this.encryptionKeypair, this.encryptionKeypair)));
+            this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt()));
             // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
             if (this.config.out == 2) {
                 console.log("nonces[0] ", nonces[0]);
                 console.log("this.encryptionKeypair ", this.encryptionKeypair);
                 console.log("encryptedOutputs[0] ", encryptedOutputs[0]);
                 console.log("nonces[1] ", nonces[1]);
-                this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], ...nonces[0], ...encryptedOutputs[1], ...nonces[1], ...new Array(256 - 190).fill(0)]);
+                this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], , ...encryptedOutputs[1], ...new Array(256 - 190).fill(0)]);
             }
             else {
                 let tmpArray = new Array();
@@ -314,7 +306,7 @@ class Transaction {
         console.log("this.recipientFee.toBytes(), ", Array.from(this.recipientFee.toBytes()));
         console.log("this.payer.toBytes(), ", Array.from(this.payer.publicKey.toBytes()));
         console.log("relayer_fee ", relayer_fee);
-        console.log("this.encryptedUtxos ", (_a = this.encryptedUtxos) === null || _a === void 0 ? void 0 : _a.length);
+        console.log("this.encryptedUtxos ", (_b = this.encryptedUtxos) === null || _b === void 0 ? void 0 : _b.length);
         let extDataBytes = new Uint8Array([
             ...this.recipient.toBytes(),
             ...this.recipientFee.toBytes(),
@@ -345,20 +337,24 @@ class Transaction {
                 .toString(),
             mintPubkey: this.mintPubkey,
             // data for 2 transaction inputUtxos
-            inAmount: this.inputUtxos.map((x) => x.amounts),
-            inPrivateKey: this.inputUtxos.map((x) => x.keypair.privkey),
-            inBlinding: this.inputUtxos.map((x) => x.blinding),
+            inAmount: (_c = this.inputUtxos) === null || _c === void 0 ? void 0 : _c.map((x) => x.amounts),
+            inPrivateKey: (_d = this.inputUtxos) === null || _d === void 0 ? void 0 : _d.map((x) => x.keypair.privkey),
+            inBlinding: (_e = this.inputUtxos) === null || _e === void 0 ? void 0 : _e.map((x) => x.blinding),
             inPathIndices: inputMerklePathIndices,
             inPathElements: inputMerklePathElements,
             assetPubkeys: this.assetPubkeys,
             // data for 2 transaction outputUtxos
-            outAmount: this.outputUtxos.map((x) => x.amounts),
-            outBlinding: this.outputUtxos.map((x) => x.blinding),
-            outPubkey: this.outputUtxos.map((x) => x.keypair.pubkey),
+            outAmount: (_f = this.outputUtxos) === null || _f === void 0 ? void 0 : _f.map((x) => x.amounts),
+            outBlinding: (_g = this.outputUtxos) === null || _g === void 0 ? void 0 : _g.map((x) => x.blinding),
+            outPubkey: (_h = this.outputUtxos) === null || _h === void 0 ? void 0 : _h.map((x) => x.keypair.pubkey),
             inIndices: this.inIndices,
             outIndices: this.outIndices,
-            inInstructionType: this.inputUtxos.map((x) => x.instructionType),
-            outInstructionType: this.outputUtxos.map((x) => x.instructionType)
+            inInstructionType: (_j = this.inputUtxos) === null || _j === void 0 ? void 0 : _j.map((x) => x.instructionType),
+            outInstructionType: (_k = this.outputUtxos) === null || _k === void 0 ? void 0 : _k.map((x) => x.instructionType),
+            inPoolType: (_l = this.inputUtxos) === null || _l === void 0 ? void 0 : _l.map((x) => x.poolType),
+            outPoolType: (_m = this.outputUtxos) === null || _m === void 0 ? void 0 : _m.map((x) => x.poolType),
+            inVerifierPubkey: (_o = this.inputUtxos) === null || _o === void 0 ? void 0 : _o.map((x) => x.verifierAddressCircuit),
+            outVerifierPubkey: (_p = this.outputUtxos) === null || _p === void 0 ? void 0 : _p.map((x) => x.verifierAddressCircuit)
         };
         // console.log("extDataHash: ", input.extDataHash);
         // console.log("input.inputNullifier ",input.inputNullifier[0] );
@@ -420,7 +416,13 @@ class Transaction {
             this.action = action;
             this.prepareUtxos();
             yield this.prepareTransaction(encrypedUtxos);
-            yield this.getRootIndex();
+            if (this.provider) {
+                yield this.getRootIndex();
+            }
+            else {
+                console.log("provider not defined did not fetch rootIndex set root index to 0");
+                this.rootIndex = 0;
+            }
             assert(this.input.mintPubkey == this.mintPubkey);
             assert(this.input.mintPubkey == this.assetPubkeys[1]);
             if (this.externalAmountBigNumber != 0) {
@@ -473,7 +475,9 @@ class Transaction {
             console.log("proof ", proof);
             console.log("publicSignals ", publicSignals);
             // await this.checkProof()
-            yield this.getPdaAddresses();
+            if (this.provider) {
+                yield this.getPdaAddresses();
+            }
         });
     }
     checkProof() {
