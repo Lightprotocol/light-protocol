@@ -1,13 +1,10 @@
-use std::borrow::BorrowMut;
-
 use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    errors::VerifierSdkError,
     light_transaction::{Transaction, Config},
 };
-use solana_program::log::sol_log_compute_units;
+
 use light_verifier_sdk::state::VerifierState10Ins;
 use crate::LightInstruction;
 #[derive(Clone)]
@@ -31,7 +28,7 @@ impl Config for TransactionConfig {
 pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
     proof: Vec<u8>,
-    connecting_hash: Vec<u8>,
+    _connecting_hash: Vec<u8>,
 ) -> Result<()> {
     let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
          &mut &*ctx.accounts.verifier_state.to_account_info().data.take())?;
