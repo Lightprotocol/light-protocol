@@ -19,11 +19,11 @@ use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
 use merkle_tree_program::{
-    errors::ErrorCode as MerkleTreeError, initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
+    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
     poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
 };
-use merkle_tree_program::{program::MerkleTreeProgram, MerkleTreeAuthority};
-use light_verifier_sdk::state::VerifierState10Ins;
+use merkle_tree_program::{program::MerkleTreeProgram};
+
 
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 

@@ -1,6 +1,5 @@
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
-use crate::utils::constants::TOKEN_AUTHORITY_SEED;
 use crate::RegisteredAssetPool;
 #[derive(Accounts)]
 pub struct WithdrawSol<'info> {
