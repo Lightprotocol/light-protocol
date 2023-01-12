@@ -26,7 +26,7 @@ anchor-spl = "0.25.0"
 byteorder = "1.3"
 
 #solana
-solana-program = { path = "../../../../solana/sdk/program"}
+solana-program = { path = "../../../../solana/sdk/program" }
 
 arrayref = "0.3.6"
 borsh = "0.9.1"
@@ -44,6 +44,9 @@ ark-relations = { version = "^0.3.0", default-features = false  }
 bincode = "1.3.3"
 #poseidon
 arkworks-gadgets = "0.3.14"
+#noop
+spl-account-compression = { version = "0.1", features = ["cpi"] }
+spl-noop = { version = "0.1", features = ["no-entrypoint"] }
 
 [dev-dependencies]
 solana-program-test = "1.9.16"

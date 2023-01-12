@@ -1,4 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
+import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 import {
   checkMerkleTreeUpdateStateCreated,
   checkMerkleTreeBatchUpdateSuccess,
@@ -10,7 +11,9 @@ import {
   PublicKey,
   Transaction,
   SystemProgram,
+  Keypair,
 } from "@solana/web3.js";
+import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 
 export async function executeUpdateMerkleTreeTransactions({
   signer,
@@ -91,13 +94,29 @@ export async function executeUpdateMerkleTreeTransactions({
 
   // final tx to insert root
   let success = false;
+  let recipient = Keypair.generate();
   try {
+    let tx = await merkleTreeProgram.methods
+      .insertRootMerkleTree(new anchor.BN(254))
+      .accounts({
+        authority: signer.publicKey,
+        // recipient: recipient.publicKey,
+        merkleTreeUpdateState: merkleTreeUpdateState,
+        merkleTree: merkle_tree_pubkey,
+        logWrapper: SPL_NOOP_ADDRESS,
+      })
+      .remainingAccounts(leavesPdas).instruction();
+
+    console.log(tx);
+
     await merkleTreeProgram.methods
       .insertRootMerkleTree(new anchor.BN(254))
       .accounts({
         authority: signer.publicKey,
+        // recipient: recipient.publicKey,
         merkleTreeUpdateState: merkleTreeUpdateState,
         merkleTree: merkle_tree_pubkey,
+        logWrapper: SPL_NOOP_ADDRESS,
       })
       .remainingAccounts(leavesPdas)
       .signers([signer])
