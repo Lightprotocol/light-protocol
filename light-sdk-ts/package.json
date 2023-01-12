@@ -6,7 +6,9 @@
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts",
     "build": "tsc",
-    "format": "prettier --write \"src/**/*.{ts,js}\""
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "keywords": [
     "sdk",
@@ -19,22 +21,13 @@
     "@coral-xyz/anchor": "^0.26.0",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-token": "^0.3.5",
-    "@solana/wallet-adapter-base": "^0.9.7",
     "@solana/web3.js": "^1.62",
-    "axios": "^0.27.2",
-    "bigint-buffer": "^1.1.5",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
-    "dotenv": "^16.0.1",
-    "eth-sig-util": "^3.0.1",
-    "ethers": "^5.6.8",
     "ffjavascript": "^0.2.54",
     "fs": "^0.0.1-security",
-    "n64": "^0.2.10",
-    "rimraf": "^3.0.2",
     "snarkjs": "^0.4.24",
-    "tweetnacl": "^1.0.3",
-    "tweetnacl-util": "^0.15.1"
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

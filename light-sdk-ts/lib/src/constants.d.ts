@@ -13,13 +13,13 @@ export declare const FIELD_SIZE: anchor.BN;
 export declare const FIELD_SIZE_ETHERS: BigNumber;
 export declare const MERKLE_TREE_SIGNER_AUTHORITY: any;
 export declare const TYPE_PUBKEY: {
-    array: (string | number)[];
+  array: (string | number)[];
 };
 export declare const TYPE_SEED: {
-    defined: string;
+  defined: string;
 };
 export declare const TYPE_INIT_DATA: {
-    array: (string | number)[];
+  array: (string | number)[];
 };
 export declare const merkleTreeProgramId: anchor.web3.PublicKey;
 export declare const verifierProgramZeroProgramId: anchor.web3.PublicKey;
@@ -30,7 +30,8 @@ export declare const verifierProgramZero: Program<VerifierProgramZero>;
 export declare const verifierProgramOne: Program<VerifierProgramOne>;
 export declare const verifierProgramTwo: Program<VerifierProgramTwo>;
 export declare const confirmConfig: ConfirmOptions;
-export declare const DEFAULT_ZERO = "14522046728041339886521211779101644712859239303505368468566383402165481390632";
+export declare const DEFAULT_ZERO =
+  "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 export declare const PRIVATE_KEY: number[];
 export declare const MERKLE_TREE_INIT_AUTHORITY: number[];
 export declare const MINT_PRIVATE_KEY: Uint8Array;
@@ -39,17 +40,17 @@ export declare const ADMIN_AUTH_KEY: PublicKey;
 export declare const ADMIN_AUTH_KEYPAIR: Keypair;
 export declare const AUTHORITY_SEED: Uint8Array;
 export declare const DEFAULT_PROGRAMS: {
-    systemProgram: any;
-    tokenProgram: anchor.web3.PublicKey;
-    associatedTokenProgram: anchor.web3.PublicKey;
-    rent: any;
-    clock: any;
+  systemProgram: any;
+  tokenProgram: anchor.web3.PublicKey;
+  associatedTokenProgram: anchor.web3.PublicKey;
+  rent: any;
+  clock: any;
 };
 export declare const userTokenAccount: any;
 export declare const recipientTokenAccount: any;
 export declare const ENCRYPTION_KEYPAIR: {
-    PublicKey: Uint8Array;
-    secretKey: Uint8Array;
+  PublicKey: Uint8Array;
+  secretKey: Uint8Array;
 };
 export declare const USER_TOKEN_ACCOUNT: any;
 export declare const RECIPIENT_TOKEN_ACCOUNT: any;

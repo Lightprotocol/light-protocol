@@ -49,7 +49,7 @@ template CheckIndices(n, nInAssets, nAssets) {
 template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
 
     // Range Check to prevent an overflow of wrong circuit instantiation
-    assert( nIns * nAssets < 49);
+    assert( nIns * nAssets < 1000);
     assert( nInAssets <= nAssets);
     assert( nOutAssets <= nAssets);
 

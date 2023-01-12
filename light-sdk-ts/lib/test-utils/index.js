@@ -19,5 +19,6 @@ __exportStar(require("./testChecks"), exports);
 __exportStar(require("./testTransactions"), exports);
 __exportStar(require("./setUpMerkleTree"), exports);
 __exportStar(require("./initLookUpTable"), exports);
-__exportStar(require("./constants"), exports);
+__exportStar(require("./constants_market_place"), exports);
 __exportStar(require("./functionalCircuit"), exports);
+__exportStar(require("./constants_system_verifier"), exports);

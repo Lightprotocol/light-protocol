@@ -41,19 +41,18 @@ const web3_js_1 = require("@solana/web3.js");
 const anchor = __importStar(require("@coral-xyz/anchor"));
 const spl_token_1 = require("@solana/spl-token");
 const chai_1 = require("chai");
-const bigint_buffer_1 = require("bigint-buffer");
 const fs_1 = require("fs");
-const constants_1 = require("../constants");
+const index_1 = require("../index");
 const verifier_program_zero_1 = __importDefault(require("../idls/verifier_program_zero"));
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
 function initLookUpTableFromFile(provider, path = `lookUpTable.txt`, extraAccounts) {
     return __awaiter(this, void 0, void 0, function* () {
         const recentSlot = (yield provider.connection.getSlot("confirmed")) - 10;
-        const payerPubkey = constants_1.ADMIN_AUTH_KEYPAIR.publicKey;
-        var [lookUpTable] = yield web3_js_1.PublicKey.findProgramAddress([payerPubkey.toBuffer(), (0, bigint_buffer_1.toBufferLE)(BigInt(recentSlot), 8)], web3_js_1.AddressLookupTableProgram.programId);
+        const payerPubkey = index_1.ADMIN_AUTH_KEYPAIR.publicKey;
+        var [lookUpTable] = yield web3_js_1.PublicKey.findProgramAddress([payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)], web3_js_1.AddressLookupTableProgram.programId);
         try {
-            let lookUpTableRead = new web3_js_1.PublicKey((0, fs_1.readFileSync)(path, 'utf8'));
+            let lookUpTableRead = new web3_js_1.PublicKey((0, fs_1.readFileSync)(path, "utf8"));
             let lookUpTableInfoInit = yield provider.connection.getAccountInfo(lookUpTableRead);
             if (lookUpTableInfoInit) {
                 lookUpTable = lookUpTableRead;
@@ -80,29 +79,37 @@ function initLookUpTable(provider, lookupTableAddress, recentSlot, extraAccounts
         }
         if (lookUpTableInfoInit == null) {
             console.log("recentSlot: ", recentSlot);
-            const payerPubkey = constants_1.ADMIN_AUTH_KEYPAIR.publicKey;
+            const payerPubkey = index_1.ADMIN_AUTH_KEYPAIR.publicKey;
             const createInstruction = web3_js_1.AddressLookupTableProgram.createLookupTable({
                 authority: payerPubkey,
                 payer: payerPubkey,
                 recentSlot,
             })[0];
-            const verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, constants_1.verifierProgramZeroProgramId);
+            const verifierProgramZero = new anchor_1.Program(verifier_program_zero_1.default, index_1.verifierProgramZeroProgramId);
             let escrows = (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("escrow")], verifierProgramZero.programId))[0];
-            let ix0 = web3_js_1.SystemProgram.transfer({ fromPubkey: constants_1.ADMIN_AUTH_KEYPAIR.publicKey, toPubkey: constants_1.AUTHORITY, lamports: 10000000000 });
+            let ix0 = web3_js_1.SystemProgram.transfer({
+                fromPubkey: index_1.ADMIN_AUTH_KEYPAIR.publicKey,
+                toPubkey: index_1.AUTHORITY,
+                lamports: 10000000000,
+            });
             var transaction = new web3_js_1.Transaction().add(createInstruction);
             const addressesToAdd = [
-                constants_1.AUTHORITY,
                 web3_js_1.SystemProgram.programId,
-                constants_1.merkleTreeProgramId,
-                constants_1.DEFAULT_PROGRAMS.rent,
-                constants_1.PRE_INSERTED_LEAVES_INDEX,
+                index_1.merkleTreeProgramId,
+                index_1.DEFAULT_PROGRAMS.rent,
+                index_1.MERKLE_TREE_KEY,
+                index_1.PRE_INSERTED_LEAVES_INDEX,
+                index_1.AUTHORITY,
                 spl_token_1.TOKEN_PROGRAM_ID,
-                constants_1.REGISTERED_POOL_PDA_SPL_TOKEN,
-                constants_1.MERKLE_TREE_KEY,
                 escrows,
-                constants_1.TOKEN_AUTHORITY,
-                constants_1.REGISTERED_POOL_PDA_SOL,
-                constants_1.verifierProgramTwoProgramId,
+                index_1.TOKEN_AUTHORITY,
+                index_1.REGISTERED_POOL_PDA_SOL,
+                index_1.REGISTERED_POOL_PDA_SPL_TOKEN,
+                index_1.verifierProgramTwoProgramId,
+                index_1.REGISTERED_VERIFIER_ONE_PDA,
+                index_1.REGISTERED_VERIFIER_PDA,
+                index_1.REGISTERED_VERIFIER_TWO_PDA,
+                index_1.MINT,
             ];
             for (var i in extraAccounts) {
                 addressesToAdd.push(extraAccounts[i]);
@@ -120,7 +127,7 @@ function initLookUpTable(provider, lookupTableAddress, recentSlot, extraAccounts
             transaction.feePayer = payerPubkey;
             transaction.recentBlockhash = recentBlockhash;
             try {
-                yield (0, web3_js_1.sendAndConfirmTransaction)(provider.connection, transaction, [constants_1.ADMIN_AUTH_KEYPAIR], constants_1.confirmConfig);
+                yield (0, web3_js_1.sendAndConfirmTransaction)(provider.connection, transaction, [index_1.ADMIN_AUTH_KEYPAIR], index_1.confirmConfig);
             }
             catch (e) {
                 console.log("e : ", e);

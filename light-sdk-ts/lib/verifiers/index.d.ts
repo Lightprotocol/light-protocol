@@ -1,7 +1,7 @@
 /// <reference types="node" />
-export * from './verifierOne';
-export * from './verifierZero';
-export * from './verifierTwo';
+export * from "./verifierOne";
+export * from "./verifierZero";
+export * from "./verifierTwo";
 import { Program } from "@coral-xyz/anchor";
 import { Transaction } from "../transaction";
 export interface PublicInputs {
@@ -30,6 +30,6 @@ export interface Verifier {
     wtnsGenPath: String;
     zkeyPath: String;
     calculateWtns: NodeRequire;
-    sendTransaction(insert: Boolean): Promise<any>;
+    sendTransaction(transaction: Transaction): Promise<any>;
     parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
 }

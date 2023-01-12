@@ -12,14 +12,14 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.VerifierTwo = void 0;
 const verifier_program_two_1 = require("../idls/verifier_program_two");
 const anchor_1 = require("@coral-xyz/anchor");
-const constants_1 = require("../constants");
+const index_1 = require("../index");
 class VerifierTwo {
     constructor() {
-        this.verifierProgram = new anchor_1.Program(verifier_program_two_1.VerifierProgramTwo, constants_1.verifierProgramTwoProgramId);
+        this.verifierProgram = new anchor_1.Program(verifier_program_two_1.VerifierProgramTwo, index_1.verifierProgramTwoProgramId);
         this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-        this.zkeyPath = './build-circuits/transactionMasp2';
-        this.calculateWtns = require('../../build-circuits/transactionMasp2_js/witness_calculator.js');
-        this.registeredVerifierPda = constants_1.REGISTERED_VERIFIER_TWO_PDA;
+        this.zkeyPath = "./build-circuits/transactionMasp2";
+        this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
+        this.registeredVerifierPda = index_1.REGISTERED_VERIFIER_TWO_PDA;
         this.nrPublicInputs = 17;
         console.log("TODO Change paths to 4 ins 4 outs circuit");
         console.log("REGISTERED_VERIFIER_TWO_PDA: is ONE");
@@ -34,16 +34,19 @@ class VerifierTwo {
                 mintPubkey: transaction.publicInputsBytes[4],
                 checkedParams: Array.from(transaction.publicInputsBytes.slice(5, 9)),
                 nullifiers: Array.from(transaction.publicInputsBytes.slice(9, 13)),
-                leaves: Array.from(transaction.publicInputsBytes.slice(13, this.nrPublicInputs))
+                leaves: Array.from(transaction.publicInputsBytes.slice(13, this.nrPublicInputs)),
             };
         }
         else {
             throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != ${this.nrPublicInputs}`;
         }
     }
+    initVerifierProgram() {
+        this.verifierProgram = new anchor_1.Program(verifier_program_two_1.VerifierProgramTwo, index_1.verifierProgramTwoProgramId);
+    }
     // Do I need a getData fn?
     // I should be able to fetch everything from the object
-    sendTransaction(insert) {
+    sendTransaction(transaction) {
         return __awaiter(this, void 0, void 0, function* () {
             console.log("empty is cpi");
         });

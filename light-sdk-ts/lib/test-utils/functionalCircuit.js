@@ -41,12 +41,13 @@ const circomlibjs = require("circomlibjs");
 function functionalCircuitTest() {
     return __awaiter(this, void 0, void 0, function* () {
         console.log("disabled following prints");
-        console.log = () => { };
+        // console.log = () => {}
         const poseidon = yield circomlibjs.buildPoseidonOpt();
         let seed32 = new Uint8Array(32).fill(1).toString();
         let keypair = new index_1.Keypair({ poseidon: poseidon, seed: seed32 });
         let depositAmount = 20000;
         let depositFeeAmount = 10000;
+        console.log("MerkleTree ", new index_1.MerkleTree(18, poseidon));
         let tx = new index_1.Transaction({
             payer: index_1.ADMIN_AUTH_KEYPAIR,
             encryptionKeypair: index_1.ENCRYPTION_KEYPAIR,
@@ -57,36 +58,40 @@ function functionalCircuitTest() {
             relayerRecipient: index_1.ADMIN_AUTH_KEYPAIR.publicKey,
             verifier: new index_1.VerifierZero(),
             shuffleEnabled: false,
-            poseidon: poseidon
+            poseidon: poseidon,
         });
-        let deposit_utxo1 = new index_1.Utxo({ poseidon: poseidon, assets: [index_1.FEE_ASSET, index_1.MINT], amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)], keypair });
+        let deposit_utxo1 = new index_1.Utxo({
+            poseidon: poseidon,
+            assets: [index_1.FEE_ASSET, index_1.MINT],
+            amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+            keypair,
+        });
         let outputUtxos = [deposit_utxo1];
         console.log("outputUtxos[0].assetsCircuit[1]: ", outputUtxos[0].assetsCircuit[1]);
         yield tx.prepareTransactionFull({
             inputUtxos: [],
             outputUtxos,
             action: "DEPOSIT",
-            assetPubkeys: [index_1.FEE_ASSET, outputUtxos[0].assetsCircuit[1]],
+            assetPubkeys: [new anchor.BN(0), outputUtxos[0].assetsCircuit[1]],
             relayerFee: 0,
             sender: web3_js_1.SystemProgram.programId,
             mintPubkey: (0, index_1.hashAndTruncateToCircuit)(index_1.MINT.toBytes()),
             merkleTreeAssetPubkey: index_1.REGISTERED_POOL_PDA_SPL_TOKEN,
-            config: { in: 2, out: 2 }
+            config: { in: 2, out: 2 },
         });
         // successful proofgen
         yield tx.getProof();
         // unsuccessful proofgen
-        tx.inIndices[0][1][1] = '1';
+        tx.inIndices[0][1][1] = "1";
         // TODO: investigate why this does not kill the proof
-        tx.inIndices[0][1][0] = '1';
+        tx.inIndices[0][1][0] = "1";
         try {
             (0, chai_1.expect)(yield tx.getProof()).to.Throw();
             // console.log(tx.input.inIndices[0])
             // console.log(tx.input.inIndices[1])
         }
         catch (error) {
-            chai_1.assert.isTrue(error.toString()
-                .includes("CheckIndices_3 line:"));
+            chai_1.assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
         }
     });
 }

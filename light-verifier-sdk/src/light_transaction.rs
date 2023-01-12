@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{msg, program_pack::Pack, sysvar, log},
+    solana_program::{msg, program_pack::Pack, sysvar},
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{
@@ -22,7 +22,6 @@ use crate::{
     utils::{change_endianness, close_account::close_account},
 };
 
-use core::panic;
 use std::ops::Neg;
 
 use merkle_tree_program::{
@@ -718,8 +717,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             &MerkleTreeProgram::id(),
         );
         let mut cloned_data = data.clone();
-        let x = merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
-        // merkle_tree_program::RegisteredAssetPool::try_serialize(&x, data)?;
+        merkle_tree_program::RegisteredAssetPool::try_deserialize(&mut cloned_data)?;
 
         if derived_pubkey.0 != *pubkey {
             return err!(VerifierSdkError::InvalidSenderorRecipient);

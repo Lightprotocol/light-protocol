@@ -9,7 +9,7 @@ export declare class Transaction {
     relayerPubkey: PublicKey;
     relayerRecipient: PublicKey;
     preInsertedLeavesIndex: PublicKey;
-    merkleTreeProgram: Program<MerkleTreeProgramIdl>;
+    merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
     verifier: any;
     lookupTable: PublicKey;
     feeAsset: PublicKey;
@@ -21,7 +21,6 @@ export declare class Transaction {
     provider: AnchorProvider;
     merkleTreeFeeAssetPubkey: PublicKey;
     poseidon: any;
-    sendTransaction: Function;
     shuffle: Boolean;
     publicInputs: PublicInputs;
     encryptionKeypair: any;
@@ -52,23 +51,24 @@ export declare class Transaction {
         in: number;
         out: number;
     };
+    recipientBalancePriorTx?: BN;
     /**
-       * Initialize transaction
-       *
-       * @param encryptionKeypair encryptionKeypair used for encryption
-       * @param relayerFee recipient of the unshielding
-       * @param merkleTreePubkey
-       * @param merkleTree
-       * @param merkleTreeAssetPubkey
-       * @param recipient utxos to pay with
-       * @param lookupTable fee for the relayer
-       * @param payer RPC connection
-       * @param provider shieldedKeypair
-       * @param relayerRecipient shieldedKeypair
-       * @param poseidon shieldedKeypair
-       * @param verifier shieldedKeypair
-       * @param shuffleEnabled
-    */
+     * Initialize transaction
+     *
+     * @param encryptionKeypair encryptionKeypair used for encryption
+     * @param relayerFee recipient of the unshielding
+     * @param merkleTreePubkey
+     * @param merkleTree
+     * @param merkleTreeAssetPubkey
+     * @param recipient utxos to pay with
+     * @param lookupTable fee for the relayer
+     * @param payer RPC connection
+     * @param provider shieldedKeypair
+     * @param relayerRecipient shieldedKeypair
+     * @param poseidon shieldedKeypair
+     * @param verifier shieldedKeypair
+     * @param shuffleEnabled
+     */
     constructor({ payer, //: Keypair
     encryptionKeypair, merkleTree, relayerPubkey, //PublicKey
     relayerRecipient, provider, lookupTable, //PublicKey
@@ -86,13 +86,15 @@ export declare class Transaction {
     });
     getRootIndex(): Promise<void>;
     prepareUtxos(): void;
+    getExternalAmount(assetIndex: number): any;
+    getIndices(utxos: Utxo[]): String[];
     prepareTransaction(encrypedUtxos?: Uint8Array): void;
     prepareTransactionFull({ inputUtxos, outputUtxos, action, assetPubkeys, recipient, relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
-    shuffle, recipientFee, sender, merkleTreeAssetPubkey, config, encrypedUtxos }: {
+    shuffle, recipientFee, sender, merkleTreeAssetPubkey, config, encrypedUtxos, }: {
         inputUtxos: Array<Utxo>;
         outputUtxos: Array<Utxo>;
         action: String;
-        assetPubkeys: Array<PublicKey>;
+        assetPubkeys: Array<BN>;
         recipient: PublicKey;
         relayerFee: BN | null;
         shuffle: Boolean;
@@ -107,6 +109,7 @@ export declare class Transaction {
     }): Promise<void>;
     overWriteEncryptedUtxos(bytes: Uint8Array, offSet?: number): void;
     getPublicInputs(): void;
+    sendTransaction(): Promise<any>;
     getProof(): Promise<void>;
     checkProof(): Promise<void>;
     getPdaAddresses(): Promise<void>;

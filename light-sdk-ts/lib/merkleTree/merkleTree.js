@@ -1,7 +1,7 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.MerkleTree = void 0;
-const constants_1 = require("../constants");
+const index_1 = require("../index");
 /**
  * @callback hashFunction
  * @param left Left leaf
@@ -11,13 +11,13 @@ const constants_1 = require("../constants");
  * Merkle tree
  */
 class MerkleTree {
-    constructor(levels, poseidonHash2, elements = [], { zeroElement = constants_1.DEFAULT_ZERO } = {}) {
+    constructor(levels, poseidonHash2, elements = [], { zeroElement = index_1.DEFAULT_ZERO } = {}) {
         this.levels = levels;
         this.capacity = Math.pow(2, levels);
         this.zeroElement = zeroElement;
         this._hash = poseidonHash2;
         if (elements.length > this.capacity) {
-            throw new Error('Tree is full');
+            throw new Error("Tree is full");
         }
         this._zeros = [];
         this._layers = [];
@@ -33,9 +33,10 @@ class MerkleTree {
             this._layers[level] = [];
             for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
                 this._layers[level][i] = this._hash.F.toString(this._hash([
-                    this._layers[level - 1][i * 2], i * 2 + 1 < this._layers[level - 1].length
+                    this._layers[level - 1][i * 2],
+                    i * 2 + 1 < this._layers[level - 1].length
                         ? this._layers[level - 1][i * 2 + 1]
-                        : this._zeros[level - 1]
+                        : this._zeros[level - 1],
                 ]));
             }
         }
@@ -55,7 +56,7 @@ class MerkleTree {
      */
     insert(element) {
         if (this._layers[0].length >= this.capacity) {
-            throw new Error('Tree is full');
+            throw new Error("Tree is full");
         }
         this.update(this._layers[0].length, element);
     }
@@ -65,7 +66,7 @@ class MerkleTree {
      */
     bulkInsert(elements) {
         if (this._layers[0].length + elements.length > this.capacity) {
-            throw new Error('Tree is full');
+            throw new Error("Tree is full");
         }
         this._layers[0].push(...elements);
         this._rebuild();
@@ -76,11 +77,12 @@ class MerkleTree {
      * @param element Updated element value
      */
     update(index, element) {
+        // index 0 and 1 and element is the commitment hash
         if (isNaN(Number(index)) ||
             index < 0 ||
             index > this._layers[0].length ||
             index >= this.capacity) {
-            throw new Error('Insert index out of bounds: ' + index);
+            throw new Error("Insert index out of bounds: " + index);
         }
         this._layers[0][index] = element;
         for (let level = 1; level <= this.levels; level++) {
@@ -97,7 +99,7 @@ class MerkleTree {
      */
     path(index) {
         if (isNaN(Number(index)) || index < 0 || index >= this._layers[0].length) {
-            throw new Error('Index out of bounds: ' + index);
+            throw new Error("Index out of bounds: " + index);
         }
         const pathElements = [];
         const pathIndices = [];

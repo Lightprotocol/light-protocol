@@ -11,25 +11,24 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.parseProofToBytesArray = exports.Transaction = exports.createEncryptionKeypair = void 0;
 const anchor = require("@coral-xyz/anchor");
-const nacl = require('tweetnacl');
+const nacl = require("tweetnacl");
 const createEncryptionKeypair = () => nacl.box.keyPair();
 exports.createEncryptionKeypair = createEncryptionKeypair;
-var assert = require('assert');
+var assert = require("assert");
 let circomlibjs = require("circomlibjs");
-var ffjavascript = require('ffjavascript');
+var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } = ffjavascript.utils;
 const merkle_tree_program_1 = require("./idls/merkle_tree_program");
-const ethers = require("ethers");
-const FIELD_SIZE_ETHERS = ethers.BigNumber.from('21888242871839275222246405745257275088548364400416034343698204186575808495617');
 const fs_1 = require("fs");
-const snarkjs = require('snarkjs');
-const constants_1 = require("./constants");
+const snarkjs = require("snarkjs");
+const { keccak_256 } = require("@noble/hashes/sha3");
+const index_1 = require("./index");
 const web3_js_1 = require("@solana/web3.js");
 const spl_token_1 = require("@solana/spl-token");
 const testChecks_1 = require("./test-utils/testChecks");
 const utxo_1 = require("./utxo");
 const anchor_1 = require("@coral-xyz/anchor");
-const constants_2 = require("./constants");
+const constants_1 = require("./constants");
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
 // input custom verifier with three functions by default prepare, proof, send
@@ -40,38 +39,49 @@ const constants_2 = require("./constants");
 // TODO: write functional test for every method
 class Transaction {
     /**
-       * Initialize transaction
-       *
-       * @param encryptionKeypair encryptionKeypair used for encryption
-       * @param relayerFee recipient of the unshielding
-       * @param merkleTreePubkey
-       * @param merkleTree
-       * @param merkleTreeAssetPubkey
-       * @param recipient utxos to pay with
-       * @param lookupTable fee for the relayer
-       * @param payer RPC connection
-       * @param provider shieldedKeypair
-       * @param relayerRecipient shieldedKeypair
-       * @param poseidon shieldedKeypair
-       * @param verifier shieldedKeypair
-       * @param shuffleEnabled
+     * Initialize transaction
+     *
+     * @param encryptionKeypair encryptionKeypair used for encryption
+     * @param relayerFee recipient of the unshielding
+     * @param merkleTreePubkey
+     * @param merkleTree
+     * @param merkleTreeAssetPubkey
+     * @param recipient utxos to pay with
+     * @param lookupTable fee for the relayer
+     * @param payer RPC connection
+     * @param provider shieldedKeypair
+     * @param relayerRecipient shieldedKeypair
+     * @param poseidon shieldedKeypair
+     * @param verifier shieldedKeypair
+     * @param shuffleEnabled
+     */
+    // TODO: design config objects which pass in
+    // TODO: store change utxos in user object
+    // TODO: put all acconts into one account object + a relayer object
+    /*
+      relayer {
+        relayerPubkey: PublicKey, // signs the transaction
+        encryptionPubkey: Uint8Array,
+        relayerRecipient: PublicKey, // receives the fees
+        lookUpTable: PublicKey
+      }
     */
     constructor({ 
     // keypair, // : Keypair shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     // user object { payer, encryptionKe..., utxos?} or utxos in wallet object
-    payer, //: Keypair
     // TODO: remove and take this from user object
+    payer, //: Keypair
     encryptionKeypair = (0, exports.createEncryptionKeypair)(), 
-    // need to check how to handle several merkle trees here
+    // TODO: check how to handle several merkle trees here
     merkleTree, 
-    // relayer 
+    // relayer
     relayerPubkey, //PublicKey
     relayerRecipient, 
     // relayer fee
     // network
     provider, lookupTable, //PublicKey
     poseidon, 
-    // Can this be passed as a generic?
+    // TODO: pass in as a generic if beneficial
     verifier, shuffleEnabled = true, }) {
         // user
         this.encryptionKeypair = encryptionKeypair;
@@ -87,16 +97,17 @@ class Transaction {
         // this.relayerFee = new anchor.BN('10_000'); //U64(10_000),;
         // merkle tree
         this.merkleTree = merkleTree;
-        this.merkleTreePubkey = constants_2.MERKLE_TREE_KEY;
-        this.merkleTreeFeeAssetPubkey = constants_2.REGISTERED_POOL_PDA_SOL;
-        this.preInsertedLeavesIndex = constants_2.PRE_INSERTED_LEAVES_INDEX;
-        this.feeAsset = constants_1.FEE_ASSET;
+        this.merkleTreePubkey = constants_1.MERKLE_TREE_KEY;
+        this.merkleTreeFeeAssetPubkey = constants_1.REGISTERED_POOL_PDA_SOL;
+        this.preInsertedLeavesIndex = constants_1.PRE_INSERTED_LEAVES_INDEX;
+        this.feeAsset = new anchor_1.BN(0);
         // network
         this.provider = provider;
         this.lookupTable = lookupTable;
         // verifier
         this.verifier = verifier;
-        this.sendTransaction = verifier.sendTransaction;
+        // this.verifier.initVerifierProgram();
+        // this.sendTransaction = verifier.sendTransaction;
         // misc
         this.poseidon = poseidon;
         this.shuffle = shuffleEnabled;
@@ -107,7 +118,7 @@ class Transaction {
             feeAmount: new Array(),
             mintPubkey: new Array(),
             nullifiers: new Array(),
-            leaves: new Array()
+            leaves: new Array(),
         };
         // init stuff for ts
         this.utxos = [];
@@ -115,10 +126,10 @@ class Transaction {
     }
     getRootIndex() {
         return __awaiter(this, void 0, void 0, function* () {
-            this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, constants_1.merkleTreeProgramId);
+            this.merkleTreeProgram = new anchor_1.Program(merkle_tree_program_1.MerkleTreeProgram, index_1.merkleTreeProgramId);
             let root = Uint8Array.from(leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32));
             let merkle_tree_account = yield this.provider.connection.getAccountInfo(this.merkleTreePubkey);
-            let merkle_tree_account_data = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode('MerkleTree', merkle_tree_account.data);
+            let merkle_tree_account_data = this.merkleTreeProgram.account.merkleTree._coder.accounts.decode("MerkleTree", merkle_tree_account.data);
             merkle_tree_account_data.roots.map((x, index) => {
                 if (x.toString() === root.toString()) {
                     this.rootIndex = index;
@@ -129,14 +140,13 @@ class Transaction {
     prepareUtxos() {
         var _a, _b;
         /// Validation
-        if (this.inputUtxos.length > this.config.in || this.outputUtxos.length > this.config.out) {
-            throw new Error('Incorrect inputUtxos/outputUtxos count');
+        if (this.inputUtxos.length > this.config.in ||
+            this.outputUtxos.length > this.config.out) {
+            throw new Error("Incorrect inputUtxos/outputUtxos count");
         }
-        console.log("inputUtxos.length ", this.inputUtxos.length);
         /// fill inputUtxos until 2 or 10
         while (this.inputUtxos.length < this.config.in) {
             this.inputUtxos.push(new utxo_1.Utxo({ poseidon: this.poseidon }));
-            // throw "inputUtxos.length > 2 are not implemented";
         }
         /// if there are no outputUtxo add one
         while (this.outputUtxos.length < this.config.out) {
@@ -153,29 +163,12 @@ class Transaction {
         else {
             console.log("commented shuffle");
         }
-        /// the fee plus the amount to pay has to be bigger than the amount in the input utxo
-        // which doesn't make sense it should be the other way arround right
-        // the external amount can only be made up of utxos of asset[0]
-        // This might be too specific since the circuit allows assets to be in any index
-        // TODO: write test
-        const getExternalAmount = (assetIndex) => {
-            return new anchor.BN(0)
-                .add(this.outputUtxos.filter((utxo) => {
-                // console.log("this.assetPubkeys ", this.assetPubkeys);
-                // console.log("utxo.assetsCircuit ", utxo.assetsCircuit);
-                // console.log(`${utxo.assetsCircuit[assetIndex].toString('hex')} == ${this.assetPubkeys[assetIndex].toString('hex')}`);
-                return utxo.assetsCircuit[assetIndex].toString('hex') == this.assetPubkeys[assetIndex].toString('hex');
-            }).reduce((sum, utxo) => (
-            // add all utxos of the same asset
-            sum.add(utxo.amounts[assetIndex])), new anchor.BN(0)))
-                .sub(this.inputUtxos.filter((utxo) => { return utxo.assetsCircuit[assetIndex].toString('hex') == this.assetPubkeys[assetIndex].toString('hex'); }).reduce((sum, utxo) => sum.add(utxo.amounts[assetIndex]), new anchor.BN(0)));
-        };
-        this.externalAmountBigNumber = getExternalAmount(1);
-        this.feeAmount = getExternalAmount(0);
+        this.externalAmountBigNumber = this.getExternalAmount(1);
+        this.feeAmount = this.getExternalAmount(0);
         console.log("this.externalAmountBigNumber ", (_a = this.externalAmountBigNumber) === null || _a === void 0 ? void 0 : _a.toString());
         console.log("this.feeAmount ", (_b = this.feeAmount) === null || _b === void 0 ? void 0 : _b.toString());
         /// if it is a deposit and the amount going in is smaller than 0 throw error
-        if (this.action === 'DEPOSIT' &&
+        if (this.action === "DEPOSIT" &&
             this.externalAmountBigNumber < new anchor.BN(0)) {
             throw new Error(`Incorrect Extamount: ${this.externalAmountBigNumber.toNumber()}`);
         }
@@ -196,40 +189,70 @@ class Transaction {
         if (this.assetPubkeys[0] === this.assetPubkeys[1]) {
             throw new Error(`asset pubKeys need to be distinct ${this.assetPubkeys}`);
         }
-        // TODO: write test
-        const getIndices = (utxos) => {
-            let inIndices = [];
-            utxos.map((utxo) => {
-                let tmpInIndices = [];
-                for (var a = 0; a < utxo_1.N_ASSETS; a++) {
-                    let tmpInIndices1 = [];
-                    for (var i = 0; i < utxo.assets.length; i++) {
-                        console.log(`utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`);
-                        console.log(`utxo asset ${utxo.assetsCircuit[i].toString() === this.assetPubkeys[a].toString()} utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > '0'}`);
-                        if (utxo.assetsCircuit[i].toString() === this.assetPubkeys[a].toString() && utxo.amounts[a].toString() > '0' && !tmpInIndices1.includes('1')) {
-                            tmpInIndices1.push("1");
-                        }
-                        else {
-                            tmpInIndices1.push("0");
-                        }
-                    }
-                    tmpInIndices.push(tmpInIndices1);
-                }
-                inIndices.push(tmpInIndices);
-                console.log("-----------");
-            });
-            return inIndices;
-        };
-        this.inIndices = getIndices(this.inputUtxos);
-        this.outIndices = getIndices(this.outputUtxos);
+        this.inIndices = this.getIndices(this.inputUtxos);
+        this.outIndices = this.getIndices(this.outputUtxos);
         console.log("inIndices: ", this.inIndices);
         console.log("outIndices: ", this.outIndices);
         // console.log("utxos ", this.inputUtxos);
         // process.exit()
     }
-    ;
+    // the fee plus the amount to pay has to be bigger than the amount in the input utxo
+    // which doesn't make sense it should be the other way arround right
+    // the external amount can only be made up of utxos of asset[0]
+    // This might be too specific since the circuit allows assets to be in any index
+    // TODO: write test
+    getExternalAmount(assetIndex) {
+        return new anchor.BN(0)
+            .add(this.outputUtxos
+            .filter((utxo) => {
+            return (utxo.assetsCircuit[assetIndex].toString("hex") ==
+                this.assetPubkeys[assetIndex].toString("hex"));
+        })
+            .reduce((sum, utxo) => 
+        // add all utxos of the same asset
+        sum.add(utxo.amounts[assetIndex]), new anchor.BN(0)))
+            .sub(this.inputUtxos
+            .filter((utxo) => {
+            return (utxo.assetsCircuit[assetIndex].toString("hex") ==
+                this.assetPubkeys[assetIndex].toString("hex"));
+        })
+            .reduce((sum, utxo) => sum.add(utxo.amounts[assetIndex]), new anchor.BN(0)));
+    }
+    // TODO: write test
+    getIndices(utxos) {
+        let inIndices = [];
+        utxos.map((utxo) => {
+            let tmpInIndices = [];
+            for (var a = 0; a < utxo_1.N_ASSETS; a++) {
+                let tmpInIndices1 = [];
+                for (var i = 0; i < utxo.assets.length; i++) {
+                    // console.log(
+                    //   `utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`
+                    // );
+                    // console.log(
+                    //   `utxo asset ${
+                    //     utxo.assetsCircuit[i].toString() ===
+                    //     this.assetPubkeys[a].toString()
+                    //   } utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > "0"}`
+                    // );
+                    if (utxo.assetsCircuit[i].toString() ===
+                        this.assetPubkeys[a].toString() &&
+                        utxo.amounts[a].toString() > "0" &&
+                        !tmpInIndices1.includes("1")) {
+                        tmpInIndices1.push("1");
+                    }
+                    else {
+                        tmpInIndices1.push("0");
+                    }
+                }
+                tmpInIndices.push(tmpInIndices1);
+            }
+            inIndices.push(tmpInIndices);
+        });
+        return inIndices;
+    }
     prepareTransaction(encrypedUtxos) {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         let inputMerklePathIndices = [];
         let inputMerklePathElements = [];
         /// if the input utxo has an amount bigger than 0 and it has an valid index add it to the indices of the merkel tree
@@ -242,17 +265,14 @@ class Transaction {
                 inputMerklePathIndices.push(0);
                 inputMerklePathElements.push(new Array(this.merkleTree.levels).fill(0));
             }
-            else if (inputUtxo.amounts[0] > 0 || inputUtxo.amounts[1] > 0 || inputUtxo.amounts[2] > 0) {
+            else if (inputUtxo.amounts[0] > new anchor_1.BN(0) ||
+                inputUtxo.amounts[1] > new anchor_1.BN(0)) {
                 inputUtxo.index = this.merkleTree.indexOf(inputUtxo.getCommitment());
-                console.log("inputUtxo.index ", inputUtxo.index);
                 if (inputUtxo.index || inputUtxo.index == 0) {
-                    console.log("here");
                     if (inputUtxo.index < 0) {
                         throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
                     }
-                    console.log("here1");
                     inputMerklePathIndices.push(inputUtxo.index);
-                    console.log("here2");
                     inputMerklePathElements.push(this.merkleTree.path(inputUtxo.index).pathElements);
                 }
             }
@@ -262,13 +282,12 @@ class Transaction {
             }
         }
         let relayer_fee;
-        if (this.action !== 'DEPOSIT') {
+        if (this.action !== "DEPOSIT") {
             relayer_fee = (_a = this.relayerFee) === null || _a === void 0 ? void 0 : _a.toArray("le", 8);
         }
         else {
             relayer_fee = new Uint8Array(8).fill(0);
         }
-        console.log("feesLE: ", relayer_fee);
         // ----------------------- getting integrity hash -------------------
         const nonces = new Array(this.config.out).fill((0, utxo_1.newNonce)());
         /// Encrypt outputUtxos to bytes
@@ -278,13 +297,14 @@ class Transaction {
         }
         else {
             this.outputUtxos.map((utxo, index) => encryptedOutputs.push(utxo.encrypt()));
-            // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
             if (this.config.out == 2) {
-                console.log("nonces[0] ", nonces[0]);
-                console.log("this.encryptionKeypair ", this.encryptionKeypair);
-                console.log("encryptedOutputs[0] ", encryptedOutputs[0]);
-                console.log("nonces[1] ", nonces[1]);
-                this.encryptedUtxos = new Uint8Array([...encryptedOutputs[0], , ...encryptedOutputs[1], ...new Array(256 - 190).fill(0)]);
+                // TODO: investigate where the additional byte came from
+                this.encryptedUtxos = new Uint8Array([
+                    ...encryptedOutputs[0],
+                    ,
+                    ...encryptedOutputs[1],
+                    ...new Array(256 - 191).fill(0),
+                ]);
             }
             else {
                 let tmpArray = new Array();
@@ -292,102 +312,84 @@ class Transaction {
                     tmpArray.push(...encryptedOutputs[i]);
                     tmpArray.push(...nonces[i]);
                 }
-                console.log(this.config);
-                console.log(tmpArray.length);
-                console.log(this.config.out * 128 - tmpArray.length);
                 if (tmpArray.length < 512) {
                     tmpArray.push(new Array(this.config.out * 128 - tmpArray.length).fill(0));
                 }
                 this.encryptedUtxos = new Uint8Array(tmpArray.flat());
             }
-            console.log("this.encryptedUtxos ", this.encryptedUtxos.toString());
         }
-        console.log("this.recipient.toBytes(), ", Array.from(this.recipient.toBytes()));
-        console.log("this.recipientFee.toBytes(), ", Array.from(this.recipientFee.toBytes()));
-        console.log("this.payer.toBytes(), ", Array.from(this.payer.publicKey.toBytes()));
-        console.log("relayer_fee ", relayer_fee);
-        console.log("this.encryptedUtxos ", (_b = this.encryptedUtxos) === null || _b === void 0 ? void 0 : _b.length);
         let extDataBytes = new Uint8Array([
             ...this.recipient.toBytes(),
             ...this.recipientFee.toBytes(),
             ...this.payer.publicKey.toBytes(),
             ...relayer_fee,
-            ...this.encryptedUtxos
+            ...this.encryptedUtxos,
         ]);
-        console.log("extDataBytes ", extDataBytes.toString());
-        const hash = ethers.ethers.utils.keccak256(Buffer.from(extDataBytes));
-        // const hash = anchor.utils.sha256.hash(extDataBytes)
-        console.log("Hash: ", hash);
-        this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(FIELD_SIZE_ETHERS), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
-            console.log(this.merkleTree);
-        // ----------------------- building input object -------------------
+        const hash = keccak_256
+            .create({ dkLen: 32 })
+            .update(Buffer.from(extDataBytes))
+            .digest();
+        this.extDataHash = new anchor.BN(hash).mod(index_1.FIELD_SIZE);
+        // ----------------------- building proof input object -------------------
         this.input = {
             root: this.merkleTree.root(),
             inputNullifier: this.inputUtxos.map((x) => x.getNullifier()),
             outputCommitment: this.outputUtxos.map((x) => x.getCommitment()),
             // TODO: move public and fee amounts into tx preparation
             publicAmount: this.externalAmountBigNumber
-                .add(constants_1.FIELD_SIZE)
-                .mod(constants_1.FIELD_SIZE)
+                .add(index_1.FIELD_SIZE)
+                .mod(index_1.FIELD_SIZE)
                 .toString(),
             extDataHash: this.extDataHash.toString(),
             feeAmount: new anchor.BN(this.feeAmount)
-                .add(constants_1.FIELD_SIZE)
-                .mod(constants_1.FIELD_SIZE)
+                .add(index_1.FIELD_SIZE)
+                .mod(index_1.FIELD_SIZE)
                 .toString(),
             mintPubkey: this.mintPubkey,
             // data for 2 transaction inputUtxos
-            inAmount: (_c = this.inputUtxos) === null || _c === void 0 ? void 0 : _c.map((x) => x.amounts),
-            inPrivateKey: (_d = this.inputUtxos) === null || _d === void 0 ? void 0 : _d.map((x) => x.keypair.privkey),
-            inBlinding: (_e = this.inputUtxos) === null || _e === void 0 ? void 0 : _e.map((x) => x.blinding),
+            inAmount: (_b = this.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((x) => x.amounts),
+            inPrivateKey: (_c = this.inputUtxos) === null || _c === void 0 ? void 0 : _c.map((x) => x.keypair.privkey),
+            inBlinding: (_d = this.inputUtxos) === null || _d === void 0 ? void 0 : _d.map((x) => x.blinding),
             inPathIndices: inputMerklePathIndices,
             inPathElements: inputMerklePathElements,
             assetPubkeys: this.assetPubkeys,
             // data for 2 transaction outputUtxos
-            outAmount: (_f = this.outputUtxos) === null || _f === void 0 ? void 0 : _f.map((x) => x.amounts),
-            outBlinding: (_g = this.outputUtxos) === null || _g === void 0 ? void 0 : _g.map((x) => x.blinding),
-            outPubkey: (_h = this.outputUtxos) === null || _h === void 0 ? void 0 : _h.map((x) => x.keypair.pubkey),
+            outAmount: (_e = this.outputUtxos) === null || _e === void 0 ? void 0 : _e.map((x) => x.amounts),
+            outBlinding: (_f = this.outputUtxos) === null || _f === void 0 ? void 0 : _f.map((x) => x.blinding),
+            outPubkey: (_g = this.outputUtxos) === null || _g === void 0 ? void 0 : _g.map((x) => x.keypair.pubkey),
             inIndices: this.inIndices,
             outIndices: this.outIndices,
-            inInstructionType: (_j = this.inputUtxos) === null || _j === void 0 ? void 0 : _j.map((x) => x.instructionType),
-            outInstructionType: (_k = this.outputUtxos) === null || _k === void 0 ? void 0 : _k.map((x) => x.instructionType),
-            inPoolType: (_l = this.inputUtxos) === null || _l === void 0 ? void 0 : _l.map((x) => x.poolType),
-            outPoolType: (_m = this.outputUtxos) === null || _m === void 0 ? void 0 : _m.map((x) => x.poolType),
-            inVerifierPubkey: (_o = this.inputUtxos) === null || _o === void 0 ? void 0 : _o.map((x) => x.verifierAddressCircuit),
-            outVerifierPubkey: (_p = this.outputUtxos) === null || _p === void 0 ? void 0 : _p.map((x) => x.verifierAddressCircuit)
+            inInstructionType: (_h = this.inputUtxos) === null || _h === void 0 ? void 0 : _h.map((x) => x.instructionType),
+            outInstructionType: (_j = this.outputUtxos) === null || _j === void 0 ? void 0 : _j.map((x) => x.instructionType),
+            inPoolType: (_k = this.inputUtxos) === null || _k === void 0 ? void 0 : _k.map((x) => x.poolType),
+            outPoolType: (_l = this.outputUtxos) === null || _l === void 0 ? void 0 : _l.map((x) => x.poolType),
+            inVerifierPubkey: (_m = this.inputUtxos) === null || _m === void 0 ? void 0 : _m.map((x) => x.verifierAddressCircuit),
+            outVerifierPubkey: (_o = this.outputUtxos) === null || _o === void 0 ? void 0 : _o.map((x) => x.verifierAddressCircuit),
         };
-        // console.log("extDataHash: ", input.extDataHash);
-        // console.log("input.inputNullifier ",input.inputNullifier[0] );
-        // console.log("input feeAmount: ", input.feeAmount);
-        // console.log("input publicAmount: ", input.publicAmount);
-        // console.log("input relayerFee: ", relayerFee);
-        //
-        // console.log("inIndices ", JSON.stringify(inIndices, null, 4));
-        // console.log("outIndices ", JSON.stringify(outIndices, null, 4));
     }
-    prepareTransactionFull({ inputUtxos, outputUtxos, action, assetPubkeys, recipient, 
-    // mintPubkey,
-    relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
-    shuffle = true, recipientFee, sender, merkleTreeAssetPubkey, config, encrypedUtxos }) {
+    prepareTransactionFull({ inputUtxos, outputUtxos, action, 
+    // TODO: should be selected automatically, either in this function or outside
+    assetPubkeys, recipient, relayerFee = null, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
+    shuffle = true, recipientFee, sender, merkleTreeAssetPubkey, config, encrypedUtxos, }) {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
             this.merkleTreeAssetPubkey = merkleTreeAssetPubkey;
             this.poseidon = yield circomlibjs.buildPoseidonOpt();
             this.config = config;
-            // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos
+            // TODO: build assetPubkeys from inputUtxos, if those are empty then outputUtxos, needs to check that there is no utxo with a different asset in the tx
             let mintPubkey = assetPubkeys[1];
             if (assetPubkeys[0].toString() != this.feeAsset.toString()) {
                 throw "feeAsset should be assetPubkeys[0]";
             }
             if (action == "DEPOSIT") {
                 console.log("Deposit");
-                console.log();
                 this.relayerFee = relayerFee;
                 this.sender = sender;
                 this.senderFee = new web3_js_1.PublicKey(this.payer.publicKey);
                 this.recipient = this.merkleTreeAssetPubkey;
                 this.recipientFee = this.merkleTreeFeeAssetPubkey;
-                if (this.relayerPubkey.toBase58() != new web3_js_1.PublicKey(this.payer.publicKey).toBase58()) {
+                if (this.relayerPubkey.toBase58() !=
+                    new web3_js_1.PublicKey(this.payer.publicKey).toBase58()) {
                     throw "relayerPubkey and payer pubkey need to be equivalent at deposit";
                 }
             }
@@ -423,8 +425,8 @@ class Transaction {
                 console.log("provider not defined did not fetch rootIndex set root index to 0");
                 this.rootIndex = 0;
             }
-            assert(this.input.mintPubkey == this.mintPubkey);
-            assert(this.input.mintPubkey == this.assetPubkeys[1]);
+            assert.equal(this.input.mintPubkey, this.mintPubkey);
+            assert.equal(this.input.mintPubkey, this.assetPubkeys[1]);
             if (this.externalAmountBigNumber != 0) {
                 if (assetPubkeys[1].toString() != mintPubkey.toString()) {
                     throw "mintPubkey should be assetPubkeys[1]";
@@ -434,10 +436,21 @@ class Transaction {
     }
     overWriteEncryptedUtxos(bytes, offSet = 0) {
         // this.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
-        this.encryptedUtxos = Uint8Array.from([...this.encryptedUtxos.slice(0, offSet), ...bytes, ...this.encryptedUtxos.slice(offSet + bytes.length, this.encryptedUtxos.length)]);
+        this.encryptedUtxos = Uint8Array.from([
+            ...this.encryptedUtxos.slice(0, offSet),
+            ...bytes,
+            ...this.encryptedUtxos.slice(offSet + bytes.length, this.encryptedUtxos.length),
+        ]);
     }
     getPublicInputs() {
+        this.verifier.initVerifierProgram();
         this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
+    }
+    sendTransaction() {
+        return __awaiter(this, void 0, void 0, function* () {
+            this.verifier.initVerifierProgram();
+            return yield this.verifier.sendTransaction(this);
+        });
     }
     getProof() {
         return __awaiter(this, void 0, void 0, function* () {
@@ -447,23 +460,23 @@ class Transaction {
             if (this.inIndices == null) {
                 throw "transaction not prepared";
             }
-            console.log("this.input ", this.input);
+            // console.log("this.input ", this.input);
             const buffer = (0, fs_1.readFileSync)(`${this.verifier.wtnsGenPath}.wasm`);
             let witnessCalculator = yield this.verifier.calculateWtns(buffer);
-            console.time('Proof generation');
+            console.time("Proof generation");
             let wtns = yield witnessCalculator.calculateWTNSBin(stringifyBigInts(this.input), 0);
             const { proof, publicSignals } = yield snarkjs.groth16.prove(`${this.verifier.zkeyPath}.zkey`, wtns);
             this.proofJson = JSON.stringify(proof, null, 1);
             this.publicInputsJson = JSON.stringify(publicSignals, null, 1);
-            console.timeEnd('Proof generation');
+            console.timeEnd("Proof generation");
             const vKey = yield snarkjs.zKey.exportVerificationKey(`${this.verifier.zkeyPath}.zkey`);
             const res = yield snarkjs.groth16.verify(vKey, publicSignals, proof);
             if (res === true) {
-                console.log('Verification OK');
+                console.log("Verification OK");
             }
             else {
-                console.log('Invalid proof');
-                throw new Error('Invalid Proof');
+                console.log("Invalid proof");
+                throw new Error("Invalid Proof");
             }
             this.publicInputsBytes = JSON.parse(this.publicInputsJson.toString());
             for (var i in this.publicInputsBytes) {
@@ -471,9 +484,6 @@ class Transaction {
             }
             this.proofBytes = yield (0, exports.parseProofToBytesArray)(this.proofJson);
             this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
-            console.log("this.publicInputs ", this.publicInputs);
-            console.log("proof ", proof);
-            console.log("publicSignals ", publicSignals);
             // await this.checkProof()
             if (this.provider) {
                 yield this.getPdaAddresses();
@@ -499,42 +509,41 @@ class Transaction {
                 pi_a: [
                     leBuff2int(Buffer.from(this.proofBytes.slice(0, 32).reverse())).toString(),
                     leBuff2int(Buffer.from(this.proofBytes.slice(32, 64).reverse())).toString(),
-                    '1'
+                    "1",
                 ],
                 pi_b: [
                     [
                         leBuff2int(Buffer.from(pi_b_0.slice(0, 32))).toString(),
-                        leBuff2int(Buffer.from(pi_b_0.slice(32, 64))).toString()
+                        leBuff2int(Buffer.from(pi_b_0.slice(32, 64))).toString(),
                     ],
                     [
                         leBuff2int(Buffer.from(pi_b_1.slice(0, 32))).toString(),
-                        leBuff2int(Buffer.from(pi_b_1.slice(32, 64))).toString()
+                        leBuff2int(Buffer.from(pi_b_1.slice(32, 64))).toString(),
                     ],
-                    ['1', '0']
+                    ["1", "0"],
                 ],
                 pi_c: [
                     leBuff2int(Buffer.from(this.proofBytes.slice(192, 224).reverse())).toString(),
                     leBuff2int(Buffer.from(this.proofBytes.slice(224, 256).reverse())).toString(),
-                    '1'
+                    "1",
                 ],
-                protocol: 'groth16',
-                curve: 'bn128'
+                protocol: "groth16",
+                curve: "bn128",
             };
-            console.log("backparsed proof: ", proof);
-            console.log("backparsed publicSignals: ", publicSignals);
             const vKey = yield snarkjs.zKey.exportVerificationKey(`${this.verifier.zkeyPath}.zkey`);
             const res = yield snarkjs.groth16.verify(vKey, publicSignals, proof);
             if (res === true) {
-                console.log('Verification OK');
+                console.log("Verification OK");
             }
             else {
-                console.log('Invalid proof');
-                throw new Error('Invalid Proof');
+                console.log("Invalid proof");
+                throw new Error("Invalid Proof");
             }
         });
     }
     getPdaAddresses() {
         return __awaiter(this, void 0, void 0, function* () {
+            this.verifier.initVerifierProgram();
             let tx_integrity_hash = this.publicInputs.txIntegrityHash;
             let nullifiers = this.publicInputs.nullifiers;
             let leftLeaves = [this.publicInputs.leaves[0]];
@@ -542,24 +551,27 @@ class Transaction {
             let signer = this.payer.publicKey;
             let nullifierPdaPubkeys = [];
             for (var i in nullifiers) {
-                console.log("nullifiers[i]: ", nullifiers[i]);
                 nullifierPdaPubkeys.push((yield web3_js_1.PublicKey.findProgramAddress([Buffer.from(nullifiers[i]), anchor.utils.bytes.utf8.encode("nf")], merkleTreeProgram.programId))[0]);
-                console.log(nullifierPdaPubkeys[i].toBase58());
             }
             let leavesPdaPubkeys = [];
             for (var i in this.publicInputs.leaves) {
-                console.log("123this.publicInputs.leaves ", this.publicInputs.leaves);
-                leavesPdaPubkeys.push((yield web3_js_1.PublicKey.findProgramAddress([Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()), anchor.utils.bytes.utf8.encode("leaves")], merkleTreeProgram.programId))[0]);
+                leavesPdaPubkeys.push((yield web3_js_1.PublicKey.findProgramAddress([
+                    Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()),
+                    anchor.utils.bytes.utf8.encode("leaves"),
+                ], merkleTreeProgram.programId))[0]);
             }
-            console.log("this.verifier.verifierProgram.programId ", this.verifier.verifierProgram.programId.toBase58());
-            console.log("this.merkleTreeProgram.programId ", this.merkleTreeProgram.programId.toBase58());
-            console.log("signerAuthorityPubkey ", (yield web3_js_1.PublicKey.findProgramAddress([merkleTreeProgram.programId.toBytes()], this.verifier.verifierProgram.programId))[0].toBase58());
             let pdas = {
                 signerAuthorityPubkey: (yield web3_js_1.PublicKey.findProgramAddress([merkleTreeProgram.programId.toBytes()], this.verifier.verifierProgram.programId))[0],
                 escrow: (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("escrow")], this.verifier.verifierProgram.programId))[0],
                 verifierStatePubkey: (yield web3_js_1.PublicKey.findProgramAddress([signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")], this.verifier.verifierProgram.programId))[0],
-                feeEscrowStatePubkey: (yield web3_js_1.PublicKey.findProgramAddress([Buffer.from(new Uint8Array(tx_integrity_hash)), anchor.utils.bytes.utf8.encode("escrow")], this.verifier.verifierProgram.programId))[0],
-                merkleTreeUpdateState: (yield web3_js_1.PublicKey.findProgramAddress([Buffer.from(new Uint8Array(leftLeaves[0])), anchor.utils.bytes.utf8.encode("storage")], merkleTreeProgram.programId))[0],
+                feeEscrowStatePubkey: (yield web3_js_1.PublicKey.findProgramAddress([
+                    Buffer.from(new Uint8Array(tx_integrity_hash)),
+                    anchor.utils.bytes.utf8.encode("escrow"),
+                ], this.verifier.verifierProgram.programId))[0],
+                merkleTreeUpdateState: (yield web3_js_1.PublicKey.findProgramAddress([
+                    Buffer.from(new Uint8Array(leftLeaves[0])),
+                    anchor.utils.bytes.utf8.encode("storage"),
+                ], merkleTreeProgram.programId))[0],
                 nullifierPdaPubkeys,
                 leavesPdaPubkeys,
                 tokenAuthority: (yield web3_js_1.PublicKey.findProgramAddress([anchor.utils.bytes.utf8.encode("spl")], merkleTreeProgram.programId))[0],
@@ -578,73 +590,90 @@ class Transaction {
             this.is_token = true;
             for (var i in this.nullifierPdaPubkeys) {
                 var nullifierAccount = yield this.provider.connection.getAccountInfo(this.nullifierPdaPubkeys[i], {
-                    commitment: 'confirmed'
+                    commitment: "confirmed",
                 });
                 yield (0, testChecks_1.checkRentExemption)({
                     account: nullifierAccount,
-                    connection: this.provider.connection
+                    connection: this.provider.connection,
                 });
             }
             let leavesAccount;
             var leavesAccountData;
             // Checking that leaves were inserted
             for (var i in this.leavesPdaPubkeys) {
-                leavesAccountData = yield this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(this.leavesPdaPubkeys[i]);
-                // try {
-                console.log("leavesAccountData ", leavesAccountData);
-                console.log("this.publicInputs ", this.publicInputs);
-                console.log(`nodeLeft ${leavesAccountData.nodeLeft.toString()} != ${this.publicInputs.leaves[i][0].reverse().toString()}`);
-                console.log(`nodeLeft ${leavesAccountData.nodeLeft.toString() === this.publicInputs.leaves[i][0].reverse().toString()}`);
-                console.log(`nodeRight ${leavesAccountData.nodeRight.toString()} !=  ${this.publicInputs.leaves[i][1].reverse().toString()}`);
-                console.log(`nodeRight ${leavesAccountData.nodeRight.toString() === this.publicInputs.leaves[i][1].reverse().toString()}`);
-                assert(leavesAccountData.nodeLeft.toString() == this.publicInputs.leaves[i][0].reverse().toString(), "left leaf not inserted correctly");
-                console.log("here1");
-                assert(leavesAccountData.nodeRight.toString() == this.publicInputs.leaves[i][1].reverse().toString(), "right leaf not inserted correctly");
-                console.log("here2");
-                assert(leavesAccountData.merkleTreePubkey.toBase58() == this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly");
-                console.log("here3");
+                leavesAccountData =
+                    yield this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(this.leavesPdaPubkeys[i]);
+                assert(leavesAccountData.nodeLeft.toString() ==
+                    this.publicInputs.leaves[i][0].reverse().toString(), "left leaf not inserted correctly");
+                assert(leavesAccountData.nodeRight.toString() ==
+                    this.publicInputs.leaves[i][1].reverse().toString(), "right leaf not inserted correctly");
+                assert(leavesAccountData.merkleTreePubkey.toBase58() ==
+                    this.merkleTreePubkey.toBase58(), "merkleTreePubkey not inserted correctly");
                 for (var j = 0; j < this.encryptedUtxos.length / 256; j++) {
-                    console.log(j);
-                    if (leavesAccountData.encryptedUtxos.toString() !== this.encryptedUtxos.toString()) {
-                        console.log(j);
+                    // console.log(j);
+                    if (leavesAccountData.encryptedUtxos.toString() !==
+                        this.encryptedUtxos.toString()) {
+                        // console.log(j);
                         // throw `encrypted utxo ${i} was not stored correctly`;
                     }
-                    console.log(`${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`);
+                    // console.log(
+                    //   `${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`
+                    // );
                     // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
-                    let decryptedUtxo1 = utxo_1.Utxo.decrypt(new Uint8Array(Array.from(this.encryptedUtxos.slice(0, 71))), new Uint8Array(Array.from(this.encryptedUtxos.slice(71, 71 + 24))), this.encryptionKeypair.PublicKey, this.encryptionKeypair, this.outputUtxos[0].keypair, [constants_1.FEE_ASSET, constants_1.MINT], this.poseidon, i)[1];
-                    console.log("decryptedUtxo1 ", decryptedUtxo1);
+                    let decryptedUtxo1 = utxo_1.Utxo.decrypt({
+                        poseidon: this.poseidon,
+                        encBytes: this.encryptedUtxos,
+                        keypair: this.outputUtxos[0].keypair,
+                    });
+                    const utxoEqual = (utxo0, utxo1) => {
+                        assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
+                        assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
+                        assert.equal(utxo0.assets[0].toString(), utxo1.assets[0].toString());
+                        assert.equal(utxo0.assets[1].toString(), utxo1.assets[1].toString());
+                        assert.equal(utxo0.assetsCircuit[0].toString(), utxo1.assetsCircuit[0].toString());
+                        assert.equal(utxo0.assetsCircuit[1].toString(), utxo1.assetsCircuit[1].toString());
+                        assert.equal(utxo0.instructionType.toString(), utxo1.instructionType.toString());
+                        assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
+                        assert.equal(utxo0.verifierAddress.toString(), utxo1.verifierAddress.toString());
+                        assert.equal(utxo0.verifierAddressCircuit.toString(), utxo1.verifierAddressCircuit.toString());
+                    };
+                    // console.log("decryptedUtxo ", decryptedUtxo1);
+                    // console.log("this.outputUtxos[0] ", this.outputUtxos[0]);
+                    utxoEqual(decryptedUtxo1, this.outputUtxos[0]);
                 }
-                // } catch(e) {
-                //   console.log("leaves: ", e);
-                // }
             }
             console.log(`mode ${this.action}, this.is_token ${this.is_token}`);
             try {
-                console.log("this.preInsertedLeavesIndex ", this.preInsertedLeavesIndex);
                 var preInsertedLeavesIndexAccount = yield this.provider.connection.getAccountInfo(this.preInsertedLeavesIndex);
-                console.log(preInsertedLeavesIndexAccount);
-                const preInsertedLeavesIndexAccountAfterUpdate = this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode('PreInsertedLeavesIndex', preInsertedLeavesIndexAccount.data);
+                const preInsertedLeavesIndexAccountAfterUpdate = this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode("PreInsertedLeavesIndex", preInsertedLeavesIndexAccount.data);
                 console.log("Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ", Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex));
                 console.log(`${Number(leavesAccountData.leftLeafIndex)} + ${this.leavesPdaPubkeys.length * 2}`);
-                assert(Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) == Number(leavesAccountData.leftLeafIndex) + this.leavesPdaPubkeys.length * 2);
+                assert(Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ==
+                    Number(leavesAccountData.leftLeafIndex) +
+                        this.leavesPdaPubkeys.length * 2);
             }
             catch (e) {
                 console.log("preInsertedLeavesIndex: ", e);
             }
             if (this.action == "DEPOSIT" && this.is_token == false) {
                 var recipientAccount = yield this.provider.connection.getAccountInfo(this.recipient);
-                assert(recipientAccount.lamports == (I64(this.recipientBalancePriorTx).add(this.externalAmountBigNumber.toString())).toString(), "amount not transferred correctly");
+                assert(recipientAccount.lamports ==
+                    I64(this.recipientBalancePriorTx)
+                        .add(this.externalAmountBigNumber.toString())
+                        .toString(), "amount not transferred correctly");
             }
             else if (this.action == "DEPOSIT" && this.is_token == true) {
                 console.log("DEPOSIT and token");
-                console.log("this.recipient: ", this.recipient);
                 var recipientAccount = yield (0, spl_token_1.getAccount)(this.provider.connection, this.recipient, spl_token_1.TOKEN_PROGRAM_ID);
                 var recipientFeeAccountBalance = yield this.provider.connection.getBalance(this.recipientFee);
                 // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
                 // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
                 console.log(`Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`);
-                console.log(`Balance now ${recipientAccount.amount} balance beginning ${(Number(this.recipientBalancePriorTx) + Number(this.externalAmountBigNumber))}`);
-                assert(recipientAccount.amount == (Number(this.recipientBalancePriorTx) + Number(this.externalAmountBigNumber)).toString(), "amount not transferred correctly");
+                console.log(`Balance now ${recipientAccount.amount} balance beginning ${Number(this.recipientBalancePriorTx) +
+                    Number(this.externalAmountBigNumber)}`);
+                assert(recipientAccount.amount ==
+                    (Number(this.recipientBalancePriorTx) +
+                        Number(this.externalAmountBigNumber)).toString(), "amount not transferred correctly");
                 console.log(`Blanace now ${recipientFeeAccountBalance} ${Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)}`);
                 console.log("fee amount: ", this.feeAmount);
                 console.log("fee amount from inputs. ", new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString());
@@ -653,9 +682,11 @@ class Transaction {
                 var senderFeeAccountBalance = yield this.provider.connection.getBalance(this.senderFee);
                 console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
                 console.log("this.senderFeeBalancePriorTx: ", this.senderFeeBalancePriorTx);
-                assert(recipientFeeAccountBalance == Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount));
+                assert(recipientFeeAccountBalance ==
+                    Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount));
                 console.log(`${Number(this.senderFeeBalancePriorTx)} - ${Number(this.feeAmount)} == ${senderFeeAccountBalance}`);
-                assert(Number(this.senderFeeBalancePriorTx) - Number(this.feeAmount) - 5000 == Number(senderFeeAccountBalance));
+                assert(Number(this.senderFeeBalancePriorTx) - Number(this.feeAmount) - 5000 ==
+                    Number(senderFeeAccountBalance));
             }
             else if (this.action == "WITHDRAWAL" && this.is_token == false) {
                 var senderAccount = yield this.provider.connection.getAccountInfo(this.sender);
@@ -663,31 +694,65 @@ class Transaction {
                 // console.log("senderAccount.lamports: ", senderAccount.lamports)
                 // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
                 // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString())
-                assert(senderAccount.lamports == ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+                assert(senderAccount.lamports ==
+                    I64(senderAccountBalancePriorLastTx)
+                        .add(I64.readLE(this.extAmount, 0))
+                        .sub(I64(relayerFee))
+                        .toString(), "amount not transferred correctly");
                 var recipientAccount = yield this.provider.connection.getAccountInfo(recipient);
                 // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0))).add(I64(relayerFee))).toString()}
-                assert(recipientAccount.lamports == ((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0)))).toString(), "amount not transferred correctly");
+                assert(recipientAccount.lamports ==
+                    I64(Number(this.recipientBalancePriorTx))
+                        .sub(I64.readLE(this.extAmount, 0))
+                        .toString(), "amount not transferred correctly");
             }
             else if (this.action == "WITHDRAWAL" && this.is_token == true) {
                 var senderAccount = yield (0, spl_token_1.getAccount)(this.provider.connection, this.sender, spl_token_1.TOKEN_PROGRAM_ID);
                 var recipientAccount = yield (0, spl_token_1.getAccount)(this.provider.connection, this.recipient, spl_token_1.TOKEN_PROGRAM_ID);
                 // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
-                console.log(`${recipientAccount.amount}, ${((new anchor.BN(this.recipientBalancePriorTx)).sub(this.externalAmountBigNumber)).toString()}`);
-                assert(recipientAccount.amount.toString() == ((new anchor.BN(this.recipientBalancePriorTx)).sub(this.externalAmountBigNumber)).toString(), "amount not transferred correctly");
+                console.log(`${recipientAccount.amount}, ${new anchor.BN(this.recipientBalancePriorTx)
+                    .sub(this.externalAmountBigNumber)
+                    .toString()}`);
+                assert(recipientAccount.amount.toString() ==
+                    new anchor.BN(this.recipientBalancePriorTx)
+                        .sub(this.externalAmountBigNumber)
+                        .toString(), "amount not transferred correctly");
                 var relayerAccount = yield this.provider.connection.getBalance(this.relayerRecipient);
                 var recipientFeeAccount = yield this.provider.connection.getBalance(this.recipientFee);
                 console.log("recipientFeeAccount ", recipientFeeAccount);
                 console.log("this.feeAmount: ", this.feeAmount);
                 console.log("recipientFeeBalancePriorTx ", this.recipientFeeBalancePriorTx);
-                console.log(`recipientFeeAccount ${(new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString()))).add(new anchor.BN("5000")).toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString()}`);
+                console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
+                    .add(new anchor.BN(this.relayerFee.toString()))
+                    .add(new anchor.BN("5000"))
+                    .toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+                    .sub(new anchor.BN(this.feeAmount))
+                    .toString()}`);
                 console.log("relayerAccount ", relayerAccount);
                 console.log("this.relayerFee: ", this.relayerFee);
                 console.log("relayerRecipientAccountBalancePriorLastTx ", this.relayerRecipientAccountBalancePriorLastTx);
-                console.log(`relayerFeeAccount ${new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx)}`);
-                console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).sub(new anchor.BN(this.relayerFee)).toString()}`);
-                console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString())).toString()}  != ${new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString()}`);
-                assert(new anchor.BN(recipientFeeAccount).add(new anchor.BN(this.relayerFee.toString())).toString() == new anchor.BN(this.recipientFeeBalancePriorTx).sub(new anchor.BN(this.feeAmount)).toString());
-                assert(new anchor.BN(relayerAccount).sub(new anchor.BN(this.relayerFee.toString())).add(new anchor.BN("5000")).toString() == new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).toString());
+                console.log(`relayerFeeAccount ${new anchor.BN(relayerAccount)
+                    .sub(new anchor.BN(this.relayerFee.toString()))
+                    .toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx)}`);
+                console.log(`relayerAccount ${new anchor.BN(relayerAccount).toString()} == ${new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx)
+                    .sub(new anchor.BN(this.relayerFee))
+                    .toString()}`);
+                console.log(`recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
+                    .add(new anchor.BN(this.relayerFee.toString()))
+                    .toString()}  != ${new anchor.BN(this.recipientFeeBalancePriorTx)
+                    .sub(new anchor.BN(this.feeAmount))
+                    .toString()}`);
+                assert(new anchor.BN(recipientFeeAccount)
+                    .add(new anchor.BN(this.relayerFee.toString()))
+                    .toString() ==
+                    new anchor.BN(this.recipientFeeBalancePriorTx)
+                        .sub(new anchor.BN(this.feeAmount))
+                        .toString());
+                assert(new anchor.BN(relayerAccount)
+                    .sub(new anchor.BN(this.relayerFee.toString()))
+                    .add(new anchor.BN("5000"))
+                    .toString() ==
+                    new anchor.BN(this.relayerRecipientAccountBalancePriorLastTx).toString());
             }
             else {
                 throw Error("mode not supplied");
@@ -705,6 +770,7 @@ const shuffle = function (utxos) {
         // Pick a remaining element...
         randomIndex = Math.floor(Math.random() * currentIndex);
         currentIndex--;
+        // And swap it with the current element.
         [utxos[currentIndex], utxos[randomIndex]] = [
             utxos[randomIndex],
             utxos[currentIndex],
@@ -717,12 +783,12 @@ const parseProofToBytesArray = function (data) {
     return __awaiter(this, void 0, void 0, function* () {
         var mydata = JSON.parse(data.toString());
         for (var i in mydata) {
-            if (i == 'pi_a' || i == 'pi_c') {
+            if (i == "pi_a" || i == "pi_c") {
                 for (var j in mydata[i]) {
                     mydata[i][j] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j]), 32)).reverse();
                 }
             }
-            else if (i == 'pi_b') {
+            else if (i == "pi_b") {
                 for (var j in mydata[i]) {
                     for (var z in mydata[i][j]) {
                         mydata[i][j][z] = Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32));
