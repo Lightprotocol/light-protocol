@@ -41,19 +41,23 @@ const chai_1 = require("chai");
 const verifier_program_one_1 = __importDefault(require("../idls/verifier_program_one"));
 const verifier_program_two_1 = __importDefault(require("../idls/verifier_program_two"));
 const verifier_program_zero_1 = __importDefault(require("../idls/verifier_program_zero"));
-const constants_1 = require("../constants");
+const index_1 = require("../index");
 const merkleTreeConfig_1 = require("../merkleTree/merkleTreeConfig");
 function setUpMerkleTree(provider) {
     return __awaiter(this, void 0, void 0, function* () {
-        const verifierProgramZero = new anchor.Program(verifier_program_zero_1.default, constants_1.verifierProgramZeroProgramId);
-        const verifierProgramOne = new anchor.Program(verifier_program_one_1.default, constants_1.verifierProgramOneProgramId);
-        const verifierProgramTwo = new anchor.Program(verifier_program_two_1.default, constants_1.verifierProgramTwoProgramId);
-        var merkleTreeAccountInfoInit = yield provider.connection.getAccountInfo(constants_1.MERKLE_TREE_KEY);
-        console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
-        console.log("MERKLE_TREE_KEY ", constants_1.MERKLE_TREE_KEY);
-        console.log("ADMIN_AUTH_KEYPAIR ", constants_1.ADMIN_AUTH_KEYPAIR);
+        const verifierProgramZero = new anchor.Program(verifier_program_zero_1.default, index_1.verifierProgramZeroProgramId);
+        const verifierProgramOne = new anchor.Program(verifier_program_one_1.default, index_1.verifierProgramOneProgramId);
+        const verifierProgramTwo = new anchor.Program(verifier_program_two_1.default, index_1.verifierProgramTwoProgramId);
+        var merkleTreeAccountInfoInit = yield provider.connection.getAccountInfo(index_1.MERKLE_TREE_KEY);
+        // console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
+        // console.log("MERKLE_TREE_KEY ", MERKLE_TREE_KEY);
+        // console.log("ADMIN_AUTH_KEYPAIR ", ADMIN_AUTH_KEYPAIR);
         if (merkleTreeAccountInfoInit == null) {
-            let merkleTreeConfig = new merkleTreeConfig_1.MerkleTreeConfig({ merkleTreePubkey: constants_1.MERKLE_TREE_KEY, payer: constants_1.ADMIN_AUTH_KEYPAIR, connection: provider.connection });
+            let merkleTreeConfig = new merkleTreeConfig_1.MerkleTreeConfig({
+                merkleTreePubkey: index_1.MERKLE_TREE_KEY,
+                payer: index_1.ADMIN_AUTH_KEYPAIR,
+                connection: provider.connection,
+            });
             console.log("Initing MERKLE_TREE_AUTHORITY_PDA");
             try {
                 const ix = yield merkleTreeConfig.initMerkleTreeAuthority();
@@ -63,16 +67,18 @@ function setUpMerkleTree(provider) {
             catch (e) {
                 console.log(e);
             }
-            console.log("AUTHORITY: ", constants_1.AUTHORITY);
-            console.log("AUTHORITY: ", Array.from(constants_1.AUTHORITY.toBytes()));
+            console.log("AUTHORITY: ", index_1.AUTHORITY);
+            console.log("AUTHORITY: ", Array.from(index_1.AUTHORITY.toBytes()));
             console.log("verifierProgramZero.programId: ", Array.from(verifierProgramZero.programId.toBytes()));
-            console.log("MERKLE_TREE_KEY: ", constants_1.MERKLE_TREE_KEY.toBase58());
-            console.log("MERKLE_TREE_KEY: ", Array.from(constants_1.MERKLE_TREE_KEY.toBytes()));
+            console.log("MERKLE_TREE_KEY: ", index_1.MERKLE_TREE_KEY.toBase58());
+            console.log("MERKLE_TREE_KEY: ", Array.from(index_1.MERKLE_TREE_KEY.toBytes()));
             // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
             // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.from(MERKLE_TREE_PDA_TOKEN.toBytes()))
             try {
                 const ix = yield merkleTreeConfig.initializeNewMerkleTree();
-                (0, chai_1.assert)((yield provider.connection.getTransaction(ix, { commitment: "confirmed" })) != null, "init failed");
+                (0, chai_1.assert)((yield provider.connection.getTransaction(ix, {
+                    commitment: "confirmed",
+                })) != null, "init failed");
             }
             catch (e) {
                 console.log(e);
@@ -100,24 +106,24 @@ function setUpMerkleTree(provider) {
                 console.log(e);
             }
             try {
-                yield merkleTreeConfig.registerPoolType(constants_1.POOL_TYPE);
+                yield merkleTreeConfig.registerPoolType(index_1.POOL_TYPE);
                 console.log("Registering pool_type success");
             }
             catch (e) {
                 console.log(e);
             }
-            console.log("MINT: ", constants_1.MINT.toBase58());
-            console.log("POOL_TYPE_PDA: ", constants_1.REGISTERED_POOL_PDA_SPL.toBase58());
+            console.log("MINT: ", index_1.MINT.toBase58());
+            console.log("POOL_TYPE_PDA: ", index_1.REGISTERED_POOL_PDA_SPL.toBase58());
             try {
-                yield merkleTreeConfig.registerSplPool(constants_1.POOL_TYPE, constants_1.MINT);
+                yield merkleTreeConfig.registerSplPool(index_1.POOL_TYPE, index_1.MINT);
                 console.log("Registering spl pool success");
             }
             catch (e) {
                 console.log(e);
             }
-            console.log("REGISTERED_POOL_PDA_SOL: ", constants_1.REGISTERED_POOL_PDA_SOL);
+            console.log("REGISTERED_POOL_PDA_SOL: ", index_1.REGISTERED_POOL_PDA_SOL);
             try {
-                yield merkleTreeConfig.registerSolPool(constants_1.POOL_TYPE);
+                yield merkleTreeConfig.registerSolPool(index_1.POOL_TYPE);
                 console.log("Registering sol pool success");
             }
             catch (e) {

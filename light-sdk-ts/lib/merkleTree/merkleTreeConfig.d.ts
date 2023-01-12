@@ -11,7 +11,7 @@ export declare class MerkleTreeConfig {
     merkleTreeAuthorityPda?: PublicKey;
     payer: Keypair;
     tokenAuthority?: PublicKey;
-    constructor({ merkleTreePubkey, payer, connection }: {
+    constructor({ merkleTreePubkey, payer, connection, }: {
         merkleTreePubkey: PublicKey;
         payer?: Keypair;
         connection: Connection;

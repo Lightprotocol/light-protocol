@@ -1,36 +1,20 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{msg, program_pack::Pack, sysvar},
+    solana_program::msg,
 };
-use anchor_spl::token::Transfer;
 use ark_ff::{
     bytes::{FromBytes, ToBytes},
-    BigInteger, BigInteger256, Fp256, FpParameters, PrimeField,
 };
 use ark_std::{marker::PhantomData, vec::Vec};
-
-use ark_bn254::{Fr, FrParameters};
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
 use crate::{
-    accounts::Accounts,
-    cpi_instructions::{
-        insert_nullifiers_cpi, insert_two_leaves_cpi, withdraw_sol_cpi, withdraw_spl_cpi,
-    },
     errors::VerifierSdkError,
-    utils::{change_endianness, close_account::close_account},
+    utils::change_endianness,
 };
 
 use std::ops::Neg;
-
-use merkle_tree_program::{
-    program::MerkleTreeProgram,
-    utils::{
-        constants::{POOL_CONFIG_SEED, POOL_SEED},
-        create_pda::create_and_check_pda,
-    }
-};
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;

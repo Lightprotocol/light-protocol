@@ -33,39 +33,40 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.executeMerkleTreeUpdateTransactions = exports.executeUpdateMerkleTreeTransactions = void 0;
-const solana = require("@solana/web3.js");
-const { U64, I64 } = require('n64');
 const anchor = __importStar(require("@coral-xyz/anchor"));
-const { SystemProgram } = require('@solana/web3.js');
-const token = require('@solana/spl-token');
-var _ = require('lodash');
 const testChecks_1 = require("../test-utils/testChecks");
-const constants_1 = require("../constants");
-function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leavesPdas, merkleTree, merkleTreeIndex, merkle_tree_pubkey, connection, provider }) {
+const index_1 = require("../index");
+const web3_js_1 = require("@solana/web3.js");
+function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leavesPdas, merkleTree, merkleTreeIndex, merkle_tree_pubkey, connection, provider, }) {
     return __awaiter(this, void 0, void 0, function* () {
         var merkleTreeAccountPrior = yield merkleTreeProgram.account.merkleTree.fetch(merkle_tree_pubkey);
-        let merkleTreeUpdateState = (yield solana.PublicKey.findProgramAddressSync([Buffer.from(new Uint8Array(signer.publicKey.toBytes())), anchor.utils.bytes.utf8.encode("storage")], merkleTreeProgram.programId))[0];
-        console.log("here0");
+        let merkleTreeUpdateState = (yield web3_js_1.PublicKey.findProgramAddressSync([
+            Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
+            anchor.utils.bytes.utf8.encode("storage"),
+        ], merkleTreeProgram.programId))[0];
         try {
-            const tx1 = yield merkleTreeProgram.methods.initializeMerkleTreeUpdateState(
-            // new anchor.BN(merkleTreeIndex) // merkle tree index
-            ).accounts({
+            const tx1 = yield merkleTreeProgram.methods
+                .initializeMerkleTreeUpdateState()
+                .accounts({
                 authority: signer.publicKey,
                 merkleTreeUpdateState: merkleTreeUpdateState,
-                systemProgram: SystemProgram.programId,
-                rent: constants_1.DEFAULT_PROGRAMS.rent,
-                merkleTree: merkle_tree_pubkey
-            }).remainingAccounts(leavesPdas).preInstructions([
-                solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }),
-            ]).signers([signer]).rpc({
-                commitment: 'confirmed',
-                preflightCommitment: 'confirmed',
+                systemProgram: web3_js_1.SystemProgram.programId,
+                rent: index_1.DEFAULT_PROGRAMS.rent,
+                merkleTree: merkle_tree_pubkey,
+            })
+                .remainingAccounts(leavesPdas)
+                .preInstructions([
+                web3_js_1.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }),
+            ])
+                .signers([signer])
+                .rpc({
+                commitment: "confirmed",
+                preflightCommitment: "confirmed",
             });
         }
         catch (e) {
             console.log(" init Merkle tree update", e);
         }
-        console.log("here1");
         yield (0, testChecks_1.checkMerkleTreeUpdateStateCreated)({
             connection: connection,
             merkleTreeUpdateState,
@@ -73,7 +74,7 @@ function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leaves
             relayer: signer.publicKey,
             leavesPdas,
             current_instruction_index: 1,
-            merkleTreeProgram
+            merkleTreeProgram,
         });
         yield executeMerkleTreeUpdateTransactions({
             signer,
@@ -81,7 +82,7 @@ function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leaves
             merkle_tree_pubkey,
             provider,
             merkleTreeUpdateState,
-            numberOfTransactions: 251
+            numberOfTransactions: 251,
         });
         yield (0, testChecks_1.checkMerkleTreeUpdateStateCreated)({
             connection: connection,
@@ -90,19 +91,23 @@ function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leaves
             relayer: signer.publicKey,
             leavesPdas,
             current_instruction_index: 56,
-            merkleTreeProgram
+            merkleTreeProgram,
         });
         // final tx to insert root
         let success = false;
         try {
-            yield merkleTreeProgram.methods.insertRootMerkleTree(new anchor.BN(254))
+            yield merkleTreeProgram.methods
+                .insertRootMerkleTree(new anchor.BN(254))
                 .accounts({
                 authority: signer.publicKey,
                 merkleTreeUpdateState: merkleTreeUpdateState,
-                merkleTree: merkle_tree_pubkey
-            }).remainingAccounts(leavesPdas).signers([signer]).rpc({
-                commitment: 'confirmed',
-                preflightCommitment: 'confirmed',
+                merkleTree: merkle_tree_pubkey,
+            })
+                .remainingAccounts(leavesPdas)
+                .signers([signer])
+                .rpc({
+                commitment: "confirmed",
+                preflightCommitment: "confirmed",
             });
         }
         catch (e) {
@@ -116,12 +121,12 @@ function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leaves
             leavesPdas,
             merkleTree: merkleTree,
             merkle_tree_pubkey: merkle_tree_pubkey,
-            merkleTreeProgram
+            merkleTreeProgram,
         });
     });
 }
 exports.executeUpdateMerkleTreeTransactions = executeUpdateMerkleTreeTransactions;
-function executeMerkleTreeUpdateTransactions({ merkleTreeProgram, merkleTreeUpdateState, merkle_tree_pubkey, provider, signer, numberOfTransactions }) {
+function executeMerkleTreeUpdateTransactions({ merkleTreeProgram, merkleTreeUpdateState, merkle_tree_pubkey, provider, signer, numberOfTransactions, }) {
     return __awaiter(this, void 0, void 0, function* () {
         let arr = [];
         let i = 0;
@@ -129,30 +134,32 @@ function executeMerkleTreeUpdateTransactions({ merkleTreeProgram, merkleTreeUpda
         // the number of tx needs to increase with greater batchsize
         // 29 + 2 * leavesPdas.length is a first approximation
         for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
-            const transaction = new solana.Transaction();
-            transaction.add(solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }));
-            transaction.add(yield merkleTreeProgram.methods.updateMerkleTree(new anchor.BN(i))
+            const transaction = new web3_js_1.Transaction();
+            transaction.add(web3_js_1.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }));
+            transaction.add(yield merkleTreeProgram.methods
+                .updateMerkleTree(new anchor.BN(i))
                 .accounts({
                 authority: signer.publicKey,
                 merkleTreeUpdateState: merkleTreeUpdateState,
-                merkleTree: merkle_tree_pubkey
-            }).instruction());
+                merkleTree: merkle_tree_pubkey,
+            })
+                .instruction());
             i += 1;
-            transaction.add(yield merkleTreeProgram.methods.updateMerkleTree(new anchor.BN(i)).accounts({
+            transaction.add(yield merkleTreeProgram.methods
+                .updateMerkleTree(new anchor.BN(i))
+                .accounts({
                 authority: signer.publicKey,
                 merkleTreeUpdateState: merkleTreeUpdateState,
-                merkleTree: merkle_tree_pubkey
-            }).instruction());
+                merkleTree: merkle_tree_pubkey,
+            })
+                .instruction());
             i += 1;
             arr.push({ tx: transaction, signers: [signer] });
         }
         let error;
         yield Promise.all(arr.map((tx, index) => __awaiter(this, void 0, void 0, function* () {
             try {
-                yield provider.sendAndConfirm(tx.tx, tx.signers, {
-                    commitment: 'confirmed',
-                    preflightCommitment: 'confirmed',
-                });
+                yield provider.sendAndConfirm(tx.tx, tx.signers, index_1.confirmConfig);
             }
             catch (e) {
                 console.log(e);

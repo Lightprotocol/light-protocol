@@ -1,5 +1,4 @@
-import { DEFAULT_ZERO } from '../constants'
-
+import { DEFAULT_ZERO } from "../index";
 
 /**
  * @callback hashFunction
@@ -18,47 +17,52 @@ export class MerkleTree {
    * @param {hashFunction} [options.hashFunction] Function used to hash 2 leaves
    * @param [options.zeroElement] Value for non-existent leaves
    */
-  levels: number
-  capacity: number
-  zeroElement
-  _hash
-  _zeros: any
-  _layers: any
+  levels: number;
+  capacity: number;
+  zeroElement;
+  _hash;
+  _zeros: any;
+  _layers: any;
 
   constructor(
     levels: number,
     poseidonHash2: any,
     elements: any[] = [],
-    { zeroElement = DEFAULT_ZERO } = {},
+    { zeroElement = DEFAULT_ZERO } = {}
   ) {
-    
-    this.levels = levels
-    this.capacity = 2 ** levels
-    this.zeroElement = zeroElement
-    this._hash = poseidonHash2
+    this.levels = levels;
+    this.capacity = 2 ** levels;
+    this.zeroElement = zeroElement;
+    this._hash = poseidonHash2;
     if (elements.length > this.capacity) {
-      throw new Error('Tree is full')
+      throw new Error("Tree is full");
     }
-    this._zeros = []
-    this._layers = []
-    this._layers[0] = elements
-    this._zeros[0] = this.zeroElement
+    this._zeros = [];
+    this._layers = [];
+    this._layers[0] = elements;
+    this._zeros[0] = this.zeroElement;
 
     for (let i = 1; i <= levels; i++) {
-      this._zeros[i] = this._hash.F.toString(this._hash([this._zeros[i - 1], this._zeros[i - 1]]));
+      this._zeros[i] = this._hash.F.toString(
+        this._hash([this._zeros[i - 1], this._zeros[i - 1]])
+      );
     }
-    this._rebuild()
+    this._rebuild();
   }
 
   _rebuild() {
     for (let level = 1; level <= this.levels; level++) {
-        this._layers[level] = [];
-        for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
-            this._layers[level][i] = this._hash.F.toString(this._hash([
-              this._layers[level - 1][i * 2], i * 2 + 1 < this._layers[level - 1].length
-                ? this._layers[level - 1][i * 2 + 1]
-                : this._zeros[level - 1]]));
-        }
+      this._layers[level] = [];
+      for (let i = 0; i < Math.ceil(this._layers[level - 1].length / 2); i++) {
+        this._layers[level][i] = this._hash.F.toString(
+          this._hash([
+            this._layers[level - 1][i * 2],
+            i * 2 + 1 < this._layers[level - 1].length
+              ? this._layers[level - 1][i * 2 + 1]
+              : this._zeros[level - 1],
+          ])
+        );
+      }
     }
   }
 
@@ -69,7 +73,7 @@ export class MerkleTree {
   root() {
     return this._layers[this.levels].length > 0
       ? this._layers[this.levels][0]
-      : this._zeros[this.levels]
+      : this._zeros[this.levels];
   }
 
   /**
@@ -79,9 +83,9 @@ export class MerkleTree {
 
   insert(element: string) {
     if (this._layers[0].length >= this.capacity) {
-      throw new Error('Tree is full')
+      throw new Error("Tree is full");
     }
-    this.update(this._layers[0].length, element)
+    this.update(this._layers[0].length, element);
   }
 
   /**
@@ -90,10 +94,10 @@ export class MerkleTree {
    */
   bulkInsert(elements: string[]) {
     if (this._layers[0].length + elements.length > this.capacity) {
-      throw new Error('Tree is full')
+      throw new Error("Tree is full");
     }
-    this._layers[0].push(...elements)
-    this._rebuild()
+    this._layers[0].push(...elements);
+    this._rebuild();
   }
 
   /**
@@ -101,24 +105,25 @@ export class MerkleTree {
    * @param {number} index Index of element to change
    * @param element Updated element value
    */
-  update(index: number, element: string) { // index 0 and 1 and element is the commitment hash
+  update(index: number, element: string) {
+    // index 0 and 1 and element is the commitment hash
     if (
       isNaN(Number(index)) ||
       index < 0 ||
       index > this._layers[0].length ||
       index >= this.capacity
     ) {
-      throw new Error('Insert index out of bounds: ' + index)
+      throw new Error("Insert index out of bounds: " + index);
     }
-    this._layers[0][index] = element
+    this._layers[0][index] = element;
     for (let level = 1; level <= this.levels; level++) {
-      index >>= 1
+      index >>= 1;
       this._layers[level][index] = this._hash(
         this._layers[level - 1][index * 2],
         index * 2 + 1 < this._layers[level - 1].length
           ? this._layers[level - 1][index * 2 + 1]
-          : this._zeros[level - 1],
-      )
+          : this._zeros[level - 1]
+      );
     }
   }
 
@@ -129,22 +134,22 @@ export class MerkleTree {
    */
   path(index: number) {
     if (isNaN(Number(index)) || index < 0 || index >= this._layers[0].length) {
-      throw new Error('Index out of bounds: ' + index)
+      throw new Error("Index out of bounds: " + index);
     }
-    const pathElements = []
-    const pathIndices = []
+    const pathElements = [];
+    const pathIndices = [];
     for (let level = 0; level < this.levels; level++) {
-      pathIndices[level] = index % 2
+      pathIndices[level] = index % 2;
       pathElements[level] =
         (index ^ 1) < this._layers[level].length
           ? this._layers[level][index ^ 1]
-          : this._zeros[level]
-      index >>= 1
+          : this._zeros[level];
+      index >>= 1;
     }
     return {
       pathElements,
       pathIndices,
-    }
+    };
   }
 
   /**
@@ -155,9 +160,9 @@ export class MerkleTree {
    */
   indexOf(element: string, comparator: Function | null = null) {
     if (comparator) {
-      return this._layers[0].findIndex((el: string) => comparator(element, el))
+      return this._layers[0].findIndex((el: string) => comparator(element, el));
     } else {
-      return this._layers[0].indexOf(element)
+      return this._layers[0].indexOf(element);
     }
   }
 
@@ -166,7 +171,7 @@ export class MerkleTree {
    * @returns {Object[]}
    */
   elements() {
-    return this._layers[0].slice()
+    return this._layers[0].slice();
   }
 
   /**
@@ -179,7 +184,7 @@ export class MerkleTree {
       levels: this.levels,
       _zeros: this._zeros,
       _layers: this._layers,
-    }
+    };
   }
 
   /**
@@ -192,10 +197,10 @@ export class MerkleTree {
    * @returns {MerkleTree}
    */
   static deserialize(data: any, hashFunction: Function) {
-    const instance = Object.assign(Object.create(this.prototype), data)
-    instance._hash = hashFunction
-    instance.capacity = 2 ** instance.levels
-    instance.zeroElement = instance._zeros[0]
-    return instance
+    const instance = Object.assign(Object.create(this.prototype), data);
+    instance._hash = hashFunction;
+    instance.capacity = 2 ** instance.levels;
+    instance.zeroElement = instance._zeros[0];
+    return instance;
   }
 }

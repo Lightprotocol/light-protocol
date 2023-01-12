@@ -13,5 +13,6 @@ export declare class VerifierTwo implements Verifier {
     nrPublicInputs: number;
     constructor();
     parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
-    sendTransaction(insert: Boolean): Promise<any>;
+    initVerifierProgram(): void;
+    sendTransaction(transaction: Transaction): Promise<any>;
 }

@@ -1,5 +1,5 @@
 /// <reference types="bn.js" />
-import { BN } from '@coral-xyz/anchor';
+import { BN } from "@coral-xyz/anchor";
 export declare const offerBurnerPrivkey: BN;
 export declare const offerAuthorityPrivkey: BN;
 export declare const bidderPrivkey: BN;

@@ -1,4 +1,4 @@
-export declare function testTransaction({ transaction, deposit, enabledSignerTest, provider, signer, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA }: {
+export declare function testTransaction({ transaction, deposit, enabledSignerTest, provider, signer, ASSET_1_ORG, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA, }: {
     transaction: any;
     deposit?: boolean | undefined;
     enabledSignerTest?: boolean | undefined;

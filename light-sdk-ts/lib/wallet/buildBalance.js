@@ -35,18 +35,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.getInsertedLeaves = exports.getUnspentUtxo = exports.getUninsertedLeaves = void 0;
 const utxo_1 = require("../utxo");
 const anchor = __importStar(require("@coral-xyz/anchor"));
-const token = require('@solana/spl-token');
+const token = require("@solana/spl-token");
 const web3_js_1 = require("@solana/web3.js");
-function getUninsertedLeaves({ merkleTreeProgram, merkleTreeIndex, connection
-// merkleTreePubkey
- }) {
+function getUninsertedLeaves({ merkleTreeProgram, merkleTreeIndex, connection, }) {
     return __awaiter(this, void 0, void 0, function* () {
         var leave_accounts = yield merkleTreeProgram.account.twoLeavesBytesPda.all();
         console.log("Total nr of accounts. ", leave_accounts.length);
         let filteredLeaves = leave_accounts
             .filter((pda) => {
             return pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber();
-        }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
+        })
+            .sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
         return filteredLeaves.map((pda) => {
             return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
         });
@@ -57,20 +56,22 @@ function getUnspentUtxo(leavesPdas, provider, encryptionKeypair, KEYPAIR, FEE_AS
     return __awaiter(this, void 0, void 0, function* () {
         let decryptedUtxo1;
         for (var i = 0; i < leavesPdas.length; i++) {
-            console.log("iter ", i);
             try {
                 // decrypt first leaves account and build utxo
-                console.log("error utxo decrypt changed this is untested I am in buildBalance.ts");
-                decryptedUtxo1 = utxo_1.Utxo.decrypt({ poseidon: POSEIDON, encBytes: new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos)), keypair: KEYPAIR });
-                console.log("decryptedUtxo1 ", decryptedUtxo1);
+                decryptedUtxo1 = utxo_1.Utxo.decrypt({
+                    poseidon: POSEIDON,
+                    encBytes: new Uint8Array(Array.from(leavesPdas[i].account.encryptedUtxos)),
+                    keypair: KEYPAIR,
+                });
                 let nullifier = decryptedUtxo1.getNullifier();
-                console.log("decryptedUtxo1", decryptedUtxo1);
-                let nullifierPubkey = (yield web3_js_1.PublicKey.findProgramAddress([new anchor.BN(nullifier.toString()).toBuffer(), anchor.utils.bytes.utf8.encode("nf")], merkleTreeProgram.programId))[0];
+                let nullifierPubkey = (yield web3_js_1.PublicKey.findProgramAddress([
+                    new anchor.BN(nullifier.toString()).toBuffer(),
+                    anchor.utils.bytes.utf8.encode("nf"),
+                ], merkleTreeProgram.programId))[0];
                 let accountInfo = yield provider.connection.getAccountInfo(nullifierPubkey);
-                console.log("accountInfo ", accountInfo);
-                console.log("decryptedUtxo1.amounts[1].toString()  ", decryptedUtxo1.amounts[1].toString());
-                console.log("decryptedUtxo1.amounts[0].toString()  ", decryptedUtxo1.amounts[0].toString());
-                if (accountInfo == null && decryptedUtxo1.amounts[1].toString() != "0" && decryptedUtxo1.amounts[0].toString() != "0") {
+                if (accountInfo == null &&
+                    decryptedUtxo1.amounts[1].toString() != "0" &&
+                    decryptedUtxo1.amounts[0].toString() != "0") {
                     console.log("found unspent leaf");
                     return decryptedUtxo1;
                 }
@@ -85,16 +86,15 @@ function getUnspentUtxo(leavesPdas, provider, encryptionKeypair, KEYPAIR, FEE_AS
     });
 }
 exports.getUnspentUtxo = getUnspentUtxo;
-function getInsertedLeaves({ merkleTreeProgram, merkleTreeIndex, connection
-// merkleTreePubkey
- }) {
+function getInsertedLeaves({ merkleTreeProgram, merkleTreeIndex, connection, }) {
     return __awaiter(this, void 0, void 0, function* () {
         var leave_accounts = yield merkleTreeProgram.account.twoLeavesBytesPda.all();
         console.log("Total nr of accounts. ", leave_accounts.length);
         let filteredLeaves = leave_accounts
             .filter((pda) => {
             return pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber();
-        }).sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
+        })
+            .sort((a, b) => a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber());
         return filteredLeaves;
     });
 }

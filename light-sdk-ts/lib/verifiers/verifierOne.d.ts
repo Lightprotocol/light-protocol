@@ -12,7 +12,8 @@ export declare class VerifierOne implements Verifier {
     registeredVerifierPda: PublicKey;
     constructor();
     parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
+    initVerifierProgram(): void;
     transferFirst(transfer: Transaction): Promise<void>;
     transferSecond(transfer: Transaction): Promise<unknown>;
-    sendTransaction(insert?: Boolean): Promise<any>;
+    sendTransaction(transfer: Transaction): Promise<any>;
 }

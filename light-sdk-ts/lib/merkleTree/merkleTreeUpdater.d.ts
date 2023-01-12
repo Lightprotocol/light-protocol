@@ -1,4 +1,4 @@
-export declare function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leavesPdas, merkleTree, merkleTreeIndex, merkle_tree_pubkey, connection, provider }: {
+export declare function executeUpdateMerkleTreeTransactions({ signer, merkleTreeProgram, leavesPdas, merkleTree, merkleTreeIndex, merkle_tree_pubkey, connection, provider, }: {
     signer: any;
     merkleTreeProgram: any;
     leavesPdas: any;
@@ -8,7 +8,7 @@ export declare function executeUpdateMerkleTreeTransactions({ signer, merkleTree
     connection: any;
     provider: any;
 }): Promise<void>;
-export declare function executeMerkleTreeUpdateTransactions({ merkleTreeProgram, merkleTreeUpdateState, merkle_tree_pubkey, provider, signer, numberOfTransactions }: {
+export declare function executeMerkleTreeUpdateTransactions({ merkleTreeProgram, merkleTreeUpdateState, merkle_tree_pubkey, provider, signer, numberOfTransactions, }: {
     merkleTreeProgram: any;
     merkleTreeUpdateState: any;
     merkle_tree_pubkey: any;

@@ -1,7 +1,7 @@
 /// <reference types="bn.js" />
-import { Keypair } from './keypair';
-import { PublicKey } from '@solana/web3.js';
-import { BN } from '@coral-xyz/anchor';
+import { Keypair } from "./keypair";
+import { PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 export declare const newNonce: () => Uint8Array;
 export declare const N_ASSETS = 2;
 export declare class Utxo {
@@ -25,7 +25,7 @@ export declare class Utxo {
     _nullifier: BN | null;
     poseidon: any;
     constructor({ poseidon, assets, amounts, keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding, poolType, verifierAddress, appData, index }: {
+    blinding, poolType, verifierAddress, appData, index, }: {
         poseidon: any;
         assets?: PublicKey[];
         amounts?: BN[];
@@ -37,7 +37,7 @@ export declare class Utxo {
         index?: any;
     });
     toBytes(): Uint8Array;
-    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset }: {
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, }: {
         poseidon: any;
         bytes: Uint8Array;
         keypair?: Keypair;
@@ -61,7 +61,7 @@ export declare class Utxo {
      * @returns {string}
      */
     encrypt(): Uint8Array;
-    static decrypt({ poseidon, encBytes, keypair }: {
+    static decrypt({ poseidon, encBytes, keypair, }: {
         poseidon: any;
         encBytes: Uint8Array;
         keypair: Keypair;
