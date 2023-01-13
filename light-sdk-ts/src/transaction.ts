@@ -6,16 +6,10 @@ let circomlibjs = require("circomlibjs");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
-import {
-  MerkleTreeProgram,
-  MerkleTreeProgramIdl,
-} from "./idls/merkle_tree_program";
 import { readFileSync } from "fs";
 const snarkjs = require("snarkjs");
 const { keccak_256 } = require("@noble/hashes/sha3");
 
-import { FIELD_SIZE, MerkleTree, merkleTreeProgramId, Relayer } from "./index";
-import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -25,18 +19,23 @@ import {
   TransactionMessage,
   VersionedTransaction,
   TransactionSignature,
+  TransactionInstruction,
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
-import { checkRentExemption } from "./test-utils/testChecks";
-import { N_ASSETS, Utxo } from "./utxo";
 import { BN, Program, Provider } from "@coral-xyz/anchor";
-import { PublicInputs, Verifier } from "./verifiers";
 import {
   PRE_INSERTED_LEAVES_INDEX,
-  MERKLE_TREE_KEY,
   confirmConfig,
-  REGISTERED_VERIFIER_PDA,
 } from "./constants";
+import { N_ASSETS, Utxo } from "./utxo";
+import { PublicInputs, Verifier } from "./verifiers";
+import { checkRentExemption } from "./test-utils/testChecks";
+import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
+import { FIELD_SIZE, merkleTreeProgramId, Relayer, SolMerkleTree } from "./index";
+import {
+  MerkleTreeProgram,
+  MerkleTreeProgramIdl,
+} from "./idls/merkle_tree_program";
 
 export type transactionParameters = {
   inputUtxos?: Array<Utxo>;
@@ -148,10 +147,15 @@ export class TransactionParameters implements transactionParameters {
     }
   }
 }
+
+// TODO: make class
+// TODO: add method getRelayer -> should return a rnd relayer from a list
 export type LightInstance = {
   provider?: Provider;
   lookUpTable?: PublicKey;
-  merkleTree?: MerkleTree;
+  // TODO: build wrapper class SolMerkleTree around MerkleTree which includes
+  //       merkle tree pubkey, buildMerkleTree, fetchLeaves
+  solMerkleTree?: SolMerkleTree;
 };
 
 // add verifier class which is passed in with the constructor
@@ -198,15 +202,14 @@ export class Transaction {
    * @param shuffleEnabled
    */
 
-  // TODO: check how to handle several merkle trees utxos should be assigned to a merkle tree, only utxos of one merkle tree
-  constructor({
+constructor({
     instance,
     relayer,
     payer,
     shuffleEnabled = true,
   }: {
     instance: LightInstance;
-    relayer?: Relayer; // we could put this into the instance as well
+    relayer?: Relayer;
     payer?: SolanaKeypair;
     shuffleEnabled?: boolean;
   }) {
@@ -226,11 +229,15 @@ export class Transaction {
     this.shuffleEnabled = shuffleEnabled;
   }
 
-  // Returns serialized transaction
-  async proveAndCreateTransaction(params: TransactionParameters) {
-    this.compile(params);
-    await this.getProof();
-    this.transaction = this.getSolanaTransaction();
+  // Returns serialized instructions
+  async proveAndCreateInstructionsJson(params: TransactionParameters): Promise<string[]> {
+    await this.compileAndProve(params);
+    return await this.getInstructionsJson();
+  }
+
+  async proveAndCreateInstructions(params: TransactionParameters): Promise<TransactionInstruction[]> {
+    await this.compileAndProve(params);
+    return await this.params.verifier.getInstructions(this);
   }
 
   async compileAndProve(params: TransactionParameters) {
@@ -270,13 +277,13 @@ export class Transaction {
   getProofInput() {
     if (
       this.params &&
-      this.instance.merkleTree &&
+      this.instance.solMerkleTree.merkleTree &&
       this.params.inputUtxos &&
       this.params.outputUtxos &&
       this.assetPubkeysCircuit
     ) {
       this.proofInput = {
-        root: this.instance.merkleTree.root(),
+        root: this.instance.solMerkleTree.merkleTree.root(),
         inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
         outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
         // TODO: move public and fee amounts into tx preparation
@@ -318,7 +325,7 @@ export class Transaction {
   }
 
   async getProof() {
-    if (!this.instance.merkleTree) {
+    if (!this.instance.solMerkleTree.merkleTree) {
       throw new Error("merkle tree not built");
     }
     if (!this.proofInput) {
@@ -366,7 +373,7 @@ export class Transaction {
       }
       // console.log("publicInputsBytes ", this.publicInputsBytes);
 
-      this.proofBytes = await parseProofToBytesArray(proofJson);
+      this.proofBytes = await Transaction.parseProofToBytesArray(proofJson);
 
       this.publicInputs = this.params.verifier.parsePublicInputsFromArray(this);
 
@@ -474,16 +481,16 @@ export class Transaction {
   }
 
   async getRootIndex() {
-    if (this.instance.provider && this.instance.merkleTree) {
+    if (this.instance.provider && this.instance.solMerkleTree.merkleTree) {
       this.merkleTreeProgram = new Program(
         MerkleTreeProgram,
         merkleTreeProgramId
       );
       let root = Uint8Array.from(
-        leInt2Buff(unstringifyBigInts(this.instance.merkleTree.root()), 32)
+        leInt2Buff(unstringifyBigInts(this.instance.solMerkleTree.merkleTree.root()), 32)
       );
       let merkle_tree_account_data =
-        await this.merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
+        await this.merkleTreeProgram.account.merkleTree.fetch(this.instance.solMerkleTree.pubkey);
 
       merkle_tree_account_data.roots.map((x, index) => {
         if (x.toString() === root.toString()) {
@@ -569,16 +576,6 @@ export class Transaction {
       for (var a = 0; a < N_ASSETS; a++) {
         let tmpInIndices1: String[] = [];
         for (var i = 0; i < utxo.assets.length; i++) {
-          // console.log(
-          //   `utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeysCircuit[a]}`
-          // );
-          // console.log(
-          //   `utxo asset ${
-          //     utxo.assetsCircuit[i].toString() ===
-          //     this.assetPubkeysCircuit[a].toString()
-          //   } utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > "0"}`
-          // );
-
           if (
             utxo.assetsCircuit[i].toString() ===
               this.assetPubkeysCircuit[a].toString() &&
@@ -607,7 +604,7 @@ export class Transaction {
         inputUtxo.amounts[0] > new BN(0) ||
         inputUtxo.amounts[1] > new BN(0)
       ) {
-        inputUtxo.index = this.instance.merkleTree.indexOf(
+        inputUtxo.index = this.instance.solMerkleTree.merkleTree.indexOf(
           inputUtxo.getCommitment()
         );
 
@@ -619,13 +616,13 @@ export class Transaction {
           }
           this.inputMerklePathIndices.push(inputUtxo.index);
           this.inputMerklePathElements.push(
-            this.instance.merkleTree.path(inputUtxo.index).pathElements
+            this.instance.solMerkleTree.merkleTree.path(inputUtxo.index).pathElements
           );
         }
       } else {
         this.inputMerklePathIndices.push(0);
         this.inputMerklePathElements.push(
-          new Array(this.instance.merkleTree.levels).fill(0)
+          new Array(this.instance.solMerkleTree.merkleTree.levels).fill(0)
         );
       }
     }
@@ -1036,7 +1033,7 @@ export class Transaction {
       );
       assert(
         leavesAccountData.merkleTreePubkey.toBase58() ==
-          MERKLE_TREE_KEY.toBase58(),
+          this.instance.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly"
       );
 
@@ -1395,10 +1392,9 @@ export class Transaction {
 
     return utxos;
   }
-}
 
-// also converts lE to BE
-export const parseProofToBytesArray = async function (data: any) {
+  // also converts lE to BE
+  static async parseProofToBytesArray (data: any) {
   var mydata = JSON.parse(data.toString());
 
   for (var i in mydata) {
@@ -1427,3 +1423,6 @@ export const parseProofToBytesArray = async function (data: any) {
     mydata.pi_c[1],
   ].flat();
 };
+}
+
+

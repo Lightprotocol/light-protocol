@@ -60,6 +60,7 @@ import {
   LightInstance,
   Relayer,
   verifierProgramOneProgramId,
+  SolMerkleTree,
 } from "../../light-sdk-ts/src/index";
 
 import { BN } from "@coral-xyz/anchor";
@@ -559,7 +560,7 @@ describe("verifier_program", () => {
       throw "undefined LOOK_UP_TABLE";
     }
     const lightInstance: LightInstance = {
-      merkleTree: new MerkleTree(18, POSEIDON),
+      solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
       lookUpTable: LOOK_UP_TABLE,
       provider,
     };
@@ -669,7 +670,7 @@ describe("verifier_program", () => {
       console.log("Deposit ", i);
 
       let lightInstance: LightInstance = {
-        merkleTree: new MerkleTree(18, POSEIDON),
+        solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
         lookUpTable: LOOK_UP_TABLE,
         provider,
       };
@@ -717,31 +718,21 @@ describe("verifier_program", () => {
   });
 
   it("Update Merkle Tree after Deposit", async () => {
-    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
-    );
-
     // fetch uninserted utxos from chain
-    let leavesPdas = await getUninsertedLeaves({
-      merkleTreeProgram,
-      merkleTreeIndex: mtFetched.nextIndex,
-      connection: provider.connection,
-    });
+    let leavesPdas = await SolMerkleTree.getUninsertedLeaves(MERKLE_TREE_KEY);
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
     // build tree from chain
-    let mtPrior = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: poseidon,
+    let mtPrior = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
     });
 
     await executeUpdateMerkleTreeTransactions({
       connection: provider.connection,
       signer: ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram: merkleTreeProgram,
-      leavesPdas: leavesPdas.slice(0, 1),
+      leavesPdas: leavesPdas,
       merkleTree: mtPrior,
       merkle_tree_pubkey: MERKLE_TREE_KEY,
       provider,
@@ -750,12 +741,10 @@ describe("verifier_program", () => {
       MERKLE_TREE_KEY
     );
 
-    let merkleTree = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: POSEIDON,
-    });
+    let merkleTree = (await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
+    })).merkleTree;
     //check correct insert
     assert.equal(
       new anchor.BN(
@@ -1176,25 +1165,9 @@ describe("verifier_program", () => {
 
   // only works at the first try because the tests takes utxo in pos 0
   it("Withdraw", async () => {
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
-
-    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
-    );
-
-    let merkleTree = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: POSEIDON,
-    });
-
-    // get inserted leaves
-    let leavesPdas = await getInsertedLeaves({
-      merkleTreeProgram,
-      merkleTreeIndex: mtFetched.nextIndex,
-      connection: provider.connection,
-    });
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
       leavesPdas,
@@ -1207,12 +1180,12 @@ describe("verifier_program", () => {
       merkleTreeProgram
     );
     decryptedUtxo1.getCommitment();
-
+    
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
-
+    
     let lightInstance: LightInstance = {
-      merkleTree,
+      solMerkleTree: merkleTree,
       lookUpTable: LOOK_UP_TABLE,
       provider,
     };

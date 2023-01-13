@@ -18,10 +18,15 @@ export class VerifierZero implements Verifier {
   config: { in: number; out: number };
   instructions?: anchor.web3.TransactionInstruction[];
   constructor() {
-    this.verifierProgram = new Program(
-      VerifierProgramZero,
-      verifierProgramZeroProgramId
-    );
+    try {
+      this.verifierProgram = new Program(
+        VerifierProgramZero,
+        verifierProgramZeroProgramId
+      );
+    } catch (error) {
+      
+    }
+
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
     this.zkeyPath = `./build-circuits/transactionMasp2`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");

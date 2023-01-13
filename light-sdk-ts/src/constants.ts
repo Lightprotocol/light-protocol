@@ -123,3 +123,4 @@ export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
 );
 
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
+export const MERKLE_TREE_HEIGHT = 18;
