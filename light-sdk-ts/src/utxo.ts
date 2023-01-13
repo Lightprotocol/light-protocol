@@ -19,6 +19,7 @@ import { MINT } from "./index";
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;
+export const N_ASSET_PUBKEYS = 3;
 
 // TODO: write test
 export class Utxo {

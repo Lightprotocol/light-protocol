@@ -27,7 +27,7 @@ import {
   PRE_INSERTED_LEAVES_INDEX,
   confirmConfig,
 } from "./constants";
-import { N_ASSETS, Utxo } from "./utxo";
+import { N_ASSETS, N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
@@ -471,12 +471,17 @@ constructor({
       });
     }
 
+
     if (assetPubkeys.length == 0) {
       throw new Error("No utxos provided.");
     }
-    if (assetPubkeys.length > N_ASSETS) {
+    if (assetPubkeys.length > N_ASSET_PUBKEYS) {
       throw new Error("Utxos contain too many different assets.");
     }
+    while(assetPubkeysCircuit.length < N_ASSET_PUBKEYS) {
+      assetPubkeysCircuit.push(new BN(0))
+    }
+
     return { assetPubkeysCircuit, assetPubkeys };
   }
 
@@ -569,23 +574,31 @@ constructor({
   }
 
   // TODO: write test
+  // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
+    
     utxos.map((utxo) => {
       let tmpInIndices: String[][] = [];
-      for (var a = 0; a < N_ASSETS; a++) {
+      for (var a = 0; a < utxo.assets.length; a++) {
         let tmpInIndices1: String[] = [];
-        for (var i = 0; i < utxo.assets.length; i++) {
-          if (
-            utxo.assetsCircuit[i].toString() ===
-              this.assetPubkeysCircuit[a].toString() &&
-            utxo.amounts[a].toString() > "0" &&
-            !tmpInIndices1.includes("1")
-          ) {
-            tmpInIndices1.push("1");
-          } else {
+        
+        for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
+          try {
+            if (
+              utxo.assetsCircuit[i].toString() ===
+                this.assetPubkeysCircuit[a].toString() &&
+              utxo.amounts[a].toString() > "0" &&
+              !tmpInIndices1.includes("1")
+            ) {
+              tmpInIndices1.push("1");
+            } else {
+              tmpInIndices1.push("0");
+            }
+          } catch (error) {
             tmpInIndices1.push("0");
           }
+          
         }
         tmpInIndices.push(tmpInIndices1);
       }
