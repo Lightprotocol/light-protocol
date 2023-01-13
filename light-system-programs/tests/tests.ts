@@ -74,6 +74,7 @@ var SHIELDED_TRANSACTION;
 var INVALID_SIGNER;
 var INVALID_MERKLE_TREE_AUTHORITY_PDA;
 var KEYPAIR;
+var deposit_utxo1;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
@@ -84,7 +85,6 @@ describe("verifier_program", () => {
     "http://127.0.0.1:8899",
     confirmConfig
   ); //anchor.getProvider();
-  console.timeEnd("init provider");
   const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
     new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
 
@@ -128,10 +128,12 @@ describe("verifier_program", () => {
     );
   });
 
+  
   it("Initialize Merkle Tree", async () => {
     await setUpMerkleTree(provider);
   });
 
+  
   it.skip("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       VerifierProgramZero,
@@ -555,14 +557,21 @@ describe("verifier_program", () => {
     // }))
   });
 
+  
   it("Init Address Lookup Table", async () => {
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
   });
 
-  it.skip("Deposit 10 utxo", async () => {
+  
+  it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
+    const  lightInstance: LightInstance = {
+      merkleTree: new MerkleTree(18, POSEIDON),
+      lookUpTable: LOOK_UP_TABLE,
+      provider,
+    };
 
     for (var i = 0; i < 1; i++) {
       console.log("Deposit with 10 utxos ", i);
@@ -584,29 +593,29 @@ describe("verifier_program", () => {
         [USER_TOKEN_ACCOUNT]
       );
 
-      SHIELDED_TRANSACTION = new Transaction({
-        // four static config fields
+      let tx = new Transaction({
+        instance: lightInstance,
         payer: ADMIN_AUTH_KEYPAIR,
-        encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-        // four static config fields
-        merkleTree: new MerkleTree(18, POSEIDON),
-        provider,
-        lookupTable: LOOK_UP_TABLE,
-
-        relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-
-        verifier: new VerifierOne(),
         shuffleEnabled: false,
-        poseidon: POSEIDON,
       });
 
-      let inputUtxos = [
-        new Utxo({ poseidon: POSEIDON }),
-        new Utxo({ poseidon: POSEIDON }),
-        new Utxo({ poseidon: POSEIDON }),
-        new Utxo({ poseidon: POSEIDON }),
-      ];
+      // SHIELDED_TRANSACTION = new Transaction({
+      //   // four static config fields
+      //   payer: ADMIN_AUTH_KEYPAIR,
+      //   encryptionKeypair: ENCRYPTION_KEYPAIR,
+
+      //   // four static config fields
+      //   merkleTree: new MerkleTree(18, POSEIDON),
+      //   provider,
+      //   lookupTable: LOOK_UP_TABLE,
+
+      //   relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
+
+      //   verifier: new VerifierOne(),
+      //   shuffleEnabled: false,
+      //   poseidon: POSEIDON,
+      // });
+
       let deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
@@ -617,52 +626,49 @@ describe("verifier_program", () => {
         keypair: KEYPAIR,
       });
 
-      let outputUtxos = [deposit_utxo1];
+      let txParams: TransactionParameters = {
+        outputUtxos: [deposit_utxo1],
+        accounts: {
+          sender: userTokenAccount,
+          senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        },
+        verifier: new VerifierOne(),
+      };
+      await tx.compileAndProve(txParams);
 
       // await SHIELDED_TRANSACTION.compileTransaction({
       //   inputUtxos,
       //   outputUtxos,
       //   action: "DEPOSIT",
-      //   assetPubkeys: [FEE_ASSET, hashAndTruncateToCircuit(MINT.toBytes())],
-      //   relayerFee: new anchor.BN('0'),
-      //   mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
+      //   assetPubkeys: [new BN(0), hashAndTruncateToCircuit(MINT.toBytes())],
+      //   relayerFee: new anchor.BN(0),
       //   sender: userTokenAccount,
-      //   merkleTreeAssetPubkey:  REGISTERED_POOL_PDA_SPL_TOKEN
+      //   merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
+      //   config: { in: 10, out: 2 },
       // });
-      await SHIELDED_TRANSACTION.compileTransaction({
-        inputUtxos,
-        outputUtxos,
-        action: "DEPOSIT",
-        assetPubkeys: [new BN(0), hashAndTruncateToCircuit(MINT.toBytes())],
-        relayerFee: new anchor.BN(0),
-        sender: userTokenAccount,
-        merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-        config: { in: 10, out: 2 },
-      });
 
-      await SHIELDED_TRANSACTION.getProof();
+      // await SHIELDED_TRANSACTION.getProof();
 
       console.log("testTransaction Doesn't work");
       // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: true, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
       try {
-        let res = await SHIELDED_TRANSACTION.sendAndConfirmTransaction();
+        let res = await tx.sendAndConfirmTransaction();
         console.log(res);
       } catch (e) {
         console.log(e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
       try {
-        await SHIELDED_TRANSACTION.checkBalances();
+        await tx.checkBalances();
       } catch (e) {
         console.log(e);
       }
     }
   });
-  const { keccak_256 } = require("@noble/hashes/sha3");
 
-  var deposit_utxo1;
-  it("Deposit", async () => {
+
+  it.skip("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -737,6 +743,7 @@ describe("verifier_program", () => {
     }
   });
 
+  
   it("Update Merkle Tree after Deposit", async () => {
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       MERKLE_TREE_KEY
@@ -788,6 +795,7 @@ describe("verifier_program", () => {
     );
   });
 
+  
   it.skip("Update Merkle Tree Test", async () => {
     // Security Claims
     // CreateUpdateState
@@ -1240,34 +1248,16 @@ describe("verifier_program", () => {
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       lightInstance.lookUpTable,
-      SolanaKeypair.generate(),
-      new BN(10000)
+      SolanaKeypair.generate().publicKey,
+      new BN(100000)
     );
-    console.log("relayer ", relayer);
 
     let tx = new Transaction({
       instance: lightInstance,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
-    });
-    console.log(tx);
-
-    // SHIELDED_TRANSACTION = new Transaction({
-    //   payer: ADMIN_AUTH_KEYPAIR,
-    //   encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-    //   // four static config fields
-    //   merkleTree,
-    //   provider,
-    //   lookupTable: LOOK_UP_TABLE,
-
-    //   relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-
-    //   verifier: new VerifierZero(),
-    //   shuffleEnabled: false,
-    //   poseidon: POSEIDON,
-    // });
+    });  
 
     let txParams: TransactionParameters = {
       inputUtxos: [decryptedUtxo1],
@@ -1277,28 +1267,18 @@ describe("verifier_program", () => {
       },
       verifier: new VerifierZero(),
     };
+
     await tx.compileAndProve(txParams);
-
-    // await SHIELDED_TRANSACTION.compileTransaction({
-    //   inputUtxos: inputUtxos,
-    //   outputUtxos: outputUtxos,
-    //   action: "WITHDRAWAL",
-    //   assetPubkeys: [
-    //     new anchor.BN(0),
-    //     hashAndTruncateToCircuit(MINT.toBytes()),
-    //   ],
-    //   mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
-    //   recipientFee: origin.publicKey,
-    //   recipient: tokenRecipient,
-    //   merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-    //   relayerFee: new anchor.BN("10000"),
-    //   config: { in: 2, out: 2 },
-    // });
-
-    // await SHIELDED_TRANSACTION.getProof();
 
     // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
+
+    // TODO: add check in client to avoid rent exemption issue
+    // add enough funds such that rent exemption is ensured
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(relayer.relayerRecipient, 1_000_000),
+      "confirmed"
+    );
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(res);

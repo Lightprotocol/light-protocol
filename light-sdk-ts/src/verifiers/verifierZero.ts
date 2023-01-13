@@ -93,10 +93,8 @@ export class VerifierZero implements Verifier {
       VerifierProgramZero,
       verifierProgramZeroProgramId
     );
-    console.log("sendTransaction1 ", transaction.params.accounts.recipientFee);
-
-    // await transaction.getPdaAddresses();
     // TODO: move to an init function
+    // await transaction.getPdaAddresses();
     try {
       transaction.recipientBalancePriorTx = (
         await getAccount(
@@ -130,7 +128,7 @@ export class VerifierZero implements Verifier {
       await transaction.instance.provider.connection.getBalance(
         transaction.params.accounts.senderFee
       );
-
+      
     transaction.relayerRecipientAccountBalancePriorLastTx =
       await transaction.instance.provider.connection.getBalance(
         transaction.relayer.relayerRecipient
@@ -201,7 +199,7 @@ export class VerifierZero implements Verifier {
         ])
         .signers([transaction.payer])
         .instruction();
-
+      
       const recentBlockhash = (
         await transaction.instance.provider.connection.getRecentBlockhash(
           "confirmed"
@@ -235,6 +233,7 @@ export class VerifierZero implements Verifier {
           },
         },
       ]);
+      
       compiledTx.addressTableLookups[0].accountKey =
         transaction.relayer.lookUpTable;
 
