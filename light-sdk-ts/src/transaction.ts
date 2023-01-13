@@ -20,13 +20,23 @@ import {
   PublicKey,
   Keypair as SolanaKeypair,
   SystemProgram,
+  ComputeBudgetProgram,
+  AddressLookupTableAccount,
+  TransactionMessage,
+  VersionedTransaction,
+  TransactionSignature,
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { N_ASSETS, Utxo } from "./utxo";
 import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { PublicInputs, Verifier } from "./verifiers";
-import { PRE_INSERTED_LEAVES_INDEX, MERKLE_TREE_KEY } from "./constants";
+import {
+  PRE_INSERTED_LEAVES_INDEX,
+  MERKLE_TREE_KEY,
+  confirmConfig,
+  REGISTERED_VERIFIER_PDA,
+} from "./constants";
 
 export type transactionParameters = {
   inputUtxos?: Array<Utxo>;
@@ -115,9 +125,13 @@ export class TransactionParameters implements transactionParameters {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
       merkleTree: merkleTreePubkey,
-      registeredVerifierPda: verifier.registeredVerifierPda,
-      authority: verifier.getSignerAuthorityPda(
-        this.merkleTreeProgram.programId
+      registeredVerifierPda: Transaction.getRegisteredVerifierPda(
+        this.merkleTreeProgram.programId,
+        verifier.verifierProgram.programId
+      ),
+      authority: Transaction.getSignerAuthorityPda(
+        this.merkleTreeProgram.programId,
+        verifier.verifierProgram.programId
       ),
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
@@ -681,6 +695,7 @@ export class Transaction {
     }
   }
 
+  // need this for the marketplace rn
   overWriteEncryptedUtxos(bytes: Uint8Array, offSet: number = 0) {
     // this.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
     this.encryptedUtxos = Uint8Array.from([
@@ -694,37 +709,169 @@ export class Transaction {
   }
 
   getPublicInputs() {
-    this.params.verifier.initVerifierProgram();
     this.publicInputs = this.params.verifier.parsePublicInputsFromArray(this);
   }
-
-  getSolanaTransaction() {}
 
   // send transaction should be the same for both deposit and withdrawal
   // the function should just send the tx to the rpc or relayer respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
-  async sendTransaction(index?: number) {
-    this.params.verifier.initVerifierProgram();
-    this.solanaTransactions = this.getSolanaTransaction();
-    this.payer.sign(this.solanaTransaction);
 
-    if (!index) {
-      let promises = this.getSolanaTransaction.map((tx) => {
-        this.instance.provider.connection.sendRawTransaction(tx);
-      });
-      this.signatures = await promises.all();
+  async getTestValues() {
+    try {
+      this.recipientBalancePriorTx = (
+        await getAccount(
+          this.instance.provider.connection,
+          this.params.accounts.recipient,
+          TOKEN_PROGRAM_ID
+        )
+      ).amount;
+    } catch (e) {
+      // covers the case of the recipient being a native sol address not a spl token address
+      try {
+        this.recipientBalancePriorTx =
+          await this.instance.provider.connection.getBalance(
+            this.params.accounts.recipient
+          );
+      } catch (e) {}
+    }
+    try {
+      this.recipientFeeBalancePriorTx =
+        await this.instance.provider.connection.getBalance(
+          this.params.accounts.recipientFee
+        );
+    } catch (error) {
+      console.log(
+        "this.recipientFeeBalancePriorTx fetch failed ",
+        this.params.accounts.recipientFee
+      );
+    }
 
-      this.transactionSentIndex += 1;
+    this.senderFeeBalancePriorTx =
+      await this.instance.provider.connection.getBalance(
+        this.params.accounts.senderFee
+      );
+
+    this.relayerRecipientAccountBalancePriorLastTx =
+      await this.instance.provider.connection.getBalance(
+        this.relayer.accounts.relayerRecipient
+      );
+  }
+
+  static getSignerAuthorityPda(
+    merkleTreeProgramId: PublicKey,
+    verifierProgramId: PublicKey
+  ) {
+    return PublicKey.findProgramAddressSync(
+      [merkleTreeProgramId.toBytes()],
+      verifierProgramId
+    )[0];
+  }
+  static getRegisteredVerifierPda(
+    merkleTreeProgramId: PublicKey,
+    verifierProgramId: PublicKey
+  ) {
+    return PublicKey.findProgramAddressSync(
+      [verifierProgramId.toBytes()],
+      merkleTreeProgramId
+    )[0];
+  }
+
+  async getInstructionsJson(): Promise<string[]> {
+    const instructions = await this.params.verifier.getInstructions(this);
+    let serialized = instructions.map((ix) => JSON.stringify(ix));
+    return serialized;
+  }
+
+  async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
+    if (!this.payer) {
+      // send tx to relayer
+      let txJson = await this.getInstructionsJson();
+      // request to relayer
+      throw new Error("withdrawal with relayer is not implemented");
     } else {
+      const recentBlockhash = (
+        await this.instance.provider.connection.getRecentBlockhash("confirmed")
+      ).blockhash;
+      const txMsg = new TransactionMessage({
+        payerKey: this.payer.publicKey,
+        instructions: [
+          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ix,
+        ],
+        recentBlockhash: recentBlockhash,
+      });
+
+      const lookupTableAccount =
+        await this.instance.provider.connection.getAccountInfo(
+          this.relayer.accounts.lookUpTable,
+          "confirmed"
+        );
+
+      const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
+        lookupTableAccount.data
+      );
+
+      const compiledTx = txMsg.compileToV0Message([
+        {
+          state: unpackedLookupTableAccount,
+          key: this.relayer.accounts.lookUpTable,
+          isActive: () => {
+            return true;
+          },
+        },
+      ]);
+
+      compiledTx.addressTableLookups[0].accountKey =
+        this.relayer.accounts.lookUpTable;
+
+      const tx = new VersionedTransaction(compiledTx);
+      let retries = 3;
+      let res;
+      while (retries > 0) {
+        tx.sign([this.payer]);
+
+        try {
+          let serializedTx = tx.serialize();
+          console.log("serializedTx: ");
+
+          res = await this.instance.provider.connection.sendRawTransaction(
+            serializedTx,
+            confirmConfig
+          );
+          retries = 0;
+          console.log(res);
+        } catch (e) {
+          retries--;
+          if (retries == 0 || e.logs != undefined) {
+            console.log(e);
+            return e;
+          }
+        }
+      }
+      return res;
     }
   }
 
-  async confirm() {
-    await this.instance.provider.connection.confirmTransaction();
-  }
-  async sendAndConfirmTransaction() {
-    this.params.verifier.initVerifierProgram();
-    return await this.params.verifier.sendTransaction(this);
+  async sendAndConfirmTransaction(): Promise<TransactionSignature> {
+    if (!this.payer) {
+      throw new Error("Cannot use sendAndConfirmTransaction without payer");
+    }
+    await this.getTestValues();
+    const instructions = await this.params.verifier.getInstructions(this);
+    let tx = "";
+    for (var ix in instructions) {
+      let txTmp = await this.sendTransaction(instructions[ix]);
+      if (txTmp) {
+        await this.instance.provider?.connection.confirmTransaction(
+          txTmp,
+          "confirmed"
+        );
+        tx = txTmp;
+      } else {
+        throw new Error("send transaction failed");
+      }
+    }
+    return tx;
   }
 
   async checkProof() {
@@ -799,10 +946,7 @@ export class Transaction {
 
   async getPdaAddresses() {
     if (this.params && this.publicInputs && this.merkleTreeProgram) {
-      this.params.verifier.initVerifierProgram();
-      let tx_integrity_hash = this.proofInput.txIntegrityHash;
       let nullifiers = this.publicInputs.nullifiers;
-      let leftLeaves = [this.publicInputs.leaves[0]];
       let merkleTreeProgram = this.merkleTreeProgram;
       let signer = this.relayer.accounts.relayerPubkey;
 
@@ -1071,7 +1215,9 @@ export class Transaction {
         )} == ${senderFeeAccountBalance}`
       );
       assert(
-        Number(this.senderFeeBalancePriorTx) - Number(this.feeAmount) - 5000 ==
+        Number(this.senderFeeBalancePriorTx) -
+          Number(this.feeAmount) -
+          5000 * this.params.verifier.instructions?.length ==
           Number(senderFeeAccountBalance)
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
