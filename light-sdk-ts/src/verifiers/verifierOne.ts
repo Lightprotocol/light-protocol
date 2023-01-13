@@ -18,10 +18,11 @@ export class VerifierOne implements Verifier {
   instructions?: anchor.web3.TransactionInstruction[];
 
   constructor() {
-    this.verifierProgram = new Program(
+    try {this.verifierProgram = new Program(
       VerifierProgramOne,
       verifierProgramOneProgramId
     );
+  } catch(e) {}
     this.wtnsGenPath =
       "./build-circuits/transactionMasp10_js/transactionMasp10";
     this.zkeyPath = "./build-circuits/transactionMasp10";

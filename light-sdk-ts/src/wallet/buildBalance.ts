@@ -1,40 +1,6 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
-import { assert, expect } from "chai";
-const token = require("@solana/spl-token");
-import { Connection, PublicKey, Keypair } from "@solana/web3.js";
-import { MINT } from "../index";
-
-export async function getUninsertedLeaves({
-  merkleTreeProgram,
-  merkleTreeIndex,
-  connection,
-}: // merkleTreePubkey
-{
-  merkleTreeProgram: MerkleTreeProgram;
-  merkleTreeIndex: any;
-  connection: Connection;
-}) {
-  var leave_accounts: Array<{
-    pubkey: PublicKey;
-    account: Account<Buffer>;
-  }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
-  console.log("Total nr of accounts. ", leave_accounts.length);
-
-  let filteredLeaves = leave_accounts
-    .filter((pda) => {
-      return pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber();
-    })
-    .sort(
-      (a, b) =>
-        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
-    );
-
-  return filteredLeaves.map((pda) => {
-    return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
-  });
-}
+import { PublicKey} from "@solana/web3.js";
 
 export async function getUnspentUtxo(
   leavesPdas,
@@ -90,30 +56,3 @@ export async function getUnspentUtxo(
   }
 }
 
-export async function getInsertedLeaves({
-  merkleTreeProgram,
-  merkleTreeIndex,
-  connection,
-}: // merkleTreePubkey
-{
-  merkleTreeProgram: MerkleTreeProgram;
-  connection: Connection;
-  merkleTreeIndex: any;
-}) /*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
-  var leave_accounts: Array<{
-    pubkey: PublicKey;
-    account: Account<Buffer>;
-  }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
-  console.log("Total nr of accounts. ", leave_accounts.length);
-
-  let filteredLeaves = leave_accounts
-    .filter((pda) => {
-      return pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber();
-    })
-    .sort(
-      (a, b) =>
-        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
-    );
-
-  return filteredLeaves;
-}

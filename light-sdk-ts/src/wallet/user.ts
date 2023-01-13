@@ -1,6 +1,7 @@
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Keypair } from "../keypair";
 import { Utxo } from "utxo";
+import { Transaction, TransactionParameters } from "transaction";
 
 // TODO: need a wallet
 export class User {
@@ -18,7 +19,9 @@ export class User {
   }
 
   // Fetch utxos should probably be a function such the user object is not occupied while fetching
+  // but it would probably be more logical to fetch utxos here as well
   addUtxos() {}
+  
   // TODO: evaluate where do we create outUtxos?
   selectUtxos(amount) {}
 
@@ -26,13 +29,14 @@ export class User {
   // maybe it makes sense since I might need new keypairs etc in this process
   // maybe not because we want to keep this class lean
 
-  shield() {}
+  shield(): TransactionParameters {}
 
-  unshield() {}
+  unshield(): TransactionParameters {}
 
-  transfer() {}
+  transfer(): TransactionParameters {}
 
   appInteraction() {}
+
 
   /*
     *
