@@ -36,7 +36,7 @@ export type TransactionParameters = {
     recipient?: PublicKey;
     senderFee?: PublicKey;
     recipientFee?: PublicKey;
-    verifierStatePubkey?: PublicKey;
+    verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
     escrow?: PublicKey;
   };
@@ -152,8 +152,8 @@ export class Transaction {
     const pubkeys = this.getAssetPubkeys(params.inputUtxos, params.outputUtxos);
     this.assetPubkeys = pubkeys.assetPubkeys;
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
-    this.params.inputUtxos = this.addEmptyUtxos(params.inputUtxos);
-    this.params.outputUtxos = this.addEmptyUtxos(params.outputUtxos);
+    this.params.inputUtxos = this.addEmptyUtxos(params.inputUtxos, params.verifier.config.in);
+    this.params.outputUtxos = this.addEmptyUtxos(params.outputUtxos, params.verifier.config.out);
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
     // prep and get proof inputs
@@ -281,7 +281,6 @@ export class Transaction {
         if (this.action !== "WITHDRAWAL") {
           throw new Error("No relayer provided for withdrawal");
         }
-
         this.params.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
           this.assetPubkeys[1],
           merkleTreeProgramId
@@ -397,9 +396,9 @@ export class Transaction {
     }
   }
 
-  addEmptyUtxos(utxos: Utxo[] = []): Utxo[] {
+  addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
     if (this.params && this.params.verifier.config) {
-      while (utxos.length < this.params.verifier.config.in) {
+      while (utxos.length < len) {
         utxos.push(new Utxo({ poseidon: this.poseidon }));
       }
     } else {
@@ -750,7 +749,7 @@ export class Transaction {
         [anchor.utils.bytes.utf8.encode("escrow")],
         this.params.verifier.verifierProgram.programId
       )[0];
-      this.params.accounts.verifierStatePubkey =
+      this.params.accounts.verifierState =
         PublicKey.findProgramAddressSync(
           [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
           this.params.verifier.verifierProgram.programId
@@ -1001,8 +1000,8 @@ export class Transaction {
       // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
       // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString())
 
-      assert(
-        senderAccount.lamports ==
+      assert.equal(
+        senderAccount.lamports,
           I64(senderAccountBalancePriorLastTx)
             .add(I64.readLE(this.extAmount, 0))
             .sub(I64(relayerFee))
@@ -1034,52 +1033,58 @@ export class Transaction {
       );
 
       // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
+      console.log("this.recipientBalancePriorTx ", this.recipientBalancePriorTx);
+      console.log("this.publicAmount ", this.publicAmount);
+      console.log("this.publicAmount ", this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE));
+
       console.log(
         `${recipientAccount.amount}, ${new anchor.BN(
           this.recipientBalancePriorTx
         )
-          .sub(this.publicAmount)
+          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`
       );
-      assert(
-        recipientAccount.amount.toString() ==
+      assert.equal(
+        recipientAccount.amount.toString(),
           new anchor.BN(this.recipientBalancePriorTx)
-            .sub(this.publicAmount)
+            .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
             .toString(),
         "amount not transferred correctly"
       );
 
       var relayerAccount = await this.instance.provider.connection.getBalance(
-        this.relayerRecipient
+        this.relayer.relayerRecipient
       );
+
       var recipientFeeAccount =
         await this.instance.provider.connection.getBalance(
           this.params.accounts.recipientFee
         );
-      console.log("recipientFeeAccount ", recipientFeeAccount);
-      console.log("this.feeAmount: ", this.feeAmount);
-      console.log(
-        "recipientFeeBalancePriorTx ",
-        this.recipientFeeBalancePriorTx
-      );
+      // console.log("recipientFeeAccount ", recipientFeeAccount);
+      // console.log("this.feeAmount: ", this.feeAmount);
+      // console.log(
+      //   "recipientFeeBalancePriorTx ",
+      //   this.recipientFeeBalancePriorTx
+      // );
+
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.relayer.relayerFee.toString()))
           .add(new anchor.BN("5000"))
           .toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx)
-          .sub(new anchor.BN(this.feeAmount))
+          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`
       );
 
-      console.log("relayerAccount ", relayerAccount);
-      console.log("this.relayer.relayerFee: ", this.relayer.relayerFee);
+      // console.log("relayerAccount ", relayerAccount);
+      // console.log("this.relayer.relayerFee: ", this.relayer.relayerFee);
       console.log(
         "relayerRecipientAccountBalancePriorLastTx ",
         this.relayerRecipientAccountBalancePriorLastTx
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
-          .sub(new anchor.BN(this.relayer.relayerFee.toString()))
+          .sub(this.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
           this.relayerRecipientAccountBalancePriorLastTx
         )}`
@@ -1098,28 +1103,28 @@ export class Transaction {
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.relayer.relayerFee.toString()))
-          .toString()}  != ${new anchor.BN(this.recipientFeeBalancePriorTx)
-          .sub(new anchor.BN(this.feeAmount))
+          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`
       );
 
-      assert(
+      assert.equal(
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.relayer.relayerFee.toString()))
-          .toString() ==
+          .toString(),
           new anchor.BN(this.recipientFeeBalancePriorTx)
-            .sub(new anchor.BN(this.feeAmount))
+            .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
             .toString()
       );
-      assert(
+      // console.log(`this.relayer.relayerFee ${this.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
+
+      assert.equal(
         new anchor.BN(relayerAccount)
-          .sub(new anchor.BN(this.relayer.relayerFee.toString()))
-          .add(new anchor.BN("5000"))
-          .toString() ==
-          new anchor.BN(
-            this.relayerRecipientAccountBalancePriorLastTx
-          ).toString()
-      );
+          .sub(this.relayer.relayerFee)
+          // .add(new anchor.BN("5000"))
+          .toString(),
+            this.relayerRecipientAccountBalancePriorLastTx?.toString()
+          );
     } else {
       throw Error("mode not supplied");
     }

@@ -16,7 +16,10 @@ import {
   sendAndConfirmRawTransaction,
 } from "@solana/web3.js";
 import {
+  confirmConfig,
   DEFAULT_PROGRAMS,
+  MERKLE_TREE_KEY,
+  PRE_INSERTED_LEAVES_INDEX,
   REGISTERED_VERIFIER_ONE_PDA,
   verifierProgramOneProgramId,
 } from "../index";
@@ -32,6 +35,9 @@ export class VerifierOne implements Verifier {
   zkeyPath: String;
   calculateWtns: NodeRequire;
   registeredVerifierPda: PublicKey;
+  config: { in: number; out: number };
+  signerAuthorityPda: PublicKey;
+
   constructor() {
     this.verifierProgram = new Program(
       VerifierProgramOne,
@@ -42,7 +48,16 @@ export class VerifierOne implements Verifier {
     this.zkeyPath = "./build-circuits/transactionMasp10";
     this.calculateWtns = require("../../build-circuits/transactionMasp10_js/witness_calculator.js");
     this.registeredVerifierPda = REGISTERED_VERIFIER_ONE_PDA;
+    this.config = { in: 10, out: 2 };
   }
+
+  getSignerAuthorityPda(merkleTreeProgramId: PublicKey) {
+    return PublicKey.findProgramAddressSync(
+      [merkleTreeProgramId.toBytes()],
+      this.verifierProgram.programId
+    )[0];
+  }
+
 
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
     if (transaction.publicInputsBytes.length == 17) {
@@ -72,173 +87,173 @@ export class VerifierOne implements Verifier {
     );
   }
 
-  async transferFirst(transfer: Transaction) {
+  async transferFirst(transaction: Transaction) {
     console.log("in transferFirst");
 
-    console.log(
-      "transfer.publicInputs.publicAmount: ",
-      transfer.publicInputs.publicAmount
-    );
-    console.log(
-      "transfer.publicInputs.nullifiers: ",
-      transfer.publicInputs.nullifiers
-    );
-    console.log(
-      "transfer.publicInputs.leaves[0]: ",
-      transfer.publicInputs.leaves[0]
-    );
-    console.log(
-      "transfer.publicInputs.feeAmount: ",
-      transfer.publicInputs.feeAmount
-    );
+    // console.log(
+    //   "transaction.publicInputs.publicAmount: ",
+    //   transaction.publicInputs.publicAmount
+    // );
+    // console.log(
+    //   "transaction.publicInputs.nullifiers: ",
+    //   transaction.publicInputs.nullifiers
+    // );
+    // console.log(
+    //   "transaction.publicInputs.leaves[0]: ",
+    //   transaction.publicInputs.leaves[0]
+    // );
+    // console.log(
+    //   "transaction.publicInputs.feeAmount: ",
+    //   transaction.publicInputs.feeAmount
+    // );
 
-    console.log("transfer.rootIndex.toString(): ", transfer.rootIndex);
+    // console.log("transaction.rootIndex.toString(): ", transaction.rootIndex);
 
-    console.log(
-      "transfer.publicInputs.feeAmount: ",
-      transfer.publicInputs.feeAmount
-    );
-    console.log(
-      "transfer.publicInputs.relayerFee.toString(): ",
-      transfer.relayerFee.toString()
-    );
-    console.log(
-      "transfer.publicInputs.encryptedUtxos: ",
-      transfer.encryptedUtxos
-    );
-    console.log("transfer.relayerPubkey: ", transfer.relayerPubkey);
-    console.log("transfer.verifierStatePubkey: ", transfer.verifierStatePubkey);
-    console.log("transfer.payer: ", transfer.payer);
-    console.log(
-      "transfer.signerAuthorityPubkey: ",
-      transfer.signerAuthorityPubkey.toBase58()
-    );
-    console.log(
-      "transfer.tokenAuthority: ",
-      transfer.tokenAuthority.toBase58()
-    );
-    console.log("transfer.senderFee: ", transfer.senderFee.toBase58());
-    console.log("transfer.recipientFee: ", transfer.recipientFee.toBase58());
-    console.log(
-      "transfer.relayerRecipient: ",
-      transfer.relayerRecipient.toBase58()
-    );
-    console.log("transfer.escrow: ", transfer.escrow.toBase58());
-    console.log(
-      "transfer.registeredVerifierPda: ",
-      transfer.verifier.registeredVerifierPda.toBase58()
-    );
+    // console.log(
+    //   "transaction.publicInputs.feeAmount: ",
+    //   transaction.publicInputs.feeAmount
+    // );
+    // console.log(
+    //   "transaction.publicInputs.relayerFee.toString(): ",
+    //   transaction.relayerFee.toString()
+    // );
+    // console.log(
+    //   "transaction.publicInputs.encryptedUtxos: ",
+    //   transaction.encryptedUtxos
+    // );
+    // console.log("transaction.relayerPubkey: ", transaction.relayerPubkey);
+    // console.log("transaction.verifierState: ", transaction.verifierState);
+    // console.log("transaction.payer: ", transaction.payer);
+    // console.log(
+    //   "transaction.signerAuthorityPubkey: ",
+    //   transaction.signerAuthorityPubkey.toBase58()
+    // );
+    // console.log(
+    //   "transaction.tokenAuthority: ",
+    //   transaction.tokenAuthority.toBase58()
+    // );
+    // console.log("transaction.senderFee: ", transaction.senderFee.toBase58());
+    // console.log("transaction.recipientFee: ", transaction.recipientFee.toBase58());
+    // console.log(
+    //   "transaction.relayerRecipient: ",
+    //   transaction.relayerRecipient.toBase58()
+    // );
+    // console.log("transaction.escrow: ", transaction.escrow.toBase58());
+    // console.log(
+    //   "transaction.registeredVerifierPda: ",
+    //   transaction.verifier.registeredVerifierPda.toBase58()
+    // );
 
-    const ix1 = await transfer.verifier.verifierProgram.methods
+    const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        Buffer.from(transfer.publicInputs.publicAmount),
-        transfer.publicInputs.nullifiers,
-        transfer.publicInputs.leaves[0],
-        Buffer.from(transfer.publicInputs.feeAmount),
-        new anchor.BN(transfer.rootIndex.toString()),
-        new anchor.BN(transfer.relayerFee.toString()),
-        Buffer.from(transfer.encryptedUtxos)
+        Buffer.from(transaction.publicInputs.publicAmount),
+        transaction.publicInputs.nullifiers,
+        transaction.publicInputs.leaves[0],
+        Buffer.from(transaction.publicInputs.feeAmount),
+        new anchor.BN(transaction.rootIndex.toString()),
+        new anchor.BN(transaction.relayer.relayerFee.toString()),
+        Buffer.from(transaction.encryptedUtxos)
       )
       .accounts({
-        signingAddress: transfer.relayerPubkey,
+        signingAddress: transaction.relayer.relayerPubkey,
         systemProgram: SystemProgram.programId,
-        verifierState: transfer.verifierStatePubkey,
+        verifierState: transaction.params?.accounts.verifierState,
       })
-      .signers([transfer.payer])
-      .rpc({
-        commitment: "confirmed",
-        preflightCommitment: "confirmed",
-      });
+      .signers([transaction.payer])
+      .rpc(confirmConfig);
     console.log("ix1 success ", ix1);
   }
 
-  async transferSecond(transfer: Transaction) {
-    const ix = await transfer.verifier.verifierProgram.methods
-      .shieldedTransferSecond(Buffer.from(transfer.proofBytes))
+  async transferSecond(transaction: Transaction) {
+    const ix = await this.verifierProgram.methods
+      .shieldedTransferSecond(Buffer.from(transaction.proofBytes))
       .accounts({
-        signingAddress: transfer.relayerPubkey,
-        verifierState: transfer.verifierStatePubkey,
+        signingAddress: transaction.relayer.relayerPubkey,
         systemProgram: SystemProgram.programId,
-        programMerkleTree: transfer.merkleTreeProgram.programId,
+        programMerkleTree: transaction.merkleTreeProgram.programId,
         rent: DEFAULT_PROGRAMS.rent,
-        merkleTree: transfer.merkleTreePubkey,
-        preInsertedLeavesIndex: transfer.preInsertedLeavesIndex,
-        authority: transfer.signerAuthorityPubkey,
+        merkleTree: MERKLE_TREE_KEY,
+        preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+        authority: this.getSignerAuthorityPda(
+          transaction.merkleTreeProgram.programId),
         tokenProgram: TOKEN_PROGRAM_ID,
-        sender: transfer.sender,
-        recipient: transfer.recipient,
-        senderFee: transfer.senderFee,
-        recipientFee: transfer.recipientFee,
-        relayerRecipient: transfer.relayerRecipient,
-        escrow: transfer.escrow,
-        tokenAuthority: transfer.tokenAuthority,
-        registeredVerifierPda: transfer.verifier.registeredVerifierPda,
+        // sender: transaction.sender,
+        // recipient: transaction.recipient,
+        // senderFee: transaction.senderFee,
+        // recipientFee: transaction.recipientFee,
+        relayerRecipient: transaction.relayer.relayerRecipient,
+        // escrow: transaction.escrow,
+        // tokenAuthority: transaction.tokenAuthority,
+        registeredVerifierPda: this.registeredVerifierPda,
+        ...transaction.params.accounts,
       })
       .remainingAccounts([
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[0],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[1],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[2],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[3],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[4],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[5],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[6],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[7],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[8],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.nullifierPdaPubkeys[9],
-        },
-        {
-          isSigner: false,
-          isWritable: true,
-          pubkey: transfer.leavesPdaPubkeys[0],
-        },
+        ...transaction.params.nullifierPdaPubkeys,
+        ...transaction.params.leavesPdaPubkeys,
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[0],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[1],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[2],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[3],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[4],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[5],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[6],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[7],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[8],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.nullifierPdaPubkeys[9],
+        // },
+        // {
+        //   isSigner: false,
+        //   isWritable: true,
+        //   pubkey: transaction.leavesPdaPubkeys[0],
+        // },
       ])
-      .signers([transfer.payer])
+      .signers([transaction.payer])
       .instruction();
     let recentBlockhash = (
-      await transfer.provider.connection.getRecentBlockhash("confirmed")
+      await transaction.instance.provider.connection.getRecentBlockhash("confirmed")
     ).blockhash;
 
     let txMsg = new TransactionMessage({
-      payerKey: transfer.payer.publicKey,
+      payerKey: transaction.payer.publicKey,
       instructions: [
         ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ix,
@@ -246,8 +261,8 @@ export class VerifierOne implements Verifier {
       recentBlockhash: recentBlockhash,
     });
 
-    let lookupTableAccount = await transfer.provider.connection.getAccountInfo(
-      transfer.lookupTable,
+    let lookupTableAccount = await transaction.instance.provider.connection.getAccountInfo(
+      transaction.relayer.lookUpTable,
       "confirmed"
     );
 
@@ -258,119 +273,120 @@ export class VerifierOne implements Verifier {
     let compiledTx = txMsg.compileToV0Message([
       { state: unpackedLookupTableAccount },
     ]);
-    compiledTx.addressTableLookups[0].accountKey = transfer.lookupTable;
+    compiledTx.addressTableLookups[0].accountKey = transaction.relayer.lookUpTable;
 
-    let transaction = new VersionedTransaction(compiledTx);
+    let tx = new VersionedTransaction(compiledTx);
     let retries = 3;
     let res;
     while (retries > 0) {
-      transaction.sign([transfer.payer]);
+      tx.sign([transaction.payer]);
       recentBlockhash = (
-        await transfer.provider.connection.getRecentBlockhash("confirmed")
+        await transaction.instance.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
-      transaction.message.recentBlockhash = recentBlockhash;
-      let serializedTx = transaction.serialize();
+      tx.message.recentBlockhash = recentBlockhash;
+      let serializedTx = tx.serialize();
 
       try {
         console.log("serializedTx: ");
 
         res = await sendAndConfirmRawTransaction(
-          transfer.provider.connection,
+          transaction.instance.provider.connection,
           serializedTx,
-          {
-            commitment: "confirmed",
-            preflightCommitment: "confirmed",
-          }
+          confirmConfig
         );
         retries = 0;
       } catch (e) {
         console.log(e);
         retries--;
         if (retries == 0 || e.logs != undefined) {
-          const ixClose = await transfer.verifier.verifierProgram.methods
+          const ixClose = await this.verifierProgram.methods
             .closeVerifierState()
             .accounts({
-              signingAddress: transfer.relayerPubkey,
-              verifierState: transfer.verifierStatePubkey,
+              signingAddress: transaction.relayer.relayerPubkey,
+              verifierState: transaction.params?.accounts.verifierState,
             })
-            .signers([transfer.payer])
-            .rpc({
-              commitment: "confirmed",
-              preflightCommitment: "confirmed",
-            });
+            .signers([transaction.payer])
+            .rpc(confirmConfig);
           return e;
         }
       }
     }
   }
 
-  async sendTransaction(transfer: Transaction): Promise<any> {
-    assert(transfer.nullifierPdaPubkeys.length == 10);
-    let balance = await transfer.provider.connection.getBalance(
-      transfer.signerAuthorityPubkey,
-      { preflightCommitment: "confirmed", commitment: "confirmed" }
-    );
-    if (balance === 0) {
-      await transfer.provider.connection.confirmTransaction(
-        await transfer.provider.connection.requestAirdrop(
-          transfer.signerAuthorityPubkey,
-          1_000_000_000
-        ),
-        { preflightCommitment: "confirmed", commitment: "confirmed" }
+  async sendTransaction(transaction: Transaction): Promise<any> {
+    if(transaction && transaction.params && transaction.instance.provider) {
+      assert(transaction.params?.nullifierPdaPubkeys?.length == 10);
+      let balance = await transaction.instance.provider.connection.getBalance(
+        this.getSignerAuthorityPda(transaction.merkleTreeProgram?.programId),
+        "confirmed"
       );
+      if (balance === 0) {
+        await transaction.instance.provider.connection.confirmTransaction(
+          await transaction.instance.provider.connection.requestAirdrop(
+            this.getSignerAuthorityPda(transaction.merkleTreeProgram?.programId),
+            1_000_000_000
+          ),
+          "confirmed"
+        );
+      }
+      try {
+        transaction.recipientBalancePriorTx = new anchor.BN((
+          await getAccount(
+            transaction.instance.provider.connection,
+            transaction.params.accounts.recipient,
+            TOKEN_PROGRAM_ID
+          )
+        ).amount.toString());
+      } catch (error) {}
+      console.log("here");
+      
+      transaction.recipientFeeBalancePriorTx =
+        await transaction.instance.provider.connection.getBalance(transaction.params.accounts.recipientFee);
+      // console.log("recipientBalancePriorTx: ", transaction.recipientBalancePriorTx);
+      // console.log("recipientFeeBalancePriorTx: ", transaction.recipientFeeBalancePriorTx);
+      // console.log("sender_fee: ", transaction.senderFee);
+      console.log("here1");
+      transaction.senderFeeBalancePriorTx =
+        await transaction.instance.provider.connection.getBalance(transaction.params?.accounts.senderFee);
+        console.log("here2");
+      transaction.relayerRecipientAccountBalancePriorLastTx =
+        await transaction.instance.provider.connection.getBalance(transaction.relayer.relayerRecipient);
+  
+      // console.log("signingAddress:     ", transaction.relayerPubkey)
+      // console.log("systemProgram:      ", SystemProgram.programId)
+      // console.log("programMerkleTree:  ", transaction.merkleTreeProgram.programId)
+      // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
+      // console.log("merkleTree:         ", transaction.merkleTreePubkey)
+      // console.log("preInsertedLeavesInd", transaction.preInsertedLeavesIndex)
+      // console.log("authority:          ", transaction.signerAuthorityPubkey)
+      // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
+      // console.log("sender:             ", transaction.sender)
+      // console.log("recipient:          ", transaction.recipient)
+      // console.log("senderFee:          ", transaction.senderFee)
+      // console.log("recipientFee:       ", transaction.recipientFee)
+      // console.log("relayerRecipient:   ", transaction.relayerRecipient)
+      // console.log("escrow:             ", transaction.escrow)
+      // console.log("tokenAuthority:     ", transaction.tokenAuthority)
+      // console.log("registeredVerifierPd",transaction.registeredVerifierPda)
+      // console.log("encryptedUtxos len ", transaction.encryptedUtxos.length);
+      // console.log("transaction.encryptedUtxos[0], ", transaction.encryptedUtxos);
+      console.log(
+        "transaction.verifierState, ",
+        transaction.params?.accounts.verifierState.toBase58()
+      );
+      // console.log("transaction.publicInputs.nullifiers, ", transaction.publicInputs.nullifiers);
+      // console.log("transaction.rootIndex ", transaction.rootIndex);
+      // console.log("transaction.relayerFee ", transaction.relayerFee);
+      // console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos);
+      // transaction.transferFirst = transferFirst;
+      // transaction.transferSecond = transferSecond;
+  
+      //TODO: think about how to do transfer in a better way transfer is quite confusing since the transfer in transfer fn is not shieldedTransfer not the verifier object
+      let res = await this.transferFirst(transaction);
+      res = await this.transferSecond(transaction);
+  
+      return res;
     }
-    try {
-      transfer.recipientBalancePriorTx = (
-        await getAccount(
-          transfer.provider.connection,
-          transfer.recipient,
-          TOKEN_PROGRAM_ID
-        )
-      ).amount;
-    } catch (error) {}
-    transfer.recipientFeeBalancePriorTx =
-      await transfer.provider.connection.getBalance(transfer.recipientFee);
-    // console.log("recipientBalancePriorTx: ", transfer.recipientBalancePriorTx);
-    // console.log("recipientFeeBalancePriorTx: ", transfer.recipientFeeBalancePriorTx);
-    // console.log("sender_fee: ", transfer.senderFee);
-    transfer.senderFeeBalancePriorTx =
-      await transfer.provider.connection.getBalance(transfer.senderFee);
-    transfer.relayerRecipientAccountBalancePriorLastTx =
-      await transfer.provider.connection.getBalance(transfer.relayerRecipient);
-
-    // console.log("signingAddress:     ", transfer.relayerPubkey)
-    // console.log("systemProgram:      ", SystemProgram.programId)
-    // console.log("programMerkleTree:  ", transfer.merkleTreeProgram.programId)
-    // console.log("rent:               ", DEFAULT_PROGRAMS.rent)
-    // console.log("merkleTree:         ", transfer.merkleTreePubkey)
-    // console.log("preInsertedLeavesInd", transfer.preInsertedLeavesIndex)
-    // console.log("authority:          ", transfer.signerAuthorityPubkey)
-    // console.log("tokenProgram:       ", TOKEN_PROGRAM_ID)
-    // console.log("sender:             ", transfer.sender)
-    // console.log("recipient:          ", transfer.recipient)
-    // console.log("senderFee:          ", transfer.senderFee)
-    // console.log("recipientFee:       ", transfer.recipientFee)
-    // console.log("relayerRecipient:   ", transfer.relayerRecipient)
-    // console.log("escrow:             ", transfer.escrow)
-    // console.log("tokenAuthority:     ", transfer.tokenAuthority)
-    // console.log("registeredVerifierPd",transfer.registeredVerifierPda)
-    // console.log("encryptedUtxos len ", transfer.encryptedUtxos.length);
-    // console.log("transfer.encryptedUtxos[0], ", transfer.encryptedUtxos);
-    console.log(
-      "transfer.verifierStatePubkey, ",
-      transfer.verifierStatePubkey.toBase58()
-    );
-    // console.log("transfer.publicInputs.nullifiers, ", transfer.publicInputs.nullifiers);
-    // console.log("transfer.rootIndex ", transfer.rootIndex);
-    // console.log("transfer.relayerFee ", transfer.relayerFee);
-    // console.log("transfer.encryptedUtxos ", transfer.encryptedUtxos);
-    // transfer.transferFirst = transferFirst;
-    // transfer.transferSecond = transferSecond;
-
-    //TODO: think about how to do transfer in a better way transfer is quite confusing since the transfer in transfer fn is not shieldedTransfer not the verifier object
-    let res = await transfer.verifier.transferFirst(transfer);
-    res = await transfer.verifier.transferSecond(transfer);
-
-    return res;
+ 
   }
 }
