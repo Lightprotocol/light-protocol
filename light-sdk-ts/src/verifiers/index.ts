@@ -2,7 +2,7 @@ export * from "./verifierOne";
 export * from "./verifierZero";
 export * from "./verifierTwo";
 
-import { Program } from "@coral-xyz/anchor";
+import { Program, web3 } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 import { Transaction } from "../transaction";
 
@@ -35,9 +35,9 @@ export interface Verifier {
   zkeyPath: String;
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
-  registeredVerifierPda: PublicKey;
-  signerAuthorityPda: PublicKey;
-  sendTransaction(transaction: Transaction): Promise<any>;
+  instructions?: web3.TransactionInstruction[];
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
-  getSignerAuthorityPda(merkleTreeProgramId: PublicKey): PublicKey;
+  getInstructions(
+    transaction: Transaction
+  ): Promise<web3.TransactionInstruction[]>;
 }

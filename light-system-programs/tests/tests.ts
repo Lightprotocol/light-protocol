@@ -16,7 +16,6 @@ import {
   Keypair,
   Utxo,
   newAccountWithLamports,
-  newAccountWithTokens,
   executeUpdateMerkleTreeTransactions,
   executeMerkleTreeUpdateTransactions,
   createMintWrapper,
@@ -26,12 +25,10 @@ import {
   MerkleTreeConfig,
   checkMerkleTreeUpdateStateCreated,
   checkMerkleTreeBatchUpdateSuccess,
-  FIELD_SIZE,
   ENCRYPTION_KEYPAIR,
   DEFAULT_PROGRAMS,
   setUpMerkleTree,
   initLookUpTableFromFile,
-  testTransaction,
   hashAndTruncateToCircuit,
   MerkleTreeProgram,
   merkleTreeProgramId,
@@ -62,6 +59,7 @@ import {
   TransactionParameters,
   LightInstance,
   Relayer,
+  verifierProgramOneProgramId,
 } from "../../light-sdk-ts/src/index";
 
 import { BN } from "@coral-xyz/anchor";
@@ -565,6 +563,26 @@ describe("verifier_program", () => {
       lookUpTable: LOOK_UP_TABLE,
       provider,
     };
+
+    let balance = await provider.connection.getBalance(
+      Transaction.getSignerAuthorityPda(
+        merkleTreeProgram.programId,
+        verifierProgramOneProgramId
+      ),
+      "confirmed"
+    );
+    if (balance === 0) {
+      await provider.connection.confirmTransaction(
+        await provider.connection.requestAirdrop(
+          Transaction.getSignerAuthorityPda(
+            merkleTreeProgram.programId,
+            verifierProgramOneProgramId
+          ),
+          1_000_000_000
+        ),
+        "confirmed"
+      );
+    }
 
     for (var i = 0; i < 1; i++) {
       console.log("Deposit with 10 utxos ", i);
