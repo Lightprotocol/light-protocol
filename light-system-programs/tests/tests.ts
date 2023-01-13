@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-const { SystemProgram } = require("@solana/web3.js");
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert } from "chai";
@@ -58,7 +58,10 @@ import {
   FEE_ASSET,
   VerifierProgramZero,
   verifierProgramZeroProgramId,
-  confirmConfig
+  confirmConfig,
+  TransactionParameters,
+  LightInstance,
+  Relayer,
 } from "../../light-sdk-ts/src/index";
 
 import { BN } from "@coral-xyz/anchor";
@@ -77,7 +80,10 @@ describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   anchor.setProvider(anchor.AnchorProvider.env());
 
-  const provider = anchor.AnchorProvider.local("http://127.0.0.1:8899", confirmConfig); //anchor.getProvider();
+  const provider = anchor.AnchorProvider.local(
+    "http://127.0.0.1:8899",
+    confirmConfig
+  ); //anchor.getProvider();
   console.timeEnd("init provider");
   const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
     new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
@@ -152,11 +158,9 @@ describe("verifier_program", () => {
       "confirmed"
     );
 
-    INVALID_MERKLE_TREE_AUTHORITY_PDA = (
-      await solana.PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
-        merkleTreeProgram.programId
-      )
+    INVALID_MERKLE_TREE_AUTHORITY_PDA = solana.PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
+      merkleTreeProgram.programId
     )[0];
     let merkleTreeConfig = new MerkleTreeConfig({
       merkleTreePubkey: MERKLE_TREE_KEY,
@@ -630,7 +634,7 @@ describe("verifier_program", () => {
         outputUtxos,
         action: "DEPOSIT",
         assetPubkeys: [new BN(0), hashAndTruncateToCircuit(MINT.toBytes())],
-        relayerFee: 0,
+        relayerFee: new anchor.BN(0),
         sender: userTokenAccount,
         merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
         config: { in: 10, out: 2 },
@@ -657,32 +661,6 @@ describe("verifier_program", () => {
   });
   const { keccak_256 } = require("@noble/hashes/sha3");
 
-  it.skip("test styff", async () => {
-    let x = [26,85,237,89,32,60,200,105,191,173,83,2,152,108,81,81,105,177,85,19,25,58,118,131,241,107,144,177,40,81,52,120,206,102,250,25,143,73,78,24,82,131,173,135,94,96,131,220,102,137,81,59,124,164,50,189,80,246,176,184,229,150,210,35,2,99,226,251,88,66,92,33,25,216,211,185,112,203,212,238,105,144,72,121,176,253,106,168,115,158,154,188,62,255,166,81,0,0,0,0,0,0,0,0,116,187,181,76,137,251,61,85,163,244,85,53,111,94,147,212,56,79,94,59,55,111,116,172,219,199,253,252,193,131,170,226,4,172,126,198,203,197,252,136,194,22,180,74,114,101,226,58,12,143,236,27,252,146,140,230,251,254,189,71,119,5,102,72,236,64,21,9,96,228,40,179,17,2,105,234,40,10,42,28,27,199,198,52,14,109,240,115,24,8,99,251,92,0,85,112,125,150,67,194,216,146,59,205,189,77,90,20,196,15,47,204,95,62,69,42,14,32,43,105,212,14,230,241,88,8,45,39,194,50,16,196,235,11,13,243,61,236,97,91,250,225,77,220,231,72,198,199,80,36,23,198,175,114,135,67,215,134,189,77,109,167,59,96,179,128,85,239,201,82,59,245,114,160,26,142,67,103,237,131,122,16,184,168,14,16,84,197,132,96,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0];
-    let y = [26, 85, 237, 89, 32, 60, 200, 105, 191, 173, 83, 2, 152, 108, 81, 81, 105, 177, 85, 19, 25, 58, 118, 131, 241, 107, 144, 177, 40, 81, 52, 120, 206, 102, 250, 25, 143, 73, 78, 24, 82, 131, 173, 135, 94, 96, 131, 220, 102, 137, 81, 59, 124, 164, 50, 189, 80, 246, 176, 184, 229, 150, 210, 35, 2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105, 144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81, 0, 0, 0, 0, 0, 0, 0, 0, 116, 187, 181, 76, 137, 251, 61, 85, 163, 244, 85, 53, 111, 94, 147, 212, 56, 79, 94, 59, 55, 111, 116, 172, 219, 199, 253, 252, 193, 131, 170, 226, 4, 172, 126, 198, 203, 197, 252, 136, 194, 22, 180, 74, 114, 101, 226, 58, 12, 143, 236, 27, 252, 146, 140, 230, 251, 254, 189, 71, 119, 5, 102, 72, 236, 64, 21, 9, 96, 228, 40, 179, 17, 2, 105, 234, 40, 10, 42, 28, 27, 199, 198, 52, 14, 109, 240, 115, 24, 8, 99, 251, 92, 0, 85, 112, 125, 150, 67, 194, 216, 146, 59, 205, 189, 77, 90, 20, 196, 15, 47, 204, 95, 62, 69, 42, 14, 32, 43, 105, 212, 14, 230, 241, 88, 8, 45, 39, 194, 50, 16, 196, 235, 11, 13, 243, 61, 236, 97, 91, 250, 225, 77, 220, 231, 72, 198, 199, 80, 36, 23, 198, 175, 114, 135, 67, 215, 134, 189, 77, 109, 167, 59, 96, 179, 128, 85, 239, 201, 82, 59, 245, 114, 160, 26, 142, 67, 103, 237, 131, 122, 16, 184, 168, 14, 16, 84, 197, 132, 96, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    for (var i = 0; i < y.length; i++) {
-
-      if (x[i] != y[i]) {
-        console.log(Array.from(x.slice(i -10, i+10)));
-        console.log(Array.from(y.slice(i -10, i+10)));
-
-        console.log(i);
-        break
-        
-      }
-    }
-
-    const hash = keccak_256
-      .create({ dkLen: 32 })
-      .update(Buffer.from(x))
-      .digest();
-    console.log("extDataHash ", new anchor.BN(hash).mod(FIELD_SIZE).toArray("be", 32));
-    const hash1 = keccak_256
-      .create({ dkLen: 32 })
-      .update(Buffer.from(y))
-      .digest();
-    console.log("extDataHash ", new anchor.BN(hash1).mod(FIELD_SIZE).toArray("be", 32));
-  })
   var deposit_utxo1;
   it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
@@ -710,20 +688,16 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      SHIELDED_TRANSACTION = new Transaction({
-        payer: ADMIN_AUTH_KEYPAIR,
-        encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-        // four static config fields
+      let lightInstance: LightInstance = {
         merkleTree: new MerkleTree(18, POSEIDON),
+        lookUpTable: LOOK_UP_TABLE,
         provider,
-        lookupTable: LOOK_UP_TABLE,
+      };
 
-        relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-
-        verifier: new VerifierZero(),
+      let tx = new Transaction({
+        instance: lightInstance,
+        payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
-        poseidon: POSEIDON,
       });
 
       deposit_utxo1 = new Utxo({
@@ -736,37 +710,27 @@ describe("verifier_program", () => {
         keypair: KEYPAIR,
       });
 
-      let outputUtxos = [deposit_utxo1];
-      console.log(
-        "outputUtxos[0].assetsCircuit[1]: ",
-        outputUtxos[0].assetsCircuit[1]
-      );
-
-      await SHIELDED_TRANSACTION.compileTransaction({
-        inputUtxos: [],
-        outputUtxos,
-        action: "DEPOSIT",
-        assetPubkeys: [new anchor.BN(0), outputUtxos[0].assetsCircuit[1]],
-        relayerFee: 0,
-        sender: userTokenAccount,
-        mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
-        merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-        config: { in: 2, out: 2 },
-      });
-
-      await SHIELDED_TRANSACTION.getProof();
+      let txParams: TransactionParameters = {
+        outputUtxos: [deposit_utxo1],
+        accounts: {
+          sender: userTokenAccount,
+          senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        },
+        verifier: new VerifierZero(),
+      };
+      await tx.compileAndProve(txParams);
 
       // await testTransaction({transaction: SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
       try {
-        let res = await SHIELDED_TRANSACTION.sendAndConfirmTransaction();
+        let res = await tx.sendAndConfirmTransaction();
         console.log(res);
       } catch (e) {
         console.log(e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
       try {
-        await SHIELDED_TRANSACTION.checkBalances();
+        await tx.checkBalances();
       } catch (e) {
         console.log(e);
       }
@@ -868,14 +832,12 @@ describe("verifier_program", () => {
       poseidonHash: poseidon,
     });
 
-    let merkleTreeUpdateState = (
-      await solana.PublicKey.findProgramAddress(
-        [
-          Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
-          anchor.utils.bytes.utf8.encode("storage"),
-        ],
-        merkleTreeProgram.programId
-      )
+    let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
+      [
+        Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
+        anchor.utils.bytes.utf8.encode("storage"),
+      ],
+      merkleTreeProgram.programId
     )[0];
     let merkle_tree_pubkey = MERKLE_TREE_KEY;
     let connection = provider.connection;
@@ -951,14 +913,12 @@ describe("verifier_program", () => {
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
     });
-    let different_merkle_tree = (
-      await solana.PublicKey.findProgramAddress(
-        [
-          merkleTreeProgram.programId.toBuffer(),
-          new anchor.BN(1).toArray("le", 8),
-        ],
-        merkleTreeProgram.programId
-      )
+    let different_merkle_tree = solana.PublicKey.findProgramAddressSync(
+      [
+        merkleTreeProgram.programId.toBuffer(),
+        new anchor.BN(1).toArray("le", 8),
+      ],
+      merkleTreeProgram.programId
     )[0];
     if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
       await merkleTreeConfig.initializeNewMerkleTree(different_merkle_tree);
@@ -1242,6 +1202,7 @@ describe("verifier_program", () => {
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       MERKLE_TREE_KEY
     );
+
     let merkleTree = await buildMerkleTree({
       connection: provider.connection,
       config: { x: 1 }, // rnd filler
@@ -1271,63 +1232,81 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    SHIELDED_TRANSACTION = new Transaction({
-      payer: ADMIN_AUTH_KEYPAIR,
-      encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-      // four static config fields
+    let lightInstance: LightInstance = {
       merkleTree,
+      lookUpTable: LOOK_UP_TABLE,
       provider,
-      lookupTable: LOOK_UP_TABLE,
-
-      relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-
-      verifier: new VerifierZero(),
-      shuffleEnabled: false,
-      poseidon: POSEIDON,
-    });
-
-    let outputUtxos = [];
-
-    let utxoIndex = 0;
-
-    let inputUtxos = [];
-    inputUtxos.push(decryptedUtxo1);
-
-    assert(
-      hashAndTruncateToCircuit(MINT.toBytes()).toString() ===
-        inputUtxos[0].assetsCircuit[1].toString(),
-      "inputUtxos[1] asset werid"
+    };
+    let relayer = new Relayer(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      lightInstance.lookUpTable,
+      SolanaKeypair.generate(),
+      new BN(10000)
     );
+    console.log("relayer ", relayer);
 
-    await SHIELDED_TRANSACTION.compileTransaction({
-      inputUtxos: inputUtxos,
-      outputUtxos: outputUtxos,
-      action: "WITHDRAWAL",
-      assetPubkeys: [
-        new anchor.BN(0),
-        hashAndTruncateToCircuit(MINT.toBytes()),
-      ],
-      mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
-      recipientFee: origin.publicKey,
-      recipient: tokenRecipient,
-      merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-      relayerFee: new anchor.BN("10000"),
-      config: { in: 2, out: 2 },
+    let tx = new Transaction({
+      instance: lightInstance,
+      relayer,
+      payer: ADMIN_AUTH_KEYPAIR,
+      shuffleEnabled: false,
     });
+    console.log(tx);
 
-    await SHIELDED_TRANSACTION.getProof();
+    // SHIELDED_TRANSACTION = new Transaction({
+    //   payer: ADMIN_AUTH_KEYPAIR,
+    //   encryptionKeypair: ENCRYPTION_KEYPAIR,
+
+    //   // four static config fields
+    //   merkleTree,
+    //   provider,
+    //   lookupTable: LOOK_UP_TABLE,
+
+    //   relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
+
+    //   verifier: new VerifierZero(),
+    //   shuffleEnabled: false,
+    //   poseidon: POSEIDON,
+    // });
+
+    let txParams: TransactionParameters = {
+      inputUtxos: [decryptedUtxo1],
+      accounts: {
+        recipient: tokenRecipient,
+        recipientFee: origin.publicKey,
+      },
+      verifier: new VerifierZero(),
+    };
+    await tx.compileAndProve(txParams);
+
+    // await SHIELDED_TRANSACTION.compileTransaction({
+    //   inputUtxos: inputUtxos,
+    //   outputUtxos: outputUtxos,
+    //   action: "WITHDRAWAL",
+    //   assetPubkeys: [
+    //     new anchor.BN(0),
+    //     hashAndTruncateToCircuit(MINT.toBytes()),
+    //   ],
+    //   mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
+    //   recipientFee: origin.publicKey,
+    //   recipient: tokenRecipient,
+    //   merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
+    //   relayerFee: new anchor.BN("10000"),
+    //   config: { in: 2, out: 2 },
+    // });
+
+    // await SHIELDED_TRANSACTION.getProof();
 
     // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
     try {
-      let res = await SHIELDED_TRANSACTION.sendAndConfirmTransaction();
+      let res = await tx.sendAndConfirmTransaction();
       console.log(res);
     } catch (e) {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-    await SHIELDED_TRANSACTION.checkBalances();
+    await tx.checkBalances();
   });
 
   // doesn't work program runs out of memory
@@ -1414,5 +1393,4 @@ describe("verifier_program", () => {
     }
     await SHIELDED_TRANSACTION.checkBalances();
   });
-
 });

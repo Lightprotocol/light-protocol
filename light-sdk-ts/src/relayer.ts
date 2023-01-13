@@ -1,20 +1,25 @@
-import { PublicKey } from "@solana/web3.js"
-
-
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { BN } from "@coral-xyz/anchor";
 
 export class Relayer {
-relayerPubkey: PublicKey // signs the transaction
-encryptionPubkey: Uint8Array
-relayerRecipient: PublicKey // receives the fees
-lookUpTable: PublicKey
+  relayerPubkey: PublicKey; // signs the transaction
+  relayerRecipient: PublicKey; // receives the fees
+  lookUpTable: PublicKey;
+  relayerFee: BN;
 
-constructor(
-    relayerPubkey: PublicKey,encryptionPubkey: Uint8Array,relayerRecipient: PublicKey,
-    lookUpTable: PublicKey) {
+  constructor(
+    relayerPubkey: PublicKey,
+    lookUpTable: PublicKey,
+    relayerRecipient?: PublicKey,
+    relayerFee: BN = new BN(0)
+  ) {
     this.relayerPubkey = relayerPubkey;
-    this.encryptionPubkey = encryptionPubkey;
-    this.relayerRecipient = relayerRecipient
-    this.lookUpTable = lookUpTable
+    if (!relayerRecipient) {
+      this.relayerRecipient = relayerPubkey;
+    } else {
+      this.relayerRecipient = relayerRecipient;
+    }
+    this.lookUpTable = lookUpTable;
+    this.relayerFee = relayerFee;
+  }
 }
-
-};

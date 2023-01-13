@@ -12,13 +12,13 @@ export async function getUninsertedLeaves({
   connection,
 }: // merkleTreePubkey
 {
-  merkleTreeProgram: MerkleTreeProgram,
-  merkleTreeIndex: any,
-  connection: Connection,
+  merkleTreeProgram: MerkleTreeProgram;
+  merkleTreeIndex: any;
+  connection: Connection;
 }) {
   var leave_accounts: Array<{
-    pubkey: PublicKey,
-    account: Account<Buffer>,
+    pubkey: PublicKey;
+    account: Account<Buffer>;
   }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
   console.log("Total nr of accounts. ", leave_accounts.length);
 

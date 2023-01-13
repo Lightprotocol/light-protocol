@@ -50,6 +50,6 @@ export function getAssetIndex(assetPubkey: PublicKey): BN {
 
 export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
   console.log("assetIndex ", assetIndex);
-  
+
   return assetLookupTable[assetIndex.toNumber()];
 }
