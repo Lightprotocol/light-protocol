@@ -2,9 +2,11 @@ import { Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 
 export class Relayer {
-  relayerPubkey: PublicKey; // signs the transaction
-  relayerRecipient: PublicKey; // receives the fees
-  lookUpTable: PublicKey;
+  accounts: {
+    relayerPubkey: PublicKey; // signs the transaction
+    relayerRecipient: PublicKey; // receives the fees
+    lookUpTable: PublicKey;
+  };
   relayerFee: BN;
 
   constructor(
@@ -13,13 +15,19 @@ export class Relayer {
     relayerRecipient?: PublicKey,
     relayerFee: BN = new BN(0)
   ) {
-    this.relayerPubkey = relayerPubkey;
-    if (!relayerRecipient) {
-      this.relayerRecipient = relayerPubkey;
+    if (relayerRecipient) {
+      this.accounts = {
+        relayerPubkey,
+        lookUpTable,
+        relayerRecipient,
+      };
     } else {
-      this.relayerRecipient = relayerRecipient;
+      this.accounts = {
+        relayerPubkey,
+        lookUpTable,
+        relayerRecipient: relayerPubkey,
+      };
     }
-    this.lookUpTable = lookUpTable;
     this.relayerFee = relayerFee;
   }
 }

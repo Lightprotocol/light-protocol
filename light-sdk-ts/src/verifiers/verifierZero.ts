@@ -33,11 +33,15 @@ export class VerifierZero implements Verifier {
   zkeyPath: String;
   calculateWtns: NodeRequire;
   registeredVerifierPda: PublicKey;
-  signerAuthorityPda: PublicKey;
+  signerAuthorityPda?: PublicKey;
   config: { in: number; out: number };
   constructor() {
     // Proofgen does not work within sdk needs circuit-build
     // TODO: bundle files in npm package
+    this.verifierProgram = new Program(
+      VerifierProgramZero,
+      verifierProgramZeroProgramId
+    );
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
     this.zkeyPath = `./build-circuits/transactionMasp2`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
@@ -128,10 +132,10 @@ export class VerifierZero implements Verifier {
       await transaction.instance.provider.connection.getBalance(
         transaction.params.accounts.senderFee
       );
-      
+
     transaction.relayerRecipientAccountBalancePriorLastTx =
       await transaction.instance.provider.connection.getBalance(
-        transaction.relayer.relayerRecipient
+        transaction.relayer.accounts.relayerRecipient
       );
 
     // console.log("signingAddress:     ", transaction.relayerPubkey)
@@ -177,21 +181,8 @@ export class VerifierZero implements Verifier {
           Buffer.from(transaction.encryptedUtxos.slice(0, 190)) // remaining bytes can be used once tx sizes increase
         )
         .accounts({
-          signingAddress: transaction.relayer.relayerPubkey,
-          systemProgram: SystemProgram.programId,
-          programMerkleTree: transaction.merkleTreeProgram.programId,
-          rent: DEFAULT_PROGRAMS.rent,
-          // TODO: should be transaction.instance.merkleTree.pubkey
-          merkleTree: MERKLE_TREE_KEY,
-          // TODO: add MerkleTreeConfig.getPreInsertedLeavesIndex() AUTHORITY, //
-          preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
-          authority: this.getSignerAuthorityPda(
-            transaction.merkleTreeProgram.programId
-          ),
-          tokenProgram: TOKEN_PROGRAM_ID,
-          relayerRecipient: transaction.relayer.relayerRecipient,
-          registeredVerifierPda: this.registeredVerifierPda,
           ...transaction.params.accounts,
+          ...transaction.relayer.accounts,
         })
         .remainingAccounts([
           ...transaction.params.nullifierPdaPubkeys,
@@ -199,7 +190,7 @@ export class VerifierZero implements Verifier {
         ])
         .signers([transaction.payer])
         .instruction();
-      
+
       const recentBlockhash = (
         await transaction.instance.provider.connection.getRecentBlockhash(
           "confirmed"
@@ -216,7 +207,7 @@ export class VerifierZero implements Verifier {
 
       const lookupTableAccount =
         await transaction.instance.provider.connection.getAccountInfo(
-          transaction.relayer.lookUpTable,
+          transaction.relayer.accounts.lookUpTable,
           "confirmed"
         );
 
@@ -227,15 +218,15 @@ export class VerifierZero implements Verifier {
       const compiledTx = txMsg.compileToV0Message([
         {
           state: unpackedLookupTableAccount,
-          key: transaction.relayer.lookUpTable,
+          key: transaction.relayer.accounts.lookUpTable,
           isActive: () => {
             return true;
           },
         },
       ]);
-      
+
       compiledTx.addressTableLookups[0].accountKey =
-        transaction.relayer.lookUpTable;
+        transaction.relayer.accounts.lookUpTable;
 
       const tx = new VersionedTransaction(compiledTx);
       let retries = 3;

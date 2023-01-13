@@ -278,7 +278,6 @@ export async function createTestAccounts(connection: Connection) {
       TOKEN_PROGRAM_ID
     );
   } catch (e) {}
-  console.log("balanceUserToken ", balanceUserToken);
 
   try {
     if (balanceUserToken == null) {

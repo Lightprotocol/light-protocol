@@ -28,7 +28,7 @@ import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { PublicInputs, Verifier } from "./verifiers";
 import { PRE_INSERTED_LEAVES_INDEX, MERKLE_TREE_KEY } from "./constants";
 
-export type TransactionParameters = {
+export type transactionParameters = {
   inputUtxos?: Array<Utxo>;
   outputUtxos?: Array<Utxo>;
   accounts: {
@@ -53,6 +53,87 @@ export type TransactionParameters = {
     pubkey: PublicKey;
   }[];
 };
+
+export class TransactionParameters implements transactionParameters {
+  inputUtxos?: Array<Utxo>;
+  outputUtxos?: Array<Utxo>;
+  accounts: {
+    sender?: PublicKey;
+    recipient?: PublicKey;
+    senderFee?: PublicKey;
+    recipientFee?: PublicKey;
+    verifierState?: PublicKey;
+    tokenAuthority?: PublicKey;
+    escrow?: PublicKey;
+    systemProgramId: PublicKey;
+    merkleTree: PublicKey;
+    tokenProgram: PublicKey;
+    registeredVerifierPda: PublicKey;
+    authority: PublicKey;
+    signingAddress?: PublicKey;
+    preInsertedLeavesIndex: PublicKey;
+    programMerkleTree: PublicKey;
+  };
+  encryptedUtxos?: Uint8Array;
+  verifier: Verifier;
+  nullifierPdaPubkeys?: {
+    isSigner: boolean;
+    isWritable: boolean;
+    pubkey: PublicKey;
+  }[];
+  leavesPdaPubkeys?: {
+    isSigner: boolean;
+    isWritable: boolean;
+    pubkey: PublicKey;
+  }[];
+  merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
+
+  constructor({
+    merkleTreePubkey,
+    verifier,
+    sender,
+    recipient,
+    senderFee,
+    recipientFee,
+    inputUtxos,
+    outputUtxos,
+  }: {
+    merkleTreePubkey: PublicKey;
+    verifier: Verifier;
+    sender?: PublicKey;
+    recipient?: PublicKey;
+    senderFee?: PublicKey;
+    recipientFee?: PublicKey;
+    inputUtxos?: Utxo[];
+    outputUtxos?: Utxo[];
+  }) {
+    this.merkleTreeProgram = new Program(
+      MerkleTreeProgram,
+      merkleTreeProgramId
+    );
+    this.accounts = {
+      systemProgramId: SystemProgram.programId,
+      tokenProgram: TOKEN_PROGRAM_ID,
+      merkleTree: merkleTreePubkey,
+      registeredVerifierPda: verifier.registeredVerifierPda,
+      authority: verifier.getSignerAuthorityPda(
+        this.merkleTreeProgram.programId
+      ),
+      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
+      sender: sender,
+      recipient: recipient,
+      senderFee: senderFee,
+      recipientFee: recipientFee,
+      programMerkleTree: this.merkleTreeProgram.programId,
+    };
+    this.verifier = verifier;
+    this.outputUtxos = outputUtxos;
+    this.inputUtxos = inputUtxos;
+    if (!this.outputUtxos && !inputUtxos) {
+      throw new Error("No utxos provided.");
+    }
+  }
+}
 export type LightInstance = {
   provider?: Provider;
   lookUpTable?: PublicKey;
@@ -147,13 +228,20 @@ export class Transaction {
     // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
     this.poseidon = await circomlibjs.buildPoseidonOpt();
     this.params = params;
+    this.params.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
 
     // prepare utxos
     const pubkeys = this.getAssetPubkeys(params.inputUtxos, params.outputUtxos);
     this.assetPubkeys = pubkeys.assetPubkeys;
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
-    this.params.inputUtxos = this.addEmptyUtxos(params.inputUtxos, params.verifier.config.in);
-    this.params.outputUtxos = this.addEmptyUtxos(params.outputUtxos, params.verifier.config.out);
+    this.params.inputUtxos = this.addEmptyUtxos(
+      params.inputUtxos,
+      params.verifier.config.in
+    );
+    this.params.outputUtxos = this.addEmptyUtxos(
+      params.outputUtxos,
+      params.verifier.config.out
+    );
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
     // prep and get proof inputs
@@ -716,7 +804,7 @@ export class Transaction {
       let nullifiers = this.publicInputs.nullifiers;
       let leftLeaves = [this.publicInputs.leaves[0]];
       let merkleTreeProgram = this.merkleTreeProgram;
-      let signer = this.relayer.relayerPubkey;
+      let signer = this.relayer.accounts.relayerPubkey;
 
       this.params.nullifierPdaPubkeys = [];
       for (var i in nullifiers) {
@@ -749,11 +837,10 @@ export class Transaction {
         [anchor.utils.bytes.utf8.encode("escrow")],
         this.params.verifier.verifierProgram.programId
       )[0];
-      this.params.accounts.verifierState =
-        PublicKey.findProgramAddressSync(
-          [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-          this.params.verifier.verifierProgram.programId
-        )[0];
+      this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
+        [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+        this.params.verifier.verifierProgram.programId
+      )[0];
 
       this.params.accounts.tokenAuthority = PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("spl")],
@@ -1002,10 +1089,10 @@ export class Transaction {
 
       assert.equal(
         senderAccount.lamports,
-          I64(senderAccountBalancePriorLastTx)
-            .add(I64.readLE(this.extAmount, 0))
-            .sub(I64(relayerFee))
-            .toString(),
+        I64(senderAccountBalancePriorLastTx)
+          .add(I64.readLE(this.extAmount, 0))
+          .sub(I64(relayerFee))
+          .toString(),
         "amount not transferred correctly"
       );
 
@@ -1033,9 +1120,15 @@ export class Transaction {
       );
 
       // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
-      console.log("this.recipientBalancePriorTx ", this.recipientBalancePriorTx);
+      console.log(
+        "this.recipientBalancePriorTx ",
+        this.recipientBalancePriorTx
+      );
       console.log("this.publicAmount ", this.publicAmount);
-      console.log("this.publicAmount ", this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE));
+      console.log(
+        "this.publicAmount ",
+        this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE)
+      );
 
       console.log(
         `${recipientAccount.amount}, ${new anchor.BN(
@@ -1046,14 +1139,14 @@ export class Transaction {
       );
       assert.equal(
         recipientAccount.amount.toString(),
-          new anchor.BN(this.recipientBalancePriorTx)
-            .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-            .toString(),
+        new anchor.BN(this.recipientBalancePriorTx)
+          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .toString(),
         "amount not transferred correctly"
       );
 
       var relayerAccount = await this.instance.provider.connection.getBalance(
-        this.relayer.relayerRecipient
+        this.relayer.accounts.relayerRecipient
       );
 
       var recipientFeeAccount =
@@ -1112,9 +1205,9 @@ export class Transaction {
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.relayer.relayerFee.toString()))
           .toString(),
-          new anchor.BN(this.recipientFeeBalancePriorTx)
-            .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-            .toString()
+        new anchor.BN(this.recipientFeeBalancePriorTx)
+          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .toString()
       );
       // console.log(`this.relayer.relayerFee ${this.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
 
@@ -1123,8 +1216,8 @@ export class Transaction {
           .sub(this.relayer.relayerFee)
           // .add(new anchor.BN("5000"))
           .toString(),
-            this.relayerRecipientAccountBalancePriorLastTx?.toString()
-          );
+        this.relayerRecipientAccountBalancePriorLastTx?.toString()
+      );
     } else {
       throw Error("mode not supplied");
     }

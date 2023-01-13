@@ -35,6 +35,9 @@ export interface Verifier {
   zkeyPath: String;
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
+  registeredVerifierPda: PublicKey;
+  signerAuthorityPda: PublicKey;
   sendTransaction(transaction: Transaction): Promise<any>;
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
+  getSignerAuthorityPda(merkleTreeProgramId: PublicKey): PublicKey;
 }
