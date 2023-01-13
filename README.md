@@ -5,15 +5,16 @@
 *Requirements:*
 - solana cli v1.11.10 or higher
   - ``sh -c "$(curl -sSfL https://release.solana.com/v1.11.10/install)"``
+- clone of [solana](), checked out on `master` branch (the `alt_bn128` syscall
+  is not released yet) - to be sure that no recent changes can break the workflow,
+  you can check out commit
+  [656b150e575a4d16cfa9c9ff63b16edcf94f2e0d](https://github.com/solana-labs/solana/commit/656b150e575a4d16cfa9c9ff63b16edcf94f2e0d)
+  - `git clone git@github.com:solana-labs/solana.git`
+  - `git checkout 656b150e575a4d16cfa9c9ff63b16edcf94f2e0d`
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
   - ``npm i -g @project-serum/anchor-cli``
 - node v14
-
-solana version with syscalls in the same
-- `` git clone https://github.com/ananas-block/solana.git``
-- `` git checkout alt_bn128_precompiles``
-
 
 *Unit Tests:*
 - ``cd anchor_programs/``
@@ -40,7 +41,19 @@ Further tests are:
 
 - ``npm install``
 
-- ./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_zero.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/merkle_tree_program.so --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL  /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_one.so
+- Assuming that your clones of `solana` and `light-protocol-onchain` git
+  repoitories share the same parent directory and you are currently in the
+  `light-protocol-onchain` directory, launch a validator with the following
+  command:
+
+```
+../solana/validator/solana-test-validator \
+    --reset \
+    --limit-ledger-size 500000000 \
+    --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ./light-system-programs/target/deploy/verifier_program_zero.so \
+    --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ./light-system-programs/target/deploy/merkle_tree_program.so \
+    --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ./light-system-programs/target/deploy/verifier_program_one.so
+```
 
 - ``anchor test --skip-build --skip-deploy --skip-local-validator``
 
