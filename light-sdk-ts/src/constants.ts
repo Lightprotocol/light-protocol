@@ -10,10 +10,16 @@ import {
   VerifierProgramTwoIdl,
   VerifierProgramOneIdl,
   VerifierProgramZeroIdl,
-  MerkleTreeProgramIdl
+  MerkleTreeProgramIdl,
 } from "./idls/index";
 
-import { ConfirmOptions, PublicKey, SystemProgram, SYSVAR_CLOCK_PUBKEY, SYSVAR_RENT_PUBKEY } from "@solana/web3.js";
+import {
+  ConfirmOptions,
+  PublicKey,
+  SystemProgram,
+  SYSVAR_CLOCK_PUBKEY,
+  SYSVAR_RENT_PUBKEY,
+} from "@solana/web3.js";
 
 export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
   155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,

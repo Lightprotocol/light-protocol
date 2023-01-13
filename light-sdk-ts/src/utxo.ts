@@ -164,7 +164,7 @@ export class Utxo {
     if (assetIndex.toString() == "-1") {
       throw new Error("Asset not found in lookup table");
     }
-    
+
     // case no appData
     if (this.instructionType.toString() == "0") {
       return new Uint8Array([
@@ -374,8 +374,8 @@ export class Utxo {
     keypair: Keypair;
   }): Utxo | null {
     const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
-    const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));    
-    
+    const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
+
     if (keypair.encPrivateKey) {
       const cleartext = box.open(
         encryptedUtxo,
@@ -386,7 +386,7 @@ export class Utxo {
       if (!cleartext) {
         return null;
       }
-      const bytes = Buffer.from(cleartext);      
+      const bytes = Buffer.from(cleartext);
       return Utxo.fromBytes({ poseidon, bytes, keypair });
     } else {
       return null;

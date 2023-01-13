@@ -313,4 +313,6 @@ describe("verifier_program", () => {
   it("Test functional circuit", async () => {
     await functionalCircuitTest();
   });
+
+  it("assign Accounts", async () => {});
 });

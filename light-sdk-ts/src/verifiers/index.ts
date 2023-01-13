@@ -3,6 +3,7 @@ export * from "./verifierZero";
 export * from "./verifierTwo";
 
 import { Program } from "@coral-xyz/anchor";
+import { PublicKey } from "@solana/web3.js";
 import { Transaction } from "../transaction";
 
 export interface PublicInputs {
@@ -33,6 +34,7 @@ export interface Verifier {
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
+  config: { in: number; out: number };
   sendTransaction(transaction: Transaction): Promise<any>;
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
 }

@@ -1,5 +1,5 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { AnchorError, BN } from "@coral-xyz/anchor"
+import { AnchorError, BN } from "@coral-xyz/anchor";
 export const ENCRYPTION_KEYPAIR = {
   PublicKey: new Uint8Array([
     45, 218, 154, 197, 141, 144, 160, 47, 100, 67, 150, 144, 22, 128, 18, 23,
@@ -30,20 +30,20 @@ export const RECIPIENT_TOKEN_ACCOUNT = Keypair.fromSecretKey(
 );
 
 export var KEYPAIR_PRIVKEY = new BN(
-    "d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896",
-    "hex"
-  );
+  "d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896",
+  "hex"
+);
 
 export const MINT_PRIVATE_KEY = new Uint8Array([
-194, 220, 38, 233, 140, 177, 44, 255, 131, 7, 129, 209, 20, 230, 130, 41, 128,
-186, 233, 161, 10, 77, 134, 70, 34, 141, 30, 246, 145, 69, 69, 35, 14, 129,
-15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160, 127, 236, 37,
-229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
+  194, 220, 38, 233, 140, 177, 44, 255, 131, 7, 129, 209, 20, 230, 130, 41, 128,
+  186, 233, 161, 10, 77, 134, 70, 34, 141, 30, 246, 145, 69, 69, 35, 14, 129,
+  15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160, 127, 236, 37,
+  229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
 ]);
 
 export const MINT = new PublicKey([
-14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160, 127,
-236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
+  14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160, 127,
+  236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
 ]);
 
 export const PRIVATE_KEY = [
@@ -59,11 +59,11 @@ export const MERKLE_TREE_INIT_AUTHORITY = [
 ];
 
 export const ADMIN_AUTH_KEY: PublicKey = new PublicKey(
-new Uint8Array(MERKLE_TREE_INIT_AUTHORITY)
+  new Uint8Array(MERKLE_TREE_INIT_AUTHORITY)
 );
 
 export const ADMIN_AUTH_KEYPAIR: Keypair = Keypair.fromSecretKey(
-new Uint8Array(PRIVATE_KEY)
+  new Uint8Array(PRIVATE_KEY)
 );
 
 export const userTokenAccount = new PublicKey(

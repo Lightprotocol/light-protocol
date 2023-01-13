@@ -15,7 +15,7 @@ import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Keypair as ShieldedKeypair} from "../keypair"; 
+import { Keypair as ShieldedKeypair } from "../keypair";
 
 import { createMint } from "@solana/spl-token";
 import {
@@ -129,7 +129,7 @@ export async function newAccountWithTokens({
 }): Promise<any> {
   let tokenAccount;
   try {
-   tokenAccount = await createAccount(
+    tokenAccount = await createAccount(
       connection,
       ADMIN_AUTH_KEYPAIR,
       MINT,
@@ -309,7 +309,10 @@ export async function createTestAccounts(connection: Connection) {
   } catch (error) {}
 
   let POSEIDON = await circomlibjs.buildPoseidonOpt();
-  let KEYPAIR = new ShieldedKeypair({poseidon: POSEIDON, seed: KEYPAIR_PRIVKEY.toString()});
+  let KEYPAIR = new ShieldedKeypair({
+    poseidon: POSEIDON,
+    seed: KEYPAIR_PRIVKEY.toString(),
+  });
   let RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   return {
     POSEIDON,

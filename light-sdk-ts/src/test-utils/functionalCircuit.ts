@@ -1,48 +1,29 @@
 import {
   ADMIN_AUTH_KEYPAIR,
-  ENCRYPTION_KEYPAIR,
   FEE_ASSET,
-  hashAndTruncateToCircuit,
   Keypair,
+  LightInstance,
   MINT,
-  REGISTERED_POOL_PDA_SPL_TOKEN,
   Transaction,
+  TransactionParameters,
   Utxo,
   VerifierZero,
 } from "../index";
-import {  MerkleTree } from "../merkleTree/index"
+import { MerkleTree } from "../merkleTree/index";
 import * as anchor from "@coral-xyz/anchor";
-import { SystemProgram } from "@solana/web3.js";
 import { assert, expect } from "chai";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
+
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest() {
-  console.log("disabled following prints");
-
+  // console.log("disabled following prints");
   // console.log = () => {}
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
   let keypair = new Keypair({ poseidon: poseidon, seed: seed32 });
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
-  console.log("MerkleTree ", new MerkleTree(18, poseidon));
-  
-  let tx = new Transaction({
-    payer: ADMIN_AUTH_KEYPAIR,
-    encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-    // four static config fields
-    merkleTree: new MerkleTree(18, poseidon),
-    provider: undefined,
-    lookupTable: undefined,
-
-    relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-
-    verifier: new VerifierZero(),
-    shuffleEnabled: false,
-    poseidon: poseidon,
-  });
-
   let deposit_utxo1 = new Utxo({
     poseidon: poseidon,
     assets: [FEE_ASSET, MINT],
@@ -50,31 +31,32 @@ export async function functionalCircuitTest() {
     keypair,
   });
 
-  let outputUtxos = [deposit_utxo1];
-  console.log(
-    "outputUtxos[0].assetsCircuit[1]: ",
-    outputUtxos[0].assetsCircuit[1]
-  );
+  let lightInstance: LightInstance = {
+    merkleTree: new MerkleTree(18, poseidon),
+  };
+  let mockPubkey = SolanaKeypair.generate().publicKey;
+  let txParams: TransactionParameters = {
+    outputUtxos: [deposit_utxo1],
+    accounts: {
+      sender: mockPubkey,
+      senderFee: mockPubkey,
+    },
+    verifier: new VerifierZero(),
+  };
 
-  await tx.compileTransaction({
-    inputUtxos: [],
-    outputUtxos,
-    action: "DEPOSIT",
-    assetPubkeys: [new anchor.BN(0), outputUtxos[0].assetsCircuit[1]],
-    relayerFee: 0,
-    sender: SystemProgram.programId,
-    mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
-    merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-    config: { in: 2, out: 2 },
+  let tx = new Transaction({
+    instance: lightInstance,
+    payer: ADMIN_AUTH_KEYPAIR,
   });
-  // successful proofgen
-  await tx.getProof();
 
-  // unsuccessful proofgen
-  tx.inIndices[0][1][1] = "1";
-  // TODO: investigate why this does not kill the proof
-  tx.inIndices[0][1][0] = "1";
+  // successful proofgeneration
+  await tx.compileAndProve(txParams);
+
+  // unsuccessful proofgeneration
   try {
+    tx.proofInput.inIndices[0][1][1] = "1";
+    // TODO: investigate why this does not kill the proof
+    tx.proofInput.inIndices[0][1][0] = "1";
     expect(await tx.getProof()).to.Throw();
     // console.log(tx.input.inIndices[0])
     // console.log(tx.input.inIndices[1])

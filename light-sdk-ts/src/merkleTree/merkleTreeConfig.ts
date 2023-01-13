@@ -13,11 +13,7 @@ import {
   Transaction,
 } from "@solana/web3.js";
 
-import {
-  confirmConfig,
-  DEFAULT_PROGRAMS,
-  merkleTreeProgramId,
-} from "../index";
+import { confirmConfig, DEFAULT_PROGRAMS, merkleTreeProgramId } from "../index";
 import { Program } from "@coral-xyz/anchor";
 
 export class MerkleTreeConfig {
@@ -53,11 +49,9 @@ export class MerkleTreeConfig {
   }
 
   async getPreInsertedLeavesIndex() {
-    this.preInsertedLeavesIndex = (
-      await PublicKey.findProgramAddress(
-        [this.merkleTreePubkey.toBuffer()],
-        this.merkleTreeProgram.programId
-      )
+    this.preInsertedLeavesIndex = PublicKey.findProgramAddressSync(
+      [this.merkleTreePubkey.toBuffer()],
+      this.merkleTreeProgram.programId
     )[0];
     return this.preInsertedLeavesIndex;
   }
@@ -124,11 +118,9 @@ export class MerkleTreeConfig {
   }
 
   async getMerkleTreeAuthorityPda() {
-    this.merkleTreeAuthorityPda = (
-      await PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
-        this.merkleTreeProgram.programId
-      )
+    this.merkleTreeAuthorityPda = PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
+      this.merkleTreeProgram.programId
     )[0];
     return this.merkleTreeAuthorityPda;
   }
@@ -288,11 +280,9 @@ export class MerkleTreeConfig {
   async getRegisteredVerifierPda(verifierPubkey: PublicKey) {
     // TODO: add check whether already exists
     this.registeredVerifierPdas.push({
-      registeredVerifierPda: (
-        await PublicKey.findProgramAddress(
-          [verifierPubkey.toBuffer()],
-          this.merkleTreeProgram.programId
-        )
+      registeredVerifierPda: PublicKey.findProgramAddressSync(
+        [verifierPubkey.toBuffer()],
+        this.merkleTreeProgram.programId
       )[0],
       verifierPubkey: verifierPubkey,
     });
@@ -350,11 +340,9 @@ export class MerkleTreeConfig {
     // TODO: add check whether already exists
 
     this.poolTypes.push({
-      poolPda: (
-        await PublicKey.findProgramAddress(
-          [poolType, anchor.utils.bytes.utf8.encode("pooltype")],
-          this.merkleTreeProgram.programId
-        )
+      poolPda: PublicKey.findProgramAddressSync(
+        [poolType, anchor.utils.bytes.utf8.encode("pooltype")],
+        this.merkleTreeProgram.programId
       )[0],
       poolType: poolType,
     });
@@ -422,24 +410,24 @@ export class MerkleTreeConfig {
     }
   }
 
-  async getSolPoolPda(poolType) {
-    this.poolPdas.push({
-      pda: (
-        await PublicKey.findProgramAddress(
-          [
-            new Uint8Array(32).fill(0),
-            poolType,
-            anchor.utils.bytes.utf8.encode("pool-config"),
-          ],
-          this.merkleTreeProgram.programId
-        )
+  static getSolPoolPda(
+    programId: PublicKey,
+    poolType: Uint8Array = new Uint8Array(32)
+  ) {
+    return {
+      pda: PublicKey.findProgramAddressSync(
+        [
+          new Uint8Array(32).fill(0),
+          poolType,
+          anchor.utils.bytes.utf8.encode("pool-config"),
+        ],
+        programId
       )[0],
       poolType: poolType,
-    });
-    return this.poolPdas[this.poolPdas.length - 1];
+    };
   }
 
-  async registerSolPool(poolType) {
+  async registerSolPool(poolType: Uint8Array) {
     let registeredPoolTypePda = this.poolTypes.filter((item) => {
       return item.poolType === poolType;
     })[0];
@@ -447,7 +435,10 @@ export class MerkleTreeConfig {
     if (!registeredPoolTypePda) {
       registeredPoolTypePda = await this.getPoolTypePda(poolType);
     }
-    let solPoolPda = await this.getSolPoolPda(poolType);
+    let solPoolPda = MerkleTreeConfig.getSolPoolPda(
+      this.merkleTreeProgram.programId,
+      poolType
+    );
 
     const tx = await this.merkleTreeProgram.methods
       .registerSolPool()
@@ -467,49 +458,50 @@ export class MerkleTreeConfig {
     return tx;
   }
 
-  async getSplPoolPdaToken(poolType, mint: PublicKey) {
-    let pda = (
-      await PublicKey.findProgramAddress(
-        [
-          mint.toBytes(),
-          new Uint8Array(32).fill(0),
-          anchor.utils.bytes.utf8.encode("pool"),
-        ],
-        this.merkleTreeProgram.programId
-      )
+  static getSplPoolPdaToken(
+    mint: PublicKey,
+    programId: PublicKey,
+    poolType: Uint8Array = new Uint8Array(32).fill(0)
+  ) {
+    let pda = PublicKey.findProgramAddressSync(
+      [mint.toBytes(), poolType, anchor.utils.bytes.utf8.encode("pool")],
+      programId
     )[0];
     return pda;
   }
 
-  async getSplPoolPda(poolType, mint: PublicKey) {
+  async getSplPoolPda(
+    mint: PublicKey,
+    poolType: Uint8Array = new Uint8Array(32).fill(0)
+  ) {
     this.poolPdas.push({
-      pda: (
-        await PublicKey.findProgramAddress(
-          [
-            mint.toBytes(),
-            new Uint8Array(32).fill(0),
-            anchor.utils.bytes.utf8.encode("pool-config"),
-          ],
-          this.merkleTreeProgram.programId
-        )
+      pda: PublicKey.findProgramAddressSync(
+        [
+          mint.toBytes(),
+          new Uint8Array(32).fill(0),
+          anchor.utils.bytes.utf8.encode("pool-config"),
+        ],
+        this.merkleTreeProgram.programId
       )[0],
       poolType: poolType,
-      token: await this.getSplPoolPdaToken(poolType, mint),
+      token: await MerkleTreeConfig.getSplPoolPdaToken(
+        mint,
+        this.merkleTreeProgram.programId,
+        poolType
+      ),
     });
     return this.poolPdas[this.poolPdas.length - 1];
   }
 
   async getTokenAuthority() {
-    this.tokenAuthority = (
-      await PublicKey.findProgramAddress(
-        [anchor.utils.bytes.utf8.encode("spl")],
-        this.merkleTreeProgram.programId
-      )
+    this.tokenAuthority = PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("spl")],
+      this.merkleTreeProgram.programId
     )[0];
     return this.tokenAuthority;
   }
 
-  async registerSplPool(poolType, mint: PublicKey) {
+  async registerSplPool(poolType: Uint8Array, mint: PublicKey) {
     let registeredPoolTypePda = this.poolTypes.filter((item) => {
       return item.poolType === poolType;
     })[0];
@@ -518,7 +510,7 @@ export class MerkleTreeConfig {
       registeredPoolTypePda = await this.getPoolTypePda(poolType);
     }
 
-    let splPoolPda = await this.getSplPoolPda(poolType, mint);
+    let splPoolPda = await this.getSplPoolPda(mint, poolType);
 
     if (!this.tokenAuthority) {
       await this.getTokenAuthority();
