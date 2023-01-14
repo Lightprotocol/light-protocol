@@ -8,7 +8,13 @@
     "build": "tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "prepare": "cd .. && husky install ./light-sdk-ts/husky"
+  },
+  "format-staged": {
+    "**/*.{js,jsx}": [
+      "prettier --write"
+    ]
   },
   "keywords": [
     "sdk",
@@ -36,6 +42,7 @@
     "@types/mocha": "^9.0.0",
     "@types/node-fetch": "^2.6.2",
     "chai": "^4.3.4",
+    "husky": "^8.0.3",
     "lodash": "^4.17.21",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
