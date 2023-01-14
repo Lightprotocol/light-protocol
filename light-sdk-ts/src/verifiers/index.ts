@@ -40,4 +40,5 @@ export interface Verifier {
   getInstructions(
     transaction: Transaction,
   ): Promise<web3.TransactionInstruction[]>;
+  pubkey?: PublicKey
 }

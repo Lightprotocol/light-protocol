@@ -174,6 +174,8 @@ class Transaction {
                 outPoolType: (_k = this.params.outputUtxos) === null || _k === void 0 ? void 0 : _k.map((x) => x.poolType),
                 inVerifierPubkey: (_l = this.params.inputUtxos) === null || _l === void 0 ? void 0 : _l.map((x) => x.verifierAddressCircuit),
                 outVerifierPubkey: (_m = this.params.outputUtxos) === null || _m === void 0 ? void 0 : _m.map((x) => x.verifierAddressCircuit),
+                connectingHash: this.getConnectingHash(),
+                verifier: this.params.verifier.pubkey
             };
         }
         else {
@@ -230,6 +232,12 @@ class Transaction {
                 }
             }
         });
+    }
+    getConnectingHash() {
+        var _a, _b, _c, _d;
+        const inputHasher = this.poseidon.F.toString(this.poseidon((_b = (_a = this.params) === null || _a === void 0 ? void 0 : _a.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((utxo) => utxo.getCommitment())));
+        const outputHasher = this.poseidon.F.toString(this.poseidon((_d = (_c = this.params) === null || _c === void 0 ? void 0 : _c.outputUtxos) === null || _d === void 0 ? void 0 : _d.map((utxo) => utxo.getCommitment())));
+        return this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]));
     }
     assignAccounts(params) {
         if (this.assetPubkeys && this.params) {

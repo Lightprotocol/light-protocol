@@ -4,41 +4,33 @@ import {
 } from "../idls/verifier_program_two";
 import { Program } from "@coral-xyz/anchor";
 import {
-  PublicKey,
-} from "@solana/web3.js";
-import {
-  DEFAULT_PROGRAMS,
-  REGISTERED_VERIFIER_TWO_PDA,
+  hashAndTruncateToCircuit,
   verifierProgramTwoProgramId,
 } from "../index";
-import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
-import { assert } from "chai";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import { verifierProgramTwo } from "../index";
-
+import {BN} from "@coral-xyz/anchor"
+import { PublicKey } from "@solana/web3.js";
 export class VerifierTwo implements Verifier {
   verifierProgram: Program<VerifierProgramTwoIdl>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
-  registeredVerifierPda: PublicKey;
   nrPublicInputs: number;
   config: {in: number, out: number}
+  pubkey: BN
   constructor() {
     this.verifierProgram = new Program(
       VerifierProgramTwo,
       verifierProgramTwoProgramId,
     );
 
-    this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-    this.zkeyPath = "./build-circuits/transactionMasp2";
-    this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
-    this.registeredVerifierPda = REGISTERED_VERIFIER_TWO_PDA;
-    this.nrPublicInputs = 17;
+    this.wtnsGenPath = "transactionApp4_js/transactionApp4.wasm";
+    this.zkeyPath = "transactionApp4.zkey";
+    this.calculateWtns = require("../../build-circuits/transactionApp4_js/witness_calculator.js");
+    this.nrPublicInputs = 15;
     this.config = {in: 4, out: 4};
-    console.log("TODO Change paths to 4 ins 4 outs circuit");
-    console.log("REGISTERED_VERIFIER_TWO_PDA: is ONE");
+    this.pubkey = hashAndTruncateToCircuit( new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes());
   }
 
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
