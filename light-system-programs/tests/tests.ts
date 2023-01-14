@@ -8,8 +8,6 @@ let circomlibjs = require("circomlibjs");
 
 // TODO: add and use  namespaces in SDK
 import {
-  buildMerkleTree,
-  MerkleTree,
   Transaction,
   VerifierZero,
   VerifierOne,
@@ -61,7 +59,7 @@ import {
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
-} from "../../light-sdk-ts/src/index";
+} from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
