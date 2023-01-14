@@ -6,7 +6,7 @@ let circomlibjs = require("circomlibjs");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
-import { readFileSync } from "fs";
+import { close, readFileSync } from "fs";
 const snarkjs = require("snarkjs");
 const { keccak_256 } = require("@noble/hashes/sha3");
 
@@ -334,6 +334,8 @@ export class Transaction {
         outVerifierPubkey: this.params.outputUtxos?.map(
           (x) => x.verifierAddressCircuit,
         ),
+        connectingHash: this.getConnectingHash(),
+        verifier: this.params.verifier.pubkey
       };
     } else {
       throw new Error(`getProofInput has undefined inputs`);
@@ -359,15 +361,18 @@ export class Transaction {
       const buffer = readFileSync(completePathWtns);
 
       let witnessCalculator = await this.params.verifier.calculateWtns(buffer);
+      
       console.time("Proof generation");
       let wtns = await witnessCalculator.calculateWTNSBin(
         stringifyBigInts(this.proofInput),
         0,
       );
+
       const { proof, publicSignals } = await snarkjs.groth16.prove(
         completePathZkey,
         wtns
       );
+
       // this.params.verifier.zkeyPath
       const proofJson = JSON.stringify(proof, null, 1);
       const publicInputsJson = JSON.stringify(publicSignals, null, 1);
@@ -402,6 +407,13 @@ export class Transaction {
       }
     }
   }
+
+  getConnectingHash(): string {
+    const inputHasher = this.poseidon.F.toString(this.poseidon(this.params?.inputUtxos?.map((utxo) => utxo.getCommitment())))
+    const outputHasher = this.poseidon.F.toString(this.poseidon(this.params?.outputUtxos?.map((utxo) => utxo.getCommitment())))
+    return this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]));
+  }
+
 
   assignAccounts(params: TransactionParameters) {
     if (this.assetPubkeys && this.params) {

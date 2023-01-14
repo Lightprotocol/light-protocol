@@ -13,17 +13,16 @@ exports.VerifierTwo = void 0;
 const verifier_program_two_1 = require("../idls/verifier_program_two");
 const anchor_1 = require("@coral-xyz/anchor");
 const index_1 = require("../index");
+const web3_js_1 = require("@solana/web3.js");
 class VerifierTwo {
     constructor() {
         this.verifierProgram = new anchor_1.Program(verifier_program_two_1.VerifierProgramTwo, index_1.verifierProgramTwoProgramId);
-        this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-        this.zkeyPath = "./build-circuits/transactionMasp2";
-        this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
-        this.registeredVerifierPda = index_1.REGISTERED_VERIFIER_TWO_PDA;
-        this.nrPublicInputs = 17;
+        this.wtnsGenPath = "transactionApp4_js/transactionApp4.wasm";
+        this.zkeyPath = "transactionApp4.zkey";
+        this.calculateWtns = require("../../build-circuits/transactionApp4_js/witness_calculator.js");
+        this.nrPublicInputs = 15;
         this.config = { in: 4, out: 4 };
-        console.log("TODO Change paths to 4 ins 4 outs circuit");
-        console.log("REGISTERED_VERIFIER_TWO_PDA: is ONE");
+        this.pubkey = (0, index_1.hashAndTruncateToCircuit)(new web3_js_1.PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes());
     }
     parsePublicInputsFromArray(transaction) {
         if (transaction.publicInputsBytes.length == this.nrPublicInputs) {

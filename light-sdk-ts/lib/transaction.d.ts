@@ -123,6 +123,7 @@ export declare class Transaction {
     compile(params: TransactionParameters): Promise<void>;
     getProofInput(): void;
     getProof(): Promise<void>;
+    getConnectingHash(): string;
     assignAccounts(params: TransactionParameters): void;
     getAssetPubkeys(inputUtxos?: Utxo[], outputUtxos?: Utxo[]): {
         assetPubkeysCircuit: BN[];
