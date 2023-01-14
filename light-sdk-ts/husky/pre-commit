@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+cd light-sdk-ts
+npx format-staged
+exit 1 # Commit will be aborted
+
