@@ -23,10 +23,12 @@ export class VerifierZero implements Verifier {
         VerifierProgramZero,
         verifierProgramZeroProgramId,
       );
-    } catch (error) {}
+    } catch (error) {
 
-    this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-    this.zkeyPath = `./build-circuits/transactionMasp2`;
+    }
+    // ./build-circuits/transactionMasp2_js/
+    this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
+    this.zkeyPath = `transactionMasp2.zkey`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
     this.config = { in: 2, out: 2 };
   }
