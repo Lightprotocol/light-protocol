@@ -1,6 +1,6 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 
 export async function getUnspentUtxo(
   leavesPdas,
@@ -10,7 +10,7 @@ export async function getUnspentUtxo(
   FEE_ASSET,
   mint,
   POSEIDON,
-  merkleTreeProgram: MerkleTreeProgram
+  merkleTreeProgram: MerkleTreeProgram,
 ) {
   let decryptedUtxo1;
   for (var i = 0; i < leavesPdas.length; i++) {
@@ -20,7 +20,7 @@ export async function getUnspentUtxo(
       decryptedUtxo1 = Utxo.decrypt({
         poseidon: POSEIDON,
         encBytes: new Uint8Array(
-          Array.from(leavesPdas[i].account.encryptedUtxos)
+          Array.from(leavesPdas[i].account.encryptedUtxos),
         ),
         keypair: KEYPAIR,
       });
@@ -33,11 +33,11 @@ export async function getUnspentUtxo(
             new anchor.BN(nullifier.toString()).toBuffer(),
             anchor.utils.bytes.utf8.encode("nf"),
           ],
-          merkleTreeProgram.programId
+          merkleTreeProgram.programId,
         )
       )[0];
       let accountInfo = await provider.connection.getAccountInfo(
-        nullifierPubkey
+        nullifierPubkey,
       );
 
       if (
@@ -55,4 +55,3 @@ export async function getUnspentUtxo(
     }
   }
 }
-

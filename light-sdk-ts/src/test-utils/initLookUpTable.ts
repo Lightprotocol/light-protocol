@@ -39,19 +39,19 @@ import VerifierProgramZero, {
 export async function initLookUpTableFromFile(
   provider: anchor.Provider,
   path: PathOrFileDescriptor = `lookUpTable.txt`,
-  extraAccounts?: Array<PublicKey>
+  extraAccounts?: Array<PublicKey>,
 ) /*: Promise<PublicKey>*/ {
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
   const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
   var [lookUpTable] = await PublicKey.findProgramAddress(
     [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
-    AddressLookupTableProgram.programId
+    AddressLookupTableProgram.programId,
   );
   try {
     let lookUpTableRead = new PublicKey(readFileSync(path, "utf8"));
     let lookUpTableInfoInit = await provider.connection.getAccountInfo(
-      lookUpTableRead
+      lookUpTableRead,
     );
     if (lookUpTableInfoInit) {
       lookUpTable = lookUpTableRead;
@@ -64,7 +64,7 @@ export async function initLookUpTableFromFile(
     provider,
     lookUpTable,
     recentSlot,
-    extraAccounts
+    extraAccounts,
   );
 
   writeFile(path, LOOK_UP_TABLE.toString(), function (err) {
@@ -80,12 +80,12 @@ export async function initLookUpTable(
   provider: Provider,
   lookupTableAddress: PublicKey,
   recentSlot: number,
-  extraAccounts?: Array<PublicKey>
+  extraAccounts?: Array<PublicKey>,
 ): Promise<PublicKey> {
   var lookUpTableInfoInit = null;
   if (lookupTableAddress != undefined) {
     lookUpTableInfoInit = await provider.connection.getAccountInfo(
-      lookupTableAddress
+      lookupTableAddress,
     );
   }
 
@@ -100,12 +100,12 @@ export async function initLookUpTable(
     })[0];
     const verifierProgramZero: Program<VerifierProgramZeroIdl> = new Program(
       VerifierProgramZero,
-      verifierProgramZeroProgramId
+      verifierProgramZeroProgramId,
     );
     let escrows = (
       await PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("escrow")],
-        verifierProgramZero.programId
+        verifierProgramZero.programId,
       )
     )[0];
 
@@ -149,7 +149,7 @@ export async function initLookUpTable(
     transaction.add(ix0);
     // transaction.add(ix1);
     let recentBlockhash = await provider.connection.getRecentBlockhash(
-      "confirmed"
+      "confirmed",
     );
     transaction.feePayer = payerPubkey;
     transaction.recentBlockhash = recentBlockhash;
@@ -159,7 +159,7 @@ export async function initLookUpTable(
         provider.connection,
         transaction,
         [ADMIN_AUTH_KEYPAIR],
-        confirmConfig
+        confirmConfig,
       );
     } catch (e) {
       console.log("e : ", e);
@@ -168,7 +168,7 @@ export async function initLookUpTable(
     console.log("lookupTableAddress: ", lookupTableAddress.toBase58());
     let lookupTableAccount = await provider.connection.getAccountInfo(
       lookupTableAddress,
-      "confirmed"
+      "confirmed",
     );
     assert(lookupTableAccount != null);
   }

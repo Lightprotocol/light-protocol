@@ -28,7 +28,7 @@ export class MerkleTree {
     levels: number,
     poseidonHash2: any,
     elements: any[] = [],
-    { zeroElement = DEFAULT_ZERO } = {}
+    { zeroElement = DEFAULT_ZERO } = {},
   ) {
     this.levels = levels;
     this.capacity = 2 ** levels;
@@ -44,7 +44,7 @@ export class MerkleTree {
 
     for (let i = 1; i <= levels; i++) {
       this._zeros[i] = this._hash.F.toString(
-        this._hash([this._zeros[i - 1], this._zeros[i - 1]])
+        this._hash([this._zeros[i - 1], this._zeros[i - 1]]),
       );
     }
     this._rebuild();
@@ -60,7 +60,7 @@ export class MerkleTree {
             i * 2 + 1 < this._layers[level - 1].length
               ? this._layers[level - 1][i * 2 + 1]
               : this._zeros[level - 1],
-          ])
+          ]),
         );
       }
     }
@@ -122,7 +122,7 @@ export class MerkleTree {
         this._layers[level - 1][index * 2],
         index * 2 + 1 < this._layers[level - 1].length
           ? this._layers[level - 1][index * 2 + 1]
-          : this._zeros[level - 1]
+          : this._zeros[level - 1],
       );
     }
   }

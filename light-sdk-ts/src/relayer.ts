@@ -13,7 +13,7 @@ export class Relayer {
     relayerPubkey: PublicKey,
     lookUpTable: PublicKey,
     relayerRecipient?: PublicKey,
-    relayerFee: BN = new BN(0)
+    relayerFee: BN = new BN(0),
   ) {
     if (relayerRecipient) {
       this.accounts = {

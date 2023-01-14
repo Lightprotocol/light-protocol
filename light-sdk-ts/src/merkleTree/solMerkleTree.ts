@@ -1,6 +1,10 @@
 import { Program } from "@coral-xyz/anchor";
-import {PublicKey } from "@solana/web3.js";
-import { merkleTreeProgramId, MerkleTreeProgramIdl, MERKLE_TREE_HEIGHT } from "../index";
+import { PublicKey } from "@solana/web3.js";
+import {
+  merkleTreeProgramId,
+  MerkleTreeProgramIdl,
+  MERKLE_TREE_HEIGHT,
+} from "../index";
 import { MerkleTreeProgram } from "../idls/merkle_tree_program";
 import { MerkleTree } from "./merkleTree";
 const anchor = require("@coral-xyz/anchor");
@@ -9,16 +13,16 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 // TODO: once we have multiple trees add merkleTree[] and fetchTree(pubkey);
 export class SolMerkleTree {
-  merkleTree:MerkleTree;
+  merkleTree: MerkleTree;
   pubkey: PublicKey;
 
   constructor({
     pubkey,
     poseidon,
-    merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, poseidon)
+    merkleTree = new MerkleTree(MERKLE_TREE_HEIGHT, poseidon),
   }: {
-    poseidon?: any,
-    merkleTree?:MerkleTree;
+    poseidon?: any;
+    merkleTree?: MerkleTree;
     pubkey: PublicKey;
   }) {
     this.pubkey = pubkey;
@@ -28,31 +32,32 @@ export class SolMerkleTree {
   static async getLeaves(merkleTreePubkey: PublicKey) {
     const merkleTreeProgram: Program<MerkleTreeProgramIdl> = new Program(
       MerkleTreeProgram,
-      merkleTreeProgramId
+      merkleTreeProgramId,
     );
     const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      merkleTreePubkey
+      merkleTreePubkey,
     );
     const merkleTreeIndex = mtFetched.nextIndex;
     var leaveAccounts: Array<{
       pubkey: PublicKey;
       account: Account<Buffer>;
     }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
-    return {leaveAccounts, merkleTreeIndex, mtFetched};
+    return { leaveAccounts, merkleTreeIndex, mtFetched };
   }
 
-  static async build ({
+  static async build({
     pubkey,
     poseidon,
   }: {
     pubkey: PublicKey; // pubkey to bytes
     poseidon: any;
   }) {
-    const {leaveAccounts, merkleTreeIndex, mtFetched} = await SolMerkleTree.getLeaves(pubkey);
+    const { leaveAccounts, merkleTreeIndex, mtFetched } =
+      await SolMerkleTree.getLeaves(pubkey);
 
     leaveAccounts.sort(
       (a, b) =>
-        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
+        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber(),
     );
 
     const leaves: string[] = [];
@@ -66,15 +71,15 @@ export class SolMerkleTree {
             new anchor.BN(
               leaveAccounts[i].account.nodeLeft,
               undefined,
-              "le"
-            ).toString()
+              "le",
+            ).toString(),
           ); // .reverse()
           leaves.push(
             new anchor.BN(
               leaveAccounts[i].account.nodeRight,
               undefined,
-              "le"
-            ).toString()
+              "le",
+            ).toString(),
           );
         }
       }
@@ -83,59 +88,74 @@ export class SolMerkleTree {
     let fetchedMerkleTree = new MerkleTree(
       MERKLE_TREE_HEIGHT,
       poseidon,
-      leaves
+      leaves,
     );
 
     if (
       Array.from(
-        leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)
+        leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
       ).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()
     ) {
       throw new Error(
         `building merkle tree from chain failed: root local ${Array.from(
-          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)
+          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
         ).toString()} != root fetched ${
           mtFetched.roots[mtFetched.currentRootIndex]
-        }`
+        }`,
       );
     }
 
-    return new SolMerkleTree({merkleTree: fetchedMerkleTree, pubkey});
+    return new SolMerkleTree({ merkleTree: fetchedMerkleTree, pubkey });
   }
 
   static async getUninsertedLeaves(merkleTreePubkey: PublicKey) {
-    const {leaveAccounts, merkleTreeIndex} = await SolMerkleTree.getLeaves(merkleTreePubkey);
+    const { leaveAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
+      merkleTreePubkey,
+    );
 
     let filteredLeaves = leaveAccounts
       .filter((pda) => {
-        if(pda.account.merkleTreePubkey.toBase58() === merkleTreePubkey.toBase58()) {
-          return pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber();
+        if (
+          pda.account.merkleTreePubkey.toBase58() ===
+          merkleTreePubkey.toBase58()
+        ) {
+          return (
+            pda.account.leftLeafIndex.toNumber() >= merkleTreeIndex.toNumber()
+          );
         }
       })
       .sort(
         (a, b) =>
-          a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
+          a.account.leftLeafIndex.toNumber() -
+          b.account.leftLeafIndex.toNumber(),
       );
-  
+
     return filteredLeaves.map((pda) => {
       return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
     });
   }
 
-  static async getInsertedLeaves(merkleTreePubkey: PublicKey) /*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
-    const {leaveAccounts, merkleTreeIndex} = await SolMerkleTree.getLeaves(merkleTreePubkey);
+  static async getInsertedLeaves(
+    merkleTreePubkey: PublicKey,
+  ) /*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
+    const { leaveAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
+      merkleTreePubkey,
+    );
 
     console.log("Total nr of accounts. ", leaveAccounts.length);
-  
+
     let filteredLeaves = leaveAccounts
       .filter((pda) => {
-        return pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber();
+        return (
+          pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber()
+        );
       })
       .sort(
         (a, b) =>
-          a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
+          a.account.leftLeafIndex.toNumber() -
+          b.account.leftLeafIndex.toNumber(),
       );
-  
+
     return filteredLeaves;
   }
 }

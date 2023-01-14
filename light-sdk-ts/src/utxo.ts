@@ -154,7 +154,7 @@ export class Utxo {
     } else {
       this.verifierAddress = new BN(verifierAddress.toBytes());
       this.verifierAddressCircuit = hashAndTruncateToCircuit(
-        verifierAddress.toBytes()
+        verifierAddress.toBytes(),
       );
     }
   }
@@ -280,7 +280,7 @@ export class Utxo {
     if (!this._commitment) {
       let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
       let assetHash = this.poseidon.F.toString(
-        this.poseidon(this.assetsCircuit)
+        this.poseidon(this.assetsCircuit),
       );
 
       // console.log("amountHash ", amountHash.toString());
@@ -299,7 +299,7 @@ export class Utxo {
           this.instructionType.toString(),
           this.poolType,
           this.verifierAddressCircuit,
-        ])
+        ]),
       );
     }
     return this._commitment;
@@ -321,7 +321,7 @@ export class Utxo {
           this.keypair.privkey === null)
       ) {
         throw new Error(
-          "Can not compute nullifier without utxo index or private key"
+          "Can not compute nullifier without utxo index or private key",
         );
       }
 
@@ -333,7 +333,7 @@ export class Utxo {
       // console.log("signature ", signature);
 
       this._nullifier = this.poseidon.F.toString(
-        this.poseidon([this.getCommitment(), this.index || 0, signature])
+        this.poseidon([this.getCommitment(), this.index || 0, signature]),
       );
     }
     // console.log("this._nullifier ", this._nullifier);
@@ -358,7 +358,7 @@ export class Utxo {
       bytes_message,
       nonce,
       this.keypair.encryptionPublicKey,
-      CONSTANT_SECRET_AUTHKEY
+      CONSTANT_SECRET_AUTHKEY,
     );
 
     return new Uint8Array([...ciphertext, ...nonce]);
@@ -382,7 +382,7 @@ export class Utxo {
         encryptedUtxo,
         nonce,
         nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-        keypair.encPrivateKey
+        keypair.encPrivateKey,
       );
       if (!cleartext) {
         return null;
