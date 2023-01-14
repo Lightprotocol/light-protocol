@@ -12,10 +12,10 @@
   "author": "",
   "dependencies": {
     "circomlib": "^2.0.5",
-    "ffjavascript": "^0.2.48",
-    "update": "^0.7.4"
+    "ffjavascript": "^0.2.48"
   },
   "devDependencies": {
+    "@types/chai": "^4.3.0",
     "@types/mocha": "^10.0.1",
     "@types/node-fetch": "^2.6.2",
     "chai": "^4.3.7",

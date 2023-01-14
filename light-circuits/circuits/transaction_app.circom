@@ -68,7 +68,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal input  inBlinding[nIns];
     signal input  inInstructionType[nIns];
     signal  input inPoolType[nIns];
-    signal  input inVerifier[nIns];
+    signal  input inVerifierPubkey[nIns];
 
     signal  input inPathIndices[nIns];
     signal  input inPathElements[nIns][levels];
@@ -83,7 +83,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal  input outInstructionType[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
     signal  input outPoolType[nOuts];
-    signal  input outVerifier[nOuts];
+    signal  input outVerifierPubkey[nOuts];
 
     signal  input assetPubkeys[nAssets];
 
@@ -188,7 +188,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
         inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
         inCommitmentHasher[tx].inputs[5] <== inPoolType[tx];
-        inCommitmentHasher[tx].inputs[6] <== inVerifier[tx];
+        inCommitmentHasher[tx].inputs[6] <== inVerifierPubkey[tx];
 
         // ensure that all pool types are the same
         inPoolType[0] === inPoolType[tx];
@@ -290,7 +290,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
         outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
         outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
-        outCommitmentHasher[tx].inputs[6] <== outVerifier[tx];
+        outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
         outCommitmentHasher[tx].out === outputCommitment[tx];
 
         // ensure that all pool types are the same
