@@ -89,7 +89,7 @@ export type VerifierProgramTwoIdl = {
           name: "invokingVerifier";
           isMut: false;
           isSigner: false;
-        }
+        },
       ];
       args: [
         {
@@ -99,9 +99,9 @@ export type VerifierProgramTwoIdl = {
         {
           name: "appHash";
           type: "bytes";
-        }
+        },
       ];
-    }
+    },
   ];
 };
 export const VerifierProgramTwo: VerifierProgramTwoIdl = {

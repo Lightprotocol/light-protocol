@@ -23,15 +23,17 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program, Provider } from "@coral-xyz/anchor";
-import {
-  PRE_INSERTED_LEAVES_INDEX,
-  confirmConfig,
-} from "./constants";
+import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
 import { N_ASSETS, N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
-import { FIELD_SIZE, merkleTreeProgramId, Relayer, SolMerkleTree } from "./index";
+import {
+  FIELD_SIZE,
+  merkleTreeProgramId,
+  Relayer,
+  SolMerkleTree,
+} from "./index";
 import {
   MerkleTreeProgram,
   MerkleTreeProgramIdl,
@@ -118,7 +120,7 @@ export class TransactionParameters implements transactionParameters {
   }) {
     this.merkleTreeProgram = new Program(
       MerkleTreeProgram,
-      merkleTreeProgramId
+      merkleTreeProgramId,
     );
     this.accounts = {
       systemProgramId: SystemProgram.programId,
@@ -126,11 +128,11 @@ export class TransactionParameters implements transactionParameters {
       merkleTree: merkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         this.merkleTreeProgram.programId,
-        verifier.verifierProgram.programId
+        verifier.verifierProgram.programId,
       ),
       authority: Transaction.getSignerAuthorityPda(
         this.merkleTreeProgram.programId,
-        verifier.verifierProgram.programId
+        verifier.verifierProgram.programId,
       ),
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
@@ -202,7 +204,7 @@ export class Transaction {
    * @param shuffleEnabled
    */
 
-constructor({
+  constructor({
     instance,
     relayer,
     payer,
@@ -230,12 +232,16 @@ constructor({
   }
 
   // Returns serialized instructions
-  async proveAndCreateInstructionsJson(params: TransactionParameters): Promise<string[]> {
+  async proveAndCreateInstructionsJson(
+    params: TransactionParameters,
+  ): Promise<string[]> {
     await this.compileAndProve(params);
     return await this.getInstructionsJson();
   }
 
-  async proveAndCreateInstructions(params: TransactionParameters): Promise<TransactionInstruction[]> {
+  async proveAndCreateInstructions(
+    params: TransactionParameters,
+  ): Promise<TransactionInstruction[]> {
     await this.compileAndProve(params);
     return await this.params.verifier.getInstructions(this);
   }
@@ -257,11 +263,11 @@ constructor({
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
     this.params.inputUtxos = this.addEmptyUtxos(
       params.inputUtxos,
-      params.verifier.config.in
+      params.verifier.config.in,
     );
     this.params.outputUtxos = this.addEmptyUtxos(
       params.outputUtxos,
-      params.verifier.config.out
+      params.verifier.config.out,
     );
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
@@ -305,18 +311,18 @@ constructor({
         inIndices: this.getIndices(this.params.inputUtxos),
         outIndices: this.getIndices(this.params.outputUtxos),
         inInstructionType: this.params.inputUtxos?.map(
-          (x) => x.instructionType
+          (x) => x.instructionType,
         ),
         outInstructionType: this.params.outputUtxos?.map(
-          (x) => x.instructionType
+          (x) => x.instructionType,
         ),
         inPoolType: this.params.inputUtxos?.map((x) => x.poolType),
         outPoolType: this.params.outputUtxos?.map((x) => x.poolType),
         inVerifierPubkey: this.params.inputUtxos?.map(
-          (x) => x.verifierAddressCircuit
+          (x) => x.verifierAddressCircuit,
         ),
         outVerifierPubkey: this.params.outputUtxos?.map(
-          (x) => x.verifierAddressCircuit
+          (x) => x.verifierAddressCircuit,
         ),
       };
     } else {
@@ -342,12 +348,12 @@ constructor({
       console.time("Proof generation");
       let wtns = await witnessCalculator.calculateWTNSBin(
         stringifyBigInts(this.proofInput),
-        0
+        0,
       );
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(
         `${this.params.verifier.zkeyPath}.zkey`,
-        wtns
+        wtns,
       );
 
       const proofJson = JSON.stringify(proof, null, 1);
@@ -355,7 +361,7 @@ constructor({
       console.timeEnd("Proof generation");
 
       const vKey = await snarkjs.zKey.exportVerificationKey(
-        `${this.params.verifier.zkeyPath}.zkey`
+        `${this.params.verifier.zkeyPath}.zkey`,
       );
       const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
@@ -368,7 +374,7 @@ constructor({
       this.publicInputsBytes = JSON.parse(publicInputsJson.toString());
       for (var i in this.publicInputsBytes) {
         this.publicInputsBytes[i] = Array.from(
-          leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32)
+          leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32),
         ).reverse();
       }
       // console.log("publicInputsBytes ", this.publicInputsBytes);
@@ -392,7 +398,7 @@ constructor({
         }
         this.params.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
           this.assetPubkeys[1],
-          merkleTreeProgramId
+          merkleTreeProgramId,
         );
         this.params.accounts.senderFee =
           MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
@@ -401,7 +407,7 @@ constructor({
           this.params.accounts.recipient = SystemProgram.programId;
           if (this.publicAmount != new BN(0)) {
             throw new Error(
-              "sth is wrong assignAccounts !params.accounts.recipient"
+              "sth is wrong assignAccounts !params.accounts.recipient",
             );
           }
         }
@@ -409,7 +415,7 @@ constructor({
           this.params.accounts.recipientFee = SystemProgram.programId;
           if (this.feeAmount != new BN(0)) {
             throw new Error(
-              "sth is wrong assignAccounts !params.accounts.recipientFee"
+              "sth is wrong assignAccounts !params.accounts.recipientFee",
             );
           }
         }
@@ -420,7 +426,7 @@ constructor({
 
         this.params.accounts.recipient = MerkleTreeConfig.getSplPoolPdaToken(
           this.assetPubkeys[1],
-          merkleTreeProgramId
+          merkleTreeProgramId,
         );
         this.params.accounts.recipientFee =
           MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
@@ -428,7 +434,7 @@ constructor({
           this.params.accounts.sender = SystemProgram.programId;
           if (this.publicAmount != new BN(0)) {
             throw new Error(
-              "sth is wrong assignAccounts !params.accounts.sender"
+              "sth is wrong assignAccounts !params.accounts.sender",
             );
           }
         }
@@ -436,7 +442,7 @@ constructor({
           this.params.accounts.senderFee = SystemProgram.programId;
           if (this.feeAmount != new BN(0)) {
             throw new Error(
-              "sth is wrong assignAccounts !params.accounts.senderFee"
+              "sth is wrong assignAccounts !params.accounts.senderFee",
             );
           }
         }
@@ -448,7 +454,7 @@ constructor({
 
   getAssetPubkeys(
     inputUtxos?: Utxo[],
-    outputUtxos?: Utxo[]
+    outputUtxos?: Utxo[],
   ): { assetPubkeysCircuit: BN[]; assetPubkeys: PublicKey[] } {
     let assetPubkeysCircuit: BN[] = [new BN(0)];
     let assetPubkeys: PublicKey[] = [SystemProgram.programId];
@@ -471,15 +477,14 @@ constructor({
       });
     }
 
-
     if (assetPubkeys.length == 0) {
       throw new Error("No utxos provided.");
     }
     if (assetPubkeys.length > N_ASSET_PUBKEYS) {
       throw new Error("Utxos contain too many different assets.");
     }
-    while(assetPubkeysCircuit.length < N_ASSET_PUBKEYS) {
-      assetPubkeysCircuit.push(new BN(0))
+    while (assetPubkeysCircuit.length < N_ASSET_PUBKEYS) {
+      assetPubkeysCircuit.push(new BN(0));
     }
 
     return { assetPubkeysCircuit, assetPubkeys };
@@ -489,13 +494,18 @@ constructor({
     if (this.instance.provider && this.instance.solMerkleTree.merkleTree) {
       this.merkleTreeProgram = new Program(
         MerkleTreeProgram,
-        merkleTreeProgramId
+        merkleTreeProgramId,
       );
       let root = Uint8Array.from(
-        leInt2Buff(unstringifyBigInts(this.instance.solMerkleTree.merkleTree.root()), 32)
+        leInt2Buff(
+          unstringifyBigInts(this.instance.solMerkleTree.merkleTree.root()),
+          32,
+        ),
       );
       let merkle_tree_account_data =
-        await this.merkleTreeProgram.account.merkleTree.fetch(this.instance.solMerkleTree.pubkey);
+        await this.merkleTreeProgram.account.merkleTree.fetch(
+          this.instance.solMerkleTree.pubkey,
+        );
 
       merkle_tree_account_data.roots.map((x, index) => {
         if (x.toString() === root.toString()) {
@@ -504,7 +514,7 @@ constructor({
       });
     } else {
       console.log(
-        "provider not defined did not fetch rootIndex set root index to 0"
+        "provider not defined did not fetch rootIndex set root index to 0",
       );
       this.rootIndex = 0;
     }
@@ -517,7 +527,7 @@ constructor({
       }
     } else {
       throw new Error(
-        `input utxos ${utxos}, config ${this.params.verifier.config}`
+        `input utxos ${utxos}, config ${this.params.verifier.config}`,
       );
     }
     return utxos;
@@ -548,8 +558,8 @@ constructor({
               (sum, utxo) =>
                 // add all utxos of the same asset
                 sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0)
-            )
+              new anchor.BN(0),
+            ),
         )
         .sub(
           this.params.inputUtxos
@@ -561,14 +571,14 @@ constructor({
             })
             .reduce(
               (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0)
-            )
+              new anchor.BN(0),
+            ),
         )
         .add(FIELD_SIZE)
         .mod(FIELD_SIZE);
     } else {
       new Error(
-        `this.params.inputUtxos ${this.params.inputUtxos} && this.params.outputUtxos ${this.params.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`
+        `this.params.inputUtxos ${this.params.inputUtxos} && this.params.outputUtxos ${this.params.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
       );
     }
   }
@@ -577,12 +587,12 @@ constructor({
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
-    
+
     utxos.map((utxo) => {
       let tmpInIndices: String[][] = [];
       for (var a = 0; a < utxo.assets.length; a++) {
         let tmpInIndices1: String[] = [];
-        
+
         for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
           try {
             if (
@@ -598,7 +608,6 @@ constructor({
           } catch (error) {
             tmpInIndices1.push("0");
           }
-          
         }
         tmpInIndices.push(tmpInIndices1);
       }
@@ -618,24 +627,25 @@ constructor({
         inputUtxo.amounts[1] > new BN(0)
       ) {
         inputUtxo.index = this.instance.solMerkleTree.merkleTree.indexOf(
-          inputUtxo.getCommitment()
+          inputUtxo.getCommitment(),
         );
 
         if (inputUtxo.index || inputUtxo.index == 0) {
           if (inputUtxo.index < 0) {
             throw new Error(
-              `Input commitment ${inputUtxo.getCommitment()} was not found`
+              `Input commitment ${inputUtxo.getCommitment()} was not found`,
             );
           }
           this.inputMerklePathIndices.push(inputUtxo.index);
           this.inputMerklePathElements.push(
-            this.instance.solMerkleTree.merkleTree.path(inputUtxo.index).pathElements
+            this.instance.solMerkleTree.merkleTree.path(inputUtxo.index)
+              .pathElements,
           );
         }
       } else {
         this.inputMerklePathIndices.push(0);
         this.inputMerklePathElements.push(
-          new Array(this.instance.solMerkleTree.merkleTree.levels).fill(0)
+          new Array(this.instance.solMerkleTree.merkleTree.levels).fill(0),
         );
       }
     }
@@ -648,7 +658,7 @@ constructor({
       !this.relayer.relayerFee
     ) {
       throw new Error(
-        `getTxIntegrityHash: recipient ${this.params.accounts.recipient} recipientFee ${this.params.accounts.recipientFee} relayerFee ${this.relayer.relayerFee}`
+        `getTxIntegrityHash: recipient ${this.params.accounts.recipient} recipientFee ${this.params.accounts.recipientFee} relayerFee ${this.relayer.relayerFee}`,
       );
     } else {
       this.encryptedUtxos = this.encryptOutUtxos();
@@ -678,7 +688,7 @@ constructor({
       encryptedOutputs = Array.from(encryptedUtxos);
     } else {
       this.params.outputUtxos.map((utxo, index) =>
-        encryptedOutputs.push(utxo.encrypt())
+        encryptedOutputs.push(utxo.encrypt()),
       );
 
       if (this.params.verifier.config.out == 2) {
@@ -696,8 +706,8 @@ constructor({
         if (tmpArray.length < 512) {
           tmpArray.push(
             new Array(
-              this.params.verifier.config.out * 128 - tmpArray.length
-            ).fill(0)
+              this.params.verifier.config.out * 128 - tmpArray.length,
+            ).fill(0),
           );
         }
         return new Uint8Array(tmpArray.flat());
@@ -713,7 +723,7 @@ constructor({
       ...bytes,
       ...this.encryptedUtxos.slice(
         offSet + bytes.length,
-        this.encryptedUtxos.length
+        this.encryptedUtxos.length,
       ),
     ]);
   }
@@ -732,7 +742,7 @@ constructor({
         await getAccount(
           this.instance.provider.connection,
           this.params.accounts.recipient,
-          TOKEN_PROGRAM_ID
+          TOKEN_PROGRAM_ID,
         )
       ).amount;
     } catch (e) {
@@ -740,49 +750,49 @@ constructor({
       try {
         this.recipientBalancePriorTx =
           await this.instance.provider.connection.getBalance(
-            this.params.accounts.recipient
+            this.params.accounts.recipient,
           );
       } catch (e) {}
     }
     try {
       this.recipientFeeBalancePriorTx =
         await this.instance.provider.connection.getBalance(
-          this.params.accounts.recipientFee
+          this.params.accounts.recipientFee,
         );
     } catch (error) {
       console.log(
         "this.recipientFeeBalancePriorTx fetch failed ",
-        this.params.accounts.recipientFee
+        this.params.accounts.recipientFee,
       );
     }
 
     this.senderFeeBalancePriorTx =
       await this.instance.provider.connection.getBalance(
-        this.params.accounts.senderFee
+        this.params.accounts.senderFee,
       );
 
     this.relayerRecipientAccountBalancePriorLastTx =
       await this.instance.provider.connection.getBalance(
-        this.relayer.accounts.relayerRecipient
+        this.relayer.accounts.relayerRecipient,
       );
   }
 
   static getSignerAuthorityPda(
     merkleTreeProgramId: PublicKey,
-    verifierProgramId: PublicKey
+    verifierProgramId: PublicKey,
   ) {
     return PublicKey.findProgramAddressSync(
       [merkleTreeProgramId.toBytes()],
-      verifierProgramId
+      verifierProgramId,
     )[0];
   }
   static getRegisteredVerifierPda(
     merkleTreeProgramId: PublicKey,
-    verifierProgramId: PublicKey
+    verifierProgramId: PublicKey,
   ) {
     return PublicKey.findProgramAddressSync(
       [verifierProgramId.toBytes()],
-      merkleTreeProgramId
+      merkleTreeProgramId,
     )[0];
   }
 
@@ -814,11 +824,11 @@ constructor({
       const lookupTableAccount =
         await this.instance.provider.connection.getAccountInfo(
           this.relayer.accounts.lookUpTable,
-          "confirmed"
+          "confirmed",
         );
 
       const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-        lookupTableAccount.data
+        lookupTableAccount.data,
       );
 
       const compiledTx = txMsg.compileToV0Message([
@@ -846,7 +856,7 @@ constructor({
 
           res = await this.instance.provider.connection.sendRawTransaction(
             serializedTx,
-            confirmConfig
+            confirmConfig,
           );
           retries = 0;
           console.log(res);
@@ -874,7 +884,7 @@ constructor({
       if (txTmp) {
         await this.instance.provider?.connection.confirmTransaction(
           txTmp,
-          "confirmed"
+          "confirmed",
         );
         tx = txTmp;
       } else {
@@ -888,20 +898,20 @@ constructor({
     let publicSignals = [
       leBuff2int(Buffer.from(this.publicInputs.root.reverse())).toString(),
       leBuff2int(
-        Buffer.from(this.publicInputs.publicAmount.reverse())
+        Buffer.from(this.publicInputs.publicAmount.reverse()),
       ).toString(),
       leBuff2int(
-        Buffer.from(this.publicInputs.extDataHash.reverse())
+        Buffer.from(this.publicInputs.extDataHash.reverse()),
       ).toString(),
       leBuff2int(Buffer.from(this.publicInputs.feeAmount.reverse())).toString(),
       leBuff2int(
-        Buffer.from(this.publicInputs.mintPubkey.reverse())
+        Buffer.from(this.publicInputs.mintPubkey.reverse()),
       ).toString(),
       leBuff2int(
-        Buffer.from(this.publicInputs.nullifiers[0].reverse())
+        Buffer.from(this.publicInputs.nullifiers[0].reverse()),
       ).toString(),
       leBuff2int(
-        Buffer.from(this.publicInputs.nullifiers[1].reverse())
+        Buffer.from(this.publicInputs.nullifiers[1].reverse()),
       ).toString(),
       leBuff2int(Buffer.from(this.publicInputs.leaves[0].reverse())).toString(),
       leBuff2int(Buffer.from(this.publicInputs.leaves[1].reverse())).toString(),
@@ -911,10 +921,10 @@ constructor({
     let proof = {
       pi_a: [
         leBuff2int(
-          Buffer.from(this.proofBytes.slice(0, 32).reverse())
+          Buffer.from(this.proofBytes.slice(0, 32).reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.proofBytes.slice(32, 64).reverse())
+          Buffer.from(this.proofBytes.slice(32, 64).reverse()),
         ).toString(),
         "1",
       ],
@@ -931,10 +941,10 @@ constructor({
       ],
       pi_c: [
         leBuff2int(
-          Buffer.from(this.proofBytes.slice(192, 224).reverse())
+          Buffer.from(this.proofBytes.slice(192, 224).reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.proofBytes.slice(224, 256).reverse())
+          Buffer.from(this.proofBytes.slice(224, 256).reverse()),
         ).toString(),
         "1",
       ],
@@ -943,7 +953,7 @@ constructor({
     };
 
     const vKey = await snarkjs.zKey.exportVerificationKey(
-      `${this.params.verifier.zkeyPath}.zkey`
+      `${this.params.verifier.zkeyPath}.zkey`,
     );
     const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
     if (res === true) {
@@ -967,7 +977,7 @@ constructor({
           isWritable: true,
           pubkey: PublicKey.findProgramAddressSync(
             [Buffer.from(nullifiers[i]), anchor.utils.bytes.utf8.encode("nf")],
-            merkleTreeProgram.programId
+            merkleTreeProgram.programId,
           )[0],
         });
       }
@@ -982,27 +992,27 @@ constructor({
               Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()),
               anchor.utils.bytes.utf8.encode("leaves"),
             ],
-            merkleTreeProgram.programId
+            merkleTreeProgram.programId,
           )[0],
         });
       }
 
       this.params.accounts.escrow = PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("escrow")],
-        this.params.verifier.verifierProgram.programId
+        this.params.verifier.verifierProgram.programId,
       )[0];
       this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
         [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.params.verifier.verifierProgram.programId
+        this.params.verifier.verifierProgram.programId,
       )[0];
 
       this.params.accounts.tokenAuthority = PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("spl")],
-        merkleTreeProgram.programId
+        merkleTreeProgram.programId,
       )[0];
     } else {
       throw new Error(
-        `${this.params} && ${this.publicInputs} && ${this.merkleTreeProgram}`
+        `${this.params} && ${this.publicInputs} && ${this.merkleTreeProgram}`,
       );
     }
   }
@@ -1017,7 +1027,7 @@ constructor({
           this.params.nullifierPdaPubkeys[i].pubkey,
           {
             commitment: "confirmed",
-          }
+          },
         );
 
       await checkRentExemption({
@@ -1031,23 +1041,23 @@ constructor({
     for (var i in this.params.leavesPdaPubkeys) {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          this.params.leavesPdaPubkeys[i].pubkey
+          this.params.leavesPdaPubkeys[i].pubkey,
         );
 
       assert(
         leavesAccountData.nodeLeft.toString() ==
           this.publicInputs.leaves[i][0].reverse().toString(),
-        "left leaf not inserted correctly"
+        "left leaf not inserted correctly",
       );
       assert(
         leavesAccountData.nodeRight.toString() ==
           this.publicInputs.leaves[i][1].reverse().toString(),
-        "right leaf not inserted correctly"
+        "right leaf not inserted correctly",
       );
       assert(
         leavesAccountData.merkleTreePubkey.toBase58() ==
           this.instance.solMerkleTree.pubkey.toBase58(),
-        "merkleTreePubkey not inserted correctly"
+        "merkleTreePubkey not inserted correctly",
       );
 
       for (var j = 0; j < this.encryptedUtxos.length / 256; j++) {
@@ -1073,34 +1083,34 @@ constructor({
         const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
           assert.equal(
             utxo0.amounts[0].toString(),
-            utxo1.amounts[0].toString()
+            utxo1.amounts[0].toString(),
           );
           assert.equal(
             utxo0.amounts[1].toString(),
-            utxo1.amounts[1].toString()
+            utxo1.amounts[1].toString(),
           );
           assert.equal(utxo0.assets[0].toString(), utxo1.assets[0].toString());
           assert.equal(utxo0.assets[1].toString(), utxo1.assets[1].toString());
           assert.equal(
             utxo0.assetsCircuit[0].toString(),
-            utxo1.assetsCircuit[0].toString()
+            utxo1.assetsCircuit[0].toString(),
           );
           assert.equal(
             utxo0.assetsCircuit[1].toString(),
-            utxo1.assetsCircuit[1].toString()
+            utxo1.assetsCircuit[1].toString(),
           );
           assert.equal(
             utxo0.instructionType.toString(),
-            utxo1.instructionType.toString()
+            utxo1.instructionType.toString(),
           );
           assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
           assert.equal(
             utxo0.verifierAddress.toString(),
-            utxo1.verifierAddress.toString()
+            utxo1.verifierAddress.toString(),
           );
           assert.equal(
             utxo0.verifierAddressCircuit.toString(),
-            utxo1.verifierAddressCircuit.toString()
+            utxo1.verifierAddressCircuit.toString(),
           );
         };
         // console.log("decryptedUtxo ", decryptedUtxo1);
@@ -1115,28 +1125,28 @@ constructor({
     try {
       var preInsertedLeavesIndexAccount =
         await this.instance.provider.connection.getAccountInfo(
-          PRE_INSERTED_LEAVES_INDEX
+          PRE_INSERTED_LEAVES_INDEX,
         );
 
       const preInsertedLeavesIndexAccountAfterUpdate =
         this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
           "PreInsertedLeavesIndex",
-          preInsertedLeavesIndexAccount.data
+          preInsertedLeavesIndexAccount.data,
         );
       console.log(
         "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex)
+        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
       );
       console.log(
         `${Number(leavesAccountData.leftLeafIndex)} + ${
           this.params.leavesPdaPubkeys.length * 2
-        }`
+        }`,
       );
 
       assert(
         Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ==
           Number(leavesAccountData.leftLeafIndex) +
-            this.params.leavesPdaPubkeys.length * 2
+            this.params.leavesPdaPubkeys.length * 2,
       );
     } catch (e) {
       console.log("preInsertedLeavesIndex: ", e);
@@ -1145,14 +1155,14 @@ constructor({
     if (this.action == "DEPOSIT" && this.is_token == false) {
       var recipientAccount =
         await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.recipient
+          this.params.accounts.recipient,
         );
       assert(
         recipientAccount.lamports ==
           I64(this.recipientBalancePriorTx)
             .add(this.publicAmount.toString())
             .toString(),
-        "amount not transferred correctly"
+        "amount not transferred correctly",
       );
     } else if (this.action == "DEPOSIT" && this.is_token == true) {
       console.log("DEPOSIT and token");
@@ -1160,84 +1170,84 @@ constructor({
       var recipientAccount = await getAccount(
         this.instance.provider.connection,
         this.params.accounts.recipient,
-        TOKEN_PROGRAM_ID
+        TOKEN_PROGRAM_ID,
       );
       var recipientFeeAccountBalance =
         await this.instance.provider.connection.getBalance(
-          this.params.accounts.recipientFee
+          this.params.accounts.recipientFee,
         );
 
       // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
       // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
 
       console.log(
-        `Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`
+        `Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`,
       );
       console.log(
         `Balance now ${recipientAccount.amount} balance beginning ${
           Number(this.recipientBalancePriorTx) + Number(this.publicAmount)
-        }`
+        }`,
       );
       assert(
         recipientAccount.amount ==
           (
             Number(this.recipientBalancePriorTx) + Number(this.publicAmount)
           ).toString(),
-        "amount not transferred correctly"
+        "amount not transferred correctly",
       );
       console.log(
         `Blanace now ${recipientFeeAccountBalance} ${
           Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)
-        }`
+        }`,
       );
       console.log("fee amount: ", this.feeAmount);
       console.log(
         "fee amount from inputs. ",
-        new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString()
+        new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString(),
       );
       console.log(
         "pub amount from inputs. ",
-        new anchor.BN(this.publicInputs.publicAmount.slice(24, 32)).toString()
+        new anchor.BN(this.publicInputs.publicAmount.slice(24, 32)).toString(),
       );
 
       console.log(
         "recipientFeeBalancePriorTx: ",
-        this.recipientFeeBalancePriorTx
+        this.recipientFeeBalancePriorTx,
       );
 
       var senderFeeAccountBalance =
         await this.instance.provider.connection.getBalance(
-          this.params.accounts.senderFee
+          this.params.accounts.senderFee,
         );
       console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
       console.log(
         "this.senderFeeBalancePriorTx: ",
-        this.senderFeeBalancePriorTx
+        this.senderFeeBalancePriorTx,
       );
 
       assert(
         recipientFeeAccountBalance ==
-          Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)
+          Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount),
       );
       console.log(
         `${Number(this.senderFeeBalancePriorTx)} - ${Number(
-          this.feeAmount
-        )} == ${senderFeeAccountBalance}`
+          this.feeAmount,
+        )} == ${senderFeeAccountBalance}`,
       );
       assert(
         Number(this.senderFeeBalancePriorTx) -
           Number(this.feeAmount) -
           5000 * this.params.verifier.instructions?.length ==
-          Number(senderFeeAccountBalance)
+          Number(senderFeeAccountBalance),
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
       var senderAccount =
         await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.sender
+          this.params.accounts.sender,
         );
       var recipientAccount =
         await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.recipient
+          this.params.accounts.recipient,
         );
       // console.log("senderAccount.lamports: ", senderAccount.lamports)
       // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
@@ -1249,7 +1259,7 @@ constructor({
           .add(I64.readLE(this.extAmount, 0))
           .sub(I64(relayerFee))
           .toString(),
-        "amount not transferred correctly"
+        "amount not transferred correctly",
       );
 
       var recipientAccount =
@@ -1261,53 +1271,53 @@ constructor({
           I64(Number(this.recipientBalancePriorTx))
             .sub(I64.readLE(this.extAmount, 0))
             .toString(),
-        "amount not transferred correctly"
+        "amount not transferred correctly",
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == true) {
       var senderAccount = await getAccount(
         this.instance.provider.connection,
         this.params.accounts.sender,
-        TOKEN_PROGRAM_ID
+        TOKEN_PROGRAM_ID,
       );
       var recipientAccount = await getAccount(
         this.instance.provider.connection,
         this.params.accounts.recipient,
-        TOKEN_PROGRAM_ID
+        TOKEN_PROGRAM_ID,
       );
 
       // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
       console.log(
         "this.recipientBalancePriorTx ",
-        this.recipientBalancePriorTx
+        this.recipientBalancePriorTx,
       );
       console.log("this.publicAmount ", this.publicAmount);
       console.log(
         "this.publicAmount ",
-        this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE)
+        this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE),
       );
 
       console.log(
         `${recipientAccount.amount}, ${new anchor.BN(
-          this.recipientBalancePriorTx
+          this.recipientBalancePriorTx,
         )
           .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`
+          .toString()}`,
       );
       assert.equal(
         recipientAccount.amount.toString(),
         new anchor.BN(this.recipientBalancePriorTx)
           .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
-        "amount not transferred correctly"
+        "amount not transferred correctly",
       );
 
       var relayerAccount = await this.instance.provider.connection.getBalance(
-        this.relayer.accounts.relayerRecipient
+        this.relayer.accounts.relayerRecipient,
       );
 
       var recipientFeeAccount =
         await this.instance.provider.connection.getBalance(
-          this.params.accounts.recipientFee
+          this.params.accounts.recipientFee,
         );
       // console.log("recipientFeeAccount ", recipientFeeAccount);
       // console.log("this.feeAmount: ", this.feeAmount);
@@ -1322,31 +1332,31 @@ constructor({
           .add(new anchor.BN("5000"))
           .toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`
+          .toString()}`,
       );
 
       // console.log("relayerAccount ", relayerAccount);
       // console.log("this.relayer.relayerFee: ", this.relayer.relayerFee);
       console.log(
         "relayerRecipientAccountBalancePriorLastTx ",
-        this.relayerRecipientAccountBalancePriorLastTx
+        this.relayerRecipientAccountBalancePriorLastTx,
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
           .sub(this.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx
-        )}`
+          this.relayerRecipientAccountBalancePriorLastTx,
+        )}`,
       );
 
       console.log(
         `relayerAccount ${new anchor.BN(
-          relayerAccount
+          relayerAccount,
         ).toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx
+          this.relayerRecipientAccountBalancePriorLastTx,
         )
           .sub(new anchor.BN(this.relayer.relayerFee))
-          .toString()}`
+          .toString()}`,
       );
 
       console.log(
@@ -1354,7 +1364,7 @@ constructor({
           .add(new anchor.BN(this.relayer.relayerFee.toString()))
           .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`
+          .toString()}`,
       );
 
       assert.equal(
@@ -1363,7 +1373,7 @@ constructor({
           .toString(),
         new anchor.BN(this.recipientFeeBalancePriorTx)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()
+          .toString(),
       );
       // console.log(`this.relayer.relayerFee ${this.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
 
@@ -1372,7 +1382,7 @@ constructor({
           .sub(this.relayer.relayerFee)
           // .add(new anchor.BN("5000"))
           .toString(),
-        this.relayerRecipientAccountBalancePriorLastTx?.toString()
+        this.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else {
       throw Error("mode not supplied");
@@ -1407,35 +1417,33 @@ constructor({
   }
 
   // also converts lE to BE
-  static async parseProofToBytesArray (data: any) {
-  var mydata = JSON.parse(data.toString());
+  static async parseProofToBytesArray(data: any) {
+    var mydata = JSON.parse(data.toString());
 
-  for (var i in mydata) {
-    if (i == "pi_a" || i == "pi_c") {
-      for (var j in mydata[i]) {
-        mydata[i][j] = Array.from(
-          leInt2Buff(unstringifyBigInts(mydata[i][j]), 32)
-        ).reverse();
-      }
-    } else if (i == "pi_b") {
-      for (var j in mydata[i]) {
-        for (var z in mydata[i][j]) {
-          mydata[i][j][z] = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32)
-          );
+    for (var i in mydata) {
+      if (i == "pi_a" || i == "pi_c") {
+        for (var j in mydata[i]) {
+          mydata[i][j] = Array.from(
+            leInt2Buff(unstringifyBigInts(mydata[i][j]), 32),
+          ).reverse();
+        }
+      } else if (i == "pi_b") {
+        for (var j in mydata[i]) {
+          for (var z in mydata[i][j]) {
+            mydata[i][j][z] = Array.from(
+              leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32),
+            );
+          }
         }
       }
     }
+    return [
+      mydata.pi_a[0],
+      mydata.pi_a[1],
+      mydata.pi_b[0].flat().reverse(),
+      mydata.pi_b[1].flat().reverse(),
+      mydata.pi_c[0],
+      mydata.pi_c[1],
+    ].flat();
   }
-  return [
-    mydata.pi_a[0],
-    mydata.pi_a[1],
-    mydata.pi_b[0].flat().reverse(),
-    mydata.pi_b[1].flat().reverse(),
-    mydata.pi_c[0],
-    mydata.pi_c[1],
-  ].flat();
-};
 }
-
-

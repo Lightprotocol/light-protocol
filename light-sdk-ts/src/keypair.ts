@@ -47,14 +47,14 @@ export class Keypair {
       this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
-        this.poseidon
+        this.poseidon,
       );
     } else if (privateKey) {
       this.privkey = privateKey;
       this.encryptionPublicKey = new Uint8Array();
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
-        this.poseidon
+        this.poseidon,
       );
     } else if (publicKey) {
       this.pubkey = publicKey;
@@ -66,7 +66,7 @@ export class Keypair {
       this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
-        this.poseidon
+        this.poseidon,
       );
     }
   }
@@ -88,7 +88,7 @@ export class Keypair {
         this.privkey.toString(),
         commitment.toString(),
         merklePath,
-      ])
+      ]),
     );
   }
 
@@ -129,7 +129,7 @@ export class Keypair {
   static generateShieldedPrivateKey(seed: String): BN {
     const privkeySeed = seed + "shielded";
     const privateKey = new BN(
-      blake2b.create(b2params).update(privkeySeed).digest()
+      blake2b.create(b2params).update(privkeySeed).digest(),
     );
     return privateKey;
   }

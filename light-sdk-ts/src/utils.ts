@@ -13,7 +13,7 @@ export function hashAndTruncateToCircuit(data: Uint8Array) {
       .digest()
       .slice(1, 32),
     undefined,
-    "be"
+    "be",
   );
 }
 
@@ -35,7 +35,7 @@ export async function getAssetLookUpId({
 
   let registeredAssets =
     await mtConf.merkleTreeProgram.account.registeredAssetPool.fetch(
-      pubkey.pda
+      pubkey.pda,
     );
   return registeredAssets.index;
 }

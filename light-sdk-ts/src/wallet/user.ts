@@ -21,7 +21,7 @@ export class User {
   // Fetch utxos should probably be a function such the user object is not occupied while fetching
   // but it would probably be more logical to fetch utxos here as well
   addUtxos() {}
-  
+
   // TODO: evaluate where do we create outUtxos?
   selectUtxos(amount) {}
 
@@ -36,7 +36,6 @@ export class User {
   transfer(): TransactionParameters {}
 
   appInteraction() {}
-
 
   /*
     *
