@@ -2,7 +2,7 @@
   "name": "light-sdk",
   "version": "0.0.1",
   "description": "",
-  "main": "lib/index.d.ts",
+  "main": "lib/index.js",
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts",
     "build": "tsc",
@@ -16,6 +16,10 @@
       "prettier --write"
     ]
   },
+  "files": [
+    "lib/**/*",
+    "build-circuits/**/*"
+  ],
   "keywords": [
     "sdk",
     "light",
@@ -32,7 +36,7 @@
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.54",
     "fs": "^0.0.1-security",
-    "snarkjs": "^0.4.24",
+    "snarkjs": "^0.5.0",
     "tweetnacl": "^1.0.3"
   },
   "devDependencies": {

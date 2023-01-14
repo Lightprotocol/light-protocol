@@ -118,10 +118,20 @@ export class TransactionParameters implements transactionParameters {
     inputUtxos?: Utxo[];
     outputUtxos?: Utxo[];
   }) {
-    this.merkleTreeProgram = new Program(
-      MerkleTreeProgram,
-      merkleTreeProgramId,
-    );
+
+    try {
+      this.merkleTreeProgram = new Program(
+        MerkleTreeProgram,
+        merkleTreeProgramId
+      );
+    } catch (error) {
+      console.log(error);
+      console.log("assuming test mode thus continuing");
+      this.merkleTreeProgram = {
+        programId: merkleTreeProgramId
+      }
+    }
+
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -341,8 +351,12 @@ export class Transaction {
       throw new Error("params undefined probably not compiled");
     } else {
       // console.log("this.proofInput ", this.proofInput);
+      const path = require("path");
 
-      const buffer = readFileSync(`${this.params.verifier.wtnsGenPath}.wasm`);
+      const firstPath = path.resolve(__dirname, "../build-circuits/");
+      const completePathWtns = firstPath+ "/"  +  this.params.verifier.wtnsGenPath;
+      const completePathZkey = firstPath+ "/"  +  this.params.verifier.zkeyPath;
+      const buffer = readFileSync(completePathWtns);
 
       let witnessCalculator = await this.params.verifier.calculateWtns(buffer);
       console.time("Proof generation");
@@ -350,18 +364,17 @@ export class Transaction {
         stringifyBigInts(this.proofInput),
         0,
       );
-
       const { proof, publicSignals } = await snarkjs.groth16.prove(
-        `${this.params.verifier.zkeyPath}.zkey`,
-        wtns,
+        completePathZkey,
+        wtns
       );
-
+      // this.params.verifier.zkeyPath
       const proofJson = JSON.stringify(proof, null, 1);
       const publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd("Proof generation");
 
       const vKey = await snarkjs.zKey.exportVerificationKey(
-        `${this.params.verifier.zkeyPath}.zkey`,
+        completePathZkey
       );
       const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
@@ -701,7 +714,6 @@ export class Transaction {
         let tmpArray = new Array<any>();
         for (var i = 0; i < this.params.verifier.config.out; i++) {
           tmpArray.push(...encryptedOutputs[i]);
-          tmpArray.push(...nonces[i]);
         }
         if (tmpArray.length < 512) {
           tmpArray.push(
@@ -710,7 +722,10 @@ export class Transaction {
             ).fill(0),
           );
         }
-        return new Uint8Array(tmpArray.flat());
+        // return new Uint8Array(tmpArray.flat());
+        return new Uint8Array([
+          ...tmpArray
+        ]);
       }
     }
   }

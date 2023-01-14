@@ -2,18 +2,9 @@ import {
   VerifierProgramTwo,
   VerifierProgramTwoIdl,
 } from "../idls/verifier_program_two";
-import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import {
-  Connection,
   PublicKey,
-  Keypair,
-  SystemProgram,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  AddressLookupTableAccount,
-  VersionedTransaction,
-  sendAndConfirmRawTransaction,
 } from "@solana/web3.js";
 import {
   DEFAULT_PROGRAMS,
@@ -33,6 +24,7 @@ export class VerifierTwo implements Verifier {
   calculateWtns: NodeRequire;
   registeredVerifierPda: PublicKey;
   nrPublicInputs: number;
+  config: {in: number, out: number}
   constructor() {
     this.verifierProgram = new Program(
       VerifierProgramTwo,
@@ -44,6 +36,7 @@ export class VerifierTwo implements Verifier {
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
     this.registeredVerifierPda = REGISTERED_VERIFIER_TWO_PDA;
     this.nrPublicInputs = 17;
+    this.config = {in: 4, out: 4};
     console.log("TODO Change paths to 4 ins 4 outs circuit");
     console.log("REGISTERED_VERIFIER_TWO_PDA: is ONE");
   }
@@ -76,7 +69,7 @@ export class VerifierTwo implements Verifier {
 
   // Do I need a getData fn?
   // I should be able to fetch everything from the object
-  async sendTransaction(transaction: Transaction): Promise<any> {
+  async getInstructions(transaction: Transaction): Promise<any> {
     console.log("empty is cpi");
   }
 }

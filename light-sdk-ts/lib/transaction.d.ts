@@ -1,138 +1,151 @@
 /// <reference types="bn.js" />
 export declare const createEncryptionKeypair: () => any;
-import { MerkleTreeProgramIdl } from "./idls/merkle_tree_program";
-import { PublicKey, Keypair } from "@solana/web3.js";
+import { PublicKey, Keypair as SolanaKeypair, TransactionSignature, TransactionInstruction } from "@solana/web3.js";
+import { BN, Program, Provider } from "@coral-xyz/anchor";
 import { Utxo } from "./utxo";
-import { AnchorProvider, BN, Program } from "@coral-xyz/anchor";
-import { PublicInputs } from "./verifiers";
-export declare class Transaction {
-  relayerPubkey: PublicKey;
-  relayerRecipient: PublicKey;
-  preInsertedLeavesIndex: PublicKey;
-  merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
-  verifier: any;
-  lookupTable: PublicKey;
-  feeAsset: PublicKey;
-  merkleTreePubkey: PublicKey;
-  merkleTreeAssetPubkey?: PublicKey;
-  merkleTree: any;
-  utxos: any;
-  payer: Keypair;
-  provider: AnchorProvider;
-  merkleTreeFeeAssetPubkey: PublicKey;
-  poseidon: any;
-  shuffle: Boolean;
-  publicInputs: PublicInputs;
-  encryptionKeypair: any;
-  rootIndex: any;
-  inputUtxos?: Utxo[];
-  outputUtxos?: Utxo[];
-  feeAmount?: BN;
-  assetPubkeys?: BN[];
-  inIndices?: Number[][][];
-  outIndices?: Number[][][];
-  relayerFee?: BN | null;
-  sender?: PublicKey;
-  senderFee?: PublicKey;
-  recipient?: PublicKey;
-  recipientFee?: PublicKey;
-  mintPubkey?: PublicKey;
-  externalAmountBigNumber?: BN;
-  escrow?: PublicKey;
-  leavesPdaPubkeys: any;
-  nullifierPdaPubkeys: any;
-  signerAuthorityPubkey: any;
-  tokenAuthority: any;
-  verifierStatePubkey: any;
-  publicInputsBytes?: Number[][];
-  encryptedUtxos?: Uint8Array;
-  proofBytes: any;
-  config?: {
-    in: number;
-    out: number;
-  };
-  recipientBalancePriorTx?: BN;
-  /**
-   * Initialize transaction
-   *
-   * @param encryptionKeypair encryptionKeypair used for encryption
-   * @param relayerFee recipient of the unshielding
-   * @param merkleTreePubkey
-   * @param merkleTree
-   * @param merkleTreeAssetPubkey
-   * @param recipient utxos to pay with
-   * @param lookupTable fee for the relayer
-   * @param payer RPC connection
-   * @param provider shieldedKeypair
-   * @param relayerRecipient shieldedKeypair
-   * @param poseidon shieldedKeypair
-   * @param verifier shieldedKeypair
-   * @param shuffleEnabled
-   */
-  constructor({
-    payer, //: Keypair
-    encryptionKeypair,
-    merkleTree,
-    relayerPubkey, //PublicKey
-    relayerRecipient,
-    provider,
-    lookupTable, //PublicKey
-    poseidon,
-    verifier,
-    shuffleEnabled,
-  }: {
-    payer: any;
-    encryptionKeypair?: any;
-    merkleTree: any;
-    relayerPubkey: any;
-    relayerRecipient: any;
-    provider: any;
-    lookupTable: any;
-    poseidon: any;
-    verifier: any;
-    shuffleEnabled?: boolean | undefined;
-  });
-  getRootIndex(): Promise<void>;
-  prepareUtxos(): void;
-  getExternalAmount(assetIndex: number): any;
-  getIndices(utxos: Utxo[]): String[];
-  prepareTransaction(encrypedUtxos?: Uint8Array): void;
-  prepareTransactionFull({
-    inputUtxos,
-    outputUtxos,
-    action,
-    assetPubkeys,
-    recipient,
-    relayerFee, // public amount of the fee utxo adjustable if you want to deposit a fee utxo alongside your spl deposit
-    shuffle,
-    recipientFee,
-    sender,
-    merkleTreeAssetPubkey,
-    config,
-    encrypedUtxos,
-  }: {
-    inputUtxos: Array<Utxo>;
-    outputUtxos: Array<Utxo>;
-    action: String;
-    assetPubkeys: Array<BN>;
-    recipient: PublicKey;
-    relayerFee: BN | null;
-    shuffle: Boolean;
-    recipientFee: PublicKey;
-    sender: PublicKey;
-    merkleTreeAssetPubkey: PublicKey;
-    config: {
-      in: number;
-      out: number;
+import { PublicInputs, Verifier } from "./verifiers";
+import { Relayer, SolMerkleTree } from "./index";
+import { MerkleTreeProgramIdl } from "./idls/merkle_tree_program";
+export type transactionParameters = {
+    inputUtxos?: Array<Utxo>;
+    outputUtxos?: Array<Utxo>;
+    accounts: {
+        sender?: PublicKey;
+        recipient?: PublicKey;
+        senderFee?: PublicKey;
+        recipientFee?: PublicKey;
+        verifierState?: PublicKey;
+        tokenAuthority?: PublicKey;
+        escrow?: PublicKey;
     };
-    encrypedUtxos?: Uint8Array;
-  }): Promise<void>;
-  overWriteEncryptedUtxos(bytes: Uint8Array, offSet?: number): void;
-  getPublicInputs(): void;
-  sendTransaction(): Promise<any>;
-  getProof(): Promise<void>;
-  checkProof(): Promise<void>;
-  getPdaAddresses(): Promise<void>;
-  checkBalances(): Promise<void>;
+    encryptedUtxos?: Uint8Array;
+    verifier: Verifier;
+    nullifierPdaPubkeys?: {
+        isSigner: boolean;
+        isWritable: boolean;
+        pubkey: PublicKey;
+    }[];
+    leavesPdaPubkeys?: {
+        isSigner: boolean;
+        isWritable: boolean;
+        pubkey: PublicKey;
+    }[];
+};
+export declare class TransactionParameters implements transactionParameters {
+    inputUtxos?: Array<Utxo>;
+    outputUtxos?: Array<Utxo>;
+    accounts: {
+        sender?: PublicKey;
+        recipient?: PublicKey;
+        senderFee?: PublicKey;
+        recipientFee?: PublicKey;
+        verifierState?: PublicKey;
+        tokenAuthority?: PublicKey;
+        escrow?: PublicKey;
+        systemProgramId: PublicKey;
+        merkleTree: PublicKey;
+        tokenProgram: PublicKey;
+        registeredVerifierPda: PublicKey;
+        authority: PublicKey;
+        signingAddress?: PublicKey;
+        preInsertedLeavesIndex: PublicKey;
+        programMerkleTree: PublicKey;
+    };
+    encryptedUtxos?: Uint8Array;
+    verifier: Verifier;
+    nullifierPdaPubkeys?: {
+        isSigner: boolean;
+        isWritable: boolean;
+        pubkey: PublicKey;
+    }[];
+    leavesPdaPubkeys?: {
+        isSigner: boolean;
+        isWritable: boolean;
+        pubkey: PublicKey;
+    }[];
+    merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
+    constructor({ merkleTreePubkey, verifier, sender, recipient, senderFee, recipientFee, inputUtxos, outputUtxos, }: {
+        merkleTreePubkey: PublicKey;
+        verifier: Verifier;
+        sender?: PublicKey;
+        recipient?: PublicKey;
+        senderFee?: PublicKey;
+        recipientFee?: PublicKey;
+        inputUtxos?: Utxo[];
+        outputUtxos?: Utxo[];
+    });
 }
-export declare const parseProofToBytesArray: (data: any) => Promise<any[]>;
+export type LightInstance = {
+    provider?: Provider;
+    lookUpTable?: PublicKey;
+    solMerkleTree?: SolMerkleTree;
+};
+export declare class Transaction {
+    merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
+    payer?: SolanaKeypair;
+    poseidon: any;
+    shuffleEnabled: Boolean;
+    action?: string;
+    params?: TransactionParameters;
+    relayer: Relayer;
+    instance: LightInstance;
+    publicInputs?: PublicInputs;
+    rootIndex: any;
+    proofBytes: any;
+    encryptedUtxos?: Uint8Array;
+    proofInput: any;
+    assetPubkeysCircuit?: BN[];
+    assetPubkeys?: PublicKey[];
+    publicAmount?: BN;
+    feeAmount?: BN;
+    inputMerklePathIndices?: number[];
+    inputMerklePathElements?: number[];
+    publicInputsBytes?: number[][];
+    recipientBalancePriorTx?: BN;
+    relayerRecipientAccountBalancePriorLastTx?: BN;
+    /**
+     * Initialize transaction
+     *
+     * @param instance encryptionKeypair used for encryption
+     * @param relayer recipient of the unshielding
+     * @param payer
+     * @param shuffleEnabled
+     */
+    constructor({ instance, relayer, payer, shuffleEnabled, }: {
+        instance: LightInstance;
+        relayer?: Relayer;
+        payer?: SolanaKeypair;
+        shuffleEnabled?: boolean;
+    });
+    proveAndCreateInstructionsJson(params: TransactionParameters): Promise<string[]>;
+    proveAndCreateInstructions(params: TransactionParameters): Promise<TransactionInstruction[]>;
+    compileAndProve(params: TransactionParameters): Promise<void>;
+    compile(params: TransactionParameters): Promise<void>;
+    getProofInput(): void;
+    getProof(): Promise<void>;
+    assignAccounts(params: TransactionParameters): void;
+    getAssetPubkeys(inputUtxos?: Utxo[], outputUtxos?: Utxo[]): {
+        assetPubkeysCircuit: BN[];
+        assetPubkeys: PublicKey[];
+    };
+    getRootIndex(): Promise<void>;
+    addEmptyUtxos(utxos: Utxo[] | undefined, len: number): Utxo[];
+    getExternalAmount(assetIndex: number): BN;
+    getIndices(utxos: Utxo[]): string[][][];
+    getMerkleProofs(): void;
+    getTxIntegrityHash(): BN;
+    encryptOutUtxos(encryptedUtxos?: Uint8Array): Uint8Array | undefined;
+    overWriteEncryptedUtxos(bytes: Uint8Array, offSet?: number): void;
+    getPublicInputs(): void;
+    getTestValues(): Promise<void>;
+    static getSignerAuthorityPda(merkleTreeProgramId: PublicKey, verifierProgramId: PublicKey): PublicKey;
+    static getRegisteredVerifierPda(merkleTreeProgramId: PublicKey, verifierProgramId: PublicKey): PublicKey;
+    getInstructionsJson(): Promise<string[]>;
+    sendTransaction(ix: any): Promise<TransactionSignature | undefined>;
+    sendAndConfirmTransaction(): Promise<TransactionSignature>;
+    checkProof(): Promise<void>;
+    getPdaAddresses(): Promise<void>;
+    checkBalances(): Promise<void>;
+    shuffleUtxos(utxos: Utxo[]): Utxo[] | undefined;
+    static parseProofToBytesArray(data: any): Promise<any[]>;
+}
