@@ -33,22 +33,22 @@ export class VerifierTwo implements Verifier {
     this.pubkey = hashAndTruncateToCircuit( new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes());
   }
 
-  parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
-    if (transaction.publicInputsBytes.length == this.nrPublicInputs) {
+  parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
+    if (publicInputsBytes.length == this.nrPublicInputs) {
       return {
-        root: transaction.publicInputsBytes[0],
-        publicAmount: transaction.publicInputsBytes[1],
-        extDataHash: transaction.publicInputsBytes[2],
-        feeAmount: transaction.publicInputsBytes[3],
-        mintPubkey: transaction.publicInputsBytes[4],
-        checkedParams: Array.from(transaction.publicInputsBytes.slice(5, 9)),
-        nullifiers: Array.from(transaction.publicInputsBytes.slice(9, 13)),
+        root: publicInputsBytes[0],
+        publicAmount: publicInputsBytes[1],
+        extDataHash: publicInputsBytes[2],
+        feeAmount: publicInputsBytes[3],
+        mintPubkey: publicInputsBytes[4],
+        checkedParams: Array.from(publicInputsBytes.slice(5, 9)),
+        nullifiers: Array.from(publicInputsBytes.slice(9, 13)),
         leaves: Array.from(
-          transaction.publicInputsBytes.slice(13, this.nrPublicInputs),
+          publicInputsBytes.slice(13, this.nrPublicInputs)
         ),
       };
     } else {
-      throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != ${this.nrPublicInputs}`;
+      throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`;
     }
   }
 

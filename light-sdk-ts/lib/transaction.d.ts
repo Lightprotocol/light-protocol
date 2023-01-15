@@ -87,13 +87,17 @@ export declare class Transaction {
     shuffleEnabled: Boolean;
     action?: string;
     params?: TransactionParameters;
+    appParams?: any;
     relayer: Relayer;
     instance: LightInstance;
     publicInputs?: PublicInputs;
     rootIndex: any;
     proofBytes: any;
+    proofBytesApp: any;
+    publicInputsApp?: PublicInputs;
     encryptedUtxos?: Uint8Array;
     proofInput: any;
+    proofInputSystem: any;
     assetPubkeysCircuit?: BN[];
     assetPubkeys?: PublicKey[];
     publicAmount?: BN;
@@ -101,6 +105,7 @@ export declare class Transaction {
     inputMerklePathIndices?: number[];
     inputMerklePathElements?: number[];
     publicInputsBytes?: number[][];
+    connectingHash?: string;
     recipientBalancePriorTx?: BN;
     relayerRecipientAccountBalancePriorLastTx?: BN;
     /**
@@ -120,9 +125,14 @@ export declare class Transaction {
     proveAndCreateInstructionsJson(params: TransactionParameters): Promise<string[]>;
     proveAndCreateInstructions(params: TransactionParameters): Promise<TransactionInstruction[]>;
     compileAndProve(params: TransactionParameters): Promise<void>;
-    compile(params: TransactionParameters): Promise<void>;
+    compile(params: TransactionParameters, appParams?: any): Promise<void>;
     getProofInput(): void;
+    getAppProof(): Promise<void>;
     getProof(): Promise<void>;
+    getProofInternal(verifier: Verifier, inputs: any, firstPath: string): Promise<{
+        proofBytes: any[];
+        publicInputs: PublicInputs;
+    }>;
     getConnectingHash(): string;
     assignAccounts(params: TransactionParameters): void;
     getAssetPubkeys(inputUtxos?: Utxo[], outputUtxos?: Utxo[]): {

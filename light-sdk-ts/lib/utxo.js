@@ -46,7 +46,7 @@ class Utxo {
     constructor({ poseidon, 
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [web3_js_1.SystemProgram.programId], amounts = [new anchor_1.BN("0")], keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding = new anchor_1.BN(randomBN(), 31, "le"), poolType = new anchor_1.BN("0"), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], index = null, }) {
+    blinding = new anchor_1.BN(randomBN(), 31, "le"), poolType = new anchor_1.BN("0"), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], appDataFromBytesFn, index = null, }) {
         // check that blinding is 31 bytes
         blinding.toArray("le", 31);
         if (assets.length != amounts.length) {
@@ -85,7 +85,14 @@ class Utxo {
         if (appData.length > 0) {
             // TODO: change to poseidon hash which is reproducable in circuit
             // TODO: write function which creates the instructionTypeHash
-            // this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
+            if (appDataFromBytesFn) {
+                console.log("appDataFromBytesFn(appData) ", appDataFromBytesFn(appData).map((x) => x.toString()));
+                this.instructionType = poseidon.F.toString(poseidon(appDataFromBytesFn(appData)));
+                console.log("this.instructionType ", this.instructionType);
+            }
+            else {
+                throw new Error("No appDataFromBytesFn provided");
+            }
         }
         else {
             this.instructionType = new anchor_1.BN("0");

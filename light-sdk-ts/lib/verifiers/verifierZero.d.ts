@@ -15,6 +15,6 @@ export declare class VerifierZero implements Verifier {
     };
     instructions?: anchor.web3.TransactionInstruction[];
     constructor();
-    parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
+    parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs;
     getInstructions(transaction: Transaction): Promise<anchor.web3.TransactionInstruction[]>;
 }

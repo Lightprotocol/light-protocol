@@ -26,7 +26,7 @@ export declare class Utxo {
     _nullifier: BN | null;
     poseidon: any;
     constructor({ poseidon, assets, amounts, keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding, poolType, verifierAddress, appData, index, }: {
+    blinding, poolType, verifierAddress, appData, appDataFromBytesFn, index, }: {
         poseidon: any;
         assets?: PublicKey[];
         amounts?: BN[];
@@ -35,6 +35,7 @@ export declare class Utxo {
         poolType?: BN;
         verifierAddress?: PublicKey;
         appData?: Array<any>;
+        appDataFromBytesFn?: Function;
         index?: any;
     });
     toBytes(): Uint8Array;

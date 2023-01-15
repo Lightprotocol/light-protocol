@@ -49,32 +49,33 @@ class VerifierOne {
         this.calculateWtns = require("../../build-circuits/transactionMasp10_js/witness_calculator.js");
         this.config = { in: 10, out: 2 };
     }
-    parsePublicInputsFromArray(transaction) {
-        if (transaction.publicInputsBytes.length == 17) {
+    parsePublicInputsFromArray(publicInputsBytes) {
+        if (publicInputsBytes.length == 17) {
             return {
-                root: transaction.publicInputsBytes[0],
-                publicAmount: transaction.publicInputsBytes[1],
-                extDataHash: transaction.publicInputsBytes[2],
-                feeAmount: transaction.publicInputsBytes[3],
-                mintPubkey: transaction.publicInputsBytes[4],
-                nullifiers: Array.from(transaction.publicInputsBytes.slice(5, 15)),
+                root: publicInputsBytes[0],
+                publicAmount: publicInputsBytes[1],
+                extDataHash: publicInputsBytes[2],
+                feeAmount: publicInputsBytes[3],
+                mintPubkey: publicInputsBytes[4],
+                nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
                 leaves: [
                     [
-                        transaction.publicInputsBytes[15],
-                        transaction.publicInputsBytes[16],
+                        publicInputsBytes[15],
+                        publicInputsBytes[16],
                     ],
                 ],
             };
         }
         else {
-            throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != 17`;
+            throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != 17`;
         }
     }
     getInstructions(transaction) {
         return __awaiter(this, void 0, void 0, function* () {
             if (transaction.params &&
                 transaction.params.nullifierPdaPubkeys &&
-                transaction.params.leavesPdaPubkeys) {
+                transaction.params.leavesPdaPubkeys &&
+                transaction.publicInputs) {
                 if (!transaction.payer) {
                     throw new Error("Payer not defined");
                 }

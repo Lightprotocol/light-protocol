@@ -17,7 +17,7 @@ export declare class VerifierTwo implements Verifier {
     };
     pubkey: BN;
     constructor();
-    parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
+    parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs;
     initVerifierProgram(): void;
     getInstructions(transaction: Transaction): Promise<any>;
 }
