@@ -4,7 +4,8 @@
   "description": "",
   "main": "parse_pvk_to_bytes_254.js",
   "scripts": {
-    "build": "sh buildCircuitMasp.sh ",
+    "build-masp": "sh buildCircuit.sh Masp",
+    "build-app": "sh buildCircuit.sh App",
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts",
     "format": "prettier --write \"src/**/*.{ts,js}\""
   },
@@ -12,5 +13,15 @@
   "dependencies": {
     "circomlib": "^2.0.5",
     "ffjavascript": "^0.2.48"
+  },
+  "devDependencies": {
+    "@types/chai": "^4.3.0",
+    "@types/mocha": "^10.0.1",
+    "@types/node-fetch": "^2.6.2",
+    "chai": "^4.3.7",
+    "light-sdk": "file:../light-sdk-ts",
+    "mocha": "^10.2.0",
+    "ts-mocha": "^10.0.0",
+    "typescript": "^4.3.5"
   }
 }

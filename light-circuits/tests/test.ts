@@ -1,3 +1,30 @@
+
+
+describe("verifier_program", () => {
+  it("init", async () => {
+    try {
+      const provider = new anchor.AnchorProvider(
+        await new Connection("http://127.0.0.1:8899"),
+        new anchor.Wallet(SolanaKeypair.generate()),
+        confirmConfig
+      )
+      await  anchor.setProvider(provider);
+    } catch (error) {
+      console.log("expected local test validator to be running");
+      process.exit()
+    }
+  })
+  
+// test functional circuit
+  it.skip("Test functional circuit 2 in 2 out", async () => {
+    await functionalCircuitTest(new VerifierZero());
+  })
+
+  it("Test functional circuit 4 in 4 out + connecting hash", async () => {
+    await functionalCircuitTest(new VerifierTwo());
+  })
+})
+
 import {
   ADMIN_AUTH_KEYPAIR,
   confirmConfig,
@@ -9,29 +36,15 @@ import {
   TransactionParameters,
   Utxo,
   VerifierZero,
-} from "../index";
-import { MerkleTree, SolMerkleTree } from "../merkleTree/index";
+  SolMerkleTree, 
+  VerifierTwo
+} from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-import { getProvider } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 
-export async function functionalCircuitTest() {
-
-  
-  try {
-    const provider = new anchor.AnchorProvider(
-      await new Connection("http://127.0.0.1:8899"),
-      new anchor.Wallet(SolanaKeypair.generate()),
-      confirmConfig
-    )
-    await  anchor.setProvider(provider);
-  } catch (error) {
-    console.log("expected local test validator to be running");
-    process.exit()
-  }
-  
+async function functionalCircuitTest(verifier) {
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
@@ -55,7 +68,7 @@ export async function functionalCircuitTest() {
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
     senderFee: mockPubkey,
-    verifier: new VerifierZero(),
+    verifier,
   });
 
   let tx = new Transaction({
@@ -64,7 +77,7 @@ export async function functionalCircuitTest() {
   });
 
   // successful proofgeneration
-  await tx.compile(txParams);
+  await tx.compile(txParams, {mock: "123"});
   console.log(tx.proofInput);
   
   await tx.getProof()
