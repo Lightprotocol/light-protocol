@@ -12,7 +12,6 @@ export class Keypair {
    */
   privkey: BN;
   pubkey: BN;
-
   encryptionPublicKey: Uint8Array;
   encPrivateKey?: Uint8Array;
   poseidon: any;

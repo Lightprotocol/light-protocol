@@ -23,36 +23,38 @@ export class VerifierZero implements Verifier {
         VerifierProgramZero,
         verifierProgramZeroProgramId,
       );
-    } catch (error) {}
+    } catch (error) {
 
-    this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-    this.zkeyPath = `./build-circuits/transactionMasp2`;
+    }
+    // ./build-circuits/transactionMasp2_js/
+    this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
+    this.zkeyPath = `transactionMasp2.zkey`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
     this.config = { in: 2, out: 2 };
   }
 
-  parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
-    if (transaction.publicInputsBytes) {
-      if (transaction.publicInputsBytes.length == 9) {
+  parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs {
+    if (publicInputsBytes) {
+      if (publicInputsBytes.length == 9) {
         return {
-          root: transaction.publicInputsBytes[0],
-          publicAmount: transaction.publicInputsBytes[1],
-          extDataHash: transaction.publicInputsBytes[2],
-          feeAmount: transaction.publicInputsBytes[3],
-          mintPubkey: transaction.publicInputsBytes[4],
+          root: publicInputsBytes[0],
+          publicAmount: publicInputsBytes[1],
+          extDataHash: publicInputsBytes[2],
+          feeAmount: publicInputsBytes[3],
+          mintPubkey: publicInputsBytes[4],
           nullifiers: [
-            transaction.publicInputsBytes[5],
-            transaction.publicInputsBytes[6],
+            publicInputsBytes[5],
+            publicInputsBytes[6],
           ],
           leaves: [
             [
-              transaction.publicInputsBytes[7],
-              transaction.publicInputsBytes[8],
+              publicInputsBytes[7],
+              publicInputsBytes[8],
             ],
           ],
         };
       } else {
-        throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != 9`;
+        throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != 9`;
       }
     } else {
       throw new Error("public input bytes undefined");
