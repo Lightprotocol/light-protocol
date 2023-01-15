@@ -41,11 +41,11 @@ const sleep = (ms) => {
 export const newAccountWithLamports = async (
   connection: Connection,
   account = solana.Keypair.generate(),
-  lamports = 1e10
+  lamports = 1e10,
 ) => {
   let x = await connection.confirmTransaction(
     await connection.requestAirdrop(account.publicKey, lamports),
-    "confirmed"
+    "confirmed",
   );
   console.log("newAccountWithLamports ", account.publicKey.toBase58());
   return account;
@@ -54,7 +54,7 @@ export const newAccountWithLamports = async (
 export const newAddressWithLamports = async (
   connection: Connection,
   address = new anchor.web3.Account().publicKey,
-  lamports = 1e11
+  lamports = 1e11,
 ) => {
   let retries = 30;
   await connection.requestAirdrop(address, lamports);
@@ -88,7 +88,7 @@ export const newProgramOwnedAccount = async ({
     try {
       await connection.confirmTransaction(
         await connection.requestAirdrop(payer.publicKey, 1e7),
-        "confirmed"
+        "confirmed",
       );
 
       const tx = new solana.Transaction().add(
@@ -98,7 +98,7 @@ export const newProgramOwnedAccount = async ({
           space: 0,
           lamports: await connection.getMinimumBalanceForRentExemption(1),
           Id: owner.programId,
-        })
+        }),
       );
 
       tx.feePayer = payer.publicKey;
@@ -110,7 +110,7 @@ export const newProgramOwnedAccount = async ({
         {
           commitment: "confirmed",
           preflightCommitment: "confirmed",
-        }
+        },
       );
       return account;
     } catch {}
@@ -133,7 +133,7 @@ export async function newAccountWithTokens({
       connection,
       ADMIN_AUTH_KEYPAIR,
       MINT,
-      userAccount.publicKey
+      userAccount.publicKey,
       // userAccount
     );
 
@@ -150,7 +150,7 @@ export async function newAccountWithTokens({
       tokenAccount,
       ADMIN_AUTH_KEYPAIR.publicKey,
       amount,
-      []
+      [],
     );
   } catch (e) {
     console.log(e);
@@ -186,20 +186,20 @@ export async function createMintWrapper({
         newAccountPubkey: mintKeypair.publicKey,
         programId: TOKEN_PROGRAM_ID,
         space: space,
-      })
+      }),
     );
 
     let res = await sendAndConfirmTransaction(
       connection,
       txCreateAccount,
       [authorityKeypair, mintKeypair],
-      confirmConfig
+      confirmConfig,
     );
     assert(
       (await connection.getTransaction(res, {
         commitment: "confirmed",
       })) != null,
-      "create mint account failed"
+      "create mint account failed",
     );
     let mint = await createMint(
       connection,
@@ -207,11 +207,11 @@ export async function createMintWrapper({
       authorityKeypair.publicKey,
       null, // freez auth
       decimals, //2,
-      mintKeypair
+      mintKeypair,
     );
     assert(
       (await connection.getAccountInfo(mint)) != null,
-      "create mint failed"
+      "create mint failed",
     );
     return mintKeypair.publicKey;
   } catch (e) {
@@ -244,20 +244,20 @@ export async function createTestAccounts(connection: Connection) {
         fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
         toPubkey: AUTHORITY,
         lamports: 1_000_000_000,
-      })
+      }),
     );
     await sendAndConfirmTransaction(
       connection,
       txTransfer1,
       [ADMIN_AUTH_KEYPAIR],
-      confirmConfig
+      confirmConfig,
     );
   }
 
   if (
     (await connection.getBalance(
       solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
-      "confirmed"
+      "confirmed",
     )) == 0
   ) {
     await createMintWrapper({
@@ -275,7 +275,7 @@ export async function createTestAccounts(connection: Connection) {
       connection,
       userTokenAccount,
       "confirmed",
-      TOKEN_PROGRAM_ID
+      TOKEN_PROGRAM_ID,
     );
   } catch (e) {}
 

@@ -21,11 +21,9 @@ export class VerifierZero implements Verifier {
     try {
       this.verifierProgram = new Program(
         VerifierProgramZero,
-        verifierProgramZeroProgramId
+        verifierProgramZeroProgramId,
       );
-    } catch (error) {
-      
-    }
+    } catch (error) {}
 
     this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
     this.zkeyPath = `./build-circuits/transactionMasp2`;
@@ -62,7 +60,7 @@ export class VerifierZero implements Verifier {
   }
 
   async getInstructions(
-    transaction: Transaction
+    transaction: Transaction,
   ): Promise<anchor.web3.TransactionInstruction[]> {
     if (
       transaction.params &&
@@ -82,7 +80,7 @@ export class VerifierZero implements Verifier {
           Buffer.from(transaction.publicInputs.feeAmount),
           new anchor.BN(transaction.rootIndex.toString()),
           new anchor.BN(transaction.relayer.relayerFee.toString()),
-          Buffer.from(transaction.encryptedUtxos.slice(0, 190)) // remaining bytes can be used once tx sizes increase
+          Buffer.from(transaction.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase
         )
         .accounts({
           ...transaction.params.accounts,
@@ -97,7 +95,7 @@ export class VerifierZero implements Verifier {
       return [ix];
     } else {
       throw new Error(
-        "transaction.params, nullifierPdaPubkeys or leavesPdaPubkeys undefined"
+        "transaction.params, nullifierPdaPubkeys or leavesPdaPubkeys undefined",
       );
     }
   }

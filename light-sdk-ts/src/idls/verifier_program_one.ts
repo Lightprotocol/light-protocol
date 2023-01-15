@@ -196,7 +196,7 @@ export type VerifierProgramOneIdl = {
           name: "verifierState";
           isMut: true;
           isSigner: false;
-        }
+        },
       ];
       args: [
         {
@@ -210,7 +210,7 @@ export type VerifierProgramOneIdl = {
               {
                 array: ["u8", 32];
               },
-              10
+              10,
             ];
           };
         },
@@ -221,7 +221,7 @@ export type VerifierProgramOneIdl = {
               {
                 array: ["u8", 32];
               },
-              2
+              2,
             ];
           };
         },
@@ -240,7 +240,7 @@ export type VerifierProgramOneIdl = {
         {
           name: "encryptedUtxos";
           type: "bytes";
-        }
+        },
       ];
     },
     {
@@ -325,13 +325,13 @@ export type VerifierProgramOneIdl = {
           name: "registeredVerifierPda";
           isMut: true;
           isSigner: false;
-        }
+        },
       ];
       args: [
         {
           name: "proof";
           type: "bytes";
-        }
+        },
       ];
     },
     {
@@ -346,10 +346,10 @@ export type VerifierProgramOneIdl = {
           name: "verifierState";
           isMut: true;
           isSigner: false;
-        }
+        },
       ];
       args: [];
-    }
+    },
   ];
 };
 export default VerifierProgramOne;

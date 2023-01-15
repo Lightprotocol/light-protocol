@@ -1,0 +1,6 @@
+#!/bin/sh
+. "$(dirname "$0")/_/husky.sh"
+cd light-sdk-ts
+npm run format
+# exit 1
+

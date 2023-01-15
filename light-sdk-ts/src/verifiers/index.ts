@@ -38,6 +38,6 @@ export interface Verifier {
   instructions?: web3.TransactionInstruction[];
   parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
   getInstructions(
-    transaction: Transaction
+    transaction: Transaction,
   ): Promise<web3.TransactionInstruction[]>;
 }
