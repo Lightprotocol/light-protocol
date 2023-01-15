@@ -17,7 +17,7 @@ export const USER_TOKEN_ACCOUNT = Keypair.fromSecretKey(
     242, 95, 5, 9, 102, 7, 50, 204, 117, 74, 106, 114, 106, 225, 37, 203, 222,
     28, 100, 182, 147, 102, 98, 110, 249, 219, 249, 24, 50, 149, 18, 75, 184,
     183, 246, 83, 13, 66, 226, 103, 241, 88, 135, 253, 226, 32, 41, 186,
-  ])
+  ]),
 );
 
 export const RECIPIENT_TOKEN_ACCOUNT = Keypair.fromSecretKey(
@@ -26,12 +26,12 @@ export const RECIPIENT_TOKEN_ACCOUNT = Keypair.fromSecretKey(
     113, 227, 43, 76, 83, 234, 5, 93, 242, 182, 158, 40, 141, 213, 16, 229, 254,
     86, 86, 250, 191, 38, 191, 237, 255, 198, 0, 140, 74, 85, 247, 85, 30, 34,
     76, 42, 114, 252, 102, 230, 216, 107, 44, 225, 133, 40, 17, 6,
-  ])
+  ]),
 );
 
 export var KEYPAIR_PRIVKEY = new BN(
   "d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896",
-  "hex"
+  "hex",
 );
 
 export const MINT_PRIVATE_KEY = new Uint8Array([
@@ -59,16 +59,16 @@ export const MERKLE_TREE_INIT_AUTHORITY = [
 ];
 
 export const ADMIN_AUTH_KEY: PublicKey = new PublicKey(
-  new Uint8Array(MERKLE_TREE_INIT_AUTHORITY)
+  new Uint8Array(MERKLE_TREE_INIT_AUTHORITY),
 );
 
 export const ADMIN_AUTH_KEYPAIR: Keypair = Keypair.fromSecretKey(
-  new Uint8Array(PRIVATE_KEY)
+  new Uint8Array(PRIVATE_KEY),
 );
 
 export const userTokenAccount = new PublicKey(
-  "CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"
+  "CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk",
 );
 export const recipientTokenAccount = new PublicKey(
-  "6RtYrpXTyH98dvTf9ufivkyDG8mF48oMDbhiRW9r5KjD"
+  "6RtYrpXTyH98dvTf9ufivkyDG8mF48oMDbhiRW9r5KjD",
 );

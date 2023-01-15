@@ -213,7 +213,7 @@ export type VerifierProgramZeroIdl = {
           name: "registeredVerifierPda";
           isMut: true;
           isSigner: false;
-        }
+        },
       ];
       args: [
         {
@@ -231,7 +231,7 @@ export type VerifierProgramZeroIdl = {
               {
                 array: ["u8", 32];
               },
-              2
+              2,
             ];
           };
         },
@@ -242,7 +242,7 @@ export type VerifierProgramZeroIdl = {
               {
                 array: ["u8", 32];
               },
-              2
+              2,
             ];
           };
         },
@@ -261,9 +261,9 @@ export type VerifierProgramZeroIdl = {
         {
           name: "encryptedUtxos";
           type: "bytes";
-        }
+        },
       ];
-    }
+    },
   ];
 };
 export default VerifierProgramZero;

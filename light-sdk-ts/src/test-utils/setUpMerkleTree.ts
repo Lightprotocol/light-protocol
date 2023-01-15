@@ -36,7 +36,7 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
     new anchor.Program(VerifierProgramTwo, verifierProgramTwoProgramId);
 
   var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-    MERKLE_TREE_KEY
+    MERKLE_TREE_KEY,
   );
   // console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
   // console.log("MERKLE_TREE_KEY ", MERKLE_TREE_KEY);
@@ -65,7 +65,7 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
 
     console.log(
       "verifierProgramZero.programId: ",
-      Array.from(verifierProgramZero.programId.toBytes())
+      Array.from(verifierProgramZero.programId.toBytes()),
     );
     console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58());
     console.log("MERKLE_TREE_KEY: ", Array.from(MERKLE_TREE_KEY.toBytes()));
@@ -78,7 +78,7 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
         (await provider.connection.getTransaction(ix, {
           commitment: "confirmed",
         })) != null,
-        "init failed"
+        "init failed",
       );
     } catch (e) {
       console.log(e);

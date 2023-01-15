@@ -23,7 +23,7 @@ export async function executeUpdateMerkleTreeTransactions({
   provider,
 }) {
   var merkleTreeAccountPrior = await merkleTreeProgram.account.merkleTree.fetch(
-    merkle_tree_pubkey
+    merkle_tree_pubkey,
   );
   let merkleTreeUpdateState = (
     await PublicKey.findProgramAddressSync(
@@ -31,7 +31,7 @@ export async function executeUpdateMerkleTreeTransactions({
         Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
         anchor.utils.bytes.utf8.encode("storage"),
       ],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     )
   )[0];
 
@@ -137,7 +137,7 @@ export async function executeMerkleTreeUpdateTransactions({
   for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
     const transaction = new Transaction();
     transaction.add(
-      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 })
+      ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
     );
     transaction.add(
       await merkleTreeProgram.methods
@@ -147,7 +147,7 @@ export async function executeMerkleTreeUpdateTransactions({
           merkleTreeUpdateState: merkleTreeUpdateState,
           merkleTree: merkle_tree_pubkey,
         })
-        .instruction()
+        .instruction(),
     );
     i += 1;
     transaction.add(
@@ -158,7 +158,7 @@ export async function executeMerkleTreeUpdateTransactions({
           merkleTreeUpdateState: merkleTreeUpdateState,
           merkleTree: merkle_tree_pubkey,
         })
-        .instruction()
+        .instruction(),
     );
     i += 1;
 
@@ -173,7 +173,7 @@ export async function executeMerkleTreeUpdateTransactions({
         console.log(e);
         error = e;
       }
-    })
+    }),
   );
   return error;
 }
