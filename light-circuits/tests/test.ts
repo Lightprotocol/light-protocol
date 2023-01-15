@@ -77,7 +77,7 @@ async function functionalCircuitTest(verifier) {
   });
 
   // successful proofgeneration
-  await tx.compile(txParams);
+  await tx.compile(txParams, {mock: "123"});
   console.log(tx.proofInput);
   
   await tx.getProof()

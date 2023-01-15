@@ -1,9 +1,9 @@
 /// <reference types="node" />
+/// <reference types="bn.js" />
 export * from "./verifierOne";
 export * from "./verifierZero";
 export * from "./verifierTwo";
-import { Program, web3 } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { Program, web3, BN } from "@coral-xyz/anchor";
 import { Transaction } from "../transaction";
 export interface PublicInputs {
     root: Array<Number>;
@@ -36,7 +36,7 @@ export interface Verifier {
         out: number;
     };
     instructions?: web3.TransactionInstruction[];
-    parsePublicInputsFromArray(transaction: Transaction): PublicInputs;
+    parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs;
     getInstructions(transaction: Transaction): Promise<web3.TransactionInstruction[]>;
-    pubkey?: PublicKey;
+    pubkey?: BN;
 }

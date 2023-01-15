@@ -116,11 +116,12 @@ class Transaction {
             yield this.getProof();
         });
     }
-    compile(params) {
+    compile(params, appParams) {
         return __awaiter(this, void 0, void 0, function* () {
             // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
             this.poseidon = yield circomlibjs.buildPoseidonOpt();
             this.params = params;
+            this.appParams = appParams;
             this.params.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
             // prepare utxos
             const pubkeys = this.getAssetPubkeys(params.inputUtxos, params.outputUtxos);
@@ -140,27 +141,28 @@ class Transaction {
         });
     }
     getProofInput() {
-        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+        var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         if (this.params &&
             this.instance.solMerkleTree.merkleTree &&
             this.params.inputUtxos &&
             this.params.outputUtxos &&
             this.assetPubkeysCircuit) {
-            this.proofInput = {
+            this.proofInputSystem = {
                 root: this.instance.solMerkleTree.merkleTree.root(),
                 inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
-                outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
                 // TODO: move public and fee amounts into tx preparation
                 publicAmount: this.getExternalAmount(1).toString(),
                 feeAmount: this.getExternalAmount(0).toString(),
                 extDataHash: this.getTxIntegrityHash().toString(),
                 mintPubkey: this.assetPubkeysCircuit[1],
-                // data for 2 transaction inputUtxos
-                inAmount: (_a = this.params.inputUtxos) === null || _a === void 0 ? void 0 : _a.map((x) => x.amounts),
-                inPrivateKey: (_b = this.params.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((x) => x.keypair.privkey),
-                inBlinding: (_c = this.params.inputUtxos) === null || _c === void 0 ? void 0 : _c.map((x) => x.blinding),
+                inPrivateKey: (_a = this.params.inputUtxos) === null || _a === void 0 ? void 0 : _a.map((x) => x.keypair.privkey),
                 inPathIndices: this.inputMerklePathIndices,
                 inPathElements: this.inputMerklePathElements,
+            };
+            this.proofInput = {
+                outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
+                inAmount: (_b = this.params.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((x) => x.amounts),
+                inBlinding: (_c = this.params.inputUtxos) === null || _c === void 0 ? void 0 : _c.map((x) => x.blinding),
                 assetPubkeys: this.assetPubkeysCircuit,
                 // data for 2 transaction outputUtxos
                 outAmount: (_d = this.params.outputUtxos) === null || _d === void 0 ? void 0 : _d.map((x) => x.amounts),
@@ -174,17 +176,50 @@ class Transaction {
                 outPoolType: (_k = this.params.outputUtxos) === null || _k === void 0 ? void 0 : _k.map((x) => x.poolType),
                 inVerifierPubkey: (_l = this.params.inputUtxos) === null || _l === void 0 ? void 0 : _l.map((x) => x.verifierAddressCircuit),
                 outVerifierPubkey: (_m = this.params.outputUtxos) === null || _m === void 0 ? void 0 : _m.map((x) => x.verifierAddressCircuit),
-                connectingHash: this.getConnectingHash(),
-                verifier: this.params.verifier.pubkey
             };
+            if (this.appParams) {
+                this.proofInput.connectingHash = this.getConnectingHash();
+                this.proofInput.verifier = (_o = this.params.verifier) === null || _o === void 0 ? void 0 : _o.pubkey;
+            }
         }
         else {
             throw new Error(`getProofInput has undefined inputs`);
         }
     }
-    getProof() {
+    getAppProof() {
+        var _a, _b;
         return __awaiter(this, void 0, void 0, function* () {
-            if (!this.instance.solMerkleTree.merkleTree) {
+            if (this.appParams) {
+                this.appParams.inputs.connectingHash = this.getConnectingHash();
+                const path = require("path");
+                // TODO: find a better more flexible solution
+                const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
+                let { proofBytes, publicInputs, publicInputsBytes } = yield this.getProofInternal(this.appParams.verifier, Object.assign(Object.assign(Object.assign({}, this.appParams.inputs), this.proofInput), { inPublicKey: (_b = (_a = this.params) === null || _a === void 0 ? void 0 : _a.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((utxo) => utxo.keypair.pubkey) }), firstPath);
+                this.proofBytesApp = proofBytes;
+                this.publicInputsApp = publicInputs;
+            }
+            else {
+                throw new Error("No app params provided");
+            }
+        });
+    }
+    getProof() {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            const path = require("path");
+            const firstPath = path.resolve(__dirname, "../build-circuits/");
+            let { proofBytes, publicInputs } = yield this.getProofInternal((_a = this.params) === null || _a === void 0 ? void 0 : _a.verifier, Object.assign(Object.assign({}, this.proofInput), this.proofInputSystem), firstPath);
+            this.proofBytes = proofBytes;
+            this.publicInputs = publicInputs;
+            if (this.instance.provider) {
+                yield this.getPdaAddresses();
+            }
+        });
+    }
+    getProofInternal(verifier, inputs, firstPath) {
+        var _a;
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!((_a = this.instance.solMerkleTree) === null || _a === void 0 ? void 0 : _a.merkleTree)) {
                 throw new Error("merkle tree not built");
             }
             if (!this.proofInput) {
@@ -194,19 +229,14 @@ class Transaction {
                 throw new Error("params undefined probably not compiled");
             }
             else {
-                // console.log("this.proofInput ", this.proofInput);
-                const path = require("path");
-                const firstPath = path.resolve(__dirname, "../build-circuits/");
-                const completePathWtns = firstPath + "/" + this.params.verifier.wtnsGenPath;
-                const completePathZkey = firstPath + "/" + this.params.verifier.zkeyPath;
+                console.log("this.proofInput ", inputs);
+                const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
+                const completePathZkey = firstPath + "/" + verifier.zkeyPath;
                 const buffer = (0, fs_1.readFileSync)(completePathWtns);
-                let witnessCalculator = yield this.params.verifier.calculateWtns(buffer);
+                let witnessCalculator = yield verifier.calculateWtns(buffer);
                 console.time("Proof generation");
-                let wtns = yield witnessCalculator.calculateWTNSBin(stringifyBigInts(this.proofInput), 0);
-                const { proof, publicSignals } = yield snarkjs.groth16.prove(
-                // `${this.params.verifier.zkeyPath}.zkey`,
-                completePathZkey, wtns);
-                // this.params.verifier.zkeyPath
+                let wtns = yield witnessCalculator.calculateWTNSBin(stringifyBigInts(inputs), 0);
+                const { proof, publicSignals } = yield snarkjs.groth16.prove(completePathZkey, wtns);
                 const proofJson = JSON.stringify(proof, null, 1);
                 const publicInputsJson = JSON.stringify(publicSignals, null, 1);
                 console.timeEnd("Proof generation");
@@ -219,17 +249,15 @@ class Transaction {
                     console.log("Invalid proof");
                     throw new Error("Invalid Proof");
                 }
-                this.publicInputsBytes = JSON.parse(publicInputsJson.toString());
-                for (var i in this.publicInputsBytes) {
-                    this.publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32)).reverse();
+                var publicInputsBytes = JSON.parse(publicInputsJson.toString());
+                for (var i in publicInputsBytes) {
+                    publicInputsBytes[i] = Array.from(leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)).reverse();
                 }
-                // console.log("publicInputsBytes ", this.publicInputsBytes);
-                this.proofBytes = yield Transaction.parseProofToBytesArray(proofJson);
-                this.publicInputs = this.params.verifier.parsePublicInputsFromArray(this);
+                // console.log("publicInputsBytes ", publicInputsBytes);
+                const proofBytes = yield Transaction.parseProofToBytesArray(proofJson);
+                const publicInputs = verifier.parsePublicInputsFromArray(publicInputsBytes);
+                return { proofBytes, publicInputs };
                 // await this.checkProof()
-                if (this.instance.provider) {
-                    yield this.getPdaAddresses();
-                }
             }
         });
     }
@@ -237,7 +265,8 @@ class Transaction {
         var _a, _b, _c, _d;
         const inputHasher = this.poseidon.F.toString(this.poseidon((_b = (_a = this.params) === null || _a === void 0 ? void 0 : _a.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((utxo) => utxo.getCommitment())));
         const outputHasher = this.poseidon.F.toString(this.poseidon((_d = (_c = this.params) === null || _c === void 0 ? void 0 : _c.outputUtxos) === null || _d === void 0 ? void 0 : _d.map((utxo) => utxo.getCommitment())));
-        return this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]));
+        this.connectingHash = this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]));
+        return this.connectingHash;
     }
     assignAccounts(params) {
         if (this.assetPubkeys && this.params) {
@@ -535,9 +564,16 @@ class Transaction {
     }
     getInstructionsJson() {
         return __awaiter(this, void 0, void 0, function* () {
-            const instructions = yield this.params.verifier.getInstructions(this);
-            let serialized = instructions.map((ix) => JSON.stringify(ix));
-            return serialized;
+            if (!this.appParams) {
+                const instructions = yield this.params.verifier.getInstructions(this);
+                let serialized = instructions.map((ix) => JSON.stringify(ix));
+                return serialized;
+            }
+            else {
+                const instructions = yield this.appParams.verifier.getInstructions(this);
+                let serialized = instructions.map((ix) => JSON.stringify(ix));
+                return serialized;
+            }
         });
     }
     sendTransaction(ix) {
@@ -602,19 +638,30 @@ class Transaction {
                 throw new Error("Cannot use sendAndConfirmTransaction without payer");
             }
             yield this.getTestValues();
-            const instructions = yield this.params.verifier.getInstructions(this);
-            let tx = "";
-            for (var ix in instructions) {
-                let txTmp = yield this.sendTransaction(instructions[ix]);
-                if (txTmp) {
-                    yield ((_a = this.instance.provider) === null || _a === void 0 ? void 0 : _a.connection.confirmTransaction(txTmp, "confirmed"));
-                    tx = txTmp;
-                }
-                else {
-                    throw new Error("send transaction failed");
-                }
+            var instructions;
+            if (!this.appParams) {
+                instructions = yield this.params.verifier.getInstructions(this);
             }
-            return tx;
+            else {
+                instructions = yield this.appParams.verifier.getInstructions(this);
+            }
+            if (instructions) {
+                let tx = "Something went wrong";
+                for (var ix in instructions) {
+                    let txTmp = yield this.sendTransaction(instructions[ix]);
+                    if (txTmp) {
+                        yield ((_a = this.instance.provider) === null || _a === void 0 ? void 0 : _a.connection.confirmTransaction(txTmp, "confirmed"));
+                        tx = txTmp;
+                    }
+                    else {
+                        throw new Error("send transaction failed");
+                    }
+                }
+                return tx;
+            }
+            else {
+                throw new Error("No parameters provided");
+            }
         });
     }
     checkProof() {

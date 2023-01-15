@@ -50,10 +50,11 @@ export class Utxo {
     assets = [SystemProgram.programId],
     amounts = [new BN("0")],
     keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
-    blinding = new BN(randomBN(), 31, "le"),
+    blinding = new BN(randomBN(), 31, "be"),
     poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
     appData = [],
+    appDataFromBytesFn,
     index = null,
   }: {
     poseidon: any;
@@ -64,10 +65,11 @@ export class Utxo {
     poolType?: BN;
     verifierAddress?: PublicKey;
     appData?: Array<any>;
+    appDataFromBytesFn?: Function;
     index?: any;
   }) {
     // check that blinding is 31 bytes
-    blinding.toArray("le", 31);
+    blinding.toArray("be", 31);
     if (assets.length != amounts.length) {
       throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
     }
@@ -108,13 +110,7 @@ export class Utxo {
 
     // console.log("appDataArray.flat() ",appDataArray.flat());
 
-    if (appData.length > 0) {
-      // TODO: change to poseidon hash which is reproducable in circuit
-      // TODO: write function which creates the instructionTypeHash
-      // this.instructionType = BigNumber.from(ethers.utils.keccak256(appData).toString()).mod(FIELD_SIZE_ETHERS);
-    } else {
-      this.instructionType = new BN("0");
-    }
+    
 
     this.amounts = amounts.map((x) => {
       try {
@@ -157,6 +153,21 @@ export class Utxo {
         verifierAddress.toBytes(),
       );
     }
+    if (appData.length > 0) {
+      // TODO: change to poseidon hash which is reproducable in circuit
+      // TODO: write function which creates the instructionTypeHash
+      if (appDataFromBytesFn) {
+        console.log("appDataFromBytesFn(appData) ", appDataFromBytesFn(appData).map((x)=>x.toString()));
+        
+        this.instructionType = poseidon.F.toString(poseidon(appDataFromBytesFn(appData)));
+        console.log("this.instructionType ", this.instructionType);
+        
+      } else {
+        throw new Error("No appDataFromBytesFn provided");
+      }
+    } else {
+      this.instructionType = new BN("0");
+    }
   }
 
   toBytes() {
@@ -169,21 +180,21 @@ export class Utxo {
     // case no appData
     if (this.instructionType.toString() == "0") {
       return new Uint8Array([
-        ...this.blinding.toArray("le", 31),
-        ...this.amounts[0].toArray("le", 8),
-        ...this.amounts[1].toArray("le", 8),
-        ...new BN(assetIndex).toArray("le", 8),
+        ...this.blinding.toArray("be", 31),
+        ...this.amounts[0].toArray("be", 8),
+        ...this.amounts[1].toArray("be", 8),
+        ...new BN(assetIndex).toArray("be", 8),
       ]);
     }
 
     return new Uint8Array([
-      ...this.blinding.toArray("le", 31),
-      ...this.amounts[0].toArray("le", 8),
-      ...this.amounts[1].toArray("le", 8),
-      ...assetIndex.toArray("le", 8),
+      ...this.blinding.toArray("be", 31),
+      ...this.amounts[0].toArray("be", 8),
+      ...this.amounts[1].toArray("be", 8),
+      ...assetIndex.toArray("be", 8),
       ...leInt2Buff(unstringifyBigInts(this.instructionType.toString()), 32),
-      ...this.poolType.toArray("le", 8),
-      ...this.verifierAddressCircuit.toArray("le", 31),
+      ...this.poolType.toArray("be", 8),
+      ...this.verifierAddressCircuit.toArray("be", 31),
       ...new Array(1),
       ...this.appData,
     ]);
@@ -205,14 +216,14 @@ export class Utxo {
     keypairInAppDataOffset?: number;
   }): Utxo {
     if (keypair) {
-      const blinding = new BN(bytes.slice(0, 31), undefined, "le"); // blinding
+      const blinding = new BN(bytes.slice(0, 31), undefined, "be"); // blinding
       const amounts = [
-        new BN(bytes.slice(31, 39), undefined, "le"),
-        new BN(bytes.slice(39, 47), undefined, "le"),
+        new BN(bytes.slice(31, 39), undefined, "be"),
+        new BN(bytes.slice(39, 47), undefined, "be"),
       ]; // amounts
       const assets = [
         SystemProgram.programId,
-        fetchAssetByIdLookUp(new BN(bytes.slice(47, 55), undefined, "le")),
+        fetchAssetByIdLookUp(new BN(bytes.slice(47, 55), undefined, "be")),
       ]; // assets MINT
 
       return new Utxo({
@@ -230,12 +241,12 @@ export class Utxo {
     // console.log("here2");
     // this.instructionType =  BigNumber.from(leBuff2int(Uint8Array.from(bytes.slice(55,87))).toString()) // instruction Type
     // console.log("here3");
-    // this.poolType =  new BN(bytes.slice(87,95), undefined, 'le'); // pool Type
+    // this.poolType =  new BN(bytes.slice(87,95), undefined, 'be'); // pool Type
     // console.log("here4");
     // console.log("here5 ", this.blinding.toString());
 
     // // TODO: put the verifier address into the utxo not the circuit one then I can derive the circuit verifier address
-    // this.verifierAddressCircuit =  new BN(bytes.slice(95,126), undefined, 'le'), // verifierAddress
+    // this.verifierAddressCircuit =  new BN(bytes.slice(95,126), undefined, 'be'), // verifierAddress
     // console.log("here6");
     // this.appData =  Array.from(bytes.slice(127,bytes.length))
     // if (keypairInAppDataOffset != undefined) {
@@ -243,7 +254,7 @@ export class Utxo {
     //   console.log("bytes: ", Array.from(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32)));
     //   console.log("bytes: ", Array.from(this.appData).toString());
 
-    //   this.keypair = new Keypair(this.poseidon, new BN(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32), undefined, 'le'))
+    //   this.keypair = new Keypair(this.poseidon, new BN(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32), undefined, 'be'))
     //   console.log("this.keypair ", this.keypair.pubkey);
 
     // }
