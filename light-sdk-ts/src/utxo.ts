@@ -139,7 +139,10 @@ export class Utxo {
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
     } else {
-      this.assetsCircuit = [new BN(0), new BN(0)];
+      this.assetsCircuit = [
+        hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
+        new BN(0),
+      ];
     }
 
     if (verifierAddress.toBase58() == SystemProgram.programId.toBase58()) {
