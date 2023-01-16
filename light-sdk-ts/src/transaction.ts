@@ -530,12 +530,24 @@ export class Transaction {
     inputUtxos?: Utxo[],
     outputUtxos?: Utxo[],
   ): { assetPubkeysCircuit: BN[]; assetPubkeys: PublicKey[] } {
-    let assetPubkeysCircuit: BN[] = [new BN(0)];
+    let assetPubkeysCircuit: BN[] = [
+      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
+    ];
+
     let assetPubkeys: PublicKey[] = [SystemProgram.programId];
 
     if (inputUtxos) {
       inputUtxos.map((utxo) => {
-        if (assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1]) == -1) {
+        let found = false;
+        for (var i in assetPubkeysCircuit) {
+          if (
+            assetPubkeysCircuit[i].toString() ===
+            utxo.assetsCircuit[1].toString()
+          ) {
+            found = true;
+          }
+        }
+        if (!found) {
           assetPubkeysCircuit.push(utxo.assetsCircuit[1]);
           assetPubkeys.push(utxo.assets[1]);
         }
@@ -544,7 +556,16 @@ export class Transaction {
 
     if (outputUtxos) {
       outputUtxos.map((utxo) => {
-        if (assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1]) == -1) {
+        let found = false;
+        for (var i in assetPubkeysCircuit) {
+          if (
+            assetPubkeysCircuit[i].toString() ===
+            utxo.assetsCircuit[1].toString()
+          ) {
+            found = true;
+          }
+        }
+        if (!found) {
           assetPubkeysCircuit.push(utxo.assetsCircuit[1]);
           assetPubkeys.push(utxo.assets[1]);
         }
@@ -687,6 +708,8 @@ export class Transaction {
       }
       inIndices.push(tmpInIndices);
     });
+    console.log(inIndices);
+
     return inIndices;
   }
 
