@@ -1,7 +1,7 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  IDL_MERKLE_TREE_PROGRAM,
   MerkleTreeProgram,
-  MerkleTreeProgramIdl,
 } from "../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
@@ -11,7 +11,7 @@ import { confirmConfig, DEFAULT_PROGRAMS, merkleTreeProgramId } from "../index";
 import { Program } from "@coral-xyz/anchor";
 
 export class MerkleTreeConfig {
-  merkleTreeProgram: Program<MerkleTreeProgramIdl>;
+  merkleTreeProgram: Program<MerkleTreeProgram>;
   merkleTreePubkey: PublicKey;
   connection: Connection;
   registeredVerifierPdas: any;
@@ -37,7 +37,7 @@ export class MerkleTreeConfig {
     this.merkleTreePubkey = merkleTreePubkey;
     this.payer = payer;
     this.merkleTreeProgram = new Program(
-      MerkleTreeProgram,
+      IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
     );
     // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type

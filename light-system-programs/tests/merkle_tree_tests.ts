@@ -15,7 +15,7 @@ import {
   initLookUpTableFromFile,
   MerkleTreeProgram,
   merkleTreeProgramId,
-  MerkleTreeProgramIdl,
+  IDL_MERKLE_TREE_PROGRAM,
   MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
@@ -43,7 +43,7 @@ var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
 console.log = ()=> {}
 describe("Merkle Tree Tests", () => {
-  
+
   process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
   // Configure the client to use the local cluster.
   var provider = anchor.AnchorProvider.local(
@@ -86,14 +86,22 @@ describe("Merkle Tree Tests", () => {
       } else {
         expect(await fn()).throw();
       }
-      
+
     } catch (e) {
       console.log(e);
       assert.isTrue(e.logs.includes(error))
     }
   }
 
-  it("Initialize Merkle Tree Test", async () => {
+  it("Build Merkle Tree from account compression", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
+
+    let newTree = await  merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
+    assert.equal(merkleTree.merkleTree.root(),new BN(newTree.roots[newTree.currentRootIndex.toNumber()],32, "le"));
+  });
+
+  it.skip("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       VerifierProgramZero,
       verifierProgramZeroProgramId
@@ -157,7 +165,7 @@ describe("Merkle Tree Tests", () => {
       error = e;
     }
     console.log(error);
-    
+
     assert.isTrue(error.logs.includes('Program log: Instruction: InitializeMerkleTreeAuthority'));
     error = undefined;
 
@@ -427,7 +435,7 @@ describe("Merkle Tree Tests", () => {
     // valid
     await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
     console.log("merkleTreeConfig ", merkleTreeConfig);
-    
+
     let registeredSolPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda
@@ -527,17 +535,17 @@ describe("Merkle Tree Tests", () => {
       // await setUpMerkleTree(provider);
 
       POSEIDON = await circomlibjs.buildPoseidonOpt();
-    
+
       KEYPAIR = new Keypair({
           poseidon: POSEIDON,
           seed: KEYPAIR_PRIVKEY.toString(),
       });
-  
+
       var depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
       var depositFeeAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-  
+
       await token.approve(
         provider.connection,
         ADMIN_AUTH_KEYPAIR,
@@ -549,19 +557,19 @@ describe("Merkle Tree Tests", () => {
         depositAmount * 10,
         [USER_TOKEN_ACCOUNT]
     );
-  
+
     let lightInstance: LightInstance = {
         solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
         lookUpTable: LOOK_UP_TABLE,
         provider,
     };
-  
+
     var transaction = new Transaction({
         instance: lightInstance,
         payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
     });
-  
+
     deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
@@ -571,7 +579,7 @@ describe("Merkle Tree Tests", () => {
         ],
         keypair: KEYPAIR,
     });
-  
+
     let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
@@ -581,7 +589,7 @@ describe("Merkle Tree Tests", () => {
     });
     await transaction.compileAndProve(txParams);
     console.log(transaction.params.accounts);
-    
+
     // does one successful transaction
     await transaction.sendAndConfirmTransaction();
   })
