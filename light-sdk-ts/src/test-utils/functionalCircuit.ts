@@ -44,7 +44,10 @@ export async function functionalCircuitTest() {
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
   let lightInstance: LightInstance = {
-    solMerkleTree: new SolMerkleTree({ poseidon, pubkey: mockPubkey }),
+    solMerkleTree: new SolMerkleTree({
+      pubkey: SolanaKeypair.generate().publicKey,
+      poseidon,
+    }),
   };
 
   let txParams = new TransactionParameters({
