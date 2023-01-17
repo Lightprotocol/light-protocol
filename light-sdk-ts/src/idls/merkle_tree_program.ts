@@ -1,4 +1,4 @@
-export type MerkleTreeProgramIdl = {
+export type MerkleTreeProgram = {
   version: "0.1.0";
   name: "merkle_tree_program";
   constants: [
@@ -54,78 +54,62 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"AUTHORITY_SEED"';
+      type: "bytes";
+      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]";
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"MERKLE_TREE_AUTHORITY"';
+      type: "bytes";
+      value: "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]";
     },
     {
       name: "TREE_ROOT_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"TREE_ROOT_SEED"';
+      type: "bytes";
+      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]";
     },
     {
       name: "STORAGE_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"storage"';
+      type: "bytes";
+      value: "[115, 116, 111, 114, 97, 103, 101]";
     },
     {
       name: "LEAVES_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"leaves"';
+      type: "bytes";
+      value: "[108, 101, 97, 118, 101, 115]";
     },
     {
       name: "NULLIFIER_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"nf"';
+      type: "bytes";
+      value: "[110, 102]";
     },
     {
       name: "POOL_TYPE_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pooltype"';
+      type: "bytes";
+      value: "[112, 111, 111, 108, 116, 121, 112, 101]";
     },
     {
       name: "POOL_CONFIG_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pool-config"';
+      type: "bytes";
+      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]";
     },
     {
       name: "POOL_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pool"';
+      type: "bytes";
+      value: "[112, 111, 111, 108]";
     },
     {
       name: "TOKEN_AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"spl"';
+      type: "bytes";
+      value: "[115, 112, 108]";
     },
   ];
   instructions: [
     {
       name: "initializeNewMerkleTree";
+      docs: [
+        "Initializes a new Merkle tree from config bytes.",
+        "Can only be called from the merkle_tree_authority.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -167,6 +151,10 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "initializeMerkleTreeAuthority";
+      docs: [
+        "Initializes a new merkle tree authority which can register new verifiers and configure",
+        "permissions to create new pools.",
+      ];
       accounts: [
         {
           name: "merkleTreeAuthorityPda";
@@ -193,6 +181,7 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "updateMerkleTreeAuthority";
+      docs: ["Updates the merkle tree authority to a new authority."];
       accounts: [
         {
           name: "merkleTreeAuthorityPda";
@@ -214,6 +203,7 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "updateLockDuration";
+      docs: ["Updates the lock duration for a specific merkle tree."];
       accounts: [
         {
           name: "merkleTreeAuthorityPda";
@@ -240,6 +230,9 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "enableNfts";
+      docs: [
+        "Enables permissionless deposits of any spl token with supply of one and zero decimals.",
+      ];
       accounts: [
         {
           name: "merkleTreeAuthorityPda";
@@ -261,6 +254,7 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "enablePermissionlessSplTokens";
+      docs: ["Enables anyone to create token pools."];
       accounts: [
         {
           name: "merkleTreeAuthorityPda";
@@ -282,6 +276,10 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "registerVerifier";
+      docs: [
+        "Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.",
+        "These functions can only be invoked from registered verifiers.",
+      ];
       accounts: [
         {
           name: "registeredVerifierPda";
@@ -318,6 +316,7 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "registerPoolType";
+      docs: ["Registers a new pooltype."];
       accounts: [
         {
           name: "registeredPoolTypePda";
@@ -356,6 +355,9 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "registerSplPool";
+      docs: [
+        "Creates a new spl token pool which can be used by any registered verifier.",
+      ];
       accounts: [
         {
           name: "registeredAssetPoolPda";
@@ -401,6 +403,7 @@ export type MerkleTreeProgramIdl = {
           name: "registeredPoolTypePda";
           isMut: false;
           isSigner: false;
+          docs: ["Just needs to exist and be derived correctly."];
         },
         {
           name: "merkleTreeAuthorityPda";
@@ -412,6 +415,9 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "registerSolPool";
+      docs: [
+        "Creates a new sol pool which can be used by any registered verifier.",
+      ];
       accounts: [
         {
           name: "registeredAssetPoolPda";
@@ -448,6 +454,15 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "initializeMerkleTreeUpdateState";
+      docs: [
+        "Initializes a merkle tree update state pda. This pda stores the leaves to be inserted",
+        "and state of the computation of poseidon hashes to update the Merkle tree.",
+        "A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.",
+        "Every leaf is copied into this account such that no further accounts or data have to be",
+        "passed in during the following instructions which compute the poseidon hashes to update the tree.",
+        "The hashes are computed with the update merkle tree instruction and the new root is inserted",
+        "with the insert root merkle tree instruction.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -479,6 +494,7 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "updateMerkleTree";
+      docs: ["Computes poseidon hashes to update the Merkle tree."];
       accounts: [
         {
           name: "authority";
@@ -505,6 +521,10 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "insertRootMerkleTree";
+      docs: [
+        "This is the last step of a Merkle tree update which inserts the prior computed Merkle tree",
+        "root.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -515,10 +535,25 @@ export type MerkleTreeProgramIdl = {
           name: "merkleTreeUpdateState";
           isMut: true;
           isSigner: false;
+          docs: [
+            "Merkle tree is locked by merkle_tree_update_state",
+            "Is in correct instruction for root insert thus Merkle Tree update has been completed.",
+            "The account is closed to the authority at the end of the instruction.",
+          ];
         },
         {
           name: "merkleTree";
           isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "logWrapper";
+          isMut: false;
+          isSigner: false;
+        },
+        {
+          name: "systemProgram";
+          isMut: false;
           isSigner: false;
         },
       ];
@@ -531,6 +566,10 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "closeMerkleTreeUpdateState";
+      docs: [
+        "Closes the Merkle tree update state.",
+        "A relayer can only close its own update state account.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -547,6 +586,12 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "insertTwoLeaves";
+      docs: [
+        "Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.",
+        "The inserted leaves are not part of the Merkle tree yet and marked accordingly.",
+        "The Merkle tree has to be updated after.",
+        "Can only be called from a registered verifier program.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -601,6 +646,11 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "withdrawSol";
+      docs: [
+        "Withdraws sol from a liquidity pool.",
+        "An arbitrary number of recipients can be passed in with remaining accounts.",
+        "Can only be called from a registered verifier program.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -614,7 +664,7 @@ export type MerkleTreeProgramIdl = {
         },
         {
           name: "registeredVerifierPda";
-          isMut: false;
+          isMut: true;
           isSigner: false;
         },
         {
@@ -632,6 +682,11 @@ export type MerkleTreeProgramIdl = {
     },
     {
       name: "withdrawSpl";
+      docs: [
+        "Withdraws spl tokens from a liquidity pool.",
+        "An arbitrary number of recipients can be passed in with remaining accounts.",
+        "Can only be called from a registered verifier program.",
+      ];
       accounts: [
         {
           name: "authority";
@@ -702,7 +757,11 @@ export type MerkleTreeProgramIdl = {
   ];
   accounts: [
     {
-      name: "RegisteredAssetPool";
+      name: "registeredAssetPool";
+      docs: [
+        "Nullfier pdas are derived from the nullifier",
+        "existence of a nullifier is the check to prevent double spends.",
+      ];
       type: {
         kind: "struct";
         fields: [
@@ -724,7 +783,8 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "RegisteredPoolType";
+      name: "registeredPoolType";
+      docs: ["Pool type"];
       type: {
         kind: "struct";
         fields: [
@@ -738,7 +798,15 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "MerkleTreeAuthority";
+      name: "merkleTreeAuthority";
+      docs: [
+        "Configures the authority of the merkle tree which can:",
+        "- register new verifiers",
+        "- register new asset pools",
+        "- register new asset pool types",
+        "- set permissions for new asset pool creation",
+        "- keeps current highest index for assets and merkle trees to enable lookups of these",
+      ];
       type: {
         kind: "struct";
         fields: [
@@ -770,7 +838,8 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "RegisteredVerifier";
+      name: "registeredVerifier";
+      docs: [""];
       type: {
         kind: "struct";
         fields: [
@@ -782,14 +851,14 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "MerkleTreePdaToken";
+      name: "merkleTreePdaToken";
       type: {
         kind: "struct";
         fields: [];
       };
     },
     {
-      name: "PreInsertedLeavesIndex";
+      name: "preInsertedLeavesIndex";
       type: {
         kind: "struct";
         fields: [
@@ -801,7 +870,7 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "MerkleTree";
+      name: "merkleTree";
       type: {
         kind: "struct";
         fields: [
@@ -859,7 +928,7 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "TwoLeavesBytesPda";
+      name: "twoLeavesBytesPda";
       type: {
         kind: "struct";
         fields: [
@@ -893,7 +962,7 @@ export type MerkleTreeProgramIdl = {
       };
     },
     {
-      name: "MerkleTreeUpdateState";
+      name: "merkleTreeUpdateState";
       type: {
         kind: "struct";
         fields: [
@@ -1097,7 +1166,8 @@ export type MerkleTreeProgramIdl = {
     },
   ];
 };
-export const MerkleTreeProgram: MerkleTreeProgramIdl = {
+
+export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
   version: "0.1.0",
   name: "merkle_tree_program",
   constants: [
@@ -1156,78 +1226,63 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"AUTHORITY_SEED"',
+      type: "bytes",
+      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]",
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"MERKLE_TREE_AUTHORITY"',
+      type: "bytes",
+      value:
+        "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]",
     },
     {
       name: "TREE_ROOT_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"TREE_ROOT_SEED"',
+      type: "bytes",
+      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]",
     },
     {
       name: "STORAGE_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"storage"',
+      type: "bytes",
+      value: "[115, 116, 111, 114, 97, 103, 101]",
     },
     {
       name: "LEAVES_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"leaves"',
+      type: "bytes",
+      value: "[108, 101, 97, 118, 101, 115]",
     },
     {
       name: "NULLIFIER_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"nf"',
+      type: "bytes",
+      value: "[110, 102]",
     },
     {
       name: "POOL_TYPE_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pooltype"',
+      type: "bytes",
+      value: "[112, 111, 111, 108, 116, 121, 112, 101]",
     },
     {
       name: "POOL_CONFIG_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pool-config"',
+      type: "bytes",
+      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]",
     },
     {
       name: "POOL_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pool"',
+      type: "bytes",
+      value: "[112, 111, 111, 108]",
     },
     {
       name: "TOKEN_AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"spl"',
+      type: "bytes",
+      value: "[115, 112, 108]",
     },
   ],
   instructions: [
     {
       name: "initializeNewMerkleTree",
+      docs: [
+        "Initializes a new Merkle tree from config bytes.",
+        "Can only be called from the merkle_tree_authority.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1269,6 +1324,10 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "initializeMerkleTreeAuthority",
+      docs: [
+        "Initializes a new merkle tree authority which can register new verifiers and configure",
+        "permissions to create new pools.",
+      ],
       accounts: [
         {
           name: "merkleTreeAuthorityPda",
@@ -1295,6 +1354,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "updateMerkleTreeAuthority",
+      docs: ["Updates the merkle tree authority to a new authority."],
       accounts: [
         {
           name: "merkleTreeAuthorityPda",
@@ -1316,6 +1376,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "updateLockDuration",
+      docs: ["Updates the lock duration for a specific merkle tree."],
       accounts: [
         {
           name: "merkleTreeAuthorityPda",
@@ -1342,6 +1403,9 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "enableNfts",
+      docs: [
+        "Enables permissionless deposits of any spl token with supply of one and zero decimals.",
+      ],
       accounts: [
         {
           name: "merkleTreeAuthorityPda",
@@ -1363,6 +1427,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "enablePermissionlessSplTokens",
+      docs: ["Enables anyone to create token pools."],
       accounts: [
         {
           name: "merkleTreeAuthorityPda",
@@ -1384,6 +1449,10 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "registerVerifier",
+      docs: [
+        "Registers a new verifier which can withdraw tokens, insert new nullifiers, add new leaves.",
+        "These functions can only be invoked from registered verifiers.",
+      ],
       accounts: [
         {
           name: "registeredVerifierPda",
@@ -1420,6 +1489,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "registerPoolType",
+      docs: ["Registers a new pooltype."],
       accounts: [
         {
           name: "registeredPoolTypePda",
@@ -1458,6 +1528,9 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "registerSplPool",
+      docs: [
+        "Creates a new spl token pool which can be used by any registered verifier.",
+      ],
       accounts: [
         {
           name: "registeredAssetPoolPda",
@@ -1503,6 +1576,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
           name: "registeredPoolTypePda",
           isMut: false,
           isSigner: false,
+          docs: ["Just needs to exist and be derived correctly."],
         },
         {
           name: "merkleTreeAuthorityPda",
@@ -1514,6 +1588,9 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "registerSolPool",
+      docs: [
+        "Creates a new sol pool which can be used by any registered verifier.",
+      ],
       accounts: [
         {
           name: "registeredAssetPoolPda",
@@ -1550,6 +1627,15 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "initializeMerkleTreeUpdateState",
+      docs: [
+        "Initializes a merkle tree update state pda. This pda stores the leaves to be inserted",
+        "and state of the computation of poseidon hashes to update the Merkle tree.",
+        "A maximum of 16 pairs of leaves can be passed in as leaves accounts as remaining accounts.",
+        "Every leaf is copied into this account such that no further accounts or data have to be",
+        "passed in during the following instructions which compute the poseidon hashes to update the tree.",
+        "The hashes are computed with the update merkle tree instruction and the new root is inserted",
+        "with the insert root merkle tree instruction.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1581,6 +1667,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "updateMerkleTree",
+      docs: ["Computes poseidon hashes to update the Merkle tree."],
       accounts: [
         {
           name: "authority",
@@ -1607,6 +1694,10 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "insertRootMerkleTree",
+      docs: [
+        "This is the last step of a Merkle tree update which inserts the prior computed Merkle tree",
+        "root.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1617,10 +1708,25 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
           name: "merkleTreeUpdateState",
           isMut: true,
           isSigner: false,
+          docs: [
+            "Merkle tree is locked by merkle_tree_update_state",
+            "Is in correct instruction for root insert thus Merkle Tree update has been completed.",
+            "The account is closed to the authority at the end of the instruction.",
+          ],
         },
         {
           name: "merkleTree",
           isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "logWrapper",
+          isMut: false,
+          isSigner: false,
+        },
+        {
+          name: "systemProgram",
+          isMut: false,
           isSigner: false,
         },
       ],
@@ -1633,6 +1739,10 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "closeMerkleTreeUpdateState",
+      docs: [
+        "Closes the Merkle tree update state.",
+        "A relayer can only close its own update state account.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1649,6 +1759,12 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "insertTwoLeaves",
+      docs: [
+        "Creates and initializes a pda which stores two merkle tree leaves and encrypted Utxos.",
+        "The inserted leaves are not part of the Merkle tree yet and marked accordingly.",
+        "The Merkle tree has to be updated after.",
+        "Can only be called from a registered verifier program.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1703,6 +1819,11 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "withdrawSol",
+      docs: [
+        "Withdraws sol from a liquidity pool.",
+        "An arbitrary number of recipients can be passed in with remaining accounts.",
+        "Can only be called from a registered verifier program.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1716,7 +1837,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
         },
         {
           name: "registeredVerifierPda",
-          isMut: false,
+          isMut: true,
           isSigner: false,
         },
         {
@@ -1734,6 +1855,11 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
     {
       name: "withdrawSpl",
+      docs: [
+        "Withdraws spl tokens from a liquidity pool.",
+        "An arbitrary number of recipients can be passed in with remaining accounts.",
+        "Can only be called from a registered verifier program.",
+      ],
       accounts: [
         {
           name: "authority",
@@ -1804,7 +1930,11 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
   ],
   accounts: [
     {
-      name: "RegisteredAssetPool",
+      name: "registeredAssetPool",
+      docs: [
+        "Nullfier pdas are derived from the nullifier",
+        "existence of a nullifier is the check to prevent double spends.",
+      ],
       type: {
         kind: "struct",
         fields: [
@@ -1826,7 +1956,8 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "RegisteredPoolType",
+      name: "registeredPoolType",
+      docs: ["Pool type"],
       type: {
         kind: "struct",
         fields: [
@@ -1840,7 +1971,15 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "MerkleTreeAuthority",
+      name: "merkleTreeAuthority",
+      docs: [
+        "Configures the authority of the merkle tree which can:",
+        "- register new verifiers",
+        "- register new asset pools",
+        "- register new asset pool types",
+        "- set permissions for new asset pool creation",
+        "- keeps current highest index for assets and merkle trees to enable lookups of these",
+      ],
       type: {
         kind: "struct",
         fields: [
@@ -1872,7 +2011,8 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "RegisteredVerifier",
+      name: "registeredVerifier",
+      docs: [""],
       type: {
         kind: "struct",
         fields: [
@@ -1884,14 +2024,14 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "MerkleTreePdaToken",
+      name: "merkleTreePdaToken",
       type: {
         kind: "struct",
         fields: [],
       },
     },
     {
-      name: "PreInsertedLeavesIndex",
+      name: "preInsertedLeavesIndex",
       type: {
         kind: "struct",
         fields: [
@@ -1903,7 +2043,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "MerkleTree",
+      name: "merkleTree",
       type: {
         kind: "struct",
         fields: [
@@ -1961,7 +2101,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "TwoLeavesBytesPda",
+      name: "twoLeavesBytesPda",
       type: {
         kind: "struct",
         fields: [
@@ -1995,7 +2135,7 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
       },
     },
     {
-      name: "MerkleTreeUpdateState",
+      name: "merkleTreeUpdateState",
       type: {
         kind: "struct",
         fields: [
@@ -2199,4 +2339,5 @@ export const MerkleTreeProgram: MerkleTreeProgramIdl = {
     },
   ],
 };
+
 export default MerkleTreeProgram;

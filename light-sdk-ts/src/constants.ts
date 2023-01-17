@@ -10,7 +10,7 @@ import {
   VerifierProgramTwoIdl,
   VerifierProgramOneIdl,
   VerifierProgramZeroIdl,
-  MerkleTreeProgramIdl,
+  MerkleTreeProgram,
 } from "./idls/index";
 
 import {
@@ -50,7 +50,7 @@ export const verifierProgramTwoProgramId = new PublicKey(
   "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8",
 );
 
-export type merkleTreeProgram = Program<MerkleTreeProgramIdl>;
+export type merkleTreeProgram = Program<MerkleTreeProgram>;
 export type verifierProgramZero = Program<VerifierProgramZeroIdl>;
 export type verifierProgramOne = Program<VerifierProgramOneIdl>;
 export type verifierProgramTwo = Program<VerifierProgramTwoIdl>;
@@ -63,7 +63,7 @@ export const confirmConfig: ConfirmOptions = {
 // TODO: reactivate this
 // const constants:any = {};
 
-// IDL.constants.map((item) => {
+// IDL_MERKLE_TREE_PROGRAM.constants.map((item) => {
 //   if(_.isEqual(item.type, TYPE_SEED)) {
 //     constants[item.name] = item.value.replace("b\"", "").replace("\"", "");
 //   } else //if(_.isEqual(item.type, TYPE_PUBKEY) || _.isEqual(item.type, TYPE_INIT_DATA))

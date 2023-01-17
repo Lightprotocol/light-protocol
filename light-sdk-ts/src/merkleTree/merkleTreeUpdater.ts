@@ -13,7 +13,6 @@ import {
   SystemProgram,
   Keypair,
 } from "@solana/web3.js";
-import { publicKey } from "@coral-xyz/anchor/dist/cjs/utils";
 
 export async function executeUpdateMerkleTreeTransactions({
   signer,
@@ -63,6 +62,7 @@ export async function executeUpdateMerkleTreeTransactions({
     console.log(" init Merkle tree update", e);
   }
 
+  
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
     merkleTreeUpdateState,
@@ -94,31 +94,19 @@ export async function executeUpdateMerkleTreeTransactions({
 
   // final tx to insert root
   let success = false;
-  let recipient = Keypair.generate();
   try {
-    let tx = await merkleTreeProgram.methods
-      .insertRootMerkleTree(new anchor.BN(254))
-      .accounts({
-        authority: signer.publicKey,
-        // recipient: recipient.publicKey,
-        merkleTreeUpdateState: merkleTreeUpdateState,
-        merkleTree: merkle_tree_pubkey,
-        logWrapper: SPL_NOOP_ADDRESS,
-      })
-      .remainingAccounts(leavesPdas).instruction();
-
-    console.log(tx);
-
     await merkleTreeProgram.methods
       .insertRootMerkleTree(new anchor.BN(254))
       .accounts({
         authority: signer.publicKey,
-        // recipient: recipient.publicKey,
         merkleTreeUpdateState: merkleTreeUpdateState,
         merkleTree: merkle_tree_pubkey,
         logWrapper: SPL_NOOP_ADDRESS,
       })
       .remainingAccounts(leavesPdas)
+      .preInstructions([
+        ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+      ])
       .signers([signer])
       .rpc({
         commitment: "confirmed",

@@ -43,9 +43,6 @@ pub fn wrap_event<'info>(
     noop_program: &AccountInfo<'info>,
     signer: &AccountInfo<'info>,
 ) -> Result<()> {
-    msg!("event: {:?}", event);
-    msg!("noop_program: {:?}", noop_program.key());
-    msg!("authority: {:?}", signer.key());
     invoke(
         &spl_noop::instruction(event.try_to_vec()?),
         &[noop_program.to_account_info(), signer.to_account_info()],
@@ -91,7 +88,6 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     msg!("tmp_index: {}", tmp_index);
 
     // insert root into merkle tree
-    insert_last_double(merkle_tree_pda_data, merkle_tree_update_state_data)?;
 
     // Release lock
     msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
@@ -114,14 +110,13 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
 
         // Checking that leaves are not inserted already.
-        // if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index {
-        //     msg!(
-        //         "Leaf pda state with address {:?} is already inserted",
-        //         *account.key
-        //     );
-        //     return err!(ErrorCode::LeafAlreadyInserted);
-        // }
-        msg!("checked LeafAlreadyInserted");
+        if leaves_pda_data.left_leaf_index < merkle_tree_pda_data.next_index {
+            msg!(
+                "Leaf pda state with address {:?} is already inserted",
+                *account.key
+            );
+            return err!(ErrorCode::LeafAlreadyInserted);
+        }
 
         // Checking that the Merkle tree is the same as in leaves account.
         if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.merkle_tree.key() {
@@ -139,14 +134,12 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
 
-        msg!("before wrap_event");
-        // Log leaves in the noop program.
+        // Save pair of leaves in compressed account (noop program).
         wrap_event(
             &leaves_pda_data,
             &ctx.accounts.log_wrapper.to_account_info(),
             &ctx.accounts.merkle_tree.to_account_info(),
         )?;
-        msg!("after wrap_event");
 
         close_account(account, &ctx.accounts.authority.to_account_info())?;
 

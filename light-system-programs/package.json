@@ -8,6 +8,7 @@
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.26.0",
+        "@solana/spl-account-compression": "^0.1.5",
         "@solana/spl-token": "^0.3.5",
         "@solana/web3.js": "^1.62",
         "circomlibjs": "^0.1.7",
