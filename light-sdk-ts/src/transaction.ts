@@ -782,7 +782,7 @@ export class Transaction {
           ...this.params.accounts.recipientFee.toBytes(),
           ...this.payer.publicKey.toBytes(),
           ...this.relayer.relayerFee.toArray("le", 8),
-          ...this.encryptedUtxos.slice(0, 512),
+          ...this.encryptedUtxos,
         ]);
 
         const hash = keccak_256
@@ -1305,9 +1305,9 @@ export class Transaction {
         );
 
       const preInsertedLeavesIndexAccountAfterUpdate =
-        this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
-          "PreInsertedLeavesIndex",
-          preInsertedLeavesIndexAccount.data,
+
+        await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
+          PRE_INSERTED_LEAVES_INDEX,
         );
       console.log(
         "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
@@ -1319,10 +1319,10 @@ export class Transaction {
         }`,
       );
 
-      assert(
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ==
-          Number(leavesAccountData.leftLeafIndex) +
-            this.params.leavesPdaPubkeys.length * 2,
+      assert.equal(
+        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
+        Number(leavesAccountData.leftLeafIndex) +
+          this.params.leavesPdaPubkeys.length * 2,
       );
     } catch (e) {
       console.log("preInsertedLeavesIndex: ", e);

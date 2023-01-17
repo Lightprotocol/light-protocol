@@ -49,16 +49,19 @@ export async function checkMerkleTreeUpdateStateCreated({
       merkleTreeProgram.programId.toBase58(),
     "merkle tree pda owner wrong after initializing",
   );
-  const merkleTreeUpdateStateData = await merkleTreeProgram.account.merkleTreeUpdateState.fetch(merkleTreeUpdateState);
-    // merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
-    //   "MerkleTreeUpdateState",
-    //   merkleTreeTmpAccountInfo.data,
-    // );
+  const merkleTreeUpdateStateData =
+    await merkleTreeProgram.account.merkleTreeUpdateState.fetch(
+      merkleTreeUpdateState,
+    );
+  // merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
+  //   "MerkleTreeUpdateState",
+  //   merkleTreeTmpAccountInfo.data,
+  // );
 
   var MerkleTreeAccountInfo = await merkleTreeProgram.account.merkleTree.fetch(
     MerkleTree,
   );
-  
+
   // console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
   console.log(
     "merkleTreeUpdateStateData.numberOfLeaves ",
@@ -112,7 +115,8 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   );
 
   assert.equal(
-    merkleTreeTmpStateAccount, null,
+    merkleTreeTmpStateAccount,
+    null,
     "Shielded transaction failed merkleTreeTmpStateAccount is not closed",
   );
 
@@ -122,12 +126,13 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   // Merkle tree is locked by merkleTreeUpdateState
   assert.equal(
     merkleTreeAccount.pubkeyLocked.toBase58(),
-      new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58(),
+    new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58(),
   );
   console.log("merkleTreeAccount.time_locked ", merkleTreeAccount.timeLocked);
 
   assert.equal(
-    merkleTreeAccount.timeLocked, 0,
+    merkleTreeAccount.timeLocked,
+    0,
     "Lock has not been taken within prior  20 slots",
   );
 
@@ -149,7 +154,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
 
   assert.equal(
     merkle_tree_prior_current_root_index.add(new anchor.BN("1")).toString(),
-      current_root_index.toString(),
+    current_root_index.toString(),
   );
   let current_root_start_range = 610 + current_root_index * 32;
   let current_root_end_range = 610 + (current_root_index + 1) * 32;

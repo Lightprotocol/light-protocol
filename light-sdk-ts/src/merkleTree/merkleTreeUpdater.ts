@@ -62,7 +62,6 @@ export async function executeUpdateMerkleTreeTransactions({
     console.log(" init Merkle tree update", e);
   }
 
-  
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
     merkleTreeUpdateState,
