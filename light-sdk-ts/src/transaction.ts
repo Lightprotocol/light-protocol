@@ -391,7 +391,6 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
-      console.log("this.proofInput ", inputs);
 
       const completePathWtns = firstPath + "/"  +  verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/"  +  verifier.zkeyPath;
