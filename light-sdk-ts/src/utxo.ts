@@ -110,8 +110,6 @@ export class Utxo {
 
     // console.log("appDataArray.flat() ",appDataArray.flat());
 
-    
-
     this.amounts = amounts.map((x) => {
       try {
         // check that amounts are U64
@@ -157,11 +155,15 @@ export class Utxo {
       // TODO: change to poseidon hash which is reproducable in circuit
       // TODO: write function which creates the instructionTypeHash
       if (appDataFromBytesFn) {
-        console.log("appDataFromBytesFn(appData) ", appDataFromBytesFn(appData).map((x)=>x.toString()));
-        
-        this.instructionType = poseidon.F.toString(poseidon(appDataFromBytesFn(appData)));
+        console.log(
+          "appDataFromBytesFn(appData) ",
+          appDataFromBytesFn(appData).map((x) => x.toString()),
+        );
+
+        this.instructionType = poseidon.F.toString(
+          poseidon(appDataFromBytesFn(appData)),
+        );
         console.log("this.instructionType ", this.instructionType);
-        
       } else {
         throw new Error("No appDataFromBytesFn provided");
       }

@@ -9,4 +9,3 @@ export * from "./utils";
 export * from "./idls";
 export * from "./relayer";
 export * from "./merkleTree";
-
