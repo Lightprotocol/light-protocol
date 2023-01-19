@@ -6,7 +6,7 @@ let circomlibjs = require("circomlibjs");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
-import { readFileSync } from "fs";
+import { close, readFileSync } from "fs";
 const snarkjs = require("snarkjs");
 const { keccak_256 } = require("@noble/hashes/sha3");
 
@@ -118,10 +118,20 @@ export class TransactionParameters implements transactionParameters {
     inputUtxos?: Utxo[];
     outputUtxos?: Utxo[];
   }) {
-    this.merkleTreeProgram = new Program(
-      MerkleTreeProgram,
-      merkleTreeProgramId,
-    );
+
+    try {
+      this.merkleTreeProgram = new Program(
+        MerkleTreeProgram,
+        merkleTreeProgramId
+      );
+    } catch (error) {
+      console.log(error);
+      console.log("assuming test mode thus continuing");
+      this.merkleTreeProgram = {
+        programId: merkleTreeProgramId
+      }
+    }
+
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -174,6 +184,7 @@ export class Transaction {
   shuffleEnabled: Boolean;
   action?: string;
   params?: TransactionParameters; // contains accounts
+  appParams?: any;
   relayer: Relayer;
   instance: LightInstance;
 
@@ -181,9 +192,12 @@ export class Transaction {
   publicInputs?: PublicInputs;
   rootIndex: any;
   proofBytes: any;
+  proofBytesApp: any;
+  publicInputsApp?: PublicInputs;
   encryptedUtxos?: Uint8Array;
 
   proofInput: any;
+  proofInputSystem: any;
   // Tmp rnd stuff for proof input
   assetPubkeysCircuit?: BN[];
   assetPubkeys?: PublicKey[];
@@ -192,9 +206,11 @@ export class Transaction {
   inputMerklePathIndices?: number[];
   inputMerklePathElements?: number[];
   publicInputsBytes?: number[][];
+  connectingHash?: string
   // Tests
   recipientBalancePriorTx?: BN;
   relayerRecipientAccountBalancePriorLastTx?: BN;
+
   /**
    * Initialize transaction
    *
@@ -251,10 +267,11 @@ export class Transaction {
     await this.getProof();
   }
 
-  async compile(params: TransactionParameters) {
+  async compile(params: TransactionParameters, appParams?: any) {
     // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
     this.poseidon = await circomlibjs.buildPoseidonOpt();
     this.params = params;
+    this.appParams = appParams;
     this.params.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
 
     // prepare utxos
@@ -288,21 +305,22 @@ export class Transaction {
       this.params.outputUtxos &&
       this.assetPubkeysCircuit
     ) {
-      this.proofInput = {
+      this.proofInputSystem = {
         root: this.instance.solMerkleTree.merkleTree.root(),
         inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
-        outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
         // TODO: move public and fee amounts into tx preparation
         publicAmount: this.getExternalAmount(1).toString(),
         feeAmount: this.getExternalAmount(0).toString(),
         extDataHash: this.getTxIntegrityHash().toString(),
         mintPubkey: this.assetPubkeysCircuit[1],
-        // data for 2 transaction inputUtxos
-        inAmount: this.params.inputUtxos?.map((x) => x.amounts),
         inPrivateKey: this.params.inputUtxos?.map((x) => x.keypair.privkey),
-        inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
         inPathIndices: this.inputMerklePathIndices,
         inPathElements: this.inputMerklePathElements,
+      }
+      this.proofInput = {
+        outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
+        inAmount: this.params.inputUtxos?.map((x) => x.amounts),
+        inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
         assetPubkeys: this.assetPubkeysCircuit,
         // data for 2 transaction outputUtxos
         outAmount: this.params.outputUtxos?.map((x) => x.amounts),
@@ -324,14 +342,47 @@ export class Transaction {
         outVerifierPubkey: this.params.outputUtxos?.map(
           (x) => x.verifierAddressCircuit,
         ),
+
       };
+      if (this.appParams) {
+        this.proofInput.connectingHash = this.getConnectingHash();
+        this.proofInput.verifier = this.params.verifier?.pubkey;
+      }
     } else {
       throw new Error(`getProofInput has undefined inputs`);
     }
   }
 
-  async getProof() {
-    if (!this.instance.solMerkleTree.merkleTree) {
+  async getAppProof() {
+    if (this.appParams) {
+      this.appParams.inputs.connectingHash = this.getConnectingHash();
+      const path = require("path");
+      // TODO: find a better more flexible solution
+      const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
+      let { proofBytes, publicInputs, publicInputsBytes} = await this.getProofInternal(this.appParams.verifier, {
+        ...this.appParams.inputs, ...this.proofInput,
+        inPublicKey: this.params?.inputUtxos?.map((utxo) => utxo.keypair.pubkey),
+      }, firstPath)
+      this.proofBytesApp = proofBytes;
+      this.publicInputsApp = publicInputs;
+    } else {
+      throw new Error("No app params provided");
+    }
+  }
+
+  async getProof () {
+    const path = require("path");
+    const firstPath = path.resolve(__dirname, "../build-circuits/");
+    let {proofBytes, publicInputs } = await this.getProofInternal(this.params?.verifier, {...this.proofInput, ...this.proofInputSystem}, firstPath)
+    this.proofBytes = proofBytes;
+    this.publicInputs = publicInputs;
+    if (this.instance.provider) {
+      await this.getPdaAddresses();
+    }
+  }
+
+  async getProofInternal(verifier: Verifier, inputs: any, firstPath: string) {
+    if (!this.instance.solMerkleTree?.merkleTree) {
       throw new Error("merkle tree not built");
     }
     if (!this.proofInput) {
@@ -340,28 +391,30 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
-      // console.log("this.proofInput ", this.proofInput);
+      console.log("this.proofInput ", inputs);
 
-      const buffer = readFileSync(`${this.params.verifier.wtnsGenPath}.wasm`);
+      const completePathWtns = firstPath + "/"  +  verifier.wtnsGenPath;
+      const completePathZkey = firstPath + "/"  +  verifier.zkeyPath;
+      const buffer = readFileSync(completePathWtns);
 
-      let witnessCalculator = await this.params.verifier.calculateWtns(buffer);
+      let witnessCalculator = await verifier.calculateWtns(buffer);
+
       console.time("Proof generation");
       let wtns = await witnessCalculator.calculateWTNSBin(
-        stringifyBigInts(this.proofInput),
-        0,
+        stringifyBigInts(inputs),
+        0
       );
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(
-        `${this.params.verifier.zkeyPath}.zkey`,
-        wtns,
+        completePathZkey,
+        wtns
       );
-
       const proofJson = JSON.stringify(proof, null, 1);
       const publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd("Proof generation");
 
       const vKey = await snarkjs.zKey.exportVerificationKey(
-        `${this.params.verifier.zkeyPath}.zkey`,
+        completePathZkey
       );
       const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
@@ -371,24 +424,30 @@ export class Transaction {
         throw new Error("Invalid Proof");
       }
 
-      this.publicInputsBytes = JSON.parse(publicInputsJson.toString());
-      for (var i in this.publicInputsBytes) {
-        this.publicInputsBytes[i] = Array.from(
-          leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32),
+      var publicInputsBytes = JSON.parse(publicInputsJson.toString());
+      for (var i in publicInputsBytes) {
+        publicInputsBytes[i] = Array.from(
+          leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)
         ).reverse();
       }
-      // console.log("publicInputsBytes ", this.publicInputsBytes);
+      // console.log("publicInputsBytes ", publicInputsBytes);
 
-      this.proofBytes = await Transaction.parseProofToBytesArray(proofJson);
+      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
 
-      this.publicInputs = this.params.verifier.parsePublicInputsFromArray(this);
-
+      const publicInputs = verifier.parsePublicInputsFromArray(publicInputsBytes);
+      return {proofBytes, publicInputs};
       // await this.checkProof()
-      if (this.instance.provider) {
-        await this.getPdaAddresses();
-      }
+
     }
   }
+
+  getConnectingHash(): string {
+    const inputHasher = this.poseidon.F.toString(this.poseidon(this.params?.inputUtxos?.map((utxo) => utxo.getCommitment())))
+    const outputHasher = this.poseidon.F.toString(this.poseidon(this.params?.outputUtxos?.map((utxo) => utxo.getCommitment())))
+    this.connectingHash = this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]))
+    return this.connectingHash;
+  }
+
 
   assignAccounts(params: TransactionParameters) {
     if (this.assetPubkeys && this.params) {
@@ -701,7 +760,6 @@ export class Transaction {
         let tmpArray = new Array<any>();
         for (var i = 0; i < this.params.verifier.config.out; i++) {
           tmpArray.push(...encryptedOutputs[i]);
-          tmpArray.push(...nonces[i]);
         }
         if (tmpArray.length < 512) {
           tmpArray.push(
@@ -710,7 +768,10 @@ export class Transaction {
             ).fill(0),
           );
         }
-        return new Uint8Array(tmpArray.flat());
+        // return new Uint8Array(tmpArray.flat());
+        return new Uint8Array([
+          ...tmpArray
+        ]);
       }
     }
   }
@@ -797,9 +858,16 @@ export class Transaction {
   }
 
   async getInstructionsJson(): Promise<string[]> {
-    const instructions = await this.params.verifier.getInstructions(this);
-    let serialized = instructions.map((ix) => JSON.stringify(ix));
-    return serialized;
+    if(!this.appParams) {
+      const instructions = await this.params.verifier.getInstructions(this);
+      let serialized = instructions.map((ix) => JSON.stringify(ix));
+      return serialized;
+    } else {
+      const instructions = await this.appParams.verifier.getInstructions(this);
+      let serialized = instructions.map((ix) => JSON.stringify(ix));
+      return serialized;
+    }
+
   }
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
@@ -877,21 +945,31 @@ export class Transaction {
       throw new Error("Cannot use sendAndConfirmTransaction without payer");
     }
     await this.getTestValues();
-    const instructions = await this.params.verifier.getInstructions(this);
-    let tx = "";
-    for (var ix in instructions) {
-      let txTmp = await this.sendTransaction(instructions[ix]);
-      if (txTmp) {
-        await this.instance.provider?.connection.confirmTransaction(
-          txTmp,
-          "confirmed",
-        );
-        tx = txTmp;
-      } else {
-        throw new Error("send transaction failed");
-      }
+    var instructions;
+    if (!this.appParams) {
+      instructions = await this.params.verifier.getInstructions(this);
+    } else {
+      instructions = await this.appParams.verifier.getInstructions(this);
     }
-    return tx;
+    if (instructions) {
+      let tx = "Something went wrong";
+      for (var ix in instructions) {
+        let txTmp = await this.sendTransaction(instructions[ix]);
+        if (txTmp) {
+          await this.instance.provider?.connection.confirmTransaction(
+            txTmp,
+            "confirmed"
+          );
+          tx = txTmp;
+        } else {
+          throw new Error("send transaction failed");
+        }
+      }
+      return tx;
+    } else {
+      throw new Error("No parameters provided");
+    }
+
   }
 
   async checkProof() {

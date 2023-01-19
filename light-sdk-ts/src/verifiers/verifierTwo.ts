@@ -2,68 +2,53 @@ import {
   VerifierProgramTwo,
   VerifierProgramTwoIdl,
 } from "../idls/verifier_program_two";
-import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import {
-  Connection,
-  PublicKey,
-  Keypair,
-  SystemProgram,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  AddressLookupTableAccount,
-  VersionedTransaction,
-  sendAndConfirmRawTransaction,
-} from "@solana/web3.js";
-import {
-  DEFAULT_PROGRAMS,
-  REGISTERED_VERIFIER_TWO_PDA,
+  hashAndTruncateToCircuit,
   verifierProgramTwoProgramId,
 } from "../index";
-import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
-import { assert } from "chai";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import { verifierProgramTwo } from "../index";
-
+import {BN} from "@coral-xyz/anchor"
+import { PublicKey } from "@solana/web3.js";
 export class VerifierTwo implements Verifier {
   verifierProgram: Program<VerifierProgramTwoIdl>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
-  registeredVerifierPda: PublicKey;
   nrPublicInputs: number;
+  config: {in: number, out: number}
+  pubkey: BN
   constructor() {
     this.verifierProgram = new Program(
       VerifierProgramTwo,
       verifierProgramTwoProgramId,
     );
 
-    this.wtnsGenPath = "./build-circuits/transactionMasp2_js/transactionMasp2";
-    this.zkeyPath = "./build-circuits/transactionMasp2";
-    this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
-    this.registeredVerifierPda = REGISTERED_VERIFIER_TWO_PDA;
-    this.nrPublicInputs = 17;
-    console.log("TODO Change paths to 4 ins 4 outs circuit");
-    console.log("REGISTERED_VERIFIER_TWO_PDA: is ONE");
+    this.wtnsGenPath = "transactionApp4_js/transactionApp4.wasm";
+    this.zkeyPath = "transactionApp4.zkey";
+    this.calculateWtns = require("../../build-circuits/transactionApp4_js/witness_calculator.js");
+    this.nrPublicInputs = 15;
+    this.config = {in: 4, out: 4};
+    this.pubkey = hashAndTruncateToCircuit( new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes());
   }
 
-  parsePublicInputsFromArray(transaction: Transaction): PublicInputs {
-    if (transaction.publicInputsBytes.length == this.nrPublicInputs) {
+  parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
+    if (publicInputsBytes.length == this.nrPublicInputs) {
       return {
-        root: transaction.publicInputsBytes[0],
-        publicAmount: transaction.publicInputsBytes[1],
-        extDataHash: transaction.publicInputsBytes[2],
-        feeAmount: transaction.publicInputsBytes[3],
-        mintPubkey: transaction.publicInputsBytes[4],
-        checkedParams: Array.from(transaction.publicInputsBytes.slice(5, 9)),
-        nullifiers: Array.from(transaction.publicInputsBytes.slice(9, 13)),
+        root: publicInputsBytes[0],
+        publicAmount: publicInputsBytes[1],
+        extDataHash: publicInputsBytes[2],
+        feeAmount: publicInputsBytes[3],
+        mintPubkey: publicInputsBytes[4],
+        checkedParams: Array.from(publicInputsBytes.slice(5, 9)),
+        nullifiers: Array.from(publicInputsBytes.slice(9, 13)),
         leaves: Array.from(
-          transaction.publicInputsBytes.slice(13, this.nrPublicInputs),
+          publicInputsBytes.slice(13, this.nrPublicInputs)
         ),
       };
     } else {
-      throw `publicInputsBytes.length invalid ${transaction.publicInputsBytes.length} != ${this.nrPublicInputs}`;
+      throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`;
     }
   }
 
@@ -76,7 +61,7 @@ export class VerifierTwo implements Verifier {
 
   // Do I need a getData fn?
   // I should be able to fetch everything from the object
-  async sendTransaction(transaction: Transaction): Promise<any> {
+  async getInstructions(transaction: Transaction): Promise<any> {
     console.log("empty is cpi");
   }
 }
