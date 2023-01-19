@@ -18,7 +18,7 @@ export declare class Utxo {
     keypair: Keypair;
     index: number | null;
     appData: Array<any>;
-    verifierAddress: BN;
+    verifierAddress: PublicKey;
     verifierAddressCircuit: BN;
     instructionType: BN;
     poolType: BN;
@@ -39,11 +39,13 @@ export declare class Utxo {
         index?: any;
     });
     toBytes(): Uint8Array;
-    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, }: {
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn }: {
         poseidon: any;
         bytes: Uint8Array;
         keypair?: Keypair;
         keypairInAppDataOffset?: number;
+        appDataLength?: number;
+        appDataFromBytesFn?: Function;
     }): Utxo;
     /**
      * Returns commitment for this UTXO
@@ -68,4 +70,5 @@ export declare class Utxo {
         encBytes: Uint8Array;
         keypair: Keypair;
     }): Utxo | null;
+    static equal(utxo0: Utxo, utxo1: Utxo): void;
 }

@@ -45,8 +45,7 @@ class VerifierZero {
         try {
             this.verifierProgram = new anchor_1.Program(verifier_program_zero_1.VerifierProgramZero, index_1.verifierProgramZeroProgramId);
         }
-        catch (error) {
-        }
+        catch (error) { }
         // ./build-circuits/transactionMasp2_js/
         this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
         this.zkeyPath = `transactionMasp2.zkey`;
@@ -62,16 +61,8 @@ class VerifierZero {
                     extDataHash: publicInputsBytes[2],
                     feeAmount: publicInputsBytes[3],
                     mintPubkey: publicInputsBytes[4],
-                    nullifiers: [
-                        publicInputsBytes[5],
-                        publicInputsBytes[6],
-                    ],
-                    leaves: [
-                        [
-                            publicInputsBytes[7],
-                            publicInputsBytes[8],
-                        ],
-                    ],
+                    nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
+                    leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
                 };
             }
             else {

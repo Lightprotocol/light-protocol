@@ -7,11 +7,13 @@ const anchor_1 = require("@coral-xyz/anchor");
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 class Keypair {
-    constructor({ poseidon, seed = new anchor_1.BN(nacl.randomBytes(32)).toString("hex"), burner = false, privateKey, publicKey, }) {
+    constructor({ poseidon, seed = new anchor_1.BN(nacl.randomBytes(32)).toString("hex"), burner = false, privateKey, publicKey, encPubkey, }) {
         if (seed.length < 32) {
             throw "seed too short length less than 32";
         }
-        this.poseidon = poseidon;
+        if (poseidon) {
+            this.poseidon = poseidon;
+        }
         this.burnerSeed = new Uint8Array();
         // creates a burner utxo by using the index for domain separation
         if (burner) {
@@ -32,7 +34,11 @@ class Keypair {
         else if (publicKey) {
             this.pubkey = publicKey;
             this.privkey = new anchor_1.BN("0");
-            this.encryptionPublicKey = new Uint8Array();
+            // TODO: write general wrapper to throw on undefined and return name of variable
+            if (!encPubkey) {
+                throw new Error("No encPubkey defined");
+            }
+            this.encryptionPublicKey = encPubkey;
         }
         else {
             this.privkey = Keypair.generateShieldedPrivateKey(seed);
@@ -74,9 +80,9 @@ class Keypair {
         const privkey = new anchor_1.BN(privateKey);
         return new Keypair({ poseidon, privateKey: privkey });
     }
-    static fromPubkey(poseidon, publicKey) {
+    static fromPubkey(publicKey, encPubkey) {
         const pubKey = new anchor_1.BN(publicKey, undefined, "be");
-        return new Keypair({ poseidon, publicKey: pubKey });
+        return new Keypair({ publicKey: pubKey, encPubkey });
     }
     static getEncryptionKeyPair(seed) {
         const encSeed = seed + "encryption";

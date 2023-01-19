@@ -58,12 +58,7 @@ class VerifierOne {
                 feeAmount: publicInputsBytes[3],
                 mintPubkey: publicInputsBytes[4],
                 nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
-                leaves: [
-                    [
-                        publicInputsBytes[15],
-                        publicInputsBytes[16],
-                    ],
-                ],
+                leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
             };
         }
         else {

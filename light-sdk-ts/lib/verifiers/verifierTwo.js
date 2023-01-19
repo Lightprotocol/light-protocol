@@ -32,9 +32,11 @@ class VerifierTwo {
                 extDataHash: publicInputsBytes[2],
                 feeAmount: publicInputsBytes[3],
                 mintPubkey: publicInputsBytes[4],
-                checkedParams: Array.from(publicInputsBytes.slice(5, 9)),
-                nullifiers: Array.from(publicInputsBytes.slice(9, 13)),
-                leaves: Array.from(publicInputsBytes.slice(13, this.nrPublicInputs)),
+                nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
+                leaves: Array.from([publicInputsBytes.slice(9, 11), publicInputsBytes.slice(11, 13)]),
+                checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
+                connectingHash: Array.from(publicInputsBytes.slice(13, 14)),
+                verifier: Array.from(publicInputsBytes.slice(14, 15)),
             };
         }
         else {

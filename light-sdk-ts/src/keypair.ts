@@ -23,17 +23,21 @@ export class Keypair {
     burner = false,
     privateKey,
     publicKey,
+    encPubkey,
   }: {
-    poseidon: any;
+    poseidon?: any;
     seed?: string;
     burner?: Boolean;
     privateKey?: BN;
     publicKey?: BN;
+    encPubkey?: Uint8Array;
   }) {
     if (seed.length < 32) {
       throw "seed too short length less than 32";
     }
-    this.poseidon = poseidon;
+    if (poseidon) {
+      this.poseidon = poseidon;
+    }
     this.burnerSeed = new Uint8Array();
     // creates a burner utxo by using the index for domain separation
     if (burner) {
@@ -58,7 +62,11 @@ export class Keypair {
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
-      this.encryptionPublicKey = new Uint8Array();
+      // TODO: write general wrapper to throw on undefined and return name of variable
+      if (!encPubkey) {
+        throw new Error("No encPubkey defined");
+      }
+      this.encryptionPublicKey = encPubkey;
     } else {
       this.privkey = Keypair.generateShieldedPrivateKey(seed);
       this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
@@ -111,9 +119,9 @@ export class Keypair {
     return new Keypair({ poseidon, privateKey: privkey });
   }
 
-  static fromPubkey(poseidon: any, publicKey: Uint8Array): Keypair {
+  static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Keypair {
     const pubKey = new BN(publicKey, undefined, "be");
-    return new Keypair({ poseidon, publicKey: pubKey });
+    return new Keypair({ publicKey: pubKey, encPubkey });
   }
 
   static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {

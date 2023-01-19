@@ -87,6 +87,7 @@ export class TransactionParameters implements transactionParameters {
   };
   encryptedUtxos?: Uint8Array;
   verifier: Verifier;
+  verifierApp?: Verifier;
   nullifierPdaPubkeys?: {
     isSigner: boolean;
     isWritable: boolean;
@@ -108,9 +109,11 @@ export class TransactionParameters implements transactionParameters {
     recipientFee,
     inputUtxos,
     outputUtxos,
+    verifierApp,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
+    verifierApp?: Verifier;
     sender?: PublicKey;
     recipient?: PublicKey;
     senderFee?: PublicKey;
@@ -156,6 +159,7 @@ export class TransactionParameters implements transactionParameters {
     if (!this.outputUtxos && !inputUtxos) {
       throw new Error("No utxos provided.");
     }
+    this.verifierApp = verifierApp;
   }
 }
 
@@ -357,20 +361,22 @@ export class Transaction {
       const path = require("path");
       // TODO: find a better more flexible solution
       const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
-      let { proofBytes, publicInputs, publicInputsBytes } =
-        await this.getProofInternal(
-          this.appParams.verifier,
-          {
-            ...this.appParams.inputs,
-            ...this.proofInput,
-            inPublicKey: this.params?.inputUtxos?.map(
-              (utxo) => utxo.keypair.pubkey,
-            ),
-          },
-          firstPath,
-        );
+      let { proofBytes, publicInputs } = await this.getProofInternal(
+        this.appParams.verifier,
+        {
+          ...this.appParams.inputs,
+          ...this.proofInput,
+          inPublicKey: this.params?.inputUtxos?.map(
+            (utxo) => utxo.keypair.pubkey,
+          ),
+        },
+        firstPath,
+      );
       this.proofBytesApp = proofBytes;
       this.publicInputsApp = publicInputs;
+
+      console.log("this.proofBytesApp ", this.proofBytesApp.toString());
+      console.log("this.publicInputsApp ", this.publicInputsApp.toString());
     } else {
       throw new Error("No app params provided");
     }
@@ -386,6 +392,8 @@ export class Transaction {
     );
     this.proofBytes = proofBytes;
     this.publicInputs = publicInputs;
+    console.log();
+
     if (this.instance.provider) {
       await this.getPdaAddresses();
     }
@@ -680,22 +688,42 @@ export class Transaction {
 
   // TODO: write test
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
+  // TODO: fix edge case of an assetpubkey being 0
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
 
-    utxos.map((utxo) => {
-      let tmpInIndices: String[][] = [];
+    utxos.map((utxo, index) => {
+      let tmpInIndices = [];
+      console.log("index ", index);
+      console.log("inIndices ", inIndices);
+
       for (var a = 0; a < utxo.assets.length; a++) {
+        console.log("a ", a);
         let tmpInIndices1: String[] = [];
 
         for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
           try {
+            console.log(i);
+
+            console.log(
+              `utxo ${utxo.assetsCircuit[
+                a
+              ].toString()} == ${this.assetPubkeysCircuit[i].toString()}`,
+            );
+
             if (
-              utxo.assetsCircuit[i].toString() ===
-                this.assetPubkeysCircuit[a].toString() &&
-              utxo.amounts[a].toString() > "0" &&
-              !tmpInIndices1.includes("1")
+              utxo.assetsCircuit[a].toString() ===
+                this.assetPubkeysCircuit[i].toString() &&
+              // utxo.amounts[a].toString() > "0" &&
+              !tmpInIndices1.includes("1") &&
+              this.assetPubkeysCircuit[i].toString() != "0"
             ) {
+              // if (this.assetPubkeysCircuit[i].toString() == "0") {
+              //   tmpInIndices1.push("0");
+
+              // } else {
+              //   tmpInIndices1.push("1");
+              // }
               tmpInIndices1.push("1");
             } else {
               tmpInIndices1.push("0");
@@ -704,12 +732,14 @@ export class Transaction {
             tmpInIndices1.push("0");
           }
         }
+
         tmpInIndices.push(tmpInIndices1);
+        console.log("tmpInIndices ", tmpInIndices);
       }
+
       inIndices.push(tmpInIndices);
     });
     console.log(inIndices);
-
     return inIndices;
   }
 
@@ -759,13 +789,16 @@ export class Transaction {
       );
     } else {
       this.encryptedUtxos = this.encryptOutUtxos();
+      if (this.encryptedUtxos && this.encryptedUtxos.length > 512) {
+        this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
+      }
       if (this.encryptedUtxos) {
         let extDataBytes = new Uint8Array([
           ...this.params.accounts.recipient?.toBytes(),
           ...this.params.accounts.recipientFee.toBytes(),
           ...this.payer.publicKey.toBytes(),
           ...this.relayer.relayerFee.toArray("le", 8),
-          ...this.encryptedUtxos,
+          ...this.encryptedUtxos.slice(0, 512),
         ]);
 
         const hash = keccak_256
@@ -806,6 +839,14 @@ export class Transaction {
             ).fill(0),
           );
         }
+        if (this.appParams.overwrite) {
+          const utxoBytes =
+            this.params?.outputUtxos[this.appParams.overwriteIndex].toBytes();
+          tmpArray = this.overWriteEncryptedUtxos(utxoBytes, tmpArray, 0).slice(
+            0,
+            512,
+          );
+        }
         // return new Uint8Array(tmpArray.flat());
         return new Uint8Array([...tmpArray]);
       }
@@ -813,15 +854,16 @@ export class Transaction {
   }
 
   // need this for the marketplace rn
-  overWriteEncryptedUtxos(bytes: Uint8Array, offSet: number = 0) {
+  overWriteEncryptedUtxos(
+    bytes: Uint8Array,
+    toOverwriteBytes: Uint8Array,
+    offSet: number = 0,
+  ) {
     // this.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
-    this.encryptedUtxos = Uint8Array.from([
-      ...this.encryptedUtxos.slice(0, offSet),
+    return Uint8Array.from([
+      ...toOverwriteBytes.slice(0, offSet),
       ...bytes,
-      ...this.encryptedUtxos.slice(
-        offSet + bytes.length,
-        this.encryptedUtxos.length,
-      ),
+      ...toOverwriteBytes.slice(offSet + bytes.length, toOverwriteBytes.length),
     ]);
   }
 
@@ -975,6 +1017,14 @@ export class Transaction {
     }
   }
 
+  async getInstructions(): Promise<TransactionInstruction[]> {
+    if (this.params) {
+      return await this.params.verifier.getInstructions(this);
+    } else {
+      throw new Error("Params not provided.");
+    }
+  }
+
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
     if (!this.payer) {
       throw new Error("Cannot use sendAndConfirmTransaction without payer");
@@ -1113,10 +1163,17 @@ export class Transaction {
         [anchor.utils.bytes.utf8.encode("escrow")],
         this.params.verifier.verifierProgram.programId,
       )[0];
-      this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-        [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.params.verifier.verifierProgram.programId,
-      )[0];
+      if (this.appParams) {
+        this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
+          [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+          this.appParams.verifier.verifierProgram.programId,
+        )[0];
+      } else {
+        this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
+          [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+          this.params.verifier.verifierProgram.programId,
+        )[0];
+      }
 
       this.params.accounts.tokenAuthority = PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("spl")],
