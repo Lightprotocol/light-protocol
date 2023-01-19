@@ -3,7 +3,7 @@
 */.coderrect
 /program/dist/program/*.so
 */*.so
-*/test-ledger
+test-ledger
 /program/dist/
 /program/docker-target
 
