@@ -229,7 +229,6 @@ class Transaction {
                 throw new Error("params undefined probably not compiled");
             }
             else {
-                console.log("this.proofInput ", inputs);
                 const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
                 const completePathZkey = firstPath + "/" + verifier.zkeyPath;
                 const buffer = (0, fs_1.readFileSync)(completePathWtns);
@@ -449,7 +448,8 @@ class Transaction {
                         throw new Error(`Input commitment ${inputUtxo.getCommitment()} was not found`);
                     }
                     this.inputMerklePathIndices.push(inputUtxo.index);
-                    this.inputMerklePathElements.push(this.instance.solMerkleTree.merkleTree.path(inputUtxo.index).pathElements);
+                    this.inputMerklePathElements.push(this.instance.solMerkleTree.merkleTree.path(inputUtxo.index)
+                        .pathElements);
                 }
             }
             else {
@@ -980,6 +980,5 @@ class Transaction {
             ].flat();
         });
     }
-    ;
 }
 exports.Transaction = Transaction;

@@ -104,9 +104,7 @@ function newAccountWithTokens({ connection, MINT, ADMIN_AUTH_KEYPAIR, userAccoun
     return __awaiter(this, void 0, void 0, function* () {
         let tokenAccount;
         try {
-            tokenAccount = yield (0, spl_token_1.createAccount)(connection, ADMIN_AUTH_KEYPAIR, MINT, userAccount.publicKey
-            // userAccount
-            );
+            tokenAccount = yield (0, spl_token_1.createAccount)(connection, ADMIN_AUTH_KEYPAIR, MINT, userAccount.publicKey);
             console.log(tokenAccount);
         }
         catch (e) {

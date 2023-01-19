@@ -91,8 +91,7 @@ class VerifierZero {
                     throw new Error("Payer not defined");
                 }
                 const ix = yield this.verifierProgram.methods
-                    .shieldedTransferInputs(Buffer.from(transaction.proofBytes), Buffer.from(transaction.publicInputs.publicAmount), transaction.publicInputs.nullifiers, transaction.publicInputs.leaves[0], Buffer.from(transaction.publicInputs.feeAmount), new anchor.BN(transaction.rootIndex.toString()), new anchor.BN(transaction.relayer.relayerFee.toString()), Buffer.from(transaction.encryptedUtxos.slice(0, 190)) // remaining bytes can be used once tx sizes increase
-                )
+                    .shieldedTransferInputs(Buffer.from(transaction.proofBytes), Buffer.from(transaction.publicInputs.publicAmount), transaction.publicInputs.nullifiers, transaction.publicInputs.leaves[0], Buffer.from(transaction.publicInputs.feeAmount), new anchor.BN(transaction.rootIndex.toString()), new anchor.BN(transaction.relayer.relayerFee.toString()), Buffer.from(transaction.encryptedUtxos.slice(0, 190)))
                     .accounts(Object.assign(Object.assign({}, transaction.params.accounts), transaction.relayer.accounts))
                     .remainingAccounts([
                     ...transaction.params.nullifierPdaPubkeys,
