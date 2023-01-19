@@ -40,12 +40,7 @@ export class VerifierOne implements Verifier {
         feeAmount: publicInputsBytes[3],
         mintPubkey: publicInputsBytes[4],
         nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
-        leaves: [
-          [
-            publicInputsBytes[15],
-            publicInputsBytes[16],
-          ],
-        ],
+        leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
       };
     } else {
       throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != 17`;

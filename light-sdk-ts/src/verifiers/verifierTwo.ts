@@ -9,7 +9,7 @@ import {
 } from "../index";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import {BN} from "@coral-xyz/anchor"
+import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 export class VerifierTwo implements Verifier {
   verifierProgram: Program<VerifierProgramTwoIdl>;
@@ -17,8 +17,8 @@ export class VerifierTwo implements Verifier {
   zkeyPath: String;
   calculateWtns: NodeRequire;
   nrPublicInputs: number;
-  config: {in: number, out: number}
-  pubkey: BN
+  config: { in: number; out: number };
+  pubkey: BN;
   constructor() {
     this.verifierProgram = new Program(
       VerifierProgramTwo,
@@ -29,8 +29,10 @@ export class VerifierTwo implements Verifier {
     this.zkeyPath = "transactionApp4.zkey";
     this.calculateWtns = require("../../build-circuits/transactionApp4_js/witness_calculator.js");
     this.nrPublicInputs = 15;
-    this.config = {in: 4, out: 4};
-    this.pubkey = hashAndTruncateToCircuit( new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes());
+    this.config = { in: 4, out: 4 };
+    this.pubkey = hashAndTruncateToCircuit(
+      new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes(),
+    );
   }
 
   parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
@@ -43,9 +45,7 @@ export class VerifierTwo implements Verifier {
         mintPubkey: publicInputsBytes[4],
         checkedParams: Array.from(publicInputsBytes.slice(5, 9)),
         nullifiers: Array.from(publicInputsBytes.slice(9, 13)),
-        leaves: Array.from(
-          publicInputsBytes.slice(13, this.nrPublicInputs)
-        ),
+        leaves: Array.from(publicInputsBytes.slice(13, this.nrPublicInputs)),
       };
     } else {
       throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`;

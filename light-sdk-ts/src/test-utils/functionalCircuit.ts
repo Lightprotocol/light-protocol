@@ -18,20 +18,17 @@ import { getProvider } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest() {
-
-  
   try {
     const provider = new anchor.AnchorProvider(
       await new Connection("http://127.0.0.1:8899"),
       new anchor.Wallet(SolanaKeypair.generate()),
-      confirmConfig
-    )
-    await  anchor.setProvider(provider);
+      confirmConfig,
+    );
+    await anchor.setProvider(provider);
   } catch (error) {
     console.log("expected local test validator to be running");
-    process.exit()
+    process.exit();
   }
-  
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
@@ -47,7 +44,7 @@ export async function functionalCircuitTest() {
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
   let lightInstance: LightInstance = {
-    solMerkleTree: new SolMerkleTree({poseidon, pubkey: mockPubkey}),
+    solMerkleTree: new SolMerkleTree({ poseidon, pubkey: mockPubkey }),
   };
 
   let txParams = new TransactionParameters({
@@ -66,8 +63,8 @@ export async function functionalCircuitTest() {
   // successful proofgeneration
   await tx.compile(txParams);
   console.log(tx.proofInput);
-  
-  await tx.getProof()
+
+  await tx.getProof();
   // unsuccessful proofgeneration
   try {
     tx.proofInput.inIndices[0][1][1] = "1";

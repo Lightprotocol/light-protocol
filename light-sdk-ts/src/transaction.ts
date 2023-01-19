@@ -118,18 +118,17 @@ export class TransactionParameters implements transactionParameters {
     inputUtxos?: Utxo[];
     outputUtxos?: Utxo[];
   }) {
-
     try {
       this.merkleTreeProgram = new Program(
         MerkleTreeProgram,
-        merkleTreeProgramId
+        merkleTreeProgramId,
       );
     } catch (error) {
       console.log(error);
       console.log("assuming test mode thus continuing");
       this.merkleTreeProgram = {
-        programId: merkleTreeProgramId
-      }
+        programId: merkleTreeProgramId,
+      };
     }
 
     this.accounts = {
@@ -206,7 +205,7 @@ export class Transaction {
   inputMerklePathIndices?: number[];
   inputMerklePathElements?: number[];
   publicInputsBytes?: number[][];
-  connectingHash?: string
+  connectingHash?: string;
   // Tests
   recipientBalancePriorTx?: BN;
   relayerRecipientAccountBalancePriorLastTx?: BN;
@@ -316,7 +315,7 @@ export class Transaction {
         inPrivateKey: this.params.inputUtxos?.map((x) => x.keypair.privkey),
         inPathIndices: this.inputMerklePathIndices,
         inPathElements: this.inputMerklePathElements,
-      }
+      };
       this.proofInput = {
         outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
         inAmount: this.params.inputUtxos?.map((x) => x.amounts),
@@ -342,7 +341,6 @@ export class Transaction {
         outVerifierPubkey: this.params.outputUtxos?.map(
           (x) => x.verifierAddressCircuit,
         ),
-
       };
       if (this.appParams) {
         this.proofInput.connectingHash = this.getConnectingHash();
@@ -359,10 +357,18 @@ export class Transaction {
       const path = require("path");
       // TODO: find a better more flexible solution
       const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
-      let { proofBytes, publicInputs, publicInputsBytes} = await this.getProofInternal(this.appParams.verifier, {
-        ...this.appParams.inputs, ...this.proofInput,
-        inPublicKey: this.params?.inputUtxos?.map((utxo) => utxo.keypair.pubkey),
-      }, firstPath)
+      let { proofBytes, publicInputs, publicInputsBytes } =
+        await this.getProofInternal(
+          this.appParams.verifier,
+          {
+            ...this.appParams.inputs,
+            ...this.proofInput,
+            inPublicKey: this.params?.inputUtxos?.map(
+              (utxo) => utxo.keypair.pubkey,
+            ),
+          },
+          firstPath,
+        );
       this.proofBytesApp = proofBytes;
       this.publicInputsApp = publicInputs;
     } else {
@@ -370,10 +376,14 @@ export class Transaction {
     }
   }
 
-  async getProof () {
+  async getProof() {
     const path = require("path");
     const firstPath = path.resolve(__dirname, "../build-circuits/");
-    let {proofBytes, publicInputs } = await this.getProofInternal(this.params?.verifier, {...this.proofInput, ...this.proofInputSystem}, firstPath)
+    let { proofBytes, publicInputs } = await this.getProofInternal(
+      this.params?.verifier,
+      { ...this.proofInput, ...this.proofInputSystem },
+      firstPath,
+    );
     this.proofBytes = proofBytes;
     this.publicInputs = publicInputs;
     if (this.instance.provider) {
@@ -391,9 +401,8 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
-
-      const completePathWtns = firstPath + "/"  +  verifier.wtnsGenPath;
-      const completePathZkey = firstPath + "/"  +  verifier.zkeyPath;
+      const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
+      const completePathZkey = firstPath + "/" + verifier.zkeyPath;
       const buffer = readFileSync(completePathWtns);
 
       let witnessCalculator = await verifier.calculateWtns(buffer);
@@ -401,20 +410,18 @@ export class Transaction {
       console.time("Proof generation");
       let wtns = await witnessCalculator.calculateWTNSBin(
         stringifyBigInts(inputs),
-        0
+        0,
       );
 
       const { proof, publicSignals } = await snarkjs.groth16.prove(
         completePathZkey,
-        wtns
+        wtns,
       );
       const proofJson = JSON.stringify(proof, null, 1);
       const publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd("Proof generation");
 
-      const vKey = await snarkjs.zKey.exportVerificationKey(
-        completePathZkey
-      );
+      const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
       const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
         console.log("Verification OK");
@@ -426,27 +433,36 @@ export class Transaction {
       var publicInputsBytes = JSON.parse(publicInputsJson.toString());
       for (var i in publicInputsBytes) {
         publicInputsBytes[i] = Array.from(
-          leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32)
+          leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32),
         ).reverse();
       }
       // console.log("publicInputsBytes ", publicInputsBytes);
 
       const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
 
-      const publicInputs = verifier.parsePublicInputsFromArray(publicInputsBytes);
-      return {proofBytes, publicInputs};
+      const publicInputs =
+        verifier.parsePublicInputsFromArray(publicInputsBytes);
+      return { proofBytes, publicInputs };
       // await this.checkProof()
-
     }
   }
 
   getConnectingHash(): string {
-    const inputHasher = this.poseidon.F.toString(this.poseidon(this.params?.inputUtxos?.map((utxo) => utxo.getCommitment())))
-    const outputHasher = this.poseidon.F.toString(this.poseidon(this.params?.outputUtxos?.map((utxo) => utxo.getCommitment())))
-    this.connectingHash = this.poseidon.F.toString(this.poseidon([inputHasher, outputHasher]))
+    const inputHasher = this.poseidon.F.toString(
+      this.poseidon(
+        this.params?.inputUtxos?.map((utxo) => utxo.getCommitment()),
+      ),
+    );
+    const outputHasher = this.poseidon.F.toString(
+      this.poseidon(
+        this.params?.outputUtxos?.map((utxo) => utxo.getCommitment()),
+      ),
+    );
+    this.connectingHash = this.poseidon.F.toString(
+      this.poseidon([inputHasher, outputHasher]),
+    );
     return this.connectingHash;
   }
-
 
   assignAccounts(params: TransactionParameters) {
     if (this.assetPubkeys && this.params) {
@@ -768,9 +784,7 @@ export class Transaction {
           );
         }
         // return new Uint8Array(tmpArray.flat());
-        return new Uint8Array([
-          ...tmpArray
-        ]);
+        return new Uint8Array([...tmpArray]);
       }
     }
   }
@@ -857,7 +871,7 @@ export class Transaction {
   }
 
   async getInstructionsJson(): Promise<string[]> {
-    if(!this.appParams) {
+    if (!this.appParams) {
       const instructions = await this.params.verifier.getInstructions(this);
       let serialized = instructions.map((ix) => JSON.stringify(ix));
       return serialized;
@@ -866,7 +880,6 @@ export class Transaction {
       let serialized = instructions.map((ix) => JSON.stringify(ix));
       return serialized;
     }
-
   }
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
@@ -957,7 +970,7 @@ export class Transaction {
         if (txTmp) {
           await this.instance.provider?.connection.confirmTransaction(
             txTmp,
-            "confirmed"
+            "confirmed",
           );
           tx = txTmp;
         } else {
@@ -968,7 +981,6 @@ export class Transaction {
     } else {
       throw new Error("No parameters provided");
     }
-
   }
 
   async checkProof() {

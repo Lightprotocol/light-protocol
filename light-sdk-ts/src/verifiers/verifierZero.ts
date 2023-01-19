@@ -23,9 +23,7 @@ export class VerifierZero implements Verifier {
         VerifierProgramZero,
         verifierProgramZeroProgramId,
       );
-    } catch (error) {
-
-    }
+    } catch (error) {}
     // ./build-circuits/transactionMasp2_js/
     this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
     this.zkeyPath = `transactionMasp2.zkey`;
@@ -42,16 +40,8 @@ export class VerifierZero implements Verifier {
           extDataHash: publicInputsBytes[2],
           feeAmount: publicInputsBytes[3],
           mintPubkey: publicInputsBytes[4],
-          nullifiers: [
-            publicInputsBytes[5],
-            publicInputsBytes[6],
-          ],
-          leaves: [
-            [
-              publicInputsBytes[7],
-              publicInputsBytes[8],
-            ],
-          ],
+          nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
+          leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
         };
       } else {
         throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != 9`;
