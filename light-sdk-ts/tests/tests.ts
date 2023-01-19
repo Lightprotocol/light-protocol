@@ -40,8 +40,9 @@ const nacl = require("tweetnacl");
 // } from '../src/constants'
 import { Keypair } from "../src/keypair";
 import { Utxo } from "../src/utxo";
-import { functionalCircuitTest, hashAndTruncateToCircuit, MINT } from "../src";
-
+import { ADMIN_AUTH_KEYPAIR, FEE_ASSET, functionalCircuitTest, hashAndTruncateToCircuit, LightInstance, MERKLE_TREE_KEY, MINT,  Transaction, TransactionParameters, userTokenAccount, VerifierZero } from "../src";
+import { MerkleTree } from "../src/merkleTree/merkleTree";
+import {SolMerkleTree} from "../src/merkleTree/solMerkleTree";
 var tx;
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -184,7 +185,7 @@ describe("verifier_program", () => {
     compareKeypairsEqual(k0Privkey, k0, true);
 
     // fromPubkey
-    let k0Pubkey = Keypair.fromPubkey(poseidon, k0.pubkey.toBuffer("be", 32));
+    let k0Pubkey = Keypair.fromPubkey(k0.pubkey.toBuffer("be", 32), k0.encryptionPublicKey);
     assert.equal(k0Pubkey.pubkey.toString(), k0.pubkey.toString());
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
   });
@@ -227,65 +228,29 @@ describe("verifier_program", () => {
     );
     assert.equal(utxo0.instructionType.toString(), "0");
     assert.equal(utxo0.poolType.toString(), "0");
-    assert.equal(utxo0.verifierAddress.toString(), "0");
+    assert.equal(utxo0.verifierAddress.toString(), "11111111111111111111111111111111");
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
-    // assert.equal(
-    //   utxo0.getCommitment()?.toString(),
-    //   "7790797031264776843808539823930722966306182688678265114219628300976218020196"
-    // );
-    // assert.equal(
-    //   utxo0.getNullifier()?.toString(),
-    //   "12550499222412009082001099158167607283963476261823222797328102845322566964367"
-    // );
-
-    const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
-      assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
-      assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
-      assert.equal(utxo0.assets[0].toBase58(), utxo1.assets[0].toBase58());
-      assert.equal(utxo0.assets[1].toBase58(), utxo1.assets[1].toBase58());
-      assert.equal(
-        utxo0.assetsCircuit[0].toString(),
-        utxo1.assetsCircuit[0].toString()
-      );
-      assert.equal(
-        utxo0.assetsCircuit[1].toString(),
-        utxo1.assetsCircuit[1].toString()
-      );
-      assert.equal(
-        utxo0.instructionType.toString(),
-        utxo1.instructionType.toString()
-      );
-      assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
-      assert.equal(
-        utxo0.verifierAddress.toString(),
-        utxo1.verifierAddress.toString()
-      );
-      assert.equal(
-        utxo0.verifierAddressCircuit.toString(),
-        utxo1.verifierAddressCircuit.toString()
-      );
-      assert.equal(
-        utxo0.getCommitment()?.toString(),
-        utxo1.getCommitment()?.toString(),
-      );
-      assert.equal(
-        utxo0.getNullifier()?.toString(),
-        utxo1.getNullifier()?.toString(),
-      );
-    };
+    assert.equal(
+      utxo0.getCommitment()?.toString(),
+      "652669139698397343583748072204170820200438709928429876748650598683161543212"
+    );
+    assert.equal(
+      utxo0.getNullifier()?.toString(),
+      "17480811615340544191325914403781453306357111339028048073066510246169472538152"
+    );
 
     // toBytes
     const bytes = utxo0.toBytes();
     // fromBytes
     const utxo1 = Utxo.fromBytes({ poseidon, keypair: inputs.keypair, bytes });
-    utxoEqual(utxo0, utxo1);
+    Utxo.equal(utxo0, utxo1);
     // encrypt
     const encBytes = utxo1.encrypt();
 
     // decrypt
     const utxo3 = Utxo.decrypt({ poseidon, encBytes, keypair: inputs.keypair });
     if (utxo3) {
-      utxoEqual(utxo0, utxo3);
+      Utxo.equal(utxo0, utxo3);
     } else {
       throw "decrypt failed";
     }
@@ -300,7 +265,7 @@ describe("verifier_program", () => {
       keypair: utxo4.keypair,
       bytes: bytes4,
     });
-    utxoEqual(utxo4, utxo40);
+    Utxo.equal(utxo4, utxo40);
     // encrypt
     const encBytes4 = utxo4.encrypt();
     const utxo41 = Utxo.decrypt({
@@ -309,7 +274,7 @@ describe("verifier_program", () => {
       keypair: utxo4.keypair,
     });
     if (utxo41) {
-      utxoEqual(utxo4, utxo41);
+      Utxo.equal(utxo4, utxo41);
     } else {
       throw "decrypt failed";
     }
@@ -325,4 +290,131 @@ describe("verifier_program", () => {
   });
 
   it("assign Accounts", async () => {});
+  it.only("getIndices", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    let lightInstance: LightInstance = {
+      solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY,poseidon}),
+    };
+    let tx = new Transaction({
+      instance: lightInstance,
+      payer: ADMIN_AUTH_KEYPAIR,
+      shuffleEnabled: false,
+    });
+
+    var deposit_utxo1 = new Utxo({
+      poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(1),
+        new anchor.BN(2),
+      ],
+    });
+
+    // let txParams = new TransactionParameters({
+    //   outputUtxos: [deposit_utxo1],
+    //   merkleTreePubkey: MERKLE_TREE_KEY,
+    //   sender: userTokenAccount,
+    //   senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+    //   verifier: new VerifierZero(),
+    // });
+    tx.assetPubkeysCircuit = [
+      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
+      hashAndTruncateToCircuit(MINT.toBytes()),
+      new anchor.BN(0)
+    ]
+    const indices1 = tx.getIndices([deposit_utxo1]);
+    assert.equal(indices1[0][0][0], "1");
+    assert.equal(indices1[0][0][1], "0");
+    assert.equal(indices1[0][0][2], "0");
+    assert.equal(indices1[0][1][0], "0");
+    assert.equal(indices1[0][1][1], "1");
+    assert.equal(indices1[0][1][2], "0");
+
+    const indices2 = tx.getIndices([deposit_utxo1, deposit_utxo1]);
+    assert.equal(indices2[0][0][0], "1");
+    assert.equal(indices2[0][0][1], "0");
+    assert.equal(indices2[0][0][2], "0");
+    assert.equal(indices2[0][1][0], "0");
+    assert.equal(indices2[0][1][1], "1");
+    assert.equal(indices2[0][1][2], "0");
+
+    var deposit_utxo2 = new Utxo({
+      poseidon,
+      assets: [FEE_ASSET],
+      amounts: [
+        new anchor.BN(1),
+      ],
+    });
+
+    const indices3 = tx.getIndices([deposit_utxo2]);
+    assert.equal(indices3[0][0][0], "1");
+    assert.equal(indices3[0][0][1], "0");
+    assert.equal(indices3[0][0][2], "0");
+    assert.equal(indices3[0][1][0], "0");
+    assert.equal(indices3[0][1][1], "0");
+    assert.equal(indices3[0][1][2], "0");
+
+    var deposit_utxo3 = new Utxo({
+      poseidon
+    });
+
+    const indices4 = tx.getIndices([deposit_utxo3]);
+    assert.equal(indices4[0][0][0], "0");
+    assert.equal(indices4[0][0][1], "0");
+    assert.equal(indices4[0][0][2], "0");
+    assert.equal(indices4[0][1][0], "0");
+    assert.equal(indices4[0][1][1], "0");
+    assert.equal(indices4[0][1][2], "0");
+
+    var deposit_utxo4 = new Utxo({
+      poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(0),
+        new anchor.BN(2),
+      ],
+    });
+
+    const indices5 = tx.getIndices([deposit_utxo4]);
+    assert.equal(indices5[0][0][0], "1");
+    assert.equal(indices5[0][0][1], "0");
+    assert.equal(indices5[0][0][2], "0");
+    assert.equal(indices5[0][1][0], "0");
+    assert.equal(indices5[0][1][1], "1");
+    assert.equal(indices5[0][1][2], "0");
+
+    const indices6 = tx.getIndices([deposit_utxo3, deposit_utxo4 ]);
+    assert.equal(indices6[0][0][0], "0");
+    assert.equal(indices6[0][0][1], "0");
+    assert.equal(indices6[0][0][2], "0");
+    assert.equal(indices6[0][1][0], "0");
+    assert.equal(indices6[0][1][1], "0");
+    assert.equal(indices6[0][1][2], "0");
+
+    assert.equal(indices6[1][0][0], "1");
+    assert.equal(indices6[1][0][1], "0");
+    assert.equal(indices6[1][0][2], "0");
+    assert.equal(indices6[1][1][0], "0");
+    assert.equal(indices6[1][1][1], "1");
+    assert.equal(indices6[1][1][2], "0");
+
+    var deposit_utxo5 = new Utxo({
+      poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(2),
+        new anchor.BN(0),
+      ],
+    });
+
+    const indices7 = tx.getIndices([deposit_utxo5 ]);
+    assert.equal(indices7[0][0][0], "1");
+    assert.equal(indices7[0][0][1], "0");
+    assert.equal(indices7[0][0][2], "0");
+    assert.equal(indices7[0][1][0], "0");
+    assert.equal(indices7[0][1][1], "0");
+    assert.equal(indices7[0][1][2], "0");
+
+  });
 });

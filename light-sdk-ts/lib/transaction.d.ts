@@ -53,6 +53,7 @@ export declare class TransactionParameters implements transactionParameters {
     };
     encryptedUtxos?: Uint8Array;
     verifier: Verifier;
+    verifierApp?: Verifier;
     nullifierPdaPubkeys?: {
         isSigner: boolean;
         isWritable: boolean;
@@ -64,9 +65,10 @@ export declare class TransactionParameters implements transactionParameters {
         pubkey: PublicKey;
     }[];
     merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
-    constructor({ merkleTreePubkey, verifier, sender, recipient, senderFee, recipientFee, inputUtxos, outputUtxos, }: {
+    constructor({ merkleTreePubkey, verifier, sender, recipient, senderFee, recipientFee, inputUtxos, outputUtxos, verifierApp, }: {
         merkleTreePubkey: PublicKey;
         verifier: Verifier;
+        verifierApp?: Verifier;
         sender?: PublicKey;
         recipient?: PublicKey;
         senderFee?: PublicKey;
@@ -146,13 +148,14 @@ export declare class Transaction {
     getMerkleProofs(): void;
     getTxIntegrityHash(): BN;
     encryptOutUtxos(encryptedUtxos?: Uint8Array): Uint8Array | undefined;
-    overWriteEncryptedUtxos(bytes: Uint8Array, offSet?: number): void;
+    overWriteEncryptedUtxos(bytes: Uint8Array, toOverwriteBytes: Uint8Array, offSet?: number): Uint8Array;
     getPublicInputs(): void;
     getTestValues(): Promise<void>;
     static getSignerAuthorityPda(merkleTreeProgramId: PublicKey, verifierProgramId: PublicKey): PublicKey;
     static getRegisteredVerifierPda(merkleTreeProgramId: PublicKey, verifierProgramId: PublicKey): PublicKey;
     getInstructionsJson(): Promise<string[]>;
     sendTransaction(ix: any): Promise<TransactionSignature | undefined>;
+    getInstructions(): Promise<TransactionInstruction[]>;
     sendAndConfirmTransaction(): Promise<TransactionSignature>;
     checkProof(): Promise<void>;
     getPdaAddresses(): Promise<void>;

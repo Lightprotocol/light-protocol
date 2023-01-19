@@ -13,12 +13,13 @@ export declare class Keypair {
     encPrivateKey?: Uint8Array;
     poseidon: any;
     burnerSeed: Uint8Array;
-    constructor({ poseidon, seed, burner, privateKey, publicKey, }: {
-        poseidon: any;
+    constructor({ poseidon, seed, burner, privateKey, publicKey, encPubkey, }: {
+        poseidon?: any;
         seed?: string;
         burner?: Boolean;
         privateKey?: BN;
         publicKey?: BN;
+        encPubkey?: Uint8Array;
     });
     encryptionPublicKeyToBytes(): Buffer;
     /**
@@ -32,7 +33,7 @@ export declare class Keypair {
     static createBurner(poseidon: any, seed: String, index: BN): Keypair;
     static fromBurnerSeed(poseidon: any, burnerSeed: Uint8Array): Keypair;
     static fromPrivkey(poseidon: any, privateKey: Uint8Array): Keypair;
-    static fromPubkey(poseidon: any, publicKey: Uint8Array): Keypair;
+    static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Keypair;
     static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair;
     static generateShieldedPrivateKey(seed: String): BN;
     static generateShieldedPublicKey(privateKey: BN, poseidon: any): BN;
