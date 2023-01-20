@@ -77,7 +77,6 @@ function functionalCircuitTest() {
         });
         // successful proofgeneration
         yield tx.compile(txParams);
-        console.log(tx.proofInput);
         yield tx.getProof();
         // unsuccessful proofgeneration
         try {

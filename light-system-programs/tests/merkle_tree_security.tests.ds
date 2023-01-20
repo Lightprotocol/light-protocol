@@ -1,0 +1,33 @@
+
+// TODO: split tests into verifiers functional, verifiers security,
+//        merkle tree functional, merkle tree security 
+
+it.skip("reinit spl token", async () => {
+    let merkleTreeConfig = new MerkleTreeConfig({
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      payer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+    });
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    try {
+      await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);
+      console.log("Registering spl pool success");
+    } catch (e) {
+      console.log(e);
+    }
+  });
+
+  it.skip("reinit sol token", async () => {
+    let merkleTreeConfig = new MerkleTreeConfig({
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      payer: ADMIN_AUTH_KEYPAIR,
+      connection: provider.connection,
+    });
+    await merkleTreeConfig.getMerkleTreeAuthorityPda();
+    try {
+      await merkleTreeConfig.registerSolPool(POOL_TYPE);
+      console.log("Registering spl pool success");
+    } catch (e) {
+      console.log(e);
+    }
+  });

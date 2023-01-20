@@ -17,7 +17,6 @@ pub fn create_and_check_pda<'a, 'b>(
     lamports: u64,
     rent_exempt: bool,
 ) -> Result<(), ProgramError> {
-
     let derived_pubkey =
         Pubkey::find_program_address(&[_instruction_data, domain_separation_seed], program_id);
 

@@ -28,7 +28,7 @@ export declare class MerkleTreeConfig {
   initMerkleTreeAuthority(authority?: Keypair | undefined): Promise<any>;
   updateMerkleTreeAuthority(
     newAuthority: PublicKey,
-    test?: boolean
+    test?: boolean,
   ): Promise<any>;
   enableNfts(configValue: Boolean): Promise<any>;
   enablePermissionlessSplTokens(configValue: Boolean): Promise<any>;
@@ -41,13 +41,13 @@ export declare class MerkleTreeConfig {
   checkPoolRegistered(
     poolPda: any,
     poolType: any,
-    mint?: PublicKey | null
+    mint?: PublicKey | null,
   ): Promise<void>;
   getSolPoolPda(poolType: any): Promise<any>;
   registerSolPool(poolType: any): Promise<any>;
   getSplPoolPdaToken(
     poolType: any,
-    mint: PublicKey
+    mint: PublicKey,
   ): Promise<anchor.web3.PublicKey>;
   getSplPoolPda(poolType: any, mint: PublicKey): Promise<any>;
   getTokenAuthority(): Promise<anchor.web3.PublicKey>;

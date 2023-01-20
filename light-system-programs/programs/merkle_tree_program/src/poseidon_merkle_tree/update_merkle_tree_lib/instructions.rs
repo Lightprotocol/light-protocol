@@ -147,10 +147,7 @@ pub fn insert_last_double(
         "update_state_data.state[0..32].to_vec() {:?}",
         update_state_data.state[0..32].to_vec()
     );
-    let index: usize = merkle_tree_account
-        .current_root_index
-        .try_into()
-        .unwrap();
+    let index: usize = merkle_tree_account.current_root_index.try_into().unwrap();
 
     merkle_tree_account.roots[index] = update_state_data.state[0..32].try_into().unwrap();
 

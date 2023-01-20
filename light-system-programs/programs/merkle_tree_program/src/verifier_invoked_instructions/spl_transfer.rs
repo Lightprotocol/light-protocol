@@ -26,10 +26,8 @@ pub fn process_spl_transfer<'info>(
     amount: u64,
 ) -> Result<()> {
     // msg!("Withdrawing spl token {}", amount);
-    let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
-        &[TOKEN_AUTHORITY_SEED],
-        ctx.program_id,
-    );
+    let (_, bump) =
+        anchor_lang::prelude::Pubkey::find_program_address(&[TOKEN_AUTHORITY_SEED], ctx.program_id);
     let bump = &[bump][..];
     let seeds = &[&[TOKEN_AUTHORITY_SEED, bump][..]];
     let accounts = Transfer {

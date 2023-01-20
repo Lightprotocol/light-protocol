@@ -104,14 +104,14 @@ function testTransaction({
 }) {
   return __awaiter(this, void 0, void 0, function* () {
     const origin = yield (0, createAccounts_1.newAccountWithLamports)(
-      provider.connection
+      provider.connection,
     );
     console.log(transaction.verifier.publicInputs);
     console.log(transaction);
     const shieldedTxBackUp = _.cloneDeep(transaction);
     console.log(
       "transaction.publicInputs.publicAmount ",
-      transaction.publicInputs.publicAmount
+      transaction.publicInputs.publicAmount,
     );
     // Wrong pub amount
     let wrongAmount = new anchor.BN("123213").toArray();
@@ -124,12 +124,12 @@ function testTransaction({
     console.log(e);
     console.log(
       "Wrong wrongPubAmount",
-      e.logs.includes("Program log: error ProofVerificationFailed")
+      e.logs.includes("Program log: error ProofVerificationFailed"),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: error ProofVerificationFailed") == true);
     transaction.publicInputs.publicAmount = _.cloneDeep(
-      shieldedTxBackUp.publicInputs.publicAmount
+      shieldedTxBackUp.publicInputs.publicAmount,
     );
     yield (0,
     testChecks_1.checkNfInserted)(transaction.nullifierPdaPubkeys, provider.connection);
@@ -143,7 +143,7 @@ function testTransaction({
     e = yield transaction.sendTransaction();
     console.log(
       "Wrong feeAmount",
-      e.logs.includes("Program log: error ProofVerificationFailed")
+      e.logs.includes("Program log: error ProofVerificationFailed"),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: error ProofVerificationFailed") == true);
@@ -169,7 +169,7 @@ function testTransaction({
     e = yield transaction.sendTransaction();
     console.log(
       "Wrong wrongMint",
-      e.logs.includes("Program log: error ProofVerificationFailed")
+      e.logs.includes("Program log: error ProofVerificationFailed"),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: error ProofVerificationFailed") == true);
@@ -181,7 +181,7 @@ function testTransaction({
     e = yield transaction.sendTransaction();
     console.log(
       "Wrong encryptedUtxos",
-      e.logs.includes("Program log: error ProofVerificationFailed")
+      e.logs.includes("Program log: error ProofVerificationFailed"),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: error ProofVerificationFailed") == true);
@@ -194,7 +194,7 @@ function testTransaction({
     e = yield transaction.sendTransaction();
     console.log(
       "Wrong relayerFee",
-      e.logs.includes("Program log: error ProofVerificationFailed")
+      e.logs.includes("Program log: error ProofVerificationFailed"),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: error ProofVerificationFailed") == true);
@@ -208,15 +208,15 @@ function testTransaction({
         "Wrong nullifier ",
         i,
         " ",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
-        e.logs.includes("Program log: error ProofVerificationFailed") == true
+        e.logs.includes("Program log: error ProofVerificationFailed") == true,
       );
       transaction.publicInputs = _.cloneDeep(shieldedTxBackUp.publicInputs);
       yield (0, testChecks_1.checkNfInserted)(
         transaction.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
     }
     for (var i = 0; i < transaction.publicInputs.leaves.length; i++) {
@@ -225,10 +225,10 @@ function testTransaction({
       e = yield transaction.sendTransaction();
       console.log(
         "Wrong leafLeft",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
-        e.logs.includes("Program log: error ProofVerificationFailed") == true
+        e.logs.includes("Program log: error ProofVerificationFailed") == true,
       );
       transaction.publicInputs.leaves[i] =
         _.cloneDeep(shieldedTxBackUp).publicInputs.leaves[i];
@@ -246,19 +246,19 @@ function testTransaction({
       e = yield transaction.sendTransaction();
       console.log(
         "Wrong signingAddress",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
         e.logs.includes("Program log: error ProofVerificationFailed") == true ||
           e.logs.includes(
-            "Program log: AnchorError caused by account: signing_address. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated."
-          ) == true
+            "Program log: AnchorError caused by account: signing_address. Error Code: ConstraintAddress. Error Number: 2012. Error Message: An address constraint was violated.",
+          ) == true,
       );
       transaction.relayerPubkey = _.cloneDeep(shieldedTxBackUp.relayerPubkey);
       transaction.payer = _.cloneDeep(shieldedTxBackUp.payer);
       yield (0, testChecks_1.checkNfInserted)(
         transaction.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
     }
     // probably above
@@ -270,10 +270,10 @@ function testTransaction({
       e = yield transaction.sendTransaction();
       console.log(
         "Wrong recipient",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
-        e.logs.includes("Program log: error ProofVerificationFailed") == true
+        e.logs.includes("Program log: error ProofVerificationFailed") == true,
       );
       transaction.recipient = _.cloneDeep(shieldedTxBackUp.recipient);
       console.log("Wrong recipientFee ");
@@ -283,10 +283,10 @@ function testTransaction({
       e = yield transaction.sendTransaction();
       console.log(
         "Wrong recipientFee",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
-        e.logs.includes("Program log: error ProofVerificationFailed") == true
+        e.logs.includes("Program log: error ProofVerificationFailed") == true,
       );
       transaction.recipientFee = _.cloneDeep(shieldedTxBackUp.recipientFee);
     } else {
@@ -294,15 +294,15 @@ function testTransaction({
       e = yield transaction.sendTransaction();
       console.log(
         "Wrong sender",
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
       (0, chai_1.assert)(
-        e.logs.includes("Program log: error ProofVerificationFailed") == true
+        e.logs.includes("Program log: error ProofVerificationFailed") == true,
       );
       transaction.sender = _.cloneDeep(shieldedTxBackUp.sender);
       yield (0, testChecks_1.checkNfInserted)(
         transaction.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
       console.log("Wrong senderFee ");
       // Wrong recipientFee
@@ -313,18 +313,18 @@ function testTransaction({
       console.log(
         "Wrong senderFee",
         e.logs.includes(
-          "Program log: AnchorError thrown in src/light_transaction.rs:696. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient."
-        )
+          "Program log: AnchorError thrown in src/light_transaction.rs:696. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.",
+        ),
       );
       (0, chai_1.assert)(
         e.logs.includes(
-          "Program log: AnchorError thrown in src/light_transaction.rs:696. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient."
-        ) == true
+          "Program log: AnchorError thrown in src/light_transaction.rs:696. Error Code: InvalidSenderorRecipient. Error Number: 6011. Error Message: InvalidSenderorRecipient.",
+        ) == true,
       );
       transaction.senderFee = _.cloneDeep(shieldedTxBackUp.senderFee);
       yield (0, testChecks_1.checkNfInserted)(
         transaction.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
     }
     console.log("Wrong registeredVerifierPda ");
@@ -342,7 +342,7 @@ function testTransaction({
     (0,
     chai_1.assert)(e.logs.includes("Program log: AnchorError caused by account: registered_verifier_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.") == true);
     transaction.registeredVerifierPda = _.cloneDeep(
-      shieldedTxBackUp.registeredVerifierPda
+      shieldedTxBackUp.registeredVerifierPda,
     );
     yield (0,
     testChecks_1.checkNfInserted)(transaction.nullifierPdaPubkeys, provider.connection);
@@ -354,13 +354,13 @@ function testTransaction({
     console.log(
       "Wrong authority1 ",
       e.logs.includes(
-        "Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
-      )
+        "Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.",
+      ),
     );
     (0,
     chai_1.assert)(e.logs.includes("Program log: AnchorError caused by account: authority. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.") == true);
     transaction.signerAuthorityPubkey = _.cloneDeep(
-      shieldedTxBackUp.signerAuthorityPubkey
+      shieldedTxBackUp.signerAuthorityPubkey,
     );
     yield (0,
     testChecks_1.checkNfInserted)(transaction.nullifierPdaPubkeys, provider.connection);
@@ -375,7 +375,7 @@ function testTransaction({
     for (var j = 0; j < transaction.nullifierPdaPubkeys.length; j++) {
       console.log(
         "transaction.nullifierPdaPubkeys.length ",
-        transaction.nullifierPdaPubkeys.length
+        transaction.nullifierPdaPubkeys.length,
       );
       // Wrong authority
       transaction.nullifierPdaPubkeys[j] =
@@ -384,37 +384,37 @@ function testTransaction({
         ];
       (0, chai_1.assert)(
         transaction.nullifierPdaPubkeys[j] !=
-          shieldedTxBackUp.nullifierPdaPubkeys[j]
+          shieldedTxBackUp.nullifierPdaPubkeys[j],
       );
       e = yield transaction.sendTransaction();
       console.log(e);
       console.log(
         "transaction.nullifierPdaPubkeys[i] ",
-        transaction.nullifierPdaPubkeys[j]
+        transaction.nullifierPdaPubkeys[j],
       );
       console.log(
         "Wrong nullifierPdaPubkeys ",
         j,
         " ",
         e.logs.includes(
-          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
-        )
+          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
+        ),
       );
       (0, chai_1.assert)(
         e.logs.includes(
-          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
-        ) == true
+          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
+        ) == true,
       );
       transaction.nullifierPdaPubkeys = _.cloneDeep(
-        shieldedTxBackUp.nullifierPdaPubkeys
+        shieldedTxBackUp.nullifierPdaPubkeys,
       );
       (0, chai_1.assert)(
         transaction.nullifierPdaPubkeys[j] ==
-          shieldedTxBackUp.nullifierPdaPubkeys[j]
+          shieldedTxBackUp.nullifierPdaPubkeys[j],
       );
       console.log(
         "transaction.nullifierPdaPubkeys[j] ",
-        transaction.nullifierPdaPubkeys[j]
+        transaction.nullifierPdaPubkeys[j],
       );
     }
   });

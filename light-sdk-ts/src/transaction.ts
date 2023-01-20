@@ -299,7 +299,13 @@ export class Transaction {
     this.getProofInput();
     await this.getRootIndex();
   }
-
+  getMint() {
+    if (this.getExternalAmount(1).toString() == "0") {
+      return new BN(0);
+    } else {
+      return this.assetPubkeysCircuit[1];
+    }
+  }
   getProofInput() {
     if (
       this.params &&
@@ -315,7 +321,7 @@ export class Transaction {
         publicAmount: this.getExternalAmount(1).toString(),
         feeAmount: this.getExternalAmount(0).toString(),
         extDataHash: this.getTxIntegrityHash().toString(),
-        mintPubkey: this.assetPubkeysCircuit[1],
+        mintPubkey: this.getMint(),
         inPrivateKey: this.params.inputUtxos?.map((x) => x.keypair.privkey),
         inPathIndices: this.inputMerklePathIndices,
         inPathElements: this.inputMerklePathElements,
@@ -374,9 +380,6 @@ export class Transaction {
       );
       this.proofBytesApp = proofBytes;
       this.publicInputsApp = publicInputs;
-
-      console.log("this.proofBytesApp ", this.proofBytesApp.toString());
-      console.log("this.publicInputsApp ", this.publicInputsApp.toString());
     } else {
       throw new Error("No app params provided");
     }
@@ -392,7 +395,6 @@ export class Transaction {
     );
     this.proofBytes = proofBytes;
     this.publicInputs = publicInputs;
-    console.log();
 
     if (this.instance.provider) {
       await this.getPdaAddresses();
@@ -409,6 +411,8 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
+      // console.log("this.proofInput ", inputs);
+
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
       const buffer = readFileSync(completePathWtns);
@@ -694,36 +698,17 @@ export class Transaction {
 
     utxos.map((utxo, index) => {
       let tmpInIndices = [];
-      console.log("index ", index);
-      console.log("inIndices ", inIndices);
-
       for (var a = 0; a < utxo.assets.length; a++) {
-        console.log("a ", a);
         let tmpInIndices1: String[] = [];
 
         for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
           try {
-            console.log(i);
-
-            console.log(
-              `utxo ${utxo.assetsCircuit[
-                a
-              ].toString()} == ${this.assetPubkeysCircuit[i].toString()}`,
-            );
-
             if (
               utxo.assetsCircuit[a].toString() ===
                 this.assetPubkeysCircuit[i].toString() &&
-              // utxo.amounts[a].toString() > "0" &&
               !tmpInIndices1.includes("1") &&
               this.assetPubkeysCircuit[i].toString() != "0"
             ) {
-              // if (this.assetPubkeysCircuit[i].toString() == "0") {
-              //   tmpInIndices1.push("0");
-
-              // } else {
-              //   tmpInIndices1.push("1");
-              // }
               tmpInIndices1.push("1");
             } else {
               tmpInIndices1.push("0");
@@ -734,12 +719,11 @@ export class Transaction {
         }
 
         tmpInIndices.push(tmpInIndices1);
-        console.log("tmpInIndices ", tmpInIndices);
       }
 
       inIndices.push(tmpInIndices);
     });
-    console.log(inIndices);
+    // console.log(inIndices);
     return inIndices;
   }
 

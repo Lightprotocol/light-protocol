@@ -99,7 +99,7 @@ class MerkleTreeConfig {
       this.preInsertedLeavesIndex =
         (yield web3_js_1.PublicKey.findProgramAddress(
           [this.merkleTreePubkey.toBuffer()],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0];
       return this.preInsertedLeavesIndex;
     });
@@ -132,7 +132,7 @@ class MerkleTreeConfig {
     return __awaiter(this, void 0, void 0, function* () {
       var merkleTreeAccountInfo =
         yield this.merkleTreeProgram.account.merkleTree.fetch(
-          this.merkleTreePubkey
+          this.merkleTreePubkey,
         );
       (0,
       chai_1.assert)(merkleTreeAccountInfo != null, "merkleTreeAccountInfo not initialized");
@@ -147,7 +147,7 @@ class MerkleTreeConfig {
     return __awaiter(this, void 0, void 0, function* () {
       var preInsertedLeavesIndexAccountInfo =
         yield this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
-          this.preInsertedLeavesIndex
+          this.preInsertedLeavesIndex,
         );
       (0,
       chai_1.assert)(preInsertedLeavesIndexAccountInfo != null, "preInsertedLeavesIndexAccountInfo not initialized");
@@ -159,7 +159,7 @@ class MerkleTreeConfig {
     return __awaiter(this, void 0, void 0, function* () {
       var merkleTreeAccountInfo =
         yield this.merkleTreeProgram.account.merkleTree.fetch(
-          this.merkleTreePubkey
+          this.merkleTreePubkey,
         );
       console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
     });
@@ -169,7 +169,7 @@ class MerkleTreeConfig {
       this.merkleTreeAuthorityPda =
         (yield web3_js_1.PublicKey.findProgramAddress(
           [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY")],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0];
       return this.merkleTreeAuthorityPda;
     });
@@ -190,8 +190,8 @@ class MerkleTreeConfig {
               authority: authority.publicKey,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([authority])
         .rpc(constants_1.confirmConfig);
@@ -201,7 +201,7 @@ class MerkleTreeConfig {
       chai_1.assert)(this.connection.getAccountInfo(this.merkleTreeAuthorityPda, "confirmed") != null, "init authority failed");
       let merkleTreeAuthority =
         yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-          this.merkleTreeAuthorityPda
+          this.merkleTreeAuthorityPda,
         );
       (0,
       chai_1.assert)(merkleTreeAuthority.enablePermissionlessSplTokens == false);
@@ -222,7 +222,7 @@ class MerkleTreeConfig {
       if (test != true) {
         merkleTreeAuthorityPrior =
           yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-            this.merkleTreeAuthorityPda
+            this.merkleTreeAuthorityPda,
           );
         if (merkleTreeAuthorityPrior == null) {
           throw `Merkle tree authority ${this.merkleTreeAuthorityPda.toBase58()} not initialized`;
@@ -237,25 +237,25 @@ class MerkleTreeConfig {
               newAuthority,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
       if (test != true) {
         let merkleTreeAuthority =
           yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-            this.merkleTreeAuthorityPda
+            this.merkleTreeAuthorityPda,
           );
         (0, chai_1.assert)(
           merkleTreeAuthority.enablePermissionlessSplTokens ==
-            merkleTreeAuthorityPrior.enablePermissionlessSplTokens
+            merkleTreeAuthorityPrior.enablePermissionlessSplTokens,
         );
         (0, chai_1.assert)(
-          merkleTreeAuthority.enableNfts == merkleTreeAuthorityPrior.enableNfts
+          merkleTreeAuthority.enableNfts == merkleTreeAuthorityPrior.enableNfts,
         );
         (0, chai_1.assert)(
-          merkleTreeAuthority.pubkey.toBase58() == newAuthority.toBase58()
+          merkleTreeAuthority.pubkey.toBase58() == newAuthority.toBase58(),
         );
       }
       return tx;
@@ -274,14 +274,14 @@ class MerkleTreeConfig {
               authority: this.payer.publicKey,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
       let merkleTreeAuthority =
         yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-          this.merkleTreeAuthorityPda
+          this.merkleTreeAuthorityPda,
         );
       (0, chai_1.assert)(merkleTreeAuthority.enableNfts == configValue);
       return tx;
@@ -300,14 +300,14 @@ class MerkleTreeConfig {
               authority: this.payer.publicKey,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
       let merkleTreeAuthority =
         yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-          this.merkleTreeAuthorityPda
+          this.merkleTreeAuthorityPda,
         );
       (0,
       chai_1.assert)(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
@@ -328,13 +328,13 @@ class MerkleTreeConfig {
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
               merkleTree: this.merkleTreePubkey,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
       let merkleTree = yield this.merkleTreeProgram.account.merkleTree.fetch(
-        this.merkleTreePubkey
+        this.merkleTreePubkey,
       );
       (0, chai_1.assert)(merkleTree.lockDuration == lockDuration);
       console.log("lock duration updated to: ", lockDuration);
@@ -347,7 +347,7 @@ class MerkleTreeConfig {
       this.registeredVerifierPdas.push({
         registeredVerifierPda: (yield web3_js_1.PublicKey.findProgramAddress(
           [verifierPubkey.toBuffer()],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0],
         verifierPubkey: verifierPubkey,
       });
@@ -362,7 +362,7 @@ class MerkleTreeConfig {
       })[0];
       if (!registeredVerifierPda) {
         registeredVerifierPda = yield this.getRegisteredVerifierPda(
-          verifierPubkey
+          verifierPubkey,
         );
       }
       const tx = yield this.merkleTreeProgram.methods
@@ -375,8 +375,8 @@ class MerkleTreeConfig {
               authority: this.payer.publicKey,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
@@ -391,7 +391,7 @@ class MerkleTreeConfig {
       })[0];
       var registeredVerifierAccountInfo =
         yield this.merkleTreeProgram.account.registeredVerifier.fetch(
-          registeredVerifierPda.registeredVerifierPda
+          registeredVerifierPda.registeredVerifierPda,
         );
       (0, chai_1.assert)(registeredVerifierAccountInfo != null);
       (0,
@@ -407,7 +407,7 @@ class MerkleTreeConfig {
       this.poolTypes.push({
         poolPda: (yield web3_js_1.PublicKey.findProgramAddress(
           [poolType, anchor.utils.bytes.utf8.encode("pooltype")],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0],
         poolType: poolType,
       });
@@ -431,8 +431,8 @@ class MerkleTreeConfig {
               authority: this.payer.publicKey,
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);
@@ -443,11 +443,11 @@ class MerkleTreeConfig {
     return __awaiter(this, void 0, void 0, function* () {
       var registeredTokenConfigAccount =
         yield this.merkleTreeProgram.account.registeredAssetPool.fetch(
-          poolPda.pda
+          poolPda.pda,
         );
       var merkleTreeAuthorityPdaAccountInfo =
         yield this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-          this.merkleTreeAuthorityPda
+          this.merkleTreeAuthorityPda,
         );
       (0,
       chai_1.assert)(registeredTokenConfigAccount.poolType.toString() == poolType.toString());
@@ -456,21 +456,21 @@ class MerkleTreeConfig {
       if (mint !== null) {
         (0, chai_1.assert)(
           registeredTokenConfigAccount.assetPoolPubkey.toBase58() ==
-            poolPda.token.toBase58()
+            poolPda.token.toBase58(),
         );
         var registeredTokenAccount = yield token.getAccount(
           this.connection,
           poolPda.token,
-          { commitment: "confirmed", preflightCommitment: "confirmed" }
+          { commitment: "confirmed", preflightCommitment: "confirmed" },
         );
         (0, chai_1.assert)(registeredTokenAccount != null);
         (0, chai_1.assert)(
-          registeredTokenAccount.mint.toBase58() == mint.toBase58()
+          registeredTokenAccount.mint.toBase58() == mint.toBase58(),
         );
       } else {
         (0, chai_1.assert)(
           registeredTokenConfigAccount.assetPoolPubkey.toBase58() ==
-            poolPda.pda.toBase58()
+            poolPda.pda.toBase58(),
         );
       }
     });
@@ -484,7 +484,7 @@ class MerkleTreeConfig {
             poolType,
             anchor.utils.bytes.utf8.encode("pool-config"),
           ],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0],
         poolType: poolType,
       });
@@ -510,15 +510,15 @@ class MerkleTreeConfig {
               merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
               registeredPoolTypePda: registeredPoolTypePda.poolPda,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc({ commitment: "confirmed", preflightCommitment: "confirmed" });
       yield this.checkPoolRegistered(solPoolPda, poolType);
       console.log(
         "registered sol pool ",
-        this.merkleTreeAuthorityPda.toBase58()
+        this.merkleTreeAuthorityPda.toBase58(),
       );
       return tx;
     });
@@ -531,7 +531,7 @@ class MerkleTreeConfig {
           new Uint8Array(32).fill(0),
           anchor.utils.bytes.utf8.encode("pool"),
         ],
-        this.merkleTreeProgram.programId
+        this.merkleTreeProgram.programId,
       ))[0];
       return pda;
     });
@@ -545,7 +545,7 @@ class MerkleTreeConfig {
             new Uint8Array(32).fill(0),
             anchor.utils.bytes.utf8.encode("pool-config"),
           ],
-          this.merkleTreeProgram.programId
+          this.merkleTreeProgram.programId,
         ))[0],
         poolType: poolType,
         token: yield this.getSplPoolPdaToken(poolType, mint),
@@ -557,7 +557,7 @@ class MerkleTreeConfig {
     return __awaiter(this, void 0, void 0, function* () {
       this.tokenAuthority = (yield web3_js_1.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("spl")],
-        this.merkleTreeProgram.programId
+        this.merkleTreeProgram.programId,
       ))[0];
       return this.tokenAuthority;
     });
@@ -587,8 +587,8 @@ class MerkleTreeConfig {
               tokenAuthority: this.tokenAuthority,
               mint,
             },
-            constants_1.DEFAULT_PROGRAMS
-          )
+            constants_1.DEFAULT_PROGRAMS,
+          ),
         )
         .signers([this.payer])
         .rpc(constants_1.confirmConfig);

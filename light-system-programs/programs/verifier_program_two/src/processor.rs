@@ -6,7 +6,7 @@ use light_verifier_sdk::{
 };
 
 use crate::LightInstruction;
-use anchor_lang::solana_program::{keccak::hash, msg};
+use anchor_lang::solana_program::keccak::hash;
 use light_verifier_sdk::state::VerifierState10Ins;
 
 #[derive(Clone)]

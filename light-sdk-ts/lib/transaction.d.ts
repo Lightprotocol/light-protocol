@@ -128,6 +128,7 @@ export declare class Transaction {
     proveAndCreateInstructions(params: TransactionParameters): Promise<TransactionInstruction[]>;
     compileAndProve(params: TransactionParameters): Promise<void>;
     compile(params: TransactionParameters, appParams?: any): Promise<void>;
+    getMint(): BN;
     getProofInput(): void;
     getAppProof(): Promise<void>;
     getProof(): Promise<void>;

@@ -91,7 +91,7 @@ const constants_1 = require("../constants");
 function initLookUpTableFromFile(
   provider,
   path = `lookUpTable.txt`,
-  extraAccounts
+  extraAccounts,
 ) {
   return __awaiter(this, void 0, void 0, function* () {
     const recentSlot = (yield provider.connection.getSlot("confirmed")) - 10;
@@ -101,14 +101,14 @@ function initLookUpTableFromFile(
         payerPubkey.toBuffer(),
         (0, bigint_buffer_1.toBufferLE)(BigInt(recentSlot), 8),
       ],
-      web3_js_1.AddressLookupTableProgram.programId
+      web3_js_1.AddressLookupTableProgram.programId,
     );
     try {
       let lookUpTableRead = new web3_js_1.PublicKey(
-        (0, fs_1.readFileSync)(path, "utf8")
+        (0, fs_1.readFileSync)(path, "utf8"),
       );
       let lookUpTableInfoInit = yield provider.connection.getAccountInfo(
-        lookUpTableRead
+        lookUpTableRead,
       );
       if (lookUpTableInfoInit) {
         lookUpTable = lookUpTableRead;
@@ -120,7 +120,7 @@ function initLookUpTableFromFile(
       provider,
       lookUpTable,
       recentSlot,
-      extraAccounts
+      extraAccounts,
     );
     (0, fs_1.writeFile)(path, LOOK_UP_TABLE.toString(), function (err) {
       if (err) {
@@ -135,13 +135,13 @@ function initLookUpTable(
   provider,
   lookupTableAddress,
   recentSlot,
-  extraAccounts
+  extraAccounts,
 ) {
   return __awaiter(this, void 0, void 0, function* () {
     var lookUpTableInfoInit = null;
     if (lookupTableAddress != undefined) {
       lookUpTableInfoInit = yield provider.connection.getAccountInfo(
-        lookupTableAddress
+        lookupTableAddress,
       );
     }
     if (lookUpTableInfoInit == null) {
@@ -155,7 +155,7 @@ function initLookUpTable(
         })[0];
       let escrows = (yield web3_js_1.PublicKey.findProgramAddress(
         [anchor.utils.bytes.utf8.encode("escrow")],
-        constants_1.verifierProgramZero.programId
+        constants_1.verifierProgramZero.programId,
       ))[0];
       let ix0 = web3_js_1.SystemProgram.transfer({
         fromPubkey: constants_1.ADMIN_AUTH_KEYPAIR.publicKey,
@@ -191,7 +191,7 @@ function initLookUpTable(
       transaction.add(ix0);
       // transaction.add(ix1);
       let recentBlockhash = yield provider.connection.getRecentBlockhash(
-        "confirmed"
+        "confirmed",
       );
       transaction.feePayer = payerPubkey;
       transaction.recentBlockhash = recentBlockhash;
@@ -200,7 +200,7 @@ function initLookUpTable(
           provider.connection,
           transaction,
           [constants_1.ADMIN_AUTH_KEYPAIR],
-          constants_1.confirmConfig
+          constants_1.confirmConfig,
         );
       } catch (e) {
         console.log("e : ", e);
@@ -208,7 +208,7 @@ function initLookUpTable(
       console.log("lookupTableAddress: ", lookupTableAddress.toBase58());
       let lookupTableAccount = yield provider.connection.getAccountInfo(
         lookupTableAddress,
-        "confirmed"
+        "confirmed",
       );
       (0, chai_1.assert)(lookupTableAccount != null);
     }

@@ -49,12 +49,12 @@ function hashAndTruncateToCircuit(data) {
   return new anchor_1.BN(
     leInt2Buff(
       unstringifyBigInts(ethers_1.ethers.utils.keccak256(data).toString()),
-      32
+      32,
     )
       .reverse()
       .slice(1, 32),
     undefined,
-    "be"
+    "be",
   );
 }
 exports.hashAndTruncateToCircuit = hashAndTruncateToCircuit;
@@ -69,7 +69,7 @@ function getAssetLookUpId({ connection, asset }) {
     let pubkey = yield mtConf.getSplPoolPda(poolType, asset);
     let registeredAssets =
       yield constants_1.merkleTreeProgram.account.registeredAssetPool.fetch(
-        pubkey.pda
+        pubkey.pda,
       );
     return registeredAssets.index;
   });

@@ -49,7 +49,7 @@ const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
 const bigint_buffer_1 = require("bigint-buffer");
 const ethers = require("ethers");
 const FIELD_SIZE_ETHERS = ethers.BigNumber.from(
-  "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+  "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
 const fs_1 = require("fs");
 const snarkjs = require("snarkjs");
@@ -149,15 +149,15 @@ class Transaction {
   getRootIndex() {
     return __awaiter(this, void 0, void 0, function* () {
       let root = Uint8Array.from(
-        leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32)
+        leInt2Buff(unstringifyBigInts(this.merkleTree.root()), 32),
       );
       let merkle_tree_account = yield this.provider.connection.getAccountInfo(
-        this.merkleTreePubkey
+        this.merkleTreePubkey,
       );
       let merkle_tree_account_data =
         this.merkleTreeProgram.account.merkleTree._coder.accounts.decode(
           "MerkleTree",
-          merkle_tree_account.data
+          merkle_tree_account.data,
         );
       merkle_tree_account_data.roots.map((x, index) => {
         if (x.toString() === root.toString()) {
@@ -216,8 +216,8 @@ class Transaction {
               (sum, utxo) =>
                 // add all utxos of the same asset
                 sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0)
-            )
+              new anchor.BN(0),
+            ),
         )
         .sub(
           this.inputUtxos
@@ -229,8 +229,8 @@ class Transaction {
             })
             .reduce(
               (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0)
-            )
+              new anchor.BN(0),
+            ),
         );
     };
     this.externalAmountBigNumber = getExternalAmount(1);
@@ -239,11 +239,11 @@ class Transaction {
       "this.externalAmountBigNumber ",
       (_a = this.externalAmountBigNumber) === null || _a === void 0
         ? void 0
-        : _a.toString()
+        : _a.toString(),
     );
     console.log(
       "this.feeAmount ",
-      (_b = this.feeAmount) === null || _b === void 0 ? void 0 : _b.toString()
+      (_b = this.feeAmount) === null || _b === void 0 ? void 0 : _b.toString(),
     );
     /// if it is a deposit and the amount going in is smaller than 0 throw error
     if (
@@ -251,7 +251,7 @@ class Transaction {
       this.externalAmountBigNumber < new anchor.BN(0)
     ) {
       throw new Error(
-        `Incorrect Extamount: ${this.externalAmountBigNumber.toNumber()}`
+        `Incorrect Extamount: ${this.externalAmountBigNumber.toNumber()}`,
       );
     }
     this.outputUtxos.map((utxo) => {
@@ -283,13 +283,15 @@ class Transaction {
           let tmpInIndices1 = [];
           for (var i = 0; i < utxo.assets.length; i++) {
             console.log(
-              `utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`
+              `utxo asset ${utxo.assetsCircuit[i]} === ${this.assetPubkeys[a]}`,
             );
             console.log(
               `utxo asset ${
                 utxo.assetsCircuit[i].toString() ===
                 this.assetPubkeys[a].toString()
-              } utxo.amounts[a].toString()  ${utxo.amounts[a].toString() > "0"}`
+              } utxo.amounts[a].toString()  ${
+                utxo.amounts[a].toString() > "0"
+              }`,
             );
             if (
               utxo.assetsCircuit[i].toString() ===
@@ -340,14 +342,14 @@ class Transaction {
           console.log("here");
           if (inputUtxo.index < 0) {
             throw new Error(
-              `Input commitment ${inputUtxo.getCommitment()} was not found`
+              `Input commitment ${inputUtxo.getCommitment()} was not found`,
             );
           }
           console.log("here1");
           inputMerklePathIndices.push(inputUtxo.index);
           console.log("here2");
           inputMerklePathElements.push(
-            this.merkleTree.path(inputUtxo.index).pathElements
+            this.merkleTree.path(inputUtxo.index).pathElements,
           );
         }
       } else {
@@ -359,7 +361,7 @@ class Transaction {
     if (this.action !== "DEPOSIT") {
       relayer_fee = (0, bigint_buffer_1.toBufferLE)(
         BigInt(this.relayerFee.toString()),
-        8
+        8,
       );
     } else {
       relayer_fee = new Uint8Array(8).fill(0);
@@ -386,9 +388,9 @@ class Transaction {
           utxo.encrypt(
             nonces[index],
             this.encryptionKeypair,
-            this.encryptionKeypair
-          )
-        )
+            this.encryptionKeypair,
+          ),
+        ),
       );
       // console.log("removed senderThrowAwayKeypairs TODO: always use fixed keypair or switch to salsa20 without poly153");
       if (this.config.out == 2) {
@@ -414,7 +416,7 @@ class Transaction {
         console.log(this.config.out * 128 - tmpArray.length);
         if (tmpArray.length < 512) {
           tmpArray.push(
-            new Array(this.config.out * 128 - tmpArray.length).fill(0)
+            new Array(this.config.out * 128 - tmpArray.length).fill(0),
           );
         }
         this.encryptedUtxos = new Uint8Array(tmpArray.flat());
@@ -423,20 +425,20 @@ class Transaction {
     }
     console.log(
       "this.recipient.toBytes(), ",
-      Array.from(this.recipient.toBytes())
+      Array.from(this.recipient.toBytes()),
     );
     console.log(
       "this.recipientFee.toBytes(), ",
-      Array.from(this.recipientFee.toBytes())
+      Array.from(this.recipientFee.toBytes()),
     );
     console.log(
       "this.payer.toBytes(), ",
-      Array.from(this.payer.publicKey.toBytes())
+      Array.from(this.payer.publicKey.toBytes()),
     );
     console.log("relayer_fee ", relayer_fee);
     console.log(
       "this.encryptedUtxos ",
-      (_a = this.encryptedUtxos) === null || _a === void 0 ? void 0 : _a.length
+      (_a = this.encryptedUtxos) === null || _a === void 0 ? void 0 : _a.length,
     );
     let extDataBytes = new Uint8Array([
       ...this.recipient.toBytes(),
@@ -450,7 +452,7 @@ class Transaction {
     // const hash = anchor.utils.sha256.hash(extDataBytes)
     console.log("Hash: ", hash);
     (this.extDataHash = ethers.BigNumber.from(hash.toString()).mod(
-      FIELD_SIZE_ETHERS
+      FIELD_SIZE_ETHERS,
     )), //new anchor.BN(anchor.utils.bytes.hex.decode(hash)).mod(constants_1.FIELD_SIZE),
       console.log(this.merkleTree);
     // ----------------------- building input object -------------------
@@ -577,7 +579,7 @@ class Transaction {
       ...bytes,
       ...this.encryptedUtxos.slice(
         offSet + bytes.length,
-        this.encryptedUtxos.length
+        this.encryptedUtxos.length,
       ),
     ]);
   }
@@ -594,23 +596,23 @@ class Transaction {
       }
       console.log("this.input ", this.input);
       const buffer = (0, fs_1.readFileSync)(
-        `${this.verifier.wtnsGenPath}.wasm`
+        `${this.verifier.wtnsGenPath}.wasm`,
       );
       let witnessCalculator = yield this.verifier.calculateWtns(buffer);
       console.time("Proof generation");
       let wtns = yield witnessCalculator.calculateWTNSBin(
         stringifyBigInts(this.input),
-        0
+        0,
       );
       const { proof, publicSignals } = yield snarkjs.groth16.prove(
         `${this.verifier.zkeyPath}.zkey`,
-        wtns
+        wtns,
       );
       this.proofJson = JSON.stringify(proof, null, 1);
       this.publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd("Proof generation");
       const vKey = yield snarkjs.zKey.exportVerificationKey(
-        `${this.verifier.zkeyPath}.zkey`
+        `${this.verifier.zkeyPath}.zkey`,
       );
       const res = yield snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
@@ -622,11 +624,11 @@ class Transaction {
       this.publicInputsBytes = JSON.parse(this.publicInputsJson.toString());
       for (var i in this.publicInputsBytes) {
         this.publicInputsBytes[i] = Array.from(
-          leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32)
+          leInt2Buff(unstringifyBigInts(this.publicInputsBytes[i]), 32),
         ).reverse();
       }
       this.proofBytes = yield (0, exports.parseProofToBytesArray)(
-        this.proofJson
+        this.proofJson,
       );
       this.publicInputs = this.verifier.parsePublicInputsFromArray(this);
       console.log("this.publicInputs ", this.publicInputs);
@@ -641,28 +643,28 @@ class Transaction {
       let publicSignals = [
         leBuff2int(Buffer.from(this.publicInputs.root.reverse())).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.publicAmount.reverse())
+          Buffer.from(this.publicInputs.publicAmount.reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.extDataHash.reverse())
+          Buffer.from(this.publicInputs.extDataHash.reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.feeAmount.reverse())
+          Buffer.from(this.publicInputs.feeAmount.reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.mintPubkey.reverse())
+          Buffer.from(this.publicInputs.mintPubkey.reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.nullifiers[0].reverse())
+          Buffer.from(this.publicInputs.nullifiers[0].reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.nullifiers[1].reverse())
+          Buffer.from(this.publicInputs.nullifiers[1].reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.leaves[0].reverse())
+          Buffer.from(this.publicInputs.leaves[0].reverse()),
         ).toString(),
         leBuff2int(
-          Buffer.from(this.publicInputs.leaves[1].reverse())
+          Buffer.from(this.publicInputs.leaves[1].reverse()),
         ).toString(),
       ];
       let pi_b_0 = this.proofBytes.slice(64, 128).reverse();
@@ -670,10 +672,10 @@ class Transaction {
       let proof = {
         pi_a: [
           leBuff2int(
-            Buffer.from(this.proofBytes.slice(0, 32).reverse())
+            Buffer.from(this.proofBytes.slice(0, 32).reverse()),
           ).toString(),
           leBuff2int(
-            Buffer.from(this.proofBytes.slice(32, 64).reverse())
+            Buffer.from(this.proofBytes.slice(32, 64).reverse()),
           ).toString(),
           "1",
         ],
@@ -690,10 +692,10 @@ class Transaction {
         ],
         pi_c: [
           leBuff2int(
-            Buffer.from(this.proofBytes.slice(192, 224).reverse())
+            Buffer.from(this.proofBytes.slice(192, 224).reverse()),
           ).toString(),
           leBuff2int(
-            Buffer.from(this.proofBytes.slice(224, 256).reverse())
+            Buffer.from(this.proofBytes.slice(224, 256).reverse()),
           ).toString(),
           "1",
         ],
@@ -703,7 +705,7 @@ class Transaction {
       console.log("backparsed proof: ", proof);
       console.log("backparsed publicSignals: ", publicSignals);
       const vKey = yield snarkjs.zKey.exportVerificationKey(
-        `${this.verifier.zkeyPath}.zkey`
+        `${this.verifier.zkeyPath}.zkey`,
       );
       const res = yield snarkjs.groth16.verify(vKey, publicSignals, proof);
       if (res === true) {
@@ -727,8 +729,8 @@ class Transaction {
         nullifierPdaPubkeys.push(
           (yield web3_js_1.PublicKey.findProgramAddress(
             [Buffer.from(nullifiers[i]), anchor.utils.bytes.utf8.encode("nf")],
-            merkleTreeProgram.programId
-          ))[0]
+            merkleTreeProgram.programId,
+          ))[0],
         );
         console.log(nullifierPdaPubkeys[i].toBase58());
       }
@@ -741,57 +743,57 @@ class Transaction {
               Buffer.from(Array.from(this.publicInputs.leaves[i][0]).reverse()),
               anchor.utils.bytes.utf8.encode("leaves"),
             ],
-            merkleTreeProgram.programId
-          ))[0]
+            merkleTreeProgram.programId,
+          ))[0],
         );
       }
       console.log(
         "this.verifier.verifierProgram.programId ",
-        this.verifier.verifierProgram.programId.toBase58()
+        this.verifier.verifierProgram.programId.toBase58(),
       );
       console.log(
         "this.merkleTreeProgram.programId ",
-        this.merkleTreeProgram.programId.toBase58()
+        this.merkleTreeProgram.programId.toBase58(),
       );
       console.log(
         "signerAuthorityPubkey ",
         (yield web3_js_1.PublicKey.findProgramAddress(
           [merkleTreeProgram.programId.toBytes()],
-          this.verifier.verifierProgram.programId
-        ))[0].toBase58()
+          this.verifier.verifierProgram.programId,
+        ))[0].toBase58(),
       );
       let pdas = {
         signerAuthorityPubkey: (yield web3_js_1.PublicKey.findProgramAddress(
           [merkleTreeProgram.programId.toBytes()],
-          this.verifier.verifierProgram.programId
+          this.verifier.verifierProgram.programId,
         ))[0],
         escrow: (yield web3_js_1.PublicKey.findProgramAddress(
           [anchor.utils.bytes.utf8.encode("escrow")],
-          this.verifier.verifierProgram.programId
+          this.verifier.verifierProgram.programId,
         ))[0],
         verifierStatePubkey: (yield web3_js_1.PublicKey.findProgramAddress(
           [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-          this.verifier.verifierProgram.programId
+          this.verifier.verifierProgram.programId,
         ))[0],
         feeEscrowStatePubkey: (yield web3_js_1.PublicKey.findProgramAddress(
           [
             Buffer.from(new Uint8Array(tx_integrity_hash)),
             anchor.utils.bytes.utf8.encode("escrow"),
           ],
-          this.verifier.verifierProgram.programId
+          this.verifier.verifierProgram.programId,
         ))[0],
         merkleTreeUpdateState: (yield web3_js_1.PublicKey.findProgramAddress(
           [
             Buffer.from(new Uint8Array(leftLeaves[0])),
             anchor.utils.bytes.utf8.encode("storage"),
           ],
-          merkleTreeProgram.programId
+          merkleTreeProgram.programId,
         ))[0],
         nullifierPdaPubkeys,
         leavesPdaPubkeys,
         tokenAuthority: (yield web3_js_1.PublicKey.findProgramAddress(
           [anchor.utils.bytes.utf8.encode("spl")],
-          merkleTreeProgram.programId
+          merkleTreeProgram.programId,
         ))[0],
       };
       this.escrow = pdas.escrow;
@@ -811,7 +813,7 @@ class Transaction {
           this.nullifierPdaPubkeys[i],
           {
             commitment: "confirmed",
-          }
+          },
         );
         yield (0, testChecks_1.checkRentExemption)({
           account: nullifierAccount,
@@ -824,7 +826,7 @@ class Transaction {
       for (var i in this.leavesPdaPubkeys) {
         leavesAccountData =
           yield this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-            this.leavesPdaPubkeys[i]
+            this.leavesPdaPubkeys[i],
           );
         // try {
         console.log("leavesAccountData ", leavesAccountData);
@@ -834,43 +836,43 @@ class Transaction {
             i
           ][0]
             .reverse()
-            .toString()}`
+            .toString()}`,
         );
         console.log(
           `nodeLeft ${
             leavesAccountData.nodeLeft.toString() ===
             this.publicInputs.leaves[i][0].reverse().toString()
-          }`
+          }`,
         );
         console.log(
           `nodeRight ${leavesAccountData.nodeRight.toString()} !=  ${this.publicInputs.leaves[
             i
           ][1]
             .reverse()
-            .toString()}`
+            .toString()}`,
         );
         console.log(
           `nodeRight ${
             leavesAccountData.nodeRight.toString() ===
             this.publicInputs.leaves[i][1].reverse().toString()
-          }`
+          }`,
         );
         assert(
           leavesAccountData.nodeLeft.toString() ==
             this.publicInputs.leaves[i][0].reverse().toString(),
-          "left leaf not inserted correctly"
+          "left leaf not inserted correctly",
         );
         console.log("here1");
         assert(
           leavesAccountData.nodeRight.toString() ==
             this.publicInputs.leaves[i][1].reverse().toString(),
-          "right leaf not inserted correctly"
+          "right leaf not inserted correctly",
         );
         console.log("here2");
         assert(
           leavesAccountData.merkleTreePubkey.toBase58() ==
             this.merkleTreePubkey.toBase58(),
-          "merkleTreePubkey not inserted correctly"
+          "merkleTreePubkey not inserted correctly",
         );
         console.log("here3");
         for (var j = 0; j < this.encryptedUtxos.length / 256; j++) {
@@ -883,7 +885,7 @@ class Transaction {
             // throw `encrypted utxo ${i} was not stored correctly`;
           }
           console.log(
-            `${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`
+            `${leavesAccountData.encryptedUtxos} !== ${this.encryptedUtxos}`,
           );
           // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
           let decryptedUtxo1 = utxo_1.Utxo.decrypt(
@@ -894,7 +896,7 @@ class Transaction {
             this.outputUtxos[0].keypair,
             [constants_1.FEE_ASSET, constants_1.MINT],
             this.poseidon,
-            i
+            i,
           )[1];
           console.log("decryptedUtxo1 ", decryptedUtxo1);
         }
@@ -906,45 +908,45 @@ class Transaction {
       try {
         console.log(
           "this.preInsertedLeavesIndex ",
-          this.preInsertedLeavesIndex
+          this.preInsertedLeavesIndex,
         );
         var preInsertedLeavesIndexAccount =
           yield this.provider.connection.getAccountInfo(
-            this.preInsertedLeavesIndex
+            this.preInsertedLeavesIndex,
           );
         console.log(preInsertedLeavesIndexAccount);
         const preInsertedLeavesIndexAccountAfterUpdate =
           this.merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
             "PreInsertedLeavesIndex",
-            preInsertedLeavesIndexAccount.data
+            preInsertedLeavesIndexAccount.data,
           );
         console.log(
           "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
-          Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex)
+          Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
         );
         console.log(
           `${Number(leavesAccountData.leftLeafIndex)} + ${
             this.leavesPdaPubkeys.length * 2
-          }`
+          }`,
         );
         assert(
           Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ==
             Number(leavesAccountData.leftLeafIndex) +
-              this.leavesPdaPubkeys.length * 2
+              this.leavesPdaPubkeys.length * 2,
         );
       } catch (e) {
         console.log("preInsertedLeavesIndex: ", e);
       }
       if (this.action == "DEPOSIT" && this.is_token == false) {
         var recipientAccount = yield this.provider.connection.getAccountInfo(
-          this.recipient
+          this.recipient,
         );
         assert(
           recipientAccount.lamports ==
             I64(this.recipientBalancePriorTx)
               .add(this.externalAmountBigNumber.toString())
               .toString(),
-          "amount not transferred correctly"
+          "amount not transferred correctly",
         );
       } else if (this.action == "DEPOSIT" && this.is_token == true) {
         console.log("DEPOSIT and token");
@@ -952,20 +954,20 @@ class Transaction {
         var recipientAccount = yield (0, spl_token_1.getAccount)(
           this.provider.connection,
           this.recipient,
-          spl_token_1.TOKEN_PROGRAM_ID
+          spl_token_1.TOKEN_PROGRAM_ID,
         );
         var recipientFeeAccountBalance =
           yield this.provider.connection.getBalance(this.recipientFee);
         // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
         // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
         console.log(
-          `Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`
+          `Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`,
         );
         console.log(
           `Balance now ${recipientAccount.amount} balance beginning ${
             Number(this.recipientBalancePriorTx) +
             Number(this.externalAmountBigNumber)
-          }`
+          }`,
         );
         assert(
           recipientAccount.amount ==
@@ -973,55 +975,57 @@ class Transaction {
               Number(this.recipientBalancePriorTx) +
               Number(this.externalAmountBigNumber)
             ).toString(),
-          "amount not transferred correctly"
+          "amount not transferred correctly",
         );
         console.log(
           `Blanace now ${recipientFeeAccountBalance} ${
             Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)
-          }`
+          }`,
         );
         console.log("fee amount: ", this.feeAmount);
         console.log(
           "fee amount from inputs. ",
-          new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString()
+          new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString(),
         );
         console.log(
           "pub amount from inputs. ",
-          new anchor.BN(this.publicInputs.publicAmount.slice(24, 32)).toString()
+          new anchor.BN(
+            this.publicInputs.publicAmount.slice(24, 32),
+          ).toString(),
         );
         console.log(
           "recipientFeeBalancePriorTx: ",
-          this.recipientFeeBalancePriorTx
+          this.recipientFeeBalancePriorTx,
         );
         var senderFeeAccountBalance = yield this.provider.connection.getBalance(
-          this.senderFee
+          this.senderFee,
         );
         console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
         console.log(
           "this.senderFeeBalancePriorTx: ",
-          this.senderFeeBalancePriorTx
+          this.senderFeeBalancePriorTx,
         );
         assert(
           recipientFeeAccountBalance ==
-            Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount)
+            Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount),
         );
         console.log(
           `${Number(this.senderFeeBalancePriorTx)} - ${Number(
-            this.feeAmount
-          )} == ${senderFeeAccountBalance}`
+            this.feeAmount,
+          )} == ${senderFeeAccountBalance}`,
         );
         assert(
           Number(this.senderFeeBalancePriorTx) -
             Number(this.feeAmount) -
             5000 ==
-            Number(senderFeeAccountBalance)
+            Number(senderFeeAccountBalance),
         );
       } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
         var senderAccount = yield this.provider.connection.getAccountInfo(
-          this.sender
+          this.sender,
         );
         var recipientAccount = yield this.provider.connection.getAccountInfo(
-          this.recipient
+          this.recipient,
         );
         // console.log("senderAccount.lamports: ", senderAccount.lamports)
         // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
@@ -1032,10 +1036,10 @@ class Transaction {
               .add(I64.readLE(this.extAmount, 0))
               .sub(I64(relayerFee))
               .toString(),
-          "amount not transferred correctly"
+          "amount not transferred correctly",
         );
         var recipientAccount = yield this.provider.connection.getAccountInfo(
-          recipient
+          recipient,
         );
         // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0))).add(I64(relayerFee))).toString()}
         assert(
@@ -1043,45 +1047,45 @@ class Transaction {
             I64(Number(this.recipientBalancePriorTx))
               .sub(I64.readLE(this.extAmount, 0))
               .toString(),
-          "amount not transferred correctly"
+          "amount not transferred correctly",
         );
       } else if (this.action == "WITHDRAWAL" && this.is_token == true) {
         var senderAccount = yield (0, spl_token_1.getAccount)(
           this.provider.connection,
           this.sender,
-          spl_token_1.TOKEN_PROGRAM_ID
+          spl_token_1.TOKEN_PROGRAM_ID,
         );
         var recipientAccount = yield (0, spl_token_1.getAccount)(
           this.provider.connection,
           this.recipient,
-          spl_token_1.TOKEN_PROGRAM_ID
+          spl_token_1.TOKEN_PROGRAM_ID,
         );
         // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
         console.log(
           `${recipientAccount.amount}, ${new anchor.BN(
-            this.recipientBalancePriorTx
+            this.recipientBalancePriorTx,
           )
             .sub(this.externalAmountBigNumber)
-            .toString()}`
+            .toString()}`,
         );
         assert(
           recipientAccount.amount.toString() ==
             new anchor.BN(this.recipientBalancePriorTx)
               .sub(this.externalAmountBigNumber)
               .toString(),
-          "amount not transferred correctly"
+          "amount not transferred correctly",
         );
         var relayerAccount = yield this.provider.connection.getBalance(
-          this.relayerRecipient
+          this.relayerRecipient,
         );
         var recipientFeeAccount = yield this.provider.connection.getBalance(
-          this.recipientFee
+          this.recipientFee,
         );
         console.log("recipientFeeAccount ", recipientFeeAccount);
         console.log("this.feeAmount: ", this.feeAmount);
         console.log(
           "recipientFeeBalancePriorTx ",
-          this.recipientFeeBalancePriorTx
+          this.recipientFeeBalancePriorTx,
         );
         console.log(
           `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
@@ -1089,36 +1093,36 @@ class Transaction {
             .add(new anchor.BN("5000"))
             .toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx)
             .sub(new anchor.BN(this.feeAmount))
-            .toString()}`
+            .toString()}`,
         );
         console.log("relayerAccount ", relayerAccount);
         console.log("this.relayerFee: ", this.relayerFee);
         console.log(
           "relayerRecipientAccountBalancePriorLastTx ",
-          this.relayerRecipientAccountBalancePriorLastTx
+          this.relayerRecipientAccountBalancePriorLastTx,
         );
         console.log(
           `relayerFeeAccount ${new anchor.BN(relayerAccount)
             .sub(new anchor.BN(this.relayerFee.toString()))
             .toString()} == ${new anchor.BN(
-            this.relayerRecipientAccountBalancePriorLastTx
-          )}`
+            this.relayerRecipientAccountBalancePriorLastTx,
+          )}`,
         );
         console.log(
           `relayerAccount ${new anchor.BN(
-            relayerAccount
+            relayerAccount,
           ).toString()} == ${new anchor.BN(
-            this.relayerRecipientAccountBalancePriorLastTx
+            this.relayerRecipientAccountBalancePriorLastTx,
           )
             .sub(new anchor.BN(this.relayerFee))
-            .toString()}`
+            .toString()}`,
         );
         console.log(
           `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
             .add(new anchor.BN(this.relayerFee.toString()))
             .toString()}  != ${new anchor.BN(this.recipientFeeBalancePriorTx)
             .sub(new anchor.BN(this.feeAmount))
-            .toString()}`
+            .toString()}`,
         );
         assert(
           new anchor.BN(recipientFeeAccount)
@@ -1126,7 +1130,7 @@ class Transaction {
             .toString() ==
             new anchor.BN(this.recipientFeeBalancePriorTx)
               .sub(new anchor.BN(this.feeAmount))
-              .toString()
+              .toString(),
         );
         assert(
           new anchor.BN(relayerAccount)
@@ -1134,8 +1138,8 @@ class Transaction {
             .add(new anchor.BN("5000"))
             .toString() ==
             new anchor.BN(
-              this.relayerRecipientAccountBalancePriorLastTx
-            ).toString()
+              this.relayerRecipientAccountBalancePriorLastTx,
+            ).toString(),
         );
       } else {
         throw Error("mode not supplied");
@@ -1168,14 +1172,14 @@ const parseProofToBytesArray = function (data) {
       if (i == "pi_a" || i == "pi_c") {
         for (var j in mydata[i]) {
           mydata[i][j] = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j]), 32)
+            leInt2Buff(unstringifyBigInts(mydata[i][j]), 32),
           ).reverse();
         }
       } else if (i == "pi_b") {
         for (var j in mydata[i]) {
           for (var z in mydata[i][j]) {
             mydata[i][j][z] = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32)
+              leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32),
             );
           }
         }

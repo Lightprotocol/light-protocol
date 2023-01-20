@@ -52,17 +52,17 @@ const buildMerkleTree = function ({
   return __awaiter(this, void 0, void 0, function* () {
     const merkleTreeProgram = new anchor_1.Program(
       merkle_tree_program_1.MerkleTreeProgram,
-      index_1.merkleTreeProgramId
+      index_1.merkleTreeProgramId,
     );
     const mtFetched = yield merkleTreeProgram.account.merkleTree.fetch(
-      merkleTreePubkey
+      merkleTreePubkey,
     );
     // Fetch all the accounts owned by the specified program id
     const leave_accounts =
       yield merkleTreeProgram.account.twoLeavesBytesPda.all();
     leave_accounts.sort(
       (a, b) =>
-        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber()
+        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber(),
     );
     console.log(leave_accounts);
     const leaves = [];
@@ -76,15 +76,15 @@ const buildMerkleTree = function ({
             new anchor.BN(
               leave_accounts[i].account.nodeLeft,
               undefined,
-              "le"
-            ).toString()
+              "le",
+            ).toString(),
           ); // .reverse()
           leaves.push(
             new anchor.BN(
               leave_accounts[i].account.nodeRight,
               undefined,
-              "le"
-            ).toString()
+              "le",
+            ).toString(),
           );
         }
       }
@@ -92,19 +92,19 @@ const buildMerkleTree = function ({
     let fetchedMerkleTree = new merkleTree_1.MerkleTree(
       MERKLE_TREE_HEIGHT,
       poseidonHash,
-      leaves
+      leaves,
     );
     if (
       Array.from(
-        leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)
+        leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
       ).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()
     ) {
       throw new Error(
         `building merkle tree from chain failed: root local ${Array.from(
-          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32)
+          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
         ).toString()} != root fetched ${
           mtFetched.roots[mtFetched.currentRootIndex]
-        }`
+        }`,
       );
     }
     return fetchedMerkleTree;

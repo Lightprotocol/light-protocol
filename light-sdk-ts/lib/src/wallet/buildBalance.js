@@ -104,7 +104,7 @@ function getUninsertedLeaves({
       .sort(
         (a, b) =>
           a.account.leftLeafIndex.toNumber() -
-          b.account.leftLeafIndex.toNumber()
+          b.account.leftLeafIndex.toNumber(),
       );
     return filteredLeaves.map((pda) => {
       return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
@@ -120,7 +120,7 @@ function getUnspentUtxo(
   FEE_ASSET,
   mint,
   POSEIDON,
-  merkleTreeProgram
+  merkleTreeProgram,
 ) {
   return __awaiter(this, void 0, void 0, function* () {
     let decryptedUtxo1;
@@ -130,17 +130,17 @@ function getUnspentUtxo(
         // decrypt first leaves account and build utxo
         decryptedUtxo1 = utxo_1.Utxo.decrypt(
           new Uint8Array(
-            Array.from(leavesPdas[i].account.encryptedUtxos.slice(0, 71))
+            Array.from(leavesPdas[i].account.encryptedUtxos.slice(0, 71)),
           ),
           new Uint8Array(
-            Array.from(leavesPdas[i].account.encryptedUtxos.slice(71, 71 + 24))
+            Array.from(leavesPdas[i].account.encryptedUtxos.slice(71, 71 + 24)),
           ),
           encryptionKeypair.PublicKey,
           encryptionKeypair,
           KEYPAIR,
           [FEE_ASSET, mint],
           POSEIDON,
-          0
+          0,
         )[1];
         console.log("decryptedUtxo1 ", decryptedUtxo1);
         let nullifier = decryptedUtxo1.getNullifier();
@@ -150,19 +150,19 @@ function getUnspentUtxo(
             new anchor.BN(nullifier.toString()).toBuffer(),
             anchor.utils.bytes.utf8.encode("nf"),
           ],
-          merkleTreeProgram.programId
+          merkleTreeProgram.programId,
         ))[0];
         let accountInfo = yield provider.connection.getAccountInfo(
-          nullifierPubkey
+          nullifierPubkey,
         );
         console.log("accountInfo ", accountInfo);
         console.log(
           "decryptedUtxo1.amounts[1].toString()  ",
-          decryptedUtxo1.amounts[1].toString()
+          decryptedUtxo1.amounts[1].toString(),
         );
         console.log(
           "decryptedUtxo1.amounts[0].toString()  ",
-          decryptedUtxo1.amounts[0].toString()
+          decryptedUtxo1.amounts[0].toString(),
         );
         if (
           accountInfo == null &&
@@ -200,7 +200,7 @@ function getInsertedLeaves({
       .sort(
         (a, b) =>
           a.account.leftLeafIndex.toNumber() -
-          b.account.leftLeafIndex.toNumber()
+          b.account.leftLeafIndex.toNumber(),
       );
     return filteredLeaves;
   });

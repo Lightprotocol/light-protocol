@@ -70,7 +70,7 @@ class Utxo {
     if (appData.length > 0) {
       // TODO: change to poseidon hash which is reproducable in circuit
       this.instructionType = ethers_1.BigNumber.from(
-        ethers_1.ethers.utils.keccak256(appData).toString()
+        ethers_1.ethers.utils.keccak256(appData).toString(),
       ).mod(constants_1.FIELD_SIZE_ETHERS);
     } else {
       this.instructionType = new anchor_1.BN("0");
@@ -114,7 +114,7 @@ class Utxo {
     } else {
       this.verifierAddress = verifierAddress;
       this.verifierAddressCircuit = (0, utils_1.hashAndTruncateToCircuit)(
-        verifierAddress.toBytes()
+        verifierAddress.toBytes(),
       );
     }
   }
@@ -153,7 +153,7 @@ class Utxo {
       console.log("here1");
     console.log(
       "new BN(bytes.slice(47,55) ",
-      new anchor_1.BN(bytes.slice(47, 55), undefined, "le")
+      new anchor_1.BN(bytes.slice(47, 55), undefined, "le"),
     );
     this.amounts = [
       new anchor_1.BN(bytes.slice(31, 39), undefined, "le"),
@@ -172,13 +172,13 @@ class Utxo {
     this.assetsCircuit = [
       constants_1.FEE_ASSET,
       (0, utils_1.hashAndTruncateToCircuit)(
-        Uint8Array.from(this.assets[1].toBuffer())
+        Uint8Array.from(this.assets[1].toBuffer()),
       ),
       new anchor_1.BN(0),
     ];
     console.log("here2");
     this.instructionType = ethers_1.BigNumber.from(
-      leBuff2int(Uint8Array.from(bytes.slice(55, 87))).toString()
+      leBuff2int(Uint8Array.from(bytes.slice(55, 87))).toString(),
     ); // instruction Type
     console.log("here3");
     this.poolType = new anchor_1.BN(bytes.slice(87, 95), undefined, "le"); // pool Type
@@ -188,7 +188,7 @@ class Utxo {
     (this.verifierAddressCircuit = new anchor_1.BN(
       bytes.slice(95, 126),
       undefined,
-      "le"
+      "le",
     )), // verifierAddress
       console.log("here6");
     this.appData = Array.from(bytes.slice(127, bytes.length));
@@ -199,9 +199,9 @@ class Utxo {
         Array.from(
           this.appData.slice(
             keypairInAppDataOffset,
-            keypairInAppDataOffset + 32
-          )
-        )
+            keypairInAppDataOffset + 32,
+          ),
+        ),
       );
       console.log("bytes: ", Array.from(this.appData).toString());
       this.keypair = new keypair_1.Keypair(
@@ -209,11 +209,11 @@ class Utxo {
         new anchor_1.BN(
           this.appData.slice(
             keypairInAppDataOffset,
-            keypairInAppDataOffset + 32
+            keypairInAppDataOffset + 32,
           ),
           undefined,
-          "le"
-        )
+          "le",
+        ),
       );
       console.log("this.keypair ", this.keypair.pubkey);
     }
@@ -248,7 +248,7 @@ class Utxo {
       let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
       console.log("this.assetsCircuit ", this.assetsCircuit);
       let assetHash = this.poseidon.F.toString(
-        this.poseidon(this.assetsCircuit)
+        this.poseidon(this.assetsCircuit),
       );
       console.log("amountHash ", amountHash);
       console.log("assetHash ", assetHash);
@@ -264,7 +264,7 @@ class Utxo {
           assetHash,
           this.instructionType,
           // this.poolType
-        ])
+        ]),
       );
     }
     return this._commitment;
@@ -284,7 +284,7 @@ class Utxo {
           this.keypair.privkey === null)
       ) {
         throw new Error(
-          "Can not compute nullifier without utxo index or private key"
+          "Can not compute nullifier without utxo index or private key",
         );
       }
       const signature = this.keypair.privkey
@@ -294,7 +294,7 @@ class Utxo {
       console.log("this.index || 0 ", this.index || 0);
       console.log("signature ", signature);
       this._nullifier = this.poseidon.F.toString(
-        this.poseidon([this.getCommitment(), this.index || 0, signature])
+        this.poseidon([this.getCommitment(), this.index || 0, signature]),
       );
     }
     console.log("this._nullifier ", this._nullifier);
@@ -315,7 +315,7 @@ class Utxo {
       bytes_message,
       nonce,
       encryptionKeypair.PublicKey,
-      senderThrowAwayKeypair.secretKey
+      senderThrowAwayKeypair.secretKey,
     );
     return ciphertext;
   }
@@ -328,7 +328,7 @@ class Utxo {
     shieldedKeypair,
     assets = [],
     POSEIDON,
-    index
+    index,
   ) {
     console.log("recipientEncryptionKeypair ", recipientEncryptionKeypair);
     console.log("encryptedUtxo ", encryptedUtxo);
@@ -338,7 +338,7 @@ class Utxo {
       encryptedUtxo,
       nonce,
       senderThrowAwayPubkey,
-      recipientEncryptionKeypair.secretKey
+      recipientEncryptionKeypair.secretKey,
     );
     if (!cleartext) {
       return [false, null];

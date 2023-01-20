@@ -104,7 +104,7 @@ function executeUpdateMerkleTreeTransactions({
         Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
         anchor.utils.bytes.utf8.encode("storage"),
       ],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     ))[0];
     console.log("here0");
     try {
@@ -208,7 +208,7 @@ function executeMerkleTreeUpdateTransactions({
     for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
       const transaction = new solana.Transaction();
       transaction.add(
-        solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 })
+        solana.ComputeBudgetProgram.setComputeUnitLimit({ units: 1400000 }),
       );
       transaction.add(
         yield merkleTreeProgram.methods
@@ -218,7 +218,7 @@ function executeMerkleTreeUpdateTransactions({
             merkleTreeUpdateState: merkleTreeUpdateState,
             merkleTree: merkle_tree_pubkey,
           })
-          .instruction()
+          .instruction(),
       );
       i += 1;
       transaction.add(
@@ -229,7 +229,7 @@ function executeMerkleTreeUpdateTransactions({
             merkleTreeUpdateState: merkleTreeUpdateState,
             merkleTree: merkle_tree_pubkey,
           })
-          .instruction()
+          .instruction(),
       );
       i += 1;
       arr.push({ tx: transaction, signers: [signer] });
@@ -247,8 +247,8 @@ function executeMerkleTreeUpdateTransactions({
             console.log(e);
             error = e;
           }
-        })
-      )
+        }),
+      ),
     );
     return error;
   });

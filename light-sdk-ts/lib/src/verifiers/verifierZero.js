@@ -126,7 +126,7 @@ class VerifierZero {
         this.recipientBalancePriorTx = (yield (0, spl_token_1.getAccount)(
           this.provider.connection,
           this.recipient,
-          spl_token_1.TOKEN_PROGRAM_ID
+          spl_token_1.TOKEN_PROGRAM_ID,
         )).amount;
       } catch (e) {
         // covers the case of the recipient being a native sol address not a spl token address
@@ -141,7 +141,7 @@ class VerifierZero {
       // console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
       // console.log("sender_fee: ", this.senderFee);
       this.senderFeeBalancePriorTx = yield this.provider.connection.getBalance(
-        this.senderFee
+        this.senderFee,
       );
       this.relayerRecipientAccountBalancePriorLastTx =
         yield this.provider.connection.getBalance(this.relayerRecipient);
@@ -166,8 +166,8 @@ class VerifierZero {
         "senderFee account: ",
         yield this.provider.connection.getAccountInfo(
           this.senderFee,
-          "confirmed"
-        )
+          "confirmed",
+        ),
       );
       // console.log("recipientFee:       ", this.recipientFee)
       // console.log("relayerRecipient:   ", this.relayerRecipient)
@@ -178,15 +178,15 @@ class VerifierZero {
       // console.log("this.encryptedOutputs[0], ", this.encryptedOutputs);
       console.log(
         "this.leavesPdaPubkeys ",
-        this.leavesPdaPubkeys[0].toBase58()
+        this.leavesPdaPubkeys[0].toBase58(),
       );
       console.log(
         "this.signerAuthorityPubkey ",
-        this.signerAuthorityPubkey.toBase58()
+        this.signerAuthorityPubkey.toBase58(),
       );
       console.log(
         "this.encryptedUtxos.slice(0,190) ",
-        this.encryptedUtxos.slice(0, 190)
+        this.encryptedUtxos.slice(0, 190),
       );
       const ix = yield this.verifier.verifierProgram.methods
         .shieldedTransferInputs(
@@ -197,7 +197,7 @@ class VerifierZero {
           Buffer.from(this.publicInputs.feeAmount),
           new anchor.BN(this.rootIndex.toString()),
           new anchor.BN(this.relayerFee.toString()),
-          Buffer.from(this.encryptedUtxos.slice(0, 190)) // remaining bytes can be used once tx sizes increase
+          Buffer.from(this.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase
         )
         .accounts({
           signingAddress: this.relayerPubkey,
@@ -238,7 +238,7 @@ class VerifierZero {
         .instruction();
       console.log("this.payer: ", this.payer);
       let recentBlockhash = (yield this.provider.connection.getRecentBlockhash(
-        "confirmed"
+        "confirmed",
       )).blockhash;
       let txMsg = new web3_js_1.TransactionMessage({
         payerKey: this.payer.publicKey,
@@ -252,11 +252,11 @@ class VerifierZero {
       });
       let lookupTableAccount = yield this.provider.connection.getAccountInfo(
         this.lookupTable,
-        "confirmed"
+        "confirmed",
       );
       let unpackedLookupTableAccount =
         web3_js_1.AddressLookupTableAccount.deserialize(
-          lookupTableAccount.data
+          lookupTableAccount.data,
         );
       let compiledTx = txMsg.compileToV0Message([
         { state: unpackedLookupTableAccount },
@@ -268,7 +268,7 @@ class VerifierZero {
       while (retries > 0) {
         transaction.sign([this.payer]);
         recentBlockhash = (yield this.provider.connection.getRecentBlockhash(
-          "confirmed"
+          "confirmed",
         )).blockhash;
         transaction.message.recentBlockhash = recentBlockhash;
         let serializedTx = transaction.serialize();
@@ -280,7 +280,7 @@ class VerifierZero {
             {
               commitment: "confirmed",
               preflightCommitment: "confirmed",
-            }
+            },
           );
           retries = 0;
         } catch (e) {

@@ -22,3 +22,4 @@ __exportStar(require("./initLookUpTable"), exports);
 __exportStar(require("./constants_market_place"), exports);
 __exportStar(require("./functionalCircuit"), exports);
 __exportStar(require("./constants_system_verifier"), exports);
+__exportStar(require("./updateMerkleTree"), exports);

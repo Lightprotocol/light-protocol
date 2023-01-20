@@ -1,5 +1,5 @@
 import { Program } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { Account, PublicKey } from "@solana/web3.js";
 import {
   merkleTreeProgramId,
   MerkleTreeProgramIdl,
@@ -108,7 +108,12 @@ export class SolMerkleTree {
     return new SolMerkleTree({ merkleTree: fetchedMerkleTree, pubkey });
   }
 
-  static async getUninsertedLeaves(merkleTreePubkey: PublicKey) {
+  static async getUninsertedLeaves(merkleTreePubkey: PublicKey): Promise<
+    Array<{
+      pubkey: PublicKey;
+      account: Account<Buffer>;
+    }>
+  > {
     const { leaveAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
       merkleTreePubkey,
     );
@@ -129,10 +134,15 @@ export class SolMerkleTree {
           a.account.leftLeafIndex.toNumber() -
           b.account.leftLeafIndex.toNumber(),
       );
+    return filteredLeaves;
+  }
 
-    return filteredLeaves.map((pda) => {
-      return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
-    });
+  static async getUninsertedLeavesRelayer(merkleTreePubkey: PublicKey) {
+    return (await SolMerkleTree.getUninsertedLeaves(merkleTreePubkey)).map(
+      (pda) => {
+        return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
+      },
+    );
   }
 
   static async getInsertedLeaves(

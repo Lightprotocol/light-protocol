@@ -29,7 +29,7 @@ export declare class MerkleTree {
       zeroElement,
     }?: {
       zeroElement?: string | undefined;
-    }
+    },
   );
   _rebuild(): void;
   /**

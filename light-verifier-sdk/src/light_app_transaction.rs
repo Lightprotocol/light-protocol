@@ -10,22 +10,9 @@ use std::ops::Neg;
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;
-// pub trait Config {
-//     /// Number of nullifiers to be inserted with the AppTransaction.
-//     const NR_NULLIFIERS: usize;
-//     /// Number of output utxos.
-//     const NR_LEAVES: usize;
-//     /// Number of checked public inputs.
-//     const NR_CHECKED_PUBLIC_INPUTS: usize;
-//     /// Program ID of the app verifier program.
-//     const APP_ID: [u8; 32];
-//     /// Program ID of the system verifier program.
-//     const SYSTEM_VERIFIER_ID: [u8; 32];
-// }
 
 #[derive(Clone)]
 pub struct AppTransaction<'a, T: Config> {
-    // pub connecting_hash: Vec<u8>,
     pub checked_public_inputs: Vec<Vec<u8>>,
     pub proof_a: Vec<u8>,
     pub proof_b: Vec<u8>,
@@ -94,7 +81,6 @@ impl<T: Config> AppTransaction<'_, T> {
             }
             Err(e) => {
                 msg!("Public Inputs:");
-                // msg!("connecting_hash {:?}", self.connecting_hash);
                 msg!("checked_public_inputs {:?}", self.checked_public_inputs);
                 msg!("proof a: {:?}", self.proof_a.clone());
                 msg!("proof b: {:?}", self.proof_b.clone());
@@ -106,24 +92,10 @@ impl<T: Config> AppTransaction<'_, T> {
         }
     }
 
-    // pub fn send_transaction() {
-    //     // match for configured system verifier program id
-    //     verifier_program_two::instruction_second
-    //     let (seed, bump) = utils::cpi_instructions::get_seeds(self.program_id, self.merkle_tree_program_id)?;
-    //     let bump = &[bump];
-    //     let seeds = &[&[seed.as_slice(), bump][..]];
-    //     let accounts = verifier_program_two::cpi::accounts::InitializeNullifiers {
-    //         authority: authority.clone(),
-    //         system_program: system_program.clone(),
-    //         registered_verifier_pda: registered_verifier_pda.clone(),
-    //     };
-    //
-    //     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    //     cpi_ctx = cpi_ctx.with_remaining_accounts(nullifier_pdas);
-    //
-    //     verifier_program_two::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
-    //     self.invoked_system_verifier = true;
-    // }
+    // TODO: implement, has to pass contex struct otherwise not really worth
+    pub fn send_transaction() {
+        // match for configured system verifier program id
+    }
 
     // pub fn check_completion(&self) -> Result<()> {
     //     if self.invoked_system_verifier
