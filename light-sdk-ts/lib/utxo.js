@@ -36,6 +36,7 @@ var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 const anchor_1 = require("@coral-xyz/anchor");
 const constants_1 = require("./constants");
+const chai_1 = require("chai");
 const newNonce = () => tweetnacl_1.default.randomBytes(tweetnacl_1.default.box.nonceLength);
 exports.newNonce = newNonce;
 // TODO: move to constants
@@ -43,7 +44,7 @@ exports.N_ASSETS = 2;
 exports.N_ASSET_PUBKEYS = 3;
 // TODO: write test
 class Utxo {
-    constructor({ poseidon, 
+    constructor({ poseidon,
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [web3_js_1.SystemProgram.programId], amounts = [new anchor_1.BN("0")], keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding = new anchor_1.BN(randomBN(), 31, "be"), poolType = new anchor_1.BN("0"), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], appDataFromBytesFn, index = null, }) {
@@ -76,12 +77,6 @@ class Utxo {
         }
         else {
         }
-        // let appDataArray = new Array<any>;
-        // for (let elem in appData) {
-        //   console.log(Array.from(appData[elem].toString()));
-        //   appDataArray.push(Array.from(appData[elem]));
-        // }
-        // console.log("appDataArray.flat() ",appDataArray.flat());
         this.amounts = amounts.map((x) => {
             try {
                 // check that amounts are U64
@@ -110,24 +105,34 @@ class Utxo {
                 (0, utils_1.hashAndTruncateToCircuit)(this.assets[1].toBytes()),
             ];
         }
-        else {
+        else if (this.amounts[0].toString() === "0") {
             this.assetsCircuit = [new anchor_1.BN(0), new anchor_1.BN(0)];
         }
+        else {
+            this.assetsCircuit = [
+                (0, utils_1.hashAndTruncateToCircuit)(web3_js_1.SystemProgram.programId.toBytes()),
+                new anchor_1.BN(0),
+            ];
+        }
         if (verifierAddress.toBase58() == web3_js_1.SystemProgram.programId.toBase58()) {
-            this.verifierAddress = new anchor_1.BN(verifierAddress.toBytes());
+            this.verifierAddress = verifierAddress;
             this.verifierAddressCircuit = new anchor_1.BN(0);
         }
         else {
-            this.verifierAddress = new anchor_1.BN(verifierAddress.toBytes());
+            this.verifierAddress = verifierAddress;
             this.verifierAddressCircuit = (0, utils_1.hashAndTruncateToCircuit)(verifierAddress.toBytes());
         }
         if (appData.length > 0) {
             // TODO: change to poseidon hash which is reproducable in circuit
             // TODO: write function which creates the instructionTypeHash
             if (appDataFromBytesFn) {
-                console.log("appDataFromBytesFn(appData) ", appDataFromBytesFn(appData).map((x) => x.toString()));
-                this.instructionType = poseidon.F.toString(poseidon(appDataFromBytesFn(appData)));
-                console.log("this.instructionType ", this.instructionType);
+                // console.log(
+                //   "appDataFromBytesFn(appData) ",
+                //   appDataFromBytesFn(appData).map((x) => x.toString()),
+                // );
+                // console.log("poseidon.F.toString ", poseidon.F.toString(
+                //   poseidon(appDataFromBytesFn(appData))));
+                this.instructionType = new anchor_1.BN(leInt2Buff(unstringifyBigInts(poseidon.F.toString(poseidon(appDataFromBytesFn(appData)))), 32), undefined, "le");
             }
             else {
                 throw new Error("No appDataFromBytesFn provided");
@@ -159,7 +164,7 @@ class Utxo {
             ...assetIndex.toArray("be", 8),
             ...leInt2Buff(unstringifyBigInts(this.instructionType.toString()), 32),
             ...this.poolType.toArray("be", 8),
-            ...this.verifierAddressCircuit.toArray("be", 31),
+            ...this.verifierAddress.toBytes(),
             ...new Array(1),
             ...this.appData,
         ]);
@@ -168,17 +173,17 @@ class Utxo {
     // TODO: make robust and versatile for any combination of filled in fields or not
     // TODO: find a better solution to get the private key in
     // TODO: check length to rule out parsing app utxo
-    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, }) {
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn, }) {
+        const blinding = new anchor_1.BN(bytes.slice(0, 31), undefined, "be"); // blinding
+        const amounts = [
+            new anchor_1.BN(bytes.slice(31, 39), undefined, "be"),
+            new anchor_1.BN(bytes.slice(39, 47), undefined, "be"),
+        ]; // amounts
+        const assets = [
+            web3_js_1.SystemProgram.programId,
+            (0, utils_1.fetchAssetByIdLookUp)(new anchor_1.BN(bytes.slice(47, 55), undefined, "be")),
+        ]; // assets MINT
         if (keypair) {
-            const blinding = new anchor_1.BN(bytes.slice(0, 31), undefined, "be"); // blinding
-            const amounts = [
-                new anchor_1.BN(bytes.slice(31, 39), undefined, "be"),
-                new anchor_1.BN(bytes.slice(39, 47), undefined, "be"),
-            ]; // amounts
-            const assets = [
-                web3_js_1.SystemProgram.programId,
-                (0, utils_1.fetchAssetByIdLookUp)(new anchor_1.BN(bytes.slice(47, 55), undefined, "be")),
-            ]; // assets MINT
             return new Utxo({
                 poseidon,
                 assets,
@@ -188,45 +193,24 @@ class Utxo {
             });
         }
         else {
-            throw new Error("fromBytes only implemented for standard utxo");
-            return new Utxo({ poseidon });
+            const instructionType = new anchor_1.BN(bytes.slice(55, 87), 32, "be");
+            const poolType = new anchor_1.BN(bytes.slice(87, 95), 8, "be");
+            const verifierAddress = new web3_js_1.PublicKey(bytes.slice(95, 127));
+            // ...new Array(1), separator is otherwise 0
+            const appData = bytes.slice(128, bytes.length);
+            const burnerKeypair = keypair_1.Keypair.fromPrivkey(poseidon, appData.slice(72, 104));
+            return new Utxo({
+                poseidon,
+                assets,
+                amounts,
+                keypair: burnerKeypair,
+                blinding,
+                instructionType,
+                appData,
+                appDataFromBytesFn,
+                verifierAddress,
+            });
         }
-        // console.log("here2");
-        // this.instructionType =  BigNumber.from(leBuff2int(Uint8Array.from(bytes.slice(55,87))).toString()) // instruction Type
-        // console.log("here3");
-        // this.poolType =  new BN(bytes.slice(87,95), undefined, 'be'); // pool Type
-        // console.log("here4");
-        // console.log("here5 ", this.blinding.toString());
-        // // TODO: put the verifier address into the utxo not the circuit one then I can derive the circuit verifier address
-        // this.verifierAddressCircuit =  new BN(bytes.slice(95,126), undefined, 'be'), // verifierAddress
-        // console.log("here6");
-        // this.appData =  Array.from(bytes.slice(127,bytes.length))
-        // if (keypairInAppDataOffset != undefined) {
-        //   console.log("restoring keypair");
-        //   console.log("bytes: ", Array.from(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32)));
-        //   console.log("bytes: ", Array.from(this.appData).toString());
-        //   this.keypair = new Keypair(this.poseidon, new BN(this.appData.slice(keypairInAppDataOffset, keypairInAppDataOffset + 32), undefined, 'be'))
-        //   console.log("this.keypair ", this.keypair.pubkey);
-        // }
-        // if(bytes[127]) {
-        //   if (bytes.length < 129) {
-        //     throw "no app data provided";
-        //   }
-        //   this.appData =  Array.from(bytes.slice(127,bytes.length))
-        // } else {
-        //   this.appData = new Array<any>();
-        // }
-        // return new Utxo(
-        //   poseidon,
-        //   [FEE_ASSET, MINT], // assets
-        //   [toBigIntLE(bytes.slice(31,39)), toBigIntLE(bytes.slice(39,47))], // amounts
-        //   toBigIntLE(bytes.slice(55,87)), // instruction Type
-        //   toBigIntLE(bytes.slice(87,95)), // pool Type
-        //   toBigIntLE(bytes.slice(0,31)), // blinding
-        //   toBigIntLE(bytes.slice(95,127)), // verifierAddress
-        //   JSON.parse(bytes.slice(127,).toString())
-        // );
-        // return this
     }
     /**
      * Returns commitment for this UTXO
@@ -236,11 +220,12 @@ class Utxo {
     getCommitment() {
         if (!this._commitment) {
             let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
-            let assetHash = this.poseidon.F.toString(this.poseidon(this.assetsCircuit));
+            let assetHash = this.poseidon.F.toString(this.poseidon(this.assetsCircuit.map((x) => x.toString())));
+            // console.log("this.assetsCircuit ", this.assetsCircuit);
             // console.log("amountHash ", amountHash.toString());
-            // console.log("assetHash ", assetHash.toString());
             // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());
             // console.log("this.blinding ", this.blinding.toString());
+            // console.log("assetHash ", assetHash.toString());
             // console.log("this.instructionType ", this.instructionType.toString());
             // console.log("this.poolType ", this.poolType.toString());
             this._commitment = this.poseidon.F.toString(this.poseidon([
@@ -313,6 +298,21 @@ class Utxo {
         else {
             return null;
         }
+    }
+    static equal(utxo0, utxo1) {
+        var _a, _b, _c, _d;
+        chai_1.assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
+        chai_1.assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
+        chai_1.assert.equal(utxo0.assets[0].toBase58(), utxo1.assets[0].toBase58());
+        chai_1.assert.equal(utxo0.assets[1].toBase58(), utxo1.assets[1].toBase58());
+        chai_1.assert.equal(utxo0.assetsCircuit[0].toString(), utxo1.assetsCircuit[0].toString());
+        chai_1.assert.equal(utxo0.assetsCircuit[1].toString(), utxo1.assetsCircuit[1].toString());
+        chai_1.assert.equal(utxo0.instructionType.toString(), utxo1.instructionType.toString());
+        chai_1.assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
+        chai_1.assert.equal(utxo0.verifierAddress.toString(), utxo1.verifierAddress.toString());
+        chai_1.assert.equal(utxo0.verifierAddressCircuit.toString(), utxo1.verifierAddressCircuit.toString());
+        chai_1.assert.equal((_a = utxo0.getCommitment()) === null || _a === void 0 ? void 0 : _a.toString(), (_b = utxo1.getCommitment()) === null || _b === void 0 ? void 0 : _b.toString());
+        chai_1.assert.equal((_c = utxo0.getNullifier()) === null || _c === void 0 ? void 0 : _c.toString(), (_d = utxo1.getNullifier()) === null || _d === void 0 ? void 0 : _d.toString());
     }
 }
 exports.Utxo = Utxo;

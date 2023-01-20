@@ -87,6 +87,7 @@ export class TransactionParameters implements transactionParameters {
   };
   encryptedUtxos?: Uint8Array;
   verifier: Verifier;
+  verifierApp?: Verifier;
   nullifierPdaPubkeys?: {
     isSigner: boolean;
     isWritable: boolean;
@@ -108,9 +109,11 @@ export class TransactionParameters implements transactionParameters {
     recipientFee,
     inputUtxos,
     outputUtxos,
+    verifierApp,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
+    verifierApp?: Verifier;
     sender?: PublicKey;
     recipient?: PublicKey;
     senderFee?: PublicKey;
@@ -156,6 +159,7 @@ export class TransactionParameters implements transactionParameters {
     if (!this.outputUtxos && !inputUtxos) {
       throw new Error("No utxos provided.");
     }
+    this.verifierApp = verifierApp;
   }
 }
 
@@ -295,7 +299,13 @@ export class Transaction {
     this.getProofInput();
     await this.getRootIndex();
   }
-
+  getMint() {
+    if (this.getExternalAmount(1).toString() == "0") {
+      return new BN(0);
+    } else {
+      return this.assetPubkeysCircuit[1];
+    }
+  }
   getProofInput() {
     if (
       this.params &&
@@ -311,7 +321,7 @@ export class Transaction {
         publicAmount: this.getExternalAmount(1).toString(),
         feeAmount: this.getExternalAmount(0).toString(),
         extDataHash: this.getTxIntegrityHash().toString(),
-        mintPubkey: this.assetPubkeysCircuit[1],
+        mintPubkey: this.getMint(),
         inPrivateKey: this.params.inputUtxos?.map((x) => x.keypair.privkey),
         inPathIndices: this.inputMerklePathIndices,
         inPathElements: this.inputMerklePathElements,
@@ -357,18 +367,17 @@ export class Transaction {
       const path = require("path");
       // TODO: find a better more flexible solution
       const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
-      let { proofBytes, publicInputs, publicInputsBytes } =
-        await this.getProofInternal(
-          this.appParams.verifier,
-          {
-            ...this.appParams.inputs,
-            ...this.proofInput,
-            inPublicKey: this.params?.inputUtxos?.map(
-              (utxo) => utxo.keypair.pubkey,
-            ),
-          },
-          firstPath,
-        );
+      let { proofBytes, publicInputs } = await this.getProofInternal(
+        this.appParams.verifier,
+        {
+          ...this.appParams.inputs,
+          ...this.proofInput,
+          inPublicKey: this.params?.inputUtxos?.map(
+            (utxo) => utxo.keypair.pubkey,
+          ),
+        },
+        firstPath,
+      );
       this.proofBytesApp = proofBytes;
       this.publicInputsApp = publicInputs;
     } else {
@@ -386,6 +395,7 @@ export class Transaction {
     );
     this.proofBytes = proofBytes;
     this.publicInputs = publicInputs;
+
     if (this.instance.provider) {
       await this.getPdaAddresses();
     }
@@ -401,6 +411,8 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
+      // console.log("this.proofInput ", inputs);
+
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
       const buffer = readFileSync(completePathWtns);
@@ -530,12 +542,24 @@ export class Transaction {
     inputUtxos?: Utxo[],
     outputUtxos?: Utxo[],
   ): { assetPubkeysCircuit: BN[]; assetPubkeys: PublicKey[] } {
-    let assetPubkeysCircuit: BN[] = [new BN(0)];
+    let assetPubkeysCircuit: BN[] = [
+      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
+    ];
+
     let assetPubkeys: PublicKey[] = [SystemProgram.programId];
 
     if (inputUtxos) {
       inputUtxos.map((utxo) => {
-        if (assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1]) == -1) {
+        let found = false;
+        for (var i in assetPubkeysCircuit) {
+          if (
+            assetPubkeysCircuit[i].toString() ===
+            utxo.assetsCircuit[1].toString()
+          ) {
+            found = true;
+          }
+        }
+        if (!found) {
           assetPubkeysCircuit.push(utxo.assetsCircuit[1]);
           assetPubkeys.push(utxo.assets[1]);
         }
@@ -544,7 +568,16 @@ export class Transaction {
 
     if (outputUtxos) {
       outputUtxos.map((utxo) => {
-        if (assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1]) == -1) {
+        let found = false;
+        for (var i in assetPubkeysCircuit) {
+          if (
+            assetPubkeysCircuit[i].toString() ===
+            utxo.assetsCircuit[1].toString()
+          ) {
+            found = true;
+          }
+        }
+        if (!found) {
           assetPubkeysCircuit.push(utxo.assetsCircuit[1]);
           assetPubkeys.push(utxo.assets[1]);
         }
@@ -659,21 +692,22 @@ export class Transaction {
 
   // TODO: write test
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
+  // TODO: fix edge case of an assetpubkey being 0
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
 
-    utxos.map((utxo) => {
-      let tmpInIndices: String[][] = [];
+    utxos.map((utxo, index) => {
+      let tmpInIndices = [];
       for (var a = 0; a < utxo.assets.length; a++) {
         let tmpInIndices1: String[] = [];
 
         for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
           try {
             if (
-              utxo.assetsCircuit[i].toString() ===
-                this.assetPubkeysCircuit[a].toString() &&
-              utxo.amounts[a].toString() > "0" &&
-              !tmpInIndices1.includes("1")
+              utxo.assetsCircuit[a].toString() ===
+                this.assetPubkeysCircuit[i].toString() &&
+              !tmpInIndices1.includes("1") &&
+              this.assetPubkeysCircuit[i].toString() != "0"
             ) {
               tmpInIndices1.push("1");
             } else {
@@ -683,10 +717,13 @@ export class Transaction {
             tmpInIndices1.push("0");
           }
         }
+
         tmpInIndices.push(tmpInIndices1);
       }
+
       inIndices.push(tmpInIndices);
     });
+    // console.log(inIndices);
     return inIndices;
   }
 
@@ -736,13 +773,16 @@ export class Transaction {
       );
     } else {
       this.encryptedUtxos = this.encryptOutUtxos();
+      if (this.encryptedUtxos && this.encryptedUtxos.length > 512) {
+        this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
+      }
       if (this.encryptedUtxos) {
         let extDataBytes = new Uint8Array([
           ...this.params.accounts.recipient?.toBytes(),
           ...this.params.accounts.recipientFee.toBytes(),
           ...this.payer.publicKey.toBytes(),
           ...this.relayer.relayerFee.toArray("le", 8),
-          ...this.encryptedUtxos,
+          ...this.encryptedUtxos.slice(0, 512),
         ]);
 
         const hash = keccak_256
@@ -770,17 +810,34 @@ export class Transaction {
           ...encryptedOutputs[0],
           ...encryptedOutputs[1],
           ...new Array(256 - 190).fill(0),
+          // this is ok because these bytes are not sent and just added for the integrity hash
+          // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
         ]);
       } else {
         let tmpArray = new Array<any>();
         for (var i = 0; i < this.params.verifier.config.out; i++) {
           tmpArray.push(...encryptedOutputs[i]);
+          if (encryptedOutputs[i].length < 128) {
+            // add random bytes for padding
+            tmpArray.push(
+              ...nacl.randomBytes(128 - encryptedOutputs[i].length),
+            );
+          }
         }
+
         if (tmpArray.length < 512) {
           tmpArray.push(
             new Array(
               this.params.verifier.config.out * 128 - tmpArray.length,
             ).fill(0),
+          );
+        }
+        if (this.appParams.overwrite) {
+          const utxoBytes =
+            this.params?.outputUtxos[this.appParams.overwriteIndex].toBytes();
+          tmpArray = this.overWriteEncryptedUtxos(utxoBytes, tmpArray, 0).slice(
+            0,
+            512,
           );
         }
         // return new Uint8Array(tmpArray.flat());
@@ -790,15 +847,16 @@ export class Transaction {
   }
 
   // need this for the marketplace rn
-  overWriteEncryptedUtxos(bytes: Uint8Array, offSet: number = 0) {
+  overWriteEncryptedUtxos(
+    bytes: Uint8Array,
+    toOverwriteBytes: Uint8Array,
+    offSet: number = 0,
+  ) {
     // this.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
-    this.encryptedUtxos = Uint8Array.from([
-      ...this.encryptedUtxos.slice(0, offSet),
+    return Uint8Array.from([
+      ...toOverwriteBytes.slice(0, offSet),
       ...bytes,
-      ...this.encryptedUtxos.slice(
-        offSet + bytes.length,
-        this.encryptedUtxos.length,
-      ),
+      ...toOverwriteBytes.slice(offSet + bytes.length, toOverwriteBytes.length),
     ]);
   }
 
@@ -952,6 +1010,14 @@ export class Transaction {
     }
   }
 
+  async getInstructions(): Promise<TransactionInstruction[]> {
+    if (this.params) {
+      return await this.params.verifier.getInstructions(this);
+    } else {
+      throw new Error("Params not provided.");
+    }
+  }
+
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
     if (!this.payer) {
       throw new Error("Cannot use sendAndConfirmTransaction without payer");
@@ -1090,10 +1156,17 @@ export class Transaction {
         [anchor.utils.bytes.utf8.encode("escrow")],
         this.params.verifier.verifierProgram.programId,
       )[0];
-      this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
-        [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.params.verifier.verifierProgram.programId,
-      )[0];
+      if (this.appParams) {
+        this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
+          [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+          this.appParams.verifier.verifierProgram.programId,
+        )[0];
+      } else {
+        this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
+          [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+          this.params.verifier.verifierProgram.programId,
+        )[0];
+      }
 
       this.params.accounts.tokenAuthority = PublicKey.findProgramAddressSync(
         [anchor.utils.bytes.utf8.encode("spl")],

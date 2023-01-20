@@ -18,12 +18,11 @@ use crate::processor::process_shielded_transfer;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
+use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex,
-    poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier,
+    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
+    RegisteredVerifier,
 };
-use merkle_tree_program::{program::MerkleTreeProgram};
-
 
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 
@@ -49,11 +48,7 @@ pub mod verifier_program_two {
         app_hash: Vec<u8>,
     ) -> Result<()> {
         msg!("shielded_transfer_inputs");
-        process_shielded_transfer(
-            ctx,
-            proof,
-            app_hash,
-        )?;
+        process_shielded_transfer(ctx, proof, app_hash)?;
         //     vec![kyc_root, app_hash, ctx.accounts.invoking_verifier.pubkey.to_bytes().to_vec()],
         //     ctx,
         //     proof,
@@ -130,5 +125,5 @@ pub struct LightInstruction<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     // #[account(seeds= [invoking_verifier.to_account_info().owner.key().to_bytes().as_ref()], bump, seeds::program=invoking_verifier.to_account_info().owner)]
     /// CHECK: Signer check to acertain the invoking program ID to be used as a public input.
-    pub invoking_verifier: UncheckedAccount<'info>,//Account<'info, RegisteredVerifier>,
+    pub invoking_verifier: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
 }

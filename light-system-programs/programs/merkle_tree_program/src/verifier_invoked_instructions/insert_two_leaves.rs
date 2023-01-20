@@ -35,10 +35,7 @@ pub fn process_insert_two_leaves(
     //save leaves into pda account
     ctx.accounts.two_leaves_pda.node_left = leaf_left;
     ctx.accounts.two_leaves_pda.node_right = leaf_right;
-    ctx.accounts.two_leaves_pda.left_leaf_index = ctx
-        .accounts
-        .pre_inserted_leaves_index
-        .next_index;
+    ctx.accounts.two_leaves_pda.left_leaf_index = ctx.accounts.pre_inserted_leaves_index.next_index;
 
     ctx.accounts.two_leaves_pda.merkle_tree_pubkey = merkle_tree_pda_pubkey;
     ctx.accounts.two_leaves_pda.encrypted_utxos = encrypted_utxos;

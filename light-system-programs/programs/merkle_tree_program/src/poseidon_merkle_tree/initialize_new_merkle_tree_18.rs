@@ -51,7 +51,8 @@ pub fn process_initialize_new_merkle_tree_18(
     zero_bytes: Vec<[u8; 32]>,
     mt_index: u64,
 ) {
-    merkle_tree_state_data.filled_subtrees[..usize::try_from(height).unwrap()].copy_from_slice(&zero_bytes[..usize::try_from(height).unwrap()]);
+    merkle_tree_state_data.filled_subtrees[..usize::try_from(height).unwrap()]
+        .copy_from_slice(&zero_bytes[..usize::try_from(height).unwrap()]);
 
     merkle_tree_state_data.height = merkle_tree_state_data
         .filled_subtrees
@@ -84,7 +85,7 @@ mod test {
             time_locked: 0u64,
             height: 0u64,
             merkle_tree_nr: 0u64,
-            lock_duration: 20u64
+            lock_duration: 20u64,
         };
         let height = 18;
         let mt_index = 0;

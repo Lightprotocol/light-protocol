@@ -87,9 +87,8 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     signal  input assetPubkeys[nAssets];
 
-
-    signal  input connectingHash;
     signal  input verifier;
+    signal  input connectingHash;
 
     // feeAsset is asset indexFeeAsset
     assetPubkeys[indexFeeAsset] === feeAsset;

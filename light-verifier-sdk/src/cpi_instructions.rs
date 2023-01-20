@@ -41,7 +41,7 @@ pub fn withdraw_sol_cpi<'a, 'b>(
         authority: authority.clone(),
         merkle_tree_token: merkle_tree_token.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
-        recipient: recipient.clone()
+        recipient: recipient.clone(),
     };
 
     let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);

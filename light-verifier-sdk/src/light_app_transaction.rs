@@ -1,39 +1,18 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::msg,
-};
-use ark_ff::{
-    bytes::{FromBytes, ToBytes},
-};
+use anchor_lang::{prelude::*, solana_program::msg};
+use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::{marker::PhantomData, vec::Vec};
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
-use crate::{
-    errors::VerifierSdkError,
-    utils::change_endianness,
-};
+use crate::{errors::VerifierSdkError, utils::change_endianness};
 
 use std::ops::Neg;
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 use crate::light_transaction::Config;
-// pub trait Config {
-//     /// Number of nullifiers to be inserted with the AppTransaction.
-//     const NR_NULLIFIERS: usize;
-//     /// Number of output utxos.
-//     const NR_LEAVES: usize;
-//     /// Number of checked public inputs.
-//     const NR_CHECKED_PUBLIC_INPUTS: usize;
-//     /// Program ID of the app verifier program.
-//     const APP_ID: [u8; 32];
-//     /// Program ID of the system verifier program.
-//     const SYSTEM_VERIFIER_ID: [u8; 32];
-// }
 
 #[derive(Clone)]
 pub struct AppTransaction<'a, T: Config> {
-    // pub connecting_hash: Vec<u8>,
     pub checked_public_inputs: Vec<Vec<u8>>,
     pub proof_a: Vec<u8>,
     pub proof_b: Vec<u8>,
@@ -41,7 +20,7 @@ pub struct AppTransaction<'a, T: Config> {
     pub e_phantom: PhantomData<T>,
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
     pub verified_proof: bool,
-    pub invoked_system_verifier: bool
+    pub invoked_system_verifier: bool,
 }
 
 impl<T: Config> AppTransaction<'_, T> {
@@ -51,7 +30,6 @@ impl<T: Config> AppTransaction<'_, T> {
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<T> {
-
         msg!("commented negate proof a");
         let proof_a: G1 =
             <G1 as FromBytes>::read(&*[&change_endianness(&proof[0..64])[..], &[0u8][..]].concat())
@@ -67,7 +45,7 @@ impl<T: Config> AppTransaction<'_, T> {
             invoked_system_verifier: false,
             e_phantom: PhantomData,
             verifyingkey,
-            checked_public_inputs
+            checked_public_inputs,
         }
     }
 
@@ -80,7 +58,6 @@ impl<T: Config> AppTransaction<'_, T> {
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
     pub fn verify(&mut self) -> Result<()> {
-
         // do I need to add the merkle tree? don't think so but think this through
         let mut public_inputs = Vec::new();
 
@@ -104,33 +81,21 @@ impl<T: Config> AppTransaction<'_, T> {
             }
             Err(e) => {
                 msg!("Public Inputs:");
-                // msg!("connecting_hash {:?}", self.connecting_hash);
                 msg!("checked_public_inputs {:?}", self.checked_public_inputs);
+                msg!("proof a: {:?}", self.proof_a.clone());
+                msg!("proof b: {:?}", self.proof_b.clone());
+                msg!("proof c: {:?}", self.proof_c.clone());
+
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)
             }
         }
     }
 
-    // pub fn send_transaction() {
-    //     // match for configured system verifier program id
-    //     verifier_program_two::instruction_second
-    //     let (seed, bump) = utils::cpi_instructions::get_seeds(self.program_id, self.merkle_tree_program_id)?;
-    //     let bump = &[bump];
-    //     let seeds = &[&[seed.as_slice(), bump][..]];
-    //     let accounts = verifier_program_two::cpi::accounts::InitializeNullifiers {
-    //         authority: authority.clone(),
-    //         system_program: system_program.clone(),
-    //         registered_verifier_pda: registered_verifier_pda.clone(),
-    //     };
-    //
-    //     let mut cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
-    //     cpi_ctx = cpi_ctx.with_remaining_accounts(nullifier_pdas);
-    //
-    //     verifier_program_two::cpi::initialize_nullifiers(cpi_ctx, nullifiers)
-    //     self.invoked_system_verifier = true;
-    // }
-
+    // TODO: implement, has to pass contex struct otherwise not really worth
+    pub fn send_transaction() {
+        // match for configured system verifier program id
+    }
 
     // pub fn check_completion(&self) -> Result<()> {
     //     if self.invoked_system_verifier
@@ -141,5 +106,4 @@ impl<T: Config> AppTransaction<'_, T> {
     //     msg!("verified_proof {}", self.verified_proof);
     //     err!(VerifierSdkError::AppTransactionIncomplete)
     // }
-
 }

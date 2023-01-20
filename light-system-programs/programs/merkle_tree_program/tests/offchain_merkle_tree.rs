@@ -9,9 +9,12 @@ use ark_crypto_primitives::{
 };
 use ark_ed_on_bn254;
 use ark_ed_on_bn254::{Fq, Fr};
-use ark_ff::{bytes::{FromBytes, ToBytes}, PrimeField, BigInteger};
 use ark_ff::BigInteger256;
 use ark_ff::Fp256;
+use ark_ff::{
+    bytes::{FromBytes, ToBytes},
+    BigInteger, PrimeField,
+};
 use ark_serialize::{Read, Write};
 use ark_std::vec::Vec;
 use ark_std::{test_rng, UniformRand};
@@ -142,7 +145,7 @@ fn test_initialize() {
         time_locked: 0u64,
         height: 0u64,
         merkle_tree_nr: 0u64,
-        lock_duration: 20u64
+        lock_duration: 20u64,
     };
     let mt_index = 0;
     let binding = &mut RefCell::new(mt);
@@ -162,7 +165,7 @@ fn test_initialize() {
     // assert_eq!(ref_mt.height + 1, tree.height().try_into().unwrap());
     // assert_eq!(ref_mt.roots[0].to_vec(), tree.root());
     println!("1u8; 64] {:?}", hash_64_to_vec(vec![1u8; 64]));
-    let new_leaf = vec![3u8;32];
+    let new_leaf = vec![3u8; 32];
     tree.update(0, &new_leaf);
     tree.update(1, &new_leaf);
     println!("{:?}", tree.root());
@@ -175,10 +178,9 @@ fn test_initialize() {
     // let input2 = Fq::from_be_bytes_mod_order(&[2u8; 32]);
     // use ark_ed_on_bn254::Fq as FqEd;
 
-
     // println!("[1u8;32], [2u8;32] {:?}", hash_64_to_vec([input1.into_repr().to_bytes_be(), input2.into_repr().to_bytes_be()].concat()));
-    use ark_bn254::Fr as FrBn;
     use ark_bn254::Fq as FqBn;
+    use ark_bn254::Fr as FrBn;
 
     let input1 = Fq::from_be_bytes_mod_order(&[3u8; 32]);
     println!("input 1 {:?}", input1);
@@ -192,7 +194,6 @@ fn test_initialize() {
     // println!("[3u8;32], [3u8;32] {:?}", hash_64_to_vec([input1.into_repr().to_bytes_le(), input2.into_repr().to_bytes_le()].concat()));
 
     // 40 7
-
 }
 
 #[test]
@@ -212,7 +213,7 @@ fn batch_update_smt_test() {
         time_locked: 0u64,
         height: 0u64,
         merkle_tree_nr: 0u64,
-        lock_duration: 0u64
+        lock_duration: 0u64,
     };
     let mt_index = 0;
     let binding = &mut RefCell::new(mt);
