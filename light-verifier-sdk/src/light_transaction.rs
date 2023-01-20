@@ -24,6 +24,7 @@ use crate::{
 
 use std::ops::Neg;
 
+use anchor_lang::solana_program::keccak::hash;
 use merkle_tree_program::{
     program::MerkleTreeProgram,
     utils::{
@@ -31,7 +32,6 @@ use merkle_tree_program::{
         create_pda::create_and_check_pda,
     },
 };
-use anchor_lang::solana_program::keccak::hash;
 
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
@@ -207,7 +207,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             }
         }
     }
-    
+
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient||recipient_fee||signer||relayer_fee||encrypted_utxos).
@@ -239,16 +239,43 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             self.encrypted_utxos.clone(),
         ]
         .concat();
-        // msg!("recipient: {:?}", self.accounts.unwrap().recipient.as_ref().unwrap().key().to_bytes().to_vec());
-        // msg!("recipient_fee: {:?}", self.accounts.unwrap().recipient_fee.as_ref().unwrap().key().to_bytes().to_vec());
-        // msg!("signing_address: {:?}", self.accounts.unwrap().signing_address.key().to_bytes().to_vec());
+        // msg!(
+        //     "recipient: {:?}",
+        //     self.accounts
+        //         .unwrap()
+        //         .recipient
+        //         .as_ref()
+        //         .unwrap()
+        //         .key()
+        //         .to_bytes()
+        //         .to_vec()
+        // );
+        // msg!(
+        //     "recipient_fee: {:?}",
+        //     self.accounts
+        //         .unwrap()
+        //         .recipient_fee
+        //         .as_ref()
+        //         .unwrap()
+        //         .key()
+        //         .to_bytes()
+        //         .to_vec()
+        // );
+        // msg!(
+        //     "signing_address: {:?}",
+        //     self.accounts
+        //         .unwrap()
+        //         .signing_address
+        //         .key()
+        //         .to_bytes()
+        //         .to_vec()
+        // );
         // msg!("relayer_fee: {:?}", self.relayer_fee.to_le_bytes().to_vec());
         // msg!("relayer_fee {}", self.relayer_fee);
-        // msg!("integrity_hash inputs: {:?}", input);
         // msg!("integrity_hash inputs.len(): {}", input.len());
-        let hash = Fr::from_be_bytes_mod_order(
-            &hash(&input[..]).try_to_vec()?[..],
-        );
+        // msg!("encrypted_utxos: {:?}", self.encrypted_utxos);
+
+        let hash = Fr::from_be_bytes_mod_order(&hash(&input[..]).try_to_vec()?[..]);
         let mut bytes = Vec::<u8>::new();
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes).unwrap();
         self.tx_integrity_hash = change_endianness(&bytes[..32]);
@@ -282,8 +309,20 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         ) {
             Ok(sender_mint) => {
                 // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
-                msg!("{:?}", [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat());
-                self.mint_pubkey = [vec![0u8], hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()].concat();
+                // msg!(
+                //     "{:?}",
+                //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
+                // );
+                if self.public_amount[24..32] == vec![0u8; 8] {
+                    self.mint_pubkey = vec![0u8; 32];
+                } else {
+                    self.mint_pubkey = [
+                        vec![0u8],
+                        hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                    ]
+                    .concat();
+                }
+
                 self.fetched_mint = true;
                 Ok(())
             }
@@ -324,11 +363,11 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         // check merkle tree
         for (i, leaves) in self.leaves.iter().enumerate() {
             let mut msg = Vec::new();
-            msg!("self.encrypted_utxos.len() {:?}", self.encrypted_utxos.len());
+
             if self.encrypted_utxos.len() > i * 256 {
-                msg.append(&mut self.encrypted_utxos[i*256..(i + 1)* 256].to_vec());
+                msg.append(&mut self.encrypted_utxos[i * 256..(i + 1) * 256].to_vec());
             }
-            msg!("len encUtxos {}",msg.len() );
+
             // check account integrities
             insert_two_leaves_cpi(
                 self.accounts.unwrap().program_id,
@@ -349,7 +388,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                 change_endianness(&leaves[0]).try_into().unwrap(),
                 change_endianness(&leaves[1]).try_into().unwrap(),
                 self.accounts.unwrap().merkle_tree.key(),
-                msg
+                msg,
             )?;
         }
 
@@ -419,7 +458,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             0,
             change_endianness(&self.public_amount).try_into().unwrap(),
         )?;
-        
+
         // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
@@ -556,7 +595,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             }
             msg!("transferred");
         }
-        
+
         self.transferred_funds = true;
         Ok(())
     }
@@ -567,7 +606,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             msg!("Tried to transfer fees without verifying the proof.");
             return err!(VerifierSdkError::ProofNotVerified);
         }
-        
+
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
@@ -592,7 +631,16 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
 
                 self.check_sol_pool_account_derivation(
                     &self.accounts.unwrap().sender_fee.as_ref().unwrap().key(),
-                    &*self.accounts.unwrap().sender_fee.as_ref().unwrap().to_account_info().data.try_borrow().unwrap()
+                    &*self
+                        .accounts
+                        .unwrap()
+                        .sender_fee
+                        .as_ref()
+                        .unwrap()
+                        .to_account_info()
+                        .data
+                        .try_borrow()
+                        .unwrap(),
                 )?;
                 // withdraws sol for the user
                 withdraw_sol_cpi(
@@ -619,7 +667,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .unwrap()
                         .registered_verifier_pda
                         .to_account_info(),
-                        fee_amount_checked,
+                    fee_amount_checked,
                 )?;
                 msg!("withdrew sol for the user");
                 // pays the relayer fee
@@ -648,17 +696,17 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .to_account_info(),
                     relayer_fee,
                 )?;
-
             }
         }
-        
+
         Ok(())
     }
 
     /// Creates and closes an account such that deposited sol is part of the transaction fees.
     fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
-        self.check_sol_pool_account_derivation(&recipient.key(),
-            &*recipient.data.try_borrow().unwrap()
+        self.check_sol_pool_account_derivation(
+            &recipient.key(),
+            &*recipient.data.try_borrow().unwrap(),
         )?;
         // TODO: add check that recipient account is initialized
 

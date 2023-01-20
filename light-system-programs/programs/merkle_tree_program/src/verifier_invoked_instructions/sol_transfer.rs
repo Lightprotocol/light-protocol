@@ -1,6 +1,6 @@
+use crate::RegisteredAssetPool;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
-use crate::RegisteredAssetPool;
 #[derive(Accounts)]
 pub struct WithdrawSol<'info> {
     /// CHECK:` Signer is registered verifier program.
@@ -12,7 +12,7 @@ pub struct WithdrawSol<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:`
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>
+    pub recipient: UncheckedAccount<'info>,
 }
 
 pub fn process_sol_transfer(
@@ -20,7 +20,6 @@ pub fn process_sol_transfer(
     dest_account: &AccountInfo,
     amount: u64,
 ) -> Result<()> {
-    
     let from_starting_lamports = from_account.lamports();
     // msg!("from_starting_lamports: {}", from_starting_lamports);
     from_starting_lamports
@@ -40,7 +39,6 @@ pub fn process_sol_transfer(
         .ok_or(ProgramError::InvalidAccountData)?;
     // msg!("dest_starting_lamports: {}", dest_starting_lamports);
     // msg!("dest_res_lamports: {}", res);
-    
+
     Ok(())
 }
-

@@ -17,7 +17,7 @@ import {
   executeUpdateMerkleTreeTransactions,
   executeMerkleTreeUpdateTransactions,
   createMintWrapper,
-  getUninsertedLeaves,
+  getUninsertedLeavesRelayer,
   getInsertedLeaves,
   getUnspentUtxo,
   MerkleTreeConfig,
@@ -59,6 +59,7 @@ import {
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
+  updateMerkleTreeForTest,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -713,46 +714,9 @@ describe("verifier_program", () => {
         console.log(e);
       }
     }
+    await updateMerkleTreeForTest(provider)
   });
 
-  it("Update Merkle Tree after Deposit", async () => {
-    // fetch uninserted utxos from chain
-    let leavesPdas = await SolMerkleTree.getUninsertedLeaves(MERKLE_TREE_KEY);
-
-    let poseidon = await circomlibjs.buildPoseidonOpt();
-    // build tree from chain
-    let mtPrior = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon,
-    });
-
-    await executeUpdateMerkleTreeTransactions({
-      connection: provider.connection,
-      signer: ADMIN_AUTH_KEYPAIR,
-      merkleTreeProgram: merkleTreeProgram,
-      leavesPdas: leavesPdas,
-      merkleTree: mtPrior,
-      merkle_tree_pubkey: MERKLE_TREE_KEY,
-      provider,
-    });
-    let mtAfter = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
-    );
-
-    let merkleTree = (await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon,
-    })).merkleTree;
-    //check correct insert
-    assert.equal(
-      new anchor.BN(
-        mtAfter.roots[mtAfter.currentRootIndex],
-        undefined,
-        "le"
-      ).toString(),
-      merkleTree.root()
-    );
-  });
 
   it.skip("Update Merkle Tree Test", async () => {
     // Security Claims
@@ -783,7 +747,7 @@ describe("verifier_program", () => {
     let error;
 
     // fetch uninserted utxos from chain
-    let leavesPdas = await getUninsertedLeaves({
+    let leavesPdas = await getUninsertedLeavesRelayer({
       merkleTreeProgram,
       merkleTreeIndex: mtFetched.nextIndex,
       connection: provider.connection,

@@ -62,7 +62,6 @@ export async function functionalCircuitTest() {
 
   // successful proofgeneration
   await tx.compile(txParams);
-  console.log(tx.proofInput);
 
   await tx.getProof();
   // unsuccessful proofgeneration

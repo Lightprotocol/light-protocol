@@ -1,3 +1,22 @@
+import {
+  ADMIN_AUTH_KEYPAIR,
+  confirmConfig,
+  FEE_ASSET,
+  Keypair,
+  LightInstance,
+  MINT,
+  Transaction,
+  TransactionParameters,
+  Utxo,
+  VerifierZero,
+  SolMerkleTree, 
+  VerifierTwo,
+  VerifierOne
+} from "light-sdk";
+import * as anchor from "@coral-xyz/anchor";
+import { assert, expect } from "chai";
+import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
+const circomlibjs = require("circomlibjs");
 
 
 describe("verifier_program", () => {
@@ -15,9 +34,13 @@ describe("verifier_program", () => {
     }
   })
   
-// test functional circuit
+  // TODO: make work
   it.skip("Test functional circuit 2 in 2 out", async () => {
     await functionalCircuitTest(new VerifierZero());
+  })
+  // TODO: make work
+  it.skip("Test functional circuit 2 in 10 out", async () => {
+    await functionalCircuitTest(new VerifierOne());
   })
 
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
@@ -25,24 +48,7 @@ describe("verifier_program", () => {
   })
 })
 
-import {
-  ADMIN_AUTH_KEYPAIR,
-  confirmConfig,
-  FEE_ASSET,
-  Keypair,
-  LightInstance,
-  MINT,
-  Transaction,
-  TransactionParameters,
-  Utxo,
-  VerifierZero,
-  SolMerkleTree, 
-  VerifierTwo
-} from "light-sdk";
-import * as anchor from "@coral-xyz/anchor";
-import { assert, expect } from "chai";
-import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-const circomlibjs = require("circomlibjs");
+
 
 async function functionalCircuitTest(verifier) {
 
@@ -78,7 +84,7 @@ async function functionalCircuitTest(verifier) {
 
   // successful proofgeneration
   await tx.compile(txParams, {mock: "123"});
-  console.log(tx.proofInput);
+  // console.log(tx.proofInput);
   
   await tx.getProof()
   // unsuccessful proofgeneration
