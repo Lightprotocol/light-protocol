@@ -39,7 +39,7 @@ export declare class Utxo {
         index?: any;
     });
     toBytes(): Uint8Array;
-    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn }: {
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn, }: {
         poseidon: any;
         bytes: Uint8Array;
         keypair?: Keypair;

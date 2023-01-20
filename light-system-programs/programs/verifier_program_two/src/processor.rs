@@ -2,11 +2,13 @@ use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::{
     accounts::Accounts,
-    light_transaction::{Transaction, Config},
+    light_transaction::{Config, Transaction},
 };
 
-use light_verifier_sdk::state::VerifierState10Ins;
 use crate::LightInstruction;
+use anchor_lang::solana_program::{keccak::hash, msg};
+use light_verifier_sdk::state::VerifierState10Ins;
+
 #[derive(Clone)]
 pub struct TransactionConfig;
 impl Config for TransactionConfig {
@@ -15,7 +17,7 @@ impl Config for TransactionConfig {
     /// Number of output utxos.
     const NR_LEAVES: usize = 4;
     /// Number of checked public inputs, Kyc, Invoking Verifier, Apphash.
-    const NR_CHECKED_PUBLIC_INPUTS: usize = 3;
+    const NR_CHECKED_PUBLIC_INPUTS: usize = 2;
     /// ProgramId in bytes.
     const ID: [u8; 32] = [
         252, 178, 75, 149, 78, 219, 142, 17, 53, 237, 47, 4, 42, 105, 173, 204, 248, 16, 209, 38,
@@ -28,10 +30,11 @@ impl Config for TransactionConfig {
 pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
     proof: Vec<u8>,
-    _connecting_hash: Vec<u8>,
+    connecting_hash: Vec<u8>,
 ) -> Result<()> {
     let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
-         &mut &*ctx.accounts.verifier_state.to_account_info().data.take())?;
+        &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
+    )?;
 
     let accounts = Accounts::new(
         ctx.program_id,
@@ -53,46 +56,43 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
     )?;
     // msg!("here1 {:?}", verifier_state);
-    for i in verifier_state.nullifiers.iter() {
-        msg!("nullifier: {:?}", i);
-    }
-    for i in verifier_state.leaves.iter() {
-        msg!("leaves: {:?}", i);
-    }
+    // for i in verifier_state.nullifiers.iter() {
+    //     msg!("nullifier: {:?}", i);
+    // }
+    // for i in verifier_state.leaves.iter() {
+    //     msg!("leaves: {:?}", i);
+    // }
+    let checked_inputs = vec![
+        [
+            vec![0u8],
+            hash(&ctx.accounts.invoking_verifier.owner.to_bytes()).try_to_vec()?[1..].to_vec(),
+        ]
+        .concat(),
+        connecting_hash,
+    ];
     let mut tx = Transaction::<TransactionConfig>::new(
         proof,
         verifier_state.public_amount.to_vec(),
         verifier_state.fee_amount.to_vec(),
-        Vec::<Vec<u8>>::new(), // checked_public_inputs
+        checked_inputs,
         verifier_state.nullifiers.to_vec(),
         vec![
-            vec![verifier_state.leaves[0].to_vec(), verifier_state.leaves[1].to_vec()],
-            vec![verifier_state.leaves[2].to_vec(), verifier_state.leaves[3].to_vec()]
+            vec![
+                verifier_state.leaves[0].to_vec(),
+                verifier_state.leaves[1].to_vec(),
+            ],
+            vec![
+                verifier_state.leaves[2].to_vec(),
+                verifier_state.leaves[3].to_vec(),
+            ],
         ],
         verifier_state.encrypted_utxos.to_vec(),
         verifier_state.relayer_fee,
-        verifier_state
-            .merkle_root_index
-            .try_into()
-            .unwrap(),
-        vec![0u8;32],//verifier_state.pool_type,
+        verifier_state.merkle_root_index.try_into().unwrap(),
+        vec![0u8; 32], //verifier_state.pool_type,
         Some(&accounts),
         &VERIFYINGKEY,
     );
-    msg!("here2");
 
-    // tx.transact()
-    tx.compute_tx_integrity_hash()?;
-    tx.fetch_root()?;
-    tx.fetch_mint()?;
-    msg!("verification commented");
-    // self.verify()?;
-    tx.verified_proof = true;
-    tx.insert_leaves()?;
-    msg!("verification commented1");
-    tx.insert_nullifiers()?;
-    msg!("verification commented2");
-    tx.transfer_user_funds()?;
-    msg!("verification commented3");
-    tx.transfer_fee()
+    tx.transact()
 }
