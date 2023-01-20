@@ -36,44 +36,93 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.handler = exports.builder = exports.desc = exports.command = void 0;
-var util_1 = require("../util");
-var anchor = require("@project-serum/anchor");
-var light_sdk_1 = require("light-sdk");
-var tweetnacl_1 = require("tweetnacl");
-var constants_1 = require("../constants");
-var message = new TextEncoder().encode(constants_1.SIGN_MESSAGE);
+exports.readUserFromFile = exports.saveUserToFile = exports.readWalletFromFile = exports.createNewWallet = void 0;
+var fs = require("fs");
+var solana = require("@solana/web3.js");
+// import * as light from "light-sdk";
 var circomlibjs = require("circomlibjs");
-exports.command = "login";
-exports.desc = "login a light user using an existing solana wallet; simulates a page refresh/mount";
-var builder = function (yargs) { return yargs; };
-exports.builder = builder;
-var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {
-    var wallet, signature, signatureArray, decryptedUtxos, poseidon, user;
+var createNewWallet = function () {
+    var keypair = solana.Keypair.generate();
+    var secretKey = keypair.secretKey;
+    try {
+        fs.writeFileSync("./cache/secret.txt", JSON.stringify(Array.from(secretKey)));
+        console.log("- secret created and cached");
+        return keypair;
+    }
+    catch (e) {
+        throw new Error("error writing secret.txt");
+    }
+};
+exports.createNewWallet = createNewWallet;
+var readWalletFromFile = function () {
+    var secretKey = [];
+    try {
+        var data = fs.readFileSync("./cache/secret.txt", "utf8");
+        secretKey = JSON.parse(data);
+        var asUint8Array = new Uint8Array(secretKey);
+        var keypair = solana.Keypair.fromSecretKey(asUint8Array);
+        console.log("Wallet found!");
+        return keypair;
+    }
+    catch (e) {
+        throw new Error("secret.txt not found or corrupted!");
+    }
+};
+exports.readWalletFromFile = readWalletFromFile;
+var decryptedUtxos = [
+    { test: "testString" },
+    232323,
+    "string",
+];
+var saveUserToFile = function (_a) {
+    var signature = _a.signature, utxos = _a.utxos;
+    fs.writeFileSync("./cache/signature.txt", JSON.stringify(signature));
+    console.log("- signature cached");
+    // TODO: encrypt user utxos
+    fs.writeFileSync("./cache/utxos.txt", JSON.stringify(utxos));
+    console.log("- utxos cached");
+};
+exports.saveUserToFile = saveUserToFile;
+// simulates state fetching.
+var readUserFromFile = function () { return __awaiter(void 0, void 0, void 0, function () {
+    var signature, decryptedUtxos, data, data, signatureArray, poseidon;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
+                decryptedUtxos = [];
                 try {
-                    wallet = (0, util_1.readWalletFromFile)();
+                    data = fs.readFileSync("./cache/signature.txt", "utf8");
+                    console.log(data);
+                    signature = JSON.parse(data);
                 }
                 catch (e) {
-                    throw new Error("No secret.txt file found, please create a new wallet with the 'new wallet' command.");
+                    console.log("signature.txt not found!");
                 }
-                signature = tweetnacl_1.sign.detached(message, wallet.secretKey);
-                if (!tweetnacl_1.sign.detached.verify(message, signature, wallet.publicKey.toBytes()))
-                    throw new Error("Invalid signature!");
+                try {
+                    data = fs.readFileSync("./cache/utxos.txt", "utf8");
+                    console.log(JSON.parse(data));
+                    decryptedUtxos = JSON.parse(data);
+                }
+                catch (e) {
+                    console.log("utxos.txt not found!");
+                }
                 signatureArray = Array.from(signature);
-                decryptedUtxos = [];
-                (0, util_1.saveUserToFile)({ signature: signatureArray, utxos: decryptedUtxos });
+                // TODO: fetch and find user utxos (decr, encr)
+                (0, exports.saveUserToFile)({ signature: signatureArray, utxos: decryptedUtxos });
                 return [4 /*yield*/, circomlibjs.buildPoseidonOpt()];
             case 1:
                 poseidon = _a.sent();
-                user = new light_sdk_1.User(poseidon, new anchor.BN(signatureArray).toString("hex"), wallet);
-                console.log("User logged in!", user);
-                process.exit(0);
+                // TODO: add utxos to user..., add balance etc all to user account, also keys,
+                // TODO: User: add "publickey functionality"
+                //   const user = new User(
+                //     poseidon,
+                //     new anchor.BN(signatureArray).toString("hex")
+                //     wallet
+                //   );
+                console.log("User logged in!");
                 return [2 /*return*/];
         }
     });
 }); };
-exports.handler = handler;
-//# sourceMappingURL=login.js.map
+exports.readUserFromFile = readUserFromFile;
+//# sourceMappingURL=util.js.map
