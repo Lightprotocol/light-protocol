@@ -1,18 +1,10 @@
-use anchor_lang::{
-    prelude::*,
-    solana_program::msg,
-};
-use ark_ff::{
-    bytes::{FromBytes, ToBytes},
-};
+use anchor_lang::{prelude::*, solana_program::msg};
+use ark_ff::bytes::{FromBytes, ToBytes};
 use ark_std::{marker::PhantomData, vec::Vec};
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
 
-use crate::{
-    errors::VerifierSdkError,
-    utils::change_endianness,
-};
+use crate::{errors::VerifierSdkError, utils::change_endianness};
 
 use std::ops::Neg;
 
@@ -41,7 +33,7 @@ pub struct AppTransaction<'a, T: Config> {
     pub e_phantom: PhantomData<T>,
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
     pub verified_proof: bool,
-    pub invoked_system_verifier: bool
+    pub invoked_system_verifier: bool,
 }
 
 impl<T: Config> AppTransaction<'_, T> {
@@ -51,7 +43,6 @@ impl<T: Config> AppTransaction<'_, T> {
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<T> {
-
         msg!("commented negate proof a");
         let proof_a: G1 =
             <G1 as FromBytes>::read(&*[&change_endianness(&proof[0..64])[..], &[0u8][..]].concat())
@@ -67,7 +58,7 @@ impl<T: Config> AppTransaction<'_, T> {
             invoked_system_verifier: false,
             e_phantom: PhantomData,
             verifyingkey,
-            checked_public_inputs
+            checked_public_inputs,
         }
     }
 
@@ -80,7 +71,6 @@ impl<T: Config> AppTransaction<'_, T> {
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.
     pub fn verify(&mut self) -> Result<()> {
-
         // do I need to add the merkle tree? don't think so but think this through
         let mut public_inputs = Vec::new();
 
@@ -106,6 +96,10 @@ impl<T: Config> AppTransaction<'_, T> {
                 msg!("Public Inputs:");
                 // msg!("connecting_hash {:?}", self.connecting_hash);
                 msg!("checked_public_inputs {:?}", self.checked_public_inputs);
+                msg!("proof a: {:?}", self.proof_a.clone());
+                msg!("proof b: {:?}", self.proof_b.clone());
+                msg!("proof c: {:?}", self.proof_c.clone());
+
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)
             }
@@ -131,7 +125,6 @@ impl<T: Config> AppTransaction<'_, T> {
     //     self.invoked_system_verifier = true;
     // }
 
-
     // pub fn check_completion(&self) -> Result<()> {
     //     if self.invoked_system_verifier
     //         && self.verified_proof
@@ -141,5 +134,4 @@ impl<T: Config> AppTransaction<'_, T> {
     //     msg!("verified_proof {}", self.verified_proof);
     //     err!(VerifierSdkError::AppTransactionIncomplete)
     // }
-
 }

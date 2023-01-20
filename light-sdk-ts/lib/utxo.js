@@ -112,10 +112,7 @@ class Utxo {
             ];
         }
         else if (this.amounts[0].toString() === "0") {
-            this.assetsCircuit = [
-                new anchor_1.BN(0),
-                new anchor_1.BN(0),
-            ];
+            this.assetsCircuit = [new anchor_1.BN(0), new anchor_1.BN(0)];
         }
         else {
             this.assetsCircuit = [
@@ -182,7 +179,7 @@ class Utxo {
     // TODO: make robust and versatile for any combination of filled in fields or not
     // TODO: find a better solution to get the private key in
     // TODO: check length to rule out parsing app utxo
-    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn }) {
+    static fromBytes({ poseidon, bytes, keypair, keypairInAppDataOffset, appDataLength, appDataFromBytesFn, }) {
         const blinding = new anchor_1.BN(bytes.slice(0, 31), undefined, "be"); // blinding
         const amounts = [
             new anchor_1.BN(bytes.slice(31, 39), undefined, "be"),
@@ -217,7 +214,7 @@ class Utxo {
                 instructionType,
                 appData,
                 appDataFromBytesFn,
-                verifierAddress
+                verifierAddress,
             });
             // throw new Error("fromBytes only implemented for standard utxo");
             // return new Utxo({ poseidon });
@@ -360,7 +357,6 @@ class Utxo {
         chai_1.assert.equal((_a = utxo0.getCommitment()) === null || _a === void 0 ? void 0 : _a.toString(), (_b = utxo1.getCommitment()) === null || _b === void 0 ? void 0 : _b.toString());
         chai_1.assert.equal((_c = utxo0.getNullifier()) === null || _c === void 0 ? void 0 : _c.toString(), (_d = utxo1.getNullifier()) === null || _d === void 0 ? void 0 : _d.toString());
     }
-    ;
 }
 exports.Utxo = Utxo;
 exports.Utxo = Utxo;

@@ -20,8 +20,8 @@ test-bpf = []
 opt-level = 2
 
 [dependencies]
-anchor-lang = "0.26.0"
-anchor-spl = "0.26.0"
+anchor-lang = "0.25.0"
+anchor-spl = "0.25.0"
 
 byteorder = "1.3"
 

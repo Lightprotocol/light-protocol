@@ -33,7 +33,10 @@ class VerifierTwo {
                 feeAmount: publicInputsBytes[3],
                 mintPubkey: publicInputsBytes[4],
                 nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
-                leaves: Array.from([publicInputsBytes.slice(9, 11), publicInputsBytes.slice(11, 13)]),
+                leaves: Array.from([
+                    publicInputsBytes.slice(9, 11),
+                    publicInputsBytes.slice(11, 13),
+                ]),
                 checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
                 connectingHash: Array.from(publicInputsBytes.slice(13, 14)),
                 verifier: Array.from(publicInputsBytes.slice(14, 15)),

@@ -826,12 +826,21 @@ export class Transaction {
           ...encryptedOutputs[0],
           ...encryptedOutputs[1],
           ...new Array(256 - 190).fill(0),
+          // this is ok because these bytes are not sent and just added for the integrity hash
+          // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
         ]);
       } else {
         let tmpArray = new Array<any>();
         for (var i = 0; i < this.params.verifier.config.out; i++) {
           tmpArray.push(...encryptedOutputs[i]);
+          if (encryptedOutputs[i].length < 128) {
+            // add random bytes for padding
+            tmpArray.push(
+              ...nacl.randomBytes(128 - encryptedOutputs[i].length),
+            );
+          }
         }
+
         if (tmpArray.length < 512) {
           tmpArray.push(
             new Array(

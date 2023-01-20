@@ -2,7 +2,7 @@
 POWERS_OF_TAU=17 # circuit will support max 2^POWERS_OF_TAU constraints
 if [ ! -f ./ptau$POWERS_OF_TAU ]; then
   echo "Downloading powers of tau file"
-  curl -L https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_$POWERS_OF_TAU.ptau --create-dirs -o ./ptau$POWERS_OF_TAU
+  curl -L https://hermez.s3-eu-west-1.amazonaws.com/powersOfTau28_hez_final_ptau$POWERS_OF_TAU.ptau --create-dirs -o ./$POWERS_OF_TAU
 fi
 circom --r1cs --wasm circuits/transaction$1$2.circom -o ../light-sdk-ts/build-circuits/
 npx snarkjs groth16 setup ../light-sdk-ts/build-circuits/transaction$1$2.r1cs ./ptau$POWERS_OF_TAU ../light-sdk-ts/build-circuits/tmp_transaction$1$2.zkey
