@@ -59,6 +59,9 @@ Tests can be executed in bulk or one by one.
   `light-protocol-onchain` directory, launch a validator with the following
   command:
 
+1. cargo build in light-verifier-sdk
+2. anchor build in light-system-programs (or rather cargo build)
+
 ```
 ../solana/validator/solana-test-validator \
     --reset \
@@ -74,3 +77,4 @@ Tests can be executed in bulk or one by one.
 - `anchor test --skip-build --skip-deploy --skip-local-validator`
 
 Check logs in anchor_programs/.anchor/program-logs
+w
