@@ -15,7 +15,11 @@
     "typescript": "^4.9.4"
   },
   "dependencies": {
-    "yargs": "^17.6.2",
-    "light-sdk": "file:../light-sdk-ts"
+    "@project-serum/anchor": "^0.26.0",
+    "@solana/web3.js": "^1.73.0",
+    "circomlibjs": "^0.1.7",
+    "light-sdk": "file:../light-sdk-ts",
+    "tweetnacl": "^1.0.3",
+    "yargs": "^17.6.2"
   }
 }
