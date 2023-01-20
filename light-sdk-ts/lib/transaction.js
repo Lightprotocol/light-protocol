@@ -141,6 +141,14 @@ class Transaction {
             yield this.getRootIndex();
         });
     }
+    getMint() {
+        if (this.getExternalAmount(1).toString() == "0") {
+            return new anchor_1.BN(0);
+        }
+        else {
+            return this.assetPubkeysCircuit[1];
+        }
+    }
     getProofInput() {
         var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o;
         if (this.params &&
@@ -155,7 +163,7 @@ class Transaction {
                 publicAmount: this.getExternalAmount(1).toString(),
                 feeAmount: this.getExternalAmount(0).toString(),
                 extDataHash: this.getTxIntegrityHash().toString(),
-                mintPubkey: this.assetPubkeysCircuit[1],
+                mintPubkey: this.getMint(),
                 inPrivateKey: (_a = this.params.inputUtxos) === null || _a === void 0 ? void 0 : _a.map((x) => x.keypair.privkey),
                 inPathIndices: this.inputMerklePathIndices,
                 inPathElements: this.inputMerklePathElements,
@@ -198,8 +206,6 @@ class Transaction {
                 let { proofBytes, publicInputs } = yield this.getProofInternal(this.appParams.verifier, Object.assign(Object.assign(Object.assign({}, this.appParams.inputs), this.proofInput), { inPublicKey: (_b = (_a = this.params) === null || _a === void 0 ? void 0 : _a.inputUtxos) === null || _b === void 0 ? void 0 : _b.map((utxo) => utxo.keypair.pubkey) }), firstPath);
                 this.proofBytesApp = proofBytes;
                 this.publicInputsApp = publicInputs;
-                console.log("this.proofBytesApp ", this.proofBytesApp.toString());
-                console.log("this.publicInputsApp ", this.publicInputsApp.toString());
             }
             else {
                 throw new Error("No app params provided");
@@ -214,7 +220,6 @@ class Transaction {
             let { proofBytes, publicInputs } = yield this.getProofInternal((_a = this.params) === null || _a === void 0 ? void 0 : _a.verifier, Object.assign(Object.assign({}, this.proofInput), this.proofInputSystem), firstPath);
             this.proofBytes = proofBytes;
             this.publicInputs = publicInputs;
-            console.log();
             if (this.instance.provider) {
                 yield this.getPdaAddresses();
             }
@@ -233,6 +238,7 @@ class Transaction {
                 throw new Error("params undefined probably not compiled");
             }
             else {
+                // console.log("this.proofInput ", inputs);
                 const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
                 const completePathZkey = firstPath + "/" + verifier.zkeyPath;
                 const buffer = (0, fs_1.readFileSync)(completePathWtns);
@@ -432,25 +438,14 @@ class Transaction {
         let inIndices = [];
         utxos.map((utxo, index) => {
             let tmpInIndices = [];
-            console.log("index ", index);
-            console.log("inIndices ", inIndices);
             for (var a = 0; a < utxo.assets.length; a++) {
-                console.log("a ", a);
                 let tmpInIndices1 = [];
                 for (var i = 0; i < utxo_1.N_ASSET_PUBKEYS; i++) {
                     try {
-                        console.log(i);
-                        console.log(`utxo ${utxo.assetsCircuit[a].toString()} == ${this.assetPubkeysCircuit[i].toString()}`);
                         if (utxo.assetsCircuit[a].toString() ===
                             this.assetPubkeysCircuit[i].toString() &&
-                            // utxo.amounts[a].toString() > "0" &&
                             !tmpInIndices1.includes("1") &&
                             this.assetPubkeysCircuit[i].toString() != "0") {
-                            // if (this.assetPubkeysCircuit[i].toString() == "0") {
-                            //   tmpInIndices1.push("0");
-                            // } else {
-                            //   tmpInIndices1.push("1");
-                            // }
                             tmpInIndices1.push("1");
                         }
                         else {
@@ -462,10 +457,10 @@ class Transaction {
                     }
                 }
                 tmpInIndices.push(tmpInIndices1);
-                console.log("tmpInIndices ", tmpInIndices);
             }
             inIndices.push(tmpInIndices);
         });
+        // console.log(inIndices);
         return inIndices;
     }
     getMerkleProofs() {
@@ -544,7 +539,7 @@ class Transaction {
                 for (var i = 0; i < this.params.verifier.config.out; i++) {
                     tmpArray.push(...encryptedOutputs[i]);
                     if (encryptedOutputs[i].length < 128) {
-                        // add random bytes for padding [...nacl.randomBytes(128 - encryptedOutputs[i].length) new Array(128 - encryptedOutputs[i].length).fill(0)
+                        // add random bytes for padding
                         tmpArray.push(...nacl.randomBytes(128 - encryptedOutputs[i].length));
                     }
                 }

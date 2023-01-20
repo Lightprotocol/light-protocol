@@ -40,7 +40,7 @@ const merkleTreeConfig_1 = require("../merkleTree/merkleTreeConfig");
 function setUpMerkleTree(provider) {
   return __awaiter(this, void 0, void 0, function* () {
     var merkleTreeAccountInfoInit = yield provider.connection.getAccountInfo(
-      constants_1.MERKLE_TREE_KEY
+      constants_1.MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     console.log("MERKLE_TREE_KEY ", constants_1.MERKLE_TREE_KEY);
@@ -63,12 +63,12 @@ function setUpMerkleTree(provider) {
       console.log("AUTHORITY: ", Array.from(constants_1.AUTHORITY.toBytes()));
       console.log(
         "verifierProgramZero.programId: ",
-        Array.from(constants_1.verifierProgramZero.programId.toBytes())
+        Array.from(constants_1.verifierProgramZero.programId.toBytes()),
       );
       console.log("MERKLE_TREE_KEY: ", constants_1.MERKLE_TREE_KEY.toBase58());
       console.log(
         "MERKLE_TREE_KEY: ",
-        Array.from(constants_1.MERKLE_TREE_KEY.toBytes())
+        Array.from(constants_1.MERKLE_TREE_KEY.toBytes()),
       );
       // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
       // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.from(MERKLE_TREE_PDA_TOKEN.toBytes()))
@@ -78,7 +78,7 @@ function setUpMerkleTree(provider) {
           (yield provider.connection.getTransaction(ix, {
             commitment: "confirmed",
           })) != null,
-          "init failed"
+          "init failed",
         );
       } catch (e) {
         console.log(e);
@@ -86,7 +86,7 @@ function setUpMerkleTree(provider) {
       console.log("Registering Verifier");
       try {
         yield merkleTreeConfig.registerVerifier(
-          constants_1.verifierProgramZero.programId
+          constants_1.verifierProgramZero.programId,
         );
         console.log("Registering Verifier Zero success");
       } catch (e) {
@@ -94,7 +94,7 @@ function setUpMerkleTree(provider) {
       }
       try {
         yield merkleTreeConfig.registerVerifier(
-          constants_1.verifierProgramOne.programId
+          constants_1.verifierProgramOne.programId,
         );
         console.log("Registering Verifier One success");
       } catch (e) {
@@ -102,7 +102,7 @@ function setUpMerkleTree(provider) {
       }
       try {
         yield merkleTreeConfig.registerVerifier(
-          constants_1.verifierProgramTwo.programId
+          constants_1.verifierProgramTwo.programId,
         );
         console.log("Registering Verifier One success");
       } catch (e) {
@@ -117,12 +117,12 @@ function setUpMerkleTree(provider) {
       console.log("MINT: ", constants_1.MINT.toBase58());
       console.log(
         "POOL_TYPE_PDA: ",
-        constants_1.REGISTERED_POOL_PDA_SPL.toBase58()
+        constants_1.REGISTERED_POOL_PDA_SPL.toBase58(),
       );
       try {
         yield merkleTreeConfig.registerSplPool(
           constants_1.POOL_TYPE,
-          constants_1.MINT
+          constants_1.MINT,
         );
         console.log("Registering spl pool success");
       } catch (e) {
@@ -130,7 +130,7 @@ function setUpMerkleTree(provider) {
       }
       console.log(
         "REGISTERED_POOL_PDA_SOL: ",
-        constants_1.REGISTERED_POOL_PDA_SOL
+        constants_1.REGISTERED_POOL_PDA_SOL,
       );
       try {
         yield merkleTreeConfig.registerSolPool(constants_1.POOL_TYPE);

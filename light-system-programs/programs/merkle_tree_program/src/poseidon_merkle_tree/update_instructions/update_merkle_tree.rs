@@ -1,3 +1,4 @@
+use crate::errors::ErrorCode;
 use crate::poseidon_merkle_tree::processor::compute_updated_merkle_tree;
 use crate::poseidon_merkle_tree::processor::pubkey_check;
 use crate::state::MerkleTree;
@@ -5,7 +6,6 @@ use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey, sysvar};
-use crate::errors::ErrorCode;
 
 #[derive(Accounts)]
 pub struct UpdateMerkleTree<'info> {

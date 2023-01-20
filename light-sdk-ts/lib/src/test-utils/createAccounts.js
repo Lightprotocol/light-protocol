@@ -102,7 +102,7 @@ const sleep = (ms) => {
 const newAccountWithLamports = (
   connection,
   account = new anchor.web3.Account(),
-  lamports = 1e10
+  lamports = 1e10,
 ) =>
   __awaiter(void 0, void 0, void 0, function* () {
     let x = yield connection.confirmTransaction(
@@ -110,7 +110,7 @@ const newAccountWithLamports = (
       {
         commitment: "comfirmed",
         preflightCommitment: "comfirmed",
-      }
+      },
     );
     console.log("newAccountWithLamports ", account.publicKey.toBase58());
     return account;
@@ -119,7 +119,7 @@ exports.newAccountWithLamports = newAccountWithLamports;
 const newAddressWithLamports = (
   connection,
   address = new anchor.web3.Account().publicKey,
-  lamports = 1e11
+  lamports = 1e11,
 ) =>
   __awaiter(void 0, void 0, void 0, function* () {
     let retries = 30;
@@ -150,7 +150,7 @@ const newProgramOwnedAccount = ({ connection, owner, lamports = 0 }) =>
           {
             commitment: "comfirmed",
             preflightCommitment: "comfirmed",
-          }
+          },
         );
         const tx = new solana.Transaction().add(
           solana.SystemProgram.createAccount({
@@ -159,7 +159,7 @@ const newProgramOwnedAccount = ({ connection, owner, lamports = 0 }) =>
             space: 0,
             lamports: yield connection.getMinimumBalanceForRentExemption(1),
             Id: owner.programId,
-          })
+          }),
         );
         tx.feePayer = payer.publicKey;
         tx.recentBlockhash = yield connection.getRecentBlockhash();
@@ -172,7 +172,7 @@ const newProgramOwnedAccount = ({ connection, owner, lamports = 0 }) =>
           {
             commitment: "confirmed",
             preflightCommitment: "confirmed",
-          }
+          },
         );
         return account;
       } catch (_a) {}
@@ -198,7 +198,7 @@ function newAccountWithTokens({
         connection,
         ADMIN_AUTH_KEYPAIR,
         MINT,
-        userAccount.publicKey
+        userAccount.publicKey,
       );
       console.log(tokenAccount);
     } catch (e) {
@@ -236,19 +236,19 @@ function createMintWrapper({
           newAccountPubkey: mintKeypair.publicKey,
           programId: spl_token_1.TOKEN_PROGRAM_ID,
           space: space,
-        })
+        }),
       );
       let res = yield (0, web3_js_1.sendAndConfirmTransaction)(
         connection,
         txCreateAccount,
         [authorityKeypair, mintKeypair],
-        constants_1.confirmConfig
+        constants_1.confirmConfig,
       );
       (0, chai_1.assert)(
         (yield connection.getTransaction(res, {
           commitment: "confirmed",
         })) != null,
-        "create mint account failed"
+        "create mint account failed",
       );
       let mint = yield (0, spl_token_2.createMint)(
         connection,
@@ -256,7 +256,7 @@ function createMintWrapper({
         authorityKeypair.publicKey,
         null, // freez auth
         decimals, //2,
-        mintKeypair
+        mintKeypair,
       );
       (0,
       chai_1.assert)((yield connection.getAccountInfo(mint)) != null, "create mint failed");
@@ -273,14 +273,14 @@ function createTestAccounts(connection) {
     // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
     let balance = yield connection.getBalance(
       constants_1.ADMIN_AUTH_KEY,
-      "confirmed"
+      "confirmed",
     );
     if (balance === 0) {
       let amount = 1000000000000;
       console.time("requestAirdrop");
       let res = yield connection.requestAirdrop(
         constants_1.ADMIN_AUTH_KEY,
-        amount
+        amount,
       );
       console.timeEnd("requestAirdrop");
       console.time("confirmAirdrop");
@@ -297,25 +297,25 @@ function createTestAccounts(connection) {
           fromPubkey: constants_1.ADMIN_AUTH_KEYPAIR.publicKey,
           toPubkey: constants_1.AUTHORITY,
           lamports: 1000000000,
-        })
+        }),
       );
       yield (0, web3_js_1.sendAndConfirmTransaction)(
         connection,
         txTransfer1,
         [constants_1.ADMIN_AUTH_KEYPAIR],
-        constants_1.confirmConfig
+        constants_1.confirmConfig,
       );
     }
     if (
       (yield connection.getBalance(
         solana.Keypair.fromSecretKey(constants_1.MINT_PRIVATE_KEY).publicKey,
-        "confirmed"
+        "confirmed",
       )) == 0
     ) {
       yield createMintWrapper({
         authorityKeypair: constants_1.ADMIN_AUTH_KEYPAIR,
         mintKeypair: web3_js_1.Keypair.fromSecretKey(
-          constants_1.MINT_PRIVATE_KEY
+          constants_1.MINT_PRIVATE_KEY,
         ),
         connection,
       });
@@ -327,7 +327,7 @@ function createTestAccounts(connection) {
         connection,
         constants_1.userTokenAccount,
         "confirmed",
-        spl_token_1.TOKEN_PROGRAM_ID
+        spl_token_1.TOKEN_PROGRAM_ID,
       );
     } catch (e) {}
     console.log("balanceUserToken ", balanceUserToken);

@@ -26,7 +26,7 @@ export declare function getUnspentUtxo(
   FEE_ASSET: any,
   mint: any,
   POSEIDON: any,
-  merkleTreeProgram: MerkleTreeProgram
+  merkleTreeProgram: MerkleTreeProgram,
 ): Promise<boolean | Utxo | null | undefined>;
 export declare function getInsertedLeaves({
   merkleTreeProgram,

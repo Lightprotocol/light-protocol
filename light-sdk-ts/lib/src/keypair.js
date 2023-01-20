@@ -10,33 +10,33 @@ class Keypair {
   constructor(
     poseidon,
     seed = new anchor_1.BN(nacl.randomBytes(32)).toString(),
-    index
+    index,
   ) {
     // TODO: change key derivation and write tests
     // privkey should be Sha3([ed25519Sig(),"shielded"].concat())
     if (index) {
       let encSeed = seed + "encryption";
       this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(
-        sodium.crypto_generichash(32, sodium.from_string(encSeed))
+        sodium.crypto_generichash(32, sodium.from_string(encSeed)),
       );
       let privkeySeed = seed + "burner" + index.toString();
       this.privkey = sodium.crypto_generichash(
         32,
-        sodium.from_string(privkeySeed)
+        sodium.from_string(privkeySeed),
       );
     } else {
       let encSeed = seed + "encryption";
       this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(
-        sodium.crypto_generichash(32, sodium.from_string(encSeed))
+        sodium.crypto_generichash(32, sodium.from_string(encSeed)),
       );
       let privkeySeed = seed + "privkey";
       this.privkey = sodium.crypto_generichash(
         32,
-        sodium.from_string(privkeySeed)
+        sodium.from_string(privkeySeed),
       );
     }
     this.pubkey = new anchor_1.BN(
-      poseidon.F.toString(poseidon([this.privkey]))
+      poseidon.F.toString(poseidon([this.privkey])),
     );
     // Should be getEncryptionPublicKey(Sha3([ed25519Sig(),"encryption"].concat()))
     // this.encryptionKey = getEncryptionPublicKey(privkey.toString("hex", 32));
@@ -76,11 +76,11 @@ class Keypair {
       this.privkey = anchor.utils.bytes.hex.encode(privkey);
       this.pubkey = new anchor_1.BN(
         poseidon.F.toString(
-          this.poseidon([new anchor_1.BN(privkey, undefined, "le")])
-        )
+          this.poseidon([new anchor_1.BN(privkey, undefined, "le")]),
+        ),
       );
       this.encryptionKey = (0, eth_sig_util_1.getEncryptionPublicKey)(
-        new anchor_1.BN(privkey, undefined, "le").toString("hex", 32)
+        new anchor_1.BN(privkey, undefined, "le").toString("hex", 32),
       );
     } else {
       this.pubkey = new anchor_1.BN(pubkey, undefined, "le");
@@ -96,7 +96,7 @@ class Keypair {
    */
   sign(commitment, merklePath) {
     return this.poseidon.F.toString(
-      this.poseidon([this.privkey, commitment, merklePath])
+      this.poseidon([this.privkey, commitment, merklePath]),
     );
   }
 }

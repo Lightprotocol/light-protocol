@@ -58,7 +58,7 @@ class VerifierTwo {
         checkedParams: Array.from(transaction.publicInputsBytes.slice(5, 9)),
         nullifiers: Array.from(transaction.publicInputsBytes.slice(9, 13)),
         leaves: Array.from(
-          transaction.publicInputsBytes.slice(13, this.nrPublicInputs)
+          transaction.publicInputsBytes.slice(13, this.nrPublicInputs),
         ),
       };
     } else {

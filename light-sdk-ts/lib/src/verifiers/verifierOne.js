@@ -124,7 +124,7 @@ class VerifierOne {
           Buffer.from(transfer.publicInputs.feeAmount),
           new anchor.BN(transfer.rootIndex.toString()),
           new anchor.BN(transfer.relayerFee.toString()),
-          Buffer.from(transfer.encryptedUtxos)
+          Buffer.from(transfer.encryptedUtxos),
         )
         .accounts({
           signingAddress: transfer.relayerPubkey,
@@ -237,11 +237,11 @@ class VerifierOne {
       let lookupTableAccount =
         yield transfer.provider.connection.getAccountInfo(
           transfer.lookupTable,
-          "confirmed"
+          "confirmed",
         );
       let unpackedLookupTableAccount =
         web3_js_1.AddressLookupTableAccount.deserialize(
-          lookupTableAccount.data
+          lookupTableAccount.data,
         );
       let compiledTx = txMsg.compileToV0Message([
         { state: unpackedLookupTableAccount },
@@ -265,7 +265,7 @@ class VerifierOne {
             {
               commitment: "confirmed",
               preflightCommitment: "confirmed",
-            }
+            },
           );
           retries = 0;
         } catch (e) {
@@ -294,22 +294,22 @@ class VerifierOne {
       (0, chai_1.assert)(this.nullifierPdaPubkeys.length == 10);
       let balance = yield this.provider.connection.getBalance(
         this.signerAuthorityPubkey,
-        { preflightCommitment: "confirmed", commitment: "confirmed" }
+        { preflightCommitment: "confirmed", commitment: "confirmed" },
       );
       if (balance === 0) {
         yield this.provider.connection.confirmTransaction(
           yield this.provider.connection.requestAirdrop(
             this.signerAuthorityPubkey,
-            1000000000
+            1000000000,
           ),
-          { preflightCommitment: "confirmed", commitment: "confirmed" }
+          { preflightCommitment: "confirmed", commitment: "confirmed" },
         );
       }
       try {
         this.recipientBalancePriorTx = (yield (0, spl_token_1.getAccount)(
           this.provider.connection,
           this.recipient,
-          spl_token_1.TOKEN_PROGRAM_ID
+          spl_token_1.TOKEN_PROGRAM_ID,
         )).amount;
       } catch (error) {}
       this.recipientFeeBalancePriorTx =
@@ -318,7 +318,7 @@ class VerifierOne {
       // console.log("recipientFeeBalancePriorTx: ", this.recipientFeeBalancePriorTx);
       // console.log("sender_fee: ", this.senderFee);
       this.senderFeeBalancePriorTx = yield this.provider.connection.getBalance(
-        this.senderFee
+        this.senderFee,
       );
       this.relayerRecipientAccountBalancePriorLastTx =
         yield this.provider.connection.getBalance(this.relayerRecipient);
@@ -342,7 +342,7 @@ class VerifierOne {
       // console.log("this.encryptedUtxos[0], ", this.encryptedUtxos);
       console.log(
         "this.verifierStatePubkey, ",
-        this.verifierStatePubkey.toBase58()
+        this.verifierStatePubkey.toBase58(),
       );
       // console.log("this.publicInputs.nullifiers, ", this.publicInputs.nullifiers);
       // console.log("this.rootIndex ", this.rootIndex);

@@ -104,29 +104,29 @@ const anchor = __importStar(require("@project-serum/anchor"));
 const anchor_1 = require("@project-serum/anchor");
 const spl_token_1 = require("@solana/spl-token");
 const verifier_program_two_1 = __importDefault(
-  require("../idls/verifier_program_two")
+  require("../idls/verifier_program_two"),
 );
 const verifier_program_one_1 = __importDefault(
-  require("../idls/verifier_program_one")
+  require("../idls/verifier_program_one"),
 );
 const verifier_program_zero_1 = __importDefault(
-  require("../idls/verifier_program_zero")
+  require("../idls/verifier_program_zero"),
 );
 const merkle_tree_program_1 = __importDefault(
-  require("../idls/merkle_tree_program")
+  require("../idls/merkle_tree_program"),
 );
 const web3_js_1 = require("@solana/web3.js");
 const ethers_1 = require("ethers");
 const bn_js_1 = require("bn.js");
 exports.ASSET_1_ORG = new anchor.web3.Account();
 exports.ASSET_1 = new anchor.BN(
-  exports.ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0, 31)
+  exports.ASSET_1_ORG.publicKey._bn.toBuffer(32).slice(0, 31),
 );
 exports.FIELD_SIZE = new anchor.BN(
-  "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+  "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
 exports.FIELD_SIZE_ETHERS = ethers_1.BigNumber.from(
-  "21888242871839275222246405745257275088548364400416034343698204186575808495617"
+  "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
 exports.MERKLE_TREE_SIGNER_AUTHORITY = new solana.PublicKey([
   59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42,
@@ -136,32 +136,32 @@ exports.TYPE_PUBKEY = { array: ["u8", 32] };
 exports.TYPE_SEED = { defined: "&[u8]" };
 exports.TYPE_INIT_DATA = { array: ["u8", 642] };
 exports.merkleTreeProgramId = new web3_js_1.PublicKey(
-  "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
+  "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
 );
 exports.verifierProgramZeroProgramId = new web3_js_1.PublicKey(
-  "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"
+  "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
 );
 exports.verifierProgramOneProgramId = new web3_js_1.PublicKey(
-  "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL"
+  "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL",
 );
 exports.verifierProgramTwoProgramId = new web3_js_1.PublicKey(
-  "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"
+  "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8",
 );
 exports.merkleTreeProgram = new anchor_1.Program(
   merkle_tree_program_1.default,
-  exports.merkleTreeProgramId
+  exports.merkleTreeProgramId,
 );
 exports.verifierProgramZero = new anchor_1.Program(
   verifier_program_zero_1.default,
-  exports.verifierProgramZeroProgramId
+  exports.verifierProgramZeroProgramId,
 );
 exports.verifierProgramOne = new anchor_1.Program(
   verifier_program_one_1.default,
-  exports.verifierProgramOneProgramId
+  exports.verifierProgramOneProgramId,
 );
 exports.verifierProgramTwo = new anchor_1.Program(
   verifier_program_two_1.default,
-  exports.verifierProgramTwoProgramId
+  exports.verifierProgramTwoProgramId,
 );
 exports.confirmConfig = {
   commitment: "confirmed",
@@ -200,10 +200,10 @@ exports.MINT = new solana.PublicKey([
   236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
 ]);
 exports.ADMIN_AUTH_KEY = new solana.PublicKey(
-  new Uint8Array(exports.MERKLE_TREE_INIT_AUTHORITY)
+  new Uint8Array(exports.MERKLE_TREE_INIT_AUTHORITY),
 );
 exports.ADMIN_AUTH_KEYPAIR = solana.Keypair.fromSecretKey(
-  new Uint8Array(exports.PRIVATE_KEY)
+  new Uint8Array(exports.PRIVATE_KEY),
 );
 exports.AUTHORITY_SEED = anchor.utils.bytes.utf8.encode("AUTHORITY_SEED");
 exports.DEFAULT_PROGRAMS = {
@@ -214,10 +214,10 @@ exports.DEFAULT_PROGRAMS = {
   clock: solana.SYSVAR_CLOCK_PUBKEY,
 };
 exports.userTokenAccount = new solana.PublicKey(
-  "CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"
+  "CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk",
 );
 exports.recipientTokenAccount = new solana.PublicKey(
-  "6RtYrpXTyH98dvTf9ufivkyDG8mF48oMDbhiRW9r5KjD"
+  "6RtYrpXTyH98dvTf9ufivkyDG8mF48oMDbhiRW9r5KjD",
 );
 exports.ENCRYPTION_KEYPAIR = {
   PublicKey: new Uint8Array([
@@ -235,7 +235,7 @@ exports.USER_TOKEN_ACCOUNT = solana.Keypair.fromSecretKey(
     242, 95, 5, 9, 102, 7, 50, 204, 117, 74, 106, 114, 106, 225, 37, 203, 222,
     28, 100, 182, 147, 102, 98, 110, 249, 219, 249, 24, 50, 149, 18, 75, 184,
     183, 246, 83, 13, 66, 226, 103, 241, 88, 135, 253, 226, 32, 41, 186,
-  ])
+  ]),
 );
 exports.RECIPIENT_TOKEN_ACCOUNT = solana.Keypair.fromSecretKey(
   new Uint8Array([
@@ -243,52 +243,52 @@ exports.RECIPIENT_TOKEN_ACCOUNT = solana.Keypair.fromSecretKey(
     113, 227, 43, 76, 83, 234, 5, 93, 242, 182, 158, 40, 141, 213, 16, 229, 254,
     86, 86, 250, 191, 38, 191, 237, 255, 198, 0, 140, 74, 85, 247, 85, 30, 34,
     76, 42, 114, 252, 102, 230, 216, 107, 44, 225, 133, 40, 17, 6,
-  ])
+  ]),
 );
 exports.MERKLE_TREE_KEY = new solana.PublicKey(
-  "DCxUdYgqjE6AR9m13VvqpkxJqGJYnk8jn8NEeD3QY3BU"
+  "DCxUdYgqjE6AR9m13VvqpkxJqGJYnk8jn8NEeD3QY3BU",
 );
 exports.REGISTERED_VERIFIER_PDA = new solana.PublicKey(
-  "Eo3jtUstuMCvapqXdWiYvoUJS1PJDtKVf6LdsMPdyoNn"
+  "Eo3jtUstuMCvapqXdWiYvoUJS1PJDtKVf6LdsMPdyoNn",
 );
 exports.REGISTERED_VERIFIER_ONE_PDA = new solana.PublicKey(
-  "CqUS5VyuGscwLMTbfUSAA1grmJYzDAkSR39zpbwW2oV5"
+  "CqUS5VyuGscwLMTbfUSAA1grmJYzDAkSR39zpbwW2oV5",
 );
 exports.REGISTERED_VERIFIER_TWO_PDA = new solana.PublicKey(
-  "7RCgKAJkaR4Qsgve8D7Q3MrVt8nVY5wdKsmTYVswtJWn"
+  "7RCgKAJkaR4Qsgve8D7Q3MrVt8nVY5wdKsmTYVswtJWn",
 );
 exports.AUTHORITY = new solana.PublicKey(
-  "KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM"
+  "KitaXMAzb8GPZcc6NW6mE7P6gV2fY3Bp8NqZWfeUwqM",
 );
 exports.AUTHORITY_ONE = new solana.PublicKey(
-  "EjGpk73m5KxndbUVXcoT3UQsPLp5eK4h1H8kXVHEbf3f"
+  "EjGpk73m5KxndbUVXcoT3UQsPLp5eK4h1H8kXVHEbf3f",
 );
 exports.PRE_INSERTED_LEAVES_INDEX = new solana.PublicKey(
-  "2MQ7XkirVZZhRQQKcaDiJsrXHCuRHjbu72sUEeW4eZjq"
+  "2MQ7XkirVZZhRQQKcaDiJsrXHCuRHjbu72sUEeW4eZjq",
 );
 exports.TOKEN_AUTHORITY = new solana.PublicKey(
-  "GUqBxNbKyB9SBnbBKYR5dajwuWTjTRUhWrZgeFkJND55"
+  "GUqBxNbKyB9SBnbBKYR5dajwuWTjTRUhWrZgeFkJND55",
 );
 exports.REGISTERED_POOL_PDA_SPL = new solana.PublicKey(
-  "2q4tXrgpsDffibmjfTGHU1gWCjYUfhwFnMyLX6dAhhr4"
+  "2q4tXrgpsDffibmjfTGHU1gWCjYUfhwFnMyLX6dAhhr4",
 );
 exports.REGISTERED_POOL_PDA_SPL_TOKEN = new solana.PublicKey(
-  "2mobV36eNyFGaMTKCHW1Jeoq64tUGuXqA4zGtY8SbxKh"
+  "2mobV36eNyFGaMTKCHW1Jeoq64tUGuXqA4zGtY8SbxKh",
 );
 exports.REGISTERED_POOL_PDA_SOL = new solana.PublicKey(
-  "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU"
+  "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU",
 );
 exports.POOL_TYPE = new Uint8Array(32).fill(0);
 exports.MERKLE_TREE_AUTHORITY_PDA = new solana.PublicKey(
-  "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y"
+  "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y",
 );
 exports.KEYPAIR_PRIVKEY = new bn_js_1.BN(
   "d67b402d88fe6eb59004f4ab53b06a4b9dc72c74a05e60c31a07148eafa95896",
-  "hex"
+  "hex",
 );
 exports.MINT_CIRCUIT = new anchor.BN(
-  exports.MINT._bn.toBuffer(32).slice(0, 31)
+  exports.MINT._bn.toBuffer(32).slice(0, 31),
 );
 exports.FEE_ASSET = new anchor.BN(
-  anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0, 31)
+  anchor.web3.SystemProgram.programId._bn.toBuffer(32).slice(0, 31),
 ); //new anchor.BN(anchor.web3.SystemProgram.programId._bn.toString()).mod(FIELD_SIZE)

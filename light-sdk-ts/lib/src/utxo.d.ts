@@ -65,7 +65,7 @@ export declare class Utxo {
   encrypt(
     nonce: any,
     encryptionKeypair: any,
-    senderThrowAwayKeypair: any
+    senderThrowAwayKeypair: any,
   ): Uint8Array;
   static decrypt(
     encryptedUtxo: Uint8Array,
@@ -75,6 +75,6 @@ export declare class Utxo {
     shieldedKeypair: any,
     assets: never[] | undefined,
     POSEIDON: any,
-    index: any
+    index: any,
   ): (boolean | null)[] | (boolean | Utxo)[];
 }

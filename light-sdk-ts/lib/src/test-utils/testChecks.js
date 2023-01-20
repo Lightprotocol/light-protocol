@@ -127,26 +127,26 @@ function checkMerkleTreeUpdateStateCreated({
   return __awaiter(this, void 0, void 0, function* () {
     var merkleTreeTmpAccountInfo = yield connection.getAccountInfo(
       merkleTreeUpdateState,
-      CONFIRMATION
+      CONFIRMATION,
     );
     (0,
     chai_1.assert)(merkleTreeTmpAccountInfo.owner.toBase58() === merkleTreeProgram.programId.toBase58(), "merkle tree pda owner wrong after initializing");
     const merkleTreeUpdateStateData =
       merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
         "MerkleTreeUpdateState",
-        merkleTreeTmpAccountInfo.data
+        merkleTreeTmpAccountInfo.data,
       );
     var MerkleTreeAccountInfo =
       yield merkleTreeProgram.account.merkleTree.fetch(MerkleTree);
     // console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
     console.log(
       "merkleTreeUpdateStateData.numberOfLeaves ",
-      merkleTreeUpdateStateData.numberOfLeaves
+      merkleTreeUpdateStateData.numberOfLeaves,
     );
     console.log("leavesPdas.length ", leavesPdas.length);
     console.log(
       "merkleTreeUpdateStateData.currentInstructionIndex ",
-      merkleTreeUpdateStateData.currentInstructionIndex
+      merkleTreeUpdateStateData.currentInstructionIndex,
     );
     console.log("current_instruction_index ", current_instruction_index);
     (0,
@@ -176,12 +176,12 @@ function checkMerkleTreeBatchUpdateSuccess({
 }) {
   return __awaiter(this, void 0, void 0, function* () {
     var merkleTreeTmpStateAccount = yield connection.getAccountInfo(
-      merkleTreeUpdateState
+      merkleTreeUpdateState,
     );
     (0,
     chai_1.assert)(merkleTreeTmpStateAccount === null, "Shielded transaction failed merkleTreeTmpStateAccount is not closed");
     var merkleTreeAccount = yield merkleTreeProgram.account.merkleTree.fetch(
-      merkle_tree_pubkey
+      merkle_tree_pubkey,
     );
     // Merkle tree is locked by merkleTreeUpdateState
     (0,
@@ -196,13 +196,13 @@ function checkMerkleTreeBatchUpdateSuccess({
     let current_root_index = merkleTreeAccount.currentRootIndex; //tU64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
     console.log(
       "merkle_tree_prior_current_root_index: ",
-      merkle_tree_prior_current_root_index
+      merkle_tree_prior_current_root_index,
     );
     console.log("current_root_index: ", current_root_index);
     console.log(
       `${merkle_tree_prior_current_root_index.add(
-        new anchor.BN("1")
-      )} == ${current_root_index}`
+        new anchor.BN("1"),
+      )} == ${current_root_index}`,
     );
     (0,
     chai_1.assert)(merkle_tree_prior_current_root_index.add(new anchor.BN("1")).toString() === current_root_index.toString());
@@ -215,8 +215,8 @@ function checkMerkleTreeBatchUpdateSuccess({
     console.log("numberOfLeaves: ", numberOfLeaves);
     console.log(
       `${merkle_tree_prior_leaves_index.add(
-        new anchor.BN(numberOfLeaves)
-      )} == ${merkleTreeAccount.nextIndex}`
+        new anchor.BN(numberOfLeaves),
+      )} == ${merkleTreeAccount.nextIndex}`,
     );
     (0,
     chai_1.assert)(merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves)).toString() == merkleTreeAccount.nextIndex.toString()); //U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
@@ -250,11 +250,11 @@ exports.checkMerkleTreeBatchUpdateSuccess = checkMerkleTreeBatchUpdateSuccess;
 function checkRentExemption({ connection, account }) {
   return __awaiter(this, void 0, void 0, function* () {
     let requiredBalance = yield connection.getMinimumBalanceForRentExemption(
-      account.data.length
+      account.data.length,
     );
     if (account.lamports < requiredBalance) {
       throw Error(
-        `Account of size ${account.data.length} not rentexempt balance ${account.lamports} should be${requiredBalance}`
+        `Account of size ${account.data.length} not rentexempt balance ${account.lamports} should be${requiredBalance}`,
       );
     }
   });

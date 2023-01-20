@@ -1,7 +1,7 @@
 export declare function assert_eq(
   value0: unknown,
   value1: unknown,
-  message: string
+  message: string,
 ): void;
 export declare function checkMerkleTreeUpdateStateCreated({
   connection,
@@ -48,5 +48,5 @@ export declare function checkRentExemption({
 }): Promise<void>;
 export declare function checkNfInserted(
   pubkeys: any,
-  connection: any
+  connection: any,
 ): Promise<void>;
