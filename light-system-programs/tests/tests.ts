@@ -59,6 +59,7 @@ import {
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
+  updateMerkleTreeForTest,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -85,9 +86,11 @@ describe("verifier_program", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
     new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
 
-  it("init pubkeys ", async () => {
+  it("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
+    await setUpMerkleTree(provider);
+
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Keypair({
@@ -126,9 +129,6 @@ describe("verifier_program", () => {
     );
   });
 
-  it("Initialize Merkle Tree", async () => {
-    await setUpMerkleTree(provider);
-  });
 
   it.skip("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
@@ -698,8 +698,6 @@ describe("verifier_program", () => {
       });
       await tx.compileAndProve(txParams);
 
-      // await testTransaction({transaction: SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
-
       try {
         let res = await tx.sendAndConfirmTransaction();
         console.log(res);
@@ -713,45 +711,7 @@ describe("verifier_program", () => {
         console.log(e);
       }
     }
-  });
-
-  it("Update Merkle Tree after Deposit", async () => {
-    // fetch uninserted utxos from chain
-    let leavesPdas = await SolMerkleTree.getUninsertedLeaves(MERKLE_TREE_KEY);
-
-    let poseidon = await circomlibjs.buildPoseidonOpt();
-    // build tree from chain
-    let mtPrior = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon,
-    });
-
-    await executeUpdateMerkleTreeTransactions({
-      connection: provider.connection,
-      signer: ADMIN_AUTH_KEYPAIR,
-      merkleTreeProgram: merkleTreeProgram,
-      leavesPdas: leavesPdas,
-      merkleTree: mtPrior,
-      merkle_tree_pubkey: MERKLE_TREE_KEY,
-      provider,
-    });
-    let mtAfter = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
-    );
-
-    let merkleTree = (await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon,
-    })).merkleTree;
-    //check correct insert
-    assert.equal(
-      new anchor.BN(
-        mtAfter.roots[mtAfter.currentRootIndex],
-        undefined,
-        "le"
-      ).toString(),
-      merkleTree.root()
-    );
+    await updateMerkleTreeForTest(provider);
   });
 
   it.skip("Update Merkle Tree Test", async () => {
