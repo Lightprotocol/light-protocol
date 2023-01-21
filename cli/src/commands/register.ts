@@ -36,22 +36,21 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     wallet = createNewWallet();
   }
   const signature: Uint8Array = sign.detached(message, wallet.secretKey);
-
   if (!sign.detached.verify(message, signature, wallet.publicKey.toBytes()))
     throw new Error("Invalid signature!");
-
   const signatureArray = Array.from(signature);
+
   // TODO: fetch and find user utxos (decr, encr)
+
   const decryptedUtxos: Array<Object> = [];
   saveUserToFile({ signature: signatureArray, utxos: decryptedUtxos });
 
-  const poseidon = await circomlibjs.buildPoseidonOpt();
   // TODO: add utxos to user..., add balance etc all to user account, also keys,
   const user = new User(
     poseidon,
     new anchor.BN(signatureArray).toString("hex"),
     wallet
-  );
+  ).load();
   console.log("User registered!", user);
   process.exit(0);
 };

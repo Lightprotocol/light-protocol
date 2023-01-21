@@ -2,6 +2,7 @@ import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Keypair } from "../keypair";
 import { Utxo } from "utxo";
 import { Transaction, TransactionParameters } from "transaction";
+const circomlibjs = require("circomlibjs");
 
 // TODO: need a wallet
 export class User {
@@ -49,7 +50,10 @@ export class User {
     */
 
   // might be a wrapper for a wallet or dapp to init a user with a wallets sign method
-  static initWithSignature() {
+  async load() {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    // getInsertedLeaves();
     // fetchUtxos
     // return new User();
   }
