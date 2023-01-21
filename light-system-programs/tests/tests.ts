@@ -17,7 +17,7 @@ import {
   executeUpdateMerkleTreeTransactions,
   executeMerkleTreeUpdateTransactions,
   createMintWrapper,
-  getUninsertedLeavesRelayer,
+  getUninsertedLeaves,
   getInsertedLeaves,
   getUnspentUtxo,
   MerkleTreeConfig,
@@ -86,9 +86,11 @@ describe("verifier_program", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
     new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
 
-  it("init pubkeys ", async () => {
+  it("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
+    await setUpMerkleTree(provider);
+
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Keypair({
@@ -127,9 +129,6 @@ describe("verifier_program", () => {
     );
   });
 
-  it("Initialize Merkle Tree", async () => {
-    await setUpMerkleTree(provider);
-  });
 
   it.skip("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
@@ -699,8 +698,6 @@ describe("verifier_program", () => {
       });
       await tx.compileAndProve(txParams);
 
-      // await testTransaction({transaction: SHIELDED_TRANSACTION, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
-
       try {
         let res = await tx.sendAndConfirmTransaction();
         console.log(res);
@@ -714,9 +711,8 @@ describe("verifier_program", () => {
         console.log(e);
       }
     }
-    await updateMerkleTreeForTest(provider)
+    await updateMerkleTreeForTest(provider);
   });
-
 
   it.skip("Update Merkle Tree Test", async () => {
     // Security Claims
@@ -747,7 +743,7 @@ describe("verifier_program", () => {
     let error;
 
     // fetch uninserted utxos from chain
-    let leavesPdas = await getUninsertedLeavesRelayer({
+    let leavesPdas = await getUninsertedLeaves({
       merkleTreeProgram,
       merkleTreeIndex: mtFetched.nextIndex,
       connection: provider.connection,
