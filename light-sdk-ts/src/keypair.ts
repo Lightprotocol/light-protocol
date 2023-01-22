@@ -1,5 +1,4 @@
 const nacl = require("tweetnacl");
-const anchor = require("@coral-xyz/anchor");
 import { BN } from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -15,7 +14,7 @@ export class Keypair {
   privkey: BN;
   pubkey: BN;
   encryptionPublicKey: Uint8Array;
-  encPrivateKey?: Uint8Array;
+  encryptionPrivateKey?: Uint8Array;
   poseidon: any;
   burnerSeed: Uint8Array;
   // keypair for eddsa poseidon signatures
@@ -59,7 +58,7 @@ export class Keypair {
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
       this.privkey = Keypair.generateShieldedPrivateKey(seed);
       this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
+      this.encryptionPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
@@ -92,7 +91,7 @@ export class Keypair {
     } else {
       this.privkey = Keypair.generateShieldedPrivateKey(seed);
       this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
+      this.encryptionPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,

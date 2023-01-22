@@ -125,3 +125,27 @@ export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
 
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
 export const MERKLE_TREE_HEIGHT = 18;
+/** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
+export const UTXO_MERGE_THRESHOLD = 7;
+export const UTXO_MERGE_MAXIMUM = 10;
+export const UTXO_FEE_ASSET_MINIMUM = 100_000;
+export const SIGN_MESSAGE: string =
+  "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
+
+export const RELAYER_FEES = 1e6;
+export const TOKEN_REGISTRY = [
+  {
+    symbol: "SOL",
+    decimals: 9,
+    isNft: false, // TODO: parse from onchain state at configuration(decimlas, supply)
+    isSol: true,
+    tokenAccount: SystemProgram.programId,
+  },
+  {
+    symbol: "USDC",
+    decimals: 6,
+    isNft: false,
+    isSol: false,
+    tokenAccount: new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+  },
+];

@@ -388,12 +388,12 @@ export class Utxo {
     const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
     const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
 
-    if (keypair.encPrivateKey) {
+    if (keypair.encryptionPrivateKey) {
       const cleartext = box.open(
         encryptedUtxo,
         nonce,
         nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-        keypair.encPrivateKey,
+        keypair.encryptionPrivateKey,
       );
       if (!cleartext) {
         return null;
