@@ -1,6 +1,6 @@
 import { createNewWallet, readWalletFromFile, saveUserToFile } from "../util";
 import * as solana from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 import { User } from "light-sdk";
 import { sign } from "tweetnacl";
 import { SIGN_MESSAGE } from "../constants";
@@ -31,7 +31,7 @@ export const handler = async (argv: Arguments): Promise<void> => {
 
   const signatureArray = Array.from(signature);
   // TODO: fetch and find user utxos (decr, encr)
-  const decryptedUtxos: Array<Object> = [];
+  const decryptedUtxos: Object[] = [];
   saveUserToFile({ signature: signatureArray, utxos: decryptedUtxos });
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
