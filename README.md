@@ -10,21 +10,19 @@
 _Requirements:_
 
 - solana cli v1.11.10 or higher
-  - `sh -c "$(curl -sSfL https://release.solana.com/v1.11.10/install)"`
+  - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
 - clone of [solana](), checked out on `master` branch (the `alt_bn128` syscall
-  is not released yet) - to be sure that no recent changes can break the workflow,
-  you can check out commit
-  [656b150e575a4d16cfa9c9ff63b16edcf94f2e0d](https://github.com/solana-labs/solana/commit/656b150e575a4d16cfa9c9ff63b16edcf94f2e0d)
-  - `git clone git@github.com:solana-labs/solana.git`
-  - `git checkout 656b150e575a4d16cfa9c9ff63b16edcf94f2e0d`
+  is not released yet)
+  - `git clone https://github.com/ananas-block/solana`
+  - `git checkout master`
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
   - `npm i -g @project-serum/anchor-cli`
-- node v14
+- node v19
 
 _Unit Tests:_
 
-- `cd anchor_programs/`
+- `sh test.sh`
 - `cargo test`
 - `cd groth16-solana/`
 - `cargo test`
