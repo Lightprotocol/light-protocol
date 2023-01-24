@@ -1,7 +1,27 @@
+import {
+  ADMIN_AUTH_KEYPAIR,
+  confirmConfig,
+  FEE_ASSET,
+  Keypair,
+  LightInstance,
+  MINT,
+  Transaction,
+  TransactionParameters,
+  Utxo,
+  VerifierZero,
+  SolMerkleTree, 
+  VerifierTwo,
+  Verifier,
+  VerifierOne
+} from "light-sdk";
+import * as anchor from "@coral-xyz/anchor";
+import { assert, expect } from "chai";
+import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
+const circomlibjs = require("circomlibjs");
 
 
 describe("verifier_program", () => {
-  it("init", async () => {
+  before(async () => {
     try {
       const provider = new anchor.AnchorProvider(
         await new Connection("http://127.0.0.1:8899"),
@@ -15,36 +35,22 @@ describe("verifier_program", () => {
     }
   })
   
-// test functional circuit
-  it.skip("Test functional circuit 2 in 2 out", async () => {
+
+  it("Test functional circuit 2 in 2 out", async () => {
     await functionalCircuitTest(new VerifierZero());
   })
 
+  it("Test functional circuit 10 in 2 out", async () => {
+    await functionalCircuitTest(new VerifierOne());
+  })
+
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(new VerifierTwo());
+    await functionalCircuitTest(new VerifierTwo(), true);
   })
 })
 
-import {
-  ADMIN_AUTH_KEYPAIR,
-  confirmConfig,
-  FEE_ASSET,
-  Keypair,
-  LightInstance,
-  MINT,
-  Transaction,
-  TransactionParameters,
-  Utxo,
-  VerifierZero,
-  SolMerkleTree, 
-  VerifierTwo
-} from "light-sdk";
-import * as anchor from "@coral-xyz/anchor";
-import { assert, expect } from "chai";
-import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-const circomlibjs = require("circomlibjs");
 
-async function functionalCircuitTest(verifier) {
+async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
@@ -62,13 +68,13 @@ async function functionalCircuitTest(verifier) {
   let lightInstance: LightInstance = {
     solMerkleTree: new SolMerkleTree({poseidon, pubkey: mockPubkey}),
   };
-
+  
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
     senderFee: mockPubkey,
-    verifier,
+    verifier: verifier,
   });
 
   let tx = new Transaction({
@@ -77,8 +83,11 @@ async function functionalCircuitTest(verifier) {
   });
 
   // successful proofgeneration
-  await tx.compile(txParams, {mock: "123"});
-  console.log(tx.proofInput);
+  if (app) {
+    await tx.compile(txParams, {mock: "123"});
+  } else {
+    await tx.compile(txParams);
+  }
   
   await tx.getProof()
   // unsuccessful proofgeneration
