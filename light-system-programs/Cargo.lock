@@ -2104,7 +2104,6 @@ dependencies = [
  "borsh",
  "groth16-solana",
  "merkle_tree_program",
- "serde",
  "spl-token",
 ]
 
@@ -2214,7 +2213,6 @@ dependencies = [
  "byteorder",
  "getrandom 0.2.6",
  "serde_json",
- "solana-program 1.15.0",
  "solana-program-test",
  "solana-sdk",
  "solana-security-txt",
@@ -5126,7 +5124,6 @@ dependencies = [
  "groth16-solana",
  "light-verifier-sdk",
  "merkle_tree_program",
- "solana-program 1.15.0",
  "solana-security-txt",
 ]
 
@@ -5139,7 +5136,6 @@ dependencies = [
  "groth16-solana",
  "light-verifier-sdk",
  "merkle_tree_program",
- "solana-program 1.15.0",
  "solana-security-txt",
 ]
 
@@ -5152,7 +5148,6 @@ dependencies = [
  "groth16-solana",
  "light-verifier-sdk",
  "merkle_tree_program",
- "solana-program 1.15.0",
  "solana-security-txt",
 ]
 

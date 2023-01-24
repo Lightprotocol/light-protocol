@@ -22,7 +22,6 @@ _Requirements:_
 ## Tests
 
 _Global:_
-Executes all npm tests.
 - `sh test.sh`
 
 _Rust tests:_
@@ -45,9 +44,6 @@ Tests are located in tests/ .
 The default test is a functional test, setting up a test environment with a merkle tree and an spl token, conducting two deposits and withdrawals.
 
 Tests can be executed in bulk or one by one.
-
-**Bulk:**
-- `sh test.sh`
 
 **Without external validator:**
 - `cd light-system-programs/`

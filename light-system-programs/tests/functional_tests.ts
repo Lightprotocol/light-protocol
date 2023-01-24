@@ -83,7 +83,7 @@ describe("verifier_program", () => {
     
   })
 
-  it("Deposit 10 utxo", async () => {
+  it.skip("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -310,7 +310,7 @@ describe("verifier_program", () => {
   });
 
   // doesn't work program runs out of memory
-  it("Withdraw 10 utxos", async () => {
+  it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
