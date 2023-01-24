@@ -36,7 +36,7 @@ export class Utxo {
   assetsCircuit: BN[];
   blinding: BN;
   keypair: Keypair;
-  index: number | null;
+  index?: number;
   appData: Array<any>;
   verifierAddress: PublicKey;
   verifierAddressCircuit: BN;
@@ -57,7 +57,7 @@ export class Utxo {
     verifierAddress = SystemProgram.programId,
     appData = [],
     appDataFromBytesFn,
-    index = null,
+    index,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -68,7 +68,7 @@ export class Utxo {
     verifierAddress?: PublicKey;
     appData?: Array<any>;
     appDataFromBytesFn?: Function;
-    index?: any;
+    index?: number;
   }) {
     // check that blinding is 31 bytes
     blinding.toArray("be", 31);
@@ -128,7 +128,7 @@ export class Utxo {
     // TODO: evaluate whether to hashAndTruncate feeAsset as well
     if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
       this.assetsCircuit = [
-        new BN(0),
+        hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
         hashAndTruncateToCircuit(this.assets[1].toBytes()),
       ];
     } else if (this.amounts[0].toString() === "0") {
@@ -200,7 +200,7 @@ export class Utxo {
       ...this.amounts[0].toArray("be", 8),
       ...this.amounts[1].toArray("be", 8),
       ...assetIndex.toArray("be", 8),
-      ...leInt2Buff(unstringifyBigInts(this.instructionType.toString()), 32),
+      ...this.instructionType.toArray("be", 32),
       ...this.poolType.toArray("be", 8),
       ...this.verifierAddress.toBytes(),
       ...new Array(1),
@@ -279,7 +279,7 @@ export class Utxo {
     if (!this._commitment) {
       let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
       let assetHash = this.poseidon.F.toString(
-        this.poseidon(this.assetsCircuit),
+        this.poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
       // console.log("this.assetsCircuit ", this.assetsCircuit);
 
@@ -310,7 +310,10 @@ export class Utxo {
    *
    * @returns {BN}
    */
-  getNullifier() {
+  getNullifier(index?: number | undefined) {
+    if (!this.index) {
+      this.index = index;
+    }
     if (!this._nullifier) {
       if (
         //(this.amounts[0] > new BN(0) || this.amounts[0] > new BN(0))

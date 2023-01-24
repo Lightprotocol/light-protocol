@@ -3,6 +3,8 @@ import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
+import { MerkleTree } from "merkleTree/merkleTree";
+import { MerkleTreeProgramIdl } from "idls";
 
 /*
  *
@@ -28,10 +30,18 @@ export async function checkMerkleTreeUpdateStateCreated({
   leavesPdas,
   current_instruction_index,
   merkleTreeProgram,
+}: {
+  connection: Connection;
+  merkleTreeUpdateState: PublicKey;
+  relayer: PublicKey;
+  MerkleTree: MerkleTree;
+  leavesPdas: Array<any>;
+  current_instruction_index: number;
+  merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>;
 }) {
   var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
     merkleTreeUpdateState,
-    CONFIRMATION,
+    "confirmed",
   );
 
   assert(
@@ -187,7 +197,13 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   // // Comparing locally generated root with merkle tree built from leaves fetched from chain.
 }
 
-export async function checkRentExemption({ connection, account }) {
+export async function checkRentExemption({
+  connection,
+  account,
+}: {
+  connection: Connection;
+  account: any;
+}) {
   let requiredBalance = await connection.getMinimumBalanceForRentExemption(
     account.data.length,
   );
@@ -199,11 +215,11 @@ export async function checkRentExemption({ connection, account }) {
 }
 
 export async function checkNfInserted(
-  pubkeys: PublicKey[],
+  pubkeys: { isSigner: boolean; isWritatble: boolean; pubkey: PublicKey }[],
   connection: Connection,
 ) {
   for (var i = 0; i < pubkeys.length; i++) {
-    var accountInfo = await connection.getAccountInfo(pubkeys[i]);
+    var accountInfo = await connection.getAccountInfo(pubkeys[i].pubkey);
 
     assert.equal(accountInfo, null);
   }

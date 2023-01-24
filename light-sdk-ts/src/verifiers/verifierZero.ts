@@ -1,12 +1,16 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
-import { verifierProgramZeroProgramId } from "../index";
+import {
+  hashAndTruncateToCircuit,
+  verifierProgramZeroProgramId,
+} from "../index";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
 import {
   VerifierProgramZero,
   VerifierProgramZeroIdl,
 } from "../idls/verifier_program_zero";
+import { PublicKey } from "@solana/web3.js";
 // Proofgen does not work within sdk needs circuit-build
 // TODO: bundle files in npm package
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
@@ -17,18 +21,24 @@ export class VerifierZero implements Verifier {
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
   instructions?: anchor.web3.TransactionInstruction[];
+  pubkey: anchor.BN;
   constructor() {
     try {
       this.verifierProgram = new Program(
         VerifierProgramZero,
         verifierProgramZeroProgramId,
       );
-    } catch (error) {}
+    } catch (error) {
+      console.log(error);
+    }
     // ./build-circuits/transactionMasp2_js/
     this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
     this.zkeyPath = `transactionMasp2.zkey`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
     this.config = { in: 2, out: 2 };
+    this.pubkey = hashAndTruncateToCircuit(
+      verifierProgramZeroProgramId.toBytes(),
+    );
   }
 
   parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs {

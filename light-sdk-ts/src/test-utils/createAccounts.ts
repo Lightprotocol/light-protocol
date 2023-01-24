@@ -29,6 +29,7 @@ import {
   ADMIN_AUTH_KEY,
   userTokenAccount,
   confirmConfig,
+  AUTHORITY_ONE,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -237,6 +238,10 @@ export async function createTestAccounts(connection: Connection) {
     let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
     assert(Newbalance == balance + amount, "airdrop failed");
+
+    res = await connection.requestAirdrop(AUTHORITY_ONE, amount);
+
+    await connection.confirmTransaction(res, "confirmed");
     // await provider.connection.confirmTransaction(, confirmConfig)
     // subsidising transactions
     let txTransfer1 = new solana.Transaction().add(
