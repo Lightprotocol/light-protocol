@@ -1,14 +1,11 @@
-/*
-use solana_security_txt::security_txt;
-
-security_txt! {
-    name: "light_protocol_verifier_program",
+#[cfg(not(feature = "no-entrypoint"))]
+solana_security_txt::security_txt! {
+    name: "light_protocol_verifier_program_one",
     project_url: "lightprotocol.com",
     contacts: "email:security@lightprotocol.com",
-    policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
-    source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
+    policy: "https://github.com/Lightprotocol/light-protocol-onchain/blob/main/SECURITY.md",
+    source_code: "https://github.com/Lightprotocol/light-protocol-onchain"
 }
-*/
 
 pub mod processor;
 pub mod verifying_key;

@@ -5,12 +5,13 @@ use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 
 use std::ops::DerefMut;
+use std::str::FromStr;
 
 use anchor_lang::prelude::*;
+use anchor_lang::solana_program::instruction::Instruction;
 use anchor_lang::solana_program::{
     clock::Clock, msg, program::invoke, pubkey::Pubkey, sysvar::Sysvar,
 };
-use spl_account_compression::Noop;
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
@@ -34,7 +35,8 @@ pub struct InsertRoot<'info> {
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state.
     #[account(mut, address= merkle_tree_update_state.load()?.merkle_tree_pda_pubkey @ErrorCode::InvalidMerkleTree)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    pub log_wrapper: Program<'info, Noop>,
+    /// CHECK:` checking manually in wrapper function
+    pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
     pub system_program: Program<'info, System>,
 }
 
@@ -43,8 +45,16 @@ pub fn wrap_event<'info>(
     noop_program: &AccountInfo<'info>,
     signer: &AccountInfo<'info>,
 ) -> Result<()> {
+    if noop_program.key()
+        != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
+    {}
+    let instruction = Instruction {
+        program_id: noop_program.key(),
+        accounts: vec![],
+        data: event.try_to_vec()?,
+    };
     invoke(
-        &spl_noop::instruction(event.try_to_vec()?),
+        &instruction,
         &[noop_program.to_account_info(), signer.to_account_info()],
     )?;
     Ok(())
@@ -95,7 +105,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     merkle_tree_pda_data.time_locked = 0;
     merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
 
-    msg!("start loop");
+    msg!("start loop {}", ctx.remaining_accounts.len());
     // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their
     // number.
     // Checks are:
@@ -106,7 +116,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     // Copying leaves to tmp account.
     for (index, account) in ctx.remaining_accounts.iter().enumerate() {
         msg!("Copying leaves pair {}", index);
-
+        msg!("account {:?}", account);
         let leaves_pda_data: Account<'info, TwoLeavesBytesPda> = Account::try_from(account)?;
 
         // Checking that leaves are not inserted already.
@@ -133,7 +143,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         if leaves_pda_data.left_leaf_index != tmp_index {
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
-
+        msg!("wrap_event");
         // Save pair of leaves in compressed account (noop program).
         wrap_event(
             &leaves_pda_data,

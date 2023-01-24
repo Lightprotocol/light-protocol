@@ -17,7 +17,7 @@ import {
   initLookUpTableFromFile,
   MerkleTreeProgram,
   merkleTreeProgramId,
-  MerkleTreeProgramIdl,
+  IDL_MERKLE_TREE_PROGRAM,
   MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
@@ -55,8 +55,8 @@ describe("Verifier Zero and One Tests", () => {
     );
     anchor.setProvider(provider);
 
-    const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
-      new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
+    const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
+      new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
       
     var depositAmount, depositFeeAmount
     const verifiers = [new VerifierZero, new VerifierOne];

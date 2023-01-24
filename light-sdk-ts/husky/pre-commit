@@ -2,6 +2,6 @@
 . "$(dirname "$0")/_/husky.sh"
 cd light-sdk-ts
 npm run format
-git add .
+git add light-sdk-ts/src/.
 # exit 1
 
