@@ -2,50 +2,61 @@
 
 ## Setup
 
-- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-sdk-ts/husky/pre-commit as executable:
-- `chmod ug+x ./light-sdk-ts/husky/* `
-
-## Tests
-
 _Requirements:_
 
 - solana cli v1.11.10 or higher
   - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
-- clone of [solana](), checked out on `master` branch (the `alt_bn128` syscall
-  is not released yet)
-  - `git clone https://github.com/ananas-block/solana`
-  - `git checkout master`
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
   - `npm i -g @project-serum/anchor-cli`
 - node v19
 
-_Unit Tests:_
+- Execute the build script to download a custom solana test validator and build the project:
+- `sh build.sh`
 
+## Setup Dev
+
+- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-sdk-ts/husky/pre-commit as executable:
+- `chmod ug+x ./light-sdk-ts/husky/* `
+
+## Tests
+
+_Global:_
+Executes all npm tests.
 - `sh test.sh`
-- `cargo test`
+
+_Rust tests:_
 - `cd groth16-solana/`
 - `cargo test`
 - `cd light-verifier-sdk/`
 - `cargo test`
 
+_Sdk tests:_
+- `cd light-sdk-ts/`
+- `npm test`
+
+_Circuit tests:_
+- `cd light-circuits`
+- `npm test`
+
 _Anchor tests:_
 
-Tests are located in tests/ and will take several minutes to complete.
-Several tests are skipped to decrease the overall testing time.
-By default a deposit merkle tree update and withdrawal are executed with random values for deposits and fees. It is recommended to restart the validator before rerunning tests.
-Further tests are:
+Tests are located in tests/ .
+The default test is a functional test, setting up a test environment with a merkle tree and an spl token, conducting two deposits and withdrawals.
 
-- Initialize Merkle Tree Test
-  tests the configuration instructions and merkle tree initialization
-- Deposit 10 utxos
-  tests and runs a deposit with 10 input utxos
-- Update Merkle Tree Test
-  tests the merkle tree update process (CreateUpdateState, updateMerkleTree, insertRootMerkleTree)
-- Withdraw 10 utxos
-  tests and runs a withdrawal with 10 input utxos
+Tests can be executed in bulk or one by one.
 
-- `npm install`
+**Bulk:**
+- `sh test.sh`
+
+**Without external validator:**
+- `cd light-system-programs/`
+- `npm test`
+- `npm test-verifiers`
+- `npm test-merkle-tree`
+
+
+**Manual:**
 
 - Assuming that your clones of `solana` and `light-protocol-onchain` git
   repoitories share the same parent directory and you are currently in the
@@ -59,7 +70,7 @@ Further tests are:
     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ./light-system-programs/target/deploy/verifier_program_zero.so \
     --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ./light-system-programs/target/deploy/merkle_tree_program.so \
     --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ./light-system-programs/target/deploy/verifier_program_one.so \
-    --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../solana-program-library/account-compression/target/deploy/spl_noop.so
+    --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../solana/web3.js/test/fixtures/noop-program/solana_sbf_rust_noop.so
 ```
 
 - `anchor test --skip-build --skip-deploy --skip-local-validator`
