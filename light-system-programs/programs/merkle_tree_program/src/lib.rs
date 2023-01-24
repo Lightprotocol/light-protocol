@@ -65,6 +65,14 @@ pub mod merkle_tree_program {
         ctx: Context<InitializeNewMerkleTree>,
         lock_duration: u64,
     ) -> Result<()> {
+        if !ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .enable_permissionless_merkle_tree_registration
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
+            return err!(ErrorCode::InvalidAuthority);
+        }
         let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
 
         let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
