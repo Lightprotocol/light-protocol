@@ -9,8 +9,9 @@ import {
   TransactionParameters,
   Utxo,
   VerifierZero,
-  SolMerkleTree, 
+  SolMerkleTree,
   VerifierTwo,
+  Verifier,
   VerifierOne
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
@@ -20,7 +21,7 @@ const circomlibjs = require("circomlibjs");
 
 
 describe("verifier_program", () => {
-  it("init", async () => {
+  before(async () => {
     try {
       const provider = new anchor.AnchorProvider(
         await new Connection("http://127.0.0.1:8899"),
@@ -33,9 +34,9 @@ describe("verifier_program", () => {
       process.exit()
     }
   })
-  
-  // TODO: make work
-  it.skip("Test functional circuit 2 in 2 out", async () => {
+
+
+  it("Test functional circuit 2 in 2 out", async () => {
     await functionalCircuitTest(new VerifierZero());
   })
   // TODO: make work
@@ -43,14 +44,17 @@ describe("verifier_program", () => {
     await functionalCircuitTest(new VerifierOne());
   })
 
+  it("Test functional circuit 10 in 2 out", async () => {
+    await functionalCircuitTest(new VerifierOne());
+  })
+
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(new VerifierTwo());
+    await functionalCircuitTest(new VerifierTwo(), true);
   })
 })
 
 
-
-async function functionalCircuitTest(verifier) {
+async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
@@ -74,7 +78,7 @@ async function functionalCircuitTest(verifier) {
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
     senderFee: mockPubkey,
-    verifier,
+    verifier: verifier,
   });
 
   let tx = new Transaction({
@@ -83,9 +87,12 @@ async function functionalCircuitTest(verifier) {
   });
 
   // successful proofgeneration
-  await tx.compile(txParams, {mock: "123"});
-  // console.log(tx.proofInput);
-  
+  if (app) {
+    await tx.compile(txParams, {mock: "123"});
+  } else {
+    await tx.compile(txParams);
+  }
+
   await tx.getProof()
   // unsuccessful proofgeneration
   try {
