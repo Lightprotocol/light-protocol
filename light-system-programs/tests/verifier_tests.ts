@@ -43,19 +43,23 @@ import { BN } from "@coral-xyz/anchor";
 
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
-const verifiers = [new VerifierZero, new VerifierOne];
 var transactions: Transaction[] = [];
-describe("Test verifier zero and one", () => {
+console.log = ()=> {}
+describe("Verifier Zero and One Tests", () => {
     // Configure the client to use the local cluster.
-    anchor.setProvider(anchor.AnchorProvider.env());
+    process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
   
     const provider = anchor.AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig
     );
+    anchor.setProvider(provider);
+
     const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
       new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
+      
     var depositAmount, depositFeeAmount
+    const verifiers = [new VerifierZero, new VerifierOne];
 
     before(async () => {
         await createTestAccounts(provider.connection);
@@ -185,15 +189,8 @@ describe("Test verifier zero and one", () => {
         
             await tx.compileAndProve(txParams2);
             transactions.push(tx);
-            await transaction1.sendAndConfirmTransaction();
-
-            await tx.sendAndConfirmTransaction();
-
-        }
-        // for (var tx in transactions) {
-        // } 
-    });
-    /*
+        }    });
+    
     afterEach(async () => {     
         // Check that no nullifier was inserted, otherwise the prior test failed
         for (var tx in transactions) {
@@ -201,20 +198,25 @@ describe("Test verifier zero and one", () => {
         }
     })
 
-    after(async () => {
-        for (var tx in transactions) {
-            await transactions[tx].sendAndConfirmTransaction();
-        } 
-    })*/
-
-
     const sendTestTx = async (tx: Transaction, type: string, account?: string) => {
         const instructions = await tx.params.verifier.getInstructions(tx);
         var e;
-        for (var ix in instructions) {     
+        for (var ix = 0; ix < instructions.length; ix++) {     
             console.log("ix ", ix);
-                 
-            e = await tx.sendTransaction(instructions[ix]);
+            if (ix != instructions.length - 1) {
+                e = await tx.sendTransaction(instructions[ix])
+                // confirm throws socket hangup error thus waiting a second instead
+                await new Promise((resolve) => setTimeout(resolve, 700));
+                // try {
+                //     await tx.instance.provider.connection.confirmTransaction(
+                //         e       
+                //     )
+                // } catch(error) {console.log(error);
+                // }
+                
+            } else {
+                e = await tx.sendTransaction(instructions[ix]);
+            }
         }
 
         if(type === "ProofVerificationFails") {
@@ -225,6 +227,9 @@ describe("Test verifier zero and one", () => {
             assert.isTrue(e.logs.includes('Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected.'));
         } else if (type === "Includes") {
             assert.isTrue(e.logs.includes(account));
+        }
+        if(tx.params.verifier.pubkey.toString() === new VerifierOne().pubkey.toString()) {
+            await tx.closeVerifierState();
         }
     }
 

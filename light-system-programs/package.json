@@ -1,7 +1,10 @@
 {
     "scripts": {
         "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-        "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
+        "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+        "test": "sh runTest.sh 'ts-mocha -t 20000 tests/functional_tests.ts --exit'",
+        "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
+        "test-merkle-tree": "sh runTest.sh 'ts-mocha -t 20000 tests/merkle_tree_tests.ts --exit'"
     },
     "dependencies": {
         "@coral-xyz/anchor": "^0.26.0",
