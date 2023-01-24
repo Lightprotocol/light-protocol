@@ -35,9 +35,7 @@ use crate::errors::ErrorCode;
 
 use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::{
-    config::{self, ZERO_BYTES_MERKLE_TREE_18}
-};
+use crate::utils::config::{self, ZERO_BYTES_MERKLE_TREE_18};
 
 use crate::verifier_invoked_instructions::{
     insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
@@ -67,6 +65,14 @@ pub mod merkle_tree_program {
         ctx: Context<InitializeNewMerkleTree>,
         lock_duration: u64,
     ) -> Result<()> {
+        if !ctx
+            .accounts
+            .merkle_tree_authority_pda
+            .enable_permissionless_merkle_tree_registration
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
+            return err!(ErrorCode::InvalidAuthority);
+        }
         let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
 
         let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
@@ -168,15 +174,17 @@ pub mod merkle_tree_program {
 
     /// Creates a new spl token pool which can be used by any registered verifier.
     pub fn register_spl_pool(ctx: Context<RegisterSplPool>) -> Result<()> {
-
         let is_nft = false;
-            // ctx.accounts.mint.decimals == 0
-            // && ctx.accounts.mint.supply == 1
-            // should add check that authority is metaplex nft
-            // && metaplex_token_metadata::state::get_master_edition(&ctx.accounts.metaplex_token.to_account_info()).is_ok();
+        // ctx.accounts.mint.decimals == 0
+        // && ctx.accounts.mint.supply == 1
+        // should add check that authority is metaplex nft
+        // && metaplex_token_metadata::state::get_master_edition(&ctx.accounts.metaplex_token.to_account_info()).is_ok();
         msg!("is_nft {}", is_nft);
         // nfts enabled
-        if is_nft && !ctx.accounts.merkle_tree_authority_pda.enable_nfts && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
+        if is_nft
+            && !ctx.accounts.merkle_tree_authority_pda.enable_nfts
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
             return err!(ErrorCode::InvalidAuthority);
         }
 
@@ -186,9 +194,9 @@ pub mod merkle_tree_program {
                 .accounts
                 .merkle_tree_authority_pda
                 .enable_permissionless_spl_tokens
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
-                return err!(ErrorCode::InvalidAuthority);
-
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
+            return err!(ErrorCode::InvalidAuthority);
         }
 
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =
@@ -211,8 +219,9 @@ pub mod merkle_tree_program {
             .accounts
             .merkle_tree_authority_pda
             .enable_permissionless_spl_tokens
-            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey {
-                return err!(ErrorCode::InvalidAuthority);
+            && ctx.accounts.authority.key() != ctx.accounts.merkle_tree_authority_pda.pubkey
+        {
+            return err!(ErrorCode::InvalidAuthority);
         }
 
         ctx.accounts.registered_asset_pool_pda.asset_pool_pubkey =

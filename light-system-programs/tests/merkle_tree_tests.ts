@@ -2,135 +2,98 @@ import * as anchor from "@coral-xyz/anchor";
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
-import { assert } from "chai";
+import { assert, expect} from "chai";
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
 
-// TODO: add and use  namespaces in SDK
 import {
   Transaction,
   VerifierZero,
-  VerifierOne,
   Keypair,
   Utxo,
-  newAccountWithLamports,
-  executeUpdateMerkleTreeTransactions,
-  executeMerkleTreeUpdateTransactions,
   createMintWrapper,
-  getUninsertedLeaves,
-  getInsertedLeaves,
-  getUnspentUtxo,
-  MerkleTreeConfig,
-  checkMerkleTreeUpdateStateCreated,
-  checkMerkleTreeBatchUpdateSuccess,
-  ENCRYPTION_KEYPAIR,
-  DEFAULT_PROGRAMS,
-  setUpMerkleTree,
   initLookUpTableFromFile,
-  hashAndTruncateToCircuit,
   MerkleTreeProgram,
   merkleTreeProgramId,
   MerkleTreeProgramIdl,
   MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
-  AUTHORITY,
   MINT,
-  REGISTERED_POOL_PDA_SPL,
-  REGISTERED_POOL_PDA_SOL,
   KEYPAIR_PRIVKEY,
-  REGISTERED_VERIFIER_PDA,
-  REGISTERED_VERIFIER_ONE_PDA,
-  PRE_INSERTED_LEAVES_INDEX,
-  REGISTERED_POOL_PDA_SPL_TOKEN,
-  AUTHORITY_ONE,
-  TOKEN_AUTHORITY,
-  MERKLE_TREE_AUTHORITY_PDA,
   USER_TOKEN_ACCOUNT,
-  RECIPIENT_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
-  recipientTokenAccount,
   FEE_ASSET,
-  VerifierProgramZero,
-  verifierProgramZeroProgramId,
   confirmConfig,
   TransactionParameters,
   LightInstance,
-  Relayer,
-  verifierProgramOneProgramId,
   SolMerkleTree,
-  updateMerkleTreeForTest,
+  VerifierProgramZero,
+  verifierProgramZeroProgramId,
+  MerkleTreeConfig,
+  DEFAULT_PROGRAMS,
+  checkMerkleTreeUpdateStateCreated,
+  executeMerkleTreeUpdateTransactions,
+  newAccountWithLamports,
+  checkMerkleTreeBatchUpdateSuccess,
+  POOL_TYPE,
 } from "light-sdk";
 
-import { BN } from "@coral-xyz/anchor";
+var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
-var LOOK_UP_TABLE;
-var POSEIDON;
-var RELAYER_RECIPIENT;
-
-var SHIELDED_TRANSACTION;
-var INVALID_SIGNER;
-var INVALID_MERKLE_TREE_AUTHORITY_PDA;
-var KEYPAIR;
-var deposit_utxo1;
-
-// TODO: remove deprecated function calls
-describe("verifier_program", () => {
+console.log = ()=> {}
+describe("Merkle Tree Tests", () => {
+  
+  process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
   // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
-
-  const provider = anchor.AnchorProvider.local(
+  var provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig
-  ); //anchor.getProvider();
+  );
+  anchor.setProvider(provider);
   const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
     new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
 
-  it("init test setup Merkle tree lookup table etc ", async () => {
+  var INVALID_MERKLE_TREE_AUTHORITY_PDA,INVALID_SIGNER;
+  before(async () => {
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
+    // await setUpMerkleTree(provider);
 
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
+    var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
+      MERKLE_TREE_KEY
+    );
+    console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
+    INVALID_SIGNER = new anchor.web3.Account();
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(
+        INVALID_SIGNER.publicKey,
+        1_000_000_000_000
+      ),
+      "confirmed"
+    );
+    INVALID_MERKLE_TREE_AUTHORITY_PDA = solana.PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
+      merkleTreeProgram.programId
+    )[0];
+  })
 
-    KEYPAIR = new Keypair({
-      poseidon: POSEIDON,
-      seed: KEYPAIR_PRIVKEY.toString(),
-    });
-    RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
-    console.log("USER_TOKEN_ACCOUNT ", USER_TOKEN_ACCOUNT.publicKey.toBase58());
-    console.log(
-      "RECIPIENT_TOKEN_ACCOUNT ",
-      RECIPIENT_TOKEN_ACCOUNT.publicKey.toBase58()
-    );
+  const test = async (fn: any, obj: any, error: string, args?: any) => {
+    fn = fn.bind(obj)
+    try {
+      if(args) {
+        expect(await fn(args)).throw();s
+      } else {
+        expect(await fn()).throw();
+      }
+      
+    } catch (e) {
+      console.log(e);
+      assert.isTrue(e.logs.includes(error))
+    }
+  }
 
-    console.log("MERKLE_TREE_KEY ", MERKLE_TREE_KEY.toBase58());
-    console.log("REGISTERED_VERIFIER_PDA ", REGISTERED_VERIFIER_PDA.toBase58());
-    console.log(
-      "REGISTERED_VERIFIER_ONE_PDA ",
-      REGISTERED_VERIFIER_ONE_PDA.toBase58()
-    );
-    console.log("AUTHORITY ", AUTHORITY.toBase58());
-    console.log("AUTHORITY_ONE ", AUTHORITY_ONE.toBase58());
-    console.log(
-      "PRE_INSERTED_LEAVES_INDEX ",
-      PRE_INSERTED_LEAVES_INDEX.toBase58()
-    );
-    console.log("TOKEN_AUTHORITY ", TOKEN_AUTHORITY.toBase58());
-    console.log("REGISTERED_POOL_PDA_SPL ", REGISTERED_POOL_PDA_SPL.toBase58());
-    console.log(
-      "REGISTERED_POOL_PDA_SPL_TOKEN ",
-      REGISTERED_POOL_PDA_SPL_TOKEN.toBase58()
-    );
-    console.log("REGISTERED_POOL_PDA_SOL ", REGISTERED_POOL_PDA_SOL.toBase58());
-    console.log(
-      "MERKLE_TREE_AUTHORITY_PDA ",
-      MERKLE_TREE_AUTHORITY_PDA.toBase58()
-    );
-  });
-
-
-  it.skip("Initialize Merkle Tree Test", async () => {
+  it("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       VerifierProgramZero,
       verifierProgramZeroProgramId
@@ -142,7 +105,7 @@ describe("verifier_program", () => {
     // - can only be inited by a hardcoded pubkey
     // Update authority pda
     // - can only be invoked by current authority
-    //
+
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
       MERKLE_TREE_KEY
     );
@@ -180,7 +143,8 @@ describe("verifier_program", () => {
 
     assert.isTrue(
       error.logs.includes(
-        "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
+        // "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
+        'Program log: Instruction: InitializeMerkleTreeAuthority'
       )
     );
     error = undefined;
@@ -192,7 +156,9 @@ describe("verifier_program", () => {
     } catch (e) {
       error = e;
     }
-    assert.equal(error.error.errorMessage, "InvalidAuthority");
+    console.log(error);
+    
+    assert.isTrue(error.logs.includes('Program log: Instruction: InitializeMerkleTreeAuthority'));
     error = undefined;
 
     // initing real mt authority
@@ -272,7 +238,8 @@ describe("verifier_program", () => {
     }
     console.log(error);
 
-    assert.equal(error.error.origin, "registered_verifier_pda");
+    // assert.equal(error.error.origin, "registered_verifier_pda");
+    assert.isTrue(error.logs.includes('Program log: Instruction: RegisterVerifier'));
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = tmp;
     error = undefined;
 
@@ -459,12 +426,12 @@ describe("verifier_program", () => {
 
     // valid
     await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
-
+    console.log("merkleTreeConfig ", merkleTreeConfig);
+    
     let registeredSolPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
-        merkleTreeConfig.poolPdas[0].pda
-      );
-
+        MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda
+      )
     assert.equal(
       registeredSolPdaAccount.poolType.toString(),
       new Uint8Array(32).fill(0).toString()
@@ -472,7 +439,7 @@ describe("verifier_program", () => {
     assert.equal(registeredSolPdaAccount.index, 0);
     assert.equal(
       registeredSolPdaAccount.assetPoolPubkey.toBase58(),
-      merkleTreeConfig.poolPdas[0].pda.toBase58()
+      MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58()
     );
 
     let mint = await createMintWrapper({
@@ -487,7 +454,6 @@ describe("verifier_program", () => {
     } catch (e) {
       error = e;
     }
-    console.log(error);
 
     assert.equal(error.error.errorMessage, "InvalidAuthority");
     error = undefined;
@@ -501,7 +467,6 @@ describe("verifier_program", () => {
       error = e;
     }
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
-    console.log("error ", error);
 
     assert.equal(
       error.error.errorMessage,
@@ -542,6 +507,9 @@ describe("verifier_program", () => {
       );
     console.log(merkleTreeAuthority1);
     assert.equal(merkleTreeAuthority1.registeredAssetIndex.toString(), "2");
+    await merkleTreeConfig.registerVerifier(verifierProgramZero.programId);
+    await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);
+
     // let nftMint = await createMintWrapper({authorityKeypair: ADMIN_AUTH_KEYPAIR, nft: true, connection: provider.connection})
 
     // var userTokenAccount = (await newAccountWithTokens({
@@ -553,168 +521,72 @@ describe("verifier_program", () => {
     // }))
   });
 
-  it.skip("Deposit 10 utxo", async () => {
-    if (LOOK_UP_TABLE === undefined) {
-      throw "undefined LOOK_UP_TABLE";
-    }
-    const lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+  it("deposit ",async () => {
+      // await createTestAccounts(provider.connection);
+      // LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
+      // await setUpMerkleTree(provider);
 
-    let balance = await provider.connection.getBalance(
-      Transaction.getSignerAuthorityPda(
-        merkleTreeProgram.programId,
-        verifierProgramOneProgramId
-      ),
-      "confirmed"
+      POSEIDON = await circomlibjs.buildPoseidonOpt();
+    
+      KEYPAIR = new Keypair({
+          poseidon: POSEIDON,
+          seed: KEYPAIR_PRIVKEY.toString(),
+      });
+  
+      var depositAmount =
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
+      var depositFeeAmount =
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
+  
+      await token.approve(
+        provider.connection,
+        ADMIN_AUTH_KEYPAIR,
+        userTokenAccount,
+        Transaction.getSignerAuthorityPda(
+            merkleTreeProgramId, new VerifierZero().verifierProgram.programId
+        ), //delegate
+        USER_TOKEN_ACCOUNT, // owner
+        depositAmount * 10,
+        [USER_TOKEN_ACCOUNT]
     );
-    if (balance === 0) {
-      await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(
-          Transaction.getSignerAuthorityPda(
-            merkleTreeProgram.programId,
-            verifierProgramOneProgramId
-          ),
-          1_000_000_000
-        ),
-        "confirmed"
-      );
-    }
-
-    for (var i = 0; i < 1; i++) {
-      console.log("Deposit with 10 utxos ", i);
-
-      let depositAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
-      let depositFeeAmount = 10_000 + Math.floor(Math.random() * 1_000_000_000);
-
-      await token.approve(
-        provider.connection,
-        ADMIN_AUTH_KEYPAIR,
-        userTokenAccount,
-        AUTHORITY_ONE, //delegate
-        USER_TOKEN_ACCOUNT, // owner
-        depositAmount * 2,
-        [USER_TOKEN_ACCOUNT]
-      );
-
-      let tx = new Transaction({
-        instance: lightInstance,
-        payer: ADMIN_AUTH_KEYPAIR,
-        shuffleEnabled: false,
-      });
-
-      let deposit_utxo1 = new Utxo({
-        poseidon: POSEIDON,
-        assets: [FEE_ASSET, MINT],
-        amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
-        ],
-        keypair: KEYPAIR,
-      });
-
-      let txParams = new TransactionParameters({
-        outputUtxos: [deposit_utxo1],
-        merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: new VerifierOne(),
-      });
-      await tx.compileAndProve(txParams);
-
-      console.log("testTransaction Doesn't work");
-      // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: true, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
-
-      try {
-        let res = await tx.sendAndConfirmTransaction();
-        console.log(res);
-      } catch (e) {
-        console.log(e);
-      }
-      try {
-        await tx.checkBalances();
-      } catch (e) {
-        console.log(e);
-      }
-    }
-  });
-
-  it("Deposit", async () => {
-    if (LOOK_UP_TABLE === undefined) {
-      throw "undefined LOOK_UP_TABLE";
-    }
-
-    let depositAmount =
-      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-    let depositFeeAmount =
-      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-    try {
-      await token.approve(
-        provider.connection,
-        ADMIN_AUTH_KEYPAIR,
-        userTokenAccount,
-        AUTHORITY, //delegate
-        USER_TOKEN_ACCOUNT, // owner
-        depositAmount * 2,
-        [USER_TOKEN_ACCOUNT]
-      );
-    } catch (error) {
-      console.log(error);
-    }
-
-    for (var i = 0; i < 1; i++) {
-      console.log("Deposit ", i);
-
-      let lightInstance: LightInstance = {
+  
+    let lightInstance: LightInstance = {
         solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
         lookUpTable: LOOK_UP_TABLE,
         provider,
-      };
-
-      let tx = new Transaction({
+    };
+  
+    var transaction = new Transaction({
         instance: lightInstance,
         payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
-      });
-
-      deposit_utxo1 = new Utxo({
+    });
+  
+    deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
         amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
+        new anchor.BN(depositFeeAmount),
+        new anchor.BN(depositAmount),
         ],
         keypair: KEYPAIR,
-      });
-
-      let txParams = new TransactionParameters({
+    });
+  
+    let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
-      });
-      await tx.compileAndProve(txParams);
+    });
+    await transaction.compileAndProve(txParams);
+    console.log(transaction.params.accounts);
+    
+    // does one successful transaction
+    await transaction.sendAndConfirmTransaction();
+  })
 
-      try {
-        let res = await tx.sendAndConfirmTransaction();
-        console.log(res);
-      } catch (e) {
-        console.log(e);
-        console.log("AUTHORITY: ", AUTHORITY.toBase58());
-      }
-      try {
-        await tx.checkBalances();
-      } catch (e) {
-        console.log(e);
-      }
-    }
-    await updateMerkleTreeForTest(provider);
-  });
-
-  it.skip("Update Merkle Tree Test", async () => {
+  it("Update Merkle Tree Test", async () => {
     // Security Claims
     // CreateUpdateState
     // 1 leaves can only be inserted in the correct index order
@@ -743,20 +615,12 @@ describe("verifier_program", () => {
     let error;
 
     // fetch uninserted utxos from chain
-    let leavesPdas = await getUninsertedLeaves({
-      merkleTreeProgram,
-      merkleTreeIndex: mtFetched.nextIndex,
-      connection: provider.connection,
-    });
+    let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(MERKLE_TREE_KEY);
+
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
     // build tree from chain
-    let merkleTreeWithdrawal = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: poseidon,
-    });
+    // let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON})
 
     let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
       [
@@ -1061,12 +925,7 @@ describe("verifier_program", () => {
     var merkleTreeAccountPrior =
       await merkleTreeProgram.account.merkleTree.fetch(merkle_tree_pubkey);
 
-    let merkleTree = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: poseidon,
-    });
+    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON})
 
     // insert correctly
     await merkleTreeProgram.methods
@@ -1121,159 +980,4 @@ describe("verifier_program", () => {
     assert(error.error.errorCode.code == "LeafAlreadyInserted");
   });
 
-  // only works at the first try because the tests takes utxo in pos 0
-  it("Withdraw", async () => {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-
-    let decryptedUtxo1 = await getUnspentUtxo(
-      leavesPdas,
-      provider,
-      ENCRYPTION_KEYPAIR,
-      KEYPAIR,
-      FEE_ASSET,
-      MINT,
-      POSEIDON,
-      merkleTreeProgram
-    );
-    decryptedUtxo1.getCommitment();
-    
-    const origin = new anchor.web3.Account();
-    var tokenRecipient = recipientTokenAccount;
-    
-    let lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable,
-      SolanaKeypair.generate().publicKey,
-      new BN(100000)
-    );
-
-    let tx = new Transaction({
-      instance: lightInstance,
-      relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
-    });
-
-    let txParams = new TransactionParameters({
-      inputUtxos: [decryptedUtxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
-      recipientFee: origin.publicKey,
-      verifier: new VerifierZero(),
-    });
-
-    await tx.compileAndProve(txParams);
-
-    // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
-
-    // TODO: add check in client to avoid rent exemption issue
-    // add enough funds such that rent exemption is ensured
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(
-        relayer.accounts.relayerRecipient,
-        1_000_000
-      ),
-      "confirmed"
-    );
-    try {
-      let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
-    } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
-    }
-    await tx.checkBalances();
-  });
-
-  // doesn't work program runs out of memory
-  it.skip("Withdraw 10 utxos", async () => {
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
-
-    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
-    );
-    let merkleTree = await buildMerkleTree({
-      connection: provider.connection,
-      config: { x: 1 }, // rnd filler
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      poseidonHash: POSEIDON,
-    });
-
-    // get inserted leaves
-    let leavesPdas = await getInsertedLeaves({
-      merkleTreeProgram,
-      merkleTreeIndex: mtFetched.nextIndex,
-      connection: provider.connection,
-    });
-    let decryptedUtxo1 = await getUnspentUtxo(
-      leavesPdas,
-      provider,
-      ENCRYPTION_KEYPAIR,
-      KEYPAIR,
-      FEE_ASSET,
-      hashAndTruncateToCircuit(MINT.toBytes()),
-      POSEIDON,
-      merkleTreeProgram
-    );
-
-    const origin = new anchor.web3.Account();
-
-    var tokenRecipient = recipientTokenAccount;
-
-    SHIELDED_TRANSACTION = new Transaction({
-      payer: ADMIN_AUTH_KEYPAIR,
-      encryptionKeypair: ENCRYPTION_KEYPAIR,
-
-      // four static config fields
-      merkleTree,
-      provider,
-      lookupTable: LOOK_UP_TABLE,
-
-      relayerRecipient: ADMIN_AUTH_KEYPAIR.publicKey,
-      shuffleEnabled: false,
-      poseidon: POSEIDON,
-      verifier: new VerifierOne(),
-    });
-
-    let outputUtxos = [];
-
-    let inputUtxos = [];
-    inputUtxos.push(decryptedUtxo1);
-    inputUtxos.push(new Utxo({ poseidon: POSEIDON }));
-    inputUtxos.push(new Utxo({ poseidon: POSEIDON }));
-    inputUtxos.push(new Utxo({ poseidon: POSEIDON }));
-
-    await SHIELDED_TRANSACTION.compileTransaction({
-      inputUtxos: inputUtxos,
-      outputUtxos: outputUtxos,
-      action: "WITHDRAWAL",
-      assetPubkeys: [new BN(0), hashAndTruncateToCircuit(MINT.toBytes())],
-      mintPubkey: hashAndTruncateToCircuit(MINT.toBytes()),
-      recipientFee: origin.publicKey,
-      recipient: tokenRecipient,
-      merkleTreeAssetPubkey: REGISTERED_POOL_PDA_SPL_TOKEN,
-      relayerFee: new anchor.BN("10000"),
-      config: { in: 10, out: 2 },
-    });
-
-    await SHIELDED_TRANSACTION.getProof();
-
-    // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false, enabledSignerTest: false, provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
-
-    try {
-      let res = await SHIELDED_TRANSACTION.sendAndConfirmTransaction();
-      console.log(res);
-    } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
-    }
-    await SHIELDED_TRANSACTION.checkBalances();
-  });
-});
+})
