@@ -19,6 +19,7 @@ use ark_serialize::{Read, Write};
 use ark_std::vec::Vec;
 use ark_std::{test_rng, UniformRand};
 
+use anchor_lang::solana_program::program_pack::Pack;
 use arkworks_gadgets::poseidon::{
     circom::CircomCRH, sbox::PoseidonSbox, PoseidonError, PoseidonParameters, Rounds,
 };
@@ -34,7 +35,6 @@ use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::processor
 use merkle_tree_program::poseidon_merkle_tree::update_merkle_tree_lib::MerkleTreeUpdateState;
 use merkle_tree_program::utils::config;
 use merkle_tree_program::utils::config::ENCRYPTED_UTXOS_LENGTH;
-use solana_program::program_pack::Pack;
 use std::cell::RefMut;
 use std::convert::TryInto;
 const INSTRUCTION_ORDER_POSEIDON_2_INPUTS: [u8; 3] = [0, 1, 2];
