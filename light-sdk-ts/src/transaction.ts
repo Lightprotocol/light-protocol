@@ -36,8 +36,8 @@ import {
   SolMerkleTree,
 } from "./index";
 import {
+  IDL_MERKLE_TREE_PROGRAM,
   MerkleTreeProgram,
-  MerkleTreeProgramIdl,
 } from "./idls/merkle_tree_program";
 
 export type transactionParameters = {
@@ -99,7 +99,7 @@ export class TransactionParameters implements transactionParameters {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
-  merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
+  merkleTreeProgram?: Program<IDL_MERKLE_TREE_PROGRAM>;
 
   constructor({
     merkleTreePubkey,
@@ -124,7 +124,7 @@ export class TransactionParameters implements transactionParameters {
   }) {
     try {
       this.merkleTreeProgram = new Program(
-        MerkleTreeProgram,
+        IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
       );
     } catch (error) {
@@ -182,7 +182,7 @@ export type LightInstance = {
 // TODO: add log option that enables logs
 // TODO: write functional test for every method
 export class Transaction {
-  merkleTreeProgram?: Program<MerkleTreeProgramIdl>;
+  merkleTreeProgram?: Program<IDL_MERKLE_TREE_PROGRAM>;
   payer?: SolanaKeypair;
   poseidon: any;
   shuffleEnabled: Boolean;
@@ -601,7 +601,7 @@ export class Transaction {
   async getRootIndex() {
     if (this.instance.provider && this.instance.solMerkleTree.merkleTree) {
       this.merkleTreeProgram = new Program(
-        MerkleTreeProgram,
+        IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
       );
       let root = Uint8Array.from(
@@ -1305,7 +1305,6 @@ export class Transaction {
         );
 
       const preInsertedLeavesIndexAccountAfterUpdate =
-
         await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
           PRE_INSERTED_LEAVES_INDEX,
         );
@@ -1495,21 +1494,6 @@ export class Transaction {
         await this.instance.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
-      // console.log("recipientFeeAccount ", recipientFeeAccount);
-      // console.log("this.feeAmount: ", this.feeAmount);
-      // console.log(
-      //   "recipientFeeBalancePriorTx ",
-      //   this.recipientFeeBalancePriorTx
-      // );
-
-      console.log(
-        `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
-          .add(new anchor.BN(this.relayer.relayerFee.toString()))
-          .add(new anchor.BN("5000"))
-          .toString()} == ${new anchor.BN(this.recipientFeeBalancePriorTx)
-          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`,
-      );
 
       // console.log("relayerAccount ", relayerAccount);
       // console.log("this.relayer.relayerFee: ", this.relayer.relayerFee);
@@ -1523,16 +1507,6 @@ export class Transaction {
           .toString()} == ${new anchor.BN(
           this.relayerRecipientAccountBalancePriorLastTx,
         )}`,
-      );
-
-      console.log(
-        `relayerAccount ${new anchor.BN(
-          relayerAccount,
-        ).toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx,
-        )
-          .sub(new anchor.BN(this.relayer.relayerFee))
-          .toString()}`,
       );
 
       console.log(

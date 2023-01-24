@@ -71,7 +71,6 @@ export class SolMerkleTree {
       (x) => x.signature,
     );
 
-
     let config: GetVersionedTransactionConfig = {
       commitment: "confirmed",
       maxSupportedTransactionVersion: 0,
@@ -102,7 +101,11 @@ export class SolMerkleTree {
             const data = bs58.decode(ixInner.data);
             leavesAccounts.push({
               account: {
-                leftLeafIndex: new BN(data.slice(96 + 256, 96 + 256 + 8)),
+                leftLeafIndex: new BN(
+                  data.slice(96 + 256, 96 + 256 + 8),
+                  undefined,
+                  "le",
+                ),
                 encryptedUtxos: Array.from(data.slice(96, 96 + 256)),
                 nodeLeft: Array.from(data.slice(0, 32)),
                 nodeRight: Array.from(data.slice(32, 64)),
@@ -186,7 +189,7 @@ export class SolMerkleTree {
       account: any;
     }>
   > {
-    const { leaveAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
+    const { leavesAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(
       merkleTreePubkey,
     );
 
@@ -212,7 +215,7 @@ export class SolMerkleTree {
   static async getUninsertedLeavesRelayer(merkleTreePubkey: PublicKey) {
     return (await SolMerkleTree.getUninsertedLeaves(merkleTreePubkey)).map(
       (pda) => {
-        return { isSigner: false, isWritable: false, pubkey: pda.publicKey };
+        return { isSigner: false, isWritable: true, pubkey: pda.publicKey };
       },
     );
   }

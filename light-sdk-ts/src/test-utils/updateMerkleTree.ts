@@ -4,12 +4,15 @@ import {
   SolMerkleTree,
 } from "../merkleTree/index";
 import { merkleTreeProgramId, MERKLE_TREE_KEY } from "../constants";
-import { MerkleTreeProgram } from "../idls/index";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { buildPoseidonOpt } from "circomlibjs";
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
 
 export async function updateMerkleTreeForTest(provider: Provider) {
-  const merkleTreeProgram = new Program(MerkleTreeProgram, merkleTreeProgramId);
+  const merkleTreeProgram = new Program(
+    IDL_MERKLE_TREE_PROGRAM,
+    merkleTreeProgramId,
+  );
 
   // fetch uninserted utxos from chain
   let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(

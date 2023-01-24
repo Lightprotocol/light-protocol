@@ -32,6 +32,7 @@
     "@noble/hashes": "^1.1.5",
     "@solana/spl-token": "^0.3.5",
     "@solana/web3.js": "^1.62",
+    "@solana/spl-account-compression": "^0.1.5",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.54",
