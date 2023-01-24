@@ -5,13 +5,7 @@ import {
 } from "../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
-import {
-  Connection,
-  PublicKey,
-  Keypair,
-  sendAndConfirmTransaction,
-  Transaction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, Keypair } from "@solana/web3.js";
 
 import { confirmConfig, DEFAULT_PROGRAMS, merkleTreeProgramId } from "../index";
 import { Program } from "@coral-xyz/anchor";
@@ -25,7 +19,12 @@ export class MerkleTreeConfig {
   merkleTreeAuthorityPda?: PublicKey;
   payer: Keypair;
   tokenAuthority?: PublicKey;
-
+  // TODO: save state effectively
+  poolTypes: {
+    tokenPdas: { mint: PublicKey; pubkey: PublicKey }[];
+    poolPda: PublicKey;
+    poolType: Uint8Array;
+  }[];
   constructor({
     merkleTreePubkey,
     payer,
@@ -333,13 +332,14 @@ export class MerkleTreeConfig {
     );
   }
 
-  async getPoolTypePda(poolType) {
+  async getPoolTypePda(poolType: Uint8Array) {
     if (poolType.length != 32) {
       throw `invalid pooltype length ${poolType.length}`;
     }
     // TODO: add check whether already exists
 
     this.poolTypes.push({
+      tokenPdas: [],
       poolPda: PublicKey.findProgramAddressSync(
         [poolType, anchor.utils.bytes.utf8.encode("pooltype")],
         this.merkleTreeProgram.programId,
@@ -349,9 +349,9 @@ export class MerkleTreeConfig {
     return this.poolTypes[this.poolTypes.length - 1];
   }
 
-  async registerPoolType(poolType) {
+  async registerPoolType(poolType: Uint8Array) {
     let registeredPoolTypePda = this.poolTypes.filter((item) => {
-      return item.poolType === poolType;
+      return item.poolType.toString() === poolType.toString();
     })[0];
 
     if (!registeredPoolTypePda) {
@@ -359,7 +359,7 @@ export class MerkleTreeConfig {
     }
 
     const tx = await this.merkleTreeProgram.methods
-      .registerPoolType(Buffer.from(new Uint8Array(32).fill(0)))
+      .registerPoolType(poolType)
       .accounts({
         registeredPoolTypePda: registeredPoolTypePda.poolPda,
         authority: this.payer.publicKey,
@@ -371,7 +371,11 @@ export class MerkleTreeConfig {
     return tx;
   }
 
-  async checkPoolRegistered(poolPda, poolType, mint: PublicKey | null = null) {
+  async checkPoolRegistered(
+    poolPda,
+    poolType: Uint8Array,
+    mint: PublicKey | null = null,
+  ) {
     var registeredTokenConfigAccount =
       await this.merkleTreeProgram.account.registeredAssetPool.fetch(
         poolPda.pda,
@@ -381,18 +385,19 @@ export class MerkleTreeConfig {
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda,
       );
-    assert(
-      registeredTokenConfigAccount.poolType.toString() == poolType.toString(),
+    assert.equal(
+      registeredTokenConfigAccount.poolType.toString(),
+      poolType.toString(),
     );
-    assert(
-      registeredTokenConfigAccount.index.toString() ==
-        (merkleTreeAuthorityPdaAccountInfo.registeredAssetIndex - 1).toString(),
+    assert.equal(
+      registeredTokenConfigAccount.index.toString(),
+      (merkleTreeAuthorityPdaAccountInfo.registeredAssetIndex - 1).toString(),
     );
 
     if (mint !== null) {
-      assert(
-        registeredTokenConfigAccount.assetPoolPubkey.toBase58() ==
-          poolPda.token.toBase58(),
+      assert.equal(
+        registeredTokenConfigAccount.assetPoolPubkey.toBase58(),
+        poolPda.token.toBase58(),
       );
 
       var registeredTokenAccount = await token.getAccount(
@@ -400,12 +405,12 @@ export class MerkleTreeConfig {
         poolPda.token,
         { commitment: "confirmed", preflightCommitment: "confirmed" },
       );
-      assert(registeredTokenAccount != null);
-      assert(registeredTokenAccount.mint.toBase58() == mint.toBase58());
+      assert.notEqual(registeredTokenAccount, null);
+      assert.equal(registeredTokenAccount.mint.toBase58(), mint.toBase58());
     } else {
-      assert(
-        registeredTokenConfigAccount.assetPoolPubkey.toBase58() ==
-          poolPda.pda.toBase58(),
+      assert.equal(
+        registeredTokenConfigAccount.assetPoolPubkey.toBase58(),
+        poolPda.pda.toBase58(),
       );
     }
   }
@@ -428,8 +433,8 @@ export class MerkleTreeConfig {
   }
 
   async registerSolPool(poolType: Uint8Array) {
-    let registeredPoolTypePda = this.poolTypes.filter((item) => {
-      return item.poolType === poolType;
+    let registeredPoolTypePda = this.poolTypes.filter((item, index) => {
+      return item.poolType.toString() === poolType.toString();
     })[0];
 
     if (!registeredPoolTypePda) {
@@ -454,7 +459,8 @@ export class MerkleTreeConfig {
 
     await this.checkPoolRegistered(solPoolPda, poolType);
     console.log("registered sol pool ", this.merkleTreeAuthorityPda.toBase58());
-
+    // no need to push the sol pool because it is the pool config pda
+    // TODO: evaluate how to handle this case
     return tx;
   }
 

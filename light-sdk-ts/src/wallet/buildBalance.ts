@@ -1,29 +1,36 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { MerkleTreeProgramIdl } from "../idls/index";
+import { MerkleTree } from "merkleTree/merkleTree";
 
 export async function getUnspentUtxo(
   leavesPdas,
   provider: anchor.Provider,
-  encryptionKeypair,
-  KEYPAIR,
-  FEE_ASSET,
-  mint,
-  POSEIDON,
-  merkleTreeProgram: MerkleTreeProgram,
+  KEYPAIR: Keypair,
+  POSEIDON: any,
+  merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>,
+  merkleTree: MerkleTree,
+  index: number,
 ) {
-  let decryptedUtxo1;
+  let decryptedUtxos = [];
   for (var i = 0; i < leavesPdas.length; i++) {
     try {
       // decrypt first leaves account and build utxo
 
-      decryptedUtxo1 = Utxo.decrypt({
+      var decryptedUtxo1 = Utxo.decrypt({
         poseidon: POSEIDON,
         encBytes: new Uint8Array(
           Array.from(leavesPdas[i].account.encryptedUtxos),
         ),
         keypair: KEYPAIR,
       });
+
+      const mtIndex = merkleTree.indexOf(
+        decryptedUtxo1?.getCommitment()?.toString(),
+      );
+
+      decryptedUtxo1?.index = mtIndex;
 
       let nullifier = decryptedUtxo1.getNullifier();
 
@@ -39,14 +46,15 @@ export async function getUnspentUtxo(
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
       );
-
       if (
         accountInfo == null &&
         decryptedUtxo1.amounts[1].toString() != "0" &&
-        decryptedUtxo1.amounts[0].toString() != "0"
+        decryptedUtxo1.amounts[0].toString() != "0" &&
+        mtIndex.toString() != "-1"
       ) {
         console.log("found unspent leaf");
-        return decryptedUtxo1;
+
+        decryptedUtxos.push(decryptedUtxo1);
       } else if (i == leavesPdas.length - 1) {
         throw "no unspent leaf found";
       }
@@ -54,4 +62,6 @@ export async function getUnspentUtxo(
       console.log(error);
     }
   }
+
+  return decryptedUtxos[index];
 }

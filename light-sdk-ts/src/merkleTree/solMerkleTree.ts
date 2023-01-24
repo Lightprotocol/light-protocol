@@ -38,9 +38,10 @@ export class SolMerkleTree {
       merkleTreePubkey,
     );
     const merkleTreeIndex = mtFetched.nextIndex;
+    // TODO: get correct type for account
     var leaveAccounts: Array<{
-      pubkey: PublicKey;
-      account: Account<Buffer>;
+      publicKey: PublicKey;
+      account: any;
     }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
     return { leaveAccounts, merkleTreeIndex, mtFetched };
   }
@@ -110,8 +111,8 @@ export class SolMerkleTree {
 
   static async getUninsertedLeaves(merkleTreePubkey: PublicKey): Promise<
     Array<{
-      pubkey: PublicKey;
-      account: Account<Buffer>;
+      publicKey: PublicKey;
+      account: any;
     }>
   > {
     const { leaveAccounts, merkleTreeIndex } = await SolMerkleTree.getLeaves(

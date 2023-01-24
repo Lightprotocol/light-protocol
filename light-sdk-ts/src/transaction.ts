@@ -30,6 +30,7 @@ import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
+  hashAndTruncateToCircuit,
   merkleTreeProgramId,
   Relayer,
   SolMerkleTree,
@@ -690,7 +691,6 @@ export class Transaction {
     }
   }
 
-  // TODO: write test
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   // TODO: fix edge case of an assetpubkey being 0
   getIndices(utxos: Utxo[]): string[][][] {
@@ -1046,6 +1046,20 @@ export class Transaction {
       return tx;
     } else {
       throw new Error("No parameters provided");
+    }
+  }
+
+  async closeVerifierState(): Promise<TransactionSignature> {
+    if (this.payer && this.params) {
+      return await this.params?.verifier.verifierProgram.methods
+        .closeVerifierState()
+        .accounts({
+          ...this.params.accounts,
+        })
+        .signers([this.payer])
+        .rpc(confirmConfig);
+    } else {
+      throw new Error("No payer or params provided.");
     }
   }
 

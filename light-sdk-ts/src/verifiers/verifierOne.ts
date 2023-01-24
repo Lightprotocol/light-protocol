@@ -5,7 +5,10 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 
-import { verifierProgramOneProgramId } from "../index";
+import {
+  hashAndTruncateToCircuit,
+  verifierProgramOneProgramId,
+} from "../index";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
 
@@ -16,6 +19,7 @@ export class VerifierOne implements Verifier {
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
   instructions?: anchor.web3.TransactionInstruction[];
+  pubkey: anchor.BN;
 
   constructor() {
     try {
@@ -23,12 +27,16 @@ export class VerifierOne implements Verifier {
         VerifierProgramOne,
         verifierProgramOneProgramId,
       );
-    } catch (e) {}
-    this.wtnsGenPath =
-      "./build-circuits/transactionMasp10_js/transactionMasp10";
-    this.zkeyPath = "./build-circuits/transactionMasp10";
+    } catch (error) {
+      console.log(error);
+    }
+    this.wtnsGenPath = "transactionMasp10_js/transactionMasp10.wasm";
+    this.zkeyPath = "transactionMasp10.zkey";
     this.calculateWtns = require("../../build-circuits/transactionMasp10_js/witness_calculator.js");
     this.config = { in: 10, out: 2 };
+    this.pubkey = hashAndTruncateToCircuit(
+      verifierProgramOneProgramId.toBytes(),
+    );
   }
 
   parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
