@@ -1203,7 +1203,6 @@ dependencies = [
  "libsecp256k1",
  "log",
  "memoffset",
- "num-bigint",
  "num-derive",
  "num-traits",
  "parking_lot",
