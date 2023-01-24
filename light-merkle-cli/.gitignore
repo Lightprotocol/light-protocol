@@ -1,0 +1,20 @@
+/node_modules
+/.idea
+*.tsbuildinfo
+
+.npmignore
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+yarn.lock
+
+# Dists
+/dist
+
+# Test templates
+
+/test/templates

@@ -1,0 +1,20 @@
+{
+  "compilerOptions": {
+    "target": "ESNext",
+    "module": "commonJs",
+    "moduleResolution": "node",
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "strict": true,
+    "esModuleInterop": true,
+    "noEmitOnError": true,
+    "skipDefaultLibCheck": true,
+    "skipLibCheck": true,
+    "outDir": "./dist",
+    "typeRoots": ["node_modules/@types", "/@types"],
+    "types": ["jest", "node"]
+  },
+  "include": ["src/**/*.ts", "tests/*.ts"],
+  "exclude": ["node_modules", "templates"]
+}
