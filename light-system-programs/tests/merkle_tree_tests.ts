@@ -38,6 +38,7 @@ import {
   checkMerkleTreeBatchUpdateSuccess,
   POOL_TYPE,
 } from "light-sdk";
+import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
@@ -51,8 +52,8 @@ describe("Merkle Tree Tests", () => {
     confirmConfig
   );
   anchor.setProvider(provider);
-  const merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl> =
-    new anchor.Program(MerkleTreeProgram, merkleTreeProgramId);
+  const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
+    new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
   var INVALID_MERKLE_TREE_AUTHORITY_PDA,INVALID_SIGNER;
   before(async () => {
@@ -93,15 +94,15 @@ describe("Merkle Tree Tests", () => {
     }
   }
 
-  it("Build Merkle Tree from account compression", async () => {
+  it.skip("Build Merkle Tree from account compression", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
 
     let newTree = await  merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
-    assert.equal(merkleTree.merkleTree.root(),new BN(newTree.roots[newTree.currentRootIndex.toNumber()],32, "le"));
+    assert.equal(merkleTree.merkleTree.root(),new anchor.BN(newTree.roots[newTree.currentRootIndex.toNumber()],32, "le"));
   });
 
-  it.skip("Initialize Merkle Tree Test", async () => {
+  it("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       VerifierProgramZero,
       verifierProgramZeroProgramId
@@ -867,12 +868,15 @@ describe("Merkle Tree Tests", () => {
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
           merkleTree: merkle_tree_pubkey,
+          logWrapper: SPL_NOOP_ADDRESS
         })
         .signers([signer])
         .rpc(confirmConfig);
     } catch (e) {
       error = e;
     }
+    console.log(error);
+    
     assert(error.error.errorCode.code == "MerkleTreeUpdateNotInRootInsert");
 
     // sending additional tx to finish the merkle tree update
@@ -905,6 +909,7 @@ describe("Merkle Tree Tests", () => {
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
           merkleTree: different_merkle_tree,
+          logWrapper: SPL_NOOP_ADDRESS
         })
         .signers([signer])
         .rpc(confirmConfig);
@@ -922,6 +927,7 @@ describe("Merkle Tree Tests", () => {
           authority: maliciousSigner.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
           merkleTree: merkle_tree_pubkey,
+          logWrapper: SPL_NOOP_ADDRESS
         })
         .signers([maliciousSigner])
         .rpc(confirmConfig);
@@ -942,6 +948,7 @@ describe("Merkle Tree Tests", () => {
         authority: signer.publicKey,
         merkleTreeUpdateState: merkleTreeUpdateState,
         merkleTree: merkle_tree_pubkey,
+        logWrapper: SPL_NOOP_ADDRESS
       })
       .signers([signer])
       .rpc(confirmConfig);

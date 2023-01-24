@@ -39,10 +39,6 @@ describe("verifier_program", () => {
   it("Test functional circuit 2 in 2 out", async () => {
     await functionalCircuitTest(new VerifierZero());
   })
-  // TODO: make work
-  it.skip("Test functional circuit 2 in 10 out", async () => {
-    await functionalCircuitTest(new VerifierOne());
-  })
 
   it("Test functional circuit 10 in 2 out", async () => {
     await functionalCircuitTest(new VerifierOne());
@@ -100,8 +96,6 @@ async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
     // TODO: investigate why this does not kill the proof
     tx.proofInput.inIndices[0][1][0] = "1";
     expect(await tx.getProof()).to.Throw();
-    // console.log(tx.input.inIndices[0])
-    // console.log(tx.input.inIndices[1])
   } catch (error) {
     assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
   }
