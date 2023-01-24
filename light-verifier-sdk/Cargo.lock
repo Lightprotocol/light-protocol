@@ -711,9 +711,9 @@ checksum = "14c189c53d098945499cdfa7ecc63567cf3886b3332b312a5b4585d8d3a6a610"
 
 [[package]]
 name = "cc"
-version = "1.0.73"
+version = "1.0.78"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2fff2a6927b3bb87f9595d67196a70493f627687a71d87a0d692242c33f58c11"
+checksum = "a20104e2335ce8a659d6dd92a51a767a0c062599c73b343fd152cb401e828c3d"
 dependencies = [
  "jobserver",
 ]
@@ -1146,9 +1146,9 @@ checksum = "2dffe52ecf27772e601905b7522cb4ef790d2cc203488bbd0e2fe85fcb74566d"
 
 [[package]]
 name = "memmap2"
-version = "0.5.7"
+version = "0.5.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "95af15f345b17af2efc8ead6080fb8bc376f8cec1b35277b935637595fe77498"
+checksum = "4b182332558b18d807c4ce1ca8ca983b34c3ee32765e47b3f0f69b90355cc1dc"
 dependencies = [
  "libc",
 ]
@@ -1183,8 +1183,6 @@ dependencies = [
  "getrandom 0.2.7",
  "solana-program 1.15.0",
  "solana-security-txt",
- "spl-account-compression",
- "spl-noop",
  "spl-token",
 ]
 
@@ -1815,6 +1813,7 @@ dependencies = [
  "libsecp256k1",
  "log",
  "memoffset",
+ "num-bigint",
  "num-derive",
  "num-traits",
  "parking_lot",
@@ -1863,21 +1862,9 @@ dependencies = [
 
 [[package]]
 name = "solana-security-txt"
-version = "0.1.5"
+version = "1.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "35b003974e19810384e6b476d3e3c903f00a4e9bdac7eda9cc7257e094acb66d"
-
-[[package]]
-name = "spl-account-compression"
-version = "0.1.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0f7d92234d687ea747283907e0e89eca8f3679a5408d9a3f01b7e0763b720aea"
-dependencies = [
- "anchor-lang",
- "bytemuck",
- "spl-concurrent-merkle-tree",
- "spl-noop",
-]
+checksum = "7e0461f3afb29d8591300b3dd09b5472b3772d65688a2826ad960b8c0d5fa605"
 
 [[package]]
 name = "spl-associated-token-account"
@@ -1888,26 +1875,6 @@ dependencies = [
  "borsh",
  "solana-program 1.10.41",
  "spl-token",
-]
-
-[[package]]
-name = "spl-concurrent-merkle-tree"
-version = "0.1.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5b8518df14b19ada73c6bd15ee344de8ab720580fb2df0029342f9a772e2392d"
-dependencies = [
- "bytemuck",
- "solana-program 1.10.41",
- "thiserror",
-]
-
-[[package]]
-name = "spl-noop"
-version = "0.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "558536c75b5aed018113bfca39cddb414cd7ca77da7658d668e751d977830cda"
-dependencies = [
- "solana-program 1.10.41",
 ]
 
 [[package]]

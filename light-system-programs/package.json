@@ -17,6 +17,7 @@
         "light-sdk": "file:../light-sdk-ts",
         "snarkjs": "^0.4.24",
         "tweetnacl": "^1.0.3",
+        "typescript-collections": "^1.3.3",
         "yarn": "^1.22.19"
     },
     "devDependencies": {
