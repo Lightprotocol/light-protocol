@@ -99,7 +99,6 @@ export async function getUnspentUtxos({
     try {
       // decrypt first leaves account and build utxo
 
-
       decryptedUtxo1 = Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(

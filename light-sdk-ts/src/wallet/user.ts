@@ -427,9 +427,15 @@ export class User {
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
    */
-  async unshield({ token, amount }: { token: string; amount: number }) {
-    // TODO: we could put these lines into a "init config" function
-
+  async unshield({
+    token,
+    amount,
+    recipient,
+  }: {
+    token: string;
+    amount: number;
+    recipient: PublicKey;
+  }) {
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
@@ -461,13 +467,12 @@ export class User {
 
     //  TODO: replace with actually implemented accounts
     const origin = new anchor.web3.Account();
-    var tokenRecipient = recipientTokenAccount;
 
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
+      recipient: recipient,
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
     });
@@ -492,7 +497,15 @@ export class User {
     }
   }
 
-  async transfer({ token, amount }: { token: string; amount: number }) {
+  async transfer({
+    token,
+    amount,
+    recipient,
+  }: {
+    token: string;
+    amount: number;
+    recipient: anchor.BN; // TODO: Keypair.pubkey
+  }) {
     // TODO: check for dry-er ways than to re-implement unshield
 
     const tokenCtx =
@@ -509,7 +522,7 @@ export class User {
       inUtxos,
     });
 
-    // TODO: Create an actually implemented relayer here
+    // TODO: pull an actually implemented relayer here
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       this.lightInstance.lookUpTable!,
@@ -524,15 +537,14 @@ export class User {
       shuffleEnabled: false,
     });
 
-    //  TODO: replace with actually implemented accounts
+    //  TODO: replace with actually implemented account
     const origin = new anchor.web3.Account();
-    var tokenRecipient = recipientTokenAccount;
 
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
+      recipient: recipient,
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
     });
