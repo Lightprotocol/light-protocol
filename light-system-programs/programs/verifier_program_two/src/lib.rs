@@ -42,9 +42,8 @@ pub mod verifier_program_two {
 #[derive(Accounts)]
 pub struct LightInstruction<'info> {
     /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
-    #[account(seeds= [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, seeds::program=invoking_verifier.to_account_info().owner)]
-    pub verifier_state: UncheckedAccount<'info>,
-    /// First time therefore the signing address is not checked but saved to be checked in future instructions.
+    // CHECK: Signer check to acertain the invoking program ID to be used as a public input.
+    pub verifier_state: Signer<'info>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
     pub signing_address: Signer<'info>,
@@ -90,7 +89,4 @@ pub struct LightInstruction<'info> {
     /// CHECK: Is the same as in integrity hash.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
-    #[account(seeds= [invoking_verifier.to_account_info().owner.key().to_bytes().as_ref()], bump, seeds::program=invoking_verifier.to_account_info().owner)]
-    /// CHECK: Signer check to acertain the invoking program ID to be used as a public input.
-    pub invoking_verifier: Signer<'info>,
 }
