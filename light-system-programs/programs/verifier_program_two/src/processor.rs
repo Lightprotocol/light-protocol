@@ -53,17 +53,11 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,
     )?;
-    // msg!("here1 {:?}", verifier_state);
-    // for i in verifier_state.nullifiers.iter() {
-    //     msg!("nullifier: {:?}", i);
-    // }
-    // for i in verifier_state.leaves.iter() {
-    //     msg!("leaves: {:?}", i);
-    // }
+
     let checked_inputs = vec![
         [
             vec![0u8],
-            hash(&ctx.accounts.invoking_verifier.owner.to_bytes()).try_to_vec()?[1..].to_vec(),
+            hash(&ctx.accounts.verifier_state.owner.to_bytes()).try_to_vec()?[1..].to_vec(),
         ]
         .concat(),
         connecting_hash,
