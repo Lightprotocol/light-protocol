@@ -5,6 +5,8 @@ const b2params = { dkLen: 32 };
 const circomlibjs = require("circomlibjs");
 const ffjavascript = require("ffjavascript");
 
+
+
 export class Keypair {
   /**
    * Initialize a new keypair. Generates a random private key if not defined

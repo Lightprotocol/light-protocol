@@ -1,9 +1,6 @@
 import * as fs from "fs";
 import * as solana from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor";
-import { User } from "light-sdk";
-// import * as light from "light-sdk";
-const circomlibjs = require("circomlibjs");
+import { getLightInstance, User } from "light-sdk";
 
 export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
@@ -41,55 +38,26 @@ const decryptedUtxos: Array<Object> = [
   232323,
   "string",
 ];
-export const saveUserToFile = ({
-  signature,
-  utxos,
-}: {
-  signature: Array<number>;
-  utxos: Array<Object>;
-}) => {
-  fs.writeFileSync("./cache/signature.txt", JSON.stringify(signature));
-  console.log("- signature cached");
-
-  // TODO: encrypt user utxos
-  fs.writeFileSync("./cache/utxos.txt", JSON.stringify(utxos));
-  console.log("- utxos cached");
+export const saveUserToFile = ({ user }: { user: User }) => {
+  fs.writeFileSync("./cache/user.txt", JSON.stringify(user));
+  console.log("- user cached");
 };
 
 // simulates state fetching.
 export const readUserFromFile = async () => {
-  let signature: Array<number>;
-  let decryptedUtxos: Array<Object> = [];
+  let cachedUser: User;
+
   try {
-    let data: string = fs.readFileSync("./cache/signature.txt", "utf8");
+    let data: string = fs.readFileSync("./cache/user.txt", "utf8");
     console.log(data);
-    signature = JSON.parse(data);
+    cachedUser = JSON.parse(data);
   } catch (e: any) {
-    console.log("signature.txt not found!");
-  }
-  try {
-    let data: string = fs.readFileSync("./cache/utxos.txt", "utf8");
-    console.log(JSON.parse(data));
-    decryptedUtxos = JSON.parse(data);
-  } catch (e: any) {
-    console.log("utxos.txt not found!");
+    console.log("user.txt not found!");
   }
 
-  const signatureArray = Array.from(signature);
-  // TODO: fetch and find user utxos (decr, encr)
-  saveUserToFile({ signature: signatureArray, utxos: decryptedUtxos });
-
-  const poseidon = await circomlibjs.buildPoseidonOpt();
-  // TODO: add utxos to user..., add balance etc all to user account, also keys,
-  // TODO: User: add "publickey functionality"
-  //   const user = new User(
-  //     poseidon,
-  //     new anchor.BN(signatureArray).toString("hex")
-  //     wallet
-  //   );
-  console.log("User logged in!");
-
-  // create keys from signature
-
-  // return user object
+  let lightInstance = await getLightInstance();
+  let user = new User({ lightInstance });
+  await user.load(cachedUser);
+  console.log("User built from cache!");
+  return user;
 };
