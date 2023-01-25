@@ -35,10 +35,32 @@ import { Relayer } from "relayer";
 import { getUnspentUtxos } from "./buildBalance";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
-// TODO: need a wallet
+type Balance = {
+  symbol: string;
+  amount: number;
+  tokenAccount: PublicKey;
+  decimals: number;
+};
+
+type UtxoStatus = {
+  symbol: string;
+  tokenAccount: PublicKey;
+  availableAmount: number; // max possible in 1 merge
+  totalAmount: number;
+  utxoCount: number;
+};
+
+type BrowserWallet = {
+  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
+  signTransaction: (transaction: any) => Promise<any>;
+  sendAndConfirmTransaction: (transaction: any) => Promise<any>;
+  publicKey: PublicKey;
+};
+
 // TODO: Utxos should be assigned to a merkle tree
 // TODO: evaluate optimization to store keypairs separately or store utxos in a map<Keypair, Utxo> to not store Keypairs repeatedly
 // TODO: add support for wallet adapter (no access to payer keypair)
+// TODO: one note:
 /**
  *
  * @param browserWallet { signMessage, signTransaction, sendAndConfirmTransaction, publicKey}
@@ -47,24 +69,27 @@ const message = new TextEncoder().encode(SIGN_MESSAGE);
  */
 export class User {
   payer?: SolanaKeypair;
-  browserWallet?: any;
+  browserWallet?: BrowserWallet;
   keypair?: Keypair;
   utxos?: Utxo[];
   poseidon: any;
+  lightInstance: LightInstance;
   private seed?: string;
-
+  //TODO: rm need for payer in init-> load should suffice
   constructor({
     payer,
     browserWallet,
-    utxos = undefined,
+    utxos = [],
     keypair = undefined,
     poseidon = undefined,
+    lightInstance,
   }: {
-    payer: SolanaKeypair;
-    browserWallet: any;
+    payer?: SolanaKeypair;
+    browserWallet?: BrowserWallet;
     utxos?: Utxo[];
     keypair?: Keypair;
     poseidon?: any;
+    lightInstance: LightInstance;
   }) {
     if (!payer) {
       if (!browserWallet)
@@ -76,15 +101,60 @@ export class User {
     this.utxos = utxos;
     this.keypair = keypair;
     this.poseidon = poseidon;
+    if (
+      !lightInstance.lookUpTable ||
+      !lightInstance.provider ||
+      !lightInstance.solMerkleTree
+    )
+      throw new Error("LightInstance not properly initialized");
+    this.lightInstance = lightInstance;
   }
 
-  mergeUtxos() {
-    /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1) */
+  getBalance(): Balance[] {
+    // TODO: merge amounts from utxo
+    // TODO: consider if it makes sense to include a 'available balance' andor 'private balance'
+    const balance = {
+      symbol: "SOL",
+      amount: 1e9,
+      // unverifiedAmount: 1e8, // iterate here
+      tokenAccount: SystemProgram.programId,
+      decimals: 9,
+    };
+    return [balance];
   }
+
+  // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...
+  async mergeUtxos(utxos: Utxo[]) {
+    /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1)
+     * check *after* ACTION whether we can still merge in more.
+     * TODO: add dust tagging protection (skip dust utxos)
+     * Still torn - for regular devs this should be done automatically, e.g auto-prefacing any regular transaction.
+     * whereas for those who want manual access there should be a fn to merge -> utxo = getutxosstatus() -> merge(utxos)
+     */
+  }
+  getUtxoInbox() {
+    // TODO: merge with getUtxoStatus?
+    // returns all non-accepted utxos.
+    // we'd like to enforce some kind of sanitary controls here.
+    // would not be part of the main balance
+  }
+  getUtxoStatus(): UtxoStatus[] {
+    let utxos: Utxo[] = []; // subset
+    const status = {
+      symbol: "SOL",
+      tokenAccount: SystemProgram.programId,
+      availableAmount: 1e9, // default: user has to approve incoming utxos -> instant merge.
+      totalAmount: 2e9,
+      utxoCount: 11,
+    };
+    return [status];
+  }
+  // getPrivacyScore() -> for unshields only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching
   // but it would probably be more logical to fetch utxos here as well
   addUtxos() {}
 
+  // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
   createOutUtxos({
     mint,
     amount,
@@ -95,7 +165,7 @@ export class User {
     inUtxos: Utxo[];
   }) {
     // amounts
-    // get fee amounts, type of utxos,...
+    // TODO: get fee amounts, type of utxos,...
     if (!this.poseidon) throw new Error("Poseidon not initialized");
     if (!this.keypair) throw new Error("Shielded keypair not initialized");
 
@@ -108,8 +178,8 @@ export class User {
     return [u1];
   }
 
-  // TODO: adapt to rule: feeasset is always first.
-  // TODO: @Swen, add tests for hc values
+  // TODO: adapt to rule: fee_asset is always first.
+  // TODO: @Swen, add tests for hardcoded values
   // TODO: check if negative amounts need to separately be considered? (wd vs. deposit)
   // TODO: add pubAmount handling
   selectInUtxos({
@@ -280,21 +350,25 @@ export class User {
   // TODO: evaluate whether to move prepareUtxos here
   // maybe it makes sense since I might need new keypairs etc in this process
   // maybe not because we want to keep this class lean
-
-  async shield({ token, amount }: { token: string; amount: number }) {
-    anchor.setProvider(anchor.AnchorProvider.env());
-    const provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
-    );
-    const LOOK_UP_TABLE = await initLookUpTableFromFile(provider); // TODO: move? perf.?
+  // TODO: shieldedkeypair/payer
+  // TODO: in UI, support wallet switching, prefill option with button;
+  async shield({
+    token,
+    amount,
+    recipient,
+  }: {
+    token: string;
+    amount: number;
+    recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
+  }) {
+    // TODO: remove. is hardcoded (from env or smth)
     let tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
     if (!tokenCtx.isSol && this.payer) {
       try {
         await splToken.approve(
-          provider.connection,
+          this.lightInstance.provider!.connection,
           this.payer,
           tokenCtx.tokenAccount,
           AUTHORITY, //delegate
@@ -309,17 +383,8 @@ export class User {
       // TODO: implement browserWallet support for token.approve
     }
 
-    const lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({
-        pubkey: MERKLE_TREE_KEY,
-        poseidon: this.poseidon,
-      }),
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
-
     let tx = new Transaction({
-      instance: lightInstance,
+      instance: this.lightInstance,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
     });
@@ -360,20 +425,10 @@ export class User {
 
   /** unshield
    * @params token: string
-   * @params amount: number - in lamports or (base units)
+   * @params amount: number - in base units (e.g. lamports for 'SOL')
    */
   async unshield({ token, amount }: { token: string; amount: number }) {
     // TODO: we could put these lines into a "init config" function
-    anchor.setProvider(anchor.AnchorProvider.env());
-    const provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
-    );
-    const LOOK_UP_TABLE = await initLookUpTableFromFile(provider); // TODO: move? perf.?
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: this.poseidon,
-    });
 
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
@@ -389,21 +444,16 @@ export class User {
       inUtxos,
     });
 
-    const lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
     // TODO: Create an actually implemented relayer here
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable!,
+      this.lightInstance.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
+      instance: this.lightInstance,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
@@ -426,8 +476,8 @@ export class User {
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(
+    await this.lightInstance.provider!.connection.confirmTransaction(
+      await this.lightInstance.provider!.connection.requestAirdrop(
         relayer.accounts.relayerRecipient,
         1_000_000,
       ),
@@ -443,19 +493,7 @@ export class User {
   }
 
   async transfer({ token, amount }: { token: string; amount: number }) {
-    // TODO: check if smoother ways than to re-implement unshield
-
-    // TODO: we could put these lines into a "init config" function
-    anchor.setProvider(anchor.AnchorProvider.env());
-    const provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
-    );
-    const LOOK_UP_TABLE = await initLookUpTableFromFile(provider); // TODO: move? perf.?
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: this.poseidon,
-    });
+    // TODO: check for dry-er ways than to re-implement unshield
 
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
@@ -471,21 +509,16 @@ export class User {
       inUtxos,
     });
 
-    const lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
     // TODO: Create an actually implemented relayer here
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable!,
+      this.lightInstance.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
+      instance: this.lightInstance,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
@@ -508,8 +541,8 @@ export class User {
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(
+    await this.lightInstance.provider!.connection.confirmTransaction(
+      await this.lightInstance.provider!.connection.requestAirdrop(
         relayer.accounts.relayerRecipient,
         1_000_000,
       ),
@@ -537,7 +570,8 @@ export class User {
     */
 
   /** Sign, derive utxos, keypairs. Optionally, supply chached state to skip */
-  async load({ cachedUser }: { cachedUser?: User }) {
+  // TODO: rm payer property -> let user pass in the payer for load and for shield only.
+  async load(cachedUser?: User) {
     if (cachedUser) {
       this.keypair = cachedUser.keypair;
       this.seed = cachedUser.seed;
@@ -554,7 +588,9 @@ export class User {
         );
         this.seed = new anchor.BN(signature).toString();
       } else if (this.browserWallet) {
-        const signature: Uint8Array = this.browserWallet.signMessage(message);
+        const signature: Uint8Array = await this.browserWallet.signMessage(
+          message,
+        );
         this.seed = new anchor.BN(signature).toString();
       } else {
         throw new Error("No payer or browser wallet provided");
@@ -570,23 +606,13 @@ export class User {
       });
     }
 
-    // TODO: move this?
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: this.poseidon,
-    });
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-    anchor.setProvider(anchor.AnchorProvider.env());
-    const provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
-    );
 
     const params = {
       leavesPdas,
-      merkleTree,
-      provider,
-      encryptionKeypair: this.keypair.encryptionKeypair,
+      merkleTree: this.lightInstance.solMerkleTree!, // TODO: check diff solmt build vs constructor
+      provider: this.lightInstance.provider,
+      encryptionKeypair: this.keypair.encryptionKeypair, // TODO: save as keypair in class
       keypair: this.keypair,
       feeAsset: TOKEN_REGISTRY[0].tokenAccount,
       mint: TOKEN_REGISTRY[0].tokenAccount,

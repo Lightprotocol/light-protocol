@@ -1,30 +1,25 @@
 import { createNewWallet, readWalletFromFile, saveUserToFile } from "../util";
 import * as solana from "@solana/web3.js";
-import * as anchor from "@project-serum/anchor";
-import { User } from "light-sdk";
-import { sign } from "tweetnacl";
-import { SIGN_MESSAGE } from "../constants";
+import { getLightInstance, User } from "light-sdk";
 import type { Arguments, CommandBuilder } from "yargs";
-const message = new TextEncoder().encode(SIGN_MESSAGE);
-const circomlibjs = require("circomlibjs");
 
 type Options = {
-  clean: boolean | undefined;
+  reset: boolean | undefined;
 };
 
 export const command: string = "register";
 export const desc: string =
-  "register a light user using an existing solana wallet or with a fresh one";
+  "Register a light user using an existing solana wallet or with a fresh one";
 
 export const builder: CommandBuilder<Options> = (yargs) =>
   yargs.options({
-    clean: { type: "boolean" },
+    reset: { type: "boolean" },
   });
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
-  const { clean } = argv;
+  const { reset } = argv;
   var wallet: solana.Keypair;
-  if (!clean) {
+  if (!reset) {
     try {
       wallet = readWalletFromFile();
     } catch (e) {
@@ -35,22 +30,12 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     console.log("Resetting wallet...");
     wallet = createNewWallet();
   }
-  const signature: Uint8Array = sign.detached(message, wallet.secretKey);
-  if (!sign.detached.verify(message, signature, wallet.publicKey.toBytes()))
-    throw new Error("Invalid signature!");
-  const signatureArray = Array.from(signature);
 
-  // TODO: fetch and find user utxos (decr, encr)
-
-  const decryptedUtxos: Array<Object> = [];
-  saveUserToFile({ signature: signatureArray, utxos: decryptedUtxos });
-
-  // TODO: add utxos to user..., add balance etc all to user account, also keys,
-  const user = new User(
-    poseidon,
-    new anchor.BN(signatureArray).toString("hex"),
-    wallet
-  ).load();
+  // same as login. would here optionally also register account on-chain (not strictly necessary)
+  const lightInstance = await getLightInstance();
+  const user = new User({ payer: wallet, lightInstance });
+  await user.load();
+  saveUserToFile({ user });
   console.log("User registered!", user);
   process.exit(0);
 };
