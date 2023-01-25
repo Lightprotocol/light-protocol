@@ -79,13 +79,13 @@ pub struct LightInstruction<'info> {
     pub recipient_fee: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: AccountInfo<'info>,
+    pub relayer_recipient: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during sol deposits.
     #[account(mut)]
-    pub escrow: AccountInfo<'info>,
+    pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
-    pub token_authority: AccountInfo<'info>,
+    pub token_authority: UncheckedAccount<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     /// CHECK: Is the same as in integrity hash.
     #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
