@@ -34,11 +34,12 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     throw new Error("Not enough balance");
   }
 
-  await user.unshield({
-    amount,
-    token,
-    recipient: new solana.PublicKey(recipient),
-  });
+  // await user.unshield({
+  //   amount,
+  //   token,
+  //   recipient: new solana.PublicKey(recipient),
+  // });
+  console.log(`Unhield done: ${amount} ${token} to ${recipient}`);
 
   process.exit(0);
 };

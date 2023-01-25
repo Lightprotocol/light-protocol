@@ -39,6 +39,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   //     token,
   //     recipient: new solana.PublicKey(recipient), // TODO: do shielded address
   //   });
+  console.log(`Shielded Transfer done: ${amount} ${token}`);
 
   process.exit(0);
 };

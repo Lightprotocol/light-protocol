@@ -13,8 +13,6 @@ export class Keypair {
    */
   privkey: BN;
   pubkey: BN;
-  // encryptionPublicKey: Uint8Array;
-  // encryptionPrivateKey?: Uint8Array;
   encryptionKeypair: nacl.BoxKeyPair;
   poseidon: any;
   burnerSeed: Uint8Array;
