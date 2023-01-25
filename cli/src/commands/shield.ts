@@ -24,8 +24,8 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     throw new Error("No user.txt file found, please login first.");
   }
   // TODO: ensure 'payer's' balance is enough w 'connection'
+  // await user.shield({ amount, token });
 
-  await user.shield({ amount, token });
-
+  console.log(`Shielding done: ${amount} ${token}`);
   process.exit(0);
 };

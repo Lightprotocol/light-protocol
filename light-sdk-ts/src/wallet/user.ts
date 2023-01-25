@@ -5,9 +5,13 @@ import {
   SystemProgram,
 } from "@solana/web3.js";
 import { Keypair } from "../keypair";
-import { Utxo } from "utxo";
+import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { LightInstance, Transaction, TransactionParameters } from "transaction";
+import {
+  LightInstance,
+  Transaction,
+  TransactionParameters,
+} from "../transaction";
 import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
 
@@ -28,10 +32,10 @@ import {
   ADMIN_AUTH_KEYPAIR,
   initLookUpTableFromFile,
   recipientTokenAccount,
-} from "test-utils";
-import { SolMerkleTree } from "@merkleTree";
-import { VerifierZero } from "verifiers";
-import { Relayer } from "relayer";
+} from "../test-utils/index";
+import { SolMerkleTree } from "../merkleTree/index";
+import { VerifierZero } from "../verifiers/index";
+import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
@@ -122,37 +126,6 @@ export class User {
     };
     return [balance];
   }
-
-  // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...
-  async mergeUtxos(utxos: Utxo[]) {
-    /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1)
-     * check *after* ACTION whether we can still merge in more.
-     * TODO: add dust tagging protection (skip dust utxos)
-     * Still torn - for regular devs this should be done automatically, e.g auto-prefacing any regular transaction.
-     * whereas for those who want manual access there should be a fn to merge -> utxo = getutxosstatus() -> merge(utxos)
-     */
-  }
-  getUtxoInbox() {
-    // TODO: merge with getUtxoStatus?
-    // returns all non-accepted utxos.
-    // we'd like to enforce some kind of sanitary controls here.
-    // would not be part of the main balance
-  }
-  getUtxoStatus(): UtxoStatus[] {
-    let utxos: Utxo[] = []; // subset
-    const status = {
-      symbol: "SOL",
-      tokenAccount: SystemProgram.programId,
-      availableAmount: 1e9, // default: user has to approve incoming utxos -> instant merge.
-      totalAmount: 2e9,
-      utxoCount: 11,
-    };
-    return [status];
-  }
-  // getPrivacyScore() -> for unshields only, can separate into its own helper method
-  // Fetch utxos should probably be a function such the user object is not occupied while fetching
-  // but it would probably be more logical to fetch utxos here as well
-  addUtxos() {}
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
   createOutUtxos({
@@ -357,7 +330,7 @@ export class User {
     amount: number;
     recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
   }) {
-    // TODO: remove. is hardcoded (from env or smth)
+    // TODO: use getAssetByLookup fns instead (utils)
     let tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
@@ -376,7 +349,7 @@ export class User {
         console.log(error);
       }
     } else {
-      // TODO: implement browserWallet support for token.approve
+      // TODO: implement browserWallet support; for UI
     }
 
     let tx = new Transaction({
@@ -422,6 +395,7 @@ export class User {
   /** unshield
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
+   * @params recipient: PublicKey - Solana address
    */
   async unshield({
     token,
@@ -493,6 +467,7 @@ export class User {
     }
   }
 
+  // TODO: check for dry-er ways than to re-implement unshield. E.g. we could use the type of 'recipient' to determine whether to transfer or unshield.
   async transfer({
     token,
     amount,
@@ -500,10 +475,8 @@ export class User {
   }: {
     token: string;
     amount: number;
-    recipient: anchor.BN; // TODO: Keypair.pubkey
+    recipient: anchor.BN; // TODO: Keypair.pubkey -> type
   }) {
-    // TODO: check for dry-er ways than to re-implement unshield
-
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
@@ -540,8 +513,8 @@ export class User {
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: recipient,
-      recipientFee: origin.publicKey,
+      recipient: recipient, // TODO: Verify that this isnt used in transfer
+      recipientFee: origin.publicKey, // recipientFee rename
       verifier: new VerifierZero(),
     });
 
@@ -577,8 +550,7 @@ export class User {
     * 
     */
 
-  /** Sign, derive utxos, keypairs. Optionally, supply chached state to skip */
-  // TODO: rm payer property -> let user pass in the payer for load and for shield only.
+  // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
   async load(cachedUser?: User) {
     if (cachedUser) {
       this.keypair = cachedUser.keypair;
@@ -618,9 +590,9 @@ export class User {
 
     const params = {
       leavesPdas,
-      merkleTree: this.lightInstance.solMerkleTree!, // TODO: check diff solmt build vs constructor
-      provider: this.lightInstance.provider,
-      encryptionKeypair: this.keypair.encryptionKeypair, // TODO: save as keypair in class
+      merkleTree: this.lightInstance.solMerkleTree!, // TODO: check the diff between SolMerkleTree.build vs constructor
+      provider: this.lightInstance.provider!,
+      encryptionKeypair: this.keypair.encryptionKeypair,
       keypair: this.keypair,
       feeAsset: TOKEN_REGISTRY[0].tokenAccount,
       mint: TOKEN_REGISTRY[0].tokenAccount,
@@ -628,11 +600,25 @@ export class User {
       merkleTreeProgram: merkleTreeProgramId,
     };
     const utxos = await getUnspentUtxos(params);
-    // supply balance
-    // TODO: debug getunspentutxos for this case dep.
-    let balance = {
-      [TOKEN_REGISTRY[0].symbol]: 0,
-      [TOKEN_REGISTRY[1].symbol]: 0,
-    };
+    this.utxos = utxos;
   }
+
+  // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...
+  /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1)
+   * check *after* ACTION whether we can still merge in more.
+   * TODO: add dust tagging protection (skip dust utxos)
+   * Still torn - for regular devs this should be done automatically, e.g auto-prefacing any regular transaction.
+   * whereas for those who want manual access there should be a fn to merge -> utxo = getutxosstatus() -> merge(utxos)
+   */
+  async mergeUtxos(utxos: Utxo[]) {}
+  // TODO: merge with getUtxoStatus?
+  // returns all non-accepted utxos.
+  // we'd like to enforce some kind of sanitary controls here.
+  // would not be part of the main balance
+  getUtxoInbox() {}
+  getUtxoStatus(): UtxoStatus[] {}
+  // getPrivacyScore() -> for unshields only, can separate into its own helper method
+  // Fetch utxos should probably be a function such the user object is not occupied while fetching
+  // but it would probably be more logical to fetch utxos here as well
+  addUtxos() {}
 }

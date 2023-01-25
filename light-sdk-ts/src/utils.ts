@@ -5,7 +5,7 @@ import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import { LightInstance } from "transaction";
 import * as anchor from "@coral-xyz/anchor";
-import { initLookUpTableFromFile } from "test-utils";
+import { initLookUpTableFromFile } from "./test-utils/index";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
