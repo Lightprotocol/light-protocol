@@ -83,7 +83,7 @@ describe("verifier_program", () => {
     
   })
 
-  it.skip("Deposit 10 utxo", async () => {
+  it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
