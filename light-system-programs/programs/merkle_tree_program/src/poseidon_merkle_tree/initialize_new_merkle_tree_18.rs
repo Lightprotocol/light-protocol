@@ -1,4 +1,3 @@
-use crate::errors::ErrorCode;
 use anchor_lang::prelude::*;
 
 use crate::state::MerkleTree;
@@ -9,7 +8,7 @@ use std::cell::RefMut;
 
 #[derive(Accounts)]
 pub struct InitializeNewMerkleTree<'info> {
-    #[account(mut, address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
+    #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
     #[account(

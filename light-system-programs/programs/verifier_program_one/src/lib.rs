@@ -12,15 +12,15 @@ pub mod verifying_key;
 
 pub use processor::*;
 
+use crate::processor::TransactionConfig;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
+use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
+use light_verifier_sdk::state::VerifierState10Ins;
 use merkle_tree_program::{
     initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
     program::MerkleTreeProgram, utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
-
-use crate::processor::TransactionConfig;
-use light_verifier_sdk::state::VerifierState10Ins;
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
@@ -77,8 +77,6 @@ pub mod verifier_program_one {
         Ok(())
     }
 }
-
-pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 
 /// Send and stores data.
 #[derive(Accounts)]

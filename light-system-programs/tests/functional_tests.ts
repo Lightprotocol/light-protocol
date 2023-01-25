@@ -240,8 +240,8 @@ describe("verifier_program", () => {
     await updateMerkleTreeForTest(provider);
   });
 
-  // only works at the first try because the tests takes utxo in pos 0
-  it.skip("Withdraw", async () => {
+
+  it("Withdraw", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
@@ -309,8 +309,7 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  // doesn't work program runs out of memory
-  it.skip("Withdraw 10 utxos", async () => {
+  it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
