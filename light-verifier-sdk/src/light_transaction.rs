@@ -32,7 +32,7 @@ use merkle_tree_program::{
         create_pda::create_and_check_pda,
     },
 };
-
+pub const VERIFIER_STATE_SEED: &[u8] = b"VERIFIER_STATE";
 type G1 = ark_ec::short_weierstrass_jacobian::GroupAffine<ark_bn254::g1::Parameters>;
 
 pub trait Config {
