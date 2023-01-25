@@ -353,9 +353,10 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         if T::NR_NULLIFIERS + (T::NR_LEAVES / 2) != self.accounts.unwrap().remaining_accounts.len()
         {
             msg!(
-                "NR_NULLIFIERS  {} != self.nullifiers.len() {}",
-                T::NR_NULLIFIERS,
-                self.nullifiers.len()
+                "NR_LEAVES / 2
+                {} != self.leaves.len() {}",
+                T::NR_LEAVES / 2,
+                self.leaves.len()
             );
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
         }
