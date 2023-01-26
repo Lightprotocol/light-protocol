@@ -54,6 +54,10 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
     )?;
 
+    if (ctx.accounts.verifier_state.owner == ctx.accounts.system_program.programId) {
+        return err!(crate::ErrorCode::InvalidVerifier);
+    };
+
     let checked_inputs = vec![
         [
             vec![0u8],
