@@ -27,7 +27,9 @@ import {
   VerifierZero,
   updateMerkleTreeForTest,
   ADMIN_AUTH_KEY,
-  VerifierTwo
+  VerifierTwo,
+  confirmConfig,
+  Relayer
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -48,12 +50,13 @@ var POSEIDON,
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
-  anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.AnchorProvider.local("http://127.0.0.1:8899", {
-    preflightCommitment: "confirmed",
-    commitment: "confirmed",
-  });
-
+  process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
+  
+  const provider = anchor.AnchorProvider.local(
+    "http://127.0.0.1:8899",
+    confirmConfig
+  );
+  anchor.setProvider(provider);
   before( async () => {
     console.log("Initing accounts");
 
@@ -67,7 +70,7 @@ describe("Mock verifier functional", () => {
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
   });
 
-
+  var outputUtxo
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
@@ -77,7 +80,7 @@ describe("Mock verifier functional", () => {
       provider
     };
 
-    const outputUtxo = new Utxo({
+    outputUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
       keypair: new Keypair({poseidon, seed: new Array(32).fill(1).toString()}),
@@ -102,11 +105,60 @@ describe("Mock verifier functional", () => {
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
     });
+
+    await tx.compile(txParams, appParams);
+    await tx.instance.provider.connection.confirmTransaction(
+      await tx.instance.provider.connection.requestAirdrop(tx.params.accounts.authority, 1_000_000_000, "confirmed")
+    );
+    await tx.getProof();
+    await tx.getAppProof();
+    await tx.sendAndConfirmTransaction();
+    await updateMerkleTreeForTest(provider)
+  });
+
+  it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
+    const poseidon = await buildPoseidonOpt();
+
+    let lightInstance: LightInstance = {
+      solMerkleTree: await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon}),
+      lookUpTable: LOOK_UP_TABLE,
+      provider
+    };
+    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    let relayer = new Relayer(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      lightInstance.lookUpTable,
+      relayerRecipient,
+      new BN(100000)
+  );
+  await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(relayerRecipient, 10000000));
+
+    // TODO: add check that recipients are defined if withdrawal
+    const txParams = new TransactionParameters({
+      inputUtxos: [outputUtxo],
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      recipient: userTokenAccount, // just any token account
+      recipientFee: ADMIN_AUTH_KEY, //
+      verifier: new VerifierTwo(),
+    });
+
+    const appParams = {
+      verifier: new MockVerifier(),
+      inputs: { },
+    }
+
+    let tx = new Transaction({
+      instance: lightInstance,
+      payer: ADMIN_AUTH_KEYPAIR,
+      shuffleEnabled: false,
+      relayer
+    });
+
     await tx.compile(txParams, appParams);
     await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
-    // await updateMerkleTreeForTest(provider)
+    await updateMerkleTreeForTest(provider)
   });
 
 });

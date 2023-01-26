@@ -3,8 +3,8 @@
         "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
         "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
         "build-circuit": "sh ./scripts/buildCircuit.sh",
-        "test-circuit": "ts-mocha -p ./tsconfig.json -t 1000000 tests/circuit.test.ts --exit",
-        "test": "ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts --exit"
+        "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
+        "test": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'"
     },
     "dependencies": {
         "@project-serum/anchor": "^0.24.1",

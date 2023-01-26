@@ -83,24 +83,22 @@ export class MockVerifier implements Verifier {
     // await transaction.instance.provider.connection.confirmTransaction(
     //   await transaction.instance.provider.connection.requestAirdrop(invokingVerifierPubkey, 1_000_000_000, "confirmed")
     // );
-    await transaction.instance.provider.connection.confirmTransaction(
-      await transaction.instance.provider.connection.requestAirdrop(transaction.params.accounts.authority, 1_000_000_000, "confirmed")
-    );
+
     
     console.log("pre ix1");
-    console.log("transaction.publicInputs ", transaction.publicInputs);
+    // console.log("transaction.publicInputs ", transaction.publicInputs);
     
-    console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
-    console.log("ntransaction.publicInputs.nullifiers ", transaction.publicInputs.nullifiers);
-    console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
-    console.log("new BN(transaction.publicInputs.feeAmount) ",Buffer.from(transaction.publicInputs.feeAmount));
-    console.log("new anchor.BN(transaction.rootIndex.toString()) ", new anchor.BN(transaction.rootIndex.toString()));
-    console.log("new anchor.BN(transaction.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
-    console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos.length);
-    console.log(transaction.appParams);
-    console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
-    console.log("transaction.appParams.input ", transaction.appParams);
-    console.log("transaction.params.accounts ", transaction.params.accounts);
+    // console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
+    // console.log("ntransaction.publicInputs.nullifiers ", transaction.publicInputs.nullifiers);
+    // console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
+    // console.log("new BN(transaction.publicInputs.feeAmount) ",Buffer.from(transaction.publicInputs.feeAmount));
+    // console.log("new anchor.BN(transaction.rootIndex.toString()) ", new anchor.BN(transaction.rootIndex.toString()));
+    // console.log("new anchor.BN(transaction.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
+    // console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos.length);
+    // console.log(transaction.appParams);
+    // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
+    // console.log("transaction.appParams.input ", transaction.appParams);
+    // console.log("transaction.params.accounts ", transaction.params.accounts);
     
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
@@ -111,8 +109,6 @@ export class MockVerifier implements Verifier {
         new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.relayer.relayerFee.toString()),
         Buffer.from(transaction.encryptedUtxos.slice(0, 512)),
-        // transaction.publicInputsApp.slot.slice(24,32)//.reverse()
-        // got 23 bytes left
       )
       .accounts({
         ...transaction.params.accounts,
@@ -129,7 +125,6 @@ export class MockVerifier implements Verifier {
       )
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
-        invokingVerifier: invokingVerifierPubkey,
         ...transaction.params.accounts,
         ...transaction.relayer.accounts,
       })
