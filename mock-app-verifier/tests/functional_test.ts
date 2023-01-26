@@ -34,6 +34,7 @@ import {
 import {
   Keypair as SolanaKeypair,
   SystemProgram,
+  PublicKey
 } from "@solana/web3.js";
 import {
   MockVerifier
@@ -46,7 +47,7 @@ import { it } from "mocha";
 const token = require("@solana/spl-token");
 var POSEIDON,
   LOOK_UP_TABLE,
-  KEYPAIR;
+  KEYPAIR, relayerRecipient: PublicKey;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -67,7 +68,8 @@ describe("Mock verifier functional", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
     await setUpMerkleTree(provider);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
+    relayerRecipient = SolanaKeypair.generate().publicKey;
+    LOOK_UP_TABLE = await initLookUpTableFromFile(provider,"lookUpTable.txt", /*Array.from([relayerRecipient])*/);
   });
 
   var outputUtxo
@@ -113,6 +115,7 @@ describe("Mock verifier functional", () => {
     await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
+    await tx.checkBalances();
     await updateMerkleTreeForTest(provider)
   });
 
@@ -124,12 +127,11 @@ describe("Mock verifier functional", () => {
       lookUpTable: LOOK_UP_TABLE,
       provider
     };
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       lightInstance.lookUpTable,
       relayerRecipient,
-      new BN(100000)
+      new BN(0)
   );
   await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(relayerRecipient, 10000000));
 
@@ -138,7 +140,7 @@ describe("Mock verifier functional", () => {
       inputUtxos: [outputUtxo],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: userTokenAccount, // just any token account
-      recipientFee: ADMIN_AUTH_KEY, //
+      recipientFee: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),
     });
 
@@ -158,7 +160,7 @@ describe("Mock verifier functional", () => {
     await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
-    await updateMerkleTreeForTest(provider)
+    await tx.checkBalances();
   });
 
 });
