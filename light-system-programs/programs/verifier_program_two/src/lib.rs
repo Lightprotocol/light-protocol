@@ -15,7 +15,6 @@ use crate::processor::process_shielded_transfer;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
-use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use merkle_tree_program::{
@@ -23,6 +22,11 @@ use merkle_tree_program::{
     RegisteredVerifier,
 };
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
+#[error_code]
+pub enum ErrorCode {
+    #[msg("System program is no valid verifier.")]
+    InvalidVerifier,
+}
 
 #[program]
 pub mod verifier_program_two {
@@ -87,6 +91,6 @@ pub struct LightInstruction<'info> {
     pub token_authority: UncheckedAccount<'info>,
     /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
     /// CHECK: Is the same as in integrity hash.
-    #[account(seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
+    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
