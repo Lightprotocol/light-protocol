@@ -1213,7 +1213,11 @@ export class Transaction {
 
   async checkBalances() {
     // Checking that nullifiers were inserted
-    this.is_token = true;
+    if (new BN(this.proofInput.publicAmount).toString() === "0") {
+      this.is_token = false;
+    } else {
+      this.is_token = true;
+    }
 
     for (var i in this.params.nullifierPdaPubkeys) {
       var nullifierAccount =
@@ -1330,6 +1334,10 @@ export class Transaction {
         "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
         Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
       );
+      leavesAccountData =
+        await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+          this.params.leavesPdaPubkeys[0].pubkey,
+        );
       console.log(
         `${Number(leavesAccountData.leftLeafIndex)} + ${
           this.params.leavesPdaPubkeys.length * 2
@@ -1344,18 +1352,56 @@ export class Transaction {
     } catch (e) {
       console.log("preInsertedLeavesIndex: ", e);
     }
+    var nrInstructions;
+    if (this.appParams) {
+      nrInstructions = this.appParams.verifier.instructions?.length;
+    } else if (this.params) {
+      nrInstructions = this.params.verifier.instructions?.length;
+    } else {
+      throw new Error("No params provided.");
+    }
+    console.log("nrInstructions ", nrInstructions);
 
     if (this.action == "DEPOSIT" && this.is_token == false) {
-      var recipientAccount =
-        await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.recipient,
+      var recipientFeeAccountBalance =
+        await this.instance.provider.connection.getBalance(
+          this.params.accounts.recipientFee,
         );
+      console.log(
+        "recipientFeeBalancePriorTx: ",
+        this.recipientFeeBalancePriorTx,
+      );
+
+      var senderFeeAccountBalance =
+        await this.instance.provider.connection.getBalance(
+          this.params.accounts.senderFee,
+        );
+      console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
+      console.log(
+        "this.senderFeeBalancePriorTx: ",
+        this.senderFeeBalancePriorTx,
+      );
+
       assert(
-        recipientAccount.lamports ==
-          I64(this.recipientBalancePriorTx)
-            .add(this.publicAmount.toString())
-            .toString(),
-        "amount not transferred correctly",
+        recipientFeeAccountBalance ==
+          Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount),
+      );
+      console.log(
+        "this.senderFeeBalancePriorTx ",
+        this.senderFeeBalancePriorTx,
+      );
+
+      console.log(
+        `${new BN(this.senderFeeBalancePriorTx)
+          .sub(this.feeAmount)
+          .sub(new BN(5000 * nrInstructions))
+          .toString()} == ${senderFeeAccountBalance}`,
+      );
+      assert(
+        new BN(this.senderFeeBalancePriorTx)
+          .sub(this.feeAmount)
+          .sub(new BN(5000 * nrInstructions))
+          .toString() == senderFeeAccountBalance.toString(),
       );
     } else if (this.action == "DEPOSIT" && this.is_token == true) {
       console.log("DEPOSIT and token");
@@ -1423,48 +1469,61 @@ export class Transaction {
           Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount),
       );
       console.log(
-        `${Number(this.senderFeeBalancePriorTx)} - ${Number(
-          this.feeAmount,
-        )} == ${senderFeeAccountBalance}`,
+        `${new BN(this.senderFeeBalancePriorTx)
+          .sub(this.feeAmount)
+          .sub(new BN(5000 * nrInstructions))
+          .toString()} == ${senderFeeAccountBalance}`,
       );
       assert(
-        Number(this.senderFeeBalancePriorTx) -
-          Number(this.feeAmount) -
-          5000 * this.params.verifier.instructions?.length ==
-          Number(senderFeeAccountBalance),
+        new BN(this.senderFeeBalancePriorTx)
+          .sub(this.feeAmount)
+          .sub(new BN(5000 * nrInstructions))
+          .toString() == senderFeeAccountBalance.toString(),
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
-      var senderAccount =
-        await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.sender,
-        );
-      var recipientAccount =
-        await this.instance.provider.connection.getAccountInfo(
-          this.params.accounts.recipient,
-        );
-      // console.log("senderAccount.lamports: ", senderAccount.lamports)
-      // console.log("I64(senderAccountBalancePriorLastTx): ", I64(senderAccountBalancePriorLastTx).toString())
-      // console.log("Sum: ", ((I64(senderAccountBalancePriorLastTx).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString())
-
-      assert.equal(
-        senderAccount.lamports,
-        I64(senderAccountBalancePriorLastTx)
-          .add(I64.readLE(this.extAmount, 0))
-          .sub(I64(relayerFee))
-          .toString(),
-        "amount not transferred correctly",
+      var relayerAccount = await this.instance.provider.connection.getBalance(
+        this.relayer.accounts.relayerRecipient,
       );
 
-      var recipientAccount =
-        await this.instance.provider.connection.getAccountInfo(recipient);
-      // console.log(`recipientAccount.lamports: ${recipientAccount.lamports} == sum ${((I64(Number(this.recipientBalancePriorTx)).sub(I64.readLE(this.extAmount, 0))).add(I64(relayerFee))).toString()}
+      var recipientFeeAccount =
+        await this.instance.provider.connection.getBalance(
+          this.params.accounts.recipientFee,
+        );
 
-      assert(
-        recipientAccount.lamports ==
-          I64(Number(this.recipientBalancePriorTx))
-            .sub(I64.readLE(this.extAmount, 0))
-            .toString(),
-        "amount not transferred correctly",
+      // console.log("relayerAccount ", relayerAccount);
+      // console.log("this.relayer.relayerFee: ", this.relayer.relayerFee);
+      console.log(
+        "relayerRecipientAccountBalancePriorLastTx ",
+        this.relayerRecipientAccountBalancePriorLastTx,
+      );
+      console.log(
+        `relayerFeeAccount ${new anchor.BN(relayerAccount)
+          .sub(this.relayer.relayerFee)
+          .toString()} == ${new anchor.BN(
+          this.relayerRecipientAccountBalancePriorLastTx,
+        )}`,
+      );
+
+      console.log(
+        `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
+          .add(new anchor.BN(this.relayer.relayerFee.toString()))
+          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .toString()}`,
+      );
+
+      assert.equal(
+        new anchor.BN(recipientFeeAccount)
+          .add(new anchor.BN(this.relayer.relayerFee.toString()))
+          .toString(),
+        new anchor.BN(this.recipientFeeBalancePriorTx)
+          .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .toString(),
+      );
+      // console.log(`this.relayer.relayerFee ${this.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
+      assert.equal(
+        new anchor.BN(relayerAccount).sub(this.relayer.relayerFee).toString(),
+        this.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == true) {
       var senderAccount = await getAccount(

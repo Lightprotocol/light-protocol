@@ -4,12 +4,9 @@ use crate::LightInstructionSecond;
 use anchor_lang::prelude::*;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{
-    cpi_instructions::get_seeds,
     light_app_transaction::AppTransaction,
     light_transaction::{Config, Transaction},
 };
-
-use anchor_lang::solana_program::sysvar;
 
 #[derive(Clone)]
 pub struct TransactionsConfig;
@@ -72,10 +69,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
     );
 
     app_verifier.verify()?;
-    let seed = [
-        ctx.accounts.signing_address.key().to_bytes().as_ref(),
-        VERIFIER_STATE_SEED.as_ref(),
-    ];
+
     let (_, bump) = anchor_lang::prelude::Pubkey::find_program_address(
         &[
             ctx.accounts.signing_address.key().to_bytes().as_ref(),
@@ -107,8 +101,9 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
         recipient: ctx.accounts.recipient.to_account_info().clone(),
         sender_fee: ctx.accounts.sender_fee.to_account_info().clone(),
         recipient_fee: ctx.accounts.recipient_fee.to_account_info().clone(),
+        // relayer recipient and escrow will never be used in the same transaction
         relayer_recipient: ctx.accounts.relayer_recipient.to_account_info().clone(),
-        escrow: ctx.accounts.escrow.to_account_info().clone(),
+        escrow: ctx.accounts.relayer_recipient.to_account_info().clone(),
         token_authority: ctx.accounts.token_authority.to_account_info().clone(),
     };
 

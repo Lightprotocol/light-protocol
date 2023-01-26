@@ -160,11 +160,7 @@ describe("verifier_program", () => {
       } catch (e) {
         console.log(e);
       }
-      try {
-        await tx.checkBalances();
-      } catch (e) {
-        console.log(e);
-      }
+      await tx.checkBalances();
     }
   });
   it("Deposit", async () => {
@@ -231,11 +227,8 @@ describe("verifier_program", () => {
         console.log(e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
-      try {
-        await tx.checkBalances();
-      } catch (e) {
-        console.log(e);
-      }
+      await tx.checkBalances();
+
     }
     await updateMerkleTreeForTest(provider);
   });
@@ -376,11 +369,8 @@ describe("verifier_program", () => {
     } catch (e) {
       console.log(e);
     }
-    try {
-      await tx.checkBalances();
-    } catch (e) {
-      console.log(e);
-    }
+    await tx.checkBalances();
+
   });
 
 })

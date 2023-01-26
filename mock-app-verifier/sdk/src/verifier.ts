@@ -28,7 +28,7 @@ export class MockVerifier implements Verifier {
   calculateWtns: NodeRequire;
   registeredVerifierPda: PublicKey;
   nrPublicInputs: number;
-  transaction: Transaction;
+  instructions?: anchor.web3.TransactionInstruction[];
   verifierStatePubkey: PublicKey;
   proofBytes: Uint8Array;
   messageDataLength: number;
@@ -41,6 +41,7 @@ export class MockVerifier implements Verifier {
       IDL,
       marketPlaceVerifierProgramId
     );
+    this.instructions = []
     this.wtnsGenPath = "appTransaction_js/appTransaction.wasm";
     this.zkeyPath = "appTransaction.zkey";
     this.calculateWtns = require("../build-circuit/appTransaction_js/witness_calculator.js");
@@ -100,6 +101,12 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
     
+    var relayerRecipient = transaction.relayer.accounts.relayerRecipient;
+    try {
+      // deposit means the amount is u64
+      new BN(transaction.publicInputs.feeAmount).toArray("be", 8);    
+      relayerRecipient = transaction.params.accounts.escrow;      
+    } catch (error) {   }
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         Buffer.from(transaction.publicInputs.publicAmount),
@@ -116,7 +123,7 @@ export class MockVerifier implements Verifier {
       .instruction();
       console.log("pre ix2");
       // console.log("transaction.publicInputsApp.connectingHash ", transaction.publicInputsApp.connectingHash);
-      
+    
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
         Buffer.from(transaction.proofBytesApp),
@@ -127,6 +134,7 @@ export class MockVerifier implements Verifier {
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
         ...transaction.params.accounts,
         ...transaction.relayer.accounts,
+        relayerRecipient: relayerRecipient,
       })
       .remainingAccounts([
         ...transaction.params.nullifierPdaPubkeys,
@@ -134,7 +142,9 @@ export class MockVerifier implements Verifier {
       ])
       .signers([transaction.payer])
       .instruction();
-
-    return [ix1, ix2];
+    
+    this.instructions.push(ix1)
+    this.instructions.push(ix2)
+    return this.instructions;
   }
 }
