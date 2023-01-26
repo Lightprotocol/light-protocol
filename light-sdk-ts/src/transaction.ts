@@ -261,14 +261,24 @@ export class Transaction {
 
   async proveAndCreateInstructions(
     params: TransactionParameters,
+    appParams?: any,
   ): Promise<TransactionInstruction[]> {
-    await this.compileAndProve(params);
-    return await this.params.verifier.getInstructions(this);
+    await this.compileAndProve(params, appParams);
+    if (appParams) {
+      return await this.appParams.verifier.getInstructions(this);
+    } else if (this.params) {
+      return await this.params.verifier.getInstructions(this);
+    } else {
+      throw new Error("No parameters provided");
+    }
   }
 
-  async compileAndProve(params: TransactionParameters) {
-    await this.compile(params);
+  async compileAndProve(params: TransactionParameters, appParams?: any) {
+    await this.compile(params, appParams);
     await this.getProof();
+    if (appParams) {
+      await this.getAppProof();
+    }
   }
 
   async compile(params: TransactionParameters, appParams?: any) {
@@ -1050,8 +1060,16 @@ export class Transaction {
   }
 
   async closeVerifierState(): Promise<TransactionSignature> {
-    if (this.payer && this.params) {
+    if (this.payer && this.params && !this.appParams) {
       return await this.params?.verifier.verifierProgram.methods
+        .closeVerifierState()
+        .accounts({
+          ...this.params.accounts,
+        })
+        .signers([this.payer])
+        .rpc(confirmConfig);
+    } else if (this.payer && this.params && this.appParams) {
+      return await this.appParams?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
           ...this.params.accounts,

@@ -169,9 +169,6 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut, seeds= [VerifierProgramTwo::id().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
     pub verifier_program: Program<'info, VerifierProgramTwo>,
-    #[account(seeds= [signing_address.key().to_bytes().as_ref()], bump)]
-    /// CHECK:` Is checked when it is used during sol deposits.
-    pub invoking_verifier: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
