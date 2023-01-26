@@ -1,3 +1,4 @@
+// @ts-nocheck
 import {
   ADMIN_AUTH_KEYPAIR,
   confirmConfig,

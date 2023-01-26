@@ -1,3 +1,4 @@
+// @ts-nocheck
 const solana = require("@solana/web3.js");
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");

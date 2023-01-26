@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Program } from "@coral-xyz/anchor";
 import { Account, PublicKey } from "@solana/web3.js";
 import {

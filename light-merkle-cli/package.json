@@ -6,7 +6,10 @@
   "types": "dist/index.d.ts",
   "scripts": {
     "start": "node dist/src/index.js",
-    "build": "npm run clean && tsc",
+    "start:dev": "npm run build && node dist/src/index.js",
+    "build:sdk": "cd ../light-sdk-ts && npm run build && cd ../light-merkle-cli && rm -r node_modules/light-sdk && npm i",
+    "build": "npm run clean && npx tsc",
+    "build:dev": "npm run build && npm run setup",
     "clean": "rm -rf dist/",
     "commit": "git-cz",
     "setup": "npm install -g",
@@ -26,21 +29,24 @@
   "author": "Abdul Qadir(@sleepyqadir)",
   "license": "MIT",
   "dependencies": {
+    "@coral-xyz/anchor": "^0.26.0",
+    "@solana/web3.js": "^1.73.0",
     "chai": "^4.3.6",
     "chalk": "^4.1.2",
     "commander": "^9.4.0",
     "enquirer": "^2.3.6",
     "find-up": "^4.1.0",
+    "light-sdk": "file:../light-sdk-ts",
     "ora": "^5.4.1",
     "shelljs": "^0.8.5",
-    "typescript": "^4.7.4"
+    "typescript": "^4.9.4"
   },
   "devDependencies": {
     "@types/concat-stream": "^2.0.0",
     "@types/fs-extra": "^9.0.13",
     "@types/jest": "^28.1.6",
     "@types/mocha": "^9.1.1",
-    "@types/node": "^18.6.3",
+    "@types/node": "^18.11.18",
     "@types/shelljs": "^0.8.11",
     "@types/shimmer": "^1.0.2",
     "@typescript-eslint/eslint-plugin": "^5.31.0",

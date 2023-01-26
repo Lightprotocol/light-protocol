@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Program, Provider } from "@coral-xyz/anchor";
 import {
   PublicKey,

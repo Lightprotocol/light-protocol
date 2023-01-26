@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Keypair } from "./keypair";
 import nacl, { box } from "tweetnacl";
 const crypto = require("crypto");

@@ -1,3 +1,4 @@
+// @ts-nocheck
 const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import {

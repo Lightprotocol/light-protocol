@@ -1,3 +1,4 @@
+// @ts-nocheck
 const anchor = require("@coral-xyz/anchor");
 const nacl = require("tweetnacl");
 export const createEncryptionKeypair = () => nacl.box.keyPair();

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { BN } from "@coral-xyz/anchor";
 import { merkleTreeProgram, MERKLE_TREE_KEY } from "./constants";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";

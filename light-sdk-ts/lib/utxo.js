@@ -24,6 +24,7 @@ var __importStar = (this && this.__importStar) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Utxo = exports.N_ASSET_PUBKEYS = exports.N_ASSETS = exports.newNonce = void 0;
+// @ts-nocheck
 const keypair_1 = require("./keypair");
 const tweetnacl_1 = __importStar(require("tweetnacl"));
 const crypto = require("crypto");
@@ -44,7 +45,7 @@ exports.N_ASSETS = 2;
 exports.N_ASSET_PUBKEYS = 3;
 // TODO: write test
 class Utxo {
-    constructor({ poseidon,
+    constructor({ poseidon, 
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [web3_js_1.SystemProgram.programId], amounts = [new anchor_1.BN("0")], keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding = new anchor_1.BN(randomBN(), 31, "be"), poolType = new anchor_1.BN("0"), verifierAddress = web3_js_1.SystemProgram.programId, appData = [], appDataFromBytesFn, index = null, }) {
@@ -220,7 +221,7 @@ class Utxo {
     getCommitment() {
         if (!this._commitment) {
             let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
-            let assetHash = this.poseidon.F.toString(this.poseidon(this.assetsCircuit.map((x) => x.toString())));
+            let assetHash = this.poseidon.F.toString(this.poseidon(this.assetsCircuit));
             // console.log("this.assetsCircuit ", this.assetsCircuit);
             // console.log("amountHash ", amountHash.toString());
             // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());

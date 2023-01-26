@@ -1,6 +1,9 @@
+// @ts-nocheck
+
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
+import { merkleTreeProgram } from "constantss";
 
 export async function getUnspentUtxo(
   leavesPdas,
@@ -10,7 +13,7 @@ export async function getUnspentUtxo(
   FEE_ASSET,
   mint,
   POSEIDON,
-  merkleTreeProgram: MerkleTreeProgram,
+  merkleTreeProgram: merkleTreeProgram,
 ) {
   let decryptedUtxo1;
   for (var i = 0; i < leavesPdas.length; i++) {

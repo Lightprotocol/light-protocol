@@ -38,15 +38,12 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
   var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
     MERKLE_TREE_KEY,
   );
-  // console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
-  // console.log("MERKLE_TREE_KEY ", MERKLE_TREE_KEY);
-  // console.log("ADMIN_AUTH_KEYPAIR ", ADMIN_AUTH_KEYPAIR);
-
   if (merkleTreeAccountInfoInit == null) {
     let merkleTreeConfig = new MerkleTreeConfig({
       merkleTreePubkey: MERKLE_TREE_KEY,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
+      provider,
     });
 
     console.log("Initing MERKLE_TREE_AUTHORITY_PDA");

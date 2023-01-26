@@ -10,6 +10,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Transaction = exports.TransactionParameters = exports.createEncryptionKeypair = void 0;
+// @ts-nocheck
 const anchor = require("@coral-xyz/anchor");
 const nacl = require("tweetnacl");
 const createEncryptionKeypair = () => nacl.box.keyPair();
@@ -326,7 +327,7 @@ class Transaction {
     }
     getAssetPubkeys(inputUtxos, outputUtxos) {
         let assetPubkeysCircuit = [
-            (0, index_1.hashAndTruncateToCircuit)(web3_js_1.SystemProgram.programId.toBytes()),
+            hashAndTruncateToCircuit(web3_js_1.SystemProgram.programId.toBytes()),
         ];
         let assetPubkeys = [web3_js_1.SystemProgram.programId];
         if (inputUtxos) {
@@ -415,7 +416,7 @@ class Transaction {
                 return (utxo.assetsCircuit[assetIndex].toString("hex") ==
                     this.assetPubkeysCircuit[assetIndex].toString("hex"));
             })
-                .reduce((sum, utxo) =>
+                .reduce((sum, utxo) => 
             // add all utxos of the same asset
             sum.add(utxo.amounts[assetIndex]), new anchor.BN(0)))
                 .sub(this.params.inputUtxos

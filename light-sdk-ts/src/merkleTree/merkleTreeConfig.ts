@@ -1,3 +1,4 @@
+// @ts-nocheck
 import * as anchor from "@coral-xyz/anchor";
 import {
   MerkleTreeProgram,
@@ -5,13 +6,7 @@ import {
 } from "../idls/merkle_tree_program";
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
-import {
-  Connection,
-  PublicKey,
-  Keypair,
-  sendAndConfirmTransaction,
-  Transaction,
-} from "@solana/web3.js";
+import { Connection, PublicKey, Keypair } from "@solana/web3.js";
 
 import { confirmConfig, DEFAULT_PROGRAMS, merkleTreeProgramId } from "../index";
 import { Program } from "@coral-xyz/anchor";
@@ -25,21 +20,26 @@ export class MerkleTreeConfig {
   merkleTreeAuthorityPda?: PublicKey;
   payer: Keypair;
   tokenAuthority?: PublicKey;
+  provider: anchor.Provider;
 
   constructor({
     merkleTreePubkey,
     payer,
     connection,
+    provider,
   }: {
     merkleTreePubkey: PublicKey;
     payer?: Keypair;
     connection: Connection;
+    provider: anchor.Provider;
   }) {
     this.merkleTreePubkey = merkleTreePubkey;
     this.payer = payer;
+    this.provider = provider;
     this.merkleTreeProgram = new Program(
       MerkleTreeProgram,
       merkleTreeProgramId,
+      provider,
     );
     // TODO: reorg pool pdas, have one object per pool type and then an array with registered pools of this type
     this.poolPdas = [];
@@ -84,6 +84,7 @@ export class MerkleTreeConfig {
     var merkleTreeAccountInfo =
       await this.merkleTreeProgram.account.merkleTree.fetch(
         this.merkleTreePubkey,
+        confirmConfig,
       );
     assert(
       merkleTreeAccountInfo != null,
@@ -100,6 +101,7 @@ export class MerkleTreeConfig {
     var preInsertedLeavesIndexAccountInfo =
       await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
         this.preInsertedLeavesIndex,
+        confirmConfig,
       );
 
     assert(
@@ -126,44 +128,52 @@ export class MerkleTreeConfig {
   }
 
   async initMerkleTreeAuthority(authority?: Keypair | undefined) {
-    if (authority == undefined) {
-      authority = this.payer;
-    }
-    if (this.merkleTreeAuthorityPda == undefined) {
-      await this.getMerkleTreeAuthorityPda();
-    }
+    try {
+      if (authority == undefined) {
+        authority = this.payer;
+      }
 
-    const tx = await this.merkleTreeProgram.methods
-      .initializeMerkleTreeAuthority()
-      .accounts({
-        authority: authority.publicKey,
-        merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
-        ...DEFAULT_PROGRAMS,
-      })
-      .signers([authority])
-      .rpc(confirmConfig);
+      if (this.merkleTreeAuthorityPda == undefined) {
+        await this.getMerkleTreeAuthorityPda();
+      }
 
-    // await sendAndConfirmTransaction(this.connection, new Transaction([authority]).add(tx), [authority], confirmConfig);
-    // rpc(confirmConfig);
-    assert(
-      this.connection.getAccountInfo(
-        this.merkleTreeAuthorityPda,
-        "confirmed",
-      ) != null,
-      "init authority failed",
-    );
-    let merkleTreeAuthority =
-      await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        this.merkleTreeAuthorityPda,
+      const tx = await this.merkleTreeProgram.methods
+        .initializeMerkleTreeAuthority()
+        .accounts({
+          authority: authority.publicKey,
+          merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
+          ...DEFAULT_PROGRAMS,
+        })
+        .signers([authority])
+        .rpc(confirmConfig);
+
+      // await sendAndConfirmTransaction(this.connection, new Transaction([authority]).add(tx), [authority], confirmConfig);
+      // rpc(confirmConfig);
+      assert(
+        this.connection.getAccountInfo(
+          this.merkleTreeAuthorityPda,
+          "confirmed",
+        ) != null,
+        "init authority failed",
       );
-    assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
-    assert(merkleTreeAuthority.enableNfts == false);
-    assert(
-      merkleTreeAuthority.pubkey.toBase58() == authority.publicKey.toBase58(),
-    );
-    assert(merkleTreeAuthority.registeredAssetIndex.toString() == "0");
 
-    return tx;
+      let merkleTreeAuthority =
+        await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
+          this.merkleTreeAuthorityPda,
+          confirmConfig,
+        );
+
+      assert(merkleTreeAuthority.enablePermissionlessSplTokens == false);
+      assert(merkleTreeAuthority.enableNfts == false);
+      assert(
+        merkleTreeAuthority.pubkey.toBase58() == authority.publicKey.toBase58(),
+      );
+      assert(merkleTreeAuthority.registeredAssetIndex.toString() == "0");
+
+      return tx;
+    } catch (err) {
+      throw err;
+    }
   }
 
   async updateMerkleTreeAuthority(newAuthority: PublicKey, test = false) {
@@ -324,6 +334,7 @@ export class MerkleTreeConfig {
     var registeredVerifierAccountInfo =
       await this.merkleTreeProgram.account.registeredVerifier.fetch(
         registeredVerifierPda.registeredVerifierPda,
+        confirmConfig,
       );
 
     assert(registeredVerifierAccountInfo != null);

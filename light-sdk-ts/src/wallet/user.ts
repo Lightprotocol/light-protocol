@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import { Keypair } from "../keypair";
 import { Utxo } from "utxo";

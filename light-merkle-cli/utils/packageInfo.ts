@@ -29,6 +29,7 @@ export const findClosestPackageJson = (file: string) => {
   return res;
 };
 
+// TODO: fix the wrong version
 export function getLightVersion() {
   const packageJsonPath = getPackageJsonPath();
 

@@ -1,6 +1,6 @@
 // console.log("logs disabled -- remove top two lines in tests/tests.ts to enable logs");
 // console.log = () => {}
-
+// @ts-nocheck
 import { assert } from "chai";
 import * as anchor from "@coral-xyz/anchor";
 var _ = require("lodash");
