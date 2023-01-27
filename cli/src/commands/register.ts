@@ -1,4 +1,9 @@
-import { createNewWallet, readWalletFromFile, saveUserToFile } from "../util";
+import {
+  createNewWallet,
+  getAirdrop,
+  readWalletFromFile,
+  saveUserToFile,
+} from "../util";
 import * as solana from "@solana/web3.js";
 import { getLightInstance, User } from "light-sdk";
 import type { Arguments, CommandBuilder } from "yargs";
@@ -31,6 +36,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     wallet = createNewWallet();
   }
 
+  await getAirdrop(wallet);
   // same as login. would here optionally also register account on-chain (not strictly necessary)
   const lightInstance = await getLightInstance();
   const user = new User({ payer: wallet, lightInstance });

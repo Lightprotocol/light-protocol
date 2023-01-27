@@ -36,7 +36,7 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
     }
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.readUserFromFile = exports.saveUserToFile = exports.readWalletFromFile = exports.createNewWallet = void 0;
+exports.readUserFromFile = exports.saveUserToFile = exports.readWalletFromFile = exports.getConnection = exports.getAirdrop = exports.createNewWallet = void 0;
 var fs = require("fs");
 var solana = require("@solana/web3.js");
 var light_sdk_1 = require("light-sdk");
@@ -53,6 +53,47 @@ var createNewWallet = function () {
     }
 };
 exports.createNewWallet = createNewWallet;
+function getAirdrop(wallet) {
+    return __awaiter(this, void 0, void 0, function () {
+        var connection, balance, amount, res, Newbalance, txTransfer1;
+        return __generator(this, function (_a) {
+            switch (_a.label) {
+                case 0:
+                    connection = (0, exports.getConnection)();
+                    return [4 /*yield*/, connection.getBalance(wallet.publicKey, "confirmed")];
+                case 1:
+                    balance = _a.sent();
+                    if (!(balance <= 50000)) return [3 /*break*/, 6];
+                    amount = 10000000000;
+                    return [4 /*yield*/, connection.requestAirdrop(wallet.publicKey, amount)];
+                case 2:
+                    res = _a.sent();
+                    return [4 /*yield*/, connection.confirmTransaction(res, "confirmed")];
+                case 3:
+                    _a.sent();
+                    return [4 /*yield*/, connection.getBalance(wallet.publicKey)];
+                case 4:
+                    Newbalance = _a.sent();
+                    console.assert(Newbalance == balance + amount, "airdrop failed");
+                    txTransfer1 = new solana.Transaction().add(solana.SystemProgram.transfer({
+                        fromPubkey: wallet.publicKey,
+                        toPubkey: light_sdk_1.AUTHORITY,
+                        lamports: 1000000000,
+                    }));
+                    return [4 /*yield*/, solana.sendAndConfirmTransaction(connection, txTransfer1, [wallet], light_sdk_1.confirmConfig)];
+                case 5:
+                    _a.sent();
+                    _a.label = 6;
+                case 6: return [2 /*return*/];
+            }
+        });
+    });
+}
+exports.getAirdrop = getAirdrop;
+var getConnection = function () {
+    return new solana.Connection("http://127.0.0.1:8899");
+};
+exports.getConnection = getConnection;
 var readWalletFromFile = function () {
     var secretKey = [];
     try {
