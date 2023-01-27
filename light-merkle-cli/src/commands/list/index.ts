@@ -17,7 +17,6 @@ export const commands: Icommands[] = [
   {
     name: "initialize",
     description: "Initializes a new Merkle tree on the Solana blockchain",
-    option: ["-p, --pubkey <merkle_tree_pubkey>", "public key of the new Merkle tree"],
     action: initialize,
   },
   {
@@ -25,11 +24,11 @@ export const commands: Icommands[] = [
     description: "Prints the Merkle trees that have been deployed on the Solana blockchain",
     action: print,
   },
-  {
-    name: "authority",
-    description: "Initializes or updates the Merkle tree authority",
-    action: authority,
-  },
+  // {
+  //   name: "authority",
+  //   description: "Initializes or updates the Merkle tree authority",
+  //   action: authority,
+  // },
   {
     name: "verifier",
     description: "Gets or checks the verifiers for a Merkle tree",

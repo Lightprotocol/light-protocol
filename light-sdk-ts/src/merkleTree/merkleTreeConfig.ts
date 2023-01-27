@@ -206,6 +206,7 @@ export class MerkleTreeConfig {
       let merkleTreeAuthority =
         await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
           this.merkleTreeAuthorityPda,
+          confirmConfig,
         );
 
       assert(
