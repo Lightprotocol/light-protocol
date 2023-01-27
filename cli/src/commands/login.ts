@@ -1,4 +1,4 @@
-import { readWalletFromFile, saveUserToFile } from "../util";
+import { getAirdrop, readWalletFromFile, saveUserToFile } from "../util";
 import * as solana from "@solana/web3.js";
 import { getLightInstance, User } from "light-sdk";
 import type { Arguments, CommandBuilder } from "yargs";
@@ -18,6 +18,7 @@ export const handler = async (): Promise<void> => {
       "No secret.txt file found, please create a new wallet with the 'new wallet' command."
     );
   }
+  await getAirdrop(wallet);
 
   const lightInstance = await getLightInstance();
   const user = new User({ payer: wallet, lightInstance });

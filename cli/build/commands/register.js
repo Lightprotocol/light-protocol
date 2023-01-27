@@ -66,12 +66,15 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
                     console.log("Resetting wallet...");
                     wallet = (0, util_1.createNewWallet)();
                 }
-                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
+                return [4 /*yield*/, (0, util_1.getAirdrop)(wallet)];
             case 1:
+                _a.sent();
+                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
+            case 2:
                 lightInstance = _a.sent();
                 user = new light_sdk_1.User({ payer: wallet, lightInstance: lightInstance });
                 return [4 /*yield*/, user.load()];
-            case 2:
+            case 3:
                 _a.sent();
                 (0, util_1.saveUserToFile)({ user: user });
                 console.log("User registered!", user);

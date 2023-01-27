@@ -38,8 +38,8 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = exports.builder = exports.desc = exports.command = void 0;
 var util_1 = require("../util");
-exports.command = "login";
-exports.desc = "login a light user using an existing solana wallet; simulates a page refresh/mount";
+exports.command = "balance";
+exports.desc = "fetch your shielded balance";
 var builder = function (yargs) { return yargs; };
 exports.builder = builder;
 var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {

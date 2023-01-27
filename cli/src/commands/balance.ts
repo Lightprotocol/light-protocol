@@ -1,9 +1,8 @@
 import { readUserFromFile } from "../util";
 import type { Arguments, CommandBuilder } from "yargs";
 
-export const command: string = "login";
-export const desc: string =
-  "login a light user using an existing solana wallet; simulates a page refresh/mount";
+export const command: string = "balance";
+export const desc: string = "fetch your shielded balance";
 
 export const builder: CommandBuilder = (yargs) => yargs;
 

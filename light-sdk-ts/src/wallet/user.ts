@@ -64,7 +64,7 @@ type BrowserWallet = {
 // TODO: Utxos should be assigned to a merkle tree
 // TODO: evaluate optimization to store keypairs separately or store utxos in a map<Keypair, Utxo> to not store Keypairs repeatedly
 // TODO: add support for wallet adapter (no access to payer keypair)
-// TODO: one note:
+
 /**
  *
  * @param browserWallet { signMessage, signTransaction, sendAndConfirmTransaction, publicKey}
@@ -79,7 +79,6 @@ export class User {
   poseidon: any;
   lightInstance: LightInstance;
   private seed?: string;
-  //TODO: rm need for payer in init-> load should suffice
   constructor({
     payer,
     browserWallet,
@@ -115,16 +114,37 @@ export class User {
   }
 
   getBalance(): Balance[] {
-    // TODO: merge amounts from utxo
-    // TODO: consider if it makes sense to include a 'available balance' andor 'private balance'
-    const balance = {
-      symbol: "SOL",
-      amount: 1e9,
-      // unverifiedAmount: 1e8, // iterate here
-      tokenAccount: SystemProgram.programId,
-      decimals: 9,
-    };
-    return [balance];
+    const balances: Balance[] = [];
+    if (!this.utxos) throw new Error("Utxos not initialized");
+    this.utxos.forEach((utxo) => {
+      utxo.assets.forEach((asset, i) => {
+        const tokenAccount = asset;
+        const amount = utxo.amounts[i].toNumber();
+
+        const existingBalance = balances.find(
+          (balance) =>
+            balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
+        );
+        if (existingBalance) {
+          existingBalance.amount += amount;
+        } else {
+          let tokenData = TOKEN_REGISTRY.find(
+            (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
+          );
+          if (!tokenData)
+            throw new Error(
+              `Token ${tokenAccount.toBase58()} not found in registry`,
+            );
+          balances.push({
+            symbol: tokenData.symbol,
+            amount,
+            tokenAccount,
+            decimals: tokenData.decimals,
+          });
+        }
+      });
+    });
+    return balances;
   }
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
@@ -142,6 +162,44 @@ export class User {
     if (!this.poseidon) throw new Error("Poseidon not initialized");
     if (!this.keypair) throw new Error("Shielded keypair not initialized");
 
+    type Asset = { amount: number; asset: PublicKey };
+    let assets: Asset[] = [];
+    // prefill fee asset
+    assets.push({ asset: SystemProgram.programId, amount: 0 });
+
+    inUtxos.forEach((inUtxo) => {
+      inUtxo.assets.forEach((asset, i) => {
+        let assetAmount = inUtxo.amounts[i].toNumber();
+        let assetIndex = assets.findIndex(
+          (a) => a.asset.toBase58() === asset.toBase58(),
+        );
+        // always add first asset to fee asset
+        if (assetIndex === 0) {
+          assets[0].amount += assetAmount;
+        }
+        if (assetIndex === -1) {
+          assets.push({ asset, amount: assetAmount });
+        } else {
+          assets[assetIndex].amount += assetAmount;
+        }
+      });
+    });
+    let feeAsset = assets.find(
+      (a) => a.asset.toBase58() === FEE_ASSET.toBase58(),
+    );
+    if (!feeAsset) throw new Error("Fee asset not found in assets");
+
+    // shield: inutxo + amount
+    // also: need consider privamount here -> as there's just a chang ein utxo no amount change
+    // rules: 1) always try to go SPL+fee in one oututxo. go max amount, at 3 break (for now)
+
+    if (assets.slice(1, assets.length).length === 0) {
+      // just fee asset as oututxo
+    }
+
+    // .forEach((asset) => {
+
+    // }
     let u1 = new Utxo({
       poseidon: this.poseidon,
       assets: [],
@@ -154,7 +212,6 @@ export class User {
   // TODO: adapt to rule: fee_asset is always first.
   // TODO: @Swen, add tests for hardcoded values
   // TODO: check if negative amounts need to separately be considered? (wd vs. deposit)
-  // TODO: add pubAmount handling
   selectInUtxos({
     mint,
     privAmount,
@@ -164,6 +221,7 @@ export class User {
     privAmount: number;
     pubAmount: number;
   }) {
+    const amount = privAmount + pubAmount; // TODO: verify that this is correct w -
     if (this.utxos === undefined) return [];
     if (this.utxos.length >= UTXO_MERGE_THRESHOLD)
       return [...this.utxos.slice(0, UTXO_MERGE_MAXIMUM)];
@@ -213,7 +271,7 @@ export class User {
           continue;
         else if (
           getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) ==
-          new anchor.BN(privAmount)
+          new anchor.BN(amount)
         ) {
           options.push(utxos[i], utxos[j]);
           return options;
@@ -224,7 +282,7 @@ export class User {
     // perfect match (1-in, 0-out)
     if (options.length < 1) {
       let match = utxos.filter(
-        (utxo) => getAmount(utxo, mint) == new anchor.BN(privAmount),
+        (utxo) => getAmount(utxo, mint) == new anchor.BN(amount),
       );
       if (match.length > 0) {
         const sufficientFeeAsset = match.filter(
@@ -262,7 +320,7 @@ export class User {
             continue;
           else if (
             getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) >
-            new anchor.BN(privAmount)
+            new anchor.BN(amount)
           ) {
             options.push(utxos[i], utxos[j]);
             return options;
@@ -275,7 +333,7 @@ export class User {
     // cases where utxos.length > UTXO_MERGE_MAXIMUM are handled above already
     if (
       options.length < 1 &&
-      utxos.reduce((a, b) => a + getAmount(b, mint).toNumber(), 0) >= privAmount
+      utxos.reduce((a, b) => a + getAmount(b, mint).toNumber(), 0) >= amount
     ) {
       if (
         getFeeSum(utxos.slice(0, UTXO_MERGE_MAXIMUM)) >= UTXO_FEE_ASSET_MINIMUM
@@ -288,14 +346,11 @@ export class User {
           let sum = 0;
           let utxoSet = [];
           for (let j = i; j > 0; j--) {
-            if (sum >= privAmount) break;
+            if (sum >= amount) break;
             sum += getAmount(utxos[j], mint).toNumber();
             utxoSet.push(utxos[j]);
           }
-          if (
-            sum >= privAmount &&
-            getFeeSum(utxoSet) >= UTXO_FEE_ASSET_MINIMUM
-          ) {
+          if (sum >= amount && getFeeSum(utxoSet) >= UTXO_FEE_ASSET_MINIMUM) {
             options = utxoSet;
             break;
           }
@@ -451,13 +506,13 @@ export class User {
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await this.lightInstance.provider!.connection.confirmTransaction(
-      await this.lightInstance.provider!.connection.requestAirdrop(
-        relayer.accounts.relayerRecipient,
-        1_000_000,
-      ),
-      "confirmed",
-    );
+    // await this.lightInstance.provider!.connection.confirmTransaction(
+    //   await this.lightInstance.provider!.connection.requestAirdrop(
+    //     relayer.accounts.relayerRecipient,
+    //     1_000_000,
+    //   ),
+    //   "confirmed",
+    // );
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(res);
@@ -522,13 +577,13 @@ export class User {
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await this.lightInstance.provider!.connection.confirmTransaction(
-      await this.lightInstance.provider!.connection.requestAirdrop(
-        relayer.accounts.relayerRecipient,
-        1_000_000,
-      ),
-      "confirmed",
-    );
+    // await this.lightInstance.provider!.connection.confirmTransaction(
+    //   await this.lightInstance.provider!.connection.requestAirdrop(
+    //     relayer.accounts.relayerRecipient,
+    //     1_000_000,
+    //   ),
+    //   "confirmed",
+    // );
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(res);

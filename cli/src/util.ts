@@ -1,6 +1,6 @@
 import * as fs from "fs";
 import * as solana from "@solana/web3.js";
-import { getLightInstance, User } from "light-sdk";
+import { AUTHORITY, confirmConfig, getLightInstance, User } from "light-sdk";
 
 export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
@@ -16,6 +16,38 @@ export const createNewWallet = () => {
     throw new Error("error writing secret.txt");
   }
 };
+
+export async function getAirdrop(wallet: solana.Keypair) {
+  const connection = getConnection();
+
+  let balance = await connection.getBalance(wallet.publicKey, "confirmed");
+  if (balance <= 50_000) {
+    let amount = 10_000_000_000;
+    let res = await connection.requestAirdrop(wallet.publicKey, amount);
+    await connection.confirmTransaction(res, "confirmed");
+
+    let Newbalance = await connection.getBalance(wallet.publicKey);
+
+    console.assert(Newbalance == balance + amount, "airdrop failed");
+    // subsidising transactions
+    let txTransfer1 = new solana.Transaction().add(
+      solana.SystemProgram.transfer({
+        fromPubkey: wallet.publicKey,
+        toPubkey: AUTHORITY,
+        lamports: 1_000_000_000,
+      })
+    );
+    await solana.sendAndConfirmTransaction(
+      connection,
+      txTransfer1,
+      [wallet],
+      confirmConfig
+    );
+  }
+}
+
+export const getConnection = () =>
+  new solana.Connection("http://127.0.0.1:8899");
 
 export const readWalletFromFile = () => {
   let secretKey: Array<number> = [];
