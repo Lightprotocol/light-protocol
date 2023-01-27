@@ -1,9 +1,9 @@
 import ora from "ora";
 import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MINT, POOL_TYPE } from "light-sdk";
-import { log } from "../../../utils/logger";
+import { log } from "../../utils/logger";
 
 import * as anchor from "@coral-xyz/anchor";
-import { getLocalProvider, getWalletConfig } from "../../../utils/utils";
+import { getLocalProvider, getWalletConfig } from "../../utils/utils";
 import { Command } from "commander";
 
 

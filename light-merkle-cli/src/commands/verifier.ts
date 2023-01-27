@@ -1,8 +1,8 @@
 import ora from "ora";
-import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MerkleTreeConfig, confirmConfig, verifierProgramOneProgramId, verifierProgramTwoProgramId, verifierProgramZeroProgramId } from "light-sdk";
-import { log } from "../../../utils/logger";
+import { ADMIN_AUTH_KEYPAIR, } from "light-sdk";
+import { log } from "../../utils/logger";
 import * as anchor from "@coral-xyz/anchor";
-import { getLocalProvider, getWalletConfig } from "../../../utils/utils";
+import { getLocalProvider, getWalletConfig } from "../../utils/utils";
 import { Command, program } from "commander";
 import { PublicKey } from "@solana/web3.js";
 

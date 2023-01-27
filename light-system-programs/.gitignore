@@ -6,3 +6,5 @@ target
 node_modules
 test-ledger
 lookUpTable.txt
+
+.yarn/

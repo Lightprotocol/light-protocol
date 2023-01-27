@@ -1,13 +1,10 @@
-import { log } from "../../../utils/logger";
+import { log } from "../../utils/logger";
 import * as anchor from "@coral-xyz/anchor";
 import ora from 'ora';
-import { Connection, LAMPORTS_PER_SOL, Keypair as SolanaKeypair } from "@solana/web3.js";
 import {
     ADMIN_AUTH_KEYPAIR,
-    AUTHORITY,
-    MERKLE_TREE_KEY,
 } from "light-sdk";
-import { getLocalProvider, getWalletConfig } from "../../../utils/utils"
+import { getLocalProvider, getWalletConfig } from "../../utils/utils"
 import { Command, program } from "commander";
 
 

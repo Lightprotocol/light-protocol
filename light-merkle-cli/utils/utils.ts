@@ -1,11 +1,12 @@
 import fsExtra from "fs-extra";
-import fs from "fs";
+import fs, { readFileSync } from "fs";
 export const indexDist = "node ../../dist/src/index.js";
 
 import * as anchor from "@coral-xyz/anchor";
 import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MerkleTreeConfig, confirmConfig } from "light-sdk";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { Wallet } from "@coral-xyz/anchor/dist/cjs/provider";
+import { resolve } from "path";
 
 export const fileExists = async (file: fsExtra.PathLike) => {
   return fs.promises
@@ -49,3 +50,16 @@ export const getAirDrop = async (provider: anchor.AnchorProvider, pubkey: anchor
     "confirmed",
   );
 }
+
+export const readPayerFromIdJson = (): any => {
+  try {
+    // Read the id.json file located in the root directory
+    const idJson = JSON.parse(readFileSync(resolve(process.cwd(), 'id.json'), 'utf8'));
+    // Return the payer object
+    return Keypair.fromSecretKey(
+      new Uint8Array(idJson.payer),
+    );
+  } catch (error) {
+    console.error(`Error reading payer from id.json: ${error}`);
+  }
+};
