@@ -1,62 +1,54 @@
 import { log } from "../../../utils/logger";
 import * as anchor from "@coral-xyz/anchor";
 import ora from 'ora';
-import { Connection, LAMPORTS_PER_SOL, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Connection, LAMPORTS_PER_SOL, PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 import {
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   MERKLE_TREE_KEY,
 } from "light-sdk";
 import { getAirDrop, getLocalProvider, getWalletConfig } from "../../../utils/utils"
+import { Command } from "commander";
 
 
-// TODO: support for creating a merkle tree based on new key
-// TODO: support for adding custom payer for the merkle tree
-// TODO: support for adding a custom authority for the merkle tree
-// TODO: support for custom authority account for the merkle tree
-// TODO: support for error handling if the merkle tree pda is not initialized yet below is the error code
-// error: {
-//   errorCode: { code: 'AccountNotInitialized', number: 3012 },
-//   errorMessage: 'The program expected this account to be already initialized',
-//   comparedValues: undefined,
-//   origin: 'merkle_tree_authority_pda'
-// },
+export const initialize = new Command("initialize").argument("-p, --pubKey <pubKey>")
+  .description("initialize the Merkle Tree Authority")
+  .action(async (command: string, options: any) => {
+    // Start the loading spinner
 
-export const initialize = async () => {
-  // Start the loading spinner
-  const spinner = ora('Initializing Merkle Tree Authority\n').start();
+    const MERKLE_TREE_KEY = new PublicKey(command)
 
-  try {
-    const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
-    const provider = await getLocalProvider(payer);
+    try {
+      const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
+      const provider = await getLocalProvider(payer);
 
-    await getAirDrop(provider,payer.publicKey)
+      await getAirDrop(provider, payer.publicKey)
+      const merkleTreeAccountInfo = await provider.connection.getAccountInfo(MERKLE_TREE_KEY);
+      if (!merkleTreeAccountInfo) {
+        let merkleTreeConfig = await getWalletConfig(provider, MERKLE_TREE_KEY)
 
-    const merkleTreeAccountInfo = await provider.connection.getAccountInfo(MERKLE_TREE_KEY);
-    if (!merkleTreeAccountInfo) {
-      let merkleTreeConfig = await getWalletConfig(provider)
+        log("Initializing new Merkle Tree Account", "info");
 
-      console.log("Initializing new Merkle Tree Authority");
+        try {
+          const ix = await merkleTreeConfig.initializeNewMerkleTree();
+          console.log({ ix });
+          // spinner.succeed('Merkle Tree Authority initialized successfully');
+          log(`Merkle Tree Authority initialized successfully`, "success");
 
-      try {
-        const ix = await merkleTreeConfig.initializeNewMerkleTree();
-        console.log({ ix });
-        spinner.succeed('Merkle Tree Authority initialized successfully');
+        } catch (e) {
+          log('Error initializing Merkle Tree Account', "error");
 
-      } catch (e) {
-        spinner.fail('Error initializing Merkle Tree Authority');
-        console.log(e);
+          console.log(e);
+        }
+      } else {
+        log('Merkle Tree Account already exists', "info");
       }
-    } else {
-      spinner.info('Merkle Tree Authority already exists');
+    } catch (error) {
+      // spinner.fail('Error initializing Merkle Tree Authority');
+      let errorMessage = "Aborted.";
+      if (error instanceof Error) {
+        errorMessage = error.message;
+      }
+      log(errorMessage, "error");
     }
-  } catch (error) {
-    spinner.fail('Error initializing Merkle Tree Authority');
-    let errorMessage = "Aborted.";
-    if (error instanceof Error) {
-      errorMessage = error.message;
-    }
-    console.log("error ===>")
-    log(errorMessage, "error");
-  }
-};
+  })

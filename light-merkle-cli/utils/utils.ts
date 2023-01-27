@@ -4,7 +4,7 @@ export const indexDist = "node ../../dist/src/index.js";
 
 import * as anchor from "@coral-xyz/anchor";
 import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MerkleTreeConfig, confirmConfig } from "light-sdk";
-import { Connection, LAMPORTS_PER_SOL } from "@solana/web3.js";
+import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { Wallet } from "@coral-xyz/anchor/dist/cjs/provider";
 
 export const fileExists = async (file: fsExtra.PathLike) => {
@@ -28,10 +28,10 @@ export const getLocalProvider = async (payer: Wallet): Promise<anchor.AnchorProv
 }
 
 //TODO: make the getWalletConfig dynamic so it can take the wallet parameters
-export const getWalletConfig = async (provider: anchor.AnchorProvider): Promise<MerkleTreeConfig> => {
+export const getWalletConfig = async (provider: anchor.AnchorProvider, merkleTree: PublicKey = MERKLE_TREE_KEY, payer: Keypair = ADMIN_AUTH_KEYPAIR): Promise<MerkleTreeConfig> => {
   const merkleTreeConfig = new MerkleTreeConfig({
-    merkleTreePubkey: MERKLE_TREE_KEY,
-    payer: ADMIN_AUTH_KEYPAIR,
+    merkleTreePubkey: merkleTree,
+    payer: payer,
     connection: provider.connection,
     provider
   });

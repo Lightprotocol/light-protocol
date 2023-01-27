@@ -237,6 +237,7 @@ export class MerkleTreeConfig {
     let merkleTreeAuthority =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda,
+        confirmConfig,
       );
     assert(merkleTreeAuthority.enableNfts == configValue);
 
@@ -259,6 +260,7 @@ export class MerkleTreeConfig {
     let merkleTreeAuthority =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda,
+        confirmConfig,
       );
     assert(merkleTreeAuthority.enablePermissionlessSplTokens == configValue);
     return tx;
@@ -281,6 +283,7 @@ export class MerkleTreeConfig {
       .rpc(confirmConfig);
     let merkleTree = await this.merkleTreeProgram.account.merkleTree.fetch(
       this.merkleTreePubkey,
+      confirmConfig,
     );
     assert(merkleTree.lockDuration == lockDuration);
     console.log("lock duration updated to: ", lockDuration);
