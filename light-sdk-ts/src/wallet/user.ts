@@ -164,7 +164,9 @@ export class User {
 
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
-    // prefill fee asset
+    // for each inutxo, add amount to amounts if asset not yet in assets, else create new amount
+
+    // oututxo:// prefill fee asset
     assets.push({ asset: SystemProgram.programId, amount: 0 });
 
     inUtxos.forEach((inUtxo) => {
@@ -613,7 +615,7 @@ export class User {
       this.payer = cachedUser.payer;
       this.browserWallet = cachedUser.browserWallet;
       this.poseidon = cachedUser.poseidon;
-      this.utxos = cachedUser.utxos; // TODO: potentially add encr/decr
+      this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
     }
     if (!this.seed) {
       if (this.payer) {
@@ -671,7 +673,7 @@ export class User {
   // we'd like to enforce some kind of sanitary controls here.
   // would not be part of the main balance
   getUtxoInbox() {}
-  getUtxoStatus(): UtxoStatus[] {}
+  getUtxoStatus() {}
   // getPrivacyScore() -> for unshields only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching
   // but it would probably be more logical to fetch utxos here as well
