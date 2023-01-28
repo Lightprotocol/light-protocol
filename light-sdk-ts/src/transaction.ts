@@ -788,11 +788,11 @@ export class Transaction {
       }
       if (this.encryptedUtxos) {
         let extDataBytes = new Uint8Array([
-          ...this.params.accounts.recipient?.toBytes(),
-          ...this.params.accounts.recipientFee.toBytes(),
-          ...this.payer.publicKey.toBytes(),
+          ...this.params.accounts.recipient?.toBytes(), // spl token recipient
+          ...this.params.accounts.recipientFee.toBytes(), // sol recipient
+          ...this.payer.publicKey.toBytes(), // signer/relayer public keys
           ...this.relayer.relayerFee.toArray("le", 8),
-          ...this.encryptedUtxos,
+          ...this.encryptedUtxos, // encrypted utxos or other data to be stored onchain
         ]);
 
         const hash = keccak_256
