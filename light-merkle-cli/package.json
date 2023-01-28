@@ -1,5 +1,5 @@
 {
-  "name": "light-cli",
+  "name": "merkle-tree-config-cli",
   "version": "0.0.1",
   "description": "",
   "main": "dist/index.js",
@@ -18,7 +18,7 @@
     "semantic-release": "semantic-release --branches main"
   },
   "bin": {
-    "light-sdk": "dist/src/index.js"
+    "merkle-tree-config-cli": "dist/src/index.js"
   },
   "keywords": [
     "light",
