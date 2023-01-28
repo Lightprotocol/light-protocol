@@ -395,6 +395,7 @@ export class MerkleTreeConfig {
     var merkleTreeAuthorityPdaAccountInfo =
       await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(
         this.merkleTreeAuthorityPda,
+        confirmConfig,
       );
     assert(
       registeredTokenConfigAccount.poolType.toString() == poolType.toString(),

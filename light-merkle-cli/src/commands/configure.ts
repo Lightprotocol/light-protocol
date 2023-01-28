@@ -4,7 +4,7 @@ import ora from 'ora';
 import {
     ADMIN_AUTH_KEYPAIR,
 } from "light-sdk";
-import { getLocalProvider, getWalletConfig } from "../../utils/utils"
+import { getLocalProvider, getWalletConfig, readPayerFromIdJson } from "../../utils/utils"
 import { Command, program } from "commander";
 
 
@@ -14,33 +14,57 @@ export const configure = new Command("configure").argument("method")
     .description("initialize the Merkle Tree Authority")
     .action(async (command: string, options: any) => {
 
-        console.log(program.args, command, options.enableNfts)
-        const spinner = ora('Updating Merkle Tree Configuration...\n').start();
+        let spinner = ora('Updating Merkle Tree Configuration...\n')
 
         try {
-            spinner.start("Updating Merkle Tree Configuration...");
-            const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
+            const payer = new anchor.Wallet(readPayerFromIdJson());
             const provider = await getLocalProvider(payer);
             let merkleTreeConfig = await getWalletConfig(provider)
 
             if (command === "nfts") {
-                await merkleTreeConfig.enableNfts(true);
+                try {
+                    spinner.start("Updating NFT Merkle Tree Configuration...");
+                    const tx = await merkleTreeConfig.enableNfts(true);
+                }
+                catch (err) {
+                    throw err;
+                }
             }
 
-            if (command === "enablePermissionlessSplTokens") {
-                await merkleTreeConfig.enablePermissionlessSplTokens(true);
+            else if (command === "spl") {
+                try {
+                    spinner.start("Updating SPL Merkle Tree Configuration...");
+                    await merkleTreeConfig.enablePermissionlessSplTokens(true);
+                }
+                catch (err) {
+                    throw err;
+                }
             }
 
-            if (command === "lockDuration") {
-                await merkleTreeConfig.updateLockDuration(parseInt(program.args[2]));
-            }
+            else if (command === "lock") {
+                try {
+                    spinner.start("Updating Lock Merkle Tree Configuration...");
+                    await merkleTreeConfig.updateLockDuration(parseInt(program.args[2]));
 
+                }
+                catch (err) {
+                    throw err;
+                }
+            }
+            else {
+                log("Invalid commad try using [nfts,spl,lock] along with configure command");
+            }
             spinner.succeed("Merkle Tree Configuration updated successfully");
         } catch (error) {
             spinner.fail("Error updating Merkle Tree Configuration");
             let errorMessage = "Aborted.";
             if (error instanceof Error) {
                 errorMessage = error.message;
+            }
+            // @ts-ignore
+            if (error.logs && error.logs.length > 0) {
+                // @ts-ignore
+                errorMessage = error.logs;
             }
             log(errorMessage, "error");
         }
