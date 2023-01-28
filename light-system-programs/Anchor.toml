@@ -22,6 +22,7 @@ merkle_tree_program = "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6"
 
 [test]
 startup_wait = 100_000
+
 [registry]
 url = "https://anchor.projectserum.com"
 
@@ -29,5 +30,9 @@ url = "https://anchor.projectserum.com"
 cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 # --resolveJsonModule ./tsconfig.json 
+
 [scripts]
 test = "yarn run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
+
+[workspace]
+types = "../light-sdk-ts/src/idls"

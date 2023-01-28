@@ -1,14 +1,17 @@
-export type VerifierProgramTwoIdl = {
+export type VerifierProgramTwo = {
   version: "0.1.0";
   name: "verifier_program_two";
   instructions: [
     {
       name: "shieldedTransferInputs";
+      docs: [
+        "This instruction is used to invoke this system verifier and can only be invoked via cpi.",
+      ];
       accounts: [
         {
           name: "verifierState";
           isMut: false;
-          isSigner: false;
+          isSigner: true;
         },
         {
           name: "signingAddress";
@@ -27,17 +30,17 @@ export type VerifierProgramTwoIdl = {
         },
         {
           name: "merkleTree";
-          isMut: false;
+          isMut: true;
           isSigner: false;
         },
         {
           name: "preInsertedLeavesIndex";
-          isMut: false;
+          isMut: true;
           isSigner: false;
         },
         {
           name: "authority";
-          isMut: false;
+          isMut: true;
           isSigner: false;
         },
         {
@@ -82,13 +85,11 @@ export type VerifierProgramTwoIdl = {
         },
         {
           name: "registeredVerifierPda";
-          isMut: false;
+          isMut: true;
           isSigner: false;
-        },
-        {
-          name: "invokingVerifier";
-          isMut: false;
-          isSigner: false;
+          docs: [
+            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
+          ];
         },
       ];
       args: [
@@ -97,24 +98,35 @@ export type VerifierProgramTwoIdl = {
           type: "bytes";
         },
         {
-          name: "appHash";
+          name: "connectingHash";
           type: "bytes";
         },
       ];
     },
   ];
+  errors: [
+    {
+      code: 6000;
+      name: "InvalidVerifier";
+      msg: "System program is no valid verifier.";
+    },
+  ];
 };
-export const VerifierProgramTwo: VerifierProgramTwoIdl = {
+
+export const IDL: VerifierProgramTwo = {
   version: "0.1.0",
   name: "verifier_program_two",
   instructions: [
     {
       name: "shieldedTransferInputs",
+      docs: [
+        "This instruction is used to invoke this system verifier and can only be invoked via cpi.",
+      ],
       accounts: [
         {
           name: "verifierState",
           isMut: false,
-          isSigner: false,
+          isSigner: true,
         },
         {
           name: "signingAddress",
@@ -133,17 +145,17 @@ export const VerifierProgramTwo: VerifierProgramTwoIdl = {
         },
         {
           name: "merkleTree",
-          isMut: false,
+          isMut: true,
           isSigner: false,
         },
         {
           name: "preInsertedLeavesIndex",
-          isMut: false,
+          isMut: true,
           isSigner: false,
         },
         {
           name: "authority",
-          isMut: false,
+          isMut: true,
           isSigner: false,
         },
         {
@@ -188,13 +200,11 @@ export const VerifierProgramTwo: VerifierProgramTwoIdl = {
         },
         {
           name: "registeredVerifierPda",
-          isMut: false,
+          isMut: true,
           isSigner: false,
-        },
-        {
-          name: "invokingVerifier",
-          isMut: false,
-          isSigner: false,
+          docs: [
+            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
+          ],
         },
       ],
       args: [
@@ -203,11 +213,17 @@ export const VerifierProgramTwo: VerifierProgramTwoIdl = {
           type: "bytes",
         },
         {
-          name: "appHash",
+          name: "connectingHash",
           type: "bytes",
         },
       ],
     },
   ],
+  errors: [
+    {
+      code: 6000,
+      name: "InvalidVerifier",
+      msg: "System program is no valid verifier.",
+    },
+  ],
 };
-export default VerifierProgramTwo;
