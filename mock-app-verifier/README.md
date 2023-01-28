@@ -11,7 +11,7 @@ This program
 - Private application logic
 - shielded assets
 - fees can be paid in shielded assets to a relayer
-- 
+
 
 
 To interact with the verifier program the light-sdk Transaction class takes care of the inputs.
@@ -20,42 +20,50 @@ To interact with the verifier program the light-sdk Transaction class takes care
 ## Prerequisites:
 - Circom // TODO: add links
 - Anchor // TODO: add links
+- Light Protocol Architecture // TODO: add links
 
 
-## Light Protocol Architecture
+# Light Protocol Architecture
 
-The essence of Light Protocol is a set membership proof. This is a zero knowledge proof which proofs that a leaf, which is the hash(commitment) of a utxo, belongs to a merkle tree by proving the root of the merkle tree as public input. These proofs in combination with checks that no new tokens are created out of thin air are verified in system verifiers. Additional logic can be specified in a utxo and is enforced by a specific application verifier program.
+The essence of Light Protocol is a set membership proof and nullifiers. A set membership proof is a zero knowledge proof which proves that a leaf, which is the hash(commitment) of a utxo, belongs to a merkle tree by proving the root of the merkle tree as public input. These proofs in combination with checks that no new tokens are created out of thin air are verified in system verifiers. Nullifiers uniquely identify a utxo without revealing any information of it and are saved to prevent double spents of a utxo. Additional logic can be specified in a utxo and is enforced by a specific application verifier program. System and application verifiers are connected by both exposing a hash over all utxos used in the transaction which is checked by the executing both verifier programs.
+
+
+![image](../Docs/graphics/light_architecture.png)
 
 1. Merkle tree program
 2. System verifiers programs
 3. Application verifiers programs
-![image](../Docs/graphics/light_architecture.png)
 
+### 1. Merkle tree:
 Light protocol consists out of a merkle tree program, and it's pdas which store merkle tree state.
 This state is accessible to multiple system verifier programs.
 The merkle tree program trusts the system verifiers and does not enforce checks.
-System verifiers, verify basic Light transactions. Light transactions invalidate and create shielded utxos.
 
-
-
-
-### 1. Merkle tree:
-
-- height 18 -> 256k leaves
+- stores commitment hashes of utxos as it's leaves to enable zk set membership proofs
+- is one Solana program which can instantiate new merkle trees
+- the merkle tree state is saved in a pda
+- tree height 18 -> 256k leaves
 - always inserts pairs of leaves
 - a leaves pda stores 2 commitment hashes, the merkle tree public key, 256 bytes (can be used to store encrypted Utxos)
 - a new merkle tree will be created when the current tree is full
 
 
 
-
 ### 2. System Verifiers:
+System verifiers, verify basic Light transactions. Light transactions invalidate and create shielded utxos.
+- Implemented in one Solana program each
+- Verify the integrity utxos and their set membership in the merkle tree.
+- are trusted by the merkle tree program
+- call the merkle tree program to insert leaves, transfer funds, insert nullifiers
+- A nullifier is derived deterministically from a utxo while not revealing any information about it. In other words a nullifier is an identifier for a utxo which is emitted by a proof and saved in a solana account. At proof verification the program checks whether the nullifier emitted by the proof already exist, if not inserts the nullifier. Therefore, every utxo committed to the merkle tree can only be used once in a proof.
 
 System verifiers can differ in 4 parameters:
 - number of input utxos
 - number of output utxos
 - number of checked inputs
 - support app utxos
+
+Deployed system verifiers:
 
 - Verifier Zero:
     - 2 input utxos
@@ -73,9 +81,11 @@ System verifiers can differ in 4 parameters:
     - 2 checked inputs (these two inputs are the connecting hash and the verifier public key)
     - app utxo support
 
-### 3. Application Verifiers:
+### 3. Application Verifiers/Private Solana Programs (PSP):
 
+Application Verifiers are custom verifier programs, which can enforce any logic programmers encode in their circuits. System and application verifiers are connected by both exposing a hash over all utxos used in the transaction which is checked by the executing both verifier programs. Although these utxo inputs are shared by both proofs, application verifiers do not verify these utxos and do not have access to the merkle tree. Only system verifiers validate the transactions utxos and update the merkle tree plus liquidity pools accordingly. This way application verifiers do not represent a security risk for Light Protocol, since the integrity of transactions is secured by system verifiers. An application verifier is essentially a private solan program. Anyone can deploy it with their own custom logic and all computation is private by default.
 
+Currently only circom and Groth16 libraries are provided to build application verifiers. But such verifiers can be written in any language and verified by any proving system as long as the setup can compute the connecting hash.
 
 
 ### 4. Relayer:
@@ -85,15 +95,17 @@ In detail the relayer, receives json serialized instructions from the user's cli
 
 ### 5. Light Transaction Details
 
-Light Protocol features custom keypairs and uses a utxo model. These utxos are programmable. The programmable logic is enforced by custom application verifiers the respective developer needs to deploy. 
+Light Protocol features custom keypairs and uses a utxo model. These utxos are programmable. The programmable logic is enforced by custom application verifiers the described before.
 
 A transaction contains a number of input and output utxos. The circuit checks
 System verifiers verify specific instantiations of the light protocol circuit.
 Variations are the number of input and output utxos.
 
 
-// TODO: make graphic
+
 **Anatomy of a Light Transaction:**
+
+// TODO: make graphic
 
 
 0. Instance:
@@ -172,6 +184,7 @@ Variations are the number of input and output utxos.
 - the relayer is paid
 
 -> result
+
 Input utxos are spent and new utxo are committed to the merkle tree.
 A separate process updates the merkle tree, inserts the leaves, thus finalizes the transaction. After insertion into the merkle tree the now inserted output utxos can be spent in a future transaction.
 
@@ -193,6 +206,10 @@ Steps:
     - closes every leaves pda of the batch of leaves which have been inserted into the merkle tree now
     - stores the data of every leaves pda in a compressed solana account
     - closes the temporary state pda
+
+**Transaction Primitives:**
+
+The key building blocks for a Light transaction are shielded keypairs and utxos. Every utxo stores which assets and which amounts of these assets it represents. The utxo is tied to a keypair which is necessary to spend the utxo because it's public key is part of the commitment hash and the circuit of the ZKP expects it's signature to be part of the nullifier.
 
 
 **Keypair:**
@@ -437,8 +454,7 @@ The idea is that an application can use this field to store a hash of all the st
 
 
 
-
-## Building a Private Solana Program (PSP)
+# Building a Private Solana Program (PSP)
 
 
 ### You need to implement:
