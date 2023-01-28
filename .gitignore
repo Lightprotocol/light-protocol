@@ -1,9 +1,28 @@
-/program/target
-/program/Cargo.lock
-*/.coderrect
-/program/dist/program/*.so
-*/*.so
-*/test-ledger
-/program/dist/
-/program/docker-target
-/anchor_programs
+/test-ledger/
+# CLI
+/cli/node_modules/
+/cli/build/
+/cli/cache/secret.txt
+/cli/cache/utxos.txt
+/cli/cache/signature.txt
+/cli/cache/user.txt
+
+# light-sdk-ts
+/light-sdk-ts/node_modules/
+/light-sdk-ts/lib/
+
+# light-system-programs
+/light-system-programs/node_modules/
+/light-system-programs/target/
+
+# light-verifier-sdk
+/light-verifier-sdk/target/
+
+# other
+/groth16-solana/target
+*/target/*
+/anchor_programs/build/*
+/anchor_programs/Light_Circuits/build/circuits/ptau17
+/light-system-programs/lookUpTable.txt
+/groth16-solana/target/
+*/target/*
