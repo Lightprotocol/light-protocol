@@ -1,49 +1,76 @@
-# Light Protocol
+# Light Protocol Program V3
+
+## Setup
+
+_Requirements:_
+
+- solana cli v1.11.10 or higher
+  - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
+- anchor cli
+  https://project-serum.github.io/anchor/getting-started/installation.html
+  - `npm i -g @project-serum/anchor-cli`
+- node v19
+
+- Execute the build script to download a custom solana test validator and build the project:
+- `sh build.sh`
+
+## Setup Dev
+
+- In order to properly execute the prettier format pre-commit hook, you may first need to configure light-sdk-ts/husky/pre-commit as executable:
+- `chmod ug+x ./light-sdk-ts/husky/* `
 
 ## Tests
-- cargo test-bpf deposit_should_succeed
-- cargo test-bpf withdrawal_should_succeed
 
-Run tests selectively test-bpf crashes sometimes if tests run in parallel.
+_Global:_
+- `sh test.sh`
 
-## General Description
+_Rust tests:_
+- `cd groth16-solana/`
+- `cargo test`
+- `cd light-verifier-sdk/`
+- `cargo test`
 
-The Light Protocol program verifies zkSNARK proofs to enable anonymous transactions on Solana.
+_Sdk tests:_
+- `cd light-sdk-ts/`
+- `npm test`
 
-An SDK will follow soon. Developers will be able to build solana-based programs on top of private transactions.
-If you're a developer interested in using or integrating with the program, reach out to us: [Discord community](https://discord.gg/WDAAaX6je2)  /  [Twitter](https://twitter.com/LightProtocol)
+_Circuit tests:_
+- `cd light-circuits`
+- `npm test`
 
-Zero-knowledge proofs verify that the owner of recipient address B has deposited tokens to a shielded pool (similar to Zcash) from another address A before.
-The zero-knowledge proof includes meta data such as the recipient address. In case this data is tampered with the zero-knowledge proof becomes invalid and the withdrawal fails. Therefore, Light Protocol is completely trustless.
+_Anchor tests:_
 
-### Documentation
+Tests are located in tests/ .
+The default test is a functional test, setting up a test environment with a merkle tree and an spl token, conducting two deposits and withdrawals.
 
-For additional documentation refer to DOCUMENTATION.md.
+Tests can be executed in bulk or one by one.
 
-### State
+**Without external validator:**
+- `cd light-system-programs/`
+- `npm test`
+- `npm test-verifiers`
+- `npm test-merkle-tree`
 
-We keep state in four types of accounts, a large persistent account for a sparse merkle tree, many small accounts storing two leaves each, many small accounts storing one nullifier each, plus temporary accounts to store intermediate results of computation for SNARK verification and updating the Merkle tree root. For every interaction with the shielded pool a new temporary account has to be created. Since, computation is conducted over 1502 instructions temporary accounts keep an index of the current computational step.
 
-### Security:
+**Manual:**
 
-Light Protocol has been audited at commit 5a79cdff5e9ea4d621b5d50be16d938124b24723.
-Read the [audit report here](https://github.com/Lightprotocol/program/Audit/Light Protocol Audit Report.pdf).
-A follow up audit for recent program modifications to improve UX will follow soon.
+- Assuming that your clones of `solana` and `light-protocol-onchain` git
+  repoitories share the same parent directory and you are currently in the
+  `light-protocol-onchain` directory, launch a validator with the following
+  command:
 
-### Notes:
-- The implementation of the groth16_verifier is based on the arkworks libraries, mainly [ark_bn254](https://docs.rs/ark-bn254/0.3.0/ark_bn254/), [ark_ec](https://docs.rs/ark-ec/0.3.0/ark_ec/) and [ark_ff](https://docs.rs/ark-ff/0.3.0/ark_ff/).
-- The implementation of the poseidon hash is based on [arkworks_gadgets](https://docs.rs/arkworks-gadgets/0.3.14/arkworks_gadgets/poseidon/circom/index.html)
-- Light uses a circuit based on [tornado_pool](https://github.com/tornadocash/tornado-pool/tree/onchain-tree/circuits).
+```
+../solana/validator/solana-test-validator \
+    --reset \
+    --limit-ledger-size 500000000 \
+    --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ./light-system-programs/target/deploy/verifier_program_zero.so \
+    --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ./light-system-programs/target/deploy/merkle_tree_program.so \
+    --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ./light-system-programs/target/deploy/verifier_program_one.so \
+    --bpf-program GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8  /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_two.so  \
+    --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../solana/web3.js/test/fixtures/noop-program/solana_sbf_rust_noop.so \
+    --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS ./mock-app-verifier/target/deploy/mock_verifier.so
+```
 
-Also note that we're using a fork of arkwork's ark-ec: https://github.com/Lightprotocol/algebra where we've made certain functions/structs public:
+- `anchor test --skip-build --skip-deploy --skip-local-validator`
 
-...bls12/g2.rs
-- G2HomProjective
-- mul_by_char
-- doubling_step
-- addition_step
-
-...models/bn/mod.rs
-- ell
-
-so we can reuse them mostly in tests.
+Check logs in anchor_programs/.anchor/program-logs
