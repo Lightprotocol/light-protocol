@@ -6,16 +6,13 @@ import {
 } from "../index";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import {
-  VerifierProgramZero,
-  VerifierProgramZeroIdl,
-} from "../idls/verifier_program_zero";
+import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 import { PublicKey } from "@solana/web3.js";
 // Proofgen does not work within sdk needs circuit-build
 // TODO: bundle files in npm package
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
 export class VerifierZero implements Verifier {
-  verifierProgram: Program<VerifierProgramZeroIdl>;
+  verifierProgram: Program<VerifierProgramZero>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -25,7 +22,7 @@ export class VerifierZero implements Verifier {
   constructor() {
     try {
       this.verifierProgram = new Program(
-        VerifierProgramZero,
+        IDL_VERIFIER_PROGRAM_ZERO,
         verifierProgramZeroProgramId,
       );
     } catch (error) {

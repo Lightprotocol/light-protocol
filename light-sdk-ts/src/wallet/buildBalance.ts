@@ -1,7 +1,7 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgramIdl } from "../idls/index";
+import { MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "merkleTree/merkleTree";
 
 export async function getUnspentUtxo(
@@ -9,7 +9,7 @@ export async function getUnspentUtxo(
   provider: anchor.Provider,
   KEYPAIR: Keypair,
   POSEIDON: any,
-  merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>,
+  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
   merkleTree: MerkleTree,
   index: number,
 ) {

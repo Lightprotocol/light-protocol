@@ -1,8 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  IDL_MERKLE_TREE_PROGRAM,
-  MerkleTreeProgram,
-} from "../idls/merkle_tree_program";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
 import { Connection, PublicKey, Keypair } from "@solana/web3.js";

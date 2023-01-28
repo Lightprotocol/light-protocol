@@ -7,9 +7,9 @@ import {
 } from "@solana/spl-token";
 
 import {
-  VerifierProgramTwoIdl,
-  VerifierProgramOneIdl,
-  VerifierProgramZeroIdl,
+  VerifierProgramTwo,
+  VerifierProgramOne,
+  VerifierProgramZero,
   MerkleTreeProgram,
 } from "./idls/index";
 
@@ -51,9 +51,9 @@ export const verifierProgramTwoProgramId = new PublicKey(
 );
 
 export type merkleTreeProgram = Program<MerkleTreeProgram>;
-export type verifierProgramZero = Program<VerifierProgramZeroIdl>;
-export type verifierProgramOne = Program<VerifierProgramOneIdl>;
-export type verifierProgramTwo = Program<VerifierProgramTwoIdl>;
+export type verifierProgramZero = Program<VerifierProgramZero>;
+export type verifierProgramOne = Program<VerifierProgramOne>;
+export type verifierProgramTwo = Program<VerifierProgramTwo>;
 
 export const confirmConfig: ConfirmOptions = {
   commitment: "confirmed",

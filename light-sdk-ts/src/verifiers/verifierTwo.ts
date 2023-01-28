@@ -1,7 +1,4 @@
-import {
-  VerifierProgramTwo,
-  VerifierProgramTwoIdl,
-} from "../idls/verifier_program_two";
+import { VerifierProgramTwo, IDL_VERIFIER_PROGRAM_TWO } from "../idls/index";
 import { Program } from "@coral-xyz/anchor";
 import {
   hashAndTruncateToCircuit,
@@ -12,7 +9,7 @@ import { Verifier, PublicInputs } from ".";
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
 export class VerifierTwo implements Verifier {
-  verifierProgram: Program<VerifierProgramTwoIdl>;
+  verifierProgram: Program<VerifierProgramTwo>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -21,7 +18,7 @@ export class VerifierTwo implements Verifier {
   pubkey: BN;
   constructor() {
     this.verifierProgram = new Program(
-      VerifierProgramTwo,
+      IDL_VERIFIER_PROGRAM_TWO,
       verifierProgramTwoProgramId,
     );
 
@@ -59,7 +56,7 @@ export class VerifierTwo implements Verifier {
 
   initVerifierProgram(): void {
     this.verifierProgram = new Program(
-      VerifierProgramTwo,
+      IDL_VERIFIER_PROGRAM_TWO,
       verifierProgramTwoProgramId,
     );
   }
