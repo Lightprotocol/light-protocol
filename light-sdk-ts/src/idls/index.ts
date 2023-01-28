@@ -1,16 +1,16 @@
 export {
   MerkleTreeProgram,
-  IDL as MERKLE_TREE_PROGRAM_IDL,
+  IDL as IDL_MERKLE_TREE_PROGRAM,
 } from "./merkle_tree_program";
 export {
   VerifierProgramOne,
-  IDL as VERIFIER_PROGRAM_ONE_IDL,
+  IDL as IDL_VERIFIER_PROGRAM_ONE,
 } from "./verifier_program_one";
 export {
   VerifierProgramTwo,
-  IDL as VERIFIER_PROGRAM_TWO_IDL,
+  IDL as IDL_VERIFIER_PROGRAM_TWO,
 } from "./verifier_program_two";
 export {
   VerifierProgramZero,
-  IDL as VERIFIER_PROGRAM_ZERO_IDL,
+  IDL as IDL_VERIFIER_PROGRAM_ZERO,
 } from "./verifier_program_zero";

@@ -1,7 +1,4 @@
-import {
-  VerifierProgramOne,
-  VerifierProgramOneIdl,
-} from "../idls/verifier_program_one";
+import { VerifierProgramOne, IDL_VERIFIER_PROGRAM_ONE } from "../idls/index";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 
@@ -13,7 +10,7 @@ import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
 
 export class VerifierOne implements Verifier {
-  verifierProgram: Program<VerifierProgramOneIdl>;
+  verifierProgram: Program<VerifierProgramOne>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -24,7 +21,7 @@ export class VerifierOne implements Verifier {
   constructor() {
     try {
       this.verifierProgram = new Program(
-        VerifierProgramOne,
+        IDL_VERIFIER_PROGRAM_ONE,
         verifierProgramOneProgramId,
       );
     } catch (error) {
