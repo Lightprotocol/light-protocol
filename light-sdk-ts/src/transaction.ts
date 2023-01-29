@@ -35,10 +35,7 @@ import {
   Relayer,
   SolMerkleTree,
 } from "./index";
-import {
-  IDL_MERKLE_TREE_PROGRAM,
-  MerkleTreeProgram,
-} from "./idls/merkle_tree_program";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "./idls/index";
 
 export type transactionParameters = {
   inputUtxos?: Array<Utxo>;
@@ -99,7 +96,7 @@ export class TransactionParameters implements transactionParameters {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
-  merkleTreeProgram?: Program<IDL_MERKLE_TREE_PROGRAM>;
+  merkleTreeProgram?: Program<MerkleTreeProgram>;
 
   constructor({
     merkleTreePubkey,
@@ -182,7 +179,7 @@ export type LightInstance = {
 // TODO: add log option that enables logs
 // TODO: write functional test for every method
 export class Transaction {
-  merkleTreeProgram?: Program<IDL_MERKLE_TREE_PROGRAM>;
+  merkleTreeProgram?: Program<MerkleTreeProgram>;
   payer?: SolanaKeypair;
   poseidon: any;
   shuffleEnabled: Boolean;

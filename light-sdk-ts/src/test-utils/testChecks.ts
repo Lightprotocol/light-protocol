@@ -4,7 +4,7 @@ const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
 import { MerkleTree } from "merkleTree/merkleTree";
-import { MerkleTreeProgramIdl } from "idls";
+import { MerkleTreeProgram } from "idls";
 
 /*
  *
@@ -37,7 +37,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   MerkleTree: MerkleTree;
   leavesPdas: Array<any>;
   current_instruction_index: number;
-  merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>;
+  merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
 }) {
   var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
     merkleTreeUpdateState,

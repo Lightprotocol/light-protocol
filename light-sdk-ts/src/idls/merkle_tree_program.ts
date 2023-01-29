@@ -1167,7 +1167,7 @@ export type MerkleTreeProgram = {
   ];
 };
 
-export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
+export const IDL: MerkleTreeProgram = {
   version: "0.1.0",
   name: "merkle_tree_program",
   constants: [
@@ -2339,5 +2339,3 @@ export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
     },
   ],
 };
-
-export default MerkleTreeProgram;

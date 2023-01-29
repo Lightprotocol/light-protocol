@@ -30,9 +30,7 @@ import {
   REGISTERED_VERIFIER_TWO_PDA,
   MINT,
 } from "../index";
-import VerifierProgramZero, {
-  VerifierProgramZeroIdl,
-} from "../idls/verifier_program_zero";
+import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
@@ -98,8 +96,8 @@ export async function initLookUpTable(
       payer: payerPubkey,
       recentSlot,
     })[0];
-    const verifierProgramZero: Program<VerifierProgramZeroIdl> = new Program(
-      VerifierProgramZero,
+    const verifierProgramZero: Program<VerifierProgramZero> = new Program(
+      IDL_VERIFIER_PROGRAM_ZERO,
       verifierProgramZeroProgramId,
     );
     let escrows = (

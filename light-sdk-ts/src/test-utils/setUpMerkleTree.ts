@@ -1,14 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
 import { assert } from "chai";
-import VerifierProgramOne, {
-  VerifierProgramOneIdl,
-} from "../idls/verifier_program_one";
-import VerifierProgramTwo, {
-  VerifierProgramTwoIdl,
-} from "../idls/verifier_program_two";
-import VerifierProgramZero, {
-  VerifierProgramZeroIdl,
-} from "../idls/verifier_program_zero";
+import {
+  VerifierProgramOne,
+  IDL_VERIFIER_PROGRAM_ONE,
+  VerifierProgramTwo,
+  IDL_VERIFIER_PROGRAM_TWO,
+  VerifierProgramZero,
+  IDL_VERIFIER_PROGRAM_ZERO,
+} from "../idls/index";
 
 import {
   MERKLE_TREE_KEY,
@@ -28,12 +27,12 @@ import {
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 
 export async function setUpMerkleTree(provider: anchor.Provider) {
-  const verifierProgramZero: anchor.Program<VerifierProgramZeroIdl> =
-    new anchor.Program(VerifierProgramZero, verifierProgramZeroProgramId);
-  const verifierProgramOne: anchor.Program<VerifierProgramOneIdl> =
-    new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
-  const verifierProgramTwo: anchor.Program<VerifierProgramTwoIdl> =
-    new anchor.Program(VerifierProgramTwo, verifierProgramTwoProgramId);
+  const verifierProgramZero: anchor.Program<VerifierProgramZero> =
+    new anchor.Program(IDL_VERIFIER_PROGRAM_ZERO, verifierProgramZeroProgramId);
+  const verifierProgramOne: anchor.Program<VerifierProgramOne> =
+    new anchor.Program(IDL_VERIFIER_PROGRAM_ONE, verifierProgramOneProgramId);
+  const verifierProgramTwo: anchor.Program<VerifierProgramTwo> =
+    new anchor.Program(IDL_VERIFIER_PROGRAM_TWO, verifierProgramTwoProgramId);
 
   var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
     MERKLE_TREE_KEY,
