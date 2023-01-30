@@ -216,4 +216,26 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
 /**
 * -------------------------- Application starts here --------------------------
 */
+/*
+    // just wrote this never compiled it
+    signal input releaseSlot;
+    signal input isEscrowAccount[nIns];
+
+    // calculate instruction hash
+    component instructionHash = Poseidon(1);
+    instructionHash.in[0] <== releaseSlot;
+
+
+    component checkInstructionType[nIns];
+    // search for input utxo with this instructionHash
+    // the position of this utxo is specified in isEscrowAccount
+    // This is necessary because all paths need inside the circuit are hardcoded.
+    for (var i=0; i < nIns; i++) {          
+        checkInstructionType[i][j] = ForceEqualIfEnabled();
+        checkInstructionType[i][j].in[0] <== inInstructionType[i];
+        checkInstructionType[i][j].in[1] <== instructionHash.out;
+        checkInstructionType[i][j].enabled <== isEscrowAccount[i];
+    }
+*/
+
 }

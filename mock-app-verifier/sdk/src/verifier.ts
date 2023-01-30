@@ -11,6 +11,7 @@ import {
   Verifier,
   Utxo,
   hashAndTruncateToCircuit,
+  Transaction
 } from "light-sdk";
 
 import {
@@ -45,7 +46,6 @@ export class MockVerifier implements Verifier {
     this.wtnsGenPath = "appTransaction_js/appTransaction.wasm";
     this.zkeyPath = "appTransaction.zkey";
     this.calculateWtns = require("../build-circuit/appTransaction_js/witness_calculator.js");
-    // ../build-circuits/transactionApp_js/witness_calculator.js
     this.nrPublicInputs = 2;
     // TODO: implement check that encryptedUtxos.length == this.messageDataLength
     this.messageDataLength = 512;
@@ -59,8 +59,8 @@ export class MockVerifier implements Verifier {
     if (publicInputsBytes.length == this.nrPublicInputs) {
 
       return {
-        connectingHash: publicInputsBytes[1],
         verifier: publicInputsBytes[0],
+        connectingHash: publicInputsBytes[1],
       };
     } else {
       throw new Error(`publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`);
@@ -72,35 +72,9 @@ export class MockVerifier implements Verifier {
 
   // TODO: discuss with Swen how to split this into send and confirm,
   async getInstructions(transaction: Transaction): Promise<TransactionInstruction[]> {
-
-    const invokingVerifierPubkey = (
-      await PublicKey.findProgramAddress(
-        [
-          transaction.payer.publicKey.toBytes(),
-          // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
-        ],
-        this.verifierProgram.programId
-      ))[0];
-    // await transaction.instance.provider.connection.confirmTransaction(
-    //   await transaction.instance.provider.connection.requestAirdrop(invokingVerifierPubkey, 1_000_000_000, "confirmed")
-    // );
-
     
     console.log("pre ix1");
-    // console.log("transaction.publicInputs ", transaction.publicInputs);
-    
-    // console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
-    // console.log("ntransaction.publicInputs.nullifiers ", transaction.publicInputs.nullifiers);
-    // console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
-    // console.log("new BN(transaction.publicInputs.feeAmount) ",Buffer.from(transaction.publicInputs.feeAmount));
-    // console.log("new anchor.BN(transaction.rootIndex.toString()) ", new anchor.BN(transaction.rootIndex.toString()));
-    // console.log("new anchor.BN(transaction.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
-    // console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos.length);
-    // console.log(transaction.appParams);
-    // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
-    // console.log("transaction.appParams.input ", transaction.appParams);
-    // console.log("transaction.params.accounts ", transaction.params.accounts);
-    
+ 
     var relayerRecipient = transaction.relayer.accounts.relayerRecipient;
     try {
       // deposit means the amount is u64
@@ -122,7 +96,6 @@ export class MockVerifier implements Verifier {
       })
       .instruction();
       console.log("pre ix2");
-      // console.log("transaction.publicInputsApp.connectingHash ", transaction.publicInputsApp.connectingHash);
     
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
