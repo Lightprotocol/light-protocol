@@ -1,4 +1,4 @@
-import { MERKLE_TREE_KEY } from "light-sdk";
+import { MERKLE_TREE_AUTHORITY_PDA, MERKLE_TREE_KEY } from "light-sdk";
 import { log } from "../../utils/logger";
 import { getAirDrop, getLocalProvider, getWalletConfig, readPayerFromIdJson } from "../../utils/utils";
 import * as anchor from "@coral-xyz/anchor";
@@ -8,7 +8,7 @@ import { PublicKey } from "@solana/web3.js";
 
 export const authority = new Command("authority").argument("method")
     .description("Initialize, set or get the Merkle Tree Authority")
-    .option("-p, --publicKey <pubKey>", "Public key of the authority account")
+    .option("-p, --publicKey <pubKey>", "Public key of the authority")
     .action(async (command: string, options: any) => {
         // @ts-ignore
         // Start the loading spinner
@@ -25,8 +25,8 @@ export const authority = new Command("authority").argument("method")
 
                 try {
                     const ix = await merkleTreeConfig.initMerkleTreeAuthority();
-                    log(`Merkle Tree Authority initialized successfully\n`, "success")
                     initSpinner.succeed(`Merkle Tree Authority initialized successfully\n`);
+                    log(`Merkle Tree Authority PubKey: ${MERKLE_TREE_AUTHORITY_PDA}\n`, "success")
                 }
                 catch (error) {
                     initSpinner.stop();
@@ -54,18 +54,13 @@ export const authority = new Command("authority").argument("method")
             } else if (command === "get") {
                 spinner.stop()
                 const getSpinner = ora('Getting Merkle Tree Authority\n').start();
-                if (!program.args[2]) {
-                    getSpinner.stop()
-                    log("Please provide the public key of the authority account", "error");
-                    return;
-                }
                 try {
-                    const authorityInfo = await provider.connection.getAccountInfo(new PublicKey(program.args[2]));
+                    const authorityInfo = await provider.connection.getAccountInfo(MERKLE_TREE_AUTHORITY_PDA)
                     // @ts-ignore
                     const authority = await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
-                        new PublicKey(program.args[2]),
+                        MERKLE_TREE_AUTHORITY_PDA,
                     );
-                    console.log(authority);
+                    console.log(`Authority Account:`, authority, "\n");
                     getSpinner.succeed(`Merkle Tree Authority retrieved successfully\n`);
                 } catch (error) {
                     getSpinner.stop()
