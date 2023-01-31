@@ -3,6 +3,8 @@ let circomlibjs = require("circomlibjs");
 import { SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
+import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
+import { Scalar } from "ffjavascript";
 
 import { Keypair } from "../src/keypair";
 import { Utxo } from "../src/utxo";
@@ -41,6 +43,31 @@ describe("verifier_program", () => {
     );
     console.log(new anchor.BN(hash).toArray("be", 32));
   });
+
+  it("Test Keypair Poseidon Eddsa", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let eddsa = await buildEddsa();
+    const babyJub = await buildBabyjub();
+    const F = babyJub.F;
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let k0 = new Keypair({ poseidon, seed: seed32 });
+
+    const prvKey = blake2b.create(b2params).update(seed32 + "poseidonEddsa").digest()
+    const pubKey = eddsa.prv2pub(prvKey);
+    k0.getEddsaPublicKey();
+    if (k0.poseidonEddsa && k0.poseidonEddsa.publicKey) {
+      assert.equal(prvKey.toString(), k0.poseidonEddsa.privateKey.toString());
+      assert.equal(pubKey[0].toString(), k0.poseidonEddsa.publicKey[0].toString());
+      assert.equal(pubKey[1].toString(), k0.poseidonEddsa.publicKey[1].toString());
+    } else {
+      throw new Error("k0.poseidonEddsa undefined");
+    }
+    
+    const msg = "12321";
+    const sigK0 = await k0.signEddsa(msg);
+    assert.equal(sigK0.toString(), eddsa.packSignature(eddsa.signPoseidon(prvKey, F.e(Scalar.e(msg)))));
+    assert(eddsa.verifyPoseidon(msg, eddsa.unpackSignature(sigK0), pubKey));
+  })
 
   it("Test Keypair", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
