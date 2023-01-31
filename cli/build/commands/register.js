@@ -53,6 +53,8 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
         switch (_a.label) {
             case 0:
                 reset = argv.reset;
+                process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+                process.env.ANCHOR_WALLET = "./cache/secret.txt";
                 if (!reset) {
                     try {
                         wallet = (0, util_1.readWalletFromFile)();
@@ -77,7 +79,7 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 _a.sent();
                 (0, util_1.saveUserToFile)({ user: user });
-                console.log("User registered!", user);
+                console.log("User registered!");
                 process.exit(0);
                 return [2 /*return*/];
         }

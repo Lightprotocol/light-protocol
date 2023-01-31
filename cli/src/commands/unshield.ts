@@ -18,14 +18,17 @@ export const builder: CommandBuilder<Options> = (yargs) =>
     .positional("recipient", { type: "string", demandOption: true });
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.ANCHOR_WALLET = "./cache/secret.txt";
   const { amount, token, recipient } = argv;
+  var user;
   try {
-    var user = await readUserFromFile();
+    user = await readUserFromFile();
   } catch (e) {
     throw new Error("No user.txt file found, please login first.");
   }
 
-  const balances = user.getBalance();
+  const balances = await user.getBalance();
   const tokenBalance = balances.find((balance) => balance.symbol === token);
   if (!tokenBalance) {
     throw new Error("Token not found");
@@ -34,11 +37,11 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     throw new Error("Not enough balance");
   }
 
-  // await user.unshield({
-  //   amount,
-  //   token,
-  //   recipient: new solana.PublicKey(recipient),
-  // });
+  await user.unshield({
+    amount: Number(amount) * 1e9,
+    token,
+    recipient: new solana.PublicKey(recipient),
+  });
   console.log(`Unhield done: ${amount} ${token} to ${recipient}`);
 
   process.exit(0);

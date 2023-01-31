@@ -25,7 +25,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     throw new Error("No user.txt file found, please login first.");
   }
 
-  const balances = user.getBalance();
+  const balances = await user.getBalance();
   const tokenBalance = balances.find((balance) => balance.symbol === token);
   if (!tokenBalance) {
     throw new Error("Token not found");

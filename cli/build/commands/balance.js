@@ -47,19 +47,25 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                _a.trys.push([0, 2, , 3]);
-                return [4 /*yield*/, (0, util_1.readUserFromFile)()];
+                process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+                process.env.ANCHOR_WALLET = "./cache/secret.txt";
+                _a.label = 1;
             case 1:
-                user = _a.sent();
-                return [3 /*break*/, 3];
+                _a.trys.push([1, 3, , 4]);
+                return [4 /*yield*/, (0, util_1.readUserFromFile)()];
             case 2:
+                user = _a.sent();
+                return [3 /*break*/, 4];
+            case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 3:
-                balances = user.getBalance();
-                console.log("User balance: ");
-                balances.map(function (balance) {
-                    return console.log("".concat(balance.amount / balance.decimals, " ").concat(balance.symbol));
+            case 4: return [4 /*yield*/, user.getBalance()];
+            case 5:
+                balances = _a.sent();
+                console.log("User balance:");
+                // for each balance, print the amount and symbol, taking into account the decimals
+                balances.forEach(function (balance) {
+                    console.log("".concat(balance.amount / Math.pow(10, balance.decimals), " ").concat(balance.symbol));
                 });
                 process.exit(0);
                 return [2 /*return*/];

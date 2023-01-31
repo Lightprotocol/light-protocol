@@ -32,6 +32,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   initLookUpTableFromFile,
   recipientTokenAccount,
+  updateMerkleTreeForTest,
 } from "../test-utils/index";
 import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
@@ -113,9 +114,37 @@ export class User {
     this.lightInstance = lightInstance;
   }
 
-  getBalance(): Balance[] {
+  async getBalance(): Promise<Balance[]> {
     const balances: Balance[] = [];
     if (!this.utxos) throw new Error("Utxos not initialized");
+    if (!this.keypair) throw new Error("Keypair not initialized");
+    if (!this.poseidon) throw new Error("Poseidon not initialized");
+    if (!this.lightInstance) throw new Error("Light Instance not initialized");
+    // fetch utxos
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
+    // let leavesPdasU = await SolMerkleTree.getUninsertedLeaves(MERKLE_TREE_KEY);
+    // console.log(
+    //   "leavesPdas length?: ",
+    //   leavesPdas.length,
+    //   "uninserted length: ",
+    //   leavesPdasU.length,
+    // );
+    const params = {
+      leavesPdas,
+      merkleTree: this.lightInstance.solMerkleTree!.merkleTree!,
+      // TODO: check the diff between SolMerkleTree.build vs constructor
+      provider: this.lightInstance.provider!,
+      // encryptionKeypair: this.keypair.encryptionKeypair,
+      keypair: this.keypair,
+      // feeAsset: TOKEN_REGISTRY[0].tokenAccount,
+      // mint: TOKEN_REGISTRY[0].tokenAccount, //
+      poseidon: this.poseidon,
+      merkleTreeProgram: merkleTreeProgramId,
+    };
+    const utxos = await getUnspentUtxos(params);
+    this.utxos = utxos;
+
+    console.log("latest inserted utxos:", this.utxos.length);
     this.utxos.forEach((utxo) => {
       utxo.assets.forEach((asset, i) => {
         const tokenAccount = asset;
@@ -127,6 +156,7 @@ export class User {
         );
         if (existingBalance) {
           existingBalance.amount += amount;
+          // console.log("adding amount:", amount);
         } else {
           let tokenData = TOKEN_REGISTRY.find(
             (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
@@ -148,37 +178,71 @@ export class User {
   }
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
+  // ASSUMES: amount POS for shield
   createOutUtxos({
     mint,
     amount,
     inUtxos,
+    recipient,
   }: {
     mint: PublicKey;
     amount: number;
     inUtxos: Utxo[];
+    recipient?: anchor.BN;
   }) {
-    // amounts
-    // TODO: get fee amounts, type of utxos,...
+    console.log("inUtxos", inUtxos);
+    console.log("createOutUtxos amount", amount);
     if (!this.poseidon) throw new Error("Poseidon not initialized");
     if (!this.keypair) throw new Error("Shielded keypair not initialized");
 
+    // @unshield - Reject if insufficient inUtxos
+    // TODO: check if better solution
+    if (amount < 0) {
+      let inAmount = 0;
+      inUtxos.forEach((inUtxo) => {
+        inUtxo.assets.forEach((asset, i) => {
+          if (asset.toBase58() === mint.toBase58()) {
+            inAmount += inUtxo.amounts[i].toNumber();
+          }
+        });
+      });
+      if (inAmount < Math.abs(amount)) {
+        throw new Error(
+          `Insufficient funds for unshield. In amount: ${inAmount}, out amount: ${amount}`,
+        );
+      }
+    }
+
+    if (recipient) {
+      // it's a transfer: amount becomes the priv amount
+    }
+
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
-    // for each inutxo, add amount to amounts if asset not yet in assets, else create new amount
+    assets.push({
+      asset: SystemProgram.programId,
+      amount: 0,
+    });
 
-    // oututxo:// prefill fee asset
-    assets.push({ asset: SystemProgram.programId, amount: 0 });
+    /// For shields: add amount to asset for out
+    // TODO: for spl-might want to consider merging 2-1 as outs .
+    let assetIndex = assets.findIndex(
+      (a) => a.asset.toBase58() === mint.toBase58(),
+    );
+    if (assetIndex === -1) {
+      assets.push({ asset: mint, amount: amount });
+    } else {
+      assets[assetIndex].amount += amount;
+    }
 
+    // add in-amounts to assets
     inUtxos.forEach((inUtxo) => {
       inUtxo.assets.forEach((asset, i) => {
         let assetAmount = inUtxo.amounts[i].toNumber();
         let assetIndex = assets.findIndex(
           (a) => a.asset.toBase58() === asset.toBase58(),
         );
-        // always add first asset to fee asset
-        if (assetIndex === 0) {
-          assets[0].amount += assetAmount;
-        }
+
         if (assetIndex === -1) {
           assets.push({ asset, amount: assetAmount });
         } else {
@@ -186,29 +250,54 @@ export class User {
         }
       });
     });
+    console.log("assets...", assets);
     let feeAsset = assets.find(
       (a) => a.asset.toBase58() === FEE_ASSET.toBase58(),
     );
     if (!feeAsset) throw new Error("Fee asset not found in assets");
 
-    // shield: inutxo + amount
-    // also: need consider privamount here -> as there's just a chang ein utxo no amount change
-    // rules: 1) always try to go SPL+fee in one oututxo. go max amount, at 3 break (for now)
-
-    if (assets.slice(1, assets.length).length === 0) {
+    if (assets.length === 1) {
       // just fee asset as oututxo
+      console.log("just fee asset as oututxo...");
+      let feeAssetUtxo = new Utxo({
+        poseidon: this.poseidon,
+        assets: [assets[0].asset],
+        amounts: [new anchor.BN(assets[0].amount)],
+        keypair: new Keypair({ poseidon: this.poseidon, publicKey: recipient }), // if not self, use pubkey init
+      });
+      console.log("feeAssetUtxo amount: ", feeAssetUtxo.amounts[0].toNumber());
+      return [feeAssetUtxo];
+    } else {
+      const utxos: Utxo[] = [];
+      assets.slice(1).forEach((asset, i) => {
+        if (i === assets.length - 1) {
+          // add feeasset as asset to the last spl utxo
+          const utxo1 = new Utxo({
+            poseidon: this.poseidon,
+            assets: [assets[0].asset, asset.asset],
+            amounts: [
+              new anchor.BN(assets[0].amount),
+              new anchor.BN(asset.amount),
+            ],
+            keypair: this.keypair, // if not self, use pubkey init
+          });
+          utxos.push(utxo1);
+        } else {
+          const utxo1 = new Utxo({
+            poseidon: this.poseidon,
+            assets: [assets[0].asset, asset.asset],
+            amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
+            keypair: this.keypair, // if not self, use pubkey init
+          });
+          utxos.push(utxo1);
+        }
+      });
+      console.log("oututxos...:", utxos);
+      if (utxos.length > 2)
+        throw new Error(`Too many assets for oututxo: ${assets.length}`);
+
+      return utxos;
     }
-
-    // .forEach((asset) => {
-
-    // }
-    let u1 = new Utxo({
-      poseidon: this.poseidon,
-      assets: [],
-      amounts: [],
-      keypair: this.keypair, // if not self, use pubkey init
-    });
-    return [u1];
   }
 
   // TODO: adapt to rule: fee_asset is always first.
@@ -224,10 +313,11 @@ export class User {
     pubAmount: number;
   }) {
     const amount = privAmount + pubAmount; // TODO: verify that this is correct w -
+    console.log("selectInUtxos amount", amount);
     if (this.utxos === undefined) return [];
     if (this.utxos.length >= UTXO_MERGE_THRESHOLD)
       return [...this.utxos.slice(0, UTXO_MERGE_MAXIMUM)];
-    if (this.utxos.length == 1) return [...this.utxos];
+    if (this.utxos.length == 1) return [...this.utxos]; // TODO: check if this still works for spl...
 
     const getAmount = (u: Utxo, asset: PublicKey) => {
       return u.amounts[u.assets.indexOf(asset)];
@@ -242,8 +332,9 @@ export class User {
 
     var options: Utxo[] = [];
 
+    console.log("utxos unfilted: ", this.utxos.length);
     const utxos = this.utxos.filter((utxo) => utxo.assets.includes(mint));
-
+    console.log("utxos filtered (token): ", utxos.length);
     var extraSolUtxos;
     if (mint !== FEE_ASSET) {
       extraSolUtxos = this.utxos
@@ -263,50 +354,60 @@ export class User {
             getAmount(a, FEE_ASSET).toNumber() -
             getAmount(b, FEE_ASSET).toNumber(),
         );
-    }
+    } else console.log("mint is FEE_ASSET");
     console.log("extraSolUtxos: ", extraSolUtxos);
 
-    // perfect match (2-in, 0-out)
-    for (let i = 0; i < utxos.length; i++) {
-      for (let j = 0; j < utxos.length; j++) {
-        if (i == j || getFeeSum([utxos[i], utxos[j]]) < UTXO_FEE_ASSET_MINIMUM)
-          continue;
-        else if (
-          getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) ==
-          new anchor.BN(amount)
-        ) {
-          options.push(utxos[i], utxos[j]);
-          return options;
+    /**
+     * for shields and transfers we'll always have spare utxos,
+     * hence no reason to find perfect matches
+     * */
+    if (amount > 0) {
+      // perfect match (2-in, 0-out)
+      for (let i = 0; i < utxos.length; i++) {
+        for (let j = 0; j < utxos.length; j++) {
+          if (
+            i == j ||
+            getFeeSum([utxos[i], utxos[j]]) < UTXO_FEE_ASSET_MINIMUM
+          )
+            continue;
+          else if (
+            getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) ==
+            new anchor.BN(amount)
+          ) {
+            options.push(utxos[i], utxos[j]);
+            return options;
+          }
         }
       }
-    }
 
-    // perfect match (1-in, 0-out)
-    if (options.length < 1) {
-      let match = utxos.filter(
-        (utxo) => getAmount(utxo, mint) == new anchor.BN(amount),
-      );
-      if (match.length > 0) {
-        const sufficientFeeAsset = match.filter(
-          (utxo) => getFeeSum([utxo]) >= UTXO_FEE_ASSET_MINIMUM,
+      // perfect match (1-in, 0-out)
+      if (options.length < 1) {
+        let match = utxos.filter(
+          (utxo) => getAmount(utxo, mint) == new anchor.BN(amount),
         );
-        if (sufficientFeeAsset.length > 0) {
-          options.push(sufficientFeeAsset[0]);
-          return options;
-        } else if (extraSolUtxos && extraSolUtxos.length > 0) {
-          options.push(match[0]);
-          /** handler 1: 2 in - 1 out here, with a feeutxo merged into place */
-          /** TODO:  add as fallback: use another MINT utxo */
-          // Find the smallest sol utxo that can cover the fee
-          for (let i = 0; i < extraSolUtxos.length; i++) {
-            if (
-              getFeeSum([match[0], extraSolUtxos[i]]) >= UTXO_FEE_ASSET_MINIMUM
-            ) {
-              options.push(extraSolUtxos[i]);
-              break;
+        if (match.length > 0) {
+          const sufficientFeeAsset = match.filter(
+            (utxo) => getFeeSum([utxo]) >= UTXO_FEE_ASSET_MINIMUM,
+          );
+          if (sufficientFeeAsset.length > 0) {
+            options.push(sufficientFeeAsset[0]);
+            return options;
+          } else if (extraSolUtxos && extraSolUtxos.length > 0) {
+            options.push(match[0]);
+            /** handler 1: 2 in - 1 out here, with a feeutxo merged into place */
+            /** TODO:  add as fallback: use another MINT utxo */
+            // Find the smallest sol utxo that can cover the fee
+            for (let i = 0; i < extraSolUtxos.length; i++) {
+              if (
+                getFeeSum([match[0], extraSolUtxos[i]]) >=
+                UTXO_FEE_ASSET_MINIMUM
+              ) {
+                options.push(extraSolUtxos[i]);
+                break;
+              }
             }
+            return options;
           }
-          return options;
         }
       }
     }
@@ -387,53 +488,68 @@ export class User {
     amount: number;
     recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
   }) {
+    if (recipient)
+      throw new Error("Shields to other users aren't not implemented yet!");
+    if (!TOKEN_REGISTRY.find((t) => t.symbol === token))
+      throw new Error("Token not supported!");
+    console.log("TOKEN_REGISTRY:", TOKEN_REGISTRY);
     // TODO: use getAssetByLookup fns instead (utils)
     let tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
-
-    if (!tokenCtx.isSol && this.payer) {
-      try {
-        await splToken.approve(
-          this.lightInstance.provider!.connection,
-          this.payer,
-          tokenCtx.tokenAccount,
-          AUTHORITY, //delegate
-          this.payer, // owner
-          amount * 2, // TODO: why is this *2?
-          [this.payer],
-        );
-      } catch (error) {
-        console.log(error);
+    console.log("AUTHORITY?", AUTHORITY.toBase58(), tokenCtx);
+    if (!tokenCtx.isSol) {
+      if (this.payer) {
+        try {
+          await splToken.approve(
+            this.lightInstance.provider!.connection,
+            this.payer,
+            tokenCtx.tokenAccount, // TODO: must be user's token account
+            AUTHORITY, //delegate
+            this.payer, // owner
+            amount * 1, // TODO: why is this *2? // was *2
+            [this.payer],
+          );
+        } catch (error) {
+          console.log("error approving", error);
+        }
+      } else {
+        // TODO: implement browserWallet support; for UI
+        throw new Error("Browser wallet support not implemented yet!");
       }
     } else {
-      // TODO: implement browserWallet support; for UI
+      console.log("isSOL");
     }
 
     let tx = new Transaction({
       instance: this.lightInstance,
-      payer: ADMIN_AUTH_KEYPAIR,
+      payer: this.payer, // ADMIN_AUTH_KEYPAIR
       shuffleEnabled: false,
     });
-
+    console.log("tx created!");
+    const inUtxos = this.selectInUtxos({
+      mint: tokenCtx.tokenAccount,
+      privAmount: 0,
+      pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
+    });
     // TODO: add fees !
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
-      inUtxos: this.selectInUtxos({
-        mint: tokenCtx.tokenAccount,
-        privAmount: 0,
-        pubAmount: amount,
-      }),
+      inUtxos,
     });
+    console.log("outUtxos created!", shieldUtxos);
 
     let txParams = new TransactionParameters({
       outputUtxos: shieldUtxos,
+      inputUtxos: inUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: tokenCtx.tokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+      sender: tokenCtx.isSol ? this.payer!.publicKey : tokenCtx.tokenAccount, // TODO: must be users token account
+      senderFee: this.payer!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer??
       verifier: new VerifierZero(),
     });
+    console.log("txParams created!");
     await tx.compileAndProve(txParams);
+    console.log("tx compiled and proved!");
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -442,10 +558,14 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
+
+    await tx.checkBalances();
+    // TODO: replace this with a ping to a relayer that's running a crank
     try {
-      await tx.checkBalances();
+      await updateMerkleTreeForTest(this.lightInstance.provider!);
     } catch (e) {
       console.log(e);
+      throw new Error("Failed to update merkle tree!");
     }
   }
 
@@ -466,18 +586,103 @@ export class User {
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
+    let recipientSPLAddress: PublicKey = new PublicKey(0);
+    if (!tokenCtx.isSol) {
+      recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
+        tokenCtx.tokenAccount,
+        recipient,
+      );
+      throw new Error("SPL not implemented yet!");
+    }
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
-      pubAmount: -amount,
+      pubAmount: amount,
     });
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
-      amount,
+      amount: -amount,
       inUtxos,
     });
 
     // TODO: Create an actually implemented relayer here
+    let relayer = new Relayer(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      this.lightInstance.lookUpTable!,
+      SolanaKeypair.generate().publicKey,
+      new anchor.BN(200000),
+    );
+
+    let tx = new Transaction({
+      instance: this.lightInstance,
+      relayer,
+      payer: ADMIN_AUTH_KEYPAIR,
+      shuffleEnabled: false,
+    });
+
+    let txParams = new TransactionParameters({
+      inputUtxos: inUtxos,
+      outputUtxos: outUtxos,
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
+      recipientFee: recipient, // recipient of sol
+      verifier: new VerifierZero(),
+    });
+
+    await tx.compileAndProve(txParams);
+
+    // TODO: add check in client to avoid rent exemption issue
+    // add enough funds such that rent exemption is ensured
+    await this.lightInstance.provider!.connection.confirmTransaction(
+      await this.lightInstance.provider!.connection.requestAirdrop(
+        relayer.accounts.relayerRecipient,
+        1_000_000,
+      ),
+      "confirmed",
+    );
+    try {
+      let res = await tx.sendAndConfirmTransaction();
+    } catch (e) {
+      console.log(e);
+      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+    }
+    await tx.checkBalances();
+    // TODO: replace this with a ping to a relayer that's running a crank
+    try {
+      await updateMerkleTreeForTest(this.lightInstance.provider!);
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
+  }
+
+  // TODO: add separate lookup function for users.
+  // TODO: check for dry-er ways than to re-implement unshield. E.g. we could use the type of 'recipient' to determine whether to transfer or unshield.
+  async transfer({
+    token,
+    amount,
+    recipient,
+  }: {
+    token: string;
+    amount: number;
+    recipient: anchor.BN; // TODO: Keypair.pubkey -> type
+  }) {
+    const tokenCtx =
+      TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
+
+    const inUtxos = this.selectInUtxos({
+      mint: tokenCtx.tokenAccount,
+      privAmount: amount, // priv pub doesnt need to distinguish here
+      pubAmount: 0,
+    });
+    const outUtxos = this.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: amount, // if recipient -> priv
+      inUtxos,
+      recipient: recipient,
+    });
+
+    // TODO: pull an actually implemented relayer here
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       this.lightInstance.lookUpTable!,
@@ -492,15 +697,10 @@ export class User {
       shuffleEnabled: false,
     });
 
-    //  TODO: replace with actually implemented accounts
-    const origin = new anchor.web3.Account();
-
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: recipient,
-      recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
     });
 
@@ -522,76 +722,13 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-  }
-
-  // TODO: check for dry-er ways than to re-implement unshield. E.g. we could use the type of 'recipient' to determine whether to transfer or unshield.
-  async transfer({
-    token,
-    amount,
-    recipient,
-  }: {
-    token: string;
-    amount: number;
-    recipient: anchor.BN; // TODO: Keypair.pubkey -> type
-  }) {
-    const tokenCtx =
-      TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
-
-    const inUtxos = this.selectInUtxos({
-      mint: tokenCtx.tokenAccount,
-      privAmount: amount,
-      pubAmount: 0,
-    });
-    const outUtxos = this.createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount,
-      inUtxos,
-    });
-
-    // TODO: pull an actually implemented relayer here
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      this.lightInstance.lookUpTable!,
-      SolanaKeypair.generate().publicKey,
-      new anchor.BN(100000),
-    );
-
-    let tx = new Transaction({
-      instance: this.lightInstance,
-      relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
-    });
-
-    //  TODO: replace with actually implemented account
-    const origin = new anchor.web3.Account();
-
-    let txParams = new TransactionParameters({
-      inputUtxos: inUtxos,
-      outputUtxos: outUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: recipient, // TODO: Verify that this isnt used in transfer
-      recipientFee: origin.publicKey, // recipientFee rename
-      verifier: new VerifierZero(),
-    });
-
-    await tx.compileAndProve(txParams);
-
-    // TODO: add check in client to avoid rent exemption issue
-    // add enough funds such that rent exemption is ensured
-    // await this.lightInstance.provider!.connection.confirmTransaction(
-    //   await this.lightInstance.provider!.connection.requestAirdrop(
-    //     relayer.accounts.relayerRecipient,
-    //     1_000_000,
-    //   ),
-    //   "confirmed",
-    // );
+    await tx.checkBalances();
+    // TODO: replace this with a ping to a relayer that's running a crank
     try {
-      let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
+      await updateMerkleTreeForTest(this.lightInstance.provider!);
     } catch (e) {
       console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      throw new Error("Failed to update merkle tree!");
     }
   }
 
@@ -643,18 +780,31 @@ export class User {
       });
     }
 
+    /** TEMP: ensure leaves are inserted. TODO: Move to relayer */
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-
+    let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
+      MERKLE_TREE_KEY,
+    );
+    console.log("user.load - leavesPdas inserted length: ", leavesPdas.length);
+    console.log(
+      "user.load - leavesPdas uninserted length: ",
+      uninsertedLeaves.length,
+    );
+    if (uninsertedLeaves.length > 0) {
+      try {
+        await updateMerkleTreeForTest(this.lightInstance.provider!);
+        leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
+      } catch (e) {
+        console.log("user.load - couldn't update merkletree: ", e);
+      }
+    }
     const params = {
       leavesPdas,
-      merkleTree: this.lightInstance.solMerkleTree!, // TODO: check the diff between SolMerkleTree.build vs constructor
       provider: this.lightInstance.provider!,
-      encryptionKeypair: this.keypair.encryptionKeypair,
       keypair: this.keypair,
-      feeAsset: TOKEN_REGISTRY[0].tokenAccount,
-      mint: TOKEN_REGISTRY[0].tokenAccount,
       poseidon: this.poseidon,
       merkleTreeProgram: merkleTreeProgramId,
+      merkleTree: this.lightInstance.solMerkleTree!.merkleTree!,
     };
     const utxos = await getUnspentUtxos(params);
     this.utxos = utxos;

@@ -1701,7 +1701,7 @@ snarkjs@^0.4.24:
 
 snarkjs@^0.5.0:
   version "0.5.0"
-  resolved "https://registry.npmjs.org/snarkjs/-/snarkjs-0.5.0.tgz"
+  resolved "https://registry.yarnpkg.com/snarkjs/-/snarkjs-0.5.0.tgz#cf26bf1d3835eb16b4b330a438bad9824837d6b0"
   integrity sha512-KWz8mZ2Y+6wvn6GGkQo6/ZlKwETdAGohd40Lzpwp5TUZCn6N6O4Az1SuX1rw/qREGL6Im+ycb19suCFE8/xaKA==
   dependencies:
     "@iden3/binfileutils" "0.0.11"

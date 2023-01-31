@@ -63,6 +63,7 @@ function getAirdrop(wallet) {
                     return [4 /*yield*/, connection.getBalance(wallet.publicKey, "confirmed")];
                 case 1:
                     balance = _a.sent();
+                    console.log("balance ".concat(balance, " for ").concat(wallet.publicKey.toString()));
                     if (!(balance <= 50000)) return [3 /*break*/, 6];
                     amount = 10000000000;
                     return [4 /*yield*/, connection.requestAirdrop(wallet.publicKey, amount)];
@@ -83,8 +84,11 @@ function getAirdrop(wallet) {
                     return [4 /*yield*/, solana.sendAndConfirmTransaction(connection, txTransfer1, [wallet], light_sdk_1.confirmConfig)];
                 case 5:
                     _a.sent();
-                    _a.label = 6;
-                case 6: return [2 /*return*/];
+                    return [3 /*break*/, 7];
+                case 6:
+                    console.log("no airdrop needed");
+                    _a.label = 7;
+                case 7: return [2 /*return*/];
             }
         });
     });
@@ -109,40 +113,62 @@ var readWalletFromFile = function () {
     }
 };
 exports.readWalletFromFile = readWalletFromFile;
-var decryptedUtxos = [
-    { test: "testString" },
-    232323,
-    "string",
-];
 var saveUserToFile = function (_a) {
     var user = _a.user;
-    fs.writeFileSync("./cache/user.txt", JSON.stringify(user));
+    /**
+     * This represents the UIs state. (not localstorage!)
+     * This should just store the whole user object.
+     * TODO: store whole object (fix JSON serialization)
+     * */
+    var userToCache = {
+        //@ts-ignore
+        seed: user.seed,
+        payerSecret: Array.from(user.payer.secretKey),
+        utxos: user.utxos,
+    };
+    fs.writeFileSync("./cache/user.txt", JSON.stringify(userToCache));
     console.log("- user cached");
 };
 exports.saveUserToFile = saveUserToFile;
 // simulates state fetching.
 var readUserFromFile = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var cachedUser, data, lightInstance, user;
+    var cachedUser, data, asUint8Array, rebuiltUser, lightInstance, user, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
                 try {
                     data = fs.readFileSync("./cache/user.txt", "utf8");
-                    console.log(data);
                     cachedUser = JSON.parse(data);
                 }
                 catch (e) {
-                    console.log("user.txt not found!");
+                    console.log("user.txt snot found!");
                 }
-                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
+                asUint8Array = new Uint8Array(cachedUser.payerSecret);
+                rebuiltUser = {
+                    seed: cachedUser.seed,
+                    payer: solana.Keypair.fromSecretKey(asUint8Array),
+                    utxos: cachedUser.utxos,
+                };
+                _a.label = 1;
             case 1:
-                lightInstance = _a.sent();
-                user = new light_sdk_1.User({ lightInstance: lightInstance });
-                return [4 /*yield*/, user.load(cachedUser)];
+                _a.trys.push([1, 4, , 5]);
+                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
             case 2:
+                lightInstance = _a.sent();
+                user = new light_sdk_1.User({ payer: rebuiltUser.payer, lightInstance: lightInstance });
+                console.log("loading user...");
+                //@ts-ignore
+                return [4 /*yield*/, user.load(rebuiltUser)];
+            case 3:
+                //@ts-ignore
                 _a.sent();
-                console.log("User built from cache!");
+                console.log("User built from state!");
                 return [2 /*return*/, user];
+            case 4:
+                e_1 = _a.sent();
+                console.log("err:", e_1);
+                return [3 /*break*/, 5];
+            case 5: return [2 /*return*/];
         }
     });
 }); };

@@ -58,7 +58,10 @@ export class SolMerkleTree {
       merkleTreePubkey,
     );
     const merkleTreeIndex = mtFetched.nextIndex;
-
+    console.log(
+      "getCompressedLeaves merkleTreeIndex",
+      merkleTreeIndex.toNumber(),
+    );
     let leavesAccounts: Array<{
       account: Account<Buffer>;
     }> = new Array();

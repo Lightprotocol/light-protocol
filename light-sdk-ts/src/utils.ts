@@ -5,7 +5,7 @@ import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import { LightInstance } from "transaction";
 import * as anchor from "@coral-xyz/anchor";
-import { initLookUpTableFromFile } from "./test-utils/index";
+import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
@@ -18,10 +18,25 @@ export async function getLightInstance() {
   );
   // get hc value
   const LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-  const mt = new SolMerkleTree({
+
+  // TODO: move to a seperate function
+  const merkletreeIsInited = await provider.connection.getAccountInfo(
+    MERKLE_TREE_KEY,
+  );
+  if (!merkletreeIsInited) {
+    await setUpMerkleTree(provider);
+    console.log("merkletree inited");
+  }
+  let mt = new SolMerkleTree({
     pubkey: MERKLE_TREE_KEY,
     poseidon: poseidon,
   });
+  console.log("building merkletree...");
+  mt = await SolMerkleTree.build({
+    pubkey: MERKLE_TREE_KEY,
+    poseidon: poseidon,
+  });
+  console.log("building merkletree done");
   const lightInstance: LightInstance = {
     solMerkleTree: mt,
     lookUpTable: LOOK_UP_TABLE,

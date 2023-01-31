@@ -368,7 +368,7 @@ export class Utxo {
     const ciphertext = box(
       bytes_message,
       nonce,
-      this.keypair.encryptionPublicKey,
+      this.keypair.encryptionKeypair.publicKey,
       CONSTANT_SECRET_AUTHKEY,
     );
 
@@ -388,12 +388,12 @@ export class Utxo {
     const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
     const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
 
-    if (keypair.encryptionPrivateKey) {
+    if (keypair.encryptionKeypair.secretKey) {
       const cleartext = box.open(
         encryptedUtxo,
         nonce,
         nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-        keypair.encryptionPrivateKey,
+        keypair.encryptionKeypair.secretKey,
       );
       if (!cleartext) {
         return null;

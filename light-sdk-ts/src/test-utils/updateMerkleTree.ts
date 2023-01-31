@@ -35,4 +35,5 @@ export async function updateMerkleTreeForTest(provider: Provider) {
     merkle_tree_pubkey: MERKLE_TREE_KEY,
     provider,
   });
+  console.log("updateMerkleTreeForTest done");
 }
