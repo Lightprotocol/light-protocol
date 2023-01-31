@@ -39,12 +39,13 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = exports.builder = exports.desc = exports.command = void 0;
 var util_1 = require("../util");
 // TODO: add custom recipient (self only atm)
-exports.command = "shield <amount> <token>";
+exports.command = "shield";
 exports.desc = "create send and confirm a shield transaction for given <amount> and <token>";
 var builder = function (yargs) {
-    return yargs
-        .positional("amount", { type: "number", demandOption: true })
-        .positional("token", { type: "string", demandOption: true });
+    return yargs.options({
+        amount: { type: "number" },
+        token: { type: "string" },
+    });
 };
 exports.builder = builder;
 var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {
@@ -52,6 +53,8 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
+                process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+                process.env.ANCHOR_WALLET = "./cache/secret.txt";
                 amount = argv.amount, token = argv.token;
                 _a.label = 1;
             case 1:
@@ -63,9 +66,14 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 4:
+            case 4: 
+            // return;
+            // TODO: ensure 'payer's' balance is enough w 'connection'
+            return [4 /*yield*/, user.shield({ amount: Number(amount) * 1e9, token: token })];
+            case 5:
+                // return;
                 // TODO: ensure 'payer's' balance is enough w 'connection'
-                // await user.shield({ amount, token });
+                _a.sent();
                 console.log("Shielding done: ".concat(amount, " ").concat(token));
                 process.exit(0);
                 return [2 /*return*/];

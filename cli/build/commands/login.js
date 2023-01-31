@@ -54,6 +54,9 @@ var handler = function () { return __awaiter(void 0, void 0, void 0, function ()
                 catch (e) {
                     throw new Error("No secret.txt file found, please create a new wallet with the 'new wallet' command.");
                 }
+                console.log("logging in with wallet: ", wallet.publicKey.toString());
+                process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+                process.env.ANCHOR_WALLET = "./cache/secret.txt";
                 return [4 /*yield*/, (0, util_1.getAirdrop)(wallet)];
             case 1:
                 _a.sent();
@@ -65,7 +68,7 @@ var handler = function () { return __awaiter(void 0, void 0, void 0, function ()
             case 3:
                 _a.sent();
                 (0, util_1.saveUserToFile)({ user: user });
-                console.log("User logged in!", user);
+                console.log("User logged in!");
                 process.exit(0);
                 return [2 /*return*/];
         }

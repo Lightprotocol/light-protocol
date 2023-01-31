@@ -126,7 +126,7 @@ export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
 export const MERKLE_TREE_HEIGHT = 18;
 /** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
-export const UTXO_MERGE_THRESHOLD = 7;
+export const UTXO_MERGE_THRESHOLD = 20; // 7
 export const UTXO_MERGE_MAXIMUM = 10;
 export const UTXO_FEE_ASSET_MINIMUM = 100_000;
 export const SIGN_MESSAGE: string =

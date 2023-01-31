@@ -18,13 +18,18 @@ export const handler = async (): Promise<void> => {
       "No secret.txt file found, please create a new wallet with the 'new wallet' command."
     );
   }
+  console.log("logging in with wallet: ", wallet.publicKey.toString());
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.ANCHOR_WALLET = "./cache/secret.txt";
   await getAirdrop(wallet);
 
   const lightInstance = await getLightInstance();
+
   const user = new User({ payer: wallet, lightInstance });
+
   await user.load();
   saveUserToFile({ user });
 
-  console.log("User logged in!", user);
+  console.log("User logged in!");
   process.exit(0);
 };

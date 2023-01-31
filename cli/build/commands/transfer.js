@@ -63,8 +63,9 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 4:
-                balances = user.getBalance();
+            case 4: return [4 /*yield*/, user.getBalance()];
+            case 5:
+                balances = _a.sent();
                 tokenBalance = balances.find(function (balance) { return balance.symbol === token; });
                 if (!tokenBalance) {
                     throw new Error("Token not found");

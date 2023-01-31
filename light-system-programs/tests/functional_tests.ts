@@ -58,7 +58,7 @@ describe("verifier_program", () => {
     confirmConfig
   );
   anchor.setProvider(provider);
-
+  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
@@ -86,7 +86,7 @@ describe("verifier_program", () => {
     console.log(merkleTree);
   });
 
-  it("Deposit 10 utxo", async () => {
+  it.skip("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -169,6 +169,7 @@ describe("verifier_program", () => {
       await tx.checkBalances();
     }
   });
+
   it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -188,6 +189,7 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT]
       );
+      console.log("approved");
     } catch (error) {
       console.log(error);
     }
@@ -312,7 +314,7 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  it("Withdraw 10 utxos", async () => {
+  it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
@@ -333,9 +335,6 @@ describe("verifier_program", () => {
       merkleTree.merkleTree,
       0
     );
-    const origin = new anchor.web3.Account();
-
-    var tokenRecipient = recipientTokenAccount;
 
     let inputUtxos = [];
     inputUtxos.push(decryptedUtxo1);

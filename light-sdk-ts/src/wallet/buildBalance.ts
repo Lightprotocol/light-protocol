@@ -3,6 +3,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "merkleTree/merkleTree";
+import { merkleTreeProgramId } from "../constants";
 
 /**deprecated */
 export async function getUnspentUtxo(
@@ -73,46 +74,93 @@ export async function getUnspentUtxos({
   keypair,
   poseidon,
   merkleTreeProgram: MerkleTreeProgram,
+  merkleTree,
 }: {
   leavesPdas: any;
   provider: anchor.Provider;
   keypair: any;
   poseidon: any;
   merkleTreeProgram: any;
+  merkleTree: MerkleTree;
 }): Promise<Utxo[]> {
   let decryptedUtxos: Utxo[] = [];
-  // TODO: check performance vs a proper async map and check againsdt fetching nullifiers separately (indexed)
+  // TODO: check performance vs a proper async map and check against fetching nullifiers separately (indexed)
   // TODO: categorize "pending" utxos sent by others
-  let promises = leavesPdas.map(async (leafPda: any, i: number) => {
+
+  for (let i = 0; i < leavesPdas.length; i++) {
+    const leafPda = leavesPdas[i];
     let decryptedUtxo = Utxo.decrypt({
       poseidon: poseidon,
       encBytes: new Uint8Array(Array.from(leafPda.account.encryptedUtxos)),
       keypair: keypair,
     });
-    if (!decryptedUtxo) return;
+    if (!decryptedUtxo) continue;
+
+    /** must add index */
+    const mtIndex = merkleTree.indexOf(
+      decryptedUtxo?.getCommitment()!.toString(),
+    );
+    decryptedUtxo.index = mtIndex;
+
     let nullifier = decryptedUtxo.getNullifier();
-    if (!nullifier) return;
-    let nullifierPubkey = (
-      await PublicKey.findProgramAddress(
-        [
-          new anchor.BN(nullifier.toString()).toBuffer(),
-          anchor.utils.bytes.utf8.encode("nf"),
-        ],
-        MerkleTreeProgram.programId,
-      )
+    if (!nullifier) continue;
+    let nullifierPubkey = PublicKey.findProgramAddressSync(
+      [
+        new anchor.BN(nullifier.toString()).toBuffer(),
+        anchor.utils.bytes.utf8.encode("nf"),
+      ],
+      merkleTreeProgramId, // Merkle...
     )[0];
     let accountInfo = await provider.connection.getAccountInfo(nullifierPubkey);
+    console.log(
+      "inserted -- spent?",
+      accountInfo ? "yes" : "no ",
+      nullifierPubkey.toBase58(),
+      "amount:",
+      decryptedUtxo.amounts[0].toNumber(),
+    );
     if (
-      accountInfo === null &&
-      decryptedUtxo.amounts[1].toString() != "0" &&
-      decryptedUtxo.amounts[0].toString() != "0"
+      !accountInfo &&
+      (decryptedUtxo.amounts[1].toString() !== "0" ||
+        decryptedUtxo.amounts[0].toString() !== "0")
     ) {
-      console.log("found unspent leaf");
       decryptedUtxos.push(decryptedUtxo);
-    } else if (i == leavesPdas.length - 1) {
+    } else if (i == leavesPdas.length - 1 && decryptedUtxos.length == 0) {
       throw "no unspent leaf found";
     }
-  });
-  await Promise.all(promises);
+  }
+  // let promises = leavesPdas.map(async (leafPda: any, i: number) => {
+  //   let decryptedUtxo = Utxo.decrypt({
+  //     poseidon: poseidon,
+  //     encBytes: new Uint8Array(Array.from(leafPda.account.encryptedUtxos)),
+  //     keypair: keypair,
+  //   });
+
+  //   if (!decryptedUtxo) return;
+  //   let nullifier = decryptedUtxo.getNullifier();
+  //   if (!nullifier) return;
+  //   // console.log("?? ", new anchor.BN(nullifier.toString()).toBuffer());
+  //   let nullifierPubkey = PublicKey.findProgramAddressSync(
+  //     [
+  //       new anchor.BN(nullifier.toString()).toBuffer(),
+  //       anchor.utils.bytes.utf8.encode("nf"),
+  //     ],
+  //     merkleTreeProgramId, // Merkle...
+  //   )[0];
+  //   // console.log("nf?", nullifierPubkey);
+  //   let accountInfo = await provider.connection.getAccountInfo(nullifierPubkey);
+  //   console.log("decryptedUtxos", decryptedUtxos);
+  //   if (
+  //     accountInfo === null &&
+  //     decryptedUtxo.amounts[1].toString() != "0" &&
+  //     decryptedUtxo.amounts[0].toString() != "0"
+  //   ) {
+  //     console.log("found unspent leaf");
+  //     decryptedUtxos.push(decryptedUtxo);
+  //   } else if (i == leavesPdas.length - 1) {
+  //     throw "no unspent leaf found";
+  //   }
+  // });
+  // await Promise.all(promises);
   return decryptedUtxos;
 }

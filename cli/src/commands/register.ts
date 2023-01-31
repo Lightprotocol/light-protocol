@@ -23,6 +23,8 @@ export const builder: CommandBuilder<Options> = (yargs) =>
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const { reset } = argv;
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.ANCHOR_WALLET = "./cache/secret.txt";
   var wallet: solana.Keypair;
   if (!reset) {
     try {
@@ -42,6 +44,6 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   const user = new User({ payer: wallet, lightInstance });
   await user.load();
   saveUserToFile({ user });
-  console.log("User registered!", user);
+  console.log("User registered!");
   process.exit(0);
 };

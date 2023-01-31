@@ -1,6 +1,12 @@
 import * as fs from "fs";
 import * as solana from "@solana/web3.js";
-import { AUTHORITY, confirmConfig, getLightInstance, User } from "light-sdk";
+import {
+  AUTHORITY,
+  confirmConfig,
+  getLightInstance,
+  Keypair,
+  User,
+} from "light-sdk";
 
 export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
@@ -21,6 +27,7 @@ export async function getAirdrop(wallet: solana.Keypair) {
   const connection = getConnection();
 
   let balance = await connection.getBalance(wallet.publicKey, "confirmed");
+  console.log(`balance ${balance} for ${wallet.publicKey.toString()}`);
   if (balance <= 50_000) {
     let amount = 10_000_000_000;
     let res = await connection.requestAirdrop(wallet.publicKey, amount);
@@ -43,6 +50,8 @@ export async function getAirdrop(wallet: solana.Keypair) {
       [wallet],
       confirmConfig
     );
+  } else {
+    console.log("no airdrop needed");
   }
 }
 
@@ -65,31 +74,53 @@ export const readWalletFromFile = () => {
   }
 };
 
-const decryptedUtxos: Array<Object> = [
-  { test: "testString" },
-  232323,
-  "string",
-];
 export const saveUserToFile = ({ user }: { user: User }) => {
-  fs.writeFileSync("./cache/user.txt", JSON.stringify(user));
+  /**
+   * This represents the UIs state. (not localstorage!)
+   * This should just store the whole user object.
+   * TODO: store whole object (fix JSON serialization)
+   * */
+  let userToCache = {
+    //@ts-ignore
+    seed: user.seed,
+    payerSecret: Array.from(user.payer.secretKey),
+    utxos: user.utxos,
+  };
+
+  fs.writeFileSync("./cache/user.txt", JSON.stringify(userToCache));
   console.log("- user cached");
 };
 
 // simulates state fetching.
 export const readUserFromFile = async () => {
-  let cachedUser: User;
+  let cachedUser: {
+    seed: string;
+    payerSecret: Array<number>;
+    utxos: Array<any>;
+  };
 
   try {
     let data: string = fs.readFileSync("./cache/user.txt", "utf8");
-    console.log(data);
     cachedUser = JSON.parse(data);
   } catch (e: any) {
-    console.log("user.txt not found!");
+    console.log("user.txt snot found!");
   }
-
-  let lightInstance = await getLightInstance();
-  let user = new User({ lightInstance });
-  await user.load(cachedUser);
-  console.log("User built from cache!");
-  return user;
+  /** This is not needed in UI. just adjust to JSON stringify. */
+  let asUint8Array: Uint8Array = new Uint8Array(cachedUser.payerSecret);
+  let rebuiltUser = {
+    seed: cachedUser.seed,
+    payer: solana.Keypair.fromSecretKey(asUint8Array),
+    utxos: cachedUser.utxos,
+  };
+  try {
+    let lightInstance = await getLightInstance();
+    let user = new User({ payer: rebuiltUser.payer, lightInstance });
+    console.log("loading user...");
+    //@ts-ignore
+    await user.load(rebuiltUser);
+    console.log("User built from state!");
+    return user;
+  } catch (e) {
+    console.log("err:", e);
+  }
 };
