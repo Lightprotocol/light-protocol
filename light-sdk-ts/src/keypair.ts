@@ -3,6 +3,8 @@ const anchor = require("@coral-xyz/anchor");
 import { BN } from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
+const circomlibjs = require("circomlibjs");
+const ffjavascript = require("ffjavascript");
 
 export class Keypair {
   /**
@@ -16,6 +18,11 @@ export class Keypair {
   encPrivateKey?: Uint8Array;
   poseidon: any;
   burnerSeed: Uint8Array;
+  // keypair for eddsa poseidon signatures
+  poseidonEddsa?: {
+    publicKey?: [Uint8Array, Uint8Array];
+    privateKey: Uint8Array;
+  };
 
   constructor({
     poseidon,
@@ -24,6 +31,7 @@ export class Keypair {
     privateKey,
     publicKey,
     encPubkey,
+    poseidonEddsaPrivateKey,
   }: {
     poseidon?: any;
     seed?: string;
@@ -31,6 +39,7 @@ export class Keypair {
     privateKey?: BN;
     publicKey?: BN;
     encPubkey?: Uint8Array;
+    poseidonEddsaPrivateKey?: Uint8Array;
   }) {
     if (seed.length < 32) {
       throw "seed too short length less than 32";
@@ -52,13 +61,23 @@ export class Keypair {
         this.privkey,
         this.poseidon,
       );
+      this.poseidonEddsa = Keypair.getEddsaPrivateKey(
+        this.burnerSeed.toString(),
+      );
     } else if (privateKey) {
       this.privkey = privateKey;
-      this.encryptionPublicKey = new Uint8Array();
+      if (encPubkey) {
+        this.encryptionPublicKey = encPubkey;
+      } else {
+        this.encryptionPublicKey = new Uint8Array();
+      }
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
+      if (poseidonEddsaPrivateKey) {
+        this.poseidonEddsa = { privateKey: poseidonEddsaPrivateKey };
+      }
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
@@ -75,11 +94,45 @@ export class Keypair {
         this.privkey,
         this.poseidon,
       );
+      this.poseidonEddsa = Keypair.getEddsaPrivateKey(seed);
     }
+  }
+
+  async getEddsaPublicKey(): Promise<[Uint8Array, Uint8Array]> {
+    const eddsa = await circomlibjs.buildEddsa();
+    if (this.poseidonEddsa) {
+      return eddsa.prv2pub(this.poseidonEddsa.privateKey);
+    } else {
+      throw new Error("poseidonEddsa.privateKey undefined");
+    }
+  }
+
+  static getEddsaPrivateKey(seed: string) {
+    const privkeySeed = seed + "poseidonEddsa";
+    return {
+      publicKey: undefined,
+      privateKey: blake2b.create(b2params).update(privkeySeed).digest(),
+    };
   }
 
   encryptionPublicKeyToBytes() {
     return new BN(this.encryptionPublicKey).toBuffer("be", 32);
+  }
+
+  async signEddsa(msg: string): Promise<Uint8Array> {
+    const eddsa = await circomlibjs.buildEddsa();
+    const babyJub = await circomlibjs.buildBabyjub();
+    const F = babyJub.F;
+    if (this.poseidonEddsa) {
+      return eddsa.packSignature(
+        eddsa.signPoseidon(
+          this.poseidonEddsa.privateKey,
+          F.e(ffjavascript.Scalar.e(msg)),
+        ),
+      );
+    } else {
+      throw new Error("poseidonEddsa.privateKey undefined");
+    }
   }
 
   /**

@@ -361,7 +361,10 @@ export class Transaction {
         ),
       };
       if (this.appParams) {
-        this.proofInput.connectingHash = this.getConnectingHash();
+        this.proofInput.connectingHash = Transaction.getConnectingHash(
+          this.params,
+          this.poseidon,
+        );
         this.proofInput.verifier = this.params.verifier?.pubkey;
       }
     } else {
@@ -371,7 +374,10 @@ export class Transaction {
 
   async getAppProof() {
     if (this.appParams) {
-      this.appParams.inputs.connectingHash = this.getConnectingHash();
+      this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
+        this.params,
+        this.poseidon,
+      );
       const path = require("path");
       // TODO: find a better more flexible solution
       const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
@@ -467,21 +473,20 @@ export class Transaction {
     }
   }
 
-  getConnectingHash(): string {
-    const inputHasher = this.poseidon.F.toString(
-      this.poseidon(
-        this.params?.inputUtxos?.map((utxo) => utxo.getCommitment()),
-      ),
+  static getConnectingHash(
+    params: TransactionParameters,
+    poseidon: any,
+  ): string {
+    const inputHasher = poseidon.F.toString(
+      poseidon(params?.inputUtxos?.map((utxo) => utxo.getCommitment())),
     );
-    const outputHasher = this.poseidon.F.toString(
-      this.poseidon(
-        this.params?.outputUtxos?.map((utxo) => utxo.getCommitment()),
-      ),
+    const outputHasher = poseidon.F.toString(
+      poseidon(params?.outputUtxos?.map((utxo) => utxo.getCommitment())),
     );
-    this.connectingHash = this.poseidon.F.toString(
-      this.poseidon([inputHasher, outputHasher]),
+    const connectingHash = poseidon.F.toString(
+      poseidon([inputHasher, outputHasher]),
     );
-    return this.connectingHash;
+    return connectingHash;
   }
 
   assignAccounts(params: TransactionParameters) {
