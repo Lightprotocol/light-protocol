@@ -56,7 +56,7 @@ export const executeWithInput = (
     inputs = [];
   }
   const { env, timeout, maxTimeout } = opts;
-  const childProcess: any = runCommand(command, () => {});
+  const childProcess: any = runCommand(command, () => { });
 
   childProcess.stdin!.setEncoding("utf-8");
 
@@ -109,17 +109,18 @@ export const executeWithInput = (
       }
     });
 
-    childProcess.stderr!.once("data", (error: any) => {
-      childProcess.stdin!.end();
+    // childProcess.stderr!.once("data", (error: any) => {
+    //   childProcess.stdin!.end();
 
-      if (currentInputTimeout) {
-        clearTimeout(currentInputTimeout);
-        inputs = [];
-      }
-      reject(error.toString());
-    });
+    //   if (currentInputTimeout) {
+    //     clearTimeout(currentInputTimeout);
+    //     inputs = [];
+    //   }
+    //   console.log("Error here", error)
+    //   reject(error.toString());
+    // });
 
-    childProcess.on("error", reject);
+    // childProcess.on("error", reject);
 
     // Kick off the process
     loop(inputs);

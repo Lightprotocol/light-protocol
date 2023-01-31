@@ -35,16 +35,15 @@ export const authority = new Command("authority").argument("method")
             } else if (command === "set") {
                 const setSpinner = ora('Updating Merkle Tree Authority\n').start();
                 spinner.stop()
-                log(`Updating Authority Acccount`)
+                log(`Updating Authority Acccount`, "info")
                 if (!program.args[2]) {
                     setSpinner.stop()
                     log("Please provide the public key of the new authority account", "error");
                     return;
                 }
                 try {
-                    console.log(merkleTreeConfig.payer.publicKey)
                     await merkleTreeConfig.updateMerkleTreeAuthority(new PublicKey(program.args[2]), true);
-                    console.log("Updating AUTHORITY success");
+                    log(`updated authority: ${new PublicKey(program.args[2])}`, "success");
                     setSpinner.succeed(`Merkle Tree Authority updated successfully\n`);
 
                 } catch (error) {

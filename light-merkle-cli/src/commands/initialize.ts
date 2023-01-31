@@ -6,8 +6,8 @@ import { getAirDrop, getLocalProvider, getWalletConfig, readPayerFromIdJson } fr
 import { Command } from "commander";
 
 
-export const initialize = new Command("initialize").argument("-p, --pubKey <pubKey>")
-  .description("initialize the Merkle Tree Authority")
+export const initialize = new Command("initialize").argument("-p, --pubKey")
+  .description("Initialize the Merkle Tree Authority")
   .action(async (command: string, options: any) => {
     // Start the loading spinner
     const MERKLE_TREE_KEY = new PublicKey(command)
@@ -25,6 +25,7 @@ export const initialize = new Command("initialize").argument("-p, --pubKey <pubK
           console.log(merkleTreeConfig.merkleTreePubkey)
           const ix = await merkleTreeConfig.initializeNewMerkleTree();
           spinner.succeed('Merkle Tree Account initialized successfully');
+          log(`Merkle Tree PubKey: ${MERKLE_TREE_KEY}\n`, "success")
         } catch (error) {
           throw error
         }

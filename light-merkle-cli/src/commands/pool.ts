@@ -17,11 +17,12 @@ export const pool = new Command("pool").argument("method")
         const provider = await getLocalProvider(payer);
         let merkleTreeConfig = await getWalletConfig(provider, MERKLE_TREE_KEY, readPayerFromIdJson())
         try {
-            if (command === "default") {
+            if (command === "pooltype") {
                 const registerPoolTypeLoader = ora("Registering pool type...").start();
                 try {
                     await merkleTreeConfig.registerPoolType(POOL_TYPE);
-                    registerPoolTypeLoader.succeed("Registering pool type success");
+                    registerPoolTypeLoader.succeed();
+                    log("Successfully registered pool type", "success")
                 } catch (error) {
                     registerPoolTypeLoader.fail("Failed to register pool type");
                     throw (error)
@@ -30,15 +31,16 @@ export const pool = new Command("pool").argument("method")
             else if (command === "spl") {
                 const registerSplPoolLoader = ora("Registering spl pool...").start();
                 if (!program.args[2]) {
-                    registerSplPoolLoader.fail("Invalid arguments")
+                    registerSplPoolLoader.fail("Invalid arguments pubKey required");
                     throw ("Mint pubKey required for register Spl Pool");
                 }
                 const mintKey = new PublicKey(program.args[2])
                 try {
                     await merkleTreeConfig.registerSplPool(POOL_TYPE, mintKey);
-                    registerSplPoolLoader.succeed("Registering spl pool success");
+                    registerSplPoolLoader.succeed();
+                    log("Successfully registered spl pool", "success")
                 } catch (error) {
-                    registerSplPoolLoader.fail("Failed to register spl pool");
+                    registerSplPoolLoader.fail("Failed to register sol pool");
                     throw (error)
                 }
             }
@@ -46,7 +48,8 @@ export const pool = new Command("pool").argument("method")
                 const registerSolPoolLoader = ora("Registering sol pool...").start();
                 try {
                     await merkleTreeConfig.registerSolPool(POOL_TYPE);
-                    registerSolPoolLoader.succeed("Registering sol pool success");
+                    registerSolPoolLoader.succeed();
+                    log("Successfully registered sol pool", "success")
                 } catch (error) {
                     registerSolPoolLoader.fail("Failed to register sol pool");
                     throw (error)

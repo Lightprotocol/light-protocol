@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { program } from "commander";
-import { getLightVersion } from "../utils/packageInfo";
+import { getLightVersion } from "../utils/utils";
 import { commands } from "./commands";
 
 

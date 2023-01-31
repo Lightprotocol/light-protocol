@@ -58,7 +58,6 @@ npm run setup
 
 **The CLI is now ready for use**
 
-
 ## Usage
 
 To get a list of all available commands and options in the CLI, run the following command:
@@ -148,7 +147,7 @@ To Register a pool, run the following command:
 
 ```shell 
 
-merkle-tree-config-cli pool default
+merkle-tree-config-cli pool pooltype
 # register the pool for the merkle-tree
 
 ```
@@ -197,5 +196,14 @@ merkle-tree-config-cli print <Pubkey>
 # This will output the current state of the Merkle Tree, including the root hash and the number of leaves.
 
 merkle-tree-config-cli print 5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y
+
+```
+
+### List All Accounts
+To list all accounts ( merkleTree, authority, verifier, pool and tokens), run the following command:
+
+```shell
+
+merkle-tree-config-cli list
 
 ````

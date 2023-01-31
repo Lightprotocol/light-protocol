@@ -23,6 +23,7 @@ export const verifier = new Command("verifier").argument("method")
                 try {
                     await merkleTreeConfig.registerVerifier(new PublicKey(verifierKey));
                     spinner.succeed("Verifiers registered successfully!");
+                    log(`Verifier PubKey: ${new PublicKey(verifierKey)}\n`, "success")
                 } catch (err) {
                     throw err
                 }

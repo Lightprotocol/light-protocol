@@ -25,6 +25,8 @@ export const configure = new Command("configure").argument("method")
                 try {
                     spinner.start("Updating NFT Merkle Tree Configuration...");
                     const tx = await merkleTreeConfig.enableNfts(true);
+                    log(`Nfts tokens enabled`, "success");
+
                 }
                 catch (err) {
                     throw err;
@@ -35,6 +37,8 @@ export const configure = new Command("configure").argument("method")
                 try {
                     spinner.start("Updating SPL Merkle Tree Configuration...");
                     await merkleTreeConfig.enablePermissionlessSplTokens(true);
+                    log(`Spl tokens enabled`, "success");
+
                 }
                 catch (err) {
                     throw err;
@@ -45,7 +49,7 @@ export const configure = new Command("configure").argument("method")
                 try {
                     spinner.start("Updating Lock Merkle Tree Configuration...");
                     await merkleTreeConfig.updateLockDuration(parseInt(program.args[2]));
-
+                    log(`Lock Duration updated: ${parseInt(program.args[2])}`, "success");
                 }
                 catch (err) {
                     throw err;
@@ -53,6 +57,8 @@ export const configure = new Command("configure").argument("method")
             }
             else {
                 log("Invalid commad try using [nfts,spl,lock] along with configure command");
+                spinner.fail();
+                return
             }
             spinner.succeed("Merkle Tree Configuration updated successfully");
         } catch (error) {

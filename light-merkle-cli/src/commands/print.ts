@@ -9,7 +9,7 @@ import { getLocalProvider, getWalletConfig } from "../../utils/utils"
 import { Command } from "commander";
 
 
-export const print = new Command("print").argument("-p, --pubKey <pubKey>")
+export const print = new Command("print").argument("-p, --pubKey")
     .description("Get the account information and print the merkle tree information")
     .action(async (command: string, options: any) => {
         const spinner = ora('Getting Merkle Tree Account\n').start();
