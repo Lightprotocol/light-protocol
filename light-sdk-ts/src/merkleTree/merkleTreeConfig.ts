@@ -116,6 +116,7 @@ export class MerkleTreeConfig {
       await this.merkleTreeProgram.account.merkleTree.fetch(
         this.merkleTreePubkey,
       );
+
     console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
   }
 
@@ -390,6 +391,7 @@ export class MerkleTreeConfig {
     var registeredTokenConfigAccount =
       await this.merkleTreeProgram.account.registeredAssetPool.fetch(
         poolPda.pda,
+        confirmConfig,
       );
 
     var merkleTreeAuthorityPdaAccountInfo =
@@ -528,9 +530,13 @@ export class MerkleTreeConfig {
 
     let splPoolPda = await this.getSplPoolPda(mint, poolType);
 
+    console.log({ splPoolPda });
+
     if (!this.tokenAuthority) {
       await this.getTokenAuthority();
     }
+
+    console.log(this.tokenAuthority);
 
     const tx = await this.merkleTreeProgram.methods
       .registerSplPool()
@@ -546,6 +552,8 @@ export class MerkleTreeConfig {
       })
       .signers([this.payer])
       .rpc(confirmConfig);
+
+    console.log({ tx });
 
     await this.checkPoolRegistered(splPoolPda, poolType, mint);
 
