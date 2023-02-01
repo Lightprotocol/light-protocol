@@ -65,7 +65,8 @@ export const authority = new Command("authority").argument("method")
                     getSpinner.stop()
                     throw error;
                 }
-            } else {
+            }
+            else {
                 spinner.stop()
                 log("Invalid command. Please use 'init', 'set' or 'get'", "error");
             }

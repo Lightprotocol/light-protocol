@@ -1,9 +1,10 @@
 import fsExtra from "fs-extra";
 import fs, { readFileSync } from "fs";
 export const indexDist = "node ../../dist/src/index.js";
+import { Program } from "@coral-xyz/anchor";
 
 import * as anchor from "@coral-xyz/anchor";
-import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MerkleTreeConfig, confirmConfig } from "light-sdk";
+import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MerkleTreeConfig, confirmConfig, MerkleTreeProgram, merkleTreeProgramId, } from "light-sdk";
 import { Connection, Keypair, LAMPORTS_PER_SOL, PublicKey } from "@solana/web3.js";
 import { Wallet } from "@coral-xyz/anchor/dist/cjs/provider";
 import path, { resolve } from "path";
@@ -136,3 +137,12 @@ export const getInputJson = async (input: string) => {
     throw new Error(error);
   }
 };
+
+
+export const getMerkleTreeProgram = async (provider: anchor.AnchorProvider) => {
+  return new Program(
+    MerkleTreeProgram,
+    merkleTreeProgramId,
+    provider,
+  );
+}

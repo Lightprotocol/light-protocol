@@ -1,5 +1,5 @@
 import ora from "ora";
-import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MINT, POOL_TYPE } from "light-sdk";
+import { ADMIN_AUTH_KEYPAIR, MERKLE_TREE_KEY, MINT, MerkleTreeProgram, POOL_TYPE, merkleTreeProgramId } from "light-sdk";
 import { log } from "../../utils/logger";
 
 import * as anchor from "@coral-xyz/anchor";
@@ -12,7 +12,6 @@ export const pool = new Command("pool").argument("method")
     .option("-p, --publicKey <pubKey>", "Public key for the MINT")
     .description("Register a new pool type [default, spl, sol]")
     .action(async (command: string, options: any) => {
-
         const payer = new anchor.Wallet(readPayerFromIdJson());
         const provider = await getLocalProvider(payer);
         let merkleTreeConfig = await getWalletConfig(provider, MERKLE_TREE_KEY, readPayerFromIdJson())
@@ -55,8 +54,54 @@ export const pool = new Command("pool").argument("method")
                     throw (error)
                 }
             }
+            else if (command === "list") {
+                const listingPoolLoader = ora("Listing Pools");
+
+                listingPoolLoader.start();
+                const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
+                const provider = await getLocalProvider(payer);
+                const merkleProgram = new anchor.Program(
+                    MerkleTreeProgram,
+                    merkleTreeProgramId,
+                    provider,
+                );
+                try {
+                    // @ts-ignore
+                    const assetPoolsAccounts = await merkleProgram.account.registeredAssetPool.all()
+                    // @ts-ignore
+                    const poolAccounts = await merkleProgram.account.registeredPoolType.all()
+                    if (assetPoolsAccounts.length > 0) {
+                        log("\nAsset Pool Accounts:", "success")
+                        console.table(assetPoolsAccounts.map((account: any) => {
+                            return { pubKey: `${account.publicKey}` }
+                        }), ["pubKey"])
+                    }
+                    else {
+                        log("No asset pool account found", "info")
+
+                    }
+
+                    if (poolAccounts.length > 0) {
+                        log("Pool Accounts:", "success")
+                        console.table(poolAccounts.map((account: any) => {
+                            return { pubKey: `${account.publicKey}` }
+                        }), ["pubKey"])
+                        console.log("\n")
+                    }
+                    else {
+                        log("No pool account found", "info")
+
+                    }
+
+
+                    listingPoolLoader.succeed("Pools Successfully Listed")
+                } catch (err) {
+                    console.log(`Error while listing verifiers`)
+                    throw err
+                }
+            }
             else {
-                log("Invalid method use try using [default,spl,sol] with pool command", "error")
+                log("Invalid method use try using [pooltype,spl,sol,list] with pool command", "error")
             }
         } catch (error) {
             let errorMessage = "Aborted.";

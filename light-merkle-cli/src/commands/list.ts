@@ -5,7 +5,7 @@ import { Program } from "@coral-xyz/anchor";
 import {
     ADMIN_AUTH_KEYPAIR, MerkleTreeProgram, merkleTreeProgramId,
 } from "light-sdk";
-import { getLocalProvider } from "../../utils/utils"
+import { getLocalProvider, getMerkleTreeProgram } from "../../utils/utils"
 import { Command } from "commander";
 
 
