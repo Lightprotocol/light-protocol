@@ -146,9 +146,9 @@ export class User {
       };
       const utxos = await getUnspentUtxos(params);
       this.utxos = utxos;
-      console.log("updated utxos", this.utxos.length);
+      console.log("✔️ updated utxos", this.utxos.length);
     } else {
-      console.log("read utxos from cache", this.utxos.length);
+      console.log("✔️ read utxos from cache", this.utxos.length);
     }
     this.utxos.forEach((utxo) => {
       utxo.assets.forEach((asset, i) => {
@@ -575,11 +575,13 @@ export class User {
       verifier: new VerifierZero(),
     });
     await tx.compileAndProve(txParams);
-    console.log("tx compiled and proof created!");
+    // console.log("tx compiled and proof created!");
 
     try {
       let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
+      console.log(
+        `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      );
     } catch (e) {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
@@ -589,14 +591,14 @@ export class User {
     //@ts-ignore
     await tx.checkBalances();
     console.log = initLog;
-    console.log("checkBalances success!");
+    console.log("✔️ checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
       await updateMerkleTreeForTest(this.lightInstance.provider!);
       console.log = initLog;
-      console.log("updated merkle tree!");
+      console.log("✔️ updated merkle tree!");
     } catch (e) {
       console.log = initLog;
       console.log(e);
@@ -679,7 +681,9 @@ export class User {
     );
     try {
       let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
+      console.log(
+        `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      );
     } catch (e) {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
@@ -688,14 +692,14 @@ export class User {
     //@ts-ignore
     await tx.checkBalances();
     console.log = initLog;
-    console.log("checkBalances success!");
+    console.log("✔️ checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
       await updateMerkleTreeForTest(this.lightInstance.provider!);
       console.log = initLog;
-      console.log("updated merkle tree!");
+      console.log("✔️ updated merkle tree!");
     } catch (e) {
       console.log(e);
       throw new Error("Failed to update merkle tree!");
@@ -761,6 +765,8 @@ export class User {
       shuffleEnabled: false,
     });
 
+    let randomRecipient = SolanaKeypair.generate().publicKey;
+    console.log("randomRecipient", randomRecipient.toBase58());
     if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -768,8 +774,8 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
       // recipient/recipientFee not used on-chain, re-use account to reduce tx size
-      recipient: SystemProgram.programId,
-      recipientFee: SystemProgram.programId,
+      recipient: randomRecipient,
+      recipientFee: randomRecipient,
     });
 
     await tx.compileAndProve(txParams);
@@ -784,7 +790,9 @@ export class User {
     );
     try {
       let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
+      console.log(
+        `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
+      );
     } catch (e) {
       console.log(e);
     }
@@ -792,14 +800,14 @@ export class User {
     await tx.checkBalances(randomShieldedKeypair);
     console.log = initLog;
 
-    console.log("checkBalances success!");
+    console.log("✔️checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
       await updateMerkleTreeForTest(this.lightInstance.provider!);
       console.log = initLog;
-      console.log("updated merkle tree!");
+      console.log("✔️updated merkle tree!");
     } catch (e) {
       console.log(e);
       throw new Error("Failed to update merkle tree!");
@@ -867,7 +875,7 @@ export class User {
     let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
       MERKLE_TREE_KEY,
     );
-    console.log("uninserted leaves: ", uninsertedLeaves.length);
+    // console.log("uninserted leaves: ", uninsertedLeaves.length);
 
     // if (uninsertedLeaves.length > 0)
     //   try {

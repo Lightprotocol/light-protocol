@@ -64,7 +64,7 @@ var handler = function () { return __awaiter(void 0, void 0, void 0, function ()
                 balances = _a.sent();
                 console.log("User balance:");
                 balances.forEach(function (balance) {
-                    console.log("".concat(balance.amount / Math.pow(10, balance.decimals), " ").concat(balance.symbol));
+                    console.log("\uD83D\uDCB5 ".concat(balance.amount / Math.pow(10, balance.decimals), " ").concat(balance.symbol));
                 });
                 process.exit(0);
                 return [2 /*return*/];

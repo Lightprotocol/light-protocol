@@ -17,7 +17,9 @@ export const handler = async (): Promise<void> => {
   const balances = await user.getBalance({ latest: false });
   console.log("User balance:");
   balances.forEach((balance) => {
-    console.log(`${balance.amount / 10 ** balance.decimals} ${balance.symbol}`);
+    console.log(
+      `💵 ${balance.amount / 10 ** balance.decimals} ${balance.symbol}`
+    );
   });
   process.exit(0);
 };

@@ -162,7 +162,7 @@ var readUserFromFile = function () { return __awaiter(void 0, void 0, void 0, fu
             case 3:
                 //@ts-ignore
                 _a.sent();
-                console.log("User built from state!");
+                console.log("✔️ User built from state!");
                 return [2 /*return*/, user];
             case 4:
                 e_1 = _a.sent();

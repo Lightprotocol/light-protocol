@@ -118,7 +118,7 @@ export const readUserFromFile = async () => {
     console.log("loading user...");
     //@ts-ignore
     await user.load(rebuiltUser);
-    console.log("User built from state!");
+    console.log("✔️ User built from state!");
     return user;
   } catch (e) {
     console.log("err:", e);
