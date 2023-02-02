@@ -91,7 +91,6 @@ export async function getUnspentUtxos({
   let decryptedUtxos: Utxo[] = [];
   // TODO: check performance vs a proper async map and check against fetching nullifiers separately (indexed)
   // TODO: categorize "pending" utxos sent by others
-  console.log("leavesPdas.length", leavesPdas.length);
   for (let i = 0; i < leavesPdas.length; i++) {
     const leafPda = leavesPdas[i];
     let decrypted = [
@@ -110,7 +109,6 @@ export async function getUnspentUtxos({
         keypair: keypair,
       }),
     ];
-    console.log("decrypt?", decrypted);
 
     for (let decryptedUtxo of decrypted) {
       if (!decryptedUtxo) continue;
@@ -150,7 +148,7 @@ export async function getUnspentUtxos({
     }
   }
   if (decryptedUtxos.length == 0) {
-    throw new Error("no unspent leaf found");
+    console.log("no unspent leaf found");
   }
 
   return decryptedUtxos;

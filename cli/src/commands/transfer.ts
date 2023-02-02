@@ -32,11 +32,10 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   } catch (e) {
     throw new Error("No user.txt file found, please login first.");
   }
-  console.log("hexstring?", shieldedRecipient);
   const recipient = new anchor.BN(shieldedRecipient, "hex");
   const recipientEncryptionPublicKey: Uint8Array =
     strToArr(encryptionPublicKey);
-  console.log("user.transfer...");
+
   await user.transfer({
     amount: amount * 1e9,
     token,

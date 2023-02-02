@@ -229,8 +229,6 @@ export class SolMerkleTree {
     const { leavesAccounts, merkleTreeIndex } =
       await SolMerkleTree.getCompressedLeaves(merkleTreePubkey);
 
-    console.log("Total nr of accounts. ", leavesAccounts.length);
-
     let filteredLeaves = leavesAccounts
       .filter((pda) => {
         return (

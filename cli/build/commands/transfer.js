@@ -70,10 +70,8 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
             case 4:
-                console.log("hexstring?", shieldedRecipient);
                 recipient = new anchor.BN(shieldedRecipient, "hex");
                 recipientEncryptionPublicKey = (0, light_sdk_1.strToArr)(encryptionPublicKey);
-                console.log("user.transfer...");
                 return [4 /*yield*/, user.transfer({
                         amount: amount * 1e9,
                         token: token,

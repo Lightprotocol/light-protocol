@@ -101,3 +101,23 @@ export const arrToStr = (uint8arr: Uint8Array) =>
 
 export const strToArr = (str: string) =>
   new Uint8Array(Buffer.from(str.slice(3), "hex"));
+
+// export var logger = (function () {
+//   var oldConsoleLog: any = null;
+//   var pub = {};
+
+//   //@ts-ignore
+//   pub.enableLogger = function enableLogger() {
+//     if (oldConsoleLog == null) return;
+
+//     console.log = oldConsoleLog;
+//   };
+
+//   //@ts-ignore
+//   pub.disableLogger = function disableLogger() {
+//     oldConsoleLog = console.log;
+//     window["console"]["log"] = function () {};
+//   };
+
+//   return pub;
+// })();

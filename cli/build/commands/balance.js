@@ -42,7 +42,7 @@ exports.command = "balance";
 exports.desc = "fetch your shielded balance";
 var builder = function (yargs) { return yargs; };
 exports.builder = builder;
-var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {
+var handler = function () { return __awaiter(void 0, void 0, void 0, function () {
     var user, e_1, balances;
     return __generator(this, function (_a) {
         switch (_a.label) {
@@ -59,11 +59,10 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 4: return [4 /*yield*/, user.getBalance()];
+            case 4: return [4 /*yield*/, user.getBalance({ latest: false })];
             case 5:
                 balances = _a.sent();
                 console.log("User balance:");
-                // for each balance, print the amount and symbol, taking into account the decimals
                 balances.forEach(function (balance) {
                     console.log("".concat(balance.amount / Math.pow(10, balance.decimals), " ").concat(balance.symbol));
                 });
