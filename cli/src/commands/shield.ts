@@ -22,12 +22,17 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   process.env.ANCHOR_WALLET = "./cache/secret.txt";
   const { amount, token } = argv;
   try {
+    // get user from state
     var user = await readUserFromFile();
   } catch (e) {
     throw new Error("No user.txt file found, please login first.");
   }
   // return;
   // TODO: ensure 'payer's' balance is enough w 'connection'
+  // TODO: add check for amount / bn; optionally pass as bn
+  // TODO: use tokenRegistry to find decimals and convert. <- can put behind.
+  // at multiplication it should be a bn number
+  // TODO: recipient
   await user.shield({ amount: Number(amount) * 1e9, token });
 
   console.log(`Shielding done: ${amount} ${token}`);

@@ -196,7 +196,7 @@ export class Keypair {
     const privkey = new BN(privateKey);
     return new Keypair({ poseidon, privateKey: privkey });
   }
-
+  // TODO: replace with encryptionKeypair.publicKey
   static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Keypair {
     const pubKey = new BN(publicKey, undefined, "be");
     return new Keypair({ publicKey: pubKey, encPubkey });

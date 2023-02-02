@@ -26,13 +26,11 @@ export async function getLightInstance() {
   if (!merkletreeIsInited) {
     await setUpMerkleTree(provider);
     console.log("merkletree inited");
+    // TODO: throw error
   }
-  let mt = new SolMerkleTree({
-    pubkey: MERKLE_TREE_KEY,
-    poseidon: poseidon,
-  });
+
   console.log("building merkletree...");
-  mt = await SolMerkleTree.build({
+  const mt = await SolMerkleTree.build({
     pubkey: MERKLE_TREE_KEY,
     poseidon: poseidon,
   });

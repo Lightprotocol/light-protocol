@@ -26,6 +26,7 @@ export async function updateMerkleTreeForTest(provider: Provider) {
     poseidon,
   });
 
+  //@ts-ignore
   await executeUpdateMerkleTreeTransactions({
     connection: provider.connection,
     signer: ADMIN_AUTH_KEYPAIR,

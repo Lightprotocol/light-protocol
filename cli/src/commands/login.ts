@@ -26,8 +26,8 @@ export const handler = async (): Promise<void> => {
   const lightInstance = await getLightInstance();
 
   const user = new User({ payer: wallet, lightInstance });
-
   await user.load();
+  /// Mocks global state storage
   saveUserToFile({ user });
 
   console.log("User logged in!");
