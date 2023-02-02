@@ -477,7 +477,7 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
-      console.log("this.proofInput ", inputs);
+      // console.log("this.proofInput ", inputs);
 
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
@@ -1074,14 +1074,14 @@ export class Transaction {
 
         try {
           let serializedTx = tx.serialize();
-          console.log("serializedTx: ");
+          console.log("tx: ");
 
           res = await this.instance.provider!.connection.sendRawTransaction(
             serializedTx,
             confirmConfig,
           );
           retries = 0;
-          console.log(res);
+          // console.log(res);
         } catch (e: any) {
           retries--;
           if (retries == 0 || e.logs !== undefined) {
@@ -1700,7 +1700,7 @@ export class Transaction {
     if (this.shuffleEnabled) {
       console.log("shuffling utxos");
     } else {
-      console.log("commented shuffle");
+      console.log("shuffle disabled");
       return;
     }
     let currentIndex: number = utxos.length;

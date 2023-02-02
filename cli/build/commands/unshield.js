@@ -39,17 +39,18 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = exports.builder = exports.desc = exports.command = void 0;
 var util_1 = require("../util");
 var solana = require("@solana/web3.js");
-exports.command = "unshield <amount> <token> <recipient>";
+exports.command = "unshield";
 exports.desc = "create, send and confirm an unshield transaction for given, <amount> <token>, and to <recipient>";
 var builder = function (yargs) {
-    return yargs
-        .positional("amount", { type: "number", demandOption: true })
-        .positional("token", { type: "string", demandOption: true })
-        .positional("recipient", { type: "string", demandOption: true });
+    return yargs.options({
+        amount: { type: "number" },
+        token: { type: "string" },
+        recipient: { type: "string" },
+    });
 };
 exports.builder = builder;
 var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {
-    var amount, token, recipient, user, e_1, balances, tokenBalance;
+    var amount, token, recipient, user, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -66,22 +67,12 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 4: return [4 /*yield*/, user.getBalance()];
+            case 4: return [4 /*yield*/, user.unshield({
+                    amount: Number(amount) * 1e9,
+                    token: token,
+                    recipient: new solana.PublicKey(recipient),
+                })];
             case 5:
-                balances = _a.sent();
-                tokenBalance = balances.find(function (balance) { return balance.symbol === token; });
-                if (!tokenBalance) {
-                    throw new Error("Token not found");
-                }
-                if (tokenBalance.amount < amount) {
-                    throw new Error("Not enough balance");
-                }
-                return [4 /*yield*/, user.unshield({
-                        amount: Number(amount) * 1e9,
-                        token: token,
-                        recipient: new solana.PublicKey(recipient),
-                    })];
-            case 6:
                 _a.sent();
                 console.log("Unhield done: ".concat(amount, " ").concat(token, " to ").concat(recipient));
                 process.exit(0);

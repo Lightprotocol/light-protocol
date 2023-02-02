@@ -11,7 +11,7 @@ export class Relayer {
 
   /**
    *
-   * @param relayerPubkey Sign the transaction
+   * @param relayerPubkey Signs the transaction
    * @param lookUpTable  The relayer's lookuptable - uniformly used currently
    * @param relayerRecipient Recipient account for SOL fees
    * @param relayerFee Fee amount

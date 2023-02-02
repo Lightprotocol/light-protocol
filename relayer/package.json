@@ -1,0 +1,19 @@
+{
+  "name": "relayer",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.26.0",
+    "@solana/web3.js": "^1.73.2",
+    "express": "^4.18.2",
+    "light-sdk": "file:../light-sdk-ts"
+  },
+  "author": "",
+  "license": "ISC"
+}
