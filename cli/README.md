@@ -22,6 +22,6 @@ consecutive:
 ### TODOs Swen
 
 - [] enable SPL support
-- [] implement relayer, replace relayer 'mocks' in user class
+- [] implement relayer (/relayer) WIP, replace relayer 'mocks' in user class
 - [] add test cases [e.g. merging >2 inUtxos, 10-in circuit, extend checkBalance() for multiple out-utxos]
 - [] test-case with browser wallet instead of CLI
