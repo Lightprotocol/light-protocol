@@ -352,6 +352,7 @@ export class User {
       return [...this.utxos.slice(0, UTXO_MERGE_MAXIMUM)];
     if (this.utxos.length == 1) return [...this.utxos]; // TODO: check if this still works for spl...
 
+    // TODO: turn these into static user.class methods
     const getAmount = (u: Utxo, asset: PublicKey) => {
       return u.amounts[u.assets.indexOf(asset)];
     };
@@ -504,7 +505,6 @@ export class User {
         // TODO: add as fallback: use another MINT/third spl utxo
       }
     }
-
     return options;
   }
 
@@ -548,12 +548,14 @@ export class User {
     } else {
       console.log("- is SOL");
     }
-
+    // TODO: add browserWallet support
     let tx = new Transaction({
       instance: this.lightInstance,
       payer: this.payer, // ADMIN_AUTH_KEYPAIR
       shuffleEnabled: false,
     });
+
+    /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
@@ -571,8 +573,8 @@ export class User {
       inputUtxos: inUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       sender: tokenCtx.isSol ? this.payer!.publicKey : tokenCtx.tokenAccount, // TODO: must be users token account
-      senderFee: this.payer!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer??
-      verifier: new VerifierZero(),
+      senderFee: this.payer!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer?? /// senderSOL
+      verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
     });
     await tx.compileAndProve(txParams);
     // console.log("tx compiled and proof created!");
@@ -589,7 +591,7 @@ export class User {
 
     console.log = () => {};
     //@ts-ignore
-    await tx.checkBalances();
+    await tx.checkBalances(); // This is a test
     console.log = initLog;
     console.log("✔️ checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
@@ -644,7 +646,7 @@ export class User {
     });
 
     // TODO: replace with ping to relayer webserver
-
+    // TODO: maybe: move to lightInstance.
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       this.lightInstance.lookUpTable!,
@@ -659,6 +661,7 @@ export class User {
       shuffleEnabled: false,
     });
 
+    // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
@@ -845,6 +848,8 @@ export class User {
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
     }
     if (!this.seed) {
+      if (this.payer && this.browserWallet)
+        throw new Error("Both payer and browser wallet are provided");
       if (this.payer) {
         const signature: Uint8Array = sign.detached(
           message,
@@ -870,11 +875,12 @@ export class User {
       });
     }
 
+    // TODO: optimize: fetch once, then filter
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
     /** temporary: ensure leaves are inserted. TODO: Move to relayer */
-    let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
-      MERKLE_TREE_KEY,
-    );
+    // let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
+    //   MERKLE_TREE_KEY,
+    // );
     // console.log("uninserted leaves: ", uninsertedLeaves.length);
 
     // if (uninsertedLeaves.length > 0)
