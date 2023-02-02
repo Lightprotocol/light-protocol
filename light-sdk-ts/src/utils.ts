@@ -36,7 +36,7 @@ export async function getLightInstance() {
     pubkey: MERKLE_TREE_KEY,
     poseidon: poseidon,
   });
-  console.log("building merkletree done");
+  console.log("✔️ building merkletree done");
   const lightInstance: LightInstance = {
     solMerkleTree: mt,
     lookUpTable: LOOK_UP_TABLE,
