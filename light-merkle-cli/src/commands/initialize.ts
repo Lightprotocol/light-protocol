@@ -5,6 +5,9 @@ import { PublicKey } from "@solana/web3.js";
 import { getAirDrop, getLocalProvider, getWalletConfig, readPayerFromIdJson } from "../../utils/utils"
 import { Command } from "commander";
 
+// TODO: to remove the pubkey while intialization
+// TODO: remove the getAirDrop()
+
 
 export const initialize = new Command("initialize").argument("-p, --pubKey")
   .description("Initialize the Merkle Tree Authority")
@@ -15,7 +18,6 @@ export const initialize = new Command("initialize").argument("-p, --pubKey")
     try {
       const payer = new anchor.Wallet(readPayerFromIdJson());
       const provider = await getLocalProvider(payer);
-      console.log(anchor.web3.Keypair.generate().publicKey)
       await getAirDrop(provider, payer.publicKey)
       const merkleTreeAccountInfo = await provider.connection.getAccountInfo(MERKLE_TREE_KEY);
       if (!merkleTreeAccountInfo) {

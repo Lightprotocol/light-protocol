@@ -9,7 +9,6 @@ import { PublicKey } from "@solana/web3.js";
 
 
 export const verifier = new Command("verifier").argument("method")
-    .description("Initialize or get the Merkle Tree Verifier Account")
     .option("-p, --publicKey <pubKey>", "Public key of the Verifier")
     .description("Register a new verifier for a Merkle Tree")
     .action(async (command: string, options: any) => {
@@ -70,7 +69,6 @@ export const verifier = new Command("verifier").argument("method")
                     else {
                         log("No verifier account found", "info")
                     }
-
                     spinner.succeed("Verifiers Successfully Listed")
                 } catch (err) {
                     console.log(`Error while listing verifiers`)

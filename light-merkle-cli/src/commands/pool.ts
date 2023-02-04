@@ -7,6 +7,9 @@ import { getLocalProvider, getWalletConfig, readPayerFromIdJson } from "../../ut
 import { Command, program } from "commander";
 import { PublicKey } from "@solana/web3.js";
 
+// TODO: should be a deafult pool with all zeros
+
+// TODO: should have the seperate listing for the sol and pooltype
 
 export const pool = new Command("pool").argument("method")
     .option("-p, --publicKey <pubKey>", "Public key for the MINT")
@@ -56,7 +59,6 @@ export const pool = new Command("pool").argument("method")
             }
             else if (command === "list") {
                 const listingPoolLoader = ora("Listing Pools");
-
                 listingPoolLoader.start();
                 const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
                 const provider = await getLocalProvider(payer);
@@ -92,7 +94,6 @@ export const pool = new Command("pool").argument("method")
                         log("No pool account found", "info")
 
                     }
-
 
                     listingPoolLoader.succeed("Pools Successfully Listed")
                 } catch (err) {

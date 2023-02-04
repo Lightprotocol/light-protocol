@@ -54,8 +54,8 @@ export const authority = new Command("authority").argument("method")
                 spinner.stop()
                 const getSpinner = ora('Getting Merkle Tree Authority\n').start();
                 try {
-                    const authorityInfo = await provider.connection.getAccountInfo(MERKLE_TREE_AUTHORITY_PDA)
                     // @ts-ignore
+                    // confirmed string // TODO: solve the issue of data not updated properly immediately
                     const authority = await merkleTreeConfig.merkleTreeProgram.account.merkleTreeAuthority.fetch(
                         MERKLE_TREE_AUTHORITY_PDA,
                     );

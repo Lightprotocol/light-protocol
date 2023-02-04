@@ -7,15 +7,14 @@ import {
 import { getLocalProvider, getWalletConfig, readPayerFromIdJson } from "../../utils/utils"
 import { Command, program } from "commander";
 
+// TODO: logging issue
+// TODO: disable
 
 export const configure = new Command("configure").argument("method")
     .description("Update the configuration of the merkle Tree nfts , permissions less spl tokens and lock duration")
     .option("-l , --lockDuration [lockDuration]", "Update the lockDuration configuration")
-    .description("initialize the Merkle Tree Authority")
     .action(async (command: string, options: any) => {
-
         let spinner = ora('Updating Merkle Tree Configuration...\n')
-
         try {
             const payer = new anchor.Wallet(readPayerFromIdJson());
             const provider = await getLocalProvider(payer);
@@ -26,7 +25,6 @@ export const configure = new Command("configure").argument("method")
                     spinner.start("Updating NFT Merkle Tree Configuration...");
                     const tx = await merkleTreeConfig.enableNfts(true);
                     log(`Nfts tokens enabled`, "success");
-
                 }
                 catch (err) {
                     throw err;
