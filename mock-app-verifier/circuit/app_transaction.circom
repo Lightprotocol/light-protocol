@@ -26,7 +26,8 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     assert( nIns * nAssets < 49);
     assert( nInAssets <= nAssets);
     assert( nOutAssets <= nAssets);
-
+    
+    signal input extDataHash;
     signal input  inAmount[nIns][nInAssets];
     signal input  inPublicKey[nIns];
     signal input  inBlinding[nIns];
@@ -205,10 +206,12 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
         outputHasher.inputs[i] <== outCommitmentHasher[i].out;
     }
 
-    component connectingHasher = Poseidon(2);
+    component connectingHasher = Poseidon(3);
 
     connectingHasher.inputs[0] <== inputHasher.out;
     connectingHasher.inputs[1] <== outputHasher.out;
+    connectingHasher.inputs[2] <== extDataHash;
+
 
     connectingHash === connectingHasher.out;
 
