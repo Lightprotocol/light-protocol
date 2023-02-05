@@ -45,6 +45,7 @@ export class Utxo {
   _commitment: BN | null;
   _nullifier: BN | null;
   poseidon: any;
+  includeAppData: boolean;
 
   constructor({
     poseidon,
@@ -58,6 +59,7 @@ export class Utxo {
     appData = [],
     appDataFromBytesFn,
     index,
+    includeAppData = false,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -69,6 +71,7 @@ export class Utxo {
     appData?: Array<any>;
     appDataFromBytesFn?: Function;
     index?: number;
+    includeAppData?: boolean;
   }) {
     // check that blinding is 31 bytes
     blinding.toArray("be", 31);
@@ -123,6 +126,7 @@ export class Utxo {
     this.poseidon = poseidon;
     this.appData = appData;
     this.poolType = poolType;
+    this.includeAppData = includeAppData;
 
     // TODO: make variable length
     // TODO: evaluate whether to hashAndTruncate feeAsset as well
@@ -186,7 +190,7 @@ export class Utxo {
     }
 
     // case no appData
-    if (this.instructionType.toString() == "0") {
+    if (!this.includeAppData) {
       return new Uint8Array([
         ...this.blinding.toArray("be", 31),
         ...this.amounts[0].toArray("be", 8),
@@ -219,6 +223,7 @@ export class Utxo {
     keypairInAppDataOffset,
     appDataLength,
     appDataFromBytesFn,
+    includeAppData = false,
   }: {
     poseidon: any;
     bytes: Uint8Array;
@@ -226,6 +231,7 @@ export class Utxo {
     keypairInAppDataOffset?: number;
     appDataLength?: number;
     appDataFromBytesFn?: Function;
+    includeAppData?: boolean;
   }): Utxo {
     const blinding = new BN(bytes.slice(0, 31), undefined, "be"); // blinding
     const amounts = [
@@ -244,6 +250,7 @@ export class Utxo {
         amounts,
         keypair,
         blinding,
+        includeAppData,
       });
     } else {
       const instructionType = new BN(bytes.slice(55, 87), 32, "be");
@@ -266,6 +273,7 @@ export class Utxo {
         appData,
         appDataFromBytesFn,
         verifierAddress,
+        includeAppData,
       });
     }
   }
