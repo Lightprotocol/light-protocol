@@ -23,6 +23,7 @@ export class Keypair {
     publicKey?: [Uint8Array, Uint8Array];
     privateKey: Uint8Array;
   };
+  eddsa: any;
 
   constructor({
     poseidon,
@@ -32,6 +33,7 @@ export class Keypair {
     publicKey,
     encPubkey,
     poseidonEddsaPrivateKey,
+    eddsa,
   }: {
     poseidon?: any;
     seed?: string;
@@ -40,6 +42,7 @@ export class Keypair {
     publicKey?: BN;
     encPubkey?: Uint8Array;
     poseidonEddsaPrivateKey?: Uint8Array;
+    eddsa?: any;
   }) {
     if (seed.length < 32) {
       throw "seed too short length less than 32";
@@ -96,12 +99,19 @@ export class Keypair {
       );
       this.poseidonEddsa = Keypair.getEddsaPrivateKey(seed);
     }
+    this.eddsa = eddsa;
   }
 
   async getEddsaPublicKey(): Promise<[Uint8Array, Uint8Array]> {
-    const eddsa = await circomlibjs.buildEddsa();
-    if (this.poseidonEddsa) {
-      return eddsa.prv2pub(this.poseidonEddsa.privateKey);
+    if (this.poseidonEddsa && this.eddsa) {
+      this.poseidonEddsa.publicKey = this.eddsa.prv2pub(
+        this.poseidonEddsa.privateKey,
+      );
+      if (this.poseidonEddsa.publicKey) {
+        return this.poseidonEddsa.publicKey;
+      } else {
+        throw new Error("get poseidonEddsa.publicKey failed");
+      }
     } else {
       throw new Error("poseidonEddsa.privateKey undefined");
     }
@@ -119,17 +129,29 @@ export class Keypair {
     return new BN(this.encryptionPublicKey).toBuffer("be", 32);
   }
 
-  async signEddsa(msg: string): Promise<Uint8Array> {
-    const eddsa = await circomlibjs.buildEddsa();
-    const babyJub = await circomlibjs.buildBabyjub();
-    const F = babyJub.F;
+  // TODO: make eddsa wrapper class
+  // TODO: include eddsa into static from methods
+  async signEddsa(msg: string | Uint8Array, eddsa?: any): Promise<Uint8Array> {
+    if (!this.eddsa) {
+      if (!eddsa) {
+        this.eddsa = eddsa;
+      } else {
+        throw new Error("Eddsa is not provided");
+      }
+    }
     if (this.poseidonEddsa) {
-      return eddsa.packSignature(
-        eddsa.signPoseidon(
-          this.poseidonEddsa.privateKey,
-          F.e(ffjavascript.Scalar.e(msg)),
-        ),
-      );
+      if (typeof msg == "string") {
+        return this.eddsa.packSignature(
+          this.eddsa.signPoseidon(
+            this.poseidonEddsa.privateKey,
+            this.poseidon.F.e(ffjavascript.Scalar.e(msg)),
+          ),
+        );
+      } else {
+        return this.eddsa.packSignature(
+          this.eddsa.signPoseidon(this.poseidonEddsa.privateKey, msg),
+        );
+      }
     } else {
       throw new Error("poseidonEddsa.privateKey undefined");
     }
