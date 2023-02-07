@@ -843,7 +843,7 @@ export class Transaction {
         let extDataBytes = new Uint8Array([
           ...this.params.accounts.recipient?.toBytes(),
           ...this.params.accounts.recipientFee.toBytes(),
-          ...this.params.payer.publicKey.toBytes(),
+          ...this.params.relayer.accounts.relayerPubkey.toBytes(),
           ...this.params.relayer.relayerFee.toArray("le", 8),
           ...this.params.encryptedUtxos,
         ]);
