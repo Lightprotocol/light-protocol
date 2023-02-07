@@ -39,6 +39,8 @@ export async function checkMerkleTreeUpdateStateCreated({
   current_instruction_index: number;
   merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
 }) {
+  let x = console.log;
+  console.log = () => {};
   var merkleTreeTmpAccountInfo = await connection.getAccountInfo(
     merkleTreeUpdateState,
     "confirmed",
@@ -98,6 +100,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   );
   // assert(U64.readLE(MerkleTreeAccountInfo.data.slice(16658-8,16658), 0) >= (await connection.getSlot()) - 5, "Lock has not been taken at this or in the 5 prior slots");
   console.log("checkMerkleTreeUpdateStateCreated: success");
+  console.log = x;
 }
 
 export async function checkMerkleTreeBatchUpdateSuccess({
@@ -128,7 +131,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkleTreeAccount.pubkeyLocked.toBase58(),
     new solana.PublicKey(new Uint8Array(32).fill(0)).toBase58(),
   );
-  console.log("merkleTreeAccount.time_locked ", merkleTreeAccount.timeLocked);
+  // console.log("merkleTreeAccount.time_locked ", merkleTreeAccount.timeLocked);
 
   assert.equal(
     merkleTreeAccount.timeLocked,
@@ -141,16 +144,16 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkleTreeAccountPrior.currentRootIndex; //U64.readLE(merkleTreeAccountPrior.data.slice(594 - 8, 594),0).toNumber()
 
   let current_root_index = merkleTreeAccount.currentRootIndex; //tU64.readLE(merkleTreeAccount.data.slice(594 - 8, 594),0).toNumber()
-  console.log(
-    "merkle_tree_prior_current_root_index: ",
-    merkle_tree_prior_current_root_index,
-  );
-  console.log("current_root_index: ", current_root_index);
-  console.log(
-    `${merkle_tree_prior_current_root_index.add(
-      new anchor.BN("1"),
-    )} == ${current_root_index}`,
-  );
+  // console.log(
+  //   "merkle_tree_prior_current_root_index: ",
+  //   merkle_tree_prior_current_root_index,
+  // );
+  // console.log("current_root_index: ", current_root_index);
+  // console.log(
+  //   `${merkle_tree_prior_current_root_index.add(
+  //     new anchor.BN("1"),
+  //   )} == ${current_root_index}`,
+  // );
 
   assert.equal(
     merkle_tree_prior_current_root_index.add(new anchor.BN("1")).toString(),
@@ -164,11 +167,11 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   // // index has increased by numberOfLeaves
   // console.log(`index has increased by numberOfLeaves: ${merkle_tree_prior_leaves_index.add(U64(numberOfLeaves)).toString()}, ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
 
-  console.log(
-    `${merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves))} == ${
-      merkleTreeAccount.nextIndex
-    }`,
-  );
+  // console.log(
+  //   `${merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves))} == ${
+  //     merkleTreeAccount.nextIndex
+  //   }`,
+  // );
 
   assert(
     merkle_tree_prior_leaves_index

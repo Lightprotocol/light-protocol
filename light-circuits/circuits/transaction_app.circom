@@ -343,10 +343,11 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         outputHasher.inputs[i] <== outCommitmentHasher[i].out;
     }
 
-    component connectingHasher = Poseidon(2);
+    component connectingHasher = Poseidon(3);
 
     connectingHasher.inputs[0] <== inputHasher.out;
     connectingHasher.inputs[1] <== outputHasher.out;
+    connectingHasher.inputs[2] <== extDataHash;
 
     connectingHash === connectingHasher.out;
 

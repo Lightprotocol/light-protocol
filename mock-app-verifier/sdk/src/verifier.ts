@@ -76,7 +76,7 @@ export class MockVerifier implements Verifier {
     const invokingVerifierPubkey = (
       await PublicKey.findProgramAddress(
         [
-          transaction.payer.publicKey.toBytes(),
+          transaction.params.payer.publicKey.toBytes(),
           // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         this.verifierProgram.programId
@@ -94,14 +94,14 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
     // console.log("new BN(transaction.publicInputs.feeAmount) ",Buffer.from(transaction.publicInputs.feeAmount));
     // console.log("new anchor.BN(transaction.rootIndex.toString()) ", new anchor.BN(transaction.rootIndex.toString()));
-    // console.log("new anchor.BN(transaction.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
+    // console.log("new anchor.BN(transaction.params.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
     // console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos.length);
     // console.log(transaction.appParams);
     // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
     
-    var relayerRecipient = transaction.relayer.accounts.relayerRecipient;
+    var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
     try {
       // deposit means the amount is u64
       new BN(transaction.publicInputs.feeAmount).toArray("be", 8);    
@@ -114,8 +114,8 @@ export class MockVerifier implements Verifier {
         transaction.publicInputs.leaves,
         Buffer.from(transaction.publicInputs.feeAmount),
         new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
-        new anchor.BN(transaction.relayer.relayerFee.toString()),
-        Buffer.from(transaction.encryptedUtxos.slice(0, 512)),
+        new anchor.BN(transaction.params.relayer.relayerFee.toString()),
+        Buffer.from(transaction.params.encryptedUtxos.slice(0, 512)),
       )
       .accounts({
         ...transaction.params.accounts,
@@ -133,14 +133,13 @@ export class MockVerifier implements Verifier {
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
         ...transaction.params.accounts,
-        ...transaction.relayer.accounts,
+        ...transaction.params.relayer.accounts,
         relayerRecipient: relayerRecipient,
       })
       .remainingAccounts([
         ...transaction.params.nullifierPdaPubkeys,
         ...transaction.params.leavesPdaPubkeys,
       ])
-      .signers([transaction.payer])
       .instruction();
     
     this.instructions.push(ix1)

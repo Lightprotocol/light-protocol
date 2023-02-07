@@ -61,7 +61,7 @@ describe("verifier_program", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
-  it("init test setup Merkle tree lookup table etc ", async () => {
+  before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
@@ -131,7 +131,6 @@ describe("verifier_program", () => {
 
       let tx = new Transaction({
         instance: lightInstance,
-        payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
       });
 
@@ -151,6 +150,7 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierOne(),
+        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -197,7 +197,6 @@ describe("verifier_program", () => {
 
       let tx = new Transaction({
         instance: lightInstance,
-        payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
       });
 
@@ -217,6 +216,7 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
+        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -266,8 +266,6 @@ describe("verifier_program", () => {
 
     let tx = new Transaction({
       instance: lightInstance,
-      relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
     });
 
@@ -277,6 +275,8 @@ describe("verifier_program", () => {
       recipient: tokenRecipient,
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
+      relayer,
+      payer: ADMIN_AUTH_KEYPAIR,
     });
 
     await tx.compileAndProve(txParams);
@@ -346,8 +346,6 @@ describe("verifier_program", () => {
 
     let tx = new Transaction({
       instance: lightInstance,
-      relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
     });
 
@@ -360,6 +358,8 @@ describe("verifier_program", () => {
       recipient: recipientTokenAccount,
       recipientFee,
       verifier: new VerifierOne(),
+      relayer,
+      payer: ADMIN_AUTH_KEYPAIR,
     });
     await tx.compileAndProve(txParams);
 

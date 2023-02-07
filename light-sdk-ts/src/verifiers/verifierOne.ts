@@ -61,9 +61,6 @@ export class VerifierOne implements Verifier {
       transaction.params.leavesPdaPubkeys &&
       transaction.publicInputs
     ) {
-      if (!transaction.payer) {
-        throw new Error("Payer not defined");
-      }
       const ix1 = await this.verifierProgram.methods
         .shieldedTransferFirst(
           Buffer.from(transaction.publicInputs.publicAmount),
@@ -71,12 +68,12 @@ export class VerifierOne implements Verifier {
           transaction.publicInputs.leaves[0],
           Buffer.from(transaction.publicInputs.feeAmount),
           new anchor.BN(transaction.rootIndex.toString()),
-          new anchor.BN(transaction.relayer.relayerFee.toString()),
-          Buffer.from(transaction.encryptedUtxos),
+          new anchor.BN(transaction.params.relayer.relayerFee.toString()),
+          Buffer.from(transaction.params.encryptedUtxos),
         )
         .accounts({
           ...transaction.params.accounts,
-          ...transaction.relayer.accounts,
+          ...transaction.params.relayer.accounts,
         })
         .instruction();
 
@@ -84,13 +81,12 @@ export class VerifierOne implements Verifier {
         .shieldedTransferSecond(Buffer.from(transaction.proofBytes))
         .accounts({
           ...transaction.params.accounts,
-          ...transaction.relayer.accounts,
+          ...transaction.params.relayer.accounts,
         })
         .remainingAccounts([
           ...transaction.params.nullifierPdaPubkeys,
           ...transaction.params.leavesPdaPubkeys,
         ])
-        .signers([transaction.payer])
         .instruction();
       this.instructions = [ix1, ix2];
       return this.instructions;

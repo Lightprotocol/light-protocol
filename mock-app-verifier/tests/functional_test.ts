@@ -95,6 +95,7 @@ describe("Mock verifier functional", () => {
       sender: userTokenAccount, // just any token account
       senderFee: ADMIN_AUTH_KEY, //
       verifier: new VerifierTwo(),
+      payer: ADMIN_AUTH_KEYPAIR,
     });
 
     const appParams = {
@@ -104,7 +105,6 @@ describe("Mock verifier functional", () => {
 
     let tx = new Transaction({
       instance: lightInstance,
-      payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
     });
 
@@ -142,6 +142,8 @@ describe("Mock verifier functional", () => {
       recipient: userTokenAccount, // just any token account
       recipientFee: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),
+      payer: ADMIN_AUTH_KEYPAIR,
+      relayer
     });
 
     const appParams = {
@@ -151,9 +153,7 @@ describe("Mock verifier functional", () => {
 
     let tx = new Transaction({
       instance: lightInstance,
-      payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
-      relayer
+      shuffleEnabled: false
     });
 
     await tx.compile(txParams, appParams);
