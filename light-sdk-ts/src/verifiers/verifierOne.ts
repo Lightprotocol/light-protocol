@@ -1,7 +1,4 @@
-import {
-  VerifierProgramOne,
-  VerifierProgramOneIdl,
-} from "../idls/verifier_program_one";
+import { VerifierProgramOne, IDL_VERIFIER_PROGRAM_ONE } from "../idls/index";
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 
@@ -13,7 +10,7 @@ import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
 
 export class VerifierOne implements Verifier {
-  verifierProgram: Program<VerifierProgramOneIdl>;
+  verifierProgram: Program<VerifierProgramOne>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -24,7 +21,7 @@ export class VerifierOne implements Verifier {
   constructor() {
     try {
       this.verifierProgram = new Program(
-        VerifierProgramOne,
+        IDL_VERIFIER_PROGRAM_ONE,
         verifierProgramOneProgramId,
       );
     } catch (error) {
@@ -64,9 +61,6 @@ export class VerifierOne implements Verifier {
       transaction.params.leavesPdaPubkeys &&
       transaction.publicInputs
     ) {
-      if (!transaction.payer) {
-        throw new Error("Payer not defined");
-      }
       const ix1 = await this.verifierProgram.methods
         .shieldedTransferFirst(
           Buffer.from(transaction.publicInputs.publicAmount),
@@ -74,12 +68,12 @@ export class VerifierOne implements Verifier {
           transaction.publicInputs.leaves[0],
           Buffer.from(transaction.publicInputs.feeAmount),
           new anchor.BN(transaction.rootIndex.toString()),
-          new anchor.BN(transaction.relayer.relayerFee.toString()),
-          Buffer.from(transaction.encryptedUtxos),
+          new anchor.BN(transaction.params.relayer.relayerFee.toString()),
+          Buffer.from(transaction.params.encryptedUtxos),
         )
         .accounts({
           ...transaction.params.accounts,
-          ...transaction.relayer.accounts,
+          ...transaction.params.relayer.accounts,
         })
         .instruction();
 
@@ -87,13 +81,12 @@ export class VerifierOne implements Verifier {
         .shieldedTransferSecond(Buffer.from(transaction.proofBytes))
         .accounts({
           ...transaction.params.accounts,
-          ...transaction.relayer.accounts,
+          ...transaction.params.relayer.accounts,
         })
         .remainingAccounts([
           ...transaction.params.nullifierPdaPubkeys,
           ...transaction.params.leavesPdaPubkeys,
         ])
-        .signers([transaction.payer])
         .instruction();
       this.instructions = [ix1, ix2];
       return this.instructions;

@@ -102,7 +102,6 @@ describe("Verifier Zero and One Tests", () => {
     
             var transaction = new Transaction({
                 instance: lightInstance,
-                payer: ADMIN_AUTH_KEYPAIR,
                 shuffleEnabled: false,
             });
     
@@ -122,6 +121,7 @@ describe("Verifier Zero and One Tests", () => {
                 sender: userTokenAccount,
                 senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
                 verifier: verifiers[verifier],
+                payer: ADMIN_AUTH_KEYPAIR,
             });
             await transaction.compileAndProve(txParams);
             // does one successful transaction
@@ -131,7 +131,6 @@ describe("Verifier Zero and One Tests", () => {
             // Deposit
             var transaction1 = new Transaction({
                 instance: lightInstance,
-                payer: ADMIN_AUTH_KEYPAIR,
                 shuffleEnabled: false,
             });
     
@@ -151,6 +150,7 @@ describe("Verifier Zero and One Tests", () => {
                 sender: userTokenAccount,
                 senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
                 verifier: verifiers[verifier],
+                payer: ADMIN_AUTH_KEYPAIR,
             });
             await transaction1.compileAndProve(txParams1);
             transactions.push(transaction1);
@@ -174,8 +174,6 @@ describe("Verifier Zero and One Tests", () => {
         
             let tx = new Transaction({
                 instance: lightInstanceWithdrawal,
-                relayer,
-                payer: ADMIN_AUTH_KEYPAIR,
                 shuffleEnabled: false,
             });
         
@@ -185,6 +183,8 @@ describe("Verifier Zero and One Tests", () => {
                 recipient: tokenRecipient,
                 recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
                 verifier: verifiers[verifier],
+                relayer,
+                payer: ADMIN_AUTH_KEYPAIR,
             });
         
             await tx.compileAndProve(txParams2);
@@ -282,7 +282,7 @@ describe("Verifier Zero and One Tests", () => {
     it("Wrong encryptedUtxos",async () => {
         for (var tx in transactions) {
             var tmp_tx  = _.cloneDeep(transactions[tx]);
-            tmp_tx.encryptedUtxos = new Uint8Array(174).fill(2);
+            tmp_tx.params.encryptedUtxos = new Uint8Array(174).fill(2);
             await sendTestTx(tmp_tx, "ProofVerificationFails");   
         }     
     })
@@ -290,7 +290,7 @@ describe("Verifier Zero and One Tests", () => {
     it("Wrong relayerFee",async () => {
         for (var tx in transactions) {
             var tmp_tx  = _.cloneDeep(transactions[tx]);        
-            tmp_tx.relayer.relayerFee = new anchor.BN("9000");
+            tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
             await sendTestTx(tmp_tx, "ProofVerificationFails");   
         }     
     })

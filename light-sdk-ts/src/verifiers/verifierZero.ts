@@ -6,16 +6,11 @@ import {
 } from "../index";
 import { Transaction } from "../transaction";
 import { Verifier, PublicInputs } from ".";
-import {
-  VerifierProgramZero,
-  VerifierProgramZeroIdl,
-} from "../idls/verifier_program_zero";
-import { PublicKey } from "@solana/web3.js";
-// Proofgen does not work within sdk needs circuit-build
-// TODO: bundle files in npm package
+import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
+
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
 export class VerifierZero implements Verifier {
-  verifierProgram: Program<VerifierProgramZeroIdl>;
+  verifierProgram: Program<VerifierProgramZero>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -25,7 +20,7 @@ export class VerifierZero implements Verifier {
   constructor() {
     try {
       this.verifierProgram = new Program(
-        VerifierProgramZero,
+        IDL_VERIFIER_PROGRAM_ZERO,
         verifierProgramZeroProgramId,
       );
     } catch (error) {
@@ -69,10 +64,6 @@ export class VerifierZero implements Verifier {
       transaction.params.nullifierPdaPubkeys &&
       transaction.params.leavesPdaPubkeys
     ) {
-      if (!transaction.payer) {
-        throw new Error("Payer not defined");
-      }
-
       const ix = await this.verifierProgram.methods
         .shieldedTransferInputs(
           Buffer.from(transaction.proofBytes),
@@ -81,12 +72,12 @@ export class VerifierZero implements Verifier {
           transaction.publicInputs.leaves[0],
           Buffer.from(transaction.publicInputs.feeAmount),
           new anchor.BN(transaction.rootIndex.toString()),
-          new anchor.BN(transaction.relayer.relayerFee.toString()),
-          Buffer.from(transaction.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase
+          new anchor.BN(transaction.params.relayer.relayerFee.toString()),
+          Buffer.from(transaction.params.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase
         )
         .accounts({
           ...transaction.params.accounts,
-          ...transaction.relayer.accounts,
+          ...transaction.params.relayer.accounts,
         })
         .remainingAccounts([
           ...transaction.params.nullifierPdaPubkeys,

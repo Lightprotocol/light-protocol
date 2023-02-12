@@ -42,12 +42,15 @@ export async function getAssetLookUpId({
 
 // TODO: fetch from chain
 // TODO: separate testing variables from prod env
-export const assetLookupTable: PublicKey[] = [SystemProgram.programId, MINT];
+export const assetLookupTable: string[] = [
+  SystemProgram.programId.toBase58(),
+  MINT.toBase58(),
+];
 
 export function getAssetIndex(assetPubkey: PublicKey): BN {
-  return new BN(assetLookupTable.indexOf(assetPubkey));
+  return new BN(assetLookupTable.indexOf(assetPubkey.toBase58()));
 }
 
 export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
-  return assetLookupTable[assetIndex.toNumber()];
+  return new PublicKey(assetLookupTable[assetIndex.toNumber()]);
 }
