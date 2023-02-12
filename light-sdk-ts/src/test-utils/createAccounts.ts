@@ -15,7 +15,7 @@ import {
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
 } from "@solana/spl-token";
-import { Keypair as ShieldedKeypair } from "../keypair";
+import { Account } from "../account";
 
 import { createMint } from "@solana/spl-token";
 import {
@@ -313,7 +313,7 @@ export async function createTestAccounts(connection: Connection) {
   } catch (error) {}
 
   let POSEIDON = await circomlibjs.buildPoseidonOpt();
-  let KEYPAIR = new ShieldedKeypair({
+  let KEYPAIR = new Account({
     poseidon: POSEIDON,
     seed: KEYPAIR_PRIVKEY.toString(),
   });
