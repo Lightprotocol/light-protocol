@@ -38,21 +38,27 @@ var __generator = (this && this.__generator) || function (thisArg, body) {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.handler = exports.builder = exports.desc = exports.command = void 0;
 var util_1 = require("../util");
-exports.command = "transfer <amount> <token> <recipient>";
+var anchor = require("@coral-xyz/anchor");
+var light_sdk_1 = require("light-sdk");
+exports.command = "transfer";
 exports.desc = "create, send and confirm an transfer transaction for given, <amount> <token>, and to <recipient>";
 var builder = function (yargs) {
-    return yargs
-        .positional("amount", { type: "number", demandOption: true })
-        .positional("token", { type: "string", demandOption: true })
-        .positional("recipient", { type: "string", demandOption: true });
+    return yargs.options({
+        amount: { type: "number" },
+        token: { type: "string" },
+        shieldedRecipient: { type: "string" },
+        encryptionPublicKey: { type: "string" },
+    });
 };
 exports.builder = builder;
 var handler = function (argv) { return __awaiter(void 0, void 0, void 0, function () {
-    var amount, token, recipient, user, e_1, balances, tokenBalance;
+    var amount, token, shieldedRecipient, encryptionPublicKey, user, e_1, recipient, recipientEncryptionPublicKey;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
-                amount = argv.amount, token = argv.token, recipient = argv.recipient;
+                process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+                process.env.ANCHOR_WALLET = "./cache/secret.txt";
+                amount = argv.amount, token = argv.token, shieldedRecipient = argv.shieldedRecipient, encryptionPublicKey = argv.encryptionPublicKey;
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 3, , 4]);
@@ -63,21 +69,19 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 3:
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
-            case 4: return [4 /*yield*/, user.getBalance()];
+            case 4:
+                console.log("hexstring?", shieldedRecipient);
+                recipient = new anchor.BN(shieldedRecipient, "hex");
+                recipientEncryptionPublicKey = (0, light_sdk_1.strToArr)(encryptionPublicKey);
+                console.log("user.transfer...");
+                return [4 /*yield*/, user.transfer({
+                        amount: amount * 1e9,
+                        token: token,
+                        recipient: recipient,
+                        recipientEncryptionPublicKey: recipientEncryptionPublicKey,
+                    })];
             case 5:
-                balances = _a.sent();
-                tokenBalance = balances.find(function (balance) { return balance.symbol === token; });
-                if (!tokenBalance) {
-                    throw new Error("Token not found");
-                }
-                if (tokenBalance.amount < amount) {
-                    throw new Error("Not enough balance");
-                }
-                //   await user.transfer({
-                //     amount,
-                //     token,
-                //     recipient: new solana.PublicKey(recipient), // TODO: do shielded address
-                //   });
+                _a.sent();
                 console.log("Shielded Transfer done: ".concat(amount, " ").concat(token));
                 process.exit(0);
                 return [2 /*return*/];

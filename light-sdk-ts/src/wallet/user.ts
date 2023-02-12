@@ -38,6 +38,7 @@ import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
 import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
+import { arrToStr, strToArr } from "../utils";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -120,8 +121,9 @@ export class User {
     if (!this.keypair) throw new Error("Keypair not initialized");
     if (!this.poseidon) throw new Error("Poseidon not initialized");
     if (!this.lightInstance) throw new Error("Light Instance not initialized");
-    // fetch utxos
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
+    //TODO: add: "pending" to balances
+    //TODO: add init by cached (subset of leavesPdas)
     // let leavesPdasU = await SolMerkleTree.getUninsertedLeaves(MERKLE_TREE_KEY);
     // console.log(
     //   "leavesPdas length?: ",
@@ -184,11 +186,15 @@ export class User {
     amount,
     inUtxos,
     recipient,
+    recipientEncryptionPublicKey,
+    relayer,
   }: {
     mint: PublicKey;
     amount: number;
     inUtxos: Utxo[];
     recipient?: anchor.BN;
+    recipientEncryptionPublicKey?: Uint8Array;
+    relayer?: Relayer;
   }) {
     console.log("inUtxos", inUtxos);
     console.log("createOutUtxos amount", amount);
@@ -208,31 +214,34 @@ export class User {
       });
       if (inAmount < Math.abs(amount)) {
         throw new Error(
-          `Insufficient funds for unshield. In amount: ${inAmount}, out amount: ${amount}`,
+          `Insufficient funds for unshield/transfer. In amount: ${inAmount}, out amount: ${amount}`,
         );
       }
     }
-
-    if (recipient) {
-      // it's a transfer: amount becomes the priv amount
-    }
-
+    var isTransfer = false;
+    if (recipient && recipientEncryptionPublicKey && relayer) isTransfer = true;
+    console.log(
+      "istransfer?",
+      recipient,
+      recipientEncryptionPublicKey,
+      isTransfer,
+      relayer,
+    );
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
     assets.push({
       asset: SystemProgram.programId,
       amount: 0,
     });
-
     /// For shields: add amount to asset for out
     // TODO: for spl-might want to consider merging 2-1 as outs .
     let assetIndex = assets.findIndex(
       (a) => a.asset.toBase58() === mint.toBase58(),
     );
     if (assetIndex === -1) {
-      assets.push({ asset: mint, amount: amount });
+      assets.push({ asset: mint, amount: !isTransfer ? amount : 0 });
     } else {
-      assets[assetIndex].amount += amount;
+      assets[assetIndex].amount += !isTransfer ? amount : 0;
     }
 
     // add in-amounts to assets
@@ -258,18 +267,63 @@ export class User {
 
     if (assets.length === 1) {
       // just fee asset as oututxo
-      console.log("just fee asset as oututxo...");
-      let feeAssetUtxo = new Utxo({
-        poseidon: this.poseidon,
-        assets: [assets[0].asset],
-        amounts: [new anchor.BN(assets[0].amount)],
-        keypair: new Keypair({ poseidon: this.poseidon, publicKey: recipient }), // if not self, use pubkey init
-      });
-      console.log("feeAssetUtxo amount: ", feeAssetUtxo.amounts[0].toNumber());
-      return [feeAssetUtxo];
+
+      if (isTransfer) {
+        let feeAssetSendUtxo = new Utxo({
+          poseidon: this.poseidon,
+          assets: [assets[0].asset],
+          amounts: [new anchor.BN(amount)],
+          keypair: new Keypair({
+            poseidon: this.poseidon,
+            publicKey: recipient,
+            encryptionPublicKey: recipientEncryptionPublicKey,
+          }),
+        });
+        let feeAssetChangeUtxo = new Utxo({
+          poseidon: this.poseidon,
+          assets: [assets[0].asset],
+          amounts: [
+            new anchor.BN(assets[0].amount)
+              .sub(new anchor.BN(amount))
+              .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change
+          ], // rem transfer positive
+          keypair: this.keypair,
+        });
+        console.log(
+          "feeAssetSendUtxo amount: ",
+          feeAssetSendUtxo.amounts[0].toNumber(),
+        );
+        console.log(
+          "feeAssetChangeUtxo amount: ",
+          feeAssetChangeUtxo.amounts[0].toNumber(),
+        );
+
+        return [feeAssetSendUtxo, feeAssetChangeUtxo];
+      } else {
+        let feeAssetChangeUtxo = new Utxo({
+          poseidon: this.poseidon,
+          assets: [assets[0].asset],
+          amounts: [new anchor.BN(assets[0].amount)],
+          keypair: recipient
+            ? new Keypair({
+                poseidon: this.poseidon,
+                publicKey: recipient,
+                encryptionPublicKey: recipientEncryptionPublicKey,
+              })
+            : this.keypair, // if not self, use pubkey init
+        });
+        console.log(
+          "feeAssetUtxo amount: ",
+          feeAssetChangeUtxo.amounts[0].toNumber(),
+        );
+        return [feeAssetChangeUtxo];
+      }
     } else {
+      // add for spl with transfer case.
       const utxos: Utxo[] = [];
       assets.slice(1).forEach((asset, i) => {
+        // SPL: determine which is the sendUtxo and changeUtxo
+        // TODO: also- split feeasset to cover min tx fee
         if (i === assets.length - 1) {
           // add feeasset as asset to the last spl utxo
           const utxo1 = new Utxo({
@@ -279,7 +333,7 @@ export class User {
               new anchor.BN(assets[0].amount),
               new anchor.BN(asset.amount),
             ],
-            keypair: this.keypair, // if not self, use pubkey init
+            keypair: this.keypair, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
           });
           utxos.push(utxo1);
         } else {
@@ -594,6 +648,7 @@ export class User {
       );
       throw new Error("SPL not implemented yet!");
     }
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
@@ -658,18 +713,44 @@ export class User {
 
   // TODO: add separate lookup function for users.
   // TODO: check for dry-er ways than to re-implement unshield. E.g. we could use the type of 'recipient' to determine whether to transfer or unshield.
+  /**
+   *
+   * @param token mint
+   * @param amount
+   * @param recipient shieldedAddress (BN
+   * @param recipientEncryptionPublicKey (use strToArr)
+   * @returns
+   */
   async transfer({
     token,
     amount,
-    recipient,
+    recipient, // shieldedaddress
+    recipientEncryptionPublicKey,
   }: {
     token: string;
     amount: number;
     recipient: anchor.BN; // TODO: Keypair.pubkey -> type
+    recipientEncryptionPublicKey: Uint8Array;
   }) {
+    // console.log("this.keypair...", this.keypair?.encryptionKeypair);
+    // return;
+    // TEST CHECKBALANCES
+    const randomShieldedKeypair = new Keypair({ poseidon: this.poseidon });
+    recipient = randomShieldedKeypair.pubkey;
+    recipientEncryptionPublicKey =
+      randomShieldedKeypair.encryptionKeypair.publicKey;
+    // TEST END
+
     const tokenCtx =
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
 
+    // TODO: pull an actually implemented relayer here
+    const relayer = new Relayer(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      this.lightInstance.lookUpTable!,
+      SolanaKeypair.generate().publicKey,
+      new anchor.BN(100000),
+    );
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: amount, // priv pub doesnt need to distinguish here
@@ -680,15 +761,15 @@ export class User {
       amount: amount, // if recipient -> priv
       inUtxos,
       recipient: recipient,
+      recipientEncryptionPublicKey: recipientEncryptionPublicKey,
+      relayer: relayer,
     });
-
-    // TODO: pull an actually implemented relayer here
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      this.lightInstance.lookUpTable!,
-      SolanaKeypair.generate().publicKey,
-      new anchor.BN(100000),
+    // print encryptionKeypairs for outUtxos
+    console.log(
+      "OUT ENCKEYPAIRS: ",
+      outUtxos.map((u) => u.keypair.encryptionKeypair),
     );
+    // return;
 
     let tx = new Transaction({
       instance: this.lightInstance,
@@ -697,24 +778,29 @@ export class User {
       shuffleEnabled: false,
     });
 
+    let randomRecipient = new SolanaKeypair().publicKey;
+    console.log("random recipient: ", randomRecipient.toBase58());
+    if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
+    // TODO: why have to pass in a recipient?
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
+      recipient: randomRecipient,
+      recipientFee: randomRecipient,
     });
 
     await tx.compileAndProve(txParams);
-
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    // await this.lightInstance.provider!.connection.confirmTransaction(
-    //   await this.lightInstance.provider!.connection.requestAirdrop(
-    //     relayer.accounts.relayerRecipient,
-    //     1_000_000,
-    //   ),
-    //   "confirmed",
-    // );
+    await this.lightInstance.provider!.connection.confirmTransaction(
+      await this.lightInstance.provider!.connection.requestAirdrop(
+        relayer.accounts.relayerRecipient,
+        100_000_000,
+      ),
+      "confirmed",
+    );
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(res);
@@ -722,7 +808,8 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-    await tx.checkBalances();
+    await tx.checkBalances(randomShieldedKeypair);
+    console.log("checked balance successfully!");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       await updateMerkleTreeForTest(this.lightInstance.provider!);

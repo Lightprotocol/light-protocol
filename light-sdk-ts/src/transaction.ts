@@ -31,6 +31,7 @@ import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
   hashAndTruncateToCircuit,
+  Keypair,
   merkleTreeProgramId,
   Relayer,
   SolMerkleTree,
@@ -246,6 +247,20 @@ export class Transaction {
     // payer?: SolanaKeypair;
     shuffleEnabled?: boolean;
   }) {
+    // @Swen TODO: applied rebase; test if sdk works without
+    // if (relayer) {
+    //   // TODO: need distinguish between withdrawl and transfer?
+    //   this.action = "WITHDRAWAL";
+    //   this.relayer = relayer;
+    //   this.payer = payer;
+    //   console.log("withdrawal/transfer");
+    // } else if (!relayer && payer) {
+    //   this.action = "DEPOSIT";
+    //   this.payer = payer;
+    //   this.relayer = new Relayer(payer.publicKey, instance.lookUpTable!);
+    // } else {
+    //   throw new Error("No payer and relayer provided.");
+    // }
     this.instance = instance;
     this.shuffleEnabled = shuffleEnabled;
   }
@@ -325,8 +340,11 @@ export class Transaction {
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
     // prep and get proof inputs
+    console.log("this.params.outputUtxos", this.params.outputUtxos);
     this.publicAmount = this.getExternalAmount(1);
+    console.log("this.publicAmount", this.publicAmount);
     this.feeAmount = this.getExternalAmount(0);
+    console.log("this.feeAmount", this.feeAmount);
     this.assignAccounts(params);
     this.getMerkleProofs();
     this.getProofInput();
@@ -342,6 +360,7 @@ export class Transaction {
       throw new Error("Get mint failed");
     }
   }
+
   getProofInput() {
     if (
       this.params &&
@@ -461,7 +480,7 @@ export class Transaction {
     if (!this.params) {
       throw new Error("params undefined probably not compiled");
     } else {
-      // console.log("this.proofInput ", inputs);
+      console.log("this.proofInput ", inputs);
 
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
@@ -541,7 +560,7 @@ export class Transaction {
 
         if (!this.params.accounts.recipient) {
           this.params.accounts.recipient = SystemProgram.programId;
-          if (this.publicAmount != new BN(0)) {
+          if (!this.publicAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.recipient",
             );
@@ -549,7 +568,7 @@ export class Transaction {
         }
         if (!this.params.accounts.recipientFee) {
           this.params.accounts.recipientFee = SystemProgram.programId;
-          if (this.feeAmount != new BN(0)) {
+          if (!this.feeAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.recipientFee",
             );
@@ -568,7 +587,7 @@ export class Transaction {
           MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
         if (!this.params.accounts.sender) {
           this.params.accounts.sender = SystemProgram.programId;
-          if (this.publicAmount != new BN(0)) {
+          if (!this.publicAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.sender",
             );
@@ -576,7 +595,7 @@ export class Transaction {
         }
         if (!this.params.accounts.senderFee) {
           this.params.accounts.senderFee = SystemProgram.programId;
-          if (this.feeAmount != new BN(0)) {
+          if (!this.feeAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.senderFee",
             );
@@ -709,13 +728,45 @@ export class Transaction {
       this.params.outputUtxos &&
       this.assetPubkeysCircuit
     ) {
+      // console.log(
+      //   ".getExternalAmount out",
+      //   new anchor.BN(0).add(
+      //     this.params.outputUtxos
+      //       .filter((utxo: Utxo) => {
+      //         return (
+      //           utxo.assetsCircuit[assetIndex].toString("hex") ==
+      //           this.assetPubkeysCircuit![assetIndex].toString("hex")
+      //         );
+      //       })
+      //       .reduce(
+      //         (sum, utxo) =>
+      //           // add all utxos of the same asset
+      //           sum.add(utxo.amounts[assetIndex]),
+      //         new anchor.BN(0),
+      //       ),
+      //   ),
+      // );
+      // console.log(
+      //   ".getExternalAmount in",
+      //   this.params.inputUtxos
+      //     .filter((utxo) => {
+      //       return (
+      //         utxo.assetsCircuit[assetIndex].toString("hex") ==
+      //         this.assetPubkeysCircuit![assetIndex].toString("hex")
+      //       );
+      //     })
+      //     .reduce(
+      //       (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
+      //       new anchor.BN(0),
+      //     ),
+      // );
       return new anchor.BN(0)
         .add(
           this.params.outputUtxos
             .filter((utxo: Utxo) => {
               return (
                 utxo.assetsCircuit[assetIndex].toString("hex") ==
-                this.assetPubkeysCircuit[assetIndex].toString("hex")
+                this.assetPubkeysCircuit![assetIndex].toString("hex")
               );
             })
             .reduce(
@@ -749,6 +800,7 @@ export class Transaction {
 
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   // TODO: fix edge case of an assetpubkey being 0
+  // TODO: !== !! and check non-null
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
 
@@ -1013,6 +1065,7 @@ export class Transaction {
       // request to relayer
       throw new Error("withdrawal with relayer is not implemented");
     } else {
+      if (!this.instance.provider) throw new Error("no provider set");
       const recentBlockhash = (
         await this.instance.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
@@ -1032,7 +1085,7 @@ export class Transaction {
         );
 
       const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-        lookupTableAccount.data,
+        lookupTableAccount!.data,
       );
 
       const compiledTx = txMsg.compileToV0Message([
@@ -1058,15 +1111,15 @@ export class Transaction {
           let serializedTx = tx.serialize();
           console.log("serializedTx: ");
 
-          res = await this.instance.provider.connection.sendRawTransaction(
+          res = await this.instance.provider!.connection.sendRawTransaction(
             serializedTx,
             confirmConfig,
           );
           retries = 0;
           console.log(res);
-        } catch (e) {
+        } catch (e: any) {
           retries--;
-          if (retries == 0 || e.logs != undefined) {
+          if (retries == 0 || e.logs !== undefined) {
             console.log(e);
             return e;
           }
@@ -1267,7 +1320,7 @@ export class Transaction {
     }
   }
 
-  async checkBalances() {
+  async checkBalances(encryptionKeypair: Keypair) {
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.is_token = false;
@@ -1328,11 +1381,14 @@ export class Transaction {
         //   `${leavesAccountData.encryptedUtxos} !== ${this.params.encryptedUtxos}`
         // );
 
-        // assert(leavesAccountData.encryptedUtxos === this.params.encryptedUtxos, "encryptedUtxos not inserted correctly");
+        // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
+        // TODO: add for both utxos of leafpda
         let decryptedUtxo1 = Utxo.decrypt({
           poseidon: this.poseidon,
-          encBytes: this.params.encryptedUtxos,
-          keypair: this.params.outputUtxos[0].keypair,
+          encBytes: this.encryptedUtxos,
+          keypair: encryptionKeypair
+            ? encryptionKeypair
+            : this.params.outputUtxos[0].keypair,
         });
         const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
           assert.equal(

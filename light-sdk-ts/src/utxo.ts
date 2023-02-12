@@ -376,6 +376,11 @@ export class Utxo {
   }
 
   // TODO: add decrypt custom (app utxos with idl)
+  /**
+   *
+   * @param encBytes
+   * @returns
+   */
   static decrypt({
     poseidon,
     encBytes,

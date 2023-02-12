@@ -95,3 +95,9 @@ export function getAssetIndex(assetPubkey: PublicKey): BN {
 export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
   return new PublicKey(assetLookupTable[assetIndex.toNumber()]);
 }
+
+export const arrToStr = (uint8arr: Uint8Array) =>
+  "LPx" + Buffer.from(uint8arr.buffer).toString("hex");
+
+export const strToArr = (str: string) =>
+  new Uint8Array(Buffer.from(str.slice(3), "hex"));
