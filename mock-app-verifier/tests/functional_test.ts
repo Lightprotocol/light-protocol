@@ -51,7 +51,7 @@ var POSEIDON,
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
-  process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
+  process.env.ANCHOR_WALLET = "/Users/" + process.env.USER + "/.config/solana/id.json"
   
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",

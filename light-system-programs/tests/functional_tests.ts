@@ -50,13 +50,14 @@ var deposit_utxo1;
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
-  process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
+  process.env.ANCHOR_WALLET =
+    "/Users/" + process.env.USER + "/.config/solana/id.json";
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig
   );
-  anchor.setProvider(provider)
+  anchor.setProvider(provider);
 
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
@@ -75,20 +76,25 @@ describe("verifier_program", () => {
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   });
 
-  it.skip("build compressed merkle tree",async () => {
+  it.skip("build compressed merkle tree", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     // await updateMerkleTreeForTest(provider);
-    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
+    });
     console.log(merkleTree);
-    
-  })
+  });
 
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
     const lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
+      solMerkleTree: new SolMerkleTree({
+        pubkey: MERKLE_TREE_KEY,
+        poseidon: POSEIDON,
+      }),
       lookUpTable: LOOK_UP_TABLE,
       provider,
     };
@@ -190,7 +196,10 @@ describe("verifier_program", () => {
       console.log("Deposit ", i);
 
       let lightInstance: LightInstance = {
-        solMerkleTree: new SolMerkleTree({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON}),
+        solMerkleTree: new SolMerkleTree({
+          pubkey: MERKLE_TREE_KEY,
+          poseidon: POSEIDON,
+        }),
         lookUpTable: LOOK_UP_TABLE,
         provider,
       };
@@ -228,15 +237,16 @@ describe("verifier_program", () => {
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
       await tx.checkBalances();
-
     }
     await updateMerkleTreeForTest(provider);
   });
 
-
   it("Withdraw", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
-    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon})
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
+    });
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -251,7 +261,7 @@ describe("verifier_program", () => {
 
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
-    
+
     let lightInstance: LightInstance = {
       solMerkleTree: merkleTree,
       lookUpTable: LOOK_UP_TABLE,
@@ -308,7 +318,10 @@ describe("verifier_program", () => {
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       MERKLE_TREE_KEY
     );
-    let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON})
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon: POSEIDON,
+    });
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -334,8 +347,12 @@ describe("verifier_program", () => {
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(relayerRecipient, 1_000_000));
-    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(recipientFee, 1_000_000));
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(relayerRecipient, 1_000_000)
+    );
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(recipientFee, 1_000_000)
+    );
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
@@ -349,10 +366,15 @@ describe("verifier_program", () => {
       shuffleEnabled: false,
     });
 
-
     let txParams = new TransactionParameters({
       inputUtxos,
-      outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [new BN(0),inputUtxos[0].amounts[1]]})],
+      outputUtxos: [
+        new Utxo({
+          poseidon: POSEIDON,
+          assets: inputUtxos[0].assets,
+          amounts: [new BN(0), inputUtxos[0].amounts[1]],
+        }),
+      ],
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: recipientTokenAccount,
@@ -370,7 +392,5 @@ describe("verifier_program", () => {
       console.log(e);
     }
     await tx.checkBalances();
-
   });
-
-})
+});

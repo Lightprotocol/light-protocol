@@ -22,19 +22,23 @@ _Requirements:_
 ## Tests
 
 _Global:_
+
 - `sh test.sh`
 
 _Rust tests:_
+
 - `cd groth16-solana/`
 - `cargo test`
 - `cd light-verifier-sdk/`
 - `cargo test`
 
 _Sdk tests:_
+
 - `cd light-sdk-ts/`
 - `npm test`
 
 _Circuit tests:_
+
 - `cd light-circuits`
 - `npm test`
 
@@ -46,11 +50,11 @@ The default test is a functional test, setting up a test environment with a merk
 Tests can be executed in bulk or one by one.
 
 **Without external validator:**
+
 - `cd light-system-programs/`
 - `npm test`
 - `npm test-verifiers`
 - `npm test-merkle-tree`
-
 
 **Manual:**
 
@@ -59,8 +63,9 @@ Tests can be executed in bulk or one by one.
   `light-protocol-onchain` directory, launch a validator with the following
   command:
 
-1. cargo build in light-verifier-sdk
-2. anchor build in light-system-programs (or rather cargo build)
+1. cargo build in light-verifier-sdk (optional)
+2. anchor build in light-system-programs
+3. anchor build in mock-app-verifier
 
 ```
 ../solana/validator/solana-test-validator \
