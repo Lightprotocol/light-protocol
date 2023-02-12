@@ -29,6 +29,7 @@ import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
+  BrowserWallet,
   FIELD_SIZE,
   hashAndTruncateToCircuit,
   Keypair,
@@ -196,6 +197,7 @@ export type LightInstance = {
 export class Transaction {
   merkleTreeProgram?: Program<MerkleTreeProgram>;
   payer?: SolanaKeypair;
+  browserWallet?: BrowserWallet;
   poseidon: any;
   shuffleEnabled: Boolean;
   action?: string;
@@ -241,13 +243,18 @@ export class Transaction {
     // relayer,
     // payer,
     shuffleEnabled = true,
+    browserWallet,
   }: {
     instance: LightInstance;
     // relayer?: Relayer;
     // payer?: SolanaKeypair;
     shuffleEnabled?: boolean;
+    browserWallet?: BrowserWallet;
   }) {
-    // @Swen TODO: applied rebase; test if sdk works without
+    if (browserWallet) {
+      this.browserWallet = browserWallet;
+    }
+    // @Swen TODO: check fi needed for cli
     // if (relayer) {
     //   // TODO: need distinguish between withdrawl and transfer?
     //   this.action = "WITHDRAWAL";
@@ -1026,6 +1033,7 @@ export class Transaction {
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
     if (!this.params.payer) {
       // send tx to relayer
+
       let txJson = await this.getInstructionsJson();
       // request to relayer
       throw new Error("withdrawal with relayer is not implemented");
@@ -1066,11 +1074,20 @@ export class Transaction {
       compiledTx.addressTableLookups[0].accountKey =
         this.params.relayer.accounts.lookUpTable;
 
-      const tx = new VersionedTransaction(compiledTx);
+      var tx = new VersionedTransaction(compiledTx);
       let retries = 3;
       let res;
       while (retries > 0) {
-        tx.sign([this.params.payer]);
+        if (this.browserWallet) {
+          // TODO: versiontx??
+          console.error("versioned tx might throw here");
+          tx = await this.browserWallet.signTransaction(tx);
+          // throw new Error(
+          //   "versioned transaction in browser not implemented yet",
+          // );
+        } else {
+          tx.sign([this.payer!]);
+        }
 
         try {
           let serializedTx = tx.serialize();
@@ -1103,8 +1120,14 @@ export class Transaction {
   }
 
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
-    if (!this.params.payer) {
-      throw new Error("Cannot use sendAndConfirmTransaction without payer");
+    console.log(
+      "browserwallet in sendAndConfirmTransaction?: ",
+      this.browserWallet,
+    );
+    if (!this.payer && !this.browserWallet) {
+      throw new Error(
+        "Cannot use sendAndConfirmTransaction without payer or browserWallet",
+      );
     }
     await this.getTestValues();
     var instructions;
