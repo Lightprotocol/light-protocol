@@ -86,7 +86,7 @@ describe("Merkle Tree Tests", () => {
         chai_1.assert.equal(merkleTree.merkleTree.root(), new anchor.BN(newTree.roots[newTree.currentRootIndex.toNumber()], 32, "le"));
     }));
     it("Initialize Merkle Tree Test", () => __awaiter(void 0, void 0, void 0, function* () {
-        const verifierProgramZero = new anchor.Program(light_sdk_1.VerifierProgramZero, light_sdk_1.verifierProgramZeroProgramId);
+        const verifierProgramZero = new anchor.Program(light_sdk_1.IDL_VERIFIER_PROGRAM_ZERO, light_sdk_1.verifierProgramZeroProgramId);
         // const verifierProgramOne = new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
         // Security Claims
         // Init authority pda

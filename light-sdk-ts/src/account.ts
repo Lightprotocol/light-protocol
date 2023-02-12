@@ -71,7 +71,7 @@ export class Account {
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Keypair.getEddsaPrivateKey(
+      this.poseidonEddsa = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
     } else if (privateKey) {
@@ -101,7 +101,7 @@ export class Account {
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Keypair.getEddsaPrivateKey(seed);
+      this.poseidonEddsa = Account.getEddsaPrivateKey(seed);
     }
     this.eddsa = eddsa;
   }

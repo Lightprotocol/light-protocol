@@ -56,310 +56,517 @@ describe("Verifier Zero and One Tests", () => {
     const merkleTreeProgram = new anchor.Program(light_sdk_1.IDL_MERKLE_TREE_PROGRAM, light_sdk_1.merkleTreeProgramId);
     var depositAmount, depositFeeAmount;
     const verifiers = [new light_sdk_1.VerifierZero(), new light_sdk_1.VerifierOne()];
-    before(() => __awaiter(void 0, void 0, void 0, function* () {
-        yield (0, light_sdk_1.createTestAccounts)(provider.connection);
-        LOOK_UP_TABLE = yield (0, light_sdk_1.initLookUpTableFromFile)(provider);
-        yield (0, light_sdk_1.setUpMerkleTree)(provider);
-        POSEIDON = yield circomlibjs.buildPoseidonOpt();
-        KEYPAIR = new light_sdk_1.Keypair({
-            poseidon: POSEIDON,
-            seed: light_sdk_1.KEYPAIR_PRIVKEY.toString(),
+    for (var verifier in verifiers) {
+        console.log("verifier ", verifier.toString());
+        yield token.approve(provider.connection, light_sdk_1.ADMIN_AUTH_KEYPAIR, light_sdk_1.userTokenAccount, light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, verifiers[verifier].verifierProgram.programId), //delegate
+        light_sdk_1.USER_TOKEN_ACCOUNT, // owner
+        depositAmount * 10, [light_sdk_1.USER_TOKEN_ACCOUNT]);
+        let lightInstance = {
+            solMerkleTree: new light_sdk_1.SolMerkleTree({ pubkey: light_sdk_1.MERKLE_TREE_KEY, poseidon: POSEIDON }),
+            lookUpTable: LOOK_UP_TABLE,
+            provider,
+        };
+        var transaction = new light_sdk_1.Transaction({
+            instance: lightInstance,
+            shuffleEnabled: false,
         });
-        // overwrite transaction
-        depositAmount =
-            10000 + (Math.floor(Math.random() * 1000000000) % 1100000000);
-        depositFeeAmount =
-            10000 + (Math.floor(Math.random() * 1000000000) % 1100000000);
-        for (var verifier in verifiers) {
-            console.log("verifier ", verifier.toString());
-            yield token.approve(provider.connection, light_sdk_1.ADMIN_AUTH_KEYPAIR, light_sdk_1.userTokenAccount, light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, verifiers[verifier].verifierProgram.programId), //delegate
-            light_sdk_1.USER_TOKEN_ACCOUNT, // owner
-            depositAmount * 10, [light_sdk_1.USER_TOKEN_ACCOUNT]);
-            let lightInstance = {
-                solMerkleTree: new light_sdk_1.SolMerkleTree({
-                    pubkey: light_sdk_1.MERKLE_TREE_KEY,
-                    poseidon: POSEIDON,
-                }),
-                lookUpTable: LOOK_UP_TABLE,
-                provider,
-            };
-            var transaction = new light_sdk_1.Transaction({
-                instance: lightInstance,
-                payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
-                shuffleEnabled: false,
-            });
-            deposit_utxo1 = new light_sdk_1.Utxo({
-                poseidon: POSEIDON,
-                assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
-                amounts: [
-                    new anchor.BN(depositFeeAmount),
-                    new anchor.BN(depositAmount),
-                ],
-                keypair: KEYPAIR,
-            });
-            let txParams = new light_sdk_1.TransactionParameters({
-                outputUtxos: [deposit_utxo1],
-                merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
-                sender: light_sdk_1.userTokenAccount,
-                senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
-                verifier: verifiers[verifier],
-            });
-            yield transaction.compileAndProve(txParams);
-            // does one successful transaction
-            yield transaction.sendAndConfirmTransaction();
-            yield (0, light_sdk_1.updateMerkleTreeForTest)(provider);
-            // Deposit
-            var transaction1 = new light_sdk_1.Transaction({
-                instance: lightInstance,
-                payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
-                shuffleEnabled: false,
-            });
-            var deposit_utxo2 = new light_sdk_1.Utxo({
-                poseidon: POSEIDON,
-                assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
-                amounts: [
-                    new anchor.BN(depositFeeAmount),
-                    new anchor.BN(depositAmount),
-                ],
-                keypair: KEYPAIR,
-            });
-            let txParams1 = new light_sdk_1.TransactionParameters({
-                outputUtxos: [deposit_utxo2],
-                merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
-                sender: light_sdk_1.userTokenAccount,
-                senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
-                verifier: verifiers[verifier],
-            });
-            yield transaction1.compileAndProve(txParams1);
-            transactions.push(transaction1);
-            // Withdrawal
-            var tokenRecipient = light_sdk_1.recipientTokenAccount;
-            let lightInstanceWithdrawal = {
-                solMerkleTree: yield light_sdk_1.SolMerkleTree.build({
-                    pubkey: light_sdk_1.MERKLE_TREE_KEY,
-                    poseidon: POSEIDON,
-                }),
-                lookUpTable: LOOK_UP_TABLE,
-                provider,
-            };
-            const relayerRecipient = web3_js_1.Keypair.generate().publicKey;
-            yield provider.connection.confirmTransaction(yield provider.connection.requestAirdrop(relayerRecipient, 10000000));
-            let relayer = new light_sdk_1.Relayer(light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey, lightInstance.lookUpTable, relayerRecipient, new anchor_1.BN(100000));
-            let tx = new light_sdk_1.Transaction({
-                instance: lightInstanceWithdrawal,
-                relayer,
-                payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
-                shuffleEnabled: false,
-            });
-            let txParams2 = new light_sdk_1.TransactionParameters({
-                inputUtxos: [deposit_utxo1],
-                merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
-                recipient: tokenRecipient,
-                recipientFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
-                verifier: verifiers[verifier],
-            });
-            yield tx.compileAndProve(txParams2);
-            transactions.push(tx);
-        }
-    }));
-    afterEach(() => __awaiter(void 0, void 0, void 0, function* () {
-        // Check that no nullifier was inserted, otherwise the prior test failed
-        for (var tx in transactions) {
-            yield (0, light_sdk_1.checkNfInserted)(transactions[tx].params.nullifierPdaPubkeys, provider.connection);
-        }
-    }));
-    const sendTestTx = (tx, type, account) => __awaiter(void 0, void 0, void 0, function* () {
-        const instructions = yield tx.params.verifier.getInstructions(tx);
-        var e;
-        for (var ix = 0; ix < instructions.length; ix++) {
-            console.log("ix ", ix);
-            if (ix != instructions.length - 1) {
-                e = yield tx.sendTransaction(instructions[ix]);
-                // confirm throws socket hangup error thus waiting a second instead
-                yield new Promise((resolve) => setTimeout(resolve, 700));
-                // try {
-                //     await tx.instance.provider.connection.confirmTransaction(
-                //         e
-                //     )
-                // } catch(error) {console.log(error);
-                // }
-            }
-            else {
-                e = yield tx.sendTransaction(instructions[ix]);
-            }
-        }
-        if (type === "ProofVerificationFails") {
-            chai_1.assert.isTrue(e.logs.includes("Program log: error ProofVerificationFailed"));
-        }
-        else if (type === "Account") {
-            chai_1.assert.isTrue(e.logs.includes(`Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`));
-        }
-        else if (type === "preInsertedLeavesIndex") {
-            chai_1.assert.isTrue(e.logs.includes("Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected."));
-        }
-        else if (type === "Includes") {
-            chai_1.assert.isTrue(e.logs.includes(account));
-        }
-        if (tx.params.verifier.pubkey.toString() ===
-            new light_sdk_1.VerifierOne().pubkey.toString()) {
-            yield tx.closeVerifierState();
-        }
+        deposit_utxo1 = new light_sdk_1.Utxo({
+            poseidon: POSEIDON,
+            assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
+            amounts: [
+                new anchor.BN(depositFeeAmount),
+                new anchor.BN(depositAmount),
+            ],
+            keypair: KEYPAIR,
+        });
+        let txParams = new light_sdk_1.TransactionParameters({
+            outputUtxos: [deposit_utxo1],
+            merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+            sender: light_sdk_1.userTokenAccount,
+            senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+            verifier: verifiers[verifier],
+            payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        });
+        yield transaction.compileAndProve(txParams);
+        // does one successful transaction
+        yield transaction.sendAndConfirmTransaction();
+        yield (0, light_sdk_1.updateMerkleTreeForTest)(provider);
+        // Deposit
+        var transaction1 = new light_sdk_1.Transaction({
+            instance: lightInstance,
+            shuffleEnabled: false,
+        });
+        var deposit_utxo2 = new light_sdk_1.Utxo({
+            poseidon: POSEIDON,
+            assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
+            amounts: [
+                new anchor.BN(depositFeeAmount),
+                new anchor.BN(depositAmount),
+            ],
+            keypair: KEYPAIR,
+        });
+        let txParams1 = new light_sdk_1.TransactionParameters({
+            outputUtxos: [deposit_utxo2],
+            merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+            sender: light_sdk_1.userTokenAccount,
+            senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+            verifier: verifiers[verifier],
+            payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        });
+        yield transaction1.compileAndProve(txParams1);
+        transactions.push(transaction1);
+        // Withdrawal
+        var tokenRecipient = light_sdk_1.recipientTokenAccount;
+        let lightInstanceWithdrawal = {
+            solMerkleTree: yield light_sdk_1.SolMerkleTree.build({ pubkey: light_sdk_1.MERKLE_TREE_KEY, poseidon: POSEIDON }),
+            lookUpTable: LOOK_UP_TABLE,
+            provider,
+        };
+        const relayerRecipient = web3_js_1.Keypair.generate().publicKey;
+        yield provider.connection.confirmTransaction(yield provider.connection.requestAirdrop(relayerRecipient, 10000000));
+        let relayer = new light_sdk_1.Relayer(light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey, lightInstance.lookUpTable, relayerRecipient, new anchor_1.BN(100000));
+        let tx = new light_sdk_1.Transaction({
+            instance: lightInstanceWithdrawal,
+            shuffleEnabled: false,
+        });
+        let txParams2 = new light_sdk_1.TransactionParameters({
+            inputUtxos: [deposit_utxo1],
+            merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+            recipient: tokenRecipient,
+            recipientFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+            verifier: verifiers[verifier],
+            relayer,
+            payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        });
+        yield tx.compileAndProve(txParams2);
+        transactions.push(tx);
+    }
+});
+afterEach(() => __awaiter(void 0, void 0, void 0, function* () {
+    // Check that no nullifier was inserted, otherwise the prior test failed
+    for (var tx in transactions) {
+        yield (0, light_sdk_1.checkNfInserted)(transactions[tx].params.nullifierPdaPubkeys, provider.connection);
+    }
+}));
+KEYPAIR = new light_sdk_1.Keypair({
+    poseidon: POSEIDON,
+    seed: light_sdk_1.KEYPAIR_PRIVKEY.toString(),
+});
+// overwrite transaction
+depositAmount =
+    10000 + (Math.floor(Math.random() * 1000000000) % 1100000000);
+depositFeeAmount =
+    10000 + (Math.floor(Math.random() * 1000000000) % 1100000000);
+for (var verifier in verifiers) {
+    console.log("verifier ", verifier.toString());
+    await token.approve(provider.connection, light_sdk_1.ADMIN_AUTH_KEYPAIR, light_sdk_1.userTokenAccount, light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, verifiers[verifier].verifierProgram.programId), //delegate
+    light_sdk_1.USER_TOKEN_ACCOUNT, // owner
+    depositAmount * 10, [light_sdk_1.USER_TOKEN_ACCOUNT]);
+    let lightInstance = {
+        solMerkleTree: new light_sdk_1.SolMerkleTree({
+            pubkey: light_sdk_1.MERKLE_TREE_KEY,
+            poseidon: POSEIDON,
+        }),
+        lookUpTable: LOOK_UP_TABLE,
+        provider,
+    };
+    var transaction = new light_sdk_1.Transaction({
+        instance: lightInstance,
+        payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        shuffleEnabled: false,
     });
-    it("Wrong amount", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            let wrongAmount = new anchor.BN("123213").toArray();
-            tmp_tx.publicInputs.publicAmount = Array.from([
-                ...new Array(29).fill(0),
-                ...wrongAmount,
-            ]);
+    deposit_utxo1 = new light_sdk_1.Utxo({
+        poseidon: POSEIDON,
+        assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
+        amounts: [
+            new anchor.BN(depositFeeAmount),
+            new anchor.BN(depositAmount),
+        ],
+        keypair: KEYPAIR,
+    });
+    let txParams = new light_sdk_1.TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+        sender: light_sdk_1.userTokenAccount,
+        senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+    });
+    await transaction.compileAndProve(txParams);
+    // does one successful transaction
+    await transaction.sendAndConfirmTransaction();
+    await (0, light_sdk_1.updateMerkleTreeForTest)(provider);
+    // Deposit
+    var transaction1 = new light_sdk_1.Transaction({
+        instance: lightInstance,
+        payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        shuffleEnabled: false,
+    });
+    var deposit_utxo2 = new light_sdk_1.Utxo({
+        poseidon: POSEIDON,
+        assets: [light_sdk_1.FEE_ASSET, light_sdk_1.MINT],
+        amounts: [
+            new anchor.BN(depositFeeAmount),
+            new anchor.BN(depositAmount),
+        ],
+        keypair: KEYPAIR,
+    });
+    let txParams1 = new light_sdk_1.TransactionParameters({
+        outputUtxos: [deposit_utxo2],
+        merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+        sender: light_sdk_1.userTokenAccount,
+        senderFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+    });
+    await transaction1.compileAndProve(txParams1);
+    transactions.push(transaction1);
+    // Withdrawal
+    var tokenRecipient = light_sdk_1.recipientTokenAccount;
+    let lightInstanceWithdrawal = {
+        solMerkleTree: await light_sdk_1.SolMerkleTree.build({
+            pubkey: light_sdk_1.MERKLE_TREE_KEY,
+            poseidon: POSEIDON,
+        }),
+        lookUpTable: LOOK_UP_TABLE,
+        provider,
+    };
+    const relayerRecipient = web3_js_1.Keypair.generate().publicKey;
+    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(relayerRecipient, 10000000));
+    let relayer = new light_sdk_1.Relayer(light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey, lightInstance.lookUpTable, relayerRecipient, new anchor_1.BN(100000));
+    let tx = new light_sdk_1.Transaction({
+        instance: lightInstanceWithdrawal,
+        relayer,
+        payer: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+        shuffleEnabled: false,
+    });
+    let txParams2 = new light_sdk_1.TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: light_sdk_1.MERKLE_TREE_KEY,
+        recipient: tokenRecipient,
+        recipientFee: light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+    });
+    await tx.compileAndProve(txParams2);
+    transactions.push(tx);
+}
+;
+afterEach(() => __awaiter(void 0, void 0, void 0, function* () {
+    // Check that no nullifier was inserted, otherwise the prior test failed
+    for (var tx in transactions) {
+        yield (0, light_sdk_1.checkNfInserted)(transactions[tx].params.nullifierPdaPubkeys, provider.connection);
+    }
+}));
+const sendTestTx = (tx, type, account) => __awaiter(void 0, void 0, void 0, function* () {
+    const instructions = yield tx.params.verifier.getInstructions(tx);
+    var e;
+    for (var ix = 0; ix < instructions.length; ix++) {
+        console.log("ix ", ix);
+        if (ix != instructions.length - 1) {
+            e = yield tx.sendTransaction(instructions[ix]);
+            // confirm throws socket hangup error thus waiting a second instead
+            yield new Promise((resolve) => setTimeout(resolve, 700));
+            // try {
+            //     await tx.instance.provider.connection.confirmTransaction(
+            //         e
+            //     )
+            // } catch(error) {console.log(error);
+            // }
+        }
+        else {
+            e = yield tx.sendTransaction(instructions[ix]);
+        }
+    }
+    if (type === "ProofVerificationFails") {
+        chai_1.assert.isTrue(e.logs.includes("Program log: error ProofVerificationFailed"));
+    }
+    else if (type === "Account") {
+        chai_1.assert.isTrue(e.logs.includes(`Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`));
+    }
+    else if (type === "preInsertedLeavesIndex") {
+        chai_1.assert.isTrue(e.logs.includes("Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected."));
+    }
+    else if (type === "Includes") {
+        chai_1.assert.isTrue(e.logs.includes(account));
+    }
+    if (tx.params.verifier.pubkey.toString() ===
+        new light_sdk_1.VerifierOne().pubkey.toString()) {
+        yield tx.closeVerifierState();
+    }
+});
+it("Wrong amount", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        let wrongAmount = new anchor.BN("123213").toArray();
+        tmp_tx.publicInputs.publicAmount = Array.from([
+            ...new Array(29).fill(0),
+            ...wrongAmount,
+        ]);
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong feeAmount", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        let wrongFeeAmount = new anchor.BN("123213").toArray();
+        tmp_tx.publicInputs.feeAmount = Array.from([
+            ...new Array(29).fill(0),
+            ...wrongFeeAmount,
+        ]);
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong Mint", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        let relayer = new anchor.web3.Account();
+        const newMintKeypair = web3_js_1.Keypair.generate();
+        yield (0, light_sdk_1.createMintWrapper)({
+            authorityKeypair: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+            mintKeypair: newMintKeypair,
+            connection: provider.connection,
+        });
+        tmp_tx.params.accounts.sender = yield (0, light_sdk_1.newAccountWithTokens)({
+            connection: provider.connection,
+            MINT: newMintKeypair.publicKey,
+            ADMIN_AUTH_KEYPAIR: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+            userAccount: relayer,
+            amount: 0,
+        });
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong encryptedUtxos", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.encryptedUtxos = new Uint8Array(174).fill(2);
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong relayerFee", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.relayer.relayerFee = new anchor.BN("9000");
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong nullifier", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i in tmp_tx.publicInputs.nullifiers) {
+            tmp_tx.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
             yield sendTestTx(tmp_tx, "ProofVerificationFails");
         }
-    }));
-    it("Wrong feeAmount", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            let wrongFeeAmount = new anchor.BN("123213").toArray();
-            tmp_tx.publicInputs.feeAmount = Array.from([
-                ...new Array(29).fill(0),
-                ...wrongFeeAmount,
-            ]);
+    }
+}));
+it("Wrong leaves", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i in tmp_tx.publicInputs.leaves) {
+            tmp_tx.publicInputs.leaves[0][i] = new Uint8Array(32).fill(2);
             yield sendTestTx(tmp_tx, "ProofVerificationFails");
         }
-    }));
-    it("Wrong Mint", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            let relayer = new anchor.web3.Account();
-            const newMintKeypair = web3_js_1.Keypair.generate();
-            yield (0, light_sdk_1.createMintWrapper)({
-                authorityKeypair: light_sdk_1.ADMIN_AUTH_KEYPAIR,
-                mintKeypair: newMintKeypair,
-                connection: provider.connection,
-            });
-            tmp_tx.params.accounts.sender = yield (0, light_sdk_1.newAccountWithTokens)({
-                connection: provider.connection,
-                MINT: newMintKeypair.publicKey,
-                ADMIN_AUTH_KEYPAIR: light_sdk_1.ADMIN_AUTH_KEYPAIR,
-                userAccount: relayer,
-                amount: 0,
-            });
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+// doesn't work sig verify error
+it.skip("Wrong signer", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        const wrongSinger = web3_js_1.Keypair.generate();
+        yield provider.connection.confirmTransaction(yield provider.connection.requestAirdrop(wrongSinger.publicKey, 1000000000), "confirmed");
+        tmp_tx.payer = wrongSinger;
+        tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong recipientFee", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.recipientFee = web3_js_1.Keypair.generate().publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong recipient", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.recipient = web3_js_1.Keypair.generate().publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong registeredVerifierPda", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        if (tmp_tx.params.accounts.registeredVerifierPda.toBase58() ==
+            light_sdk_1.REGISTERED_VERIFIER_ONE_PDA.toBase58()) {
+            tmp_tx.params.accounts.registeredVerifierPda = light_sdk_1.REGISTERED_VERIFIER_PDA;
         }
-    }));
-    it("Wrong encryptedUtxos", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.encryptedUtxos = new Uint8Array(174).fill(2);
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
+        else {
+            tmp_tx.params.accounts.registeredVerifierPda =
+                light_sdk_1.REGISTERED_VERIFIER_ONE_PDA;
         }
-    }));
-    it("Wrong relayerFee", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.relayer.relayerFee = new anchor.BN("9000");
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
+        yield sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
+    }
+}));
+it("Wrong authority", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.authority = light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, web3_js_1.Keypair.generate().publicKey);
+        yield sendTestTx(tmp_tx, "Account", "authority");
+    }
+}));
+it("Wrong preInsertedLeavesIndex", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.preInsertedLeavesIndex = light_sdk_1.REGISTERED_VERIFIER_PDA;
+        yield sendTestTx(tmp_tx, "preInsertedLeavesIndex");
+    }
+}));
+it("Wrong nullifier accounts", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i = 0; i < tmp_tx.params.nullifierPdaPubkeys.length; i++) {
+            tmp_tx.params.nullifierPdaPubkeys[i] =
+                tmp_tx.params.nullifierPdaPubkeys[(i + 1) % tmp_tx.params.nullifierPdaPubkeys.length];
+            yield sendTestTx(tmp_tx, "Includes", "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.");
         }
-    }));
-    it("Wrong nullifier", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            for (var i in tmp_tx.publicInputs.nullifiers) {
-                tmp_tx.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
-                yield sendTestTx(tmp_tx, "ProofVerificationFails");
-            }
-        }
-    }));
-    it("Wrong leaves", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            for (var i in tmp_tx.publicInputs.leaves) {
-                tmp_tx.publicInputs.leaves[0][i] = new Uint8Array(32).fill(2);
-                yield sendTestTx(tmp_tx, "ProofVerificationFails");
-            }
-        }
-    }));
-    // doesn't work sig verify error
-    it.skip("Wrong signer", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            const wrongSinger = web3_js_1.Keypair.generate();
-            yield provider.connection.confirmTransaction(yield provider.connection.requestAirdrop(wrongSinger.publicKey, 1000000000), "confirmed");
-            tmp_tx.payer = wrongSinger;
-            tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
-        }
-    }));
-    it("Wrong recipientFee", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.params.accounts.recipientFee = web3_js_1.Keypair.generate().publicKey;
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
-        }
-    }));
-    it("Wrong recipient", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.params.accounts.recipient = web3_js_1.Keypair.generate().publicKey;
-            yield sendTestTx(tmp_tx, "ProofVerificationFails");
-        }
-    }));
-    it("Wrong registeredVerifierPda", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            if (tmp_tx.params.accounts.registeredVerifierPda.toBase58() ==
-                light_sdk_1.REGISTERED_VERIFIER_ONE_PDA.toBase58()) {
-                tmp_tx.params.accounts.registeredVerifierPda = light_sdk_1.REGISTERED_VERIFIER_PDA;
-            }
-            else {
-                tmp_tx.params.accounts.registeredVerifierPda =
-                    light_sdk_1.REGISTERED_VERIFIER_ONE_PDA;
-            }
-            yield sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
-        }
-    }));
-    it("Wrong authority", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.params.accounts.authority = light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, web3_js_1.Keypair.generate().publicKey);
-            yield sendTestTx(tmp_tx, "Account", "authority");
-        }
-    }));
-    it("Wrong preInsertedLeavesIndex", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            tmp_tx.params.accounts.preInsertedLeavesIndex = light_sdk_1.REGISTERED_VERIFIER_PDA;
-            yield sendTestTx(tmp_tx, "preInsertedLeavesIndex");
-        }
-    }));
-    it("Wrong nullifier accounts", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            for (var i = 0; i < tmp_tx.params.nullifierPdaPubkeys.length; i++) {
-                tmp_tx.params.nullifierPdaPubkeys[i] =
-                    tmp_tx.params.nullifierPdaPubkeys[(i + 1) % tmp_tx.params.nullifierPdaPubkeys.length];
+    }
+}));
+it("Wrong leavesPdaPubkeys accounts", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
+            for (var i = 0; i < tmp_tx.params.leavesPdaPubkeys.length; i++) {
+                tmp_tx.params.leavesPdaPubkeys[i] =
+                    tmp_tx.params.leavesPdaPubkeys[(i + 1) % tmp_tx.params.leavesPdaPubkeys.length];
                 yield sendTestTx(tmp_tx, "Includes", "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.");
             }
         }
-    }));
-    it("Wrong leavesPdaPubkeys accounts", () => __awaiter(void 0, void 0, void 0, function* () {
-        for (var tx in transactions) {
-            var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
-            if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
-                for (var i = 0; i < tmp_tx.params.leavesPdaPubkeys.length; i++) {
-                    tmp_tx.params.leavesPdaPubkeys[i] =
-                        tmp_tx.params.leavesPdaPubkeys[(i + 1) % tmp_tx.params.leavesPdaPubkeys.length];
-                    yield sendTestTx(tmp_tx, "Includes", "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.");
-                }
-            }
-            else {
-                tmp_tx.params.leavesPdaPubkeys[0] = {
-                    isSigner: false,
-                    isWritable: true,
-                    pubkey: web3_js_1.Keypair.generate().publicKey,
-                };
-                yield sendTestTx(tmp_tx, "Includes", "Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account");
+    }
+}));
+it("Wrong Mint", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        let relayer = new anchor.web3.Account();
+        const newMintKeypair = web3_js_1.Keypair.generate();
+        yield (0, light_sdk_1.createMintWrapper)({
+            authorityKeypair: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+            mintKeypair: newMintKeypair,
+            connection: provider.connection,
+        });
+        tmp_tx.params.accounts.sender = yield (0, light_sdk_1.newAccountWithTokens)({
+            connection: provider.connection,
+            MINT: newMintKeypair.publicKey,
+            ADMIN_AUTH_KEYPAIR: light_sdk_1.ADMIN_AUTH_KEYPAIR,
+            userAccount: relayer,
+            amount: 0,
+        });
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong encryptedUtxos", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.encryptedUtxos = new Uint8Array(174).fill(2);
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong relayerFee", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong nullifier", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i in tmp_tx.publicInputs.nullifiers) {
+            tmp_tx.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
+            yield sendTestTx(tmp_tx, "ProofVerificationFails");
+        }
+    }
+}));
+it("Wrong leaves", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i in tmp_tx.publicInputs.leaves) {
+            tmp_tx.publicInputs.leaves[0][i] = new Uint8Array(32).fill(2);
+            yield sendTestTx(tmp_tx, "ProofVerificationFails");
+        }
+    }
+}));
+// doesn't work sig verify error
+it.skip("Wrong signer", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        const wrongSinger = web3_js_1.Keypair.generate();
+        yield provider.connection.confirmTransaction(yield provider.connection.requestAirdrop(wrongSinger.publicKey, 1000000000), "confirmed");
+        tmp_tx.payer = wrongSinger;
+        tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong recipientFee", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.recipientFee = web3_js_1.Keypair.generate().publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong recipient", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.recipient = web3_js_1.Keypair.generate().publicKey;
+        yield sendTestTx(tmp_tx, "ProofVerificationFails");
+    }
+}));
+it("Wrong registeredVerifierPda", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        if (tmp_tx.params.accounts.registeredVerifierPda.toBase58() ==
+            light_sdk_1.REGISTERED_VERIFIER_ONE_PDA.toBase58()) {
+            tmp_tx.params.accounts.registeredVerifierPda = light_sdk_1.REGISTERED_VERIFIER_PDA;
+        }
+        else {
+            tmp_tx.params.accounts.registeredVerifierPda = light_sdk_1.REGISTERED_VERIFIER_ONE_PDA;
+        }
+        yield sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
+    }
+}));
+it("Wrong authority", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.authority = light_sdk_1.Transaction.getSignerAuthorityPda(light_sdk_1.merkleTreeProgramId, web3_js_1.Keypair.generate().publicKey);
+        yield sendTestTx(tmp_tx, "Account", "authority");
+    }
+}));
+it("Wrong preInsertedLeavesIndex", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        tmp_tx.params.accounts.preInsertedLeavesIndex = light_sdk_1.REGISTERED_VERIFIER_PDA;
+        yield sendTestTx(tmp_tx, "preInsertedLeavesIndex");
+    }
+}));
+it("Wrong nullifier accounts", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        for (var i = 0; i < tmp_tx.params.nullifierPdaPubkeys.length; i++) {
+            tmp_tx.params.nullifierPdaPubkeys[i] = tmp_tx.params.nullifierPdaPubkeys[(i + 1) % tmp_tx.params.nullifierPdaPubkeys.length];
+            yield sendTestTx(tmp_tx, "Includes", "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.");
+        }
+    }
+}));
+it("Wrong leavesPdaPubkeys accounts", () => __awaiter(void 0, void 0, void 0, function* () {
+    for (var tx in transactions) {
+        var tmp_tx = lodash_1.default.cloneDeep(transactions[tx]);
+        if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
+            for (var i = 0; i < tmp_tx.params.leavesPdaPubkeys.length; i++) {
+                tmp_tx.params.leavesPdaPubkeys[i] = tmp_tx.params.leavesPdaPubkeys[(i + 1) % tmp_tx.params.leavesPdaPubkeys.length];
+                yield sendTestTx(tmp_tx, "Includes", "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.");
             }
         }
-    }));
-});
+        else {
+            tmp_tx.params.leavesPdaPubkeys[0] = { isSigner: false, isWritable: true, pubkey: web3_js_1.Keypair.generate().publicKey };
+            yield sendTestTx(tmp_tx, "Includes", 'Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account');
+        }
+    }
+}));
+;

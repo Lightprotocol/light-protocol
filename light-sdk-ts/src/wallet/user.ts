@@ -265,7 +265,7 @@ export class User {
           amounts: [new anchor.BN(assets[0].amount)],
           account: recipient
             ? new Account({
-                poseidon,
+                poseidon: poseidon,
                 publicKey: recipient,
                 encryptionPublicKey: recipientEncryptionPublicKey,
               })
@@ -706,7 +706,6 @@ export class User {
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
       provider: this.provider,
-      relayer,
     });
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
@@ -716,6 +715,7 @@ export class User {
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
       verifier: new VerifierZero(),
+      relayer,
     });
 
     await tx.compileAndProve(txParams);
@@ -817,8 +817,6 @@ export class User {
 
     let tx = new Transaction({
       provider: this.provider,
-      relayer,
-      // payer: ADMIN_AUTH_KEYPAIR,
     });
 
     let randomRecipient = SolanaKeypair.generate().publicKey;
@@ -831,6 +829,7 @@ export class User {
       verifier: new VerifierZero(),
       recipient: randomRecipient,
       recipientFee: randomRecipient,
+      relayer,
     });
 
     await tx.compileAndProve(txParams);

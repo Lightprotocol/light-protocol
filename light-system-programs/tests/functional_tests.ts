@@ -12,7 +12,6 @@ import {
   Transaction,
   VerifierZero,
   VerifierOne,
-  Keypair,
   Utxo,
   getUnspentUtxo,
   setUpMerkleTree,
@@ -33,13 +32,11 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  LightInstance,
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
   updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
-  getLightInstance,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -152,7 +149,6 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierOne(),
-        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -217,7 +213,6 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
-        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -265,7 +260,7 @@ describe("verifier_program", () => {
 
     let tx = new Transaction({
       provider: prov,
-      relayer,
+      // relayer,
       // payer: ADMIN_AUTH_KEYPAIR,
       // shuffleEnabled: false,
     });
@@ -277,7 +272,6 @@ describe("verifier_program", () => {
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
     });
 
     await tx.compileAndProve(txParams);
@@ -348,7 +342,7 @@ describe("verifier_program", () => {
 
     let tx = new Transaction({
       provider: prov,
-      relayer,
+      // relayer,
     });
 
     let txParams = new TransactionParameters({
@@ -366,7 +360,6 @@ describe("verifier_program", () => {
       recipientFee,
       verifier: new VerifierOne(),
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
     });
     await tx.compileAndProve(txParams);
 
