@@ -7,20 +7,12 @@ import { MerkleTree } from "merkleTree/merkleTree";
 export async function getUnspentUtxo(
   leavesPdas,
   provider: anchor.Provider,
-<<<<<<< HEAD
-  KEYPAIR: Keypair,
-  POSEIDON: any,
-  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
-  merkleTree: MerkleTree,
-  index: number,
-=======
   encryptionKeypair,
   KEYPAIR,
   feeAsset,
   mint,
   POSEIDON,
   merkleTreeProgram: MerkleTreeProgram,
->>>>>>> 3bd792a7 (rm nm)
 ) {
   let decryptedUtxos = [];
   for (var i = 0; i < leavesPdas.length; i++) {

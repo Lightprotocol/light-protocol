@@ -347,11 +347,7 @@ export class User {
     return options;
   }
 
-  // TODO: evaluate whether to move prepareUtxos here
-  // maybe it makes sense since I might need new keypairs etc in this process
-  // maybe not because we want to keep this class lean
-  // TODO: shieldedkeypair/payer
-  // TODO: in UI, support wallet switching, prefill option with button;
+  // TODO: in UI, support wallet switching, "prefill option with button"
   async shield({
     token,
     amount,
