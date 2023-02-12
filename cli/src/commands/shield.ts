@@ -8,7 +8,7 @@ export const desc: string =
   "create send and confirm a shield transaction for given <amount> and <token>";
 
 type Options = {
-  amount: string;
+  amount: number;
   token: string;
 };
 export const builder: CommandBuilder = (yargs) =>
@@ -33,7 +33,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   // TODO: use tokenRegistry to find decimals and convert. <- can put behind.
   // at multiplication it should be a bn number
   // TODO: recipient
-  await user.shield({ amount: Number(amount) * 1e9, token });
+  await user.shield({ amount, token });
 
   console.log(`Shielding done: ${amount} ${token}`);
   process.exit(0);

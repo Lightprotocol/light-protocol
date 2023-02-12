@@ -123,7 +123,7 @@ var saveUserToFile = function (_a) {
     var userToCache = {
         //@ts-ignore
         seed: user.seed,
-        payerSecret: Array.from(user.payer.secretKey),
+        payerSecret: Array.from(user.provider.nodeWallet.secretKey),
         utxos: user.utxos,
     };
     fs.writeFileSync("./cache/user.txt", JSON.stringify(userToCache));
@@ -132,7 +132,7 @@ var saveUserToFile = function (_a) {
 exports.saveUserToFile = saveUserToFile;
 // simulates state fetching.
 var readUserFromFile = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var cachedUser, data, asUint8Array, rebuiltUser, lightInstance, user, e_1;
+    var cachedUser, data, asUint8Array, provider, state, user, e_1;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -144,29 +144,26 @@ var readUserFromFile = function () { return __awaiter(void 0, void 0, void 0, fu
                     console.log("user.txt snot found!");
                 }
                 asUint8Array = new Uint8Array(cachedUser.payerSecret);
-                rebuiltUser = {
-                    seed: cachedUser.seed,
-                    payer: solana.Keypair.fromSecretKey(asUint8Array),
-                    utxos: cachedUser.utxos,
-                };
                 _a.label = 1;
             case 1:
                 _a.trys.push([1, 4, , 5]);
-                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
+                return [4 /*yield*/, light_sdk_1.Provider.native(solana.Keypair.fromSecretKey(asUint8Array))];
             case 2:
-                lightInstance = _a.sent();
-                user = new light_sdk_1.User({ payer: rebuiltUser.payer, lightInstance: lightInstance });
+                provider = _a.sent();
+                state = {
+                    seed: cachedUser.seed,
+                    utxos: cachedUser.utxos,
+                };
                 console.log("loading user...");
-                //@ts-ignore
-                return [4 /*yield*/, user.load(rebuiltUser)];
+                return [4 /*yield*/, light_sdk_1.User.load(provider, state)];
             case 3:
+                user = _a.sent();
                 //@ts-ignore
-                _a.sent();
                 console.log("✔️ User built from state!");
                 return [2 /*return*/, user];
             case 4:
                 e_1 = _a.sent();
-                console.log("err:", e_1);
+                console.log("err readUserFromFile:", e_1);
                 return [3 /*break*/, 5];
             case 5: return [2 /*return*/];
         }

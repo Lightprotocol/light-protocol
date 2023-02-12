@@ -68,7 +68,7 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
                 e_1 = _a.sent();
                 throw new Error("No user.txt file found, please login first.");
             case 4: return [4 /*yield*/, user.unshield({
-                    amount: Number(amount) * 1e9,
+                    amount: amount,
                     token: token,
                     recipient: new solana.PublicKey(recipient),
                 })];

@@ -30,7 +30,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   }
 
   await user.unshield({
-    amount: Number(amount) * 1e9,
+    amount,
     token,
     recipient: new solana.PublicKey(recipient),
   });

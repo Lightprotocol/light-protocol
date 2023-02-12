@@ -1,7 +1,7 @@
 import { getAirdrop, readWalletFromFile, saveUserToFile } from "../util";
 import * as solana from "@solana/web3.js";
-import { getLightInstance, User } from "light-sdk";
-import type { Arguments, CommandBuilder } from "yargs";
+import { User, Provider } from "light-sdk";
+import type { CommandBuilder } from "yargs";
 
 export const command: string = "login";
 export const desc: string =
@@ -23,11 +23,10 @@ export const handler = async (): Promise<void> => {
   process.env.ANCHOR_WALLET = "./cache/secret.txt";
   await getAirdrop(wallet);
 
-  const lightInstance = await getLightInstance();
-
-  const user = new User({ payer: wallet, lightInstance });
-  await user.load();
-  /// Mocks global state storage
+  const provider = await Provider.native(wallet);
+  console.log("provider: ", provider);
+  const user = await User.load(provider);
+  console.log("user..", user);
   saveUserToFile({ user });
 
   console.log("User logged in!");

@@ -44,7 +44,7 @@ exports.desc = "login a light user using an existing solana wallet; simulates a 
 var builder = function (yargs) { return yargs; };
 exports.builder = builder;
 var handler = function () { return __awaiter(void 0, void 0, void 0, function () {
-    var wallet, lightInstance, user;
+    var wallet, provider, user;
     return __generator(this, function (_a) {
         switch (_a.label) {
             case 0:
@@ -60,13 +60,14 @@ var handler = function () { return __awaiter(void 0, void 0, void 0, function ()
                 return [4 /*yield*/, (0, util_1.getAirdrop)(wallet)];
             case 1:
                 _a.sent();
-                return [4 /*yield*/, (0, light_sdk_1.getLightInstance)()];
+                return [4 /*yield*/, light_sdk_1.Provider.native(wallet)];
             case 2:
-                lightInstance = _a.sent();
-                user = new light_sdk_1.User({ payer: wallet, lightInstance: lightInstance });
-                return [4 /*yield*/, user.load()];
+                provider = _a.sent();
+                console.log("provider: ", provider);
+                return [4 /*yield*/, light_sdk_1.User.load(provider)];
             case 3:
-                _a.sent();
+                user = _a.sent();
+                console.log("user..", user);
                 (0, util_1.saveUserToFile)({ user: user });
                 console.log("User logged in!");
                 process.exit(0);

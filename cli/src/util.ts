@@ -6,6 +6,7 @@ import {
   getLightInstance,
   Keypair,
   User,
+  Provider,
 } from "light-sdk";
 
 export const createNewWallet = () => {
@@ -83,7 +84,7 @@ export const saveUserToFile = ({ user }: { user: User }) => {
   let userToCache = {
     //@ts-ignore
     seed: user.seed,
-    payerSecret: Array.from(user.payer.secretKey),
+    payerSecret: Array.from(user.provider.nodeWallet.secretKey),
     utxos: user.utxos,
   };
 
@@ -93,6 +94,7 @@ export const saveUserToFile = ({ user }: { user: User }) => {
 
 // simulates state fetching.
 export const readUserFromFile = async () => {
+  // TODO: adapt to provider
   let cachedUser: {
     seed: string;
     payerSecret: Array<number>;
@@ -105,22 +107,24 @@ export const readUserFromFile = async () => {
   } catch (e: any) {
     console.log("user.txt snot found!");
   }
+
   /** This is not needed in UI. just adjust to JSON stringify. */
   let asUint8Array: Uint8Array = new Uint8Array(cachedUser.payerSecret);
-  let rebuiltUser = {
-    seed: cachedUser.seed,
-    payer: solana.Keypair.fromSecretKey(asUint8Array),
-    utxos: cachedUser.utxos,
-  };
   try {
-    let lightInstance = await getLightInstance();
-    let user = new User({ payer: rebuiltUser.payer, lightInstance });
+    const provider = await Provider.native(
+      solana.Keypair.fromSecretKey(asUint8Array)
+    );
+    let state = {
+      seed: cachedUser.seed,
+      utxos: cachedUser.utxos,
+    };
+
     console.log("loading user...");
+    const user = await User.load(provider, state);
     //@ts-ignore
-    await user.load(rebuiltUser);
     console.log("✔️ User built from state!");
     return user;
   } catch (e) {
-    console.log("err:", e);
+    console.log("err readUserFromFile:", e);
   }
 };

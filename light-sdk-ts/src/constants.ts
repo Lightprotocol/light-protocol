@@ -136,16 +136,20 @@ export const RELAYER_FEES = 1e6;
 export const TOKEN_REGISTRY = [
   {
     symbol: "SOL",
-    decimals: 9,
+    decimals: 1e9,
     isNft: false, // TODO: parse from onchain state at configuration(decimlas, supply)
     isSol: true,
     tokenAccount: SystemProgram.programId,
   },
   {
     symbol: "USDC",
-    decimals: 6,
+    decimals: 1e6,
     isNft: false,
     isSol: false,
-    tokenAccount: new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+    // copied from MINT (test-utils)
+    tokenAccount: new PublicKey([
+      14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160,
+      127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
+    ]),
   },
 ];
