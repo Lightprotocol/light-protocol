@@ -142,7 +142,7 @@ export class TransactionParameters implements transactionParameters {
         programId: merkleTreeProgramId,
       };
     }
-
+    if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -158,8 +158,8 @@ export class TransactionParameters implements transactionParameters {
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
       recipient: recipient,
-      senderFee: senderFee,
-      recipientFee: recipientFee,
+      senderFee: senderFee, // TODO: change to feeSender
+      recipientFee: recipientFee, // TODO: change name to feeRecipient
       programMerkleTree: this.merkleTreeProgram.programId,
     };
     this.verifier = verifier;
@@ -340,11 +340,8 @@ export class Transaction {
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
     // prep and get proof inputs
-    console.log("this.params.outputUtxos", this.params.outputUtxos);
     this.publicAmount = this.getExternalAmount(1);
-    console.log("this.publicAmount", this.publicAmount);
     this.feeAmount = this.getExternalAmount(0);
-    console.log("this.feeAmount", this.feeAmount);
     this.assignAccounts(params);
     this.getMerkleProofs();
     this.getProofInput();
@@ -728,38 +725,6 @@ export class Transaction {
       this.params.outputUtxos &&
       this.assetPubkeysCircuit
     ) {
-      // console.log(
-      //   ".getExternalAmount out",
-      //   new anchor.BN(0).add(
-      //     this.params.outputUtxos
-      //       .filter((utxo: Utxo) => {
-      //         return (
-      //           utxo.assetsCircuit[assetIndex].toString("hex") ==
-      //           this.assetPubkeysCircuit![assetIndex].toString("hex")
-      //         );
-      //       })
-      //       .reduce(
-      //         (sum, utxo) =>
-      //           // add all utxos of the same asset
-      //           sum.add(utxo.amounts[assetIndex]),
-      //         new anchor.BN(0),
-      //       ),
-      //   ),
-      // );
-      // console.log(
-      //   ".getExternalAmount in",
-      //   this.params.inputUtxos
-      //     .filter((utxo) => {
-      //       return (
-      //         utxo.assetsCircuit[assetIndex].toString("hex") ==
-      //         this.assetPubkeysCircuit![assetIndex].toString("hex")
-      //       );
-      //     })
-      //     .reduce(
-      //       (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
-      //       new anchor.BN(0),
-      //     ),
-      // );
       return new anchor.BN(0)
         .add(
           this.params.outputUtxos
@@ -792,8 +757,8 @@ export class Transaction {
         .add(FIELD_SIZE)
         .mod(FIELD_SIZE);
     } else {
-      new Error(
-        `this.params.inputUtxos ${this.params.inputUtxos} && this.params.outputUtxos ${this.params.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
+      throw new Error(
+        `this.params.inputUtxos ${this.params?.inputUtxos} && this.params.outputUtxos ${this.params?.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
       );
     }
   }

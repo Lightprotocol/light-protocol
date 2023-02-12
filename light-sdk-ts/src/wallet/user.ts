@@ -781,14 +781,14 @@ export class User {
     let randomRecipient = new SolanaKeypair().publicKey;
     console.log("random recipient: ", randomRecipient.toBase58());
     if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
-    // TODO: why have to pass in a recipient?
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      recipient: randomRecipient,
-      recipientFee: randomRecipient,
+      // recipient/recipientFee not used on-chain, re-use account to reduce tx size
+      recipient: SystemProgram.programId,
+      recipientFee: SystemProgram.programId,
     });
 
     await tx.compileAndProve(txParams);
@@ -806,10 +806,9 @@ export class User {
       console.log(res);
     } catch (e) {
       console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
     await tx.checkBalances(randomShieldedKeypair);
-    console.log("checked balance successfully!");
+    console.log("checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       await updateMerkleTreeForTest(this.lightInstance.provider!);
@@ -819,7 +818,9 @@ export class User {
     }
   }
 
-  appInteraction() {}
+  appInteraction() {
+    throw new Error("not implemented yet");
+  }
   /*
     *
     *return {
@@ -867,24 +868,24 @@ export class User {
       });
     }
 
-    /** TEMP: ensure leaves are inserted. TODO: Move to relayer */
+    /** temporary: ensure leaves are inserted. TODO: Move to relayer */
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
     let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
       MERKLE_TREE_KEY,
     );
-    console.log("user.load - leavesPdas inserted length: ", leavesPdas.length);
-    console.log(
-      "user.load - leavesPdas uninserted length: ",
-      uninsertedLeaves.length,
-    );
-    if (uninsertedLeaves.length > 0) {
+
+    if (uninsertedLeaves.length > 0)
       try {
         await updateMerkleTreeForTest(this.lightInstance.provider!);
         leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
       } catch (e) {
-        console.log("user.load - couldn't update merkletree: ", e);
+        console.log(
+          "user.load - found uninserted leaves & couldn't update merkletree: ",
+          e,
+        );
       }
-    }
+    /** temporary end */
+
     const params = {
       leavesPdas,
       provider: this.lightInstance.provider!,
@@ -904,15 +905,23 @@ export class User {
    * Still torn - for regular devs this should be done automatically, e.g auto-prefacing any regular transaction.
    * whereas for those who want manual access there should be a fn to merge -> utxo = getutxosstatus() -> merge(utxos)
    */
-  async mergeUtxos(utxos: Utxo[]) {}
+  async mergeUtxos() {
+    throw new Error("not implemented yet");
+  }
   // TODO: merge with getUtxoStatus?
   // returns all non-accepted utxos.
   // we'd like to enforce some kind of sanitary controls here.
   // would not be part of the main balance
-  getUtxoInbox() {}
-  getUtxoStatus() {}
+  getUtxoInbox() {
+    throw new Error("not implemented yet");
+  }
+  getUtxoStatus() {
+    throw new Error("not implemented yet");
+  }
   // getPrivacyScore() -> for unshields only, can separate into its own helper method
   // Fetch utxos should probably be a function such the user object is not occupied while fetching
   // but it would probably be more logical to fetch utxos here as well
-  addUtxos() {}
+  addUtxos() {
+    throw new Error("not implemented yet");
+  }
 }
