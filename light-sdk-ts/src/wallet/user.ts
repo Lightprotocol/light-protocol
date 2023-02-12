@@ -56,7 +56,7 @@ type UtxoStatus = {
   utxoCount: number;
 };
 
-type BrowserWallet = {
+export type BrowserWallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
@@ -572,8 +572,14 @@ export class User {
       outputUtxos: shieldUtxos,
       inputUtxos: inUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: tokenCtx.isSol ? this.payer!.publicKey : tokenCtx.tokenAccount, // TODO: must be users token account
-      senderFee: this.payer!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer?? /// senderSOL
+      sender: tokenCtx.isSol
+        ? this.payer
+          ? this.payer!.publicKey
+          : this.browserWallet!.publicKey
+        : tokenCtx.tokenAccount, // TODO: must be users token account
+      senderFee: this.payer
+        ? this.payer!.publicKey
+        : this.browserWallet!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer?? /// senderSOL
       verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
     });
     await tx.compileAndProve(txParams);
