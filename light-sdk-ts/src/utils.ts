@@ -9,13 +9,16 @@ import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
-export async function getLightInstance() {
+export async function getLightInstance(provider?: anchor.Provider) {
   const poseidon = await circomlibjs.buildPoseidonOpt();
   anchor.setProvider(anchor.AnchorProvider.env());
-  const provider = anchor.AnchorProvider.local(
-    "http://127.0.0.1:8899",
-    confirmConfig,
-  );
+
+  if (!provider) {
+    provider = anchor.AnchorProvider.local(
+      "http://127.0.0.1:8899",
+      confirmConfig,
+    );
+  }
   // get hc value
   const LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
 

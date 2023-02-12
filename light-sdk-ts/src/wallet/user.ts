@@ -4,7 +4,7 @@ import {
   PublicKey,
   SystemProgram,
 } from "@solana/web3.js";
-import { Keypair } from "../keypair";
+import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import {
@@ -38,7 +38,8 @@ import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
 import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
-import { arrToStr, strToArr } from "../utils";
+import { arrToStr, getLightInstance, strToArr } from "../utils";
+import { BrowserWallet, Provider } from "./provider";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -48,6 +49,7 @@ type Balance = {
   decimals: number;
 };
 
+// TODO: remove this
 type UtxoStatus = {
   symbol: string;
   tokenAccount: PublicKey;
@@ -56,12 +58,6 @@ type UtxoStatus = {
   utxoCount: number;
 };
 
-export type BrowserWallet = {
-  signMessage: (message: Uint8Array) => Promise<Uint8Array>;
-  signTransaction: (transaction: any) => Promise<any>;
-  sendAndConfirmTransaction: (transaction: any) => Promise<any>;
-  publicKey: PublicKey;
-};
 var initLog = console.log;
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -75,45 +71,28 @@ var initLog = console.log;
  *
  */
 export class User {
-  payer?: SolanaKeypair;
-  browserWallet?: BrowserWallet;
-  keypair?: Keypair;
+  provider: Provider;
+  account?: Account;
   utxos?: Utxo[];
-  poseidon: any;
-  lightInstance: LightInstance;
   private seed?: string;
   constructor({
-    payer,
-    browserWallet,
+    provider,
     utxos = [],
-    keypair = undefined,
-    poseidon = undefined,
-    lightInstance,
+    account = undefined,
   }: {
-    payer?: SolanaKeypair;
-    browserWallet?: BrowserWallet;
+    provider: Provider;
     utxos?: Utxo[];
-    keypair?: Keypair;
-    poseidon?: any;
-    lightInstance: LightInstance;
+    account?: Account;
   }) {
-    if (!payer) {
-      if (!browserWallet)
-        throw new Error("No payer nor browserwallet provided");
-      this.browserWallet = browserWallet;
-    } else {
-      this.payer = payer;
-    }
+    if (!provider.browserWallet && !provider.nodeWallet)
+      throw new Error("No wallet provided");
+
+    if (!provider.lookUpTable || !provider.solMerkleTree || !provider.poseidon)
+      throw new Error("Provider not properly initialized");
+
+    this.provider = provider;
     this.utxos = utxos;
-    this.keypair = keypair;
-    this.poseidon = poseidon;
-    if (
-      !lightInstance.lookUpTable ||
-      !lightInstance.provider ||
-      !lightInstance.solMerkleTree
-    )
-      throw new Error("LightInstance not properly initialized");
-    this.lightInstance = lightInstance;
+    this.account = account;
   }
 
   async getBalance({
@@ -123,9 +102,13 @@ export class User {
   }): Promise<Balance[]> {
     const balances: Balance[] = [];
     if (!this.utxos) throw new Error("Utxos not initialized");
-    if (!this.keypair) throw new Error("Keypair not initialized");
-    if (!this.poseidon) throw new Error("Poseidon not initialized");
-    if (!this.lightInstance) throw new Error("Light Instance not initialized");
+    if (!this.account) throw new Error("Keypair not initialized");
+    if (!this.provider) throw new Error("Provider not initialized");
+    if (!this.provider.poseidon) throw new Error("Poseidon not initialized");
+    if (!this.provider.solMerkleTree)
+      throw new Error("Merkle Tree not initialized");
+    if (!this.provider.lookUpTable)
+      throw new Error("Look up table not initialized");
 
     if (latest) {
       let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
@@ -134,14 +117,10 @@ export class User {
 
       const params = {
         leavesPdas,
-        merkleTree: this.lightInstance.solMerkleTree!.merkleTree!,
-        // TODO: check the diff between SolMerkleTree.build vs constructor
-        provider: this.lightInstance.provider!,
-        // encryptionKeypair: this.keypair.encryptionKeypair,
-        keypair: this.keypair,
-        // feeAsset: TOKEN_REGISTRY[0].tokenAccount,
-        // mint: TOKEN_REGISTRY[0].tokenAccount, //
-        poseidon: this.poseidon,
+        merkleTree: this.provider.solMerkleTree.merkleTree!,
+        provider: this.provider.provider!,
+        account: this.account,
+        poseidon: this.provider.poseidon,
         merkleTreeProgram: merkleTreeProgramId,
       };
       const utxos = await getUnspentUtxos(params);
@@ -198,11 +177,10 @@ export class User {
     recipientEncryptionPublicKey?: Uint8Array;
     relayer?: Relayer;
   }) {
-    if (!this.poseidon) throw new Error("Poseidon not initialized");
-    if (!this.keypair) throw new Error("Shielded keypair not initialized");
+    const { poseidon } = this.provider;
+    if (!poseidon) throw new Error("Poseidon not initialized");
+    if (!this.account) throw new Error("Shielded Account not initialized");
 
-    // @unshield - Reject if insufficient inUtxos
-    // TODO: add consideration for relayfee
     if (amount < 0) {
       let inAmount = 0;
       inUtxos.forEach((inUtxo) => {
@@ -263,39 +241,39 @@ export class User {
 
       if (isTransfer) {
         let feeAssetSendUtxo = new Utxo({
-          poseidon: this.poseidon,
+          poseidon,
           assets: [assets[0].asset],
           amounts: [new anchor.BN(amount)],
-          keypair: new Keypair({
-            poseidon: this.poseidon,
+          account: new Account({
+            poseidon: poseidon,
             publicKey: recipient,
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
         let feeAssetChangeUtxo = new Utxo({
-          poseidon: this.poseidon,
+          poseidon,
           assets: [assets[0].asset],
           amounts: [
             new anchor.BN(assets[0].amount)
               .sub(new anchor.BN(amount))
               .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change
           ], // rem transfer positive
-          keypair: this.keypair,
+          account: this.account,
         });
 
         return [feeAssetSendUtxo, feeAssetChangeUtxo];
       } else {
         let feeAssetChangeUtxo = new Utxo({
-          poseidon: this.poseidon,
+          poseidon,
           assets: [assets[0].asset],
           amounts: [new anchor.BN(assets[0].amount)],
-          keypair: recipient
-            ? new Keypair({
-                poseidon: this.poseidon,
+          account: recipient
+            ? new Account({
+                poseidon,
                 publicKey: recipient,
                 encryptionPublicKey: recipientEncryptionPublicKey,
               })
-            : this.keypair, // if not self, use pubkey init
+            : this.account, // if not self, use pubkey init
         });
 
         return [feeAssetChangeUtxo];
@@ -309,21 +287,21 @@ export class User {
         if (i === assets.length - 1) {
           // add feeasset as asset to the last spl utxo
           const utxo1 = new Utxo({
-            poseidon: this.poseidon,
+            poseidon,
             assets: [assets[0].asset, asset.asset],
             amounts: [
               new anchor.BN(assets[0].amount),
               new anchor.BN(asset.amount),
             ],
-            keypair: this.keypair, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
+            account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
           });
           utxos.push(utxo1);
         } else {
           const utxo1 = new Utxo({
-            poseidon: this.poseidon,
+            poseidon,
             assets: [assets[0].asset, asset.asset],
             amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
-            keypair: this.keypair, // if not self, use pubkey init
+            account: this.account, // if not self, use pubkey init
           });
           utxos.push(utxo1);
         }
@@ -518,8 +496,9 @@ export class User {
     amount: number;
     recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
   }) {
+    if (!this.provider) throw new Error("Provider not set!");
     if (recipient)
-      throw new Error("Shields to other users aren't not implemented yet!");
+      throw new Error("Shields to other users not implemented yet!");
     if (!TOKEN_REGISTRY.find((t) => t.symbol === token))
       throw new Error("Token not supported!");
     // TODO: use getAssetByLookup fns instead (utils)
@@ -527,16 +506,16 @@ export class User {
       TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
     if (!tokenCtx.isSol) {
       throw new Error("SPL not supported yet!");
-      if (this.payer) {
+      if (this.provider.nodeWallet) {
         try {
           await splToken.approve(
-            this.lightInstance.provider!.connection,
-            this.payer!,
+            this.provider.provider!.connection,
+            this.provider.nodeWallet!,
             tokenCtx.tokenAccount, // TODO: must be user's token account
             AUTHORITY, //delegate
-            this.payer!, // owner
+            this.provider.nodeWallet!, // owner
             amount * 1, // TODO: why is this *2? // was *2
-            [this.payer!],
+            [this.provider.nodeWallet!],
           );
         } catch (error) {
           console.log("error approving", error);
@@ -550,9 +529,8 @@ export class User {
     }
     // TODO: add browserWallet support
     let tx = new Transaction({
-      instance: this.lightInstance,
-      payer: this.payer, // ADMIN_AUTH_KEYPAIR
-      shuffleEnabled: false,
+      provider: this.provider,
+      shuffleEnabled: false, // TODO: remove this & enable shuffling
     });
 
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
@@ -568,22 +546,21 @@ export class User {
       inUtxos,
     });
 
-    let txParams = new TransactionParameters({
-      outputUtxos: shieldUtxos,
-      inputUtxos: inUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: tokenCtx.isSol
-        ? this.payer
-          ? this.payer!.publicKey
-          : this.browserWallet!.publicKey
-        : tokenCtx.tokenAccount, // TODO: must be users token account
-      senderFee: this.payer
-        ? this.payer!.publicKey
-        : this.browserWallet!.publicKey, //ADMIN_AUTH_KEYPAIR.publicKey, // feepayer?? /// senderSOL
-      verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
-    });
-    await tx.compileAndProve(txParams);
-    // console.log("tx compiled and proof created!");
+    if (this.provider.nodeWallet) {
+      let txParams = new TransactionParameters({
+        outputUtxos: shieldUtxos,
+        inputUtxos: inUtxos,
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        sender: tokenCtx.isSol
+          ? this.provider.nodeWallet!.publicKey
+          : tokenCtx.tokenAccount, // TODO: must be users token account
+        senderFee: this.provider.nodeWallet!.publicKey,
+        verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
+      });
+      await tx.compileAndProve(txParams);
+    } else {
+      throw new Error("Browser wallet support not implemented yet!");
+    }
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -604,7 +581,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.lightInstance.provider!);
+      await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -614,7 +591,7 @@ export class User {
     }
   }
 
-  /** unshield
+  /**
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
    * @params recipient: PublicKey - Solana address
@@ -655,13 +632,13 @@ export class User {
     // TODO: maybe: move to lightInstance.
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      this.lightInstance.lookUpTable!,
+      this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(200000),
     );
 
     let tx = new Transaction({
-      instance: this.lightInstance,
+      provider: this.provider,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
@@ -681,8 +658,8 @@ export class User {
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await this.lightInstance.provider!.connection.confirmTransaction(
-      await this.lightInstance.provider!.connection.requestAirdrop(
+    await this.provider.provider!.connection.confirmTransaction(
+      await this.provider.provider!.connection.requestAirdrop(
         relayer.accounts.relayerRecipient,
         1_000_000,
       ),
@@ -706,7 +683,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.lightInstance.provider!);
+      await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -737,7 +714,9 @@ export class User {
     recipientEncryptionPublicKey: Uint8Array;
   }) {
     // TEST CHECKBALANCES
-    const randomShieldedKeypair = new Keypair({ poseidon: this.poseidon });
+    const randomShieldedKeypair = new Account({
+      poseidon: this.provider.poseidon,
+    });
     recipient = randomShieldedKeypair.pubkey;
     recipientEncryptionPublicKey =
       randomShieldedKeypair.encryptionKeypair.publicKey;
@@ -749,7 +728,7 @@ export class User {
     // TODO: pull an actually implemented relayer here
     const relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      this.lightInstance.lookUpTable!,
+      this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
@@ -768,7 +747,7 @@ export class User {
     });
 
     let tx = new Transaction({
-      instance: this.lightInstance,
+      provider: this.provider,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
@@ -790,8 +769,8 @@ export class User {
     await tx.compileAndProve(txParams);
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
-    await this.lightInstance.provider!.connection.confirmTransaction(
-      await this.lightInstance.provider!.connection.requestAirdrop(
+    await this.provider.provider!.connection.confirmTransaction(
+      await this.provider.provider!.connection.requestAirdrop(
         relayer.accounts.relayerRecipient,
         100_000_000,
       ),
@@ -814,7 +793,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.lightInstance.provider!);
+      await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️updated merkle tree!");
     } catch (e) {
@@ -846,71 +825,64 @@ export class User {
 
   async load(cachedUser?: User) {
     if (cachedUser) {
-      this.keypair = cachedUser.keypair;
+      this.account = cachedUser.account;
       this.seed = cachedUser.seed;
-      this.payer = cachedUser.payer;
-      this.browserWallet = cachedUser.browserWallet;
-      this.poseidon = cachedUser.poseidon;
+      this.provider = cachedUser.provider;
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
     }
     if (!this.seed) {
-      if (this.payer && this.browserWallet)
+      if (this.provider.nodeWallet && this.provider?.browserWallet)
         throw new Error("Both payer and browser wallet are provided");
-      if (this.payer) {
+      if (this.provider.nodeWallet) {
         const signature: Uint8Array = sign.detached(
           message,
-          this.payer.secretKey,
+          this.provider.nodeWallet.secretKey,
         );
         this.seed = new anchor.BN(signature).toString();
-      } else if (this.browserWallet) {
-        const signature: Uint8Array = await this.browserWallet.signMessage(
-          message,
-        );
+      } else if (this.provider?.browserWallet) {
+        const signature: Uint8Array =
+          await this.provider.browserWallet.signMessage(message);
         this.seed = new anchor.BN(signature).toString();
       } else {
         throw new Error("No payer or browser wallet provided");
       }
     }
-    if (!this.poseidon) {
-      this.poseidon = await circomlibjs.buildPoseidonOpt();
+    // get the provider?
+    if (!this.provider.poseidon) {
+      this.provider.poseidon = await circomlibjs.buildPoseidonOpt();
     }
-    if (!this.keypair) {
-      this.keypair = new Keypair({
-        poseidon: this.poseidon,
+    if (!this.account) {
+      this.account = new Account({
+        poseidon: this.provider.poseidon,
         seed: this.seed,
       });
     }
 
     // TODO: optimize: fetch once, then filter
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-    /** temporary: ensure leaves are inserted. TODO: Move to relayer */
-    // let uninsertedLeaves = await SolMerkleTree.getUninsertedLeaves(
-    //   MERKLE_TREE_KEY,
-    // );
-    // console.log("uninserted leaves: ", uninsertedLeaves.length);
-
-    // if (uninsertedLeaves.length > 0)
-    //   try {
-    //     await updateMerkleTreeForTest(this.lightInstance.provider!);
-    //     leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-    //   } catch (e) {
-    //     console.log(
-    //       "user.load - found uninserted leaves & couldn't update merkletree: ",
-    //       e,
-    //     );
-    //   }
-    /** temporary end */
 
     const params = {
       leavesPdas,
-      provider: this.lightInstance.provider!,
-      keypair: this.keypair,
-      poseidon: this.poseidon,
+      provider: this.provider.provider!,
+      account: this.account,
+      poseidon: this.provider.poseidon,
       merkleTreeProgram: merkleTreeProgramId,
-      merkleTree: this.lightInstance.solMerkleTree!.merkleTree!,
+      merkleTree: this.provider.solMerkleTree!.merkleTree!,
     };
     const utxos = await getUnspentUtxos(params);
     this.utxos = utxos;
+  }
+
+  // TODO: we need a non-anchor version of "provider" - (bundle functionality exposed by the wallet adapter into own provider-like class)
+  /**
+   *
+   * @param provider - Light provider
+   * @param cachedUser - Optional user state to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
+   */
+  static async loadUser(provider: Provider, cachedUser?: User): Promise<User> {
+    const user = new User({ provider });
+    await user.load(cachedUser);
+    return user;
   }
 
   // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...

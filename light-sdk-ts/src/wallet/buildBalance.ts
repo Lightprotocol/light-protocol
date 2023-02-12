@@ -1,15 +1,16 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgram } from "../idls/index";
+import { PublicKey } from "@solana/web3.js";
+import { MerkleTreeProgramIdl } from "../idls/index";
 import { MerkleTree } from "merkleTree/merkleTree";
 import { merkleTreeProgramId } from "../constants";
+import { Account } from "../account";
 
 /**deprecated */
 export async function getUnspentUtxo(
   leavesPdas,
   provider: anchor.Provider,
-  KEYPAIR: Keypair,
+  account: Account,
   POSEIDON: any,
   merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>,
   merkleTree: MerkleTree,
@@ -25,7 +26,7 @@ export async function getUnspentUtxo(
         encBytes: new Uint8Array(
           Array.from(leavesPdas[i].account.encryptedUtxos),
         ),
-        keypair: KEYPAIR,
+        account: account,
       });
 
       const mtIndex = merkleTree.indexOf(
@@ -76,14 +77,14 @@ export async function getUnspentUtxo(
 export async function getUnspentUtxos({
   leavesPdas,
   provider,
-  keypair,
+  account,
   poseidon,
   merkleTreeProgram: MerkleTreeProgram,
   merkleTree,
 }: {
   leavesPdas: any;
   provider: anchor.Provider;
-  keypair: any;
+  account: Account;
   poseidon: any;
   merkleTreeProgram: any;
   merkleTree: MerkleTree;
@@ -99,14 +100,14 @@ export async function getUnspentUtxos({
         encBytes: new Uint8Array(
           Array.from(leafPda.account.encryptedUtxos.slice(0, 95)),
         ),
-        keypair: keypair,
+        account,
       }),
       Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
           Array.from(leafPda.account.encryptedUtxos.slice(95)),
         ),
-        keypair: keypair,
+        account,
       }),
     ];
 
