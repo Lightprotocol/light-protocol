@@ -22,6 +22,7 @@ export type BrowserWallet = {
 /**
  * Provides: payer/wallets, connection, latest SolMerkleTree, LookupTable, confirmConfig, poseidon
  */
+// TODO: add relayer here; default deriv, if passed in can choose custom relayer.
 export class Provider {
   connection?: Connection;
   browserWallet?: BrowserWallet;
@@ -110,7 +111,6 @@ export class Provider {
    * @param confirmConfig optional, default = 'confirmed'
    * @param connection get from useConnection() hook
    */
-  // TOOD: add custom rpc if in node
   static async getProvider(
     walletContext?: BrowserWallet,
     connection?: Connection,
@@ -129,17 +129,17 @@ export class Provider {
 
   /**
    * Only use this if you have access to a local keypair. If you use WalletAdapter, e.g. in a browser, use getProvider() instead.
+   * @param keypair - user's keypair to sign transactions
    * @param confirmConfig optional, default = 'confirmed'
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  // TOOD: add custom rpc if in node
   static async getNodeProvider(
-    nodeWallet?: SolanaKeypair,
+    keypair?: SolanaKeypair,
     url?: string,
     confirmConfig?: ConfirmOptions,
   ): Promise<Provider> {
     const provider = new Provider({
-      nodeWallet,
+      nodeWallet: keypair,
       confirmConfig,
       url,
     });
