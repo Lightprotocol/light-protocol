@@ -56,7 +56,7 @@ export async function initLookUpTableFromFile(
       lookUpTable = lookUpTableRead;
     }
   } catch (e) {
-    console.log(e);
+    console.log(".txt not found", e);
   }
   console.log("lookupTable : ", lookUpTable.toString());
 
@@ -66,7 +66,7 @@ export async function initLookUpTableFromFile(
     recentSlot,
     extraAccounts,
   );
-
+  console.log("LOOK_UP_TABLE: ", LOOK_UP_TABLE.toString());
   writeFile(path, LOOK_UP_TABLE.toString(), function (err) {
     if (err) {
       return console.error(err);
