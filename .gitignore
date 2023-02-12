@@ -7,6 +7,9 @@
 /cli/cache/signature.txt
 /cli/cache/user.txt
 
+# relayer
+/relayer/node_modules/
+
 # light-sdk-ts
 /light-sdk-ts/node_modules/
 /light-sdk-ts/lib/
@@ -26,3 +29,4 @@
 /light-system-programs/lookUpTable.txt
 /groth16-solana/target/
 */target/*
+
