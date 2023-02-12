@@ -55,7 +55,7 @@ describe("verifier_program", () => {
     anchor.setProvider(provider);
     console.log("merkleTreeProgram: ", light_sdk_1.merkleTreeProgramId.toBase58());
     const merkleTreeProgram = new anchor.Program(light_sdk_1.IDL_MERKLE_TREE_PROGRAM, light_sdk_1.merkleTreeProgramId);
-    it("init test setup Merkle tree lookup table etc ", () => __awaiter(void 0, void 0, void 0, function* () {
+    before("init test setup Merkle tree lookup table etc ", () => __awaiter(void 0, void 0, void 0, function* () {
         yield (0, light_sdk_1.createTestAccounts)(provider.connection);
         LOOK_UP_TABLE = yield (0, light_sdk_1.initLookUpTableFromFile)(provider);
         yield (0, light_sdk_1.setUpMerkleTree)(provider);
@@ -187,7 +187,7 @@ describe("verifier_program", () => {
         let relayer = new light_sdk_1.Relayer(light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey, prov.lookUpTable, web3_js_1.Keypair.generate().publicKey, new anchor_1.BN(100000));
         let tx = new light_sdk_1.Transaction({
             provider: prov,
-            relayer,
+            // relayer,
             // payer: ADMIN_AUTH_KEYPAIR,
             // shuffleEnabled: false,
         });
@@ -197,6 +197,7 @@ describe("verifier_program", () => {
             recipient: tokenRecipient,
             recipientFee: origin.publicKey,
             verifier: new light_sdk_1.VerifierZero(),
+            relayer,
         });
         yield tx.compileAndProve(txParams);
         // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
@@ -232,7 +233,7 @@ describe("verifier_program", () => {
         let relayer = new light_sdk_1.Relayer(light_sdk_1.ADMIN_AUTH_KEYPAIR.publicKey, prov.lookUpTable, relayerRecipient, new anchor_1.BN(100000));
         let tx = new light_sdk_1.Transaction({
             provider: prov,
-            relayer,
+            // relayer,
         });
         let txParams = new light_sdk_1.TransactionParameters({
             inputUtxos,
@@ -248,6 +249,7 @@ describe("verifier_program", () => {
             recipient: light_sdk_1.recipientTokenAccount,
             recipientFee,
             verifier: new light_sdk_1.VerifierOne(),
+            relayer,
         });
         yield tx.compileAndProve(txParams);
         try {

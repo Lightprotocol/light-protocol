@@ -1,6 +1,5 @@
 import {
   PublicKey,
-  Keypair as SolanaKeypair,
   SystemProgram,
   ComputeBudgetProgram,
   AddressLookupTableAccount,
@@ -10,23 +9,20 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
-import { BN, Program, Provider } from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
 import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
-  BrowserWallet,
   FIELD_SIZE,
   hashAndTruncateToCircuit,
   Account,
   merkleTreeProgramId,
   Relayer,
-  SolMerkleTree,
-  ADMIN_AUTH_KEYPAIR,
 } from "./index";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "./idls/index";
+import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 import { readFileSync } from "fs";
 import { Provider as LightProvider } from "./wallet";
 const anchor = require("@coral-xyz/anchor");
@@ -37,7 +33,6 @@ const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
 const { keccak_256 } = require("@noble/hashes/sha3");
 var assert = require("assert");
-var circomlibjs = require("circomlibjs");
 
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 
@@ -66,7 +61,6 @@ export type transactionParameters = {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
-  payer?: SolanaKeypair;
 };
 
 export class TransactionParameters implements transactionParameters {
@@ -117,7 +111,6 @@ export class TransactionParameters implements transactionParameters {
     verifierApp,
     relayer,
     encryptedUtxos,
-    payer,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -130,7 +123,6 @@ export class TransactionParameters implements transactionParameters {
     outputUtxos?: Utxo[];
     relayer?: Relayer;
     encryptedUtxos?: Uint8Array;
-    payer?: SolanaKeypair;
   }) {
     try {
       this.merkleTreeProgram = new Program(
@@ -171,9 +163,8 @@ export class TransactionParameters implements transactionParameters {
       throw new Error("No utxos provided.");
     }
     this.verifierApp = verifierApp;
-    // this.relayer = relayer; // ??
+    this.relayer = relayer;
     this.encryptedUtxos = encryptedUtxos;
-    // this.payer = payer;
   }
 }
 
@@ -190,7 +181,7 @@ export class Transaction {
   action?: string;
   params?: TransactionParameters; // contains accounts
   appParams?: any;
-  relayer?: Relayer; // TODO: should be part of the provider by default + optional override on Transaction level
+  // TODO: relayer shd pls should be part of the provider by default + optional override on Transaction level
   provider: LightProvider;
 
   //txInputs;
@@ -224,11 +215,9 @@ export class Transaction {
    */
   constructor({
     provider,
-    relayer,
     shuffleEnabled = false,
   }: {
     provider: LightProvider;
-    relayer?: Relayer;
     shuffleEnabled?: boolean;
   }) {
     if (!provider.poseidon) throw new Error("Poseidon not set");
@@ -237,26 +226,6 @@ export class Transaction {
       throw new Error("Wallet not set");
     this.provider = provider;
 
-    /** set relayer */
-    // @Swen TODO: test if required for cli
-    // if (relayer) {
-    //   // TODO: need distinguish between withdrawal and transfer?
-    //   this.action = "WITHDRAWAL";
-    //   this.relayer = relayer;
-    //   console.log("withdrawal/transfer");
-    // } else if (!relayer) {
-    //   this.action = "DEPOSIT";
-    //   this.relayer = new Relayer(
-    //     this.provider.nodeWallet
-    //       ? this.provider.nodeWallet.publicKey
-    //       : this.provider.browserWallet!.publicKey,
-    //     this.provider.lookUpTable!,
-    //   );
-    // } else {
-    //   throw new Error(
-    //     "Couldn't assign relayer- no relayer nor wallet provided.",
-    //   );
-    // }
     this.shuffleEnabled = shuffleEnabled;
   }
 
@@ -292,7 +261,6 @@ export class Transaction {
 
   async compile(params: TransactionParameters, appParams?: any) {
     // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
-    this.poseidon = await circomlibjs.buildPoseidonOpt();
     this.params = params;
     this.appParams = appParams;
 
@@ -300,15 +268,21 @@ export class Transaction {
       // TODO: rename to send
       this.action = "WITHDRAWAL";
       console.log("withdrawal");
-    } else if (!params.relayer && params.payer && this.instance.lookUpTable) {
+    } else if (
+      !params.relayer &&
+      (this.provider.browserWallet || this.provider.nodeWallet) &&
+      this.provider.lookUpTable
+    ) {
       this.action = "DEPOSIT";
       this.params.relayer = new Relayer(
-        params.payer.publicKey,
-        this.instance.lookUpTable,
+        this.provider.browserWallet
+          ? this.provider.browserWallet.publicKey
+          : this.provider.nodeWallet!.publicKey,
+        this.provider.lookUpTable,
       );
     } else {
       throw new Error(
-        "No payer and relayer provided or no lookup table in instance.",
+        "Couldn't assign relayer- no relayer nor wallet, or provider provided.",
       );
     }
     if (this.params.relayer) {
@@ -402,7 +376,7 @@ export class Transaction {
       if (this.appParams) {
         this.proofInput.connectingHash = Transaction.getConnectingHash(
           this.params,
-          this.poseidon,
+          this.provider.poseidon,
           this.proofInput.extDataHash, //this.getTxIntegrityHash().toString()
         );
         this.proofInput.verifier = this.params.verifier?.pubkey;
@@ -416,7 +390,7 @@ export class Transaction {
     if (this.appParams && this.params) {
       this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
         this.params,
-        this.poseidon,
+        this.provider.poseidon,
         this.getTxIntegrityHash().toString(),
       );
       const path = require("path");
@@ -696,7 +670,7 @@ export class Transaction {
   addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
     if (this.params && this.params.verifier.config) {
       while (utxos.length < len) {
-        utxos.push(new Utxo({ poseidon: this.poseidon }));
+        utxos.push(new Utxo({ poseidon: this.provider.poseidon }));
       }
     } else {
       throw new Error(
@@ -1157,21 +1131,25 @@ export class Transaction {
 
   // TODO: deal with this: set own payer just for that? where is this used?
   async closeVerifierState(): Promise<TransactionSignature> {
-    if (this.params.payer && this.params && !this.appParams) {
+    if (
+      (this.provider.nodeWallet || this.provider.browserWallet) &&
+      this.params &&
+      !this.appParams
+    ) {
       return await this.params?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
           ...this.params.accounts,
         })
-        .signers([this.params.payer])
+        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
         .rpc(confirmConfig);
-    } else if (this.params.payer && this.params && this.appParams) {
+    } else if (this.provider.nodeWallet && this.params && this.appParams) {
       return await this.appParams?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
           ...this.params.accounts,
         })
-        .signers([this.params.payer])
+        .signers([this.provider.nodeWallet])
         .rpc(confirmConfig);
     } else {
       throw new Error("No payer or params provided.");
@@ -1373,9 +1351,9 @@ export class Transaction {
         // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
         // TODO: add for both utxos of leafpda
         let decryptedUtxo1 = Utxo.decrypt({
-          poseidon: this.poseidon,
-          encBytes: this.encryptedUtxos!,
-          account: account ? account : this.params.outputUtxos[0].account,
+          poseidon: this.provider.poseidon,
+          encBytes: this.params!.encryptedUtxos!,
+          account: account ? account : this.params!.outputUtxos![0].account,
         });
         const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
           assert.equal(
