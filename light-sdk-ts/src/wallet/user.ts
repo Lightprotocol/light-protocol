@@ -470,49 +470,15 @@ export class User {
   }
 
   // TODO: in UI, support wallet switching, "prefill option with button"
-  async shield({
-    token,
+  getTxParams({
+    tokenCtx,
     amount,
-    recipient,
+    action,
   }: {
-    token: string;
+    tokenCtx: any;
     amount: number;
-    recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
-  }) {
-    if (!this.provider) throw new Error("Provider not set!");
-    if (recipient)
-      throw new Error("Shields to other users not implemented yet!");
-    // TODO: use getAssetByLookup fns instead (utils)
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
-    if (!tokenCtx.isSol) {
-      throw new Error("SPL not supported yet!");
-      if (this.provider.nodeWallet) {
-        try {
-          await splToken.approve(
-            this.provider.provider!.connection,
-            this.provider.nodeWallet!,
-            tokenCtx.tokenAccount, // TODO: must be user's token account
-            AUTHORITY, //delegate
-            this.provider.nodeWallet!, // owner
-            amount * 1, // TODO: why is this *2? // was *2
-            [this.provider.nodeWallet!],
-          );
-        } catch (error) {
-          console.log("error approving", error);
-        }
-      } else {
-        // TODO: implement browserWallet support; for UI
-        throw new Error("Browser wallet support not implemented yet!");
-      }
-    } else {
-      console.log("- is SOL");
-    }
-    // TODO: add browserWallet support
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
+    action: string;
+  }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
@@ -537,10 +503,78 @@ export class User {
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
       });
-      await tx.compileAndProve(txParams);
+      return txParams;
     } else {
       throw new Error("Browser wallet support not implemented yet!");
     }
+  }
+  /**
+   *
+   * @param amount e.g. 1 SOL = 1, 2 USDC = 2
+   * @param token "SOL", "USDC", "USDT",
+   * @param recipient optional, if not set, will shield to self
+   */
+  async shield({
+    token,
+    amount,
+    recipient,
+  }: {
+    token: string;
+    amount: number;
+    recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
+  }) {
+    /**
+     * TODO:
+     * considerations for these.
+     * - move relayer class to e.g. provider with optional override in tx?
+     * - then would be good to add "tx and relayer" inception in there
+     * - i wana hide the relayer. (default) -> new tx maybe too! shd be good.
+     * - just important to know: where is the customization required where not
+     *  */
+
+    if (!this.provider) throw new Error("Provider not set!");
+    if (recipient)
+      throw new Error("Shields to other users not implemented yet!");
+    // TODO: use getAssetByLookup fns instead (utils)
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
+    if (!tokenCtx.isSol) {
+      // TODO: add get decimals and convert to baseunit
+      throw new Error("SPL not supported yet!");
+      if (this.provider.nodeWallet) {
+        try {
+          await splToken.approve(
+            this.provider.provider!.connection,
+            this.provider.nodeWallet!,
+            tokenCtx.tokenAccount, // TODO: must be user's token account
+            AUTHORITY, //delegate
+            this.provider.nodeWallet!, // owner
+            amount * 1, // TODO: why is this *2? // was *2
+            [this.provider.nodeWallet!],
+          );
+        } catch (error) {
+          console.log("error approving", error);
+        }
+      } else {
+        // TODO: implement browserWallet support; for UI
+        throw new Error("Browser wallet support not implemented yet!");
+      }
+    } else {
+      console.log("- is SOL");
+      amount = amount * 1e9;
+    }
+    // TODO: add browserWallet support
+    let tx = new Transaction({
+      provider: this.provider,
+    });
+
+    const txParams = this.getTxParams({
+      tokenCtx,
+      amount,
+      action: "SHIELD",
+    });
+
+    await tx.compileAndProve(txParams);
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -593,7 +627,10 @@ export class User {
         tokenCtx.tokenAccount,
         recipient,
       );
+      // * units
       throw new Error("SPL not implemented yet!");
+    } else {
+      amount = amount * 1e9;
     }
 
     const inUtxos = this.selectInUtxos({
@@ -608,20 +645,18 @@ export class User {
     });
 
     // TODO: replace with ping to relayer webserver
-    // TODO: maybe: move to lightInstance.
     let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
+      this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
-      new anchor.BN(200000),
+      new anchor.BN(100000),
     );
 
+    /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
       provider: this.provider,
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
     });
-
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -691,7 +726,8 @@ export class User {
     recipient: anchor.BN; // TODO: Keypair.pubkey -> type
     recipientEncryptionPublicKey: Uint8Array;
   }) {
-    // TODO: move this to a cli command
+    // TODO: move this to a CLI command
+    // THIS is for the current checkBalances...need privkey
     const randomShieldedKeypair = new Account({
       poseidon: this.provider.poseidon,
     });
@@ -702,9 +738,14 @@ export class User {
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+
+    // for is sol?
+    if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
+    amount = amount * 1e9;
     // TODO: pull an actually implemented relayer here
     const relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
+      // ADMIN_AUTH_KEYPAIR.publicKey,
+      this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
@@ -726,7 +767,7 @@ export class User {
     let tx = new Transaction({
       provider: this.provider,
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
+      // payer: ADMIN_AUTH_KEYPAIR,
     });
 
     let randomRecipient = SolanaKeypair.generate().publicKey;
@@ -798,12 +839,13 @@ export class User {
    * untested for browser wallet!
    */
 
-  async load(cachedUser?: User) {
+  async load(cachedUser?: CachedUserState, provider?: Provider) {
     if (cachedUser) {
-      this.account = cachedUser.account;
+      // this.account = cachedUser.account;
       this.seed = cachedUser.seed;
-      this.provider = cachedUser.provider;
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
+      if (!provider) throw new Error("No provider provided");
+      this.provider = provider;
     }
     if (!this.seed) {
       if (this.provider.nodeWallet && this.provider?.browserWallet)
@@ -854,9 +896,13 @@ export class User {
    * @param provider - Light provider
    * @param cachedUser - Optional user state to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
    */
-  static async loadUser(provider: Provider, cachedUser?: User): Promise<User> {
+
+  static async load(
+    provider: Provider,
+    cachedUser?: CachedUserState,
+  ): Promise<User> {
     const user = new User({ provider });
-    await user.load(cachedUser);
+    await user.load(cachedUser, provider);
     return user;
   }
 
@@ -892,3 +938,8 @@ export class User {
     throw new Error("not implemented yet");
   }
 }
+
+export type CachedUserState = {
+  utxos: Utxo[];
+  seed: string;
+};

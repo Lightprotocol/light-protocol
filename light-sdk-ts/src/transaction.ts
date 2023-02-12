@@ -24,6 +24,7 @@ import {
   merkleTreeProgramId,
   Relayer,
   SolMerkleTree,
+  ADMIN_AUTH_KEYPAIR,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "./idls/index";
 import { readFileSync } from "fs";
@@ -31,12 +32,12 @@ import { Provider as LightProvider } from "./wallet";
 const anchor = require("@coral-xyz/anchor");
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
+var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
 const { keccak_256 } = require("@noble/hashes/sha3");
 var assert = require("assert");
 var circomlibjs = require("circomlibjs");
-var ffjavascript = require("ffjavascript");
 
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 
@@ -1082,6 +1083,7 @@ export class Transaction {
           //   "versioned transaction in browser not implemented yet",
           // );
         } else {
+          /** Just need to define relayer pubkey as signer a creation */
           tx.sign([this.provider.nodeWallet!]);
         }
 
@@ -1599,7 +1601,7 @@ export class Transaction {
           this.params.relayerRecipientAccountBalancePriorLastTx,
         )}`,
       );
-
+      console.log("SWEN: rfa", recipientFeeAccount);
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))

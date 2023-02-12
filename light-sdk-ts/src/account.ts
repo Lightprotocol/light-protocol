@@ -95,8 +95,8 @@ export class Account {
         secretKey: new Uint8Array(),
       };
     } else {
-      this.privkey = Account.generateShieldedPrivateKey(seed);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
+      this.privkey = Account.generateShieldedPrivateKey(seed);
       this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,

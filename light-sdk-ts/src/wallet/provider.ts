@@ -1,12 +1,17 @@
 import { AnchorError, AnchorProvider, setProvider } from "@coral-xyz/anchor";
-import { SolMerkleTree } from "@merkleTree";
+import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
   Connection,
   ConfirmOptions,
 } from "@solana/web3.js";
-import { initLookUpTable, initLookUpTableFromFile } from "test-utils";
+import {
+  initLookUpTable,
+  initLookUpTableFromFile,
+  setUpMerkleTree,
+} from "../test-utils";
+import { MERKLE_TREE_KEY } from "../constants";
 const circomlibjs = require("circomlibjs");
 
 /**
@@ -93,9 +98,28 @@ export class Provider {
     // TODO: replace with api call to relayer - lookuptable
     this.lookUpTable = await initLookUpTableFromFile(this.provider);
   }
+
   private async fetchMerkleTree() {
     // Api call to relayer - merkletree
+    // TODO: move to a seperate function
+    const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
+      MERKLE_TREE_KEY,
+    );
+    if (!merkletreeIsInited) {
+      await setUpMerkleTree(this.provider!);
+      console.log("merkletree inited");
+      // TODO: throw error
+    }
+
+    console.log("building merkletree...");
+    const mt = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon: this.poseidon,
+    });
+    console.log("✔️ building merkletree done");
+    this.solMerkleTree = mt;
   }
+
   private async loadPoseidon() {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     this.poseidon = poseidon;
@@ -111,7 +135,7 @@ export class Provider {
    * @param confirmConfig optional, default = 'confirmed'
    * @param connection get from useConnection() hook
    */
-  static async getProvider(
+  static async browser(
     walletContext?: BrowserWallet,
     connection?: Connection,
     confirmConfig?: ConfirmOptions,
@@ -133,7 +157,7 @@ export class Provider {
    * @param confirmConfig optional, default = 'confirmed'
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  static async getNodeProvider(
+  static async native(
     keypair?: SolanaKeypair,
     url?: string,
     confirmConfig?: ConfirmOptions,
