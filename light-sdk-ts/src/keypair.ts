@@ -13,8 +13,9 @@ export class Keypair {
    */
   privkey: BN;
   pubkey: BN;
-  encryptionPublicKey: Uint8Array;
-  encryptionPrivateKey?: Uint8Array;
+  // encryptionPublicKey: Uint8Array;
+  // encryptionPrivateKey?: Uint8Array;
+  encryptionKeypair: nacl.BoxKeyPair;
   poseidon: any;
   burnerSeed: Uint8Array;
   // keypair for eddsa poseidon signatures
@@ -57,8 +58,7 @@ export class Keypair {
       // the encryption and private key of a utxo
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
       this.privkey = Keypair.generateShieldedPrivateKey(seed);
-      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encryptionPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
+      this.encryptionKeypair = Keypair.getEncryptionKeyPair(seed);
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
@@ -68,11 +68,6 @@ export class Keypair {
       );
     } else if (privateKey) {
       this.privkey = privateKey;
-      if (encPubkey) {
-        this.encryptionPublicKey = encPubkey;
-      } else {
-        this.encryptionPublicKey = new Uint8Array();
-      }
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
@@ -80,18 +75,20 @@ export class Keypair {
       if (poseidonEddsaPrivateKey) {
         this.poseidonEddsa = { privateKey: poseidonEddsaPrivateKey };
       }
+      this.encryptionKeypair = {
+        publicKey: new Uint8Array(),
+        secretKey: new Uint8Array(),
+      };
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
-      // TODO: write general wrapper to throw on undefined and return name of variable
-      if (!encPubkey) {
-        throw new Error("No encPubkey defined");
-      }
-      this.encryptionPublicKey = encPubkey;
+      this.encryptionKeypair = {
+        publicKey: new Uint8Array(),
+        secretKey: new Uint8Array(),
+      };
     } else {
       this.privkey = Keypair.generateShieldedPrivateKey(seed);
-      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encryptionPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
+      this.encryptionKeypair = Keypair.getEncryptionKeyPair(seed);
       this.pubkey = Keypair.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
@@ -125,7 +122,7 @@ export class Keypair {
   }
 
   encryptionPublicKeyToBytes() {
-    return new BN(this.encryptionPublicKey).toBuffer("be", 32);
+    return new BN(this.encryptionKeypair.publicKey).toBuffer("be", 32);
   }
 
   // TODO: make eddsa wrapper class

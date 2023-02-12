@@ -1,30 +1,31 @@
 import { readUserFromFile } from "../util";
 import * as solana from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
-import { User } from "light-sdk";
-import { sign } from "tweetnacl";
-import { SIGN_MESSAGE } from "../constants";
 import type { Arguments, CommandBuilder } from "yargs";
-const message = new TextEncoder().encode(SIGN_MESSAGE);
-const circomlibjs = require("circomlibjs");
 
-export const command: string = "login";
+// TODO: add custom recipient (self only atm)
+export const command: string = "shield <amount> <token>";
 export const desc: string =
-  "login a light user using an existing solana wallet; simulates a page refresh/mount";
+  "create send and confirm a shield transaction for given <amount> and <token>";
 
-export const builder: CommandBuilder = (yargs) => yargs;
+type Options = {
+  amount: number;
+  token: string; // TODO: add options
+};
+export const builder: CommandBuilder<Options, Options> = (yargs) =>
+  yargs
+    .positional("amount", { type: "number", demandOption: true })
+    .positional("token", { type: "string", demandOption: true });
 
-export const handler = async (argv: Arguments): Promise<void> => {
+export const handler = async (argv: Arguments<Options>): Promise<void> => {
+  const { amount, token } = argv;
   try {
     var user = await readUserFromFile();
   } catch (e) {
     throw new Error("No user.txt file found, please login first.");
   }
-  const balances = user.getBalance();
-  console.log("User balance: ");
-  balances.map((balance) =>
-    console.log(`${balance.amount / balance.decimals} ${balance.symbol}`)
-  );
+  // TODO: ensure 'payer's' balance is enough w 'connection'
+
+  await user.shield({ amount, token });
 
   process.exit(0);
 };
