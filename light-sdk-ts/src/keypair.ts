@@ -23,24 +23,33 @@ export class Keypair {
   };
   eddsa: any;
 
+  /**
+   *
+   * @param poseidon required
+   * @param seed
+   * @param burner
+   * @param privateKey
+   * @param publicKey
+   * @param encryptionPublicKey required for transfers to other users
+   */
   constructor({
     poseidon,
     seed = new BN(nacl.randomBytes(32)).toString("hex"),
     burner = false,
     privateKey,
     publicKey,
-    encPubkey,
     poseidonEddsaPrivateKey,
     eddsa,
+    encryptionPublicKey,
   }: {
     poseidon?: any;
     seed?: string;
     burner?: Boolean;
     privateKey?: BN;
     publicKey?: BN;
-    encPubkey?: Uint8Array;
     poseidonEddsaPrivateKey?: Uint8Array;
     eddsa?: any;
+    encryptionPublicKey?: Uint8Array;
   }) {
     if (seed.length < 32) {
       throw "seed too short length less than 32";
@@ -74,14 +83,14 @@ export class Keypair {
         this.poseidonEddsa = { privateKey: poseidonEddsaPrivateKey };
       }
       this.encryptionKeypair = {
-        publicKey: new Uint8Array(),
+        publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
         secretKey: new Uint8Array(),
       };
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
       this.encryptionKeypair = {
-        publicKey: new Uint8Array(),
+        publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
         secretKey: new Uint8Array(),
       };
     } else {
