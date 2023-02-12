@@ -6,6 +6,7 @@
 /cli/cache/utxos.txt
 /cli/cache/signature.txt
 /cli/cache/user.txt
+/cli/lookUpTable.txt
 
 # relayer
 /relayer/node_modules/
