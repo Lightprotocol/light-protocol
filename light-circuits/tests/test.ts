@@ -67,6 +67,7 @@ async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
 
   let lightInstance: LightInstance = {
     solMerkleTree: new SolMerkleTree({poseidon, pubkey: mockPubkey}),
+    lookUpTable: SolanaKeypair.generate().publicKey
   };
 
   let txParams = new TransactionParameters({
@@ -75,11 +76,11 @@ async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
     sender: mockPubkey,
     senderFee: mockPubkey,
     verifier: verifier,
+    payer: ADMIN_AUTH_KEYPAIR,
   });
 
   let tx = new Transaction({
     instance: lightInstance,
-    payer: ADMIN_AUTH_KEYPAIR,
   });
 
   // successful proofgeneration

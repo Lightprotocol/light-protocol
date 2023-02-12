@@ -54,53 +54,73 @@ export type MerkleTreeProgram = {
     },
     {
       name: "AUTHORITY_SEED";
-      type: "bytes";
-      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"AUTHORITY_SEED"';
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED";
-      type: "bytes";
-      value: "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"MERKLE_TREE_AUTHORITY"';
     },
     {
       name: "TREE_ROOT_SEED";
-      type: "bytes";
-      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"TREE_ROOT_SEED"';
     },
     {
       name: "STORAGE_SEED";
-      type: "bytes";
-      value: "[115, 116, 111, 114, 97, 103, 101]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"storage"';
     },
     {
       name: "LEAVES_SEED";
-      type: "bytes";
-      value: "[108, 101, 97, 118, 101, 115]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"leaves"';
     },
     {
       name: "NULLIFIER_SEED";
-      type: "bytes";
-      value: "[110, 102]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"nf"';
     },
     {
       name: "POOL_TYPE_SEED";
-      type: "bytes";
-      value: "[112, 111, 111, 108, 116, 121, 112, 101]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"pooltype"';
     },
     {
       name: "POOL_CONFIG_SEED";
-      type: "bytes";
-      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"pool-config"';
     },
     {
       name: "POOL_SEED";
-      type: "bytes";
-      value: "[112, 111, 111, 108]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"pool"';
     },
     {
       name: "TOKEN_AUTHORITY_SEED";
-      type: "bytes";
-      value: "[115, 112, 108]";
+      type: {
+        defined: "&[u8]";
+      };
+      value: 'b"spl"';
     },
   ];
   instructions: [
@@ -1167,7 +1187,7 @@ export type MerkleTreeProgram = {
   ];
 };
 
-export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
+export const IDL: MerkleTreeProgram = {
   version: "0.1.0",
   name: "merkle_tree_program",
   constants: [
@@ -1226,54 +1246,73 @@ export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
     },
     {
       name: "AUTHORITY_SEED",
-      type: "bytes",
-      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"AUTHORITY_SEED"',
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED",
-      type: "bytes",
-      value:
-        "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"MERKLE_TREE_AUTHORITY"',
     },
     {
       name: "TREE_ROOT_SEED",
-      type: "bytes",
-      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"TREE_ROOT_SEED"',
     },
     {
       name: "STORAGE_SEED",
-      type: "bytes",
-      value: "[115, 116, 111, 114, 97, 103, 101]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"storage"',
     },
     {
       name: "LEAVES_SEED",
-      type: "bytes",
-      value: "[108, 101, 97, 118, 101, 115]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"leaves"',
     },
     {
       name: "NULLIFIER_SEED",
-      type: "bytes",
-      value: "[110, 102]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"nf"',
     },
     {
       name: "POOL_TYPE_SEED",
-      type: "bytes",
-      value: "[112, 111, 111, 108, 116, 121, 112, 101]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"pooltype"',
     },
     {
       name: "POOL_CONFIG_SEED",
-      type: "bytes",
-      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"pool-config"',
     },
     {
       name: "POOL_SEED",
-      type: "bytes",
-      value: "[112, 111, 111, 108]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"pool"',
     },
     {
       name: "TOKEN_AUTHORITY_SEED",
-      type: "bytes",
-      value: "[115, 112, 108]",
+      type: {
+        defined: "&[u8]",
+      },
+      value: 'b"spl"',
     },
   ],
   instructions: [
@@ -2339,5 +2378,3 @@ export const IDL_MERKLE_TREE_PROGRAM: MerkleTreeProgram = {
     },
   ],
 };
-
-export default MerkleTreeProgram;

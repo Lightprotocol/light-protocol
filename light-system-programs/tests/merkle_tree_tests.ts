@@ -37,6 +37,7 @@ import {
   newAccountWithLamports,
   checkMerkleTreeBatchUpdateSuccess,
   POOL_TYPE,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -104,7 +105,7 @@ describe("Merkle Tree Tests", () => {
 
   it("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
-      VerifierProgramZero,
+      IDL_VERIFIER_PROGRAM_ZERO,
       verifierProgramZeroProgramId
     );
     // const verifierProgramOne = new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
@@ -566,7 +567,6 @@ describe("Merkle Tree Tests", () => {
 
     var transaction = new Transaction({
         instance: lightInstance,
-        payer: ADMIN_AUTH_KEYPAIR,
         shuffleEnabled: false,
     });
 
@@ -586,6 +586,7 @@ describe("Merkle Tree Tests", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
+        payer: ADMIN_AUTH_KEYPAIR,
     });
     await transaction.compileAndProve(txParams);
     console.log(transaction.params.accounts);
