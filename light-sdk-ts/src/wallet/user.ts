@@ -24,13 +24,19 @@ import {
 } from "../constants";
 import {
   ADMIN_AUTH_KEYPAIR,
+  createTestAccounts,
+  MINT,
+  newAccountWithTokens,
   updateMerkleTreeForTest,
+  userTokenAccount,
+  USER_TOKEN_ACCOUNT,
 } from "../test-utils/index";
 import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
 import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
 import { Provider } from "./provider";
+import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -40,6 +46,13 @@ type Balance = {
   decimals: number;
 };
 
+type TokenContext = {
+  symbol: string;
+  decimals: number;
+  tokenAccount: PublicKey;
+  isNft: boolean;
+  isSol: boolean;
+};
 var initLog = console.log;
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -475,22 +488,27 @@ export class User {
     amount,
     action,
   }: {
-    tokenCtx: any;
+    tokenCtx: TokenContext;
     amount: number;
     action: string;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
+    // TODO: check with spl -> selects proper tokens?
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
       pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
     });
     // TODO: add fees !
+    console.log("inUtxos", inUtxos);
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
     });
+    console.log("outUtxos", shieldUtxos);
+
+    // TODO: get associated token account of nodewallet
 
     if (this.provider.nodeWallet) {
       let txParams = new TransactionParameters({
@@ -499,7 +517,7 @@ export class User {
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: tokenCtx.isSol
           ? this.provider.nodeWallet!.publicKey
-          : tokenCtx.tokenAccount, // TODO: must be users token account
+          : userTokenAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
       });
@@ -536,20 +554,52 @@ export class User {
     if (recipient)
       throw new Error("Shields to other users not implemented yet!");
     // TODO: use getAssetByLookup fns instead (utils)
+    // We're assuming "USDC for now"
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
     if (!tokenCtx.isSol) {
-      // TODO: add get decimals and convert to baseunit
-      throw new Error("SPL not supported yet!");
+      await createTestAccounts(this.provider.provider!.connection!);
+      console.log("created test accounts!");
+
       if (this.provider.nodeWallet) {
+        // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
+        var balanceUserToken = null;
+        try {
+          balanceUserToken = await getAccount(
+            this.provider!.provider!.connection,
+            // hardcoded assumed for now
+            userTokenAccount,
+            "confirmed",
+            TOKEN_PROGRAM_ID,
+          );
+        } catch (e) {
+          console.log("couldn't find SPL account, initing...");
+        }
+        try {
+          if (balanceUserToken == null) {
+            await newAccountWithTokens({
+              connection: this.provider!.provider!.connection,
+              MINT: tokenCtx.tokenAccount,
+              ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
+              userAccount: USER_TOKEN_ACCOUNT,
+              amount: 100_000_000_000,
+            });
+          }
+        } catch (error) {
+          console.log("spl token account creation failed: ", error);
+        }
+
+        // TODO: who tf is AUTHORITY?
         try {
           await splToken.approve(
             this.provider.provider!.connection,
             this.provider.nodeWallet!,
-            tokenCtx.tokenAccount, // TODO: must be user's token account
+            userTokenAccount, //°
+            // tokenCtx.tokenAccount, // TODO: must be user's token account
             AUTHORITY, //delegate
-            this.provider.nodeWallet!, // owner
-            amount * 1, // TODO: why is this *2? // was *2
+            // this.provider.nodeWallet!, // owner
+            USER_TOKEN_ACCOUNT, // owner2
+            amount * 1, // TODO: why, was *2
             [this.provider.nodeWallet!],
           );
         } catch (error) {
@@ -561,13 +611,14 @@ export class User {
       }
     } else {
       console.log("- is SOL");
-      amount = amount * 1e9;
     }
+    amount = amount * tokenCtx.decimals;
     // TODO: add browserWallet support
     let tx = new Transaction({
       provider: this.provider,
     });
 
+    // add: different token select. -> tokenCtx
     const txParams = this.getTxParams({
       tokenCtx,
       amount,

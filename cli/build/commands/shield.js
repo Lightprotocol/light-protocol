@@ -69,10 +69,18 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
             case 4: 
             // return;
             // TODO: ensure 'payer's' balance is enough w 'connection'
-            return [4 /*yield*/, user.shield({ amount: Number(amount) * 1e9, token: token })];
+            // TODO: add check for amount / bn; optionally pass as bn
+            // TODO: use tokenRegistry to find decimals and convert. <- can put behind.
+            // at multiplication it should be a bn number
+            // TODO: recipient
+            return [4 /*yield*/, user.shield({ amount: amount, token: token })];
             case 5:
                 // return;
                 // TODO: ensure 'payer's' balance is enough w 'connection'
+                // TODO: add check for amount / bn; optionally pass as bn
+                // TODO: use tokenRegistry to find decimals and convert. <- can put behind.
+                // at multiplication it should be a bn number
+                // TODO: recipient
                 _a.sent();
                 console.log("Shielding done: ".concat(amount, " ").concat(token));
                 process.exit(0);

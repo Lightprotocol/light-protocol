@@ -73,7 +73,7 @@ var handler = function (argv) { return __awaiter(void 0, void 0, void 0, functio
                 recipient = new anchor.BN(shieldedRecipient, "hex");
                 recipientEncryptionPublicKey = (0, light_sdk_1.strToArr)(encryptionPublicKey);
                 return [4 /*yield*/, user.transfer({
-                        amount: amount * 1e9,
+                        amount: amount,
                         token: token,
                         recipient: recipient,
                         recipientEncryptionPublicKey: recipientEncryptionPublicKey,

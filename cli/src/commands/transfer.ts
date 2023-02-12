@@ -37,7 +37,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     strToArr(encryptionPublicKey);
 
   await user.transfer({
-    amount: amount * 1e9,
+    amount,
     token,
     recipient,
     recipientEncryptionPublicKey, // TODO: do shielded address

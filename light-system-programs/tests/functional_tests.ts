@@ -3,6 +3,7 @@ import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert } from "chai";
+
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
 
@@ -22,6 +23,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   MINT,
+  Provider,
   KEYPAIR_PRIVKEY,
   AUTHORITY_ONE,
   USER_TOKEN_ACCOUNT,
@@ -37,9 +39,11 @@ import {
   SolMerkleTree,
   updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
+  getLightInstance,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
+import { Account } from "light-sdk/lib/account";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -69,7 +73,7 @@ describe("verifier_program", () => {
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new Keypair({
+    KEYPAIR = new Account({
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
@@ -86,18 +90,10 @@ describe("verifier_program", () => {
     console.log(merkleTree);
   });
 
-  it.skip("Deposit 10 utxo", async () => {
+  it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
-    const lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({
-        pubkey: MERKLE_TREE_KEY,
-        poseidon: POSEIDON,
-      }),
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
 
     let balance = await provider.connection.getBalance(
       Transaction.getSignerAuthorityPda(
@@ -134,10 +130,10 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT]
       );
+      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        instance: lightInstance,
-        shuffleEnabled: false,
+        provider: prov,
       });
 
       let deposit_utxo1 = new Utxo({
@@ -147,7 +143,7 @@ describe("verifier_program", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        keypair: KEYPAIR,
+        account: KEYPAIR,
       });
 
       let txParams = new TransactionParameters({
@@ -166,7 +162,9 @@ describe("verifier_program", () => {
       } catch (e) {
         console.log(e);
       }
-      await tx.checkBalances();
+      await tx.checkBalances(KEYPAIR);
+      // uncomment below if not running the "deposit" test
+      // await updateMerkleTreeForTest(provider);
     }
   });
 
@@ -197,18 +195,10 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      let lightInstance: LightInstance = {
-        solMerkleTree: new SolMerkleTree({
-          pubkey: MERKLE_TREE_KEY,
-          poseidon: POSEIDON,
-        }),
-        lookUpTable: LOOK_UP_TABLE,
-        provider,
-      };
+      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        instance: lightInstance,
-        shuffleEnabled: false,
+        provider: prov,
       });
 
       deposit_utxo1 = new Utxo({
@@ -218,7 +208,7 @@ describe("verifier_program", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        keypair: KEYPAIR,
+        account: KEYPAIR,
       });
 
       let txParams = new TransactionParameters({
@@ -238,7 +228,7 @@ describe("verifier_program", () => {
         console.log(e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
-      await tx.checkBalances();
+      await tx.checkBalances(KEYPAIR);
     }
     await updateMerkleTreeForTest(provider);
   });
@@ -264,21 +254,20 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    let lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable,
+      prov.lookUpTable,
       SolanaKeypair.generate().publicKey,
       new BN(100000)
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
-      shuffleEnabled: false,
+      provider: prov,
+      relayer,
+      // payer: ADMIN_AUTH_KEYPAIR,
+      // shuffleEnabled: false,
     });
 
     let txParams = new TransactionParameters({
@@ -314,7 +303,7 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  it.skip("Withdraw 10 utxos", async () => {
+  it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
@@ -338,31 +327,28 @@ describe("verifier_program", () => {
 
     let inputUtxos = [];
     inputUtxos.push(decryptedUtxo1);
-    let lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
+    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(relayerRecipient, 1_000_000)
+    await prov.provider.connection.confirmTransaction(
+      await prov.provider.connection.requestAirdrop(relayerRecipient, 1_000_000)
     );
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(recipientFee, 1_000_000)
+    await prov.provider.connection.confirmTransaction(
+      await prov.provider.connection.requestAirdrop(recipientFee, 1_000_000)
     );
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable,
+      prov.lookUpTable,
       relayerRecipient,
       new BN(100000)
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
-      shuffleEnabled: false,
+      provider: prov,
+      relayer,
     });
 
     let txParams = new TransactionParameters({
