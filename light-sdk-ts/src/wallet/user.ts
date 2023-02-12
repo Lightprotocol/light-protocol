@@ -1,5 +1,4 @@
 import {
-  Enum,
   Keypair as SolanaKeypair,
   PublicKey,
   SystemProgram,
@@ -7,11 +6,7 @@ import {
 import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import {
-  LightInstance,
-  Transaction,
-  TransactionParameters,
-} from "../transaction";
+import { Transaction, TransactionParameters } from "../transaction";
 import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
 
@@ -22,7 +17,6 @@ import {
   UTXO_FEE_ASSET_MINIMUM,
   UTXO_MERGE_THRESHOLD,
   SIGN_MESSAGE,
-  confirmConfig,
   AUTHORITY,
   MERKLE_TREE_KEY,
   TOKEN_REGISTRY,
@@ -30,16 +24,13 @@ import {
 } from "../constants";
 import {
   ADMIN_AUTH_KEYPAIR,
-  initLookUpTableFromFile,
-  recipientTokenAccount,
   updateMerkleTreeForTest,
 } from "../test-utils/index";
 import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
 import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
-import { arrToStr, getLightInstance, strToArr } from "../utils";
-import { BrowserWallet, Provider } from "./provider";
+import { Provider } from "./provider";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -47,15 +38,6 @@ type Balance = {
   amount: number;
   tokenAccount: PublicKey;
   decimals: number;
-};
-
-// TODO: remove this
-type UtxoStatus = {
-  symbol: string;
-  tokenAccount: PublicKey;
-  availableAmount: number; // max possible in 1 merge
-  totalAmount: number;
-  utxoCount: number;
 };
 
 var initLog = console.log;
@@ -66,10 +48,12 @@ var initLog = console.log;
 
 /**
  *
- * @param browserWallet { signMessage, signTransaction, sendAndConfirmTransaction, publicKey}
- * @param payer Solana Keypair  - if not provided, browserWallet is used
+ * @param provider Either a nodeProvider or browserProvider
+ * @param account User account (optional)
+ * @param utxos User utxos (optional)
  *
  */
+// TODO: add "balances, pending Balances, incoming utxos " / or find a better alternative
 export class User {
   provider: Provider;
   account?: Account;
@@ -114,7 +98,7 @@ export class User {
       let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
       //TODO: add: "pending" to balances
       //TODO: add init by cached (subset of leavesPdas)
-
+      // TODO: add incoming utxos
       const params = {
         leavesPdas,
         merkleTree: this.provider.solMerkleTree.merkleTree!,
@@ -161,7 +145,6 @@ export class User {
   }
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
-  // ASSUMES: amount POS for shield
   createOutUtxos({
     mint,
     amount,
@@ -499,11 +482,9 @@ export class User {
     if (!this.provider) throw new Error("Provider not set!");
     if (recipient)
       throw new Error("Shields to other users not implemented yet!");
-    if (!TOKEN_REGISTRY.find((t) => t.symbol === token))
-      throw new Error("Token not supported!");
     // TODO: use getAssetByLookup fns instead (utils)
-    let tokenCtx =
-      TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
     if (!tokenCtx.isSol) {
       throw new Error("SPL not supported yet!");
       if (this.provider.nodeWallet) {
@@ -530,7 +511,6 @@ export class User {
     // TODO: add browserWallet support
     let tx = new Transaction({
       provider: this.provider,
-      shuffleEnabled: false, // TODO: remove this & enable shuffling
     });
 
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
@@ -605,9 +585,8 @@ export class User {
     amount: number;
     recipient: PublicKey;
   }) {
-    const tokenCtx =
-      TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
-
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
@@ -641,7 +620,6 @@ export class User {
       provider: this.provider,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
     });
 
     // refactor idea: getTxparams -> in,out
@@ -713,7 +691,7 @@ export class User {
     recipient: anchor.BN; // TODO: Keypair.pubkey -> type
     recipientEncryptionPublicKey: Uint8Array;
   }) {
-    // TEST CHECKBALANCES
+    // TODO: move this to a cli command
     const randomShieldedKeypair = new Account({
       poseidon: this.provider.poseidon,
     });
@@ -722,9 +700,8 @@ export class User {
       randomShieldedKeypair.encryptionKeypair.publicKey;
     // TEST END
 
-    const tokenCtx =
-      TOKEN_REGISTRY[TOKEN_REGISTRY.findIndex((t) => t.symbol === token)];
-
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
     // TODO: pull an actually implemented relayer here
     const relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
@@ -750,7 +727,6 @@ export class User {
       provider: this.provider,
       relayer,
       payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
     });
 
     let randomRecipient = SolanaKeypair.generate().publicKey;
@@ -761,7 +737,6 @@ export class User {
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      // recipient/recipientFee not used on-chain, re-use account to reduce tx size
       recipient: randomRecipient,
       recipientFee: randomRecipient,
     });
@@ -895,6 +870,11 @@ export class User {
   async mergeUtxos() {
     throw new Error("not implemented yet");
   }
+
+  async getLatestTransactionHistory() {
+    throw new Error("not implemented yet");
+  }
+  // TODO: add proof-of-origin call.
   // TODO: merge with getUtxoStatus?
   // returns all non-accepted utxos.
   // we'd like to enforce some kind of sanitary controls here.
