@@ -6,14 +6,14 @@ import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
 import { Scalar } from "ffjavascript";
 
-import { Keypair } from "../src/keypair";
+import { Account } from "../src/account";
 import { Utxo } from "../src/utxo";
 import {
   ADMIN_AUTH_KEYPAIR,
   FEE_ASSET,
   functionalCircuitTest,
   hashAndTruncateToCircuit,
-  LightInstance,
+  Provider as LightProvider,
   MERKLE_TREE_KEY,
   MINT,
   Transaction,
@@ -23,7 +23,10 @@ const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
 describe("verifier_program", () => {
-  it.skip("Test poseidon", async () => {
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+
+  it("Test poseidon", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
     let x = new Array(32).fill(1);
@@ -43,13 +46,13 @@ describe("verifier_program", () => {
     console.log(new anchor.BN(hash).toArray("be", 32));
   });
 
-  it.only("Test Keypair Poseidon Eddsa", async () => {
+  it("Test Keypair Poseidon Eddsa", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let eddsa = await buildEddsa();
     const babyJub = await buildBabyjub();
     const F = babyJub.F;
     let seed32 = new Uint8Array(32).fill(1).toString();
-    let k0 = new Keypair({ poseidon, seed: seed32, eddsa });
+    let k0 = new Account({ poseidon, seed: seed32, eddsa });
 
     const prvKey = blake2b
       .create(b2params)
@@ -80,6 +83,7 @@ describe("verifier_program", () => {
     assert(eddsa.verifyPoseidon(msg, eddsa.unpackSignature(sigK0), pubKey));
   });
 
+  // TODO: rename to 'Test Account'
   it("Test Keypair", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
@@ -94,7 +98,7 @@ describe("verifier_program", () => {
     assert.notEqual(privkeyHash, seedHash);
     assert.notEqual(encHash, privkeyHash);
     try {
-      expect(new Keypair({ poseidon, seed: "123" })).to.throw();
+      expect(new Account({ poseidon, seed: "123" })).to.throw();
     } catch (e) {
       assert.isTrue(
         e.toString().includes("seed too short length less than 32"),
@@ -102,8 +106,8 @@ describe("verifier_program", () => {
     }
 
     const compareKeypairsEqual = (
-      k0: Keypair,
-      k1: Keypair,
+      k0: Account,
+      k1: Account,
       fromPrivkey: Boolean = false,
     ) => {
       assert.equal(k0.privkey.toString(), k1.privkey.toString());
@@ -111,21 +115,21 @@ describe("verifier_program", () => {
       assert.equal(k0.burnerSeed.toString(), k1.burnerSeed.toString());
       if (!fromPrivkey) {
         assert.equal(
-          k0.encryptionPublicKey.toString(),
-          k1.encryptionPublicKey.toString(),
+          k0.encryptionKeypair.publicKey.toString(),
+          k1.encryptionKeypair.publicKey.toString(),
         );
       }
     };
 
     const compareKeypairsNotEqual = (
-      k0: Keypair,
-      k1: Keypair,
+      k0: Account,
+      k1: Account,
       burner = false,
     ) => {
       assert.notEqual(k0.privkey.toString(), k1.privkey.toString());
       assert.notEqual(
-        k0.encryptionPublicKey.toString(),
-        k1.encryptionPublicKey.toString(),
+        k0.encryptionKeypair.publicKey.toString(),
+        k1.encryptionKeypair.publicKey.toString(),
       );
       assert.notEqual(k0.pubkey.toString(), k1.pubkey.toString());
       if (burner) {
@@ -134,14 +138,14 @@ describe("verifier_program", () => {
     };
 
     let seed32 = new Uint8Array(32).fill(1).toString();
-    let k0 = new Keypair({ poseidon, seed: seed32 });
-    let k00 = new Keypair({ poseidon, seed: seed32 });
+    let k0 = new Account({ poseidon, seed: seed32 });
+    let k00 = new Account({ poseidon, seed: seed32 });
     // generate the same keypair from seed
     compareKeypairsEqual(k0, k00);
 
     // functional reference
     assert.equal(
-      k0.encryptionPublicKey.toString(),
+      k0.encryptionKeypair.publicKey.toString(),
       "79,88,143,40,214,78,70,137,196,5,122,152,24,73,163,196,183,217,173,186,135,188,91,113,160,128,183,111,110,245,183,96",
     );
     assert.equal(
@@ -154,14 +158,14 @@ describe("verifier_program", () => {
     );
 
     let seedDiff32 = new Uint8Array(32).fill(2).toString();
-    let k1 = new Keypair({ poseidon, seed: seedDiff32 });
+    let k1 = new Account({ poseidon, seed: seedDiff32 });
     // keypairs from different seeds are not equal
     compareKeypairsNotEqual(k0, k1);
 
     // functional reference burner
-    let kBurner = Keypair.createBurner(poseidon, seed32, new anchor.BN("0"));
+    let kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
     assert.equal(
-      kBurner.encryptionPublicKey.toString(),
+      kBurner.encryptionKeypair.publicKey.toString(),
       "118,44,67,51,130,2,17,15,16,119,197,218,27,218,191,249,95,51,193,62,252,27,59,71,151,12,244,206,103,244,155,13",
     );
     assert.equal(
@@ -179,28 +183,28 @@ describe("verifier_program", () => {
 
     // burners and regular keypair from the same seed are not equal
     compareKeypairsNotEqual(k0, kBurner, true);
-    let kBurner0 = Keypair.createBurner(poseidon, seed32, new anchor.BN("0"));
+    let kBurner0 = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
     // burners with the same index from the same seed are the equal
     compareKeypairsEqual(kBurner0, kBurner);
-    let kBurner1 = Keypair.createBurner(poseidon, seed32, new anchor.BN("1"));
+    let kBurner1 = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
     // burners with incrementing index are not equal
     compareKeypairsNotEqual(kBurner1, kBurner0, true);
 
-    let kBurner2 = Keypair.fromBurnerSeed(poseidon, kBurner.burnerSeed);
+    let kBurner2 = Account.fromBurnerSeed(poseidon, kBurner.burnerSeed);
     compareKeypairsEqual(kBurner2, kBurner);
     compareKeypairsNotEqual(k0, kBurner2, true);
 
     // fromPrivkey
-    let k0Privkey = Keypair.fromPrivkey(
+    let k0Privkey = Account.fromPrivkey(
       poseidon,
       k0.privkey.toBuffer("be", 32),
     );
     compareKeypairsEqual(k0Privkey, k0, true);
 
     // fromPubkey
-    let k0Pubkey = Keypair.fromPubkey(
+    let k0Pubkey = Account.fromPubkey(
       k0.pubkey.toBuffer("be", 32),
-      k0.encryptionPublicKey,
+      k0.encryptionKeypair.publicKey,
     );
     assert.equal(k0Pubkey.pubkey.toString(), k0.pubkey.toString());
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
@@ -213,7 +217,7 @@ describe("verifier_program", () => {
     const assetPubkey = MINT;
     const seed32 = new Uint8Array(32).fill(1).toString();
     let inputs = {
-      keypair: new Keypair({ poseidon, seed: seed32 }),
+      keypair: new Account({ poseidon, seed: seed32 }),
       amountFee,
       amountToken,
       assetPubkey,
@@ -226,7 +230,7 @@ describe("verifier_program", () => {
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      keypair: inputs.keypair,
+      account: inputs.keypair,
       blinding: inputs.blinding,
     });
     // functional
@@ -264,13 +268,13 @@ describe("verifier_program", () => {
     // toBytes
     const bytes = utxo0.toBytes();
     // fromBytes
-    const utxo1 = Utxo.fromBytes({ poseidon, keypair: inputs.keypair, bytes });
+    const utxo1 = Utxo.fromBytes({ poseidon, account: inputs.keypair, bytes });
     Utxo.equal(utxo0, utxo1);
     // encrypt
     const encBytes = utxo1.encrypt();
 
     // decrypt
-    const utxo3 = Utxo.decrypt({ poseidon, encBytes, keypair: inputs.keypair });
+    const utxo3 = Utxo.decrypt({ poseidon, encBytes, account: inputs.keypair });
     if (utxo3) {
       Utxo.equal(utxo0, utxo3);
     } else {
@@ -284,7 +288,7 @@ describe("verifier_program", () => {
     // fromBytes
     const utxo40 = Utxo.fromBytes({
       poseidon,
-      keypair: utxo4.keypair,
+      account: utxo4.account,
       bytes: bytes4,
     });
     Utxo.equal(utxo4, utxo40);
@@ -293,7 +297,7 @@ describe("verifier_program", () => {
     const utxo41 = Utxo.decrypt({
       poseidon,
       encBytes: encBytes4,
-      keypair: utxo4.keypair,
+      account: utxo4.account,
     });
     if (utxo41) {
       Utxo.equal(utxo4, utxo41);
@@ -313,13 +317,9 @@ describe("verifier_program", () => {
   it("getIndices", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
-    let lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({ pubkey: MERKLE_TREE_KEY, poseidon }),
-    };
+    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
     let tx = new Transaction({
-      instance: lightInstance,
-      payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
+      provider: lightProvider,
     });
 
     var deposit_utxo1 = new Utxo({

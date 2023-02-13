@@ -9,7 +9,6 @@ let circomlibjs = require("circomlibjs");
 import {
   Transaction,
   VerifierZero,
-  Keypair,
   Utxo,
   createMintWrapper,
   initLookUpTableFromFile,
@@ -26,7 +25,6 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  LightInstance,
   SolMerkleTree,
   VerifierProgramZero,
   verifierProgramZeroProgramId,
@@ -38,6 +36,8 @@ import {
   checkMerkleTreeBatchUpdateSuccess,
   POOL_TYPE,
   IDL_VERIFIER_PROGRAM_ZERO,
+  Account,
+  Provider,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -554,7 +554,7 @@ describe("Merkle Tree Tests", () => {
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new Keypair({
+    KEYPAIR = new Account({
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
@@ -577,26 +577,17 @@ describe("Merkle Tree Tests", () => {
       [USER_TOKEN_ACCOUNT]
     );
 
-    let lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({
-        pubkey: MERKLE_TREE_KEY,
-        poseidon: POSEIDON,
-      }),
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+    let lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
     var transaction = new Transaction({
-      instance: lightInstance,
-      payer: ADMIN_AUTH_KEYPAIR,
-      shuffleEnabled: false,
+      provider: lightProvider,
     });
 
     deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      keypair: KEYPAIR,
+      account: KEYPAIR,
     });
 
     let txParams = new TransactionParameters({

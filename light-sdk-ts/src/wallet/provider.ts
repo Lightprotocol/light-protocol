@@ -70,7 +70,7 @@ export class Provider {
       throw new Error(
         "Url provided in browser environment. Provide a connection instead",
       );
-      
+
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
     if (nodeWallet) {

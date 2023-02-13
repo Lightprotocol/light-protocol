@@ -2,8 +2,8 @@ import {
   ADMIN_AUTH_KEYPAIR,
   confirmConfig,
   FEE_ASSET,
-  Keypair,
-  LightInstance,
+  Account,
+  Provider as LightProvider,
   MINT,
   Transaction,
   TransactionParameters,
@@ -32,23 +32,18 @@ export async function functionalCircuitTest() {
 
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
-  let keypair = new Keypair({ poseidon: poseidon, seed: seed32 });
+  let keypair = new Account({ poseidon: poseidon, seed: seed32 });
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let deposit_utxo1 = new Utxo({
     poseidon: poseidon,
     assets: [FEE_ASSET, MINT],
     amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-    keypair,
+    account: keypair,
   });
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
-  let lightInstance: LightInstance = {
-    solMerkleTree: new SolMerkleTree({
-      pubkey: SolanaKeypair.generate().publicKey,
-      poseidon,
-    }),
-  };
+  let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
 
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
@@ -59,8 +54,7 @@ export async function functionalCircuitTest() {
   });
 
   let tx = new Transaction({
-    instance: lightInstance,
-    payer: ADMIN_AUTH_KEYPAIR,
+    provider: lightProvider,
   });
 
   // successful proofgeneration

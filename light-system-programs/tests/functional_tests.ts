@@ -57,6 +57,8 @@ describe("verifier_program", () => {
     "http://127.0.0.1:8899",
     confirmConfig
   );
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  // process.env.ANCHOR_WALLET = "./cache/secret.txt";
   anchor.setProvider(provider);
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
@@ -85,7 +87,6 @@ describe("verifier_program", () => {
     });
     console.log(merkleTree);
   });
-
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -370,4 +371,5 @@ describe("verifier_program", () => {
     }
     await tx.checkBalances();
   });
+
 });
