@@ -19,7 +19,6 @@ import {
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
   MERKLE_TREE_KEY,
-  Provider as LightProvider,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -32,6 +31,7 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
+  Provider as LightProvider,
   Relayer,
   SolMerkleTree,
   checkNfInserted,
@@ -45,7 +45,7 @@ var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
-describe("Verifier Zero and One Tests", async () => {
+describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -53,6 +53,8 @@ describe("Verifier Zero and One Tests", async () => {
     "http://127.0.0.1:8899",
     confirmConfig
   );
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+
   anchor.setProvider(provider);
 
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
@@ -61,222 +63,127 @@ describe("Verifier Zero and One Tests", async () => {
   var depositAmount, depositFeeAmount;
   const verifiers = [new VerifierZero(), new VerifierOne()];
 
-  for (var verifier in verifiers) {
-    console.log("verifier ", verifier.toString());
+  before(async () => {
+    await createTestAccounts(provider.connection);
+    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
+    await setUpMerkleTree(provider);
 
-    await token.approve(
-      provider.connection,
-      ADMIN_AUTH_KEYPAIR,
-      userTokenAccount,
-      Transaction.getSignerAuthorityPda(
-        merkleTreeProgramId,
-        verifiers[verifier].verifierProgram.programId
-      ), //delegate
-      USER_TOKEN_ACCOUNT, // owner
-      depositAmount * 10,
-      [USER_TOKEN_ACCOUNT]
-    );
+    POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
-
-    var transaction = new Transaction({
-      provider: lightProvider,
-    });
-
-    deposit_utxo1 = new Utxo({
+    KEYPAIR = new Account({
       poseidon: POSEIDON,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: KEYPAIR,
+      seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    let txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-    });
-    await transaction.compileAndProve(txParams);
-    // does one successful transaction
-    await transaction.sendAndConfirmTransaction();
-    await updateMerkleTreeForTest(provider);
+    // overwrite transaction
+    depositAmount =
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
+    depositFeeAmount =
+      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
-    // Deposit
-    var transaction1 = new Transaction({
-      provider: lightProvider,
-    });
+    for (var verifier in verifiers) {
+      console.log("verifier ", verifier.toString());
 
-    var deposit_utxo2 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: KEYPAIR,
-    });
-
-    let txParams1 = new TransactionParameters({
-      outputUtxos: [deposit_utxo2],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-    });
-    await transaction1.compileAndProve(txParams1);
-    transactions.push(transaction1);
-
-    // Withdrawal
-    var tokenRecipient = recipientTokenAccount;
-
-    let lightProviderWithdrawal = await LightProvider.native(
-      ADMIN_AUTH_KEYPAIR
-    );
-
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(relayerRecipient, 10000000)
-    );
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
-      relayerRecipient,
-      new BN(100000)
-    );
-
-    let tx = new Transaction({
-      provider: lightProviderWithdrawal,
-    });
-
-    let txParams2 = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
-      recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-      relayer,
-    });
-
-    await tx.compileAndProve(txParams2);
-    transactions.push(tx);
-  }
-
-  afterEach(async () => {
-    // Check that no nullifier was inserted, otherwise the prior test failed
-    for (var tx in transactions) {
-      await checkNfInserted(
-        transactions[tx].params.nullifierPdaPubkeys,
-        provider.connection
+      await token.approve(
+        provider.connection,
+        ADMIN_AUTH_KEYPAIR,
+        userTokenAccount,
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          verifiers[verifier].verifierProgram.programId
+        ), //delegate
+        USER_TOKEN_ACCOUNT, // owner
+        depositAmount * 10,
+        [USER_TOKEN_ACCOUNT]
       );
+
+      let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+
+      var transaction = new Transaction({
+        provider: lightProvider,
+      });
+
+      deposit_utxo1 = new Utxo({
+        poseidon: POSEIDON,
+        assets: [FEE_ASSET, MINT],
+        amounts: [
+          new anchor.BN(depositFeeAmount),
+          new anchor.BN(depositAmount),
+        ],
+        account: KEYPAIR,
+      });
+
+      let txParams = new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        sender: userTokenAccount,
+        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+      });
+      await transaction.compileAndProve(txParams);
+      // does one successful transaction
+      await transaction.sendAndConfirmTransaction();
+      await updateMerkleTreeForTest(provider);
+
+      // Deposit
+      var transaction1 = new Transaction({
+        provider: lightProvider,
+      });
+
+      var deposit_utxo2 = new Utxo({
+        poseidon: POSEIDON,
+        assets: [FEE_ASSET, MINT],
+        amounts: [
+          new anchor.BN(depositFeeAmount),
+          new anchor.BN(depositAmount),
+        ],
+        account: KEYPAIR,
+      });
+
+      let txParams1 = new TransactionParameters({
+        outputUtxos: [deposit_utxo2],
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        sender: userTokenAccount,
+        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+      });
+      await transaction1.compileAndProve(txParams1);
+      transactions.push(transaction1);
+
+      // Withdrawal
+      var tokenRecipient = recipientTokenAccount;
+
+      let lightProviderWithdrawal = await LightProvider.native(
+        ADMIN_AUTH_KEYPAIR
+      );
+      const relayerRecipient = SolanaKeypair.generate().publicKey;
+      await provider.connection.confirmTransaction(
+        await provider.connection.requestAirdrop(relayerRecipient, 10000000)
+      );
+      let relayer = new Relayer(
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        lightProvider.lookUpTable,
+        relayerRecipient,
+        new BN(100000)
+      );
+
+      let tx = new Transaction({
+        provider: lightProviderWithdrawal,
+      });
+
+      let txParams2 = new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        recipient: tokenRecipient,
+        recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifier: verifiers[verifier],
+        relayer,
+      });
+
+      await tx.compileAndProve(txParams2);
+      transactions.push(tx);
     }
   });
-
-  KEYPAIR = new Account({
-    poseidon: POSEIDON,
-    seed: KEYPAIR_PRIVKEY.toString(),
-  });
-
-  // overwrite transaction
-  depositAmount =
-    10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-  depositFeeAmount =
-    10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-
-  for (var verifier in verifiers) {
-    console.log("verifier ", verifier.toString());
-
-    await token.approve(
-      provider.connection,
-      ADMIN_AUTH_KEYPAIR,
-      userTokenAccount,
-      Transaction.getSignerAuthorityPda(
-        merkleTreeProgramId,
-        verifiers[verifier].verifierProgram.programId
-      ), //delegate
-      USER_TOKEN_ACCOUNT, // owner
-      depositAmount * 10,
-      [USER_TOKEN_ACCOUNT]
-    );
-
-    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
-
-    var transaction = new Transaction({
-      provider: lightProvider,
-    });
-
-    deposit_utxo1 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: KEYPAIR,
-    });
-
-    let txParams = new TransactionParameters({
-      outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-    });
-    await transaction.compileAndProve(txParams);
-    // does one successful transaction
-    await transaction.sendAndConfirmTransaction();
-    await updateMerkleTreeForTest(provider);
-
-    // Deposit
-    var transaction1 = new Transaction({
-      provider: lightProvider,
-    });
-
-    var deposit_utxo2 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: KEYPAIR,
-    });
-
-    let txParams1 = new TransactionParameters({
-      outputUtxos: [deposit_utxo2],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-    });
-    await transaction1.compileAndProve(txParams1);
-    transactions.push(transaction1);
-
-    // Withdrawal
-    var tokenRecipient = recipientTokenAccount;
-
-    let lightProviderWithdrawal = await LightProvider.native(
-      ADMIN_AUTH_KEYPAIR
-    );
-
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(relayerRecipient, 10000000)
-    );
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
-      relayerRecipient,
-      new BN(100000)
-    );
-
-    let tx = new Transaction({
-      provider: lightProviderWithdrawal,
-    });
-
-    let txParams2 = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
-      recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: verifiers[verifier],
-      relayer,
-    });
-
-    await tx.compileAndProve(txParams2);
-    transactions.push(tx);
-  }
 
   afterEach(async () => {
     // Check that no nullifier was inserted, otherwise the prior test failed
@@ -360,168 +267,6 @@ describe("Verifier Zero and One Tests", async () => {
         ...wrongFeeAmount,
       ]);
       await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong Mint", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      let relayer = new anchor.web3.Account();
-      const newMintKeypair = SolanaKeypair.generate();
-      await createMintWrapper({
-        authorityKeypair: ADMIN_AUTH_KEYPAIR,
-        mintKeypair: newMintKeypair,
-        connection: provider.connection,
-      });
-      tmp_tx.params.accounts.sender = await newAccountWithTokens({
-        connection: provider.connection,
-        MINT: newMintKeypair.publicKey,
-        ADMIN_AUTH_KEYPAIR,
-        userAccount: relayer,
-        amount: 0,
-      });
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong encryptedUtxos", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.encryptedUtxos = new Uint8Array(174).fill(2);
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong relayerFee", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.relayer.relayerFee = new anchor.BN("9000");
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong nullifier", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.publicInputs.nullifiers) {
-        tmp_tx.publicInputs.nullifiers[i] = new Uint8Array(32).fill(2);
-        await sendTestTx(tmp_tx, "ProofVerificationFails");
-      }
-    }
-  });
-
-  it("Wrong leaves", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.publicInputs.leaves) {
-        tmp_tx.publicInputs.leaves[0][i] = new Uint8Array(32).fill(2);
-        await sendTestTx(tmp_tx, "ProofVerificationFails");
-      }
-    }
-  });
-
-  // doesn't work sig verify error
-  it.skip("Wrong signer", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      const wrongSinger = SolanaKeypair.generate();
-      await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(
-          wrongSinger.publicKey,
-          1_000_000_000
-        ),
-        "confirmed"
-      );
-      tmp_tx.payer = wrongSinger;
-      tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong recipientFee", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipientFee = SolanaKeypair.generate().publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong recipient", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipient = SolanaKeypair.generate().publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
-    }
-  });
-
-  it("Wrong registeredVerifierPda", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      if (
-        tmp_tx.params.accounts.registeredVerifierPda.toBase58() ==
-        REGISTERED_VERIFIER_ONE_PDA.toBase58()
-      ) {
-        tmp_tx.params.accounts.registeredVerifierPda = REGISTERED_VERIFIER_PDA;
-      } else {
-        tmp_tx.params.accounts.registeredVerifierPda =
-          REGISTERED_VERIFIER_ONE_PDA;
-      }
-      await sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
-    }
-  });
-
-  it("Wrong authority", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.authority = Transaction.getSignerAuthorityPda(
-        merkleTreeProgramId,
-        SolanaKeypair.generate().publicKey
-      );
-      await sendTestTx(tmp_tx, "Account", "authority");
-    }
-  });
-
-  it("Wrong preInsertedLeavesIndex", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.preInsertedLeavesIndex = REGISTERED_VERIFIER_PDA;
-      await sendTestTx(tmp_tx, "preInsertedLeavesIndex");
-    }
-  });
-
-  it("Wrong nullifier accounts", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      for (var i = 0; i < tmp_tx.params.nullifierPdaPubkeys.length; i++) {
-        tmp_tx.params.nullifierPdaPubkeys[i] =
-          tmp_tx.params.nullifierPdaPubkeys[
-            (i + 1) % tmp_tx.params.nullifierPdaPubkeys.length
-          ];
-        await sendTestTx(
-          tmp_tx,
-          "Includes",
-          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
-        );
-      }
-    }
-  });
-
-  it("Wrong leavesPdaPubkeys accounts", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
-        for (var i = 0; i < tmp_tx.params.leavesPdaPubkeys.length; i++) {
-          tmp_tx.params.leavesPdaPubkeys[i] =
-            tmp_tx.params.leavesPdaPubkeys[
-              (i + 1) % tmp_tx.params.leavesPdaPubkeys.length
-            ];
-          await sendTestTx(
-            tmp_tx,
-            "Includes",
-            "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
-          );
-        }
-      }
     }
   });
 
