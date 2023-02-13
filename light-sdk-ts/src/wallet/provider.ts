@@ -25,14 +25,13 @@ export type BrowserWallet = {
 };
 
 /**
- * Provides: payer/wallets, connection, latest SolMerkleTree, LookupTable, confirmConfig, poseidon
+ * Provides: wallets, connection, latest SolMerkleTree, LookupTable, confirmConfig, poseidon
  */
 // TODO: add relayer here; default deriv, if passed in can choose custom relayer.
 export class Provider {
   connection?: Connection;
   browserWallet?: BrowserWallet;
   nodeWallet?: SolanaKeypair;
-  payer?: SolanaKeypair;
   confirmConfig: ConfirmOptions;
   poseidon: any;
   lookUpTable?: PublicKey;
@@ -41,20 +40,18 @@ export class Provider {
   url?: string;
 
   /**
-   * Init either with nodeWallet or browserWallet. Default feepayer is the provided wallet, optionally override with payer.
+   * Init either with nodeWallet or browserWallet. Feepayer is the provided wallet
    * Optionally provide confirmConfig, Default = 'confirmed'.
    */
   constructor({
     nodeWallet,
     browserWallet,
-    payer,
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
   }: {
     nodeWallet?: SolanaKeypair;
     browserWallet?: BrowserWallet;
-    payer?: SolanaKeypair;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
@@ -73,9 +70,7 @@ export class Provider {
       throw new Error(
         "Url provided in browser environment. Provide a connection instead",
       );
-    if (payer)
-      throw new Error("Custom feepayer override is not yet supported.");
-
+      
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
     if (nodeWallet) {
