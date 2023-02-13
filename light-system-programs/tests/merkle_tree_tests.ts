@@ -51,6 +51,8 @@ describe("Merkle Tree Tests", () => {
     "http://127.0.0.1:8899",
     confirmConfig
   );
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+
   anchor.setProvider(provider);
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
