@@ -596,10 +596,11 @@ export class User {
             this.provider.nodeWallet!,
             userTokenAccount, //°
             // tokenCtx.tokenAccount, // TODO: must be user's token account
+            // TODO: make dynamic based on verifier
             AUTHORITY, //delegate
             // this.provider.nodeWallet!, // owner
             USER_TOKEN_ACCOUNT, // owner2
-            amount * 1, // TODO: why, was *2
+            amount,
             [this.provider.nodeWallet!],
           );
         } catch (error) {
