@@ -45,8 +45,7 @@ var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
-  process.env.ANCHOR_WALLET =
-    "/Users/" + process.env.USER + "/.config/solana/id.json";
+  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   // Configure the client to use the local cluster.
   var provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
