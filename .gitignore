@@ -33,3 +33,6 @@
 /groth16-solana/target/
 */target/*
 
+# light-circuits
+/light-circuits/node_modules/
+/light-circuits/lookUpTable.txt
