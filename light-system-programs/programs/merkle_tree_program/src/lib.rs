@@ -1,16 +1,15 @@
 use anchor_lang::prelude::*;
-
+use solana_security_txt::security_txt;
 declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
-#[cfg(not(feature = "no-entrypoint"))]
-// use solana_security_txt::security_txt;
 
-// security_txt! {
-//     name: "light_protocol_merkle_tree",
-//     project_url: "lightprotocol.com",
-//     contacts: "email:security@lightprotocol.com",
-//     policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
-//     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
-// }
+#[cfg(not(feature = "no-entrypoint"))]
+security_txt! {
+    name: "light_protocol_merkle_tree",
+    project_url: "lightprotocol.com",
+    contacts: "email:security@lightprotocol.com",
+    policy: "https://github.com/Lightprotocol/light-protocol-program/blob/main/SECURITY.md",
+    source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
+}
 
 pub mod poseidon_merkle_tree;
 pub use poseidon_merkle_tree::*;
