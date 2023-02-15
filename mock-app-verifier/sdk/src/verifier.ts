@@ -11,13 +11,15 @@ import {
   Verifier,
   Utxo,
   hashAndTruncateToCircuit,
+  Transaction,
 } from "light-sdk";
 
-import {
-  marketPlaceVerifierProgramId,
-} from "./constants";
+import { marketPlaceVerifierProgramId } from "./constants";
 import { BN } from "@project-serum/anchor";
-import { IDL, MockVerifier as MockVerifierType } from "../../target/types/mock_verifier";
+import {
+  IDL,
+  MockVerifier as MockVerifierType,
+} from "../../target/types/mock_verifier";
 import { assert } from "chai";
 
 export class MockVerifier implements Verifier {
@@ -37,11 +39,8 @@ export class MockVerifier implements Verifier {
   pubkey: BN;
   constructor() {
     this.config = { in: 4, out: 4, app: true };
-    this.verifierProgram = new Program(
-      IDL,
-      marketPlaceVerifierProgramId
-    );
-    this.instructions = []
+    this.verifierProgram = new Program(IDL, marketPlaceVerifierProgramId);
+    this.instructions = [];
     this.wtnsGenPath = "appTransaction_js/appTransaction.wasm";
     this.zkeyPath = "appTransaction.zkey";
     this.calculateWtns = require("../build-circuit/appTransaction_js/witness_calculator.js");
@@ -55,15 +54,15 @@ export class MockVerifier implements Verifier {
   }
 
   parsePublicInputsFromArray(publicInputsBytes: Uint8Array) {
-
     if (publicInputsBytes.length == this.nrPublicInputs) {
-
       return {
         connectingHash: publicInputsBytes[1],
         verifier: publicInputsBytes[0],
       };
     } else {
-      throw new Error(`publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`);
+      throw new Error(
+        `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`
+      );
     }
   }
 
@@ -71,24 +70,27 @@ export class MockVerifier implements Verifier {
   // read bytes from verifierState if already exists and refetch getPdaAddresses();
 
   // TODO: discuss with Swen how to split this into send and confirm,
-  async getInstructions(transaction: Transaction): Promise<TransactionInstruction[]> {
-
+  async getInstructions(
+    transaction: Transaction
+  ): Promise<TransactionInstruction[]> {
     const invokingVerifierPubkey = (
       await PublicKey.findProgramAddress(
         [
-          transaction.params.payer.publicKey.toBytes(),
+          transaction.provider.browserWallet
+            ? transaction.provider.browserWallet.publicKey.toBytes()
+            : transaction.provider.nodeWallet!.publicKey.toBytes(),
           // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         this.verifierProgram.programId
-      ))[0];
+      )
+    )[0];
     // await transaction.instance.provider.connection.confirmTransaction(
     //   await transaction.instance.provider.connection.requestAirdrop(invokingVerifierPubkey, 1_000_000_000, "confirmed")
     // );
 
-    
     console.log("pre ix1");
     // console.log("transaction.publicInputs ", transaction.publicInputs);
-    
+
     // console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
     // console.log("ntransaction.publicInputs.nullifiers ", transaction.publicInputs.nullifiers);
     // console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
@@ -100,13 +102,13 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
-    
+
     var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
     try {
       // deposit means the amount is u64
-      new BN(transaction.publicInputs.feeAmount).toArray("be", 8);    
-      relayerRecipient = transaction.params.accounts.escrow;      
-    } catch (error) {   }
+      new BN(transaction.publicInputs.feeAmount).toArray("be", 8);
+      relayerRecipient = transaction.params.accounts.escrow;
+    } catch (error) {}
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         Buffer.from(transaction.publicInputs.publicAmount),
@@ -115,15 +117,15 @@ export class MockVerifier implements Verifier {
         Buffer.from(transaction.publicInputs.feeAmount),
         new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
-        Buffer.from(transaction.params.encryptedUtxos.slice(0, 512)),
+        Buffer.from(transaction.params.encryptedUtxos.slice(0, 512))
       )
       .accounts({
         ...transaction.params.accounts,
       })
       .instruction();
-      console.log("pre ix2");
-      // console.log("transaction.publicInputsApp.connectingHash ", transaction.publicInputsApp.connectingHash);
-    
+    console.log("pre ix2");
+    // console.log("transaction.publicInputsApp.connectingHash ", transaction.publicInputsApp.connectingHash);
+
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
         Buffer.from(transaction.proofBytesApp),
@@ -141,9 +143,9 @@ export class MockVerifier implements Verifier {
         ...transaction.params.leavesPdaPubkeys,
       ])
       .instruction();
-    
-    this.instructions.push(ix1)
-    this.instructions.push(ix2)
+
+    this.instructions.push(ix1);
+    this.instructions.push(ix2);
     return this.instructions;
   }
 }

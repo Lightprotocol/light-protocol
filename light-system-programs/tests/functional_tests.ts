@@ -52,12 +52,12 @@ var deposit_utxo1;
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig
   );
-  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
   // process.env.ANCHOR_WALLET = "./cache/secret.txt";
   anchor.setProvider(provider);
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
@@ -371,5 +371,4 @@ describe("verifier_program", () => {
     }
     await tx.checkBalances();
   });
-
 });
