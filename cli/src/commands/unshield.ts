@@ -1,4 +1,4 @@
-import { readUserFromFile } from "../util";
+import { readUserFromFile } from "../utils";
 import * as solana from "@solana/web3.js";
 import type { Arguments, CommandBuilder } from "yargs";
 

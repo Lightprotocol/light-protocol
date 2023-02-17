@@ -3,7 +3,7 @@ import {
   getAirdrop,
   readWalletFromFile,
   saveUserToFile,
-} from "../util";
+} from "../utils";
 import * as solana from "@solana/web3.js";
 import { getLightInstance, User } from "light-sdk";
 import type { Arguments, CommandBuilder } from "yargs";
