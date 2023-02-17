@@ -84,8 +84,6 @@ Tests can be executed in bulk or one by one.
 Check logs in anchor_programs/.anchor/program-logs
 w
 
-
-
 ## Todos
 
 ### Swen
@@ -100,3 +98,4 @@ w
 
 [ ] - remove testaccountsetup fns (part of spl support)
 
+[ ] - remove 2 airdrop checks for relayer recipient (currently randomly generated inside transfer/unshield), part of relayer activation

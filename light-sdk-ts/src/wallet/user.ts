@@ -834,7 +834,8 @@ export class User {
     });
 
     await tx.compileAndProve(txParams);
-    // TODO: add check in client to avoid rent exemption issue
+    // TODO: remove once relayer implemented.
+    // add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
     await this.provider.provider!.connection.confirmTransaction(
       await this.provider.provider!.connection.requestAirdrop(
