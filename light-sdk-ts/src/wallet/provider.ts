@@ -78,14 +78,31 @@ export class Provider {
       // TODO: check if we can remove this.url!
       this.url = url;
       // TODO: check if we can remove this.provider!
-      setProvider(AnchorProvider.env());
-      this.provider = AnchorProvider.local(url, confirmConfig);
+      if (url !== "mock") {
+        setProvider(AnchorProvider.env());
+        this.provider = AnchorProvider.local(url, confirmConfig);
+      }
     }
     if (browserWallet) {
       //@ts-ignore
       this.connection = connection;
       this.browserWallet = browserWallet;
     }
+  }
+
+  static async loadMock(mockPubkey: PublicKey) {
+    let mockProvider = new Provider({
+      nodeWallet: SolanaKeypair.generate(),
+      url: "mock",
+    });
+    await mockProvider.loadPoseidon();
+    mockProvider.lookUpTable = SolanaKeypair.generate().publicKey;
+    mockProvider.solMerkleTree = new SolMerkleTree({
+      poseidon: mockProvider.poseidon,
+      pubkey: mockPubkey,
+    });
+
+    return mockProvider;
   }
 
   private async fetchLookupTable() {

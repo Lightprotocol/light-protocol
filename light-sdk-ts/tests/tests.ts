@@ -1,6 +1,6 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { SystemProgram } from "@solana/web3.js";
+import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
@@ -317,7 +317,8 @@ describe("verifier_program", () => {
   it("getIndices", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
     let tx = new Transaction({
       provider: lightProvider,
     });
