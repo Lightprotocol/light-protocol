@@ -92,3 +92,11 @@ w
 
 [ ] - add encryption to file storage (cli)
 
+[ ] - "privamount" -> "shieldedAmount", 2 amounts passable w SPL support
+
+[ ] - userTokenPda -> as variable input w SPL support
+
+[ ] - relayer should recevie ixs instead of txs
+
+[ ] - remove testaccountsetup fns (part of spl support)
+

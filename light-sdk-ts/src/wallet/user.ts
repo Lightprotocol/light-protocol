@@ -558,6 +558,7 @@ export class User {
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
     if (!tokenCtx.isSol) {
+      throw new Error("SPL not supported yet!");
       await createTestAccounts(this.provider.provider!.connection!);
       console.log("created test accounts!");
 
@@ -589,7 +590,6 @@ export class User {
           console.log("spl token account creation failed: ", error);
         }
 
-        // TODO: who tf is AUTHORITY?
         try {
           await splToken.approve(
             this.provider.provider!.connection,
@@ -675,12 +675,12 @@ export class User {
     if (!tokenCtx) throw new Error("Token not supported!");
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
+      throw new Error("SPL not implemented yet!");
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx.tokenAccount,
         recipient,
       );
       // * units
-      throw new Error("SPL not implemented yet!");
     } else {
       amount = amount * 1e9;
     }
