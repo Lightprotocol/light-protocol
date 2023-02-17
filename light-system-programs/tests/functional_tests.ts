@@ -58,7 +58,6 @@ describe("verifier_program", () => {
     "http://127.0.0.1:8899",
     confirmConfig
   );
-  // process.env.ANCHOR_WALLET = "./cache/secret.txt";
   anchor.setProvider(provider);
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =

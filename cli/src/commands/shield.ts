@@ -19,7 +19,7 @@ export const builder: CommandBuilder = (yargs) =>
 
 export const handler = async (argv: Arguments<Options>): Promise<void> => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.ANCHOR_WALLET = "./cache/secret.txt";
+  process.env.ANCHOR_WALLET = "./light-test-cache/secret.txt";
   const { amount, token } = argv;
   try {
     // get user from state

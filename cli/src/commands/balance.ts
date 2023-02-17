@@ -8,7 +8,7 @@ export const builder: CommandBuilder = (yargs) => yargs;
 
 export const handler = async (): Promise<void> => {
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.ANCHOR_WALLET = "./cache/secret.txt";
+  process.env.ANCHOR_WALLET = "./light-test-cache/secret.txt";
   try {
     var user = await readUserFromFile();
   } catch (e) {

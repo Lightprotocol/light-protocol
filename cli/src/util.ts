@@ -14,7 +14,7 @@ export const createNewWallet = () => {
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
     fs.writeFileSync(
-      "./cache/secret.txt",
+      "./light-test-cache/secret.txt",
       JSON.stringify(Array.from(secretKey))
     );
     console.log("- secret created and cached");
@@ -62,7 +62,7 @@ export const getConnection = () =>
 export const readWalletFromFile = () => {
   let secretKey: Array<number> = [];
   try {
-    let data: string = fs.readFileSync("./cache/secret.txt", "utf8");
+    let data: string = fs.readFileSync("./light-test-cache/secret.txt", "utf8");
     secretKey = JSON.parse(data);
 
     let asUint8Array: Uint8Array = new Uint8Array(secretKey);
@@ -88,7 +88,7 @@ export const saveUserToFile = ({ user }: { user: User }) => {
     utxos: user.utxos,
   };
 
-  fs.writeFileSync("./cache/user.txt", JSON.stringify(userToCache));
+  fs.writeFileSync("./light-test-cache/user.txt", JSON.stringify(userToCache));
   console.log("- user cached");
 };
 
@@ -102,7 +102,7 @@ export const readUserFromFile = async () => {
   };
 
   try {
-    let data: string = fs.readFileSync("./cache/user.txt", "utf8");
+    let data: string = fs.readFileSync("./light-test-cache/user.txt", "utf8");
     cachedUser = JSON.parse(data);
   } catch (e: any) {
     console.log("user.txt snot found!");

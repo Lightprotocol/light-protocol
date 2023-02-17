@@ -20,7 +20,7 @@ export const handler = async (): Promise<void> => {
   }
   console.log("logging in with wallet: ", wallet.publicKey.toString());
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  process.env.ANCHOR_WALLET = "./cache/secret.txt";
+  process.env.ANCHOR_WALLET = "./light-test-cache/secret.txt";
   await getAirdrop(wallet);
 
   const provider = await Provider.native(wallet);
