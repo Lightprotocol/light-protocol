@@ -41,6 +41,9 @@ export const TYPE_INIT_DATA = { array: ["u8", 642] };
 export const merkleTreeProgramId = new PublicKey(
   "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
 );
+export const verifierProgramId = new PublicKey(
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+);
 export const verifierProgramZeroProgramId = new PublicKey(
   "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i",
 );
