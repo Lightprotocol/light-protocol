@@ -83,3 +83,12 @@ Tests can be executed in bulk or one by one.
 
 Check logs in anchor_programs/.anchor/program-logs
 w
+
+
+
+## Todos
+
+### Swen
+
+[ ] - add encryption to file storage (cli)
+

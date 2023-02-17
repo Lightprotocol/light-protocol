@@ -1,4 +1,4 @@
-import { createNewWallet, readWalletFromFile } from "../util";
+import { createNewWallet, readWalletFromFile } from "../utils";
 import type { CommandBuilder } from "yargs";
 
 export const command: string = "new wallet";

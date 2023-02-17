@@ -1,4 +1,4 @@
-import { readUserFromFile } from "../util";
+import { readUserFromFile } from "../utils";
 import type { CommandBuilder } from "yargs";
 
 export const command: string = "balance";

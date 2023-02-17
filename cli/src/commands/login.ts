@@ -1,4 +1,4 @@
-import { getAirdrop, readWalletFromFile, saveUserToFile } from "../util";
+import { getAirdrop, readWalletFromFile, saveUserToFile } from "../utils";
 import * as solana from "@solana/web3.js";
 import { User, Provider } from "light-sdk";
 import type { CommandBuilder } from "yargs";
