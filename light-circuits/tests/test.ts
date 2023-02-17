@@ -65,7 +65,8 @@ async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
   console.log("verifier?", verifier);
-  let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+  // let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+  let lightProvider = await LightProvider.loadMock(mockPubkey);
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
