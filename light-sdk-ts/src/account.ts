@@ -1,21 +1,20 @@
 const nacl = require("tweetnacl");
-const anchor = require("@coral-xyz/anchor");
 import { BN } from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const circomlibjs = require("circomlibjs");
 const ffjavascript = require("ffjavascript");
 
-export class Keypair {
+export class Account {
   /**
-   * Initialize a new keypair. Generates a random private key if not defined
+   * Initialize a new shielded account. Generates a random private key if not defined
    *
    * @param {BN} privkey
+   * @param {BN} pubkey
    */
   privkey: BN;
   pubkey: BN;
-  encryptionPublicKey: Uint8Array;
-  encPrivateKey?: Uint8Array;
+  encryptionKeypair: nacl.BoxKeyPair;
   poseidon: any;
   burnerSeed: Uint8Array;
   // keypair for eddsa poseidon signatures
@@ -25,24 +24,33 @@ export class Keypair {
   };
   eddsa: any;
 
+  /**
+   *
+   * @param poseidon required
+   * @param seed
+   * @param burner
+   * @param privateKey
+   * @param publicKey
+   * @param encryptionPublicKey required for transfers to other users
+   */
   constructor({
     poseidon,
     seed = new BN(nacl.randomBytes(32)).toString("hex"),
     burner = false,
     privateKey,
     publicKey,
-    encPubkey,
     poseidonEddsaPrivateKey,
     eddsa,
+    encryptionPublicKey,
   }: {
     poseidon?: any;
     seed?: string;
     burner?: Boolean;
     privateKey?: BN;
     publicKey?: BN;
-    encPubkey?: Uint8Array;
     poseidonEddsaPrivateKey?: Uint8Array;
     eddsa?: any;
+    encryptionPublicKey?: Uint8Array;
   }) {
     if (seed.length < 32) {
       throw "seed too short length less than 32";
@@ -57,47 +65,43 @@ export class Keypair {
       // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
       // the encryption and private key of a utxo
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
-      this.privkey = Keypair.generateShieldedPrivateKey(seed);
-      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
-      this.pubkey = Keypair.generateShieldedPublicKey(
+      this.privkey = Account.generateShieldedPrivateKey(seed);
+      this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
+      this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Keypair.getEddsaPrivateKey(
+      this.poseidonEddsa = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
     } else if (privateKey) {
       this.privkey = privateKey;
-      if (encPubkey) {
-        this.encryptionPublicKey = encPubkey;
-      } else {
-        this.encryptionPublicKey = new Uint8Array();
-      }
-      this.pubkey = Keypair.generateShieldedPublicKey(
+      this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
       if (poseidonEddsaPrivateKey) {
         this.poseidonEddsa = { privateKey: poseidonEddsaPrivateKey };
       }
+      this.encryptionKeypair = {
+        publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
+        secretKey: new Uint8Array(),
+      };
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
-      // TODO: write general wrapper to throw on undefined and return name of variable
-      if (!encPubkey) {
-        throw new Error("No encPubkey defined");
-      }
-      this.encryptionPublicKey = encPubkey;
+      this.encryptionKeypair = {
+        publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
+        secretKey: new Uint8Array(),
+      };
     } else {
-      this.privkey = Keypair.generateShieldedPrivateKey(seed);
-      this.encryptionPublicKey = Keypair.getEncryptionKeyPair(seed).publicKey;
-      this.encPrivateKey = Keypair.getEncryptionKeyPair(seed).secretKey;
-      this.pubkey = Keypair.generateShieldedPublicKey(
+      this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
+      this.privkey = Account.generateShieldedPrivateKey(seed);
+      this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Keypair.getEddsaPrivateKey(seed);
+      this.poseidonEddsa = Account.getEddsaPrivateKey(seed);
     }
     this.eddsa = eddsa;
   }
@@ -126,7 +130,7 @@ export class Keypair {
   }
 
   encryptionPublicKeyToBytes() {
-    return new BN(this.encryptionPublicKey).toBuffer("be", 32);
+    return new BN(this.encryptionKeypair.publicKey).toBuffer("be", 32);
   }
 
   // TODO: make eddsa wrapper class
@@ -174,29 +178,28 @@ export class Keypair {
     );
   }
 
-  static createBurner(poseidon: any, seed: String, index: BN): Keypair {
+  static createBurner(poseidon: any, seed: String, index: BN): Account {
     const burnerSeed = blake2b
       .create(b2params)
       .update(seed + "burnerSeed" + index.toString("hex"))
       .digest();
     const burnerSeedString = new BN(burnerSeed).toString("hex");
 
-    return new Keypair({ poseidon, seed: burnerSeedString, burner: true });
+    return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
-  static fromBurnerSeed(poseidon: any, burnerSeed: Uint8Array): Keypair {
+  static fromBurnerSeed(poseidon: any, burnerSeed: Uint8Array): Account {
     const burnerSeedString = new BN(burnerSeed).toString("hex");
-    return new Keypair({ poseidon, seed: burnerSeedString, burner: true });
+    return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
-  static fromPrivkey(poseidon: any, privateKey: Uint8Array): Keypair {
+  static fromPrivkey(poseidon: any, privateKey: Uint8Array): Account {
     const privkey = new BN(privateKey);
-    return new Keypair({ poseidon, privateKey: privkey });
+    return new Account({ poseidon, privateKey: privkey });
   }
-
-  static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Keypair {
+  static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Account {
     const pubKey = new BN(publicKey, undefined, "be");
-    return new Keypair({ publicKey: pubKey, encPubkey });
+    return new Account({ publicKey: pubKey, encryptionPublicKey: encPubkey });
   }
 
   static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {

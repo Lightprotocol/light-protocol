@@ -61,6 +61,13 @@ export class VerifierOne implements Verifier {
       transaction.params.leavesPdaPubkeys &&
       transaction.publicInputs
     ) {
+      // TODO: check if this is still required
+      if (
+        !transaction.provider.browserWallet &&
+        !transaction.provider.nodeWallet
+      ) {
+        throw new Error("Payer(browserwallet, nodewallet) not defined");
+      }
       const ix1 = await this.verifierProgram.methods
         .shieldedTransferFirst(
           Buffer.from(transaction.publicInputs.publicAmount),

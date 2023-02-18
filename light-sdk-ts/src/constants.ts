@@ -29,6 +29,7 @@ export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
 export const FIELD_SIZE = new anchor.BN(
   "21888242871839275222246405745257275088548364400416034343698204186575808495617",
 );
+
 export const MERKLE_TREE_SIGNER_AUTHORITY = new PublicKey([
   59, 42, 227, 2, 155, 13, 249, 77, 6, 97, 72, 159, 190, 119, 46, 110, 226, 42,
   153, 232, 210, 107, 116, 255, 63, 213, 216, 18, 94, 128, 155, 225,
@@ -127,3 +128,31 @@ export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
 
 export const FEE_ASSET = anchor.web3.SystemProgram.programId;
 export const MERKLE_TREE_HEIGHT = 18;
+/** Threshold (per asset) at which new in-UTXOs get merged, in order to reduce UTXO pool size */
+export const UTXO_MERGE_THRESHOLD = 20; // 7
+export const UTXO_MERGE_MAXIMUM = 10;
+export const UTXO_FEE_ASSET_MINIMUM = 100_000;
+export const SIGN_MESSAGE: string =
+  "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
+
+export const RELAYER_FEES = 1e6;
+export const TOKEN_REGISTRY = [
+  {
+    symbol: "SOL",
+    decimals: 1e9,
+    isNft: false, // TODO: parse from onchain state at configuration(decimlas, supply)
+    isSol: true,
+    tokenAccount: SystemProgram.programId,
+  },
+  {
+    symbol: "USDC",
+    decimals: 1e6,
+    isNft: false,
+    isSol: false,
+    // copied from MINT (test-utils)
+    tokenAccount: new PublicKey([
+      14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160,
+      127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
+    ]),
+  },
+];

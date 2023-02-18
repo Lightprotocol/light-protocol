@@ -1,21 +1,42 @@
-/program/target
-/program/Cargo.lock
-*/.coderrect
-/program/dist/program/*.so
-*/*.so
-test-ledger
-/program/dist/
-/program/docker-target
+/test-ledger/
+# CLI
+/cli/node_modules/
+/cli/build/
+/cli/cache/secret.txt
+/cli/cache/utxos.txt
+/cli/cache/signature.txt
+/cli/cache/user.txt
+/cli/lookupTable.txt
+/cli/build/cli.js
+/cli/build/lookupTable.txt
+*/light-test-cache/
 
-/program_merkle_tree/target
-/program_merkle_tree/Cargo.lock
-/program_merkle_tree/dist/program/*.so
 
-/program_merkle_tree/dist/
-/program_merkle_tree/docker-target
-groth16-solana/target
-light-verifier-sdk/target
+# relayer
+/relayer/node_modules/
+
+# light-sdk-ts
+/light-sdk-ts/node_modules/
+/light-sdk-ts/lib/
+/light-sdk-ts/lookUpTable.txt
+
+# light-system-programs
+/light-system-programs/node_modules/
+/light-system-programs/target/
+/light-system-programs/tests/*.js
+
+# light-verifier-sdk
+/light-verifier-sdk/target/
+
+# other
+/groth16-solana/target
 */target/*
 /anchor_programs/build/*
 /anchor_programs/Light_Circuits/build/circuits/ptau17
-light-sdk/node_modules/*
+/light-system-programs/lookUpTable.txt
+/groth16-solana/target/
+*/target/*
+
+# light-circuits
+/light-circuits/node_modules/
+/light-circuits/lookUpTable.txt
