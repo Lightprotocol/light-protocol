@@ -9,6 +9,8 @@
 /cli/lookupTable.txt
 /cli/build/cli.js
 /cli/build/lookupTable.txt
+*/light-test-cache/
+
 
 # relayer
 /relayer/node_modules/

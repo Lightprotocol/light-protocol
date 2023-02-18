@@ -34,7 +34,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
     token,
     recipient: new solana.PublicKey(recipient),
   });
-  console.log(`Unhield done: ${amount} ${token} to ${recipient}`);
+  console.log(`Unshield done: ${amount} ${token} to ${recipient}`);
 
   process.exit(0);
 };
