@@ -58,7 +58,10 @@ export class SolMerkleTree {
       merkleTreePubkey,
     );
     const merkleTreeIndex = mtFetched.nextIndex;
-
+    // console.log(
+    //   "getCompressedLeaves merkleTreeIndex",
+    //   merkleTreeIndex.toNumber(),
+    // );
     let leavesAccounts: Array<{
       account: Account<Buffer>;
     }> = new Array();
@@ -225,8 +228,6 @@ export class SolMerkleTree {
   ) /*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
     const { leavesAccounts, merkleTreeIndex } =
       await SolMerkleTree.getCompressedLeaves(merkleTreePubkey);
-
-    console.log("Total nr of accounts. ", leavesAccounts.length);
 
     let filteredLeaves = leavesAccounts
       .filter((pda) => {

@@ -9,6 +9,13 @@ export class Relayer {
   };
   relayerFee: BN;
 
+  /**
+   *
+   * @param relayerPubkey Signs the transaction
+   * @param lookUpTable  The relayer's lookuptable - uniformly used currently
+   * @param relayerRecipient Recipient account for SOL fees
+   * @param relayerFee Fee amount
+   */
   constructor(
     relayerPubkey: PublicKey,
     lookUpTable: PublicKey,

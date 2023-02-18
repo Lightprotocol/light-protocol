@@ -1,4 +1,4 @@
-import { Keypair } from "./keypair";
+import { Account } from "./account";
 import nacl, { box } from "tweetnacl";
 const crypto = require("crypto");
 const randomBN = (nbytes = 30) => new anchor.BN(crypto.randomBytes(nbytes));
@@ -35,7 +35,7 @@ export class Utxo {
   assets: PublicKey[];
   assetsCircuit: BN[];
   blinding: BN;
-  keypair: Keypair;
+  account: Account;
   index?: number;
   appData: Array<any>;
   verifierAddress: PublicKey;
@@ -52,7 +52,7 @@ export class Utxo {
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
     amounts = [new BN("0")],
-    keypair, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    account, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding = new BN(randomBN(), 31, "be"),
     poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
@@ -64,7 +64,7 @@ export class Utxo {
     poseidon: any;
     assets?: PublicKey[];
     amounts?: BN[];
-    keypair?: Keypair; // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    account?: Account; // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
     blinding?: BN;
     poolType?: BN;
     verifierAddress?: PublicKey;
@@ -95,8 +95,8 @@ export class Utxo {
     while (amounts.length < N_ASSETS) {
       amounts.push(new BN(0));
     }
-    if (!keypair) {
-      keypair = new Keypair({ poseidon });
+    if (!account) {
+      account = new Account({ poseidon });
     }
 
     // TODO: check that this does not lead to hickups since publicAmount cannot withdraw the fee asset sol
@@ -118,7 +118,7 @@ export class Utxo {
       return new BN(x.toString());
     });
     this.blinding = blinding;
-    this.keypair = keypair;
+    this.account = account;
     this.index = index;
     this.assets = assets;
     this._commitment = null;
@@ -219,7 +219,7 @@ export class Utxo {
   static fromBytes({
     poseidon,
     bytes,
-    keypair,
+    account,
     keypairInAppDataOffset,
     appDataLength,
     appDataFromBytesFn,
@@ -227,7 +227,7 @@ export class Utxo {
   }: {
     poseidon: any;
     bytes: Uint8Array;
-    keypair?: Keypair;
+    account?: Account;
     keypairInAppDataOffset?: number;
     appDataLength?: number;
     appDataFromBytesFn?: Function;
@@ -243,12 +243,12 @@ export class Utxo {
       fetchAssetByIdLookUp(new BN(bytes.slice(47, 55), undefined, "be")),
     ]; // assets MINT
 
-    if (keypair) {
+    if (account) {
       return new Utxo({
         poseidon,
         assets,
         amounts,
-        keypair,
+        account,
         blinding,
         includeAppData,
       });
@@ -259,7 +259,7 @@ export class Utxo {
       const verifierAddress = new PublicKey(bytes.slice(95, 127));
       // ...new Array(1), separator is otherwise 0
       const appData = bytes.slice(128, bytes.length);
-      const burnerKeypair = Keypair.fromPrivkey(
+      const burnerAccount = Account.fromPrivkey(
         poseidon,
         appData.slice(72, 104),
       );
@@ -267,7 +267,7 @@ export class Utxo {
         poseidon,
         assets,
         amounts,
-        keypair: burnerKeypair,
+        account: burnerAccount,
         blinding,
         instructionType,
         appData,
@@ -301,7 +301,7 @@ export class Utxo {
       this._commitment = this.poseidon.F.toString(
         this.poseidon([
           amountHash,
-          this.keypair.pubkey.toString(),
+          this.account.pubkey.toString(),
           this.blinding.toString(),
           assetHash.toString(),
           this.instructionType.toString(),
@@ -328,16 +328,16 @@ export class Utxo {
         false &&
         (this.index === undefined ||
           this.index === null ||
-          this.keypair.privkey === undefined ||
-          this.keypair.privkey === null)
+          this.account.privkey === undefined ||
+          this.account.privkey === null)
       ) {
         throw new Error(
           "Can not compute nullifier without utxo index or private key",
         );
       }
 
-      const signature = this.keypair.privkey
-        ? this.keypair.sign(this.getCommitment(), this.index || 0)
+      const signature = this.account.privkey
+        ? this.account.sign(this.getCommitment(), this.index || 0)
         : 0;
       // console.log("this.getCommitment() ", this.getCommitment());
       // console.log("this.index || 0 ", this.index || 0);
@@ -368,7 +368,7 @@ export class Utxo {
     const ciphertext = box(
       bytes_message,
       nonce,
-      this.keypair.encryptionPublicKey,
+      this.account.encryptionKeypair.publicKey,
       CONSTANT_SECRET_AUTHKEY,
     );
 
@@ -376,30 +376,35 @@ export class Utxo {
   }
 
   // TODO: add decrypt custom (app utxos with idl)
+  /**
+   *
+   * @param encBytes
+   * @returns
+   */
   static decrypt({
     poseidon,
     encBytes,
-    keypair,
+    account,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
-    keypair: Keypair;
+    account: Account;
   }): Utxo | null {
     const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
     const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
 
-    if (keypair.encPrivateKey) {
+    if (account.encryptionKeypair.secretKey) {
       const cleartext = box.open(
         encryptedUtxo,
         nonce,
         nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-        keypair.encPrivateKey,
+        account.encryptionKeypair.secretKey,
       );
       if (!cleartext) {
         return null;
       }
       const bytes = Buffer.from(cleartext);
-      return Utxo.fromBytes({ poseidon, bytes, keypair });
+      return Utxo.fromBytes({ poseidon, bytes, account });
     } else {
       return null;
     }
