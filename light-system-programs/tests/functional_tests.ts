@@ -6,6 +6,7 @@ import { assert } from "chai";
 
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
+import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
 // TODO: add and use  namespaces in SDK
 import {
@@ -37,10 +38,13 @@ import {
   SolMerkleTree,
   updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
+  verifierProgramId,
+  IDL_VERIFIER_PROGRAM,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 import { Account } from "light-sdk/lib/account";
+
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -62,6 +66,12 @@ describe("verifier_program", () => {
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
+
+  const msg = Buffer.alloc(887).fill(1);
+  const verifierProgram = new anchor.Program(
+    IDL_VERIFIER_PROGRAM,
+    verifierProgramId,
+  );
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
@@ -86,6 +96,55 @@ describe("verifier_program", () => {
     });
     console.log(merkleTree);
   });
+
+  // TODO(vadorovsky): We probably need some parts of that test to the SDK.
+  it("shielded transfer 1 & close", async () => {
+    let [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
+      [ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+      verifierProgram.programId,
+    );
+
+    let balance = await provider.connection.getBalance(
+      verifierState,
+      "confirmed"
+    );
+    if (balance === 0) {
+      await provider.connection.confirmTransaction(
+        await provider.connection.requestAirdrop(
+          verifierState,
+          1_000_000_000
+        ),
+        "confirmed"
+      );
+    }
+
+    console.log(verifierState);
+
+    let tx0 = await verifierProgram.methods.shieldedTransferFirst(
+      msg
+    ).accounts({
+      signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+      systemProgram: solana.SystemProgram.programId,
+      verifierState: verifierState,
+    }).signers([ADMIN_AUTH_KEYPAIR]).rpc(confirmConfig);
+
+    console.log(tx0);
+
+    let verifierAcc = await verifierProgram.account.verifierState.fetch(verifierState, "confirmed");
+    assert.equal(verifierAcc.msg.toString(), msg.toString());
+
+    let tx1 = await verifierProgram.methods.shieldedTransferClose().accounts({
+      signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+      verifierState: verifierState,
+    }).signers([ADMIN_AUTH_KEYPAIR]).rpc(confirmConfig);
+
+    console.log(tx1);
+
+    let accountInfo = await provider.connection.getAccountInfo(verifierState, "confirmed");
+    assert.equal(accountInfo, null);
+  })
+
+
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -233,6 +292,7 @@ describe("verifier_program", () => {
       pubkey: MERKLE_TREE_KEY,
       poseidon,
     });
+
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -302,10 +362,12 @@ describe("verifier_program", () => {
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       MERKLE_TREE_KEY
     );
+
     let merkleTree = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
       poseidon: POSEIDON,
     });
+
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -353,6 +415,7 @@ describe("verifier_program", () => {
           amounts: [new BN(0), inputUtxos[0].amounts[1]],
         }),
       ],
+
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: recipientTokenAccount,
