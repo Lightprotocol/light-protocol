@@ -22,6 +22,7 @@
 # light-system-programs
 /light-system-programs/node_modules/
 /light-system-programs/target/
+*/light-system-programs/tests/*.js
 
 # light-verifier-sdk
 /light-verifier-sdk/target/
