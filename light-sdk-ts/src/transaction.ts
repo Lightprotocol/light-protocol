@@ -1287,7 +1287,7 @@ export class Transaction {
   }
 
   // TODO: check why this is called encr keypair but account class
-  async checkBalances(account: Account) {
+  async checkBalances(account?: Account) {
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.is_token = false;
