@@ -105,7 +105,7 @@ describe("verifier_program", () => {
   });
 
   // TODO(vadorovsky): We probably need some parts of that test to the SDK.
-  it.skip("shielded transfer 1 & close", async () => {
+  it("shielded transfer 1 & close", async () => {
     let [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
       [
         ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
@@ -163,7 +163,7 @@ describe("verifier_program", () => {
     assert.equal(accountInfo, null);
   });
 
-  it.skip("Deposit 10 utxo", async () => {
+  it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -240,7 +240,7 @@ describe("verifier_program", () => {
     }
   });
 
-  it.skip("Deposit", async () => {
+  it("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -304,7 +304,7 @@ describe("verifier_program", () => {
     await updateMerkleTreeForTest(provider);
   });
 
-  it.skip("Withdraw", async () => {
+  it("Withdraw", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let merkleTree = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
@@ -374,7 +374,7 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  it.skip("Withdraw 10 utxos", async () => {
+  it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
