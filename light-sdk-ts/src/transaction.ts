@@ -1,18 +1,5 @@
-const anchor = require("@coral-xyz/anchor");
-const nacl = require("tweetnacl");
-export const createEncryptionKeypair = () => nacl.box.keyPair();
-var assert = require("assert");
-let circomlibjs = require("circomlibjs");
-var ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
-  ffjavascript.utils;
-import { close, readFileSync } from "fs";
-const snarkjs = require("snarkjs");
-const { keccak_256 } = require("@noble/hashes/sha3");
-
 import {
   PublicKey,
-  Keypair as SolanaKeypair,
   SystemProgram,
   ComputeBudgetProgram,
   AddressLookupTableAccount,
@@ -22,20 +9,32 @@ import {
   TransactionInstruction,
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
-import { BN, Program, Provider } from "@coral-xyz/anchor";
+import { BN, Program } from "@coral-xyz/anchor";
 import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
-import { N_ASSETS, N_ASSET_PUBKEYS, Utxo } from "./utxo";
+import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
 import { MerkleTreeConfig } from "./merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
   hashAndTruncateToCircuit,
+  Account,
   merkleTreeProgramId,
   Relayer,
-  SolMerkleTree,
 } from "./index";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "./idls/index";
+import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
+import { readFileSync } from "fs";
+import { Provider as LightProvider } from "./wallet";
+const anchor = require("@coral-xyz/anchor");
+const snarkjs = require("snarkjs");
+const nacl = require("tweetnacl");
+var ffjavascript = require("ffjavascript");
+const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
+  ffjavascript.utils;
+const { keccak_256 } = require("@noble/hashes/sha3");
+var assert = require("assert");
+
+export const createEncryptionKeypair = () => nacl.box.keyPair();
 
 export type transactionParameters = {
   inputUtxos?: Array<Utxo>;
@@ -62,7 +61,6 @@ export type transactionParameters = {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
-  payer?: SolanaKeypair;
 };
 
 export class TransactionParameters implements transactionParameters {
@@ -99,8 +97,7 @@ export class TransactionParameters implements transactionParameters {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
-  merkleTreeProgram?: Program<MerkleTreeProgram>;
-  payer?: SolanaKeypair;
+  merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
 
   constructor({
     merkleTreePubkey,
@@ -114,7 +111,6 @@ export class TransactionParameters implements transactionParameters {
     verifierApp,
     relayer,
     encryptedUtxos,
-    payer,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -127,7 +123,6 @@ export class TransactionParameters implements transactionParameters {
     outputUtxos?: Utxo[];
     relayer?: Relayer;
     encryptedUtxos?: Uint8Array;
-    payer?: SolanaKeypair;
   }) {
     try {
       this.merkleTreeProgram = new Program(
@@ -141,7 +136,7 @@ export class TransactionParameters implements transactionParameters {
         programId: merkleTreeProgramId,
       };
     }
-
+    if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -157,8 +152,8 @@ export class TransactionParameters implements transactionParameters {
       preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
       recipient: recipient,
-      senderFee: senderFee,
-      recipientFee: recipientFee,
+      senderFee: senderFee, // TODO: change to feeSender
+      recipientFee: recipientFee, // TODO: change name to feeRecipient
       programMerkleTree: this.merkleTreeProgram.programId,
     };
     this.verifier = verifier;
@@ -170,20 +165,8 @@ export class TransactionParameters implements transactionParameters {
     this.verifierApp = verifierApp;
     this.relayer = relayer;
     this.encryptedUtxos = encryptedUtxos;
-    this.payer = payer;
   }
 }
-
-// TODO: make class
-// TODO: add method getRelayer -> should return a rnd relayer from a list
-// TODO: add static methods LightInstance.init, LightInstance.initEmpty, LightInstance.initEddsa
-export type LightInstance = {
-  provider?: Provider;
-  lookUpTable?: PublicKey;
-  // TODO: build wrapper class SolMerkleTree around MerkleTree which includes
-  //       merkle tree pubkey, buildMerkleTree, fetchLeaves
-  solMerkleTree?: SolMerkleTree;
-};
 
 // add verifier class which is passed in with the constructor
 // this class replaces the send transaction, also configures path the provingkey and witness, the inputs for the integrity hash
@@ -193,15 +176,13 @@ export type LightInstance = {
 // TODO: add log option that enables logs
 // TODO: write functional test for every method
 export class Transaction {
-  merkleTreeProgram?: Program<MerkleTreeProgram>;
-  payer?: SolanaKeypair;
-  poseidon: any;
+  merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
   shuffleEnabled: Boolean;
   action?: string;
   params?: TransactionParameters; // contains accounts
   appParams?: any;
-  relayer?: Relayer;
-  instance: LightInstance;
+  // TODO: relayer shd pls should be part of the provider by default + optional override on Transaction level
+  provider: LightProvider;
 
   //txInputs;
   publicInputs?: PublicInputs;
@@ -229,28 +210,26 @@ export class Transaction {
   /**
    * Initialize transaction
    *
-   * @param instance encryptionKeypair used for encryption
    * @param relayer recipient of the unshielding
-   * @param payer
    * @param shuffleEnabled
    */
-
   constructor({
-    instance,
-    // relayer,
-    // payer,
-    shuffleEnabled = true,
+    provider,
+    shuffleEnabled = false,
   }: {
-    instance: LightInstance;
-    // relayer?: Relayer;
-    // payer?: SolanaKeypair;
+    provider: LightProvider;
     shuffleEnabled?: boolean;
   }) {
-    this.instance = instance;
+    if (!provider.poseidon) throw new Error("Poseidon not set");
+    if (!provider.solMerkleTree) throw new Error("Merkle tree not set");
+    if (!provider.browserWallet && !provider.nodeWallet)
+      throw new Error("Wallet not set");
+    this.provider = provider;
+
     this.shuffleEnabled = shuffleEnabled;
   }
 
-  // Returns serialized instructions
+  /** Returns serialized instructions */
   async proveAndCreateInstructionsJson(
     params: TransactionParameters,
   ): Promise<string[]> {
@@ -282,7 +261,6 @@ export class Transaction {
 
   async compile(params: TransactionParameters, appParams?: any) {
     // TODO: create and check for existence of merkleTreeAssetPubkey depending on utxo asset
-    this.poseidon = await circomlibjs.buildPoseidonOpt();
     this.params = params;
     this.appParams = appParams;
 
@@ -290,15 +268,21 @@ export class Transaction {
       // TODO: rename to send
       this.action = "WITHDRAWAL";
       console.log("withdrawal");
-    } else if (!params.relayer && params.payer && this.instance.lookUpTable) {
+    } else if (
+      !params.relayer &&
+      (this.provider.browserWallet || this.provider.nodeWallet) &&
+      this.provider.lookUpTable
+    ) {
       this.action = "DEPOSIT";
       this.params.relayer = new Relayer(
-        params.payer.publicKey,
-        this.instance.lookUpTable,
+        this.provider.browserWallet
+          ? this.provider.browserWallet.publicKey
+          : this.provider.nodeWallet!.publicKey,
+        this.provider.lookUpTable,
       );
     } else {
       throw new Error(
-        "No payer and relayer provided or no lookup table in instance.",
+        "Couldn't assign relayer- no relayer nor wallet, or provider provided.",
       );
     }
     if (this.params.relayer) {
@@ -342,23 +326,23 @@ export class Transaction {
       throw new Error("Get mint failed");
     }
   }
+
   getProofInput() {
     if (
       this.params &&
-      this.instance.solMerkleTree &&
-      this.instance.solMerkleTree.merkleTree &&
+      this.provider.solMerkleTree?.merkleTree &&
       this.params.inputUtxos &&
       this.params.outputUtxos &&
       this.assetPubkeysCircuit
     ) {
       this.proofInputSystem = {
-        root: this.instance.solMerkleTree.merkleTree.root(),
+        root: this.provider.solMerkleTree.merkleTree.root(),
         inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
         // TODO: move public and fee amounts into tx preparation
         publicAmount: this.getExternalAmount(1).toString(),
         feeAmount: this.getExternalAmount(0).toString(),
         mintPubkey: this.getMint(),
-        inPrivateKey: this.params.inputUtxos?.map((x) => x.keypair.privkey),
+        inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
         inPathIndices: this.inputMerklePathIndices,
         inPathElements: this.inputMerklePathElements,
       };
@@ -371,7 +355,7 @@ export class Transaction {
         // data for 2 transaction outputUtxos
         outAmount: this.params.outputUtxos?.map((x) => x.amounts),
         outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
-        outPubkey: this.params.outputUtxos?.map((x) => x.keypair.pubkey),
+        outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
         inIndices: this.getIndices(this.params.inputUtxos),
         outIndices: this.getIndices(this.params.outputUtxos),
         inInstructionType: this.params.inputUtxos?.map(
@@ -392,7 +376,7 @@ export class Transaction {
       if (this.appParams) {
         this.proofInput.connectingHash = Transaction.getConnectingHash(
           this.params,
-          this.poseidon,
+          this.provider.poseidon,
           this.proofInput.extDataHash, //this.getTxIntegrityHash().toString()
         );
         this.proofInput.verifier = this.params.verifier?.pubkey;
@@ -406,7 +390,7 @@ export class Transaction {
     if (this.appParams && this.params) {
       this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
         this.params,
-        this.poseidon,
+        this.provider.poseidon,
         this.getTxIntegrityHash().toString(),
       );
       const path = require("path");
@@ -418,7 +402,7 @@ export class Transaction {
           ...this.appParams.inputs,
           ...this.proofInput,
           inPublicKey: this.params?.inputUtxos?.map(
-            (utxo) => utxo.keypair.pubkey,
+            (utxo) => utxo.account.pubkey,
           ),
         },
         firstPath,
@@ -446,13 +430,14 @@ export class Transaction {
       throw new Error("Params not defined.");
     }
 
-    if (this.instance.provider) {
+    // TODO: remove anchor provider if possible
+    if (this.provider.provider) {
       await this.getPdaAddresses();
     }
   }
 
   async getProofInternal(verifier: Verifier, inputs: any, firstPath: string) {
-    if (!this.instance.solMerkleTree?.merkleTree) {
+    if (!this.provider.solMerkleTree?.merkleTree) {
       throw new Error("merkle tree not built");
     }
     if (!this.proofInput) {
@@ -541,7 +526,7 @@ export class Transaction {
 
         if (!this.params.accounts.recipient) {
           this.params.accounts.recipient = SystemProgram.programId;
-          if (this.publicAmount != new BN(0)) {
+          if (!this.publicAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.recipient",
             );
@@ -549,7 +534,7 @@ export class Transaction {
         }
         if (!this.params.accounts.recipientFee) {
           this.params.accounts.recipientFee = SystemProgram.programId;
-          if (this.feeAmount != new BN(0)) {
+          if (!this.feeAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.recipientFee",
             );
@@ -568,7 +553,7 @@ export class Transaction {
           MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
         if (!this.params.accounts.sender) {
           this.params.accounts.sender = SystemProgram.programId;
-          if (this.publicAmount != new BN(0)) {
+          if (!this.publicAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.sender",
             );
@@ -576,7 +561,7 @@ export class Transaction {
         }
         if (!this.params.accounts.senderFee) {
           this.params.accounts.senderFee = SystemProgram.programId;
-          if (this.feeAmount != new BN(0)) {
+          if (!this.feeAmount?.eq(new BN(0))) {
             throw new Error(
               "sth is wrong assignAccounts !params.accounts.senderFee",
             );
@@ -648,24 +633,22 @@ export class Transaction {
   }
 
   async getRootIndex() {
-    if (
-      this.instance.provider &&
-      this.instance.solMerkleTree &&
-      this.instance.solMerkleTree.merkleTree
-    ) {
+    if (!this.provider.solMerkleTree)
+      throw new Error("provider.solMerkeTree not set");
+    if (this.provider.provider && this.provider.solMerkleTree.merkleTree) {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
       );
       let root = Uint8Array.from(
         leInt2Buff(
-          unstringifyBigInts(this.instance.solMerkleTree.merkleTree.root()),
+          unstringifyBigInts(this.provider.solMerkleTree.merkleTree.root()),
           32,
         ),
       );
       let merkle_tree_account_data =
         await this.merkleTreeProgram.account.merkleTree.fetch(
-          this.instance.solMerkleTree.pubkey,
+          this.provider.solMerkleTree.pubkey,
         );
 
       merkle_tree_account_data.roots.map((x, index) => {
@@ -687,7 +670,7 @@ export class Transaction {
   addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
     if (this.params && this.params.verifier.config) {
       while (utxos.length < len) {
-        utxos.push(new Utxo({ poseidon: this.poseidon }));
+        utxos.push(new Utxo({ poseidon: this.provider.poseidon }));
       }
     } else {
       throw new Error(
@@ -715,7 +698,7 @@ export class Transaction {
             .filter((utxo: Utxo) => {
               return (
                 utxo.assetsCircuit[assetIndex].toString("hex") ==
-                this.assetPubkeysCircuit[assetIndex].toString("hex")
+                this.assetPubkeysCircuit![assetIndex].toString("hex")
               );
             })
             .reduce(
@@ -741,14 +724,15 @@ export class Transaction {
         .add(FIELD_SIZE)
         .mod(FIELD_SIZE);
     } else {
-      new Error(
-        `this.params.inputUtxos ${this.params.inputUtxos} && this.params.outputUtxos ${this.params.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
+      throw new Error(
+        `this.params.inputUtxos ${this.params?.inputUtxos} && this.params.outputUtxos ${this.params?.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
       );
     }
   }
 
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   // TODO: fix edge case of an assetpubkey being 0
+  // TODO: !== !! and check non-null
   getIndices(utxos: Utxo[]): string[][][] {
     let inIndices: string[][][] = [];
 
@@ -793,7 +777,7 @@ export class Transaction {
         inputUtxo.amounts[0] > new BN(0) ||
         inputUtxo.amounts[1] > new BN(0)
       ) {
-        inputUtxo.index = this.instance.solMerkleTree.merkleTree.indexOf(
+        inputUtxo.index = this.provider.solMerkleTree!.merkleTree.indexOf(
           inputUtxo.getCommitment(),
         );
 
@@ -805,14 +789,14 @@ export class Transaction {
           }
           this.inputMerklePathIndices.push(inputUtxo.index);
           this.inputMerklePathElements.push(
-            this.instance.solMerkleTree.merkleTree.path(inputUtxo.index)
+            this.provider.solMerkleTree.merkleTree.path(inputUtxo.index)
               .pathElements,
           );
         }
       } else {
         this.inputMerklePathIndices.push(0);
         this.inputMerklePathElements.push(
-          new Array(this.instance.solMerkleTree.merkleTree.levels).fill(0),
+          new Array(this.provider.solMerkleTree.merkleTree.levels).fill(0),
         );
       }
     }
@@ -938,7 +922,7 @@ export class Transaction {
     try {
       this.recipientBalancePriorTx = (
         await getAccount(
-          this.instance.provider.connection,
+          this.provider.provider.connection,
           this.params.accounts.recipient,
           TOKEN_PROGRAM_ID,
         )
@@ -947,14 +931,14 @@ export class Transaction {
       // covers the case of the recipient being a native sol address not a spl token address
       try {
         this.recipientBalancePriorTx =
-          await this.instance.provider.connection.getBalance(
+          await this.provider.provider.connection.getBalance(
             this.params.accounts.recipient,
           );
       } catch (e) {}
     }
     try {
       this.recipientFeeBalancePriorTx =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
     } catch (error) {
@@ -965,12 +949,12 @@ export class Transaction {
     }
 
     this.senderFeeBalancePriorTx =
-      await this.instance.provider.connection.getBalance(
+      await this.provider.provider.connection.getBalance(
         this.params.accounts.senderFee,
       );
 
     this.params.relayerRecipientAccountBalancePriorLastTx =
-      await this.instance.provider.connection.getBalance(
+      await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
       );
   }
@@ -1007,17 +991,30 @@ export class Transaction {
   }
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
-    if (!this.params.payer) {
+    if (false) {
+      // TODO: replace this with (this.provider.browserWallet.pubkey != new relayer... this.relayer
+      // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
+      // we cant do that tho as we'd want to add the default relayer to the provider itself.
+      // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
       let txJson = await this.getInstructionsJson();
       // request to relayer
       throw new Error("withdrawal with relayer is not implemented");
     } else {
+      if (!this.provider.provider) throw new Error("no provider set");
       const recentBlockhash = (
-        await this.instance.provider.connection.getRecentBlockhash("confirmed")
+        await this.provider.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
       const txMsg = new TransactionMessage({
-        payerKey: this.params.payer.publicKey,
+        payerKey:
+          this.params.relayer.accounts.relayerPubkey !==
+            this.provider.browserWallet?.publicKey &&
+          this.params.relayer.accounts.relayerPubkey !==
+            this.provider.nodeWallet?.publicKey
+            ? this.params.relayer.accounts.relayerPubkey
+            : this.provider.browserWallet
+            ? this.provider.browserWallet.publicKey
+            : this.provider.nodeWallet!.publicKey,
         instructions: [
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
           ix,
@@ -1026,13 +1023,13 @@ export class Transaction {
       });
 
       const lookupTableAccount =
-        await this.instance.provider.connection.getAccountInfo(
+        await this.provider.provider.connection.getAccountInfo(
           this.params.relayer.accounts.lookUpTable,
           "confirmed",
         );
 
       const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-        lookupTableAccount.data,
+        lookupTableAccount!.data,
       );
 
       const compiledTx = txMsg.compileToV0Message([
@@ -1048,25 +1045,35 @@ export class Transaction {
       compiledTx.addressTableLookups[0].accountKey =
         this.params.relayer.accounts.lookUpTable;
 
-      const tx = new VersionedTransaction(compiledTx);
+      var tx = new VersionedTransaction(compiledTx);
       let retries = 3;
       let res;
       while (retries > 0) {
-        tx.sign([this.params.payer]);
+        if (this.provider.browserWallet) {
+          // TODO: versiontx??
+          console.error("versioned tx might throw here");
+          tx = await this.provider.browserWallet.signTransaction(tx);
+          // throw new Error(
+          //   "versioned transaction in browser not implemented yet",
+          // );
+        } else {
+          /** Just need to define relayer pubkey as signer a creation */
+          tx.sign([this.provider.nodeWallet!]);
+        }
 
         try {
           let serializedTx = tx.serialize();
-          console.log("serializedTx: ");
+          console.log("tx: ");
 
-          res = await this.instance.provider.connection.sendRawTransaction(
+          res = await this.provider.provider.connection.sendRawTransaction(
             serializedTx,
             confirmConfig,
           );
           retries = 0;
-          console.log(res);
-        } catch (e) {
+          // console.log(res);
+        } catch (e: any) {
           retries--;
-          if (retries == 0 || e.logs != undefined) {
+          if (retries == 0 || e.logs !== undefined) {
             console.log(e);
             return e;
           }
@@ -1085,8 +1092,14 @@ export class Transaction {
   }
 
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
-    if (!this.params.payer) {
-      throw new Error("Cannot use sendAndConfirmTransaction without payer");
+    console.log(
+      "browserwallet in sendAndConfirmTransaction?: ",
+      this.provider.browserWallet,
+    );
+    if (!this.provider.nodeWallet && !this.provider.browserWallet) {
+      throw new Error(
+        "Cannot use sendAndConfirmTransaction without payer or browserWallet",
+      );
     }
     await this.getTestValues();
     var instructions;
@@ -1100,7 +1113,8 @@ export class Transaction {
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
-          await this.instance.provider?.connection.confirmTransaction(
+          console.log("tx ::", txTmp);
+          await this.provider.provider?.connection.confirmTransaction(
             txTmp,
             "confirmed",
           );
@@ -1115,22 +1129,27 @@ export class Transaction {
     }
   }
 
+  // TODO: deal with this: set own payer just for that? where is this used?
   async closeVerifierState(): Promise<TransactionSignature> {
-    if (this.params.payer && this.params && !this.appParams) {
+    if (
+      (this.provider.nodeWallet || this.provider.browserWallet) &&
+      this.params &&
+      !this.appParams
+    ) {
       return await this.params?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
           ...this.params.accounts,
         })
-        .signers([this.params.payer])
+        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
         .rpc(confirmConfig);
-    } else if (this.params.payer && this.params && this.appParams) {
+    } else if (this.provider.nodeWallet && this.params && this.appParams) {
       return await this.appParams?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
           ...this.params.accounts,
         })
-        .signers([this.params.payer])
+        .signers([this.provider.nodeWallet])
         .rpc(confirmConfig);
     } else {
       throw new Error("No payer or params provided.");
@@ -1267,7 +1286,8 @@ export class Transaction {
     }
   }
 
-  async checkBalances() {
+  // TODO: check why this is called encr keypair but account class
+  async checkBalances(account: Account) {
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.is_token = false;
@@ -1277,7 +1297,7 @@ export class Transaction {
 
     for (var i in this.params.nullifierPdaPubkeys) {
       var nullifierAccount =
-        await this.instance.provider.connection.getAccountInfo(
+        await this.provider.provider!.connection.getAccountInfo(
           this.params.nullifierPdaPubkeys[i].pubkey,
           {
             commitment: "confirmed",
@@ -1286,7 +1306,7 @@ export class Transaction {
 
       await checkRentExemption({
         account: nullifierAccount,
-        connection: this.instance.provider.connection,
+        connection: this.provider.provider!.connection,
       });
     }
     let leavesAccount;
@@ -1310,7 +1330,7 @@ export class Transaction {
       );
       assert(
         leavesAccountData.merkleTreePubkey.toBase58() ==
-          this.instance.solMerkleTree.pubkey.toBase58(),
+          this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
 
@@ -1328,11 +1348,12 @@ export class Transaction {
         //   `${leavesAccountData.encryptedUtxos} !== ${this.params.encryptedUtxos}`
         // );
 
-        // assert(leavesAccountData.encryptedUtxos === this.params.encryptedUtxos, "encryptedUtxos not inserted correctly");
+        // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
+        // TODO: add for both utxos of leafpda
         let decryptedUtxo1 = Utxo.decrypt({
-          poseidon: this.poseidon,
-          encBytes: this.params.encryptedUtxos,
-          keypair: this.params.outputUtxos[0].keypair,
+          poseidon: this.provider.poseidon,
+          encBytes: this.params!.encryptedUtxos!,
+          account: account ? account : this.params!.outputUtxos![0].account,
         });
         const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
           assert.equal(
@@ -1378,7 +1399,7 @@ export class Transaction {
 
     try {
       var preInsertedLeavesIndexAccount =
-        await this.instance.provider.connection.getAccountInfo(
+        await this.provider.provider.connection.getAccountInfo(
           PRE_INSERTED_LEAVES_INDEX,
         );
 
@@ -1420,7 +1441,7 @@ export class Transaction {
 
     if (this.action == "DEPOSIT" && this.is_token == false) {
       var recipientFeeAccountBalance =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
       console.log(
@@ -1429,7 +1450,7 @@ export class Transaction {
       );
 
       var senderFeeAccountBalance =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
         );
       console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
@@ -1463,12 +1484,12 @@ export class Transaction {
       console.log("DEPOSIT and token");
 
       var recipientAccount = await getAccount(
-        this.instance.provider.connection,
+        this.provider.provider.connection,
         this.params.accounts.recipient,
         TOKEN_PROGRAM_ID,
       );
       var recipientFeeAccountBalance =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
 
@@ -1511,7 +1532,7 @@ export class Transaction {
       );
 
       var senderFeeAccountBalance =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
         );
       console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
@@ -1537,12 +1558,12 @@ export class Transaction {
           .toString() == senderFeeAccountBalance.toString(),
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == false) {
-      var relayerAccount = await this.instance.provider.connection.getBalance(
+      var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
       );
 
       var recipientFeeAccount =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
 
@@ -1559,7 +1580,7 @@ export class Transaction {
           this.params.relayerRecipientAccountBalancePriorLastTx,
         )}`,
       );
-
+      console.log("SWEN: rfa", recipientFeeAccount);
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
@@ -1585,12 +1606,12 @@ export class Transaction {
       );
     } else if (this.action == "WITHDRAWAL" && this.is_token == true) {
       var senderAccount = await getAccount(
-        this.instance.provider.connection,
+        this.provider.provider.connection,
         this.params.accounts.sender,
         TOKEN_PROGRAM_ID,
       );
       var recipientAccount = await getAccount(
-        this.instance.provider.connection,
+        this.provider.provider.connection,
         this.params.accounts.recipient,
         TOKEN_PROGRAM_ID,
       );
@@ -1621,12 +1642,12 @@ export class Transaction {
         "amount not transferred correctly",
       );
 
-      var relayerAccount = await this.instance.provider.connection.getBalance(
+      var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
       );
 
       var recipientFeeAccount =
-        await this.instance.provider.connection.getBalance(
+        await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
 
@@ -1660,7 +1681,6 @@ export class Transaction {
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
-      // console.log(`this.params.relayer.relayerFee ${this.params.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
 
       assert.equal(
         new anchor.BN(relayerAccount)
@@ -1679,7 +1699,7 @@ export class Transaction {
     if (this.shuffleEnabled) {
       console.log("shuffling utxos");
     } else {
-      console.log("commented shuffle");
+      console.log("shuffle disabled");
       return;
     }
     let currentIndex: number = utxos.length;

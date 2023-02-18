@@ -11,7 +11,9 @@
   },
   "author": "",
   "dependencies": {
+    "@coral-xyz/anchor": "^0.26.0",
     "circomlib": "^2.0.5",
+    "circomlibjs": "^0.1.7",
     "ffjavascript": "^0.2.48"
   },
   "devDependencies": {

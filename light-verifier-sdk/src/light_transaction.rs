@@ -659,7 +659,6 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                         .accounts
                         .unwrap()
                         .recipient_fee
-                        // .sender_fee
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -671,33 +670,36 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                     fee_amount_checked,
                 )?;
                 msg!("withdrew sol for the user");
-                // pays the relayer fee
-                withdraw_sol_cpi(
-                    self.accounts.unwrap().program_id,
-                    &self.accounts.unwrap().program_merkle_tree.to_account_info(),
-                    &self.accounts.unwrap().authority.to_account_info(),
-                    &self
-                        .accounts
-                        .unwrap()
-                        .sender_fee
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    &self
-                        .accounts
-                        .unwrap()
-                        .relayer_recipient
-                        .as_ref()
-                        .unwrap()
-                        .to_account_info(),
-                    &self
-                        .accounts
-                        .unwrap()
-                        .registered_verifier_pda
-                        .to_account_info(),
-                    relayer_fee,
-                )?;
+                
             }
+        }
+        if !self.is_deposit_fee() && relayer_fee > 0 {
+            // pays the relayer fee
+            withdraw_sol_cpi(
+                self.accounts.unwrap().program_id,
+                &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+                &self.accounts.unwrap().authority.to_account_info(),
+                &self
+                    .accounts
+                    .unwrap()
+                    .sender_fee
+                    .as_ref()
+                    .unwrap()
+                    .to_account_info(),
+                &self
+                    .accounts
+                    .unwrap()
+                    .relayer_recipient
+                    .as_ref()
+                    .unwrap()
+                    .to_account_info(),
+                &self
+                    .accounts
+                    .unwrap()
+                    .registered_verifier_pda
+                    .to_account_info(),
+                relayer_fee,
+            )?;
         }
 
         Ok(())

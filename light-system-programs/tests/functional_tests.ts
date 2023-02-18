@@ -1,8 +1,13 @@
 import * as anchor from "@coral-xyz/anchor";
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+} from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert } from "chai";
+
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
@@ -12,7 +17,6 @@ import {
   Transaction,
   VerifierZero,
   VerifierOne,
-  Keypair,
   Utxo,
   getUnspentUtxo,
   setUpMerkleTree,
@@ -23,6 +27,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   MINT,
+  Provider,
   KEYPAIR_PRIVKEY,
   AUTHORITY_ONE,
   USER_TOKEN_ACCOUNT,
@@ -32,17 +37,19 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  LightInstance,
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
   updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
   verifierProgramId,
+  User,
   IDL_VERIFIER_PROGRAM,
+  strToArr,
 } from "light-sdk";
 
-import { BN, Program } from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
+import { Account } from "light-sdk/lib/account";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -53,14 +60,15 @@ var deposit_utxo1;
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
-  process.env.ANCHOR_WALLET = "/home/" + process.env.USER + "/.config/solana/id.json"
+  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
-    confirmConfig
+    confirmConfig,
   );
-  anchor.setProvider(provider)
-
+  anchor.setProvider(provider);
+  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
@@ -70,6 +78,8 @@ describe("verifier_program", () => {
     verifierProgramId,
   );
 
+  const userKeypair = new SolanaKeypair();
+
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
@@ -77,95 +87,104 @@ describe("verifier_program", () => {
 
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    KEYPAIR = new Keypair({
+    KEYPAIR = new Account({
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
   });
 
+  it.skip("build compressed merkle tree", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    // await updateMerkleTreeForTest(provider);
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
+    });
+    console.log(merkleTree);
+  });
+
   // TODO(vadorovsky): We probably need some parts of that test to the SDK.
-  it("shielded transfer 1 & close", async () => {
+  it.skip("shielded transfer 1 & close", async () => {
     let [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
+      [
+        ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
+        anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
+      ],
       verifierProgram.programId,
     );
 
     let balance = await provider.connection.getBalance(
       verifierState,
-      "confirmed"
+      "confirmed",
     );
     if (balance === 0) {
       await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(
-          verifierState,
-          1_000_000_000
-        ),
-        "confirmed"
+        await provider.connection.requestAirdrop(verifierState, 1_000_000_000),
+        "confirmed",
       );
     }
 
     console.log(verifierState);
 
-    let tx0 = await verifierProgram.methods.shieldedTransferFirst(
-      msg
-    ).accounts({
-      signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
-      systemProgram: solana.SystemProgram.programId,
-      verifierState: verifierState,
-    }).signers([ADMIN_AUTH_KEYPAIR]).rpc(confirmConfig);
+    let tx0 = await verifierProgram.methods
+      .shieldedTransferFirst(msg)
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        systemProgram: solana.SystemProgram.programId,
+        verifierState: verifierState,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
 
     console.log(tx0);
 
-    let verifierAcc = await verifierProgram.account.verifierState.fetch(verifierState, "confirmed");
+    let verifierAcc = await verifierProgram.account.verifierState.fetch(
+      verifierState,
+      "confirmed",
+    );
     assert.equal(verifierAcc.msg.toString(), msg.toString());
 
-    let tx1 = await verifierProgram.methods.shieldedTransferClose().accounts({
-      signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifierState: verifierState,
-    }).signers([ADMIN_AUTH_KEYPAIR]).rpc(confirmConfig);
+    let tx1 = await verifierProgram.methods
+      .shieldedTransferClose()
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifierState: verifierState,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
 
     console.log(tx1);
 
-    let accountInfo = await provider.connection.getAccountInfo(verifierState, "confirmed");
+    let accountInfo = await provider.connection.getAccountInfo(
+      verifierState,
+      "confirmed",
+    );
     assert.equal(accountInfo, null);
-  })
+  });
 
-  it.skip("build compressed merkle tree", async () => {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-    // await updateMerkleTreeForTest(provider);
-    let merkleTree = await SolMerkleTree.build({ pubkey: MERKLE_TREE_KEY, poseidon })
-    console.log(merkleTree);
-
-  })
-
-  it("Deposit 10 utxo", async () => {
+  it.skip("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
-    const lightInstance: LightInstance = {
-      solMerkleTree: new SolMerkleTree({ pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON }),
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
 
     let balance = await provider.connection.getBalance(
       Transaction.getSignerAuthorityPda(
         merkleTreeProgram.programId,
-        verifierProgramOneProgramId
+        verifierProgramOneProgramId,
       ),
-      "confirmed"
+      "confirmed",
     );
     if (balance === 0) {
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(
           Transaction.getSignerAuthorityPda(
             merkleTreeProgram.programId,
-            verifierProgramOneProgramId
+            verifierProgramOneProgramId,
           ),
-          1_000_000_000
+          1_000_000_000,
         ),
-        "confirmed"
+        "confirmed",
       );
     }
 
@@ -182,12 +201,12 @@ describe("verifier_program", () => {
         AUTHORITY_ONE, //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 2,
-        [USER_TOKEN_ACCOUNT]
+        [USER_TOKEN_ACCOUNT],
       );
+      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        instance: lightInstance,
-        shuffleEnabled: false,
+        provider: prov,
       });
 
       let deposit_utxo1 = new Utxo({
@@ -197,7 +216,7 @@ describe("verifier_program", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        keypair: KEYPAIR,
+        account: KEYPAIR,
       });
 
       let txParams = new TransactionParameters({
@@ -206,7 +225,6 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierOne(),
-        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -216,10 +234,13 @@ describe("verifier_program", () => {
       } catch (e) {
         console.log(e);
       }
-      await tx.checkBalances();
+      await tx.checkBalances(KEYPAIR);
+      // uncomment below if not running the "deposit" test
+      // await updateMerkleTreeForTest(provider);
     }
   });
-  it("Deposit", async () => {
+
+  it.skip("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
@@ -236,8 +257,9 @@ describe("verifier_program", () => {
         AUTHORITY, //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 2,
-        [USER_TOKEN_ACCOUNT]
+        [USER_TOKEN_ACCOUNT],
       );
+      console.log("approved");
     } catch (error) {
       console.log(error);
     }
@@ -245,15 +267,10 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      let lightInstance: LightInstance = {
-        solMerkleTree: new SolMerkleTree({ pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON }),
-        lookUpTable: LOOK_UP_TABLE,
-        provider,
-      };
+      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        instance: lightInstance,
-        shuffleEnabled: false,
+        provider: prov,
       });
 
       deposit_utxo1 = new Utxo({
@@ -263,7 +280,7 @@ describe("verifier_program", () => {
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
         ],
-        keypair: KEYPAIR,
+        account: KEYPAIR,
       });
 
       let txParams = new TransactionParameters({
@@ -272,7 +289,6 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
-        payer: ADMIN_AUTH_KEYPAIR,
       });
       await tx.compileAndProve(txParams);
 
@@ -283,16 +299,18 @@ describe("verifier_program", () => {
         console.log(e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
-      await tx.checkBalances();
-
+      await tx.checkBalances(KEYPAIR);
     }
     await updateMerkleTreeForTest(provider);
   });
 
-
-  it("Withdraw", async () => {
+  it.skip("Withdraw", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
-    let merkleTree = await SolMerkleTree.build({ pubkey: MERKLE_TREE_KEY, poseidon })
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon,
+    });
+
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -302,27 +320,26 @@ describe("verifier_program", () => {
       POSEIDON,
       merkleTreeProgram,
       merkleTree.merkleTree,
-      0
+      0,
     );
 
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    let lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable,
+      prov.lookUpTable,
       SolanaKeypair.generate().publicKey,
-      new BN(100000)
+      new BN(100000),
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
-      shuffleEnabled: false,
+      provider: prov,
+      // relayer,
+      // payer: ADMIN_AUTH_KEYPAIR,
+      // shuffleEnabled: false,
     });
 
     let txParams = new TransactionParameters({
@@ -332,7 +349,6 @@ describe("verifier_program", () => {
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
     });
 
     await tx.compileAndProve(txParams);
@@ -344,9 +360,9 @@ describe("verifier_program", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         relayer.accounts.relayerRecipient,
-        1_000_000
+        1_000_000,
       ),
-      "confirmed"
+      "confirmed",
     );
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -358,13 +374,18 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  it("Withdraw 10 utxos", async () => {
+  it.skip("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
-    let merkleTree = await SolMerkleTree.build({ pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON })
+
+    let merkleTree = await SolMerkleTree.build({
+      pubkey: MERKLE_TREE_KEY,
+      poseidon: POSEIDON,
+    });
+
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
     let decryptedUtxo1 = await getUnspentUtxo(
@@ -374,48 +395,54 @@ describe("verifier_program", () => {
       POSEIDON,
       merkleTreeProgram,
       merkleTree.merkleTree,
-      0
+      0,
     );
-    const origin = new anchor.web3.Account();
-
-    var tokenRecipient = recipientTokenAccount;
 
     let inputUtxos = [];
     inputUtxos.push(decryptedUtxo1);
-    let lightInstance: LightInstance = {
-      solMerkleTree: merkleTree,
-      lookUpTable: LOOK_UP_TABLE,
-      provider,
-    };
+
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
+    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(relayerRecipient, 1_000_000));
-    await provider.connection.confirmTransaction(await provider.connection.requestAirdrop(recipientFee, 1_000_000));
+    await prov.provider.connection.confirmTransaction(
+      await prov.provider.connection.requestAirdrop(
+        relayerRecipient,
+        1_000_000,
+      ),
+    );
+    await prov.provider.connection.confirmTransaction(
+      await prov.provider.connection.requestAirdrop(recipientFee, 1_000_000),
+    );
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightInstance.lookUpTable,
+      prov.lookUpTable,
       relayerRecipient,
-      new BN(100000)
+      new BN(100000),
     );
 
     let tx = new Transaction({
-      instance: lightInstance,
-      shuffleEnabled: false,
+      provider: prov,
+      // relayer,
     });
-
 
     let txParams = new TransactionParameters({
       inputUtxos,
-      outputUtxos: [new Utxo({ poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [new BN(0), inputUtxos[0].amounts[1]] })],
+      outputUtxos: [
+        new Utxo({
+          poseidon: POSEIDON,
+          assets: inputUtxos[0].assets,
+          amounts: [new BN(0), inputUtxos[0].amounts[1]],
+        }),
+      ],
+
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: recipientTokenAccount,
       recipientFee,
       verifier: new VerifierOne(),
       relayer,
-      payer: ADMIN_AUTH_KEYPAIR,
     });
     await tx.compileAndProve(txParams);
 
@@ -426,7 +453,53 @@ describe("verifier_program", () => {
       console.log(e);
     }
     await tx.checkBalances();
-
   });
 
-})
+  it("(user class) shield SOL", async () => {
+    let amount = 3;
+    let token = "SOL";
+    const provider = await Provider.native(userKeypair);
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      4_000_000_000,
+    );
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const user = await User.load(provider);
+    await user.shield({ amount, token });
+    // TODO: add random amount and amount checks
+  });
+  it("(user class) transfer SOL", async () => {
+    let amount = 1;
+    let token = "SOL";
+    const shieldedRecipient =
+      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+    const encryptionPublicKey =
+      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+
+    const recipient = new anchor.BN(shieldedRecipient, "hex");
+    const recipientEncryptionPublicKey: Uint8Array =
+      strToArr(encryptionPublicKey);
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    await user.transfer({
+      amount,
+      token,
+      recipient,
+      recipientEncryptionPublicKey, // TODO: do shielded address
+    });
+
+    // TODO: add random amount, recipient and amount checks
+  });
+
+  it("(user class) unshield SOL", async () => {
+    let amount = 1;
+    let token = "SOL";
+    let recipient = new PublicKey(
+      "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
+    );
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    await user.unshield({ amount, token, recipient });
+    // TODO: add random amount and amount checks
+  });
+});

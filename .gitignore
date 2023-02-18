@@ -6,14 +6,24 @@
 /cli/cache/utxos.txt
 /cli/cache/signature.txt
 /cli/cache/user.txt
+/cli/lookupTable.txt
+/cli/build/cli.js
+/cli/build/lookupTable.txt
+*/light-test-cache/
+
+
+# relayer
+/relayer/node_modules/
 
 # light-sdk-ts
 /light-sdk-ts/node_modules/
 /light-sdk-ts/lib/
+/light-sdk-ts/lookUpTable.txt
 
 # light-system-programs
 /light-system-programs/node_modules/
 /light-system-programs/target/
+/light-system-programs/tests/*.js
 
 # light-verifier-sdk
 /light-verifier-sdk/target/
@@ -26,3 +36,7 @@
 /light-system-programs/lookUpTable.txt
 /groth16-solana/target/
 */target/*
+
+# light-circuits
+/light-circuits/node_modules/
+/light-circuits/lookUpTable.txt

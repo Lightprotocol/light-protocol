@@ -64,6 +64,13 @@ export class VerifierZero implements Verifier {
       transaction.params.nullifierPdaPubkeys &&
       transaction.params.leavesPdaPubkeys
     ) {
+      if (
+        !transaction.provider.browserWallet &&
+        !transaction.provider.nodeWallet
+      ) {
+        throw new Error("Payer(browserwallet, nodewallet) not defined");
+      }
+
       const ix = await this.verifierProgram.methods
         .shieldedTransferInputs(
           Buffer.from(transaction.proofBytes),
