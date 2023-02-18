@@ -77,6 +77,13 @@ describe("verifier_program", () => {
     IDL_VERIFIER_PROGRAM,
     verifierStorageProgramId,
   );
+  const [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
+      anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
+    ],
+    verifierProgram.programId,
+  );
 
   const userKeypair = new SolanaKeypair();
 
@@ -106,14 +113,6 @@ describe("verifier_program", () => {
 
   // TODO(vadorovsky): We probably need some parts of that test to the SDK.
   it("shielded transfer 1 & close", async () => {
-    let [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
-        anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
-      ],
-      verifierProgram.programId,
-    );
-
     let balance = await provider.connection.getBalance(
       verifierState,
       "confirmed",
@@ -162,6 +161,39 @@ describe("verifier_program", () => {
     );
     assert.equal(accountInfo, null);
   });
+
+  it("shielded transfer 1 & 2", async () => {
+    let tx0 = await verifierProgram.methods
+      .shieldedTransferFirst(msg)
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        systemProgram: solana.SystemProgram.programId,
+        verifierState: verifierState,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
+
+    console.log(tx0);
+
+    let tx1 = await verifierProgram.methods
+      .shieldedTransferSecond()
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifierState: verifierState,
+        logWrapper: SPL_NOOP_ADDRESS,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
+
+    console.log(tx1);
+
+    let accountInfo = await provider.connection.getAccountInfo(
+      verifierState,
+      "confirmed",
+    );
+    assert.equal(accountInfo, null);
+  });
+
 
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
