@@ -1,18 +1,21 @@
 import * as fs from "fs";
+
 import * as solana from "@solana/web3.js";
 import {
   AUTHORITY,
   confirmConfig,
   getLightInstance,
-  Keypair,
+  Account,
   User,
   Provider,
 } from "light-sdk";
+var getDirName = require("path").dirname;
 
 export const createNewWallet = () => {
   const keypair: solana.Keypair = solana.Keypair.generate();
   const secretKey: solana.Ed25519SecretKey = keypair.secretKey;
   try {
+    fs.mkdirSync(getDirName("./light-test-cache/secret.txt"));
     fs.writeFileSync(
       "./light-test-cache/secret.txt",
       JSON.stringify(Array.from(secretKey))
@@ -20,7 +23,8 @@ export const createNewWallet = () => {
     console.log("- secret created and cached");
     return keypair;
   } catch (e: any) {
-    throw new Error("error writing secret.txt");
+    fs.crea;
+    throw new Error(`error writing secret.txt: ${e}`);
   }
 };
 
