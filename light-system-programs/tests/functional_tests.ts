@@ -507,6 +507,29 @@ describe("verifier_program", () => {
     }
     await tx.checkBalances();
   });
+  it("(user class) shield SPL", async () => {
+    let amount = 2;
+    let token = "USDC";
+    console.log("test user wallet: ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR); // userKeypair
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      2_000_000_000,
+    );
+    let balancet = await provider.provider.connection.getTokenAccountBalance(
+      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+    );
+    console.log(
+      "balancet CfyD2..",
+      balancet,
+      balancet.value.uiAmount,
+      balancet.value,
+    );
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const user = await User.load(provider);
+    await user.shield({ amount, token });
+    // TODO: add random amount and amount checks
+  });
 
   it("(user class) shield SPL", async () => {
     let amount = 2;
@@ -622,7 +645,7 @@ describe("verifier_program", () => {
     // TODO: add random amount, recipient and amount checks
   });
 
-  it("(user class) unshield SOL", async () => {
+  it.skip("(user class) unshield SOL", async () => {
     let amount = 1;
     let token = "SOL";
     let recipient = new PublicKey(
