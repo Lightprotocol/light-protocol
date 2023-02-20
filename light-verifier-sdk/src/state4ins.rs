@@ -47,6 +47,7 @@ impl<T: Config> anchor_lang::AccountSerialize for VerifierState4Ins<T> {
 
 impl<T: Config> anchor_lang::Owner for VerifierState4Ins<T> {
     fn owner() -> Pubkey {
+        #[allow(deprecated)]
         Pubkey::new(&T::ID[..])
     }
 }
@@ -65,7 +66,7 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState4Ins<T> {
         for (i, checked_public_input) in light_tx.checked_public_inputs.iter().enumerate() {
             checked_public_inputs[i] = checked_public_input.clone().try_into().unwrap();
         }
-
+        #[allow(deprecated)]
         VerifierState4Ins {
             merkle_root_index: <usize as TryInto<u64>>::try_into(light_tx.merkle_root_index)
                 .unwrap(),
