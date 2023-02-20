@@ -31,7 +31,7 @@ pub struct InitializeMerkleTreeAuthority<'info> {
     )]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
     /// CHECK:` Signer is merkle tree init authority.
-    #[account(mut, address=anchor_lang::prelude::Pubkey::new(&config::INITIAL_MERKLE_TREE_AUTHORITY) @ErrorCode::InvalidAuthority)]
+    #[account(mut, address=anchor_lang::prelude::Pubkey::try_from(config::INITIAL_MERKLE_TREE_AUTHORITY).map_err(|_| ErrorCode::PubkeyTryFromFailed)? @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,

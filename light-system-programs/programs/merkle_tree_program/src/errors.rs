@@ -38,4 +38,6 @@ pub enum ErrorCode {
     InvalidAuthority,
     #[msg("InvalidVerifier")]
     InvalidVerifier,
+    #[msg("PubkeyTryFromFailed")]
+    PubkeyTryFromFailed,
 }
