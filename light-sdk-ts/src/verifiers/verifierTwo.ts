@@ -32,7 +32,7 @@ export class VerifierTwo implements Verifier {
     );
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
+  parsePublicInputsFromArray(publicInputsBytes: any): PublicInputsCpi {
     if (publicInputsBytes.length == this.nrPublicInputs) {
       return {
         root: publicInputsBytes[0],

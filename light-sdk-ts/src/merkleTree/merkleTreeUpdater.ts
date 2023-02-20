@@ -5,24 +5,38 @@ import {
   checkMerkleTreeBatchUpdateSuccess,
 } from "../test-utils/testChecks";
 
-import { confirmConfig, DEFAULT_PROGRAMS } from "../index";
+import {
+  confirmConfig,
+  DEFAULT_PROGRAMS,
+  MerkleTreeProgram,
+  Provider,
+} from "../index";
 import {
   ComputeBudgetProgram,
   PublicKey,
   Transaction,
   SystemProgram,
   Keypair,
+  Connection,
 } from "@solana/web3.js";
+import { Program } from "@coral-xyz/anchor";
 
 export async function executeUpdateMerkleTreeTransactions({
   signer,
   merkleTreeProgram,
   leavesPdas,
   merkleTree,
-  merkleTreeIndex,
   merkle_tree_pubkey,
   connection,
   provider,
+}: {
+  signer: Keypair;
+  merkleTreeProgram: Program<MerkleTreeProgram>;
+  leavesPdas: any;
+  merkleTree: PublicKey;
+  merkle_tree_pubkey: PublicKey;
+  connection: Connection;
+  provider: anchor.AnchorProvider;
 }) {
   var merkleTreeAccountPrior = await merkleTreeProgram.account.merkleTree.fetch(
     merkle_tree_pubkey,
@@ -121,7 +135,6 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeAccountPrior,
     numberOfLeaves: leavesPdas.length * 2,
     leavesPdas,
-    merkleTree: merkleTree,
     merkle_tree_pubkey: merkle_tree_pubkey,
     merkleTreeProgram,
   });
@@ -134,6 +147,13 @@ export async function executeMerkleTreeUpdateTransactions({
   provider,
   signer,
   numberOfTransactions,
+}: {
+  merkleTreeProgram: Program<MerkleTreeProgram>;
+  merkleTreeUpdateState: PublicKey;
+  merkle_tree_pubkey: PublicKey;
+  provider: anchor.AnchorProvider;
+  signer: Keypair;
+  numberOfTransactions: number;
 }) {
   let arr = [];
   let i = 0;
@@ -150,7 +170,7 @@ export async function executeMerkleTreeUpdateTransactions({
         .updateMerkleTree(new anchor.BN(i))
         .accounts({
           authority: signer.publicKey,
-          merkleTreeUpdateState: merkleTreeUpdateState,
+          merkleTreeUpdateState,
           merkleTree: merkle_tree_pubkey,
         })
         .instruction(),

@@ -3,49 +3,10 @@ import { confirmConfig, merkleTreeProgram, MERKLE_TREE_KEY } from "./constants";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
-import { LightInstance } from "transaction";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
-
-export async function getLightInstance(provider?: anchor.Provider) {
-  const poseidon = await circomlibjs.buildPoseidonOpt();
-  anchor.setProvider(anchor.AnchorProvider.env());
-
-  if (!provider) {
-    provider = anchor.AnchorProvider.local(
-      "http://127.0.0.1:8899",
-      confirmConfig,
-    );
-  }
-  // get hc value
-  const LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-
-  // TODO: move to a seperate function
-  const merkletreeIsInited = await provider.connection.getAccountInfo(
-    MERKLE_TREE_KEY,
-  );
-  if (!merkletreeIsInited) {
-    await setUpMerkleTree(provider);
-    console.log("merkletree inited");
-    // TODO: throw error
-  }
-
-  console.log("building merkletree...");
-  const mt = await SolMerkleTree.build({
-    pubkey: MERKLE_TREE_KEY,
-    poseidon: poseidon,
-  });
-  console.log("✔️ building merkletree done");
-  const lightInstance: LightInstance = {
-    solMerkleTree: mt,
-    lookUpTable: LOOK_UP_TABLE,
-    provider,
-  };
-
-  return lightInstance;
-}
 
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
@@ -73,7 +34,7 @@ export async function getAssetLookUpId({
     connection,
     merkleTreePubkey: MERKLE_TREE_KEY,
   });
-  let pubkey = await mtConf.getSplPoolPda(poolType, asset);
+  let pubkey = await mtConf.getSplPoolPda(asset, poolType);
 
   let registeredAssets =
     await mtConf.merkleTreeProgram.account.registeredAssetPool.fetch(

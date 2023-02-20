@@ -36,7 +36,7 @@ export interface Verifier {
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
   instructions?: web3.TransactionInstruction[];
-  parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs;
+  parsePublicInputsFromArray(publicInputsBytes: Transaction): PublicInputs;
   getInstructions(
     transaction: Transaction,
   ): Promise<web3.TransactionInstruction[]>;
