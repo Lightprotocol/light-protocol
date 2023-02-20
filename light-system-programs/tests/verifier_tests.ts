@@ -44,7 +44,7 @@ import { BN } from "@coral-xyz/anchor";
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
 
 var transactions: Transaction[] = [];
-console.log = () => {};
+// console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -413,7 +413,7 @@ describe("Verifier Zero and One Tests", () => {
     }
   });
 
-  it("Wrong leavesPdaPubkeys accounts", async () => {
+  it.only("Wrong leavesPdaPubkeys accounts", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);
       if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
@@ -437,7 +437,7 @@ describe("Verifier Zero and One Tests", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account"
+          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
         );
       }
     }

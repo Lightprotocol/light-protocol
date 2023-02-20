@@ -47,6 +47,7 @@ impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
 
 impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
     fn owner() -> Pubkey {
+        #[allow(deprecated)]
         Pubkey::new(&T::ID[..])
     }
 }
@@ -63,7 +64,7 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
             leaves.push(pair[0].clone());
             leaves.push(pair[1].clone());
         }
-
+        #[allow(deprecated)]
         VerifierState10Ins {
             merkle_root_index: <usize as TryInto<u64>>::try_into(light_tx.merkle_root_index)
                 .unwrap(),
