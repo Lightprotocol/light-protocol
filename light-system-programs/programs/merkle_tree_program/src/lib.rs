@@ -1,9 +1,10 @@
 use anchor_lang::prelude::*;
-use solana_security_txt::security_txt;
+
 declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
+// use solana_security_txt::security_txt;
 
 #[cfg(not(feature = "no-entrypoint"))]
-security_txt! {
+solana_security_txt::security_txt! {
     name: "light_protocol_merkle_tree",
     project_url: "lightprotocol.com",
     contacts: "email:security@lightprotocol.com",
