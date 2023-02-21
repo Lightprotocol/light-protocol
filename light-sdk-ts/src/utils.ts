@@ -29,7 +29,7 @@ export async function getAssetLookUpId({
   connection: Connection;
   // poolType?: Uint8Array
 }): Promise<any> {
-  let poolType = new Uint8Array(32).fill(0);
+  let poolType = new Array(32).fill(0);
   let mtConf = new MerkleTreeConfig({
     connection,
     merkleTreePubkey: MERKLE_TREE_KEY,

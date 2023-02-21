@@ -2,7 +2,6 @@ const nacl = require("tweetnacl");
 import { BN } from "@coral-xyz/anchor";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
-const circomlibjs = require("circomlibjs");
 const ffjavascript = require("ffjavascript");
 
 export class Account {

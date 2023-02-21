@@ -7,14 +7,14 @@ import {
   verifierProgramOneProgramId,
 } from "../index";
 import { Transaction } from "../transaction";
-import { Verifier, PublicInputs } from ".";
+import { Verifier, PublicInputs, VerifierConfig } from ".";
 
 export class VerifierOne implements Verifier {
-  verifierProgram: Program<VerifierProgramOne>;
+  verifierProgram?: Program<VerifierProgramOne>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
-  config: { in: number; out: number };
+  config: VerifierConfig;
   instructions?: anchor.web3.TransactionInstruction[];
   pubkey: anchor.BN;
 
@@ -30,26 +30,27 @@ export class VerifierOne implements Verifier {
     this.wtnsGenPath = "transactionMasp10_js/transactionMasp10.wasm";
     this.zkeyPath = "transactionMasp10.zkey";
     this.calculateWtns = require("../../build-circuits/transactionMasp10_js/witness_calculator.js");
-    this.config = { in: 10, out: 2 };
+    this.config = { in: 10, out: 2, nrPublicInputs: 17 };
     this.pubkey = hashAndTruncateToCircuit(
       verifierProgramOneProgramId.toBytes(),
     );
   }
 
   parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
-    if (publicInputsBytes.length == 17) {
-      return {
-        root: publicInputsBytes[0],
-        publicAmount: publicInputsBytes[1],
-        extDataHash: publicInputsBytes[2],
-        feeAmount: publicInputsBytes[3],
-        mintPubkey: publicInputsBytes[4],
-        nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
-        leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
-      };
-    } else {
-      throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != 17`;
+    if (publicInputsBytes.length != 17) {
+      throw new Error(
+        `publicInputsBytes.length invalid ${publicInputsBytes.length} != 17`,
+      );
     }
+    return {
+      root: publicInputsBytes[0],
+      publicAmount: publicInputsBytes[1],
+      extDataHash: publicInputsBytes[2],
+      feeAmount: publicInputsBytes[3],
+      mintPubkey: publicInputsBytes[4],
+      nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
+      leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
+    };
   }
 
   async getInstructions(
@@ -66,7 +67,7 @@ export class VerifierOne implements Verifier {
       throw new Error("params.params.relayer undefined");
     if (!transaction.params.encryptedUtxos)
       throw new Error("params.encryptedUtxos undefined");
-
+    if (!this.verifierProgram) throw new Error("verifierProgram undefined");
     // TODO: check if this is still required
     if (
       !transaction.provider.browserWallet &&

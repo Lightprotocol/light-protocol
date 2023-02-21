@@ -10,7 +10,7 @@ import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
 export class VerifierZero implements Verifier {
-  verifierProgram: Program<VerifierProgramZero>;
+  verifierProgram?: Program<VerifierProgramZero>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
@@ -36,14 +36,16 @@ export class VerifierZero implements Verifier {
     );
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs {
+  parsePublicInputsFromArray(
+    publicInputsBytes: Array<Array<number>>,
+  ): PublicInputs {
     if (publicInputsBytes) {
       if (publicInputsBytes.length == 9) {
         return {
           root: publicInputsBytes[0],
-          publicAmount: publicInputsBytes[1],
+          publicAmount: Buffer.from(publicInputsBytes[1]),
           extDataHash: publicInputsBytes[2],
-          feeAmount: publicInputsBytes[3],
+          feeAmount: Buffer.from(publicInputsBytes[3]),
           mintPubkey: publicInputsBytes[4],
           nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
           leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
@@ -76,6 +78,7 @@ export class VerifierZero implements Verifier {
     ) {
       throw new Error("Payer(browserwallet, nodewallet) not defined");
     }
+    if (!this.verifierProgram) throw new Error("verifierProgram undefined");
 
     const ix = await this.verifierProgram.methods
       .shieldedTransferInputs(

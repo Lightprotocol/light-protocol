@@ -209,6 +209,7 @@ export class Transaction {
   txIntegrityHash?: BN;
   senderFeeBalancePriorTx?: BN;
   recipientFeeBalancePriorTx?: BN;
+  is_token?: boolean;
   /**
    * Initialize transaction
    *
@@ -479,18 +480,21 @@ export class Transaction {
         throw new Error("Invalid Proof");
       }
 
-      var publicInputsBytes = JSON.parse(publicInputsJson.toString());
-      for (var i in publicInputsBytes) {
-        publicInputsBytes[i] = Array.from(
-          leInt2Buff(unstringifyBigInts(publicInputsBytes[i]), 32),
-        ).reverse();
+      var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+      var publicInputsBytes = new Array<Array<number>>();
+      for (var i in publicInputsBytesJson) {
+        let ref: Array<number> = Array.from([
+          ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
+        ]).reverse();
+        publicInputsBytes.push(ref);
+        // TODO: replace ref, error is that le and be do not seem to be consistent
+        // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
+        // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
       }
-      // console.log("publicInputsBytes ", publicInputsBytes);
-
-      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
-
       const publicInputs =
         verifier.parsePublicInputsFromArray(publicInputsBytes);
+
+      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
       return { proofBytes, publicInputs };
     }
   }
@@ -923,14 +927,6 @@ export class Transaction {
     ]);
   }
 
-  getPublicInputs() {
-    if (this.params) {
-      this.publicInputs = this.params.verifier.parsePublicInputsFromArray(this);
-    } else {
-      throw new Error("params undefined");
-    }
-  }
-
   // send transaction should be the same for both deposit and withdrawal
   // the function should just send the tx to the rpc or relayer respectively
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
@@ -1281,10 +1277,9 @@ export class Transaction {
       merkleTreeProgram.programId,
     )[0];
   }
-  is_token?: boolean;
 
   // TODO: check why this is called encr keypair but account class
-  async checkBalances(account: Account) {
+  async checkBalances(account?: Account) {
     if (!this.publicInputs) {
       throw new Error("public inputs undefined");
     }
