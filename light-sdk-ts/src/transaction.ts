@@ -964,10 +964,6 @@ export class Transaction {
       throw new Error("params.accounts.recipient undefined");
     }
 
-    if (!this.relayerRecipientAccountBalancePriorLastTx) {
-      throw new Error("relayerRecipientAccountBalancePriorLastTx undefined");
-    }
-
     try {
       this.recipientBalancePriorTx = new BN(
         (
