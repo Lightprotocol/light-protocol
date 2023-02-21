@@ -42,8 +42,8 @@ export class Utxo {
   verifierAddressCircuit: BN;
   instructionType: BN;
   poolType: BN;
-  _commitment: BN | null;
-  _nullifier: BN | null;
+  _commitment?: string;
+  _nullifier?: string;
   poseidon: any;
   includeAppData: boolean;
 
@@ -60,6 +60,7 @@ export class Utxo {
     appDataFromBytesFn,
     index,
     includeAppData = false,
+    instructionType,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -72,6 +73,7 @@ export class Utxo {
     appDataFromBytesFn?: Function;
     index?: number;
     includeAppData?: boolean;
+    instructionType?: BN;
   }) {
     // check that blinding is 31 bytes
     blinding.toArray("be", 31);
@@ -121,8 +123,6 @@ export class Utxo {
     this.account = account;
     this.index = index;
     this.assets = assets;
-    this._commitment = null;
-    this._nullifier = null;
     this.poseidon = poseidon;
     this.appData = appData;
     this.poolType = poolType;
@@ -154,9 +154,8 @@ export class Utxo {
       );
     }
     if (appData.length > 0) {
-      // TODO: change to poseidon hash which is reproducable in circuit
       // TODO: write function which creates the instructionTypeHash
-      if (appDataFromBytesFn) {
+      if (appDataFromBytesFn && !instructionType) {
         // console.log(
         //   "appDataFromBytesFn(appData) ",
         //   appDataFromBytesFn(appData).map((x) => x.toString()),
@@ -174,6 +173,8 @@ export class Utxo {
           undefined,
           "le",
         );
+      } else if (instructionType) {
+        this.instructionType = instructionType;
       } else {
         throw new Error("No appDataFromBytesFn provided");
       }
@@ -270,7 +271,7 @@ export class Utxo {
         account: burnerAccount,
         blinding,
         instructionType,
-        appData,
+        appData: Array.from([...appData]),
         appDataFromBytesFn,
         verifierAddress,
         includeAppData,
@@ -281,9 +282,9 @@ export class Utxo {
   /**
    * Returns commitment for this UTXO
    *signature:
-   * @returns {BN}
+   * @returns {string}
    */
-  getCommitment() {
+  getCommitment(): string {
     if (!this._commitment) {
       let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
       let assetHash = this.poseidon.F.toString(
@@ -297,8 +298,7 @@ export class Utxo {
       // console.log("assetHash ", assetHash.toString());
       // console.log("this.instructionType ", this.instructionType.toString());
       // console.log("this.poolType ", this.poolType.toString());
-
-      this._commitment = this.poseidon.F.toString(
+      let commitment: string = this.poseidon.F.toString(
         this.poseidon([
           amountHash,
           this.account.pubkey.toString(),
@@ -309,8 +309,11 @@ export class Utxo {
           this.verifierAddressCircuit,
         ]),
       );
+      this._commitment = commitment;
+      return this._commitment;
+    } else {
+      return this._commitment;
     }
-    return this._commitment;
   }
 
   /**

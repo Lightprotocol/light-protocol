@@ -3,8 +3,8 @@ import { assert, expect } from "chai";
 const token = require("@solana/spl-token");
 import * as anchor from "@coral-xyz/anchor";
 import { Connection, PublicKey } from "@solana/web3.js";
-import { MerkleTree } from "merkleTree/merkleTree";
 import { MerkleTreeProgram } from "idls";
+import { Program } from "@coral-xyz/anchor";
 
 /*
  *
@@ -34,7 +34,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   connection: Connection;
   merkleTreeUpdateState: PublicKey;
   relayer: PublicKey;
-  MerkleTree: MerkleTree;
+  MerkleTree: PublicKey;
   leavesPdas: Array<any>;
   current_instruction_index: number;
   merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
@@ -45,10 +45,12 @@ export async function checkMerkleTreeUpdateStateCreated({
     merkleTreeUpdateState,
     "confirmed",
   );
+  if (!merkleTreeTmpAccountInfo)
+    throw new Error("merkleTreeTmpAccountInfo null");
 
-  assert(
-    merkleTreeTmpAccountInfo.owner.toBase58() ===
-      merkleTreeProgram.programId.toBase58(),
+  assert.equal(
+    merkleTreeTmpAccountInfo.owner.toBase58(),
+    merkleTreeProgram.programId.toBase58(),
     "merkle tree pda owner wrong after initializing",
   );
   const merkleTreeUpdateStateData =
@@ -76,27 +78,29 @@ export async function checkMerkleTreeUpdateStateCreated({
   );
   console.log("current_instruction_index ", current_instruction_index);
 
-  assert(
-    merkleTreeUpdateStateData.relayer.toBase58() == relayer.toBase58(),
+  assert.equal(
+    merkleTreeUpdateStateData.relayer.toBase58(),
+    relayer.toBase58(),
     "The incorrect signer has been saved",
   );
-  assert(
-    merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58() ==
-      MerkleTree.toBase58(),
+  assert.equal(
+    merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58(),
+    MerkleTree.toBase58(),
     "the incorrect merkle tree pubkey was saved",
   );
-  assert(
-    merkleTreeUpdateStateData.numberOfLeaves == leavesPdas.length,
+  assert.equal(
+    merkleTreeUpdateStateData.numberOfLeaves,
+    leavesPdas.length,
     "The incorrect number of leaves was saved",
   );
-  assert(
-    merkleTreeUpdateStateData.currentInstructionIndex ==
-      current_instruction_index,
+  assert.equal(
+    merkleTreeUpdateStateData.currentInstructionIndex.toString(),
+    current_instruction_index.toString(),
     "The instruction index is wrong",
   );
-  assert(
-    MerkleTreeAccountInfo.pubkeyLocked.toBase58() ==
-      merkleTreeUpdateState.toBase58(),
+  assert.equal(
+    MerkleTreeAccountInfo.pubkeyLocked.toBase58(),
+    merkleTreeUpdateState.toBase58(),
   );
   // assert(U64.readLE(MerkleTreeAccountInfo.data.slice(16658-8,16658), 0) >= (await connection.getSlot()) - 5, "Lock has not been taken at this or in the 5 prior slots");
   console.log("checkMerkleTreeUpdateStateCreated: success");
@@ -109,9 +113,16 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   merkleTreeAccountPrior,
   numberOfLeaves,
   leavesPdas,
-  merkleTree,
   merkle_tree_pubkey,
   merkleTreeProgram,
+}: {
+  connection: Connection;
+  merkleTreeUpdateState: PublicKey;
+  merkleTreeAccountPrior: any;
+  numberOfLeaves: number;
+  leavesPdas: any;
+  merkle_tree_pubkey: PublicKey;
+  merkleTreeProgram: Program<MerkleTreeProgram>;
 }) {
   var merkleTreeTmpStateAccount = await connection.getAccountInfo(
     merkleTreeUpdateState,
@@ -134,7 +145,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   // console.log("merkleTreeAccount.time_locked ", merkleTreeAccount.timeLocked);
 
   assert.equal(
-    merkleTreeAccount.timeLocked,
+    merkleTreeAccount.timeLocked.toNumber(),
     0,
     "Lock has not been taken within prior  20 slots",
   );
@@ -159,8 +170,8 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     merkle_tree_prior_current_root_index.add(new anchor.BN("1")).toString(),
     current_root_index.toString(),
   );
-  let current_root_start_range = 610 + current_root_index * 32;
-  let current_root_end_range = 610 + (current_root_index + 1) * 32;
+  let current_root_start_range = 610 + current_root_index.toNumber() * 32;
+  let current_root_end_range = 610 + (current_root_index.toNumber() + 1) * 32;
   // console.log(`root: ${BigNumber.from(merkleTreeAccount.data.slice(current_root_start_range, current_root_end_range).reverse()).toHexString()}`)
 
   // console.log(`prior +${numberOfLeaves} ${merkle_tree_prior_leaves_index.add(new anchor.BN(numberOfLeaves)).toString()}, now ${U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString()}`)
@@ -175,7 +186,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
 
   assert(
     merkle_tree_prior_leaves_index
-      .add(new anchor.BN(numberOfLeaves))
+      .add(new anchor.BN(numberOfLeaves.toString()))
       .toString() == merkleTreeAccount.nextIndex.toString(),
   ); //U64.readLE(merkleTreeAccount.data.slice(594, 594 + 8), 0).toString())
 

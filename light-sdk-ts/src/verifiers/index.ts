@@ -3,40 +3,38 @@ export * from "./verifierZero";
 export * from "./verifierTwo";
 
 import { Program, web3, BN } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
 import { Transaction } from "../transaction";
 
-export interface PublicInputs {
-  root: Array<Number>;
-  publicAmount: Array<Number>;
-  extDataHash: Array<Number>;
-  feeAmount: Array<Number>;
-  mintPubkey: Array<Number>;
-  nullifiers: Array<Uint8Array>;
-  leaves: Array<Array<Number>>;
-}
+export type PublicInputs = {
+  root: Array<number>;
+  publicAmount: Buffer;
+  extDataHash: Array<number>;
+  feeAmount: Buffer;
+  mintPubkey: Array<number>;
+  nullifiers: Array<Array<number>>;
+  leaves: Array<Array<Array<number>>>;
+  // only for app verifiers
+  connectingHash?: Array<number>;
+  checkedParams?: Array<Array<number>>;
+  verifier?: Array<number>;
+};
 
-export interface PublicInputsCpi {
-  root: Array<Number>;
-  publicAmount: Array<Number>;
-  extDataHash: Array<Number>;
-  feeAmount: Array<Number>;
-  mintPubkey: Array<Number>;
-  verifier: Array<Number>;
-  appHash: Array<Number>;
-  kycMtRoot: Array<Number>;
-  nullifiers: Array<Uint8Array>;
-  leaves: Array<Uint8Array>;
-}
+export type VerifierConfig = {
+  in: number;
+  out: number;
+  nrPublicInputs: number;
+};
 
 export interface Verifier {
-  verifierProgram: Program<any>;
+  verifierProgram?: Program<any>;
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
   config: { in: number; out: number };
   instructions?: web3.TransactionInstruction[];
-  parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs;
+  parsePublicInputsFromArray(
+    publicInputsBytes: Array<Array<number>>,
+  ): PublicInputs;
   getInstructions(
     transaction: Transaction,
   ): Promise<web3.TransactionInstruction[]>;
