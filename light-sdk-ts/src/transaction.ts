@@ -1289,7 +1289,6 @@ export class Transaction {
       merkleTreeProgram.programId,
     )[0];
   }
-  is_token?: boolean;
 
   // TODO: check why this is called encr keypair but account class
   async checkBalances(account?: Account) {
