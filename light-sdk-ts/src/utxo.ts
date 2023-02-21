@@ -60,6 +60,7 @@ export class Utxo {
     appDataFromBytesFn,
     index,
     includeAppData = false,
+    instructionType,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -72,6 +73,7 @@ export class Utxo {
     appDataFromBytesFn?: Function;
     index?: number;
     includeAppData?: boolean;
+    instructionType?: BN;
   }) {
     // check that blinding is 31 bytes
     blinding.toArray("be", 31);
@@ -152,9 +154,8 @@ export class Utxo {
       );
     }
     if (appData.length > 0) {
-      // TODO: change to poseidon hash which is reproducable in circuit
       // TODO: write function which creates the instructionTypeHash
-      if (appDataFromBytesFn) {
+      if (appDataFromBytesFn && !instructionType) {
         // console.log(
         //   "appDataFromBytesFn(appData) ",
         //   appDataFromBytesFn(appData).map((x) => x.toString()),
@@ -172,6 +173,8 @@ export class Utxo {
           undefined,
           "le",
         );
+      } else if (instructionType) {
+        this.instructionType = instructionType;
       } else {
         throw new Error("No appDataFromBytesFn provided");
       }
@@ -268,7 +271,7 @@ export class Utxo {
         account: burnerAccount,
         blinding,
         instructionType,
-        appData,
+        appData: Array.from([...appData]),
         appDataFromBytesFn,
         verifierAddress,
         includeAppData,

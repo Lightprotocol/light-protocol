@@ -3,20 +3,19 @@ export * from "./verifierZero";
 export * from "./verifierTwo";
 
 import { Program, web3, BN } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
 import { Transaction } from "../transaction";
 
 export type PublicInputs = {
-  root: Array<Number>;
+  root: Array<number>;
   publicAmount: Buffer;
-  extDataHash: Array<Number>;
+  extDataHash: Array<number>;
   feeAmount: Buffer;
-  mintPubkey: Array<Number>;
-  nullifiers: Array<Array<Number>>;
-  leaves: Array<Array<Array<Number>>>;
+  mintPubkey: Array<number>;
+  nullifiers: Array<Array<number>>;
+  leaves: Array<Array<Array<number>>>;
   // only for app verifiers
-  connectingHash?: Array<Number>;
-  checkedParams?: Array<Array<Number>>;
+  connectingHash?: Array<number>;
+  checkedParams?: Array<Array<number>>;
   verifier?: Array<number>;
 };
 

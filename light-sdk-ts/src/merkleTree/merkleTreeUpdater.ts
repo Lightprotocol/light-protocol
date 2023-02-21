@@ -25,7 +25,6 @@ export async function executeUpdateMerkleTreeTransactions({
   signer,
   merkleTreeProgram,
   leavesPdas,
-  merkleTree,
   merkle_tree_pubkey,
   connection,
   provider,
@@ -33,7 +32,6 @@ export async function executeUpdateMerkleTreeTransactions({
   signer: Keypair;
   merkleTreeProgram: Program<MerkleTreeProgram>;
   leavesPdas: any;
-  merkleTree: PublicKey;
   merkle_tree_pubkey: PublicKey;
   connection: Connection;
   provider: anchor.AnchorProvider;

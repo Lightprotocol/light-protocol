@@ -1,18 +1,20 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgramIdl } from "../idls/index";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 import { MerkleTree } from "merkleTree/merkleTree";
+import { QueuedLeavesPda } from "merkleTree/solMerkleTree";
+
 import { merkleTreeProgramId } from "../constants";
 import { Account } from "../account";
 
 /**deprecated */
 export async function getUnspentUtxo(
-  leavesPdas,
+  leavesPdas: { account: QueuedLeavesPda }[],
   provider: anchor.Provider,
   account: Account,
   POSEIDON: any,
-  merkleTreeProgram: anchor.Program<MerkleTreeProgramIdl>,
+  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
   merkleTree: MerkleTree,
   index: number,
 ) {
@@ -28,15 +30,18 @@ export async function getUnspentUtxo(
         ),
         account: account,
       });
+      if (!decryptedUtxo1) {
+        continue;
+      }
 
       const mtIndex = merkleTree.indexOf(
         decryptedUtxo1?.getCommitment()?.toString(),
       );
 
-      decryptedUtxo1?.index = mtIndex;
+      decryptedUtxo1.index = mtIndex;
 
       let nullifier = decryptedUtxo1.getNullifier();
-
+      if (!nullifier) throw new Error("getNullifier of decryptedUtxo failed");
       let nullifierPubkey = (
         await PublicKey.findProgramAddress(
           [

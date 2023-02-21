@@ -137,6 +137,10 @@ export class TransactionParameters implements transactionParameters {
       };
     }
     if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
+    if (!verifier) throw new Error("verifier undefined");
+    if (!verifier.verifierProgram)
+      throw new Error("verifier.verifierProgram undefined");
+
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -200,7 +204,7 @@ export class Transaction {
   publicAmount?: BN;
   feeAmount?: BN;
   inputMerklePathIndices?: number[];
-  inputMerklePathElements?: number[][];
+  inputMerklePathElements?: string[][];
   publicInputsBytes?: number[][];
   connectingHash?: string;
   // Tests
@@ -806,9 +810,9 @@ export class Transaction {
         } else {
           this.inputMerklePathIndices.push(0);
           this.inputMerklePathElements.push(
-            new Array<number>(
+            new Array<string>(
               this.provider.solMerkleTree.merkleTree.levels,
-            ).fill(0),
+            ).fill("0"),
           );
         }
       }
@@ -1188,6 +1192,8 @@ export class Transaction {
       this.params &&
       !this.appParams
     ) {
+      if (!this.params.verifier.verifierProgram)
+        throw new Error("verifier.verifierProgram undefined");
       return await this.params?.verifier.verifierProgram.methods
         .closeVerifierState()
         .accounts({
@@ -1224,6 +1230,9 @@ export class Transaction {
     if (!this.merkleTreeProgram) {
       throw new Error("this.merkleTreeProgram undefined");
     }
+    if (!this.params.verifier.verifierProgram) {
+      throw new Error("params.verifier.verifierProgram undefined");
+    }
 
     let nullifiers = this.publicInputs.nullifiers;
     let merkleTreeProgram = this.merkleTreeProgram;
@@ -1235,7 +1244,10 @@ export class Transaction {
         isSigner: false,
         isWritable: true,
         pubkey: PublicKey.findProgramAddressSync(
-          [Buffer.from(nullifiers[i]), anchor.utils.bytes.utf8.encode("nf")],
+          [
+            Uint8Array.from([...nullifiers[i]]),
+            anchor.utils.bytes.utf8.encode("nf"),
+          ],
           merkleTreeProgram.programId,
         )[0],
       });

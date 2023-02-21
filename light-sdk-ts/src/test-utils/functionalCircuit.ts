@@ -10,11 +10,9 @@ import {
   Utxo,
   VerifierZero,
 } from "../index";
-import { MerkleTree, SolMerkleTree } from "../merkleTree/index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-import { getProvider } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest() {
