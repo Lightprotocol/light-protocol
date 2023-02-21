@@ -21,13 +21,13 @@ export class MerkleTree {
   capacity: number;
   zeroElement;
   _hash;
-  _zeros: any;
-  _layers: any;
+  _zeros: string[];
+  _layers: string[][];
 
   constructor(
     levels: number,
     poseidonHash2: any,
-    elements: any[] = [],
+    elements: string[] = [],
     { zeroElement = DEFAULT_ZERO } = {},
   ) {
     this.levels = levels;
@@ -130,7 +130,7 @@ export class MerkleTree {
   /**
    * Get merkle path to a leaf
    * @param {number} index Leaf index to generate path for
-   * @returns {{pathElements: Object[], pathIndex: number[]}} An object containing adjacent elements and left-right index
+   * @returns {{pathElements: number[], pathIndex: number[]}} An object containing adjacent elements and left-right index
    */
   path(index: number) {
     if (isNaN(Number(index)) || index < 0 || index >= this._layers[0].length) {

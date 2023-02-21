@@ -203,10 +203,10 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT],
       );
-      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+      const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        provider: prov,
+        provider: lightProvider,
       });
 
       let deposit_utxo1 = new Utxo({
@@ -267,10 +267,10 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+      const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
       let tx = new Transaction({
-        provider: prov,
+        provider: lightProvider,
       });
 
       deposit_utxo1 = new Utxo({
@@ -326,17 +326,17 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      prov.lookUpTable,
+      lightProvider.lookUpTable,
       SolanaKeypair.generate().publicKey,
       new BN(100000),
     );
 
     let tx = new Transaction({
-      provider: prov,
+      provider: lightProvider,
       // relayer,
       // payer: ADMIN_AUTH_KEYPAIR,
       // shuffleEnabled: false,
@@ -352,8 +352,6 @@ describe("verifier_program", () => {
     });
 
     await tx.compileAndProve(txParams);
-
-    // await testTransaction({transaction: SHIELDED_TRANSACTION, deposit: false,provider, signer: ADMIN_AUTH_KEYPAIR, REGISTERED_VERIFIER_ONE_PDA, REGISTERED_VERIFIER_PDA});
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -403,27 +401,27 @@ describe("verifier_program", () => {
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
-    const prov = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-    await prov.provider.connection.confirmTransaction(
-      await prov.provider.connection.requestAirdrop(
+    await lightProvider.provider.connection.confirmTransaction(
+      await lightProvider.provider.connection.requestAirdrop(
         relayerRecipient,
         1_000_000,
       ),
     );
-    await prov.provider.connection.confirmTransaction(
-      await prov.provider.connection.requestAirdrop(recipientFee, 1_000_000),
+    await lightProvider.provider.connection.confirmTransaction(
+      await lightProvider.provider.connection.requestAirdrop(recipientFee, 1_000_000),
     );
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      prov.lookUpTable,
+      lightProvider.lookUpTable,
       relayerRecipient,
       new BN(100000),
     );
 
     let tx = new Transaction({
-      provider: prov,
+      provider: lightProvider,
       // relayer,
     });
 

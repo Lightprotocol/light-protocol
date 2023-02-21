@@ -121,7 +121,7 @@ export const REGISTERED_POOL_PDA_SPL_TOKEN = new PublicKey(
 export const REGISTERED_POOL_PDA_SOL = new PublicKey(
   "Eti4Rjkx7ow88XkaFbxRStmwadTp8p9J2nSv7NhtuqDU",
 );
-export const POOL_TYPE = new Uint8Array(32).fill(0);
+export const POOL_TYPE = new Array(32).fill(0);
 export const MERKLE_TREE_AUTHORITY_PDA = new PublicKey(
   "5EMc8sCbHeb1HtRFifcbCiXN66kX6Wddrd61EkdJun6Y",
 );

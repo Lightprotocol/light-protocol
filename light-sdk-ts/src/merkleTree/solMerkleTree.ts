@@ -1,19 +1,25 @@
 import { BN, Program } from "@coral-xyz/anchor";
 import { GetVersionedTransactionConfig, PublicKey } from "@solana/web3.js";
 import {
+  merkleTreeProgram,
   merkleTreeProgramId,
-  IDL_MERKLE_TREE_PROGRAM,
   MERKLE_TREE_HEIGHT,
 } from "../index";
-import { MerkleTreeProgram } from "../idls/merkle_tree_program";
+import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
+// import { MerkleTreeProgram } from "../idls/merkle_tree_program";
 import { MerkleTree } from "./merkleTree";
-import { program } from "@coral-xyz/anchor/dist/cjs/native/system";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { lstat } from "fs";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const anchor = require("@coral-xyz/anchor");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
+export type QueuedLeavesPda = {
+  leftLeafIndex: BN;
+  encryptedUtxos: Array<number>;
+  nodeLeft: Array<number>;
+  nodeRight: Array<number>;
+  merkleTreePubkey: PublicKey;
+};
 
 // TODO: once we have multiple trees add merkleTree[] and fetchTree(pubkey);
 export class SolMerkleTree {
@@ -42,10 +48,9 @@ export class SolMerkleTree {
       merkleTreePubkey,
     );
     const merkleTreeIndex = mtFetched.nextIndex;
-    var leavesAccounts: Array<{
-      pubkey: PublicKey;
-      account: Account<Buffer>;
-    }> = await merkleTreeProgram.account.twoLeavesBytesPda.all();
+    // ProgramAccount<MerkleTreeProgram["accounts"][7]>
+    var leavesAccounts: Array<any> =
+      await merkleTreeProgram.account.twoLeavesBytesPda.all();
     return { leavesAccounts, merkleTreeIndex, mtFetched };
   }
 
@@ -62,8 +67,11 @@ export class SolMerkleTree {
     //   "getCompressedLeaves merkleTreeIndex",
     //   merkleTreeIndex.toNumber(),
     // );
+    merkleTreeProgram.account.twoLeavesBytesPda.all();
+    // merkleTreeProgram.account.twoLeavesBytesPda
+
     let leavesAccounts: Array<{
-      account: Account<Buffer>;
+      account: QueuedLeavesPda;
     }> = new Array();
     let signatures = Array.from(
       await merkleTreeProgram.provider.connection.getSignaturesForAddress(
@@ -98,21 +106,25 @@ export class SolMerkleTree {
           return tmp?.includes(SPL_NOOP_ADDRESS);
         } catch {}
       });
+
       filteredTx.map((tx) => {
         tx?.meta?.innerInstructions?.map((ix) => {
           ix.instructions.map((ixInner) => {
             const data = bs58.decode(ixInner.data);
+            let leftLeafIndex = new BN(
+              data.subarray(96 + 256, 96 + 256 + 8),
+              undefined,
+              "le",
+            );
             leavesAccounts.push({
               account: {
-                leftLeafIndex: new BN(
-                  data.slice(96 + 256, 96 + 256 + 8),
-                  undefined,
-                  "le",
+                leftLeafIndex,
+                encryptedUtxos: Array.from(data.subarray(96, 96 + 256)),
+                nodeLeft: Array.from(data.subarray(0, 32)),
+                nodeRight: Array.from(data.subarray(32, 64)),
+                merkleTreePubkey: new PublicKey(
+                  Array.from(data.subarray(64, 96)),
                 ),
-                encryptedUtxos: Array.from(data.slice(96, 96 + 256)),
-                nodeLeft: Array.from(data.slice(0, 32)),
-                nodeRight: Array.from(data.slice(32, 64)),
-                merkleTreePubkey: new PublicKey(Array.from(data.slice(64, 96))),
               },
             });
           });
@@ -151,7 +163,7 @@ export class SolMerkleTree {
               undefined,
               "le",
             ).toString(),
-          ); // .reverse()
+          );
           leaves.push(
             new anchor.BN(
               leavesAccounts[i].account.nodeRight,

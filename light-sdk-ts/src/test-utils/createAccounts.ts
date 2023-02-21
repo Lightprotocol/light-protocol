@@ -1,8 +1,10 @@
 const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 import {
   Connection,
   Keypair,
+  PublicKey,
   sendAndConfirmTransaction,
 } from "@solana/web3.js";
 const { SystemProgram } = require("@solana/web3.js");
@@ -36,12 +38,12 @@ import { Program } from "@coral-xyz/anchor";
 let circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
-const sleep = (ms) => {
+const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };
 export const newAccountWithLamports = async (
   connection: Connection,
-  account = solana.Keypair.generate(),
+  account = Keypair.generate(),
   lamports = 1e10,
 ) => {
   let x = await connection.confirmTransaction(
@@ -127,36 +129,29 @@ export async function newAccountWithTokens({
   ADMIN_AUTH_KEYPAIR,
   userAccount,
   amount,
+}: {
+  connection: Connection;
+  MINT: PublicKey;
+  ADMIN_AUTH_KEYPAIR: Keypair;
+  userAccount: Keypair;
+  amount: BN;
 }): Promise<any> {
-  let tokenAccount;
-  try {
-    tokenAccount = await createAccount(
-      connection,
-      ADMIN_AUTH_KEYPAIR,
-      MINT,
-      userAccount.publicKey,
-      // userAccount
-    );
+  let tokenAccount = await createAccount(
+    connection,
+    ADMIN_AUTH_KEYPAIR,
+    MINT,
+    userAccount.publicKey,
+  );
 
-    console.log(tokenAccount);
-  } catch (e) {
-    console.log(e);
-  }
-
-  try {
-    await mintTo(
-      connection,
-      ADMIN_AUTH_KEYPAIR,
-      MINT,
-      tokenAccount,
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      amount,
-      [],
-    );
-  } catch (e) {
-    console.log(e);
-  }
-
+  await mintTo(
+    connection,
+    ADMIN_AUTH_KEYPAIR,
+    MINT,
+    tokenAccount,
+    ADMIN_AUTH_KEYPAIR.publicKey,
+    amount.toNumber(),
+    [],
+  );
   return tokenAccount;
 }
 
@@ -261,7 +256,7 @@ export async function createTestAccounts(connection: Connection) {
 
   if (
     (await connection.getBalance(
-      solana.Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
+      Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey,
       "confirmed",
     )) == 0
   ) {
@@ -292,7 +287,7 @@ export async function createTestAccounts(connection: Connection) {
         MINT,
         ADMIN_AUTH_KEYPAIR,
         userAccount: USER_TOKEN_ACCOUNT,
-        amount: 100_000_000_0000,
+        amount: new BN(100_000_000_0000),
       });
     }
   } catch (error) {
@@ -307,7 +302,7 @@ export async function createTestAccounts(connection: Connection) {
         MINT,
         ADMIN_AUTH_KEYPAIR,
         userAccount: RECIPIENT_TOKEN_ACCOUNT,
-        amount: 0,
+        amount: new BN(0),
       });
     }
   } catch (error) {}

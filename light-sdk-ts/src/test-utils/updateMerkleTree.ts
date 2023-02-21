@@ -1,14 +1,14 @@
-import { Program, Provider } from "@coral-xyz/anchor";
+import { AnchorProvider, Program, Provider } from "@coral-xyz/anchor";
 import {
   executeUpdateMerkleTreeTransactions,
   SolMerkleTree,
 } from "../merkleTree/index";
 import { merkleTreeProgramId, MERKLE_TREE_KEY } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
-import { buildPoseidonOpt } from "circomlibjs";
+const circomlibjs = require("circomlibjs");
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
 
-export async function updateMerkleTreeForTest(provider: Provider) {
+export async function updateMerkleTreeForTest(provider: AnchorProvider) {
   const merkleTreeProgram = new Program(
     IDL_MERKLE_TREE_PROGRAM,
     merkleTreeProgramId,
@@ -19,12 +19,7 @@ export async function updateMerkleTreeForTest(provider: Provider) {
     MERKLE_TREE_KEY,
   );
 
-  let poseidon = await buildPoseidonOpt();
-  // build tree from chain
-  let mtPrior = await SolMerkleTree.build({
-    pubkey: MERKLE_TREE_KEY,
-    poseidon,
-  });
+  let poseidon = await circomlibjs.buildPoseidonOpt();
 
   //@ts-ignore
   await executeUpdateMerkleTreeTransactions({
@@ -32,7 +27,6 @@ export async function updateMerkleTreeForTest(provider: Provider) {
     signer: ADMIN_AUTH_KEYPAIR,
     merkleTreeProgram,
     leavesPdas,
-    merkleTree: mtPrior,
     merkle_tree_pubkey: MERKLE_TREE_KEY,
     provider,
   });

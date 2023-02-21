@@ -135,9 +135,13 @@ export async function initLookUpTable(
       REGISTERED_VERIFIER_TWO_PDA,
       MINT,
     ];
-    for (var i in extraAccounts) {
-      addressesToAdd.push(extraAccounts[i]);
+
+    if (extraAccounts) {
+      for (var i in extraAccounts) {
+        addressesToAdd.push(extraAccounts[i]);
+      }
     }
+
     const extendInstruction = AddressLookupTableProgram.extendLookupTable({
       lookupTable: lookupTableAddress,
       authority: payerPubkey,
@@ -152,7 +156,7 @@ export async function initLookUpTable(
       "confirmed",
     );
     transaction.feePayer = payerPubkey;
-    transaction.recentBlockhash = recentBlockhash;
+    transaction.recentBlockhash = recentBlockhash.blockhash;
 
     try {
       await sendAndConfirmTransaction(
