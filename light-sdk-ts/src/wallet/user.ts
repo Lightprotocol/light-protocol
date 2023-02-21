@@ -500,13 +500,13 @@ export class User {
       pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
     });
     // TODO: add fees !
-    console.log("inUtxos", inUtxos);
+    // console.log("inUtxos", inUtxos);
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
     });
-    console.log("outUtxos", shieldUtxos);
+    // console.log("outUtxos", shieldUtxos);
 
     // TODO: get associated token account of nodewallet
 
