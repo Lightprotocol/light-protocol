@@ -5316,14 +5316,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f1bddf1187be692e79c5ffeab891132dfb0f236ed36a43c7ed39f1165ee20191"
 
 [[package]]
-name = "verifier_program"
-version = "0.1.0"
-dependencies = [
- "anchor-lang",
- "light-verifier-sdk",
-]
-
-[[package]]
 name = "verifier_program_one"
 version = "0.1.0"
 dependencies = [
@@ -5333,6 +5325,14 @@ dependencies = [
  "light-verifier-sdk",
  "merkle_tree_program",
  "solana-security-txt",
+]
+
+[[package]]
+name = "verifier_program_storage"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+ "light-verifier-sdk",
 ]
 
 [[package]]
