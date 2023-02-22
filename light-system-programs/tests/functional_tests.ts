@@ -42,7 +42,7 @@ import {
   SolMerkleTree,
   updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
-  verifierProgramId,
+  verifierStorageProgramId,
   User,
   IDL_VERIFIER_PROGRAM,
   strToArr,
@@ -75,7 +75,7 @@ describe("verifier_program", () => {
   const msg = Buffer.alloc(887).fill(1);
   const verifierProgram = new anchor.Program(
     IDL_VERIFIER_PROGRAM,
-    verifierProgramId,
+    verifierStorageProgramId,
   );
 
   const userKeypair = new SolanaKeypair();
