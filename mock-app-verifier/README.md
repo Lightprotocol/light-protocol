@@ -1,5 +1,12 @@
-./validator/solana-test-validator --reset --limit-ledger-size 500000000     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_zero.so --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6         /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/merkle_tree_program.so --bpf-program GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8  /home/ananas/test_light/light-protocol-onchain/light-system-programs/target/deploy/verifier_program_two.so --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS /home/ananas/test_light/light-protocol-onchain/market-place-verifier/target/deploy/market_place_verifier.so
-
+```
+solana-test-validator \
+    --reset \
+    --limit-ledger-size 500000000 \
+    --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ../light-system-programs/target/deploy/verifier_program_zero.so \
+    --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ../light-system-programs/target/deploy/merkle_tree_program.so \
+    --bpf-program GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8 ../light-system-programs/target/deploy/verifier_program_two.so \
+    --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS ../market-place-verifier/target/deploy/market_place_verifier.so
+```
 
 TODO:
 - Change Utxos

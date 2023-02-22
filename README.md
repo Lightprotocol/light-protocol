@@ -75,6 +75,7 @@ solana-test-validator \
     --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ./light-system-programs/target/deploy/merkle_tree_program.so \
     --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ./light-system-programs/target/deploy/verifier_program_one.so \
     --bpf-program GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8  ./light-system-programs/target/deploy/verifier_program_two.so  \
+    --bpf-program DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj ./light-system-programs/target/deploy/verifier_program_storage.so \
     --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../solana/web3.js/test/fixtures/noop-program/solana_sbf_rust_noop.so \
     --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS ./mock-app-verifier/target/deploy/mock_verifier.so
 ```

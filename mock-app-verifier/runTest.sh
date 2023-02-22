@@ -1,5 +1,5 @@
 #!/bin/bash -e
-../../solana/validator/solana-test-validator \
+solana-test-validator \
     --reset \
     --limit-ledger-size 500000000 \
     --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ../light-system-programs/target/deploy/verifier_program_zero.so \
