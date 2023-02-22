@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 
-declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
+declare_id!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 
 #[program]
 pub mod verifier_program {
