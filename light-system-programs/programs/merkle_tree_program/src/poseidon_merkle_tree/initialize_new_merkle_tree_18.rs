@@ -80,7 +80,8 @@ mod test {
             current_root_index: 0u64,
             next_index: 0u64,
             roots: [[0u8; 32]; MERKLE_TREE_HISTORY_SIZE as usize],
-            pubkey_locked: Pubkey::new(&[0u8; 32]),
+            pubkey_locked: Pubkey::try_from([0u8; 32])
+                .map_err(|_| ErrorCode::PubkeyTryFromFailed)?,
             time_locked: 0u64,
             height: 0u64,
             merkle_tree_nr: 0u64,
@@ -101,7 +102,7 @@ mod test {
         assert_eq!(ref_mt.merkle_tree_nr, 0, "merkle_tree_nr inited wrong");
         assert_eq!(
             ref_mt.pubkey_locked,
-            Pubkey::new(&[0u8; 32]),
+            Pubkey::try_from([0u8; 32]).map_err(|| ErrorCode::PubkeyTryFromFailed),
             "pubkey_locked inited wrong"
         );
         assert_eq!(ref_mt.next_index, 0, "next_index inited wrong");

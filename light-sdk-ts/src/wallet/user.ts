@@ -500,13 +500,13 @@ export class User {
       pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
     });
     // TODO: add fees !
-    console.log("inUtxos", inUtxos);
+    // console.log("inUtxos", inUtxos);
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
     });
-    console.log("outUtxos", shieldUtxos);
+    // console.log("outUtxos", shieldUtxos);
 
     // TODO: get associated token account of nodewallet
 
@@ -580,10 +580,10 @@ export class User {
           if (balanceUserToken == null) {
             await newAccountWithTokens({
               connection: this.provider!.provider!.connection,
-              MINT: tokenCtx.tokenAccount,
+              MINT: tokenCtx!.tokenAccount,
               ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
               userAccount: USER_TOKEN_ACCOUNT,
-              amount: 100_000_000_000,
+              amount: new anchor.BN(100_000_000_000),
             });
           }
         } catch (error) {
@@ -677,7 +677,7 @@ export class User {
     if (!tokenCtx.isSol) {
       throw new Error("SPL not implemented yet!");
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
-        tokenCtx.tokenAccount,
+        tokenCtx!.tokenAccount,
         recipient,
       );
       // * units

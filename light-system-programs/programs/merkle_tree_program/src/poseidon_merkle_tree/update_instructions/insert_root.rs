@@ -103,7 +103,8 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     msg!("Lock set at slot: {}", merkle_tree_pda_data.time_locked);
     msg!("Lock released at slot: {}", <Clock as Sysvar>::get()?.slot);
     merkle_tree_pda_data.time_locked = 0;
-    merkle_tree_pda_data.pubkey_locked = Pubkey::new(&[0; 32]);
+    merkle_tree_pda_data.pubkey_locked =
+        Pubkey::try_from([0; 32]).map_err(|_| ErrorCode::PubkeyTryFromFailed)?;
 
     msg!("start loop {}", ctx.remaining_accounts.len());
     // Leaves are passed in as pdas in remaining accounts to allow for flexibility in their

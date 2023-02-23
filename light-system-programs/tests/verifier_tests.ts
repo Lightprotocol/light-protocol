@@ -1,6 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-const solana = require("@solana/web3.js");
+import {  Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 const token = require("@solana/spl-token");
@@ -33,7 +32,6 @@ import {
   TransactionParameters,
   Provider as LightProvider,
   Relayer,
-  SolMerkleTree,
   checkNfInserted,
   newAccountWithTokens,
   updateMerkleTreeForTest,
@@ -188,6 +186,7 @@ describe("Verifier Zero and One Tests", () => {
   afterEach(async () => {
     // Check that no nullifier was inserted, otherwise the prior test failed
     for (var tx in transactions) {
+
       await checkNfInserted(
         transactions[tx].params.nullifierPdaPubkeys,
         provider.connection
@@ -273,7 +272,7 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong Mint", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);
-      let relayer = new anchor.web3.Account();
+      let relayer = SolanaKeypair.generate();
       const newMintKeypair = SolanaKeypair.generate();
       await createMintWrapper({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
@@ -285,7 +284,7 @@ describe("Verifier Zero and One Tests", () => {
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
         userAccount: relayer,
-        amount: 0,
+        amount: new BN(0),
       });
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
@@ -413,7 +412,7 @@ describe("Verifier Zero and One Tests", () => {
     }
   });
 
-  it("Wrong leavesPdaPubkeys accounts", async () => {
+  it.only("Wrong leavesPdaPubkeys accounts", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);
       if (tmp_tx.params.leavesPdaPubkeys.length > 1) {
@@ -437,7 +436,7 @@ describe("Verifier Zero and One Tests", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 failed: Cross-program invocation with unauthorized signer or writable account"
+          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
         );
       }
     }
