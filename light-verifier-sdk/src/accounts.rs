@@ -1,10 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::program::MerkleTreeProgram;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-    RegisteredVerifier,
-};
+use merkle_tree_program::{poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier};
 
 pub struct Accounts<'info, 'a, 'c> {
     pub program_id: &'a Pubkey,
@@ -12,7 +9,6 @@ pub struct Accounts<'info, 'a, 'c> {
     pub system_program: &'a Program<'info, System>,
     pub program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
     pub merkle_tree: &'a AccountLoader<'info, MerkleTree>,
-    pub pre_inserted_leaves_index: &'a Account<'info, PreInsertedLeavesIndex>,
     pub authority: AccountInfo<'info>,
     pub token_program: Option<&'a Program<'info, Token>>,
     pub sender: Option<AccountInfo<'info>>,
@@ -34,7 +30,6 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
         system_program: &'a Program<'info, System>,
         program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
         merkle_tree: &'a AccountLoader<'info, MerkleTree>,
-        pre_inserted_leaves_index: &'a Account<'info, PreInsertedLeavesIndex>,
         authority: AccountInfo<'info>,
         token_program: Option<&'a Program<'info, Token>>,
         sender: Option<AccountInfo<'info>>,
@@ -53,7 +48,6 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
             system_program,
             program_merkle_tree,
             merkle_tree,
-            pre_inserted_leaves_index,
             authority,
             token_program,
             sender,

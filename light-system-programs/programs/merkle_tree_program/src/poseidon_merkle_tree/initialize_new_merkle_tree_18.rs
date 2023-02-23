@@ -22,14 +22,6 @@ pub struct InitializeNewMerkleTree<'info> {
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-    #[account(
-        init,
-        payer = authority,
-        seeds = [&merkle_tree.key().to_bytes()],
-        bump,
-        space = 16,
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
     pub merkle_tree_authority_pda: Account<'info, MerkleTreeAuthority>,
 }
@@ -86,6 +78,7 @@ mod test {
             height: 0u64,
             merkle_tree_nr: 0u64,
             lock_duration: 20u64,
+            next_queued_index: 0u64,
         };
         let height = 18;
         let mt_index = 0;

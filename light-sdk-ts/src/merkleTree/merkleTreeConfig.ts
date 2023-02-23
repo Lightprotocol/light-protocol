@@ -45,27 +45,17 @@ export class MerkleTreeConfig {
     this.connection = connection;
   }
 
-  async getPreInsertedLeavesIndex() {
-    this.preInsertedLeavesIndex = PublicKey.findProgramAddressSync(
-      [this.merkleTreePubkey.toBuffer()],
-      this.merkleTreeProgram.programId,
-    )[0];
-    return this.preInsertedLeavesIndex;
-  }
-
   async initializeNewMerkleTree(merkleTreePubkey?: PublicKey) {
     if (!this.payer) throw new Error("Payer undefined");
     if (merkleTreePubkey) {
       this.merkleTreePubkey = merkleTreePubkey;
     }
-    await this.getPreInsertedLeavesIndex();
     await this.getMerkleTreeAuthorityPda();
     const tx = await this.merkleTreeProgram.methods
       .initializeNewMerkleTree(new anchor.BN("50"))
       .accounts({
         authority: this.payer.publicKey,
         merkleTree: this.merkleTreePubkey,
-        preInsertedLeavesIndex: this.preInsertedLeavesIndex,
         systemProgram: DEFAULT_PROGRAMS.systemProgram,
         rent: DEFAULT_PROGRAMS.rent,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
@@ -74,7 +64,6 @@ export class MerkleTreeConfig {
       .rpc(confirmConfig);
 
     await this.checkMerkleTreeIsInitialized();
-    await this.checkPreInsertedLeavesIndexIsInitialized();
     return tx;
   }
 
@@ -92,21 +81,6 @@ export class MerkleTreeConfig {
     // roots are empty save for 0
     // lock duration is correct
     assert(merkleTreeAccountInfo.lockDuration.toString() == "50");
-  }
-
-  async checkPreInsertedLeavesIndexIsInitialized() {
-    if (!this.preInsertedLeavesIndex)
-      throw new Error("preInsertedLeavesIndex undefined");
-    var preInsertedLeavesIndexAccountInfo =
-      await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
-        this.preInsertedLeavesIndex,
-      );
-
-    assert(
-      preInsertedLeavesIndexAccountInfo != null,
-      "preInsertedLeavesIndexAccountInfo not initialized",
-    );
-    assert(preInsertedLeavesIndexAccountInfo.nextIndex.toString() == "0");
   }
 
   async printMerkleTree() {

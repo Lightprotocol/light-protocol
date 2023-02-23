@@ -19,6 +19,7 @@ pub struct VerifierState10Ins<T: Config> {
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: u64,
     pub checked_public_inputs: Vec<Vec<u8>>,
+    pub proof: Vec<u8>,
     pub e_phantom: PhantomData<T>,
 }
 
@@ -81,6 +82,7 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
             //     vec![0u8; 256 - light_tx.encrypted_utxos.len()],
             // ]
             // .concat(),
+            proof: [light_tx.proof_a, light_tx.proof_b, light_tx.proof_c].concat(),
             merkle_root: light_tx.merkle_root,
             tx_integrity_hash: light_tx.tx_integrity_hash,
             checked_public_inputs: light_tx.checked_public_inputs,
