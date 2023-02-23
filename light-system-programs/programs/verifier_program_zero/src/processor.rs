@@ -48,7 +48,6 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         Some(ctx.accounts.sender_fee.to_account_info()),
         Some(ctx.accounts.recipient_fee.to_account_info()),
         Some(ctx.accounts.relayer_recipient.to_account_info()),
-        Some(ctx.accounts.escrow.to_account_info()),
         Some(ctx.accounts.token_authority.to_account_info()),
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,

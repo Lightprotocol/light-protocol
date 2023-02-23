@@ -69,11 +69,6 @@ export type VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -175,11 +170,6 @@ export const IDL: VerifierProgramTwo = {
         },
         {
           "name": "relayerRecipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },

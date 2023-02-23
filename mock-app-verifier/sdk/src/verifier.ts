@@ -104,11 +104,7 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.params.accounts ", transaction.params.accounts);
 
     var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
-    try {
-      // deposit means the amount is u64
-      new BN(transaction.publicInputs.feeAmount).toArray("be", 8);
-      relayerRecipient = transaction.params.accounts.escrow;
-    } catch (error) {}
+ 
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         Buffer.from(transaction.publicInputs.publicAmount),

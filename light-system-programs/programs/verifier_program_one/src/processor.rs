@@ -70,7 +70,6 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         Some(ctx.accounts.sender_fee.to_account_info()),
         Some(ctx.accounts.recipient_fee.to_account_info()),
         Some(ctx.accounts.relayer_recipient.to_account_info()),
-        Some(ctx.accounts.escrow.to_account_info()),
         Some(ctx.accounts.token_authority.to_account_info()),
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,

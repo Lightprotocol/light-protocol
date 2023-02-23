@@ -98,7 +98,6 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
         recipient_fee: ctx.accounts.recipient_fee.to_account_info().clone(),
         // relayer recipient and escrow will never be used in the same transaction
         relayer_recipient: ctx.accounts.relayer_recipient.to_account_info().clone(),
-        escrow: ctx.accounts.relayer_recipient.to_account_info().clone(),
         token_authority: ctx.accounts.token_authority.to_account_info().clone(),
     };
 
