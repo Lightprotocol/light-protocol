@@ -63,7 +63,6 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
         &ctx.accounts.merkle_tree,
-        &ctx.accounts.pre_inserted_leaves_index,
         ctx.accounts.authority.to_account_info(),
         Some(&ctx.accounts.token_program),
         Some(ctx.accounts.sender.to_account_info()),

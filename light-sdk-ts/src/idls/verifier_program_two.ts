@@ -34,11 +34,6 @@ export type VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -145,11 +140,6 @@ export const IDL: VerifierProgramTwo = {
         },
         {
           "name": "merkleTree",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },

@@ -418,14 +418,6 @@ describe("Verifier Two test", () => {
     }
   });
 
-  it("Wrong preInsertedLeavesIndex", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.preInsertedLeavesIndex = REGISTERED_VERIFIER_PDA;
-      await sendTestTx(tmp_tx, "preInsertedLeavesIndex");
-    }
-  });
-
   it("Wrong nullifier accounts", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);

@@ -10,7 +10,11 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
-import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
+import {
+  PRE_INSERTED_LEAVES_INDEX,
+  confirmConfig,
+  MERKLE_TREE_KEY,
+} from "./constants";
 import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
@@ -153,7 +157,6 @@ export class TransactionParameters implements transactionParameters {
         this.merkleTreeProgram.programId,
         verifier.verifierProgram.programId,
       ),
-      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
       recipient: recipient,
       senderFee: senderFee, // TODO: change to feeSender
@@ -1496,18 +1499,11 @@ export class Transaction {
     console.log(`mode ${this.action}, this.is_token ${this.is_token}`);
 
     try {
-      var preInsertedLeavesIndexAccount =
-        await this.provider.provider.connection.getAccountInfo(
-          PRE_INSERTED_LEAVES_INDEX,
-        );
-
-      const preInsertedLeavesIndexAccountAfterUpdate =
-        await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
-          PRE_INSERTED_LEAVES_INDEX,
-        );
+      const merkleTreeAfterUpdate =
+        await this.merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
       console.log(
-        "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
+        "Number(merkleTreeAfterUpdate.nextQueuedIndex) ",
+        Number(merkleTreeAfterUpdate.nextQueuedIndex),
       );
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
@@ -1520,7 +1516,7 @@ export class Transaction {
       );
 
       assert.equal(
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
+        Number(merkleTreeAfterUpdate.nextQueuedIndex),
         Number(leavesAccountData.leftLeafIndex) +
           this.params.leavesPdaPubkeys.length * 2,
       );
