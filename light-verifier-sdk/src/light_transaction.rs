@@ -716,7 +716,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             &self
                 .accounts
                 .unwrap()
-                .escrow
+                .sender_fee
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
@@ -732,7 +732,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             &self
                 .accounts
                 .unwrap()
-                .escrow
+                .sender_fee
                 .as_ref()
                 .unwrap()
                 .to_account_info(),

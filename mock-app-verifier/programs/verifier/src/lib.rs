@@ -21,11 +21,9 @@ use crate::processor::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
+use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree;
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-};
 use verifier_program_two::{self, program::VerifierProgramTwo};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
@@ -155,10 +153,7 @@ pub struct LightInstructionSecond<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: UncheckedAccount<'info>,
-    // /// CHECK:` Is checked when it is used during sol deposits.
-    // #[account(mut)]
-    // pub escrow: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during spl withdrawals.
+    /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
     /// CHECK: Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.

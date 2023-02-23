@@ -50,7 +50,6 @@ export type transactionParameters = {
     recipientFee?: PublicKey;
     verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
-    escrow?: PublicKey;
   };
   relayer?: Relayer;
   encryptedUtxos?: Uint8Array;
@@ -77,7 +76,6 @@ export class TransactionParameters implements transactionParameters {
     recipientFee?: PublicKey;
     verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
-    escrow?: PublicKey;
     systemProgramId: PublicKey;
     merkleTree: PublicKey;
     tokenProgram: PublicKey;
@@ -321,7 +319,7 @@ export class Transaction {
     // prep and get proof inputs
     this.publicAmount = this.getExternalAmount(1);
     this.feeAmount = this.getExternalAmount(0);
-    this.assignAccounts(params);
+    this.assignAccounts();
     this.getMerkleProofs();
     this.getProofInput();
     await this.getRootIndex();
@@ -523,7 +521,11 @@ export class Transaction {
     return connectingHash;
   }
 
-  assignAccounts(params: TransactionParameters) {
+  assignAccounts() {
+    if (!this.params) throw new Error("Params undefined");
+    if (!this.params.verifier.verifierProgram)
+      throw new Error("Verifier.verifierProgram undefined");
+
     if (this.assetPubkeys && this.params) {
       if (!this.params.accounts.sender && !this.params.accounts.senderFee) {
         if (this.action !== "WITHDRAWAL") {
@@ -571,14 +573,18 @@ export class Transaction {
             );
           }
         }
-        if (!this.params.accounts.senderFee) {
-          this.params.accounts.senderFee = SystemProgram.programId;
-          if (!this.feeAmount?.eq(new BN(0))) {
-            throw new Error(
-              "sth is wrong assignAccounts !params.accounts.senderFee",
-            );
-          }
-        }
+        this.params.accounts.senderFee = PublicKey.findProgramAddressSync(
+          [anchor.utils.bytes.utf8.encode("escrow")],
+          this.params.verifier.verifierProgram.programId,
+        )[0];
+        // if (!this.params.accounts.senderFee) {
+
+        //   if (!this.feeAmount?.eq(new BN(0))) {
+        //     throw new Error(
+        //       "sth is wrong assignAccounts !params.accounts.senderFee",
+        //     );
+        //   }
+        // }
       }
     } else {
       throw new Error("assignAccounts assetPubkeys undefined");
@@ -999,12 +1005,19 @@ export class Transaction {
         this.params.accounts.recipientFee,
       );
     }
-
-    this.senderFeeBalancePriorTx = new BN(
-      await this.provider.provider.connection.getBalance(
-        this.params.accounts.senderFee,
-      ),
-    );
+    if (this.action === "DEPOSIT") {
+      this.senderFeeBalancePriorTx = new BN(
+        await this.provider.provider.connection.getBalance(
+          this.params.relayer.accounts.relayerPubkey,
+        ),
+      );
+    } else {
+      this.senderFeeBalancePriorTx = new BN(
+        await this.provider.provider.connection.getBalance(
+          this.params.accounts.senderFee,
+        ),
+      );
+    }
 
     this.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
@@ -1271,10 +1284,6 @@ export class Transaction {
       });
     }
 
-    this.params.accounts.escrow = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("escrow")],
-      this.params.verifier.verifierProgram.programId,
-    )[0];
     if (this.appParams) {
       this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
         [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
@@ -1545,7 +1554,7 @@ export class Transaction {
 
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderFee,
+          this.params.relayer.accounts.relayerPubkey,
         );
       console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
       console.log(
