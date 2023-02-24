@@ -106,13 +106,19 @@ export class Provider {
   }
 
   private async fetchLookupTable() {
+    if (this.browserWallet) {
+      // api call to relayer
+      return;
+    }
     if (!this.provider) throw new Error("No provider set.");
-    // TODO: replace with api call to relayer - lookuptable
     this.lookUpTable = await initLookUpTableFromFile(this.provider);
   }
 
   private async fetchMerkleTree() {
-    // Api call to relayer - merkletree
+    if (this.browserWallet) {
+      // api call to relayer
+      return;
+    }
     // TODO: move to a seperate function
     const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
       MERKLE_TREE_KEY,
