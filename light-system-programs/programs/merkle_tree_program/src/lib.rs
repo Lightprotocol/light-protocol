@@ -284,12 +284,7 @@ pub mod merkle_tree_program {
         leaf_right: [u8; 32],
         encrypted_utxo: [u8; 256],
     ) -> Result<()> {
-        process_insert_two_leaves(
-            ctx,
-            leaf_left,
-            leaf_right,
-            encrypted_utxo,
-        )
+        process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
     }
 
     /// Withdraws sol from a liquidity pool.
@@ -318,7 +313,7 @@ pub mod merkle_tree_program {
 
     pub fn initialize_nullifiers<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InitializeNullifiers<'info>>,
-        nullifiers: Vec<Vec<u8>>,
+        nullifiers: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_nullifiers(ctx, nullifiers)
     }

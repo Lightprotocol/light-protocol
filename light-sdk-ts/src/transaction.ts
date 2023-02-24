@@ -472,8 +472,7 @@ export class Transaction {
         completePathZkey,
         wtns,
       );
-      const proofJson = JSON.stringify(proof, null, 1);
-      const publicInputsJson = JSON.stringify(publicSignals, null, 1);
+
       console.timeEnd("Proof generation");
 
       const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
@@ -484,6 +483,15 @@ export class Transaction {
         console.log("Invalid proof");
         throw new Error("Invalid Proof");
       }
+      // const curve = await  ffjavascript.getCurveFromName(vKey.curve);
+      // let neg_proof_a = curve.G1.neg(curve.G1.fromObject(proof.pi_a))
+      // proof.pi_a = [
+      //   ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(0,32)).toString(),
+      //     ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(32,64)).toString(),
+      //       '1'
+      // ];
+      const proofJson = JSON.stringify(proof, null, 1);
+      const publicInputsJson = JSON.stringify(publicSignals, null, 1);
 
       var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
       var publicInputsBytes = new Array<Array<number>>();
@@ -1843,13 +1851,13 @@ export class Transaction {
         }
       }
     }
-    return [
-      mydata.pi_a[0],
-      mydata.pi_a[1],
-      mydata.pi_b[0].flat().reverse(),
-      mydata.pi_b[1].flat().reverse(),
-      mydata.pi_c[0],
-      mydata.pi_c[1],
-    ].flat();
+    return {
+      proofA: [mydata.pi_a[0], mydata.pi_a[1]].flat(),
+      proofB: [
+        mydata.pi_b[0].flat().reverse(),
+        mydata.pi_b[1].flat().reverse(),
+      ].flat(),
+      proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
+    };
   }
 }

@@ -14,33 +14,28 @@ use crate::light_transaction::Config;
 #[derive(Clone)]
 pub struct AppTransaction<'a, T: Config> {
     pub checked_public_inputs: Vec<Vec<u8>>,
-    pub proof_a: Vec<u8>,
-    pub proof_b: Vec<u8>,
-    pub proof_c: Vec<u8>,
+    pub proof_a: &'a [u8; 64],
+    pub proof_b: &'a [u8; 128],
+    pub proof_c: &'a [u8; 64],
     pub e_phantom: PhantomData<T>,
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
     pub verified_proof: bool,
     pub invoked_system_verifier: bool,
 }
 
-impl<T: Config> AppTransaction<'_, T> {
+impl<'a, T: Config> AppTransaction<'a, T> {
     #[allow(clippy::too_many_arguments)]
-    pub fn new<'a>(
-        proof: Vec<u8>,
+    pub fn new(
+        proof_a: &'a [u8; 64],
+        proof_b: &'a [u8; 128],
+        proof_c: &'a [u8; 64],
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
-    ) -> AppTransaction<T> {
-        msg!("commented negate proof a");
-        let proof_a: G1 =
-            <G1 as FromBytes>::read(&*[&change_endianness(&proof[0..64])[..], &[0u8][..]].concat())
-                .unwrap();
-        let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
-
+    ) -> AppTransaction<'a, T> {
         AppTransaction {
-            proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
-            proof_b: proof[64..64 + 128].to_vec(),
-            proof_c: proof[64 + 128..256].to_vec(),
+            proof_a,
+            proof_b,
+            proof_c,
             verified_proof: false,
             invoked_system_verifier: false,
             e_phantom: PhantomData,
@@ -62,14 +57,14 @@ impl<T: Config> AppTransaction<'_, T> {
         let mut public_inputs = Vec::new();
 
         for input in self.checked_public_inputs.iter() {
-            public_inputs.push(input.to_vec());
+            public_inputs.push(input.as_slice());
         }
 
         let mut verifier = Groth16Verifier::new(
-            self.proof_a.clone(),
-            self.proof_b.clone(),
-            self.proof_c.clone(),
-            public_inputs,
+            self.proof_a,
+            self.proof_b,
+            self.proof_c,
+            public_inputs.as_slice(),
             self.verifyingkey,
         )
         .unwrap();
@@ -82,9 +77,9 @@ impl<T: Config> AppTransaction<'_, T> {
             Err(e) => {
                 msg!("Public Inputs:");
                 msg!("checked_public_inputs {:?}", self.checked_public_inputs);
-                msg!("proof a: {:?}", self.proof_a.clone());
-                msg!("proof b: {:?}", self.proof_b.clone());
-                msg!("proof c: {:?}", self.proof_c.clone());
+                msg!("proof a: {:?}", self.proof_a);
+                msg!("proof b: {:?}", self.proof_b);
+                msg!("proof c: {:?}", self.proof_c);
 
                 msg!("error {:?}", e);
                 err!(VerifierSdkError::ProofVerificationFailed)

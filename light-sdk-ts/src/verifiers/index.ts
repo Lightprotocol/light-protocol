@@ -7,9 +7,9 @@ import { Transaction } from "../transaction";
 
 export type PublicInputs = {
   root: Array<number>;
-  publicAmount: Buffer;
+  publicAmount: Array<number>;
   extDataHash: Array<number>;
-  feeAmount: Buffer;
+  feeAmount: Array<number>;
   mintPubkey: Array<number>;
   nullifiers: Array<Array<number>>;
   leaves: Array<Array<Array<number>>>;

@@ -51,9 +51,13 @@ impl<T: Config> anchor_lang::Owner for VerifierState4Ins<T> {
         Pubkey::new(&T::ID[..])
     }
 }
-
-impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState4Ins<T> {
-    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState4Ins<T> {
+/*
+impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
+    From<Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>> for VerifierState4Ins<T>
+{
+    fn from(
+        light_tx: Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>,
+    ) -> VerifierState4Ins<T> {
         let mut nullifiers = [[0u8; 32]; 4];
         for (i, nf) in light_tx.nullifiers.iter().enumerate() {
             nullifiers[i] = nf.clone().try_into().unwrap();
@@ -73,9 +77,9 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState4Ins<T> {
             signer: Pubkey::new(&[0u8; 32]),
             nullifiers: light_tx.nullifiers,
             leaves: leaves[0].clone(),
-            public_amount: light_tx.public_amount.try_into().unwrap(),
-            fee_amount: light_tx.fee_amount.try_into().unwrap(),
-            mint_pubkey: light_tx.mint_pubkey.try_into().unwrap(),
+            public_amount: *light_tx.public_amount,
+            fee_amount: *light_tx.fee_amount,
+            mint_pubkey: light_tx.mint_pubkey,
             relayer_fee: light_tx.relayer_fee,
             encrypted_utxos: [
                 light_tx.encrypted_utxos.clone(),
@@ -89,3 +93,4 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState4Ins<T> {
         }
     }
 }
+*/

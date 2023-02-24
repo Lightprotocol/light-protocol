@@ -23,18 +23,21 @@ impl Config for TransactionConfig {
 
 pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-    proof: Vec<u8>,
-    public_amount: Vec<u8>,
-    nullifiers: Vec<Vec<u8>>,
-    leaves: Vec<Vec<Vec<u8>>>,
-    fee_amount: Vec<u8>,
-    encrypted_utxos: Vec<u8>,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    public_amount: &'a [u8; 32],
+    nullifiers: &'a [[u8; 32]; 2],
+    leaves: &'a [[[u8; 32]; 2]; 1],
+    fee_amount: &'a [u8; 32],
+    encrypted_utxos: &'a Vec<u8>,
     merkle_tree_index: u64,
     relayer_fee: u64,
-    checked_public_inputs: Vec<Vec<u8>>,
-    pool_type: Vec<u8>,
+    checked_public_inputs: &'a Vec<Vec<u8>>,
+    pool_type: &'a [u8; 32],
 ) -> Result<()> {
     msg!("sneder fee: {:?}", ctx.accounts.sender_fee);
+
     let accounts = Accounts::new(
         ctx.program_id,
         ctx.accounts.signing_address.to_account_info(),
@@ -53,8 +56,10 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         ctx.remaining_accounts,
     )?;
 
-    let mut transaction = Transaction::<TransactionConfig>::new(
-        proof,
+    let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
+        proof_a,
+        proof_b,
+        proof_c,
         public_amount,
         fee_amount,
         checked_public_inputs,

@@ -16,7 +16,7 @@ pub struct InitializeNullifiers<'info> {
 /// Inserts nullifiers, written in plain rust for memory optimization.
 pub fn process_insert_nullifiers<'info>(
     ctx: Context<'_, '_, '_, 'info, InitializeNullifiers<'info>>,
-    nullifiers: Vec<Vec<u8>>,
+    nullifiers: Vec<[u8; 32]>,
 ) -> Result<()> {
     let rent = <Rent as sysvar::Sysvar>::get()?;
 
