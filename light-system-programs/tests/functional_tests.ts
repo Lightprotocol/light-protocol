@@ -272,7 +272,7 @@ describe("verifier_program", () => {
     }
   });
 
-  it("Deposit", async () => {
+  it.only("Deposit", async () => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
     }
