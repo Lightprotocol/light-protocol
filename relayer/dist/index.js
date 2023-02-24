@@ -28,7 +28,7 @@ app.post("/relay", async function (req, res) {
         return res.status(500).json({ status: "error" });
     }
 });
-app.post("/merkletree", async function (req, res) {
+app.get("/merkletree", async function (req, res) {
     try {
         const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
         const merkletreeIsInited = await provider.provider.connection.getAccountInfo(MERKLE_TREE_KEY);
@@ -51,7 +51,7 @@ app.post("/merkletree", async function (req, res) {
         return res.status(500).json({ status: "error" });
     }
 });
-app.post("/lookuptable", async function (req, res) {
+app.get("/lookuptable", async function (req, res) {
     try {
         const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
         const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider);
