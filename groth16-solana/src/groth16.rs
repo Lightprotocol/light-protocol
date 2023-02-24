@@ -16,20 +16,20 @@ pub struct Groth16Verifyingkey<'a> {
 
 #[derive(PartialEq, Eq, Debug)]
 pub struct Groth16Verifier<'a> {
-    proof_a: Vec<u8>,
-    proof_b: Vec<u8>,
-    proof_c: Vec<u8>,
-    public_inputs: Vec<Vec<u8>>,
-    prepared_public_inputs: Vec<u8>,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    public_inputs: &'a [&'a [u8]],
+    prepared_public_inputs: [u8; 64],
     verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
 impl Groth16Verifier<'_> {
     pub fn new<'a>(
-        proof_a: Vec<u8>,
-        proof_b: Vec<u8>,
-        proof_c: Vec<u8>,
-        public_inputs: Vec<Vec<u8>>,
+        proof_a: &'a [u8; 64],
+        proof_b: &'a [u8; 128],
+        proof_c: &'a [u8; 64],
+        public_inputs: &'a [&'a [u8]],
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> Result<Groth16Verifier<'a>, Groth16Error> {
         if proof_a.len() != 64 {
@@ -53,7 +53,7 @@ impl Groth16Verifier<'_> {
             proof_b,
             proof_c,
             public_inputs,
-            prepared_public_inputs: Vec::<u8>::new(),
+            prepared_public_inputs: [0u8; 64],
             verifyingkey,
         })
     }
@@ -73,7 +73,7 @@ impl Groth16Verifier<'_> {
                     .unwrap();
         }
 
-        self.prepared_public_inputs = prepared_public_inputs.to_vec();
+        self.prepared_public_inputs = prepared_public_inputs;
 
         Ok(())
     }
@@ -82,18 +82,18 @@ impl Groth16Verifier<'_> {
         self.prepare_inputs()?;
 
         let pairing_input = [
-            self.proof_a.to_vec(),
-            self.proof_b.to_vec(),
-            self.prepared_public_inputs.to_vec(),
-            self.verifyingkey.vk_gamme_g2.to_vec(),
-            self.proof_c.to_vec(),
-            self.verifyingkey.vk_delta_g2.to_vec(),
-            self.verifyingkey.vk_alpha_g1.to_vec(),
-            self.verifyingkey.vk_beta_g2.to_vec(),
+            self.proof_a.as_slice(),
+            self.proof_b.as_slice(),
+            self.prepared_public_inputs.as_slice(),
+            self.verifyingkey.vk_gamme_g2.as_slice(),
+            self.proof_c.as_slice(),
+            self.verifyingkey.vk_delta_g2.as_slice(),
+            self.verifyingkey.vk_alpha_g1.as_slice(),
+            self.verifyingkey.vk_beta_g2.as_slice(),
         ]
         .concat();
 
-        let pairing_res = alt_bn128_pairing(&pairing_input[..]).unwrap();
+        let pairing_res = alt_bn128_pairing(pairing_input.as_slice()).unwrap();
 
         if pairing_res[31] != 1 {
             return Err(Groth16Error::ProofVerificationFailed);
@@ -263,7 +263,7 @@ mod tests {
     fn proof_verification_should_succeed() {
         let mut public_inputs_vec = Vec::new();
         for input in PUBLIC_INPUTS.chunks(32) {
-            public_inputs_vec.push(input.to_vec());
+            public_inputs_vec.push(input);
         }
 
         let proof_a: G1 =
@@ -272,11 +272,15 @@ mod tests {
         let mut proof_a_neg = [0u8; 65];
         <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
 
+        let proof_a = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
+        let proof_b = PROOF[64..192].try_into().unwrap();
+        let proof_c = PROOF[192..256].try_into().unwrap();
+
         let mut verifier = Groth16Verifier::new(
-            change_endianness(&proof_a_neg[..64]).to_vec(),
-            PROOF[64..192].to_vec(),
-            PROOF[192..256].to_vec(),
-            public_inputs_vec,
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            public_inputs_vec.as_slice(),
             &VERIFYING_KEY,
         )
         .unwrap();
@@ -287,14 +291,16 @@ mod tests {
     fn wrong_proof_verification_should_not_succeed() {
         let mut public_inputs_vec = Vec::new();
         for input in PUBLIC_INPUTS.chunks(32) {
-            public_inputs_vec.push(input.to_vec());
+            public_inputs_vec.push(input);
         }
-
+        let proof_a = PROOF[0..64].try_into().unwrap();
+        let proof_b = PROOF[64..192].try_into().unwrap();
+        let proof_c = PROOF[192..256].try_into().unwrap();
         let mut verifier = Groth16Verifier::new(
-            PROOF[0..64].to_vec(), // using non negated proof a as test for wrong proof
-            PROOF[64..192].to_vec(),
-            PROOF[192..256].to_vec(),
-            public_inputs_vec,
+            &proof_a, // using non negated proof a as test for wrong proof
+            &proof_b,
+            &proof_c,
+            public_inputs_vec.as_slice(),
             &VERIFYING_KEY,
         )
         .unwrap();
@@ -309,15 +315,19 @@ mod tests {
     fn invalid_nr_public_inputs_should_not_succeed() {
         let mut public_inputs_vec = Vec::new();
         for input in PUBLIC_INPUTS.chunks(32) {
-            public_inputs_vec.push(input.to_vec());
+            public_inputs_vec.push(input);
         }
-        public_inputs_vec.push(vec![1u8; 32]);
+        let add_input = [1u8; 32];
+        public_inputs_vec.push(add_input.as_slice());
+        let proof_a = PROOF[0..64].try_into().unwrap();
+        let proof_b = PROOF[64..192].try_into().unwrap();
+        let proof_c = PROOF[192..256].try_into().unwrap();
 
         let verifier = Groth16Verifier::new(
-            PROOF[0..64].to_vec(), // using non negated proof a as test for wrong proof
-            PROOF[64..192].to_vec(),
-            PROOF[192..256].to_vec(),
-            public_inputs_vec,
+            &proof_a, // using non negated proof a as test for wrong proof
+            &proof_b,
+            &proof_c,
+            public_inputs_vec.as_slice(),
             &VERIFYING_KEY,
         );
 
