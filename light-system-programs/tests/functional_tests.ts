@@ -410,7 +410,10 @@ describe("verifier_program", () => {
       ),
     );
     await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(recipientFee, 1_000_000),
+      await lightProvider.provider.connection.requestAirdrop(
+        recipientFee,
+        1_000_000,
+      ),
     );
 
     let relayer = new Relayer(
