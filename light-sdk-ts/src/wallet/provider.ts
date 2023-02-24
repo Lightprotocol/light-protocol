@@ -12,6 +12,7 @@ import {
   setUpMerkleTree,
 } from "../test-utils";
 import { MERKLE_TREE_KEY } from "../constants";
+const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
 /**
@@ -107,7 +108,13 @@ export class Provider {
 
   private async fetchLookupTable() {
     if (this.browserWallet) {
-      // api call to relayer
+      const response = await axios.get("http://localhost:3331/lookuptable");
+      this.lookUpTable = response.data;
+      console.log(
+        "lookuptable fetched from 3331",
+        this.lookUpTable,
+        response.data,
+      );
       return;
     }
     if (!this.provider) throw new Error("No provider set.");
@@ -116,7 +123,13 @@ export class Provider {
 
   private async fetchMerkleTree() {
     if (this.browserWallet) {
-      // api call to relayer
+      const response = await axios.get("http://localhost:3331/merkletree");
+      this.solMerkleTree = response.data;
+      console.log(
+        "merkletree fetched from 3331",
+        this.solMerkleTree,
+        response.data,
+      );
       return;
     }
     // TODO: move to a seperate function

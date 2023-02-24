@@ -46,7 +46,7 @@ app.post("/relay", async function (req, res) {
   }
 });
 
-app.post("/merkletree", async function (req, res) {
+app.get("/merkletree", async function (req, res) {
   try {
     const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
     const merkletreeIsInited =
@@ -71,7 +71,7 @@ app.post("/merkletree", async function (req, res) {
   }
 });
 
-app.post("/lookuptable", async function (req, res) {
+app.get("/lookuptable", async function (req, res) {
   try {
     const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
     const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider!);
