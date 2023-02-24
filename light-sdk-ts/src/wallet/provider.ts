@@ -110,7 +110,7 @@ export class Provider {
     if (this.browserWallet) {
       const response = await axios.get("http://localhost:3331/lookuptable");
       this.lookUpTable = response.data.data;
-      console.log("lookuptable fetched from 3331", this.lookUpTable);
+      console.log("lookuptable fetched from 3331");
       return;
     }
     if (!this.provider) throw new Error("No provider set.");
@@ -121,11 +121,7 @@ export class Provider {
     if (this.browserWallet) {
       const response = await axios.get("http://localhost:3331/merkletree");
       this.solMerkleTree = response.data.data;
-      console.log(
-        "merkletree fetched from 3331",
-        this.solMerkleTree,
-        response.data,
-      );
+      console.log("merkletree fetched from 3331");
       return;
     }
     // TODO: move to a seperate function
