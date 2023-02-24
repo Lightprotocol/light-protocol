@@ -50,6 +50,36 @@ export type VerifierProgram = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "shieldedTransferSecond",
+      "docs": [
+        "Stores the provided message in a compressed account, closes the",
+        "temporary PDA."
+      ],
+      "accounts": [
+        {
+          "name": "signingAddress",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -64,6 +94,13 @@ export type VerifierProgram = {
           }
         ]
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NoopProgram",
+      "msg": "The provided program is not the noop program."
     }
   ]
 };
@@ -120,6 +157,36 @@ export const IDL: VerifierProgram = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "shieldedTransferSecond",
+      "docs": [
+        "Stores the provided message in a compressed account, closes the",
+        "temporary PDA."
+      ],
+      "accounts": [
+        {
+          "name": "signingAddress",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -134,6 +201,13 @@ export const IDL: VerifierProgram = {
           }
         ]
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NoopProgram",
+      "msg": "The provided program is not the noop program."
     }
   ]
 };
