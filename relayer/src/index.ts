@@ -1,7 +1,5 @@
-//@ts-check
-
-// basic webserver
-const {
+import { relay } from "./relay";
+import {
   ADMIN_AUTH_KEYPAIR,
   Relayer,
   Provider,
@@ -16,11 +14,10 @@ const {
   setUpMerkleTree,
   SolMerkleTree,
   verifierProgramId,
-} = require("light-sdk");
-const anchor = require("@coral-xyz/anchor");
-const solana = require("@solana/web3.js");
-const express = require("express");
-// const { relay } = require("./relay");
+} from "light-sdk";
+import * as anchor from "@coral-xyz/anchor";
+import * as solana from "@solana/web3.js";
+import express from "express";
 const app = express();
 const port = 3331;
 
@@ -35,10 +32,10 @@ app.use((req, res, next) => {
 });
 // endpoints:
 app.post("/relay", async function (req, res) {
-  throw new Error("/relayer endpoint not implemented yet.");
+  // throw new Error("/relayer endpoint not implemented yet.");
   try {
     if (!req.body.instructions) throw new Error("No instructions provided");
-    // await relay(req);
+    await relay(req, relayerPayer);
     return res.status(200).json({ status: "ok" });
   } catch (e) {
     console.log(e);
@@ -62,7 +59,7 @@ app.get("/merkletree", async function (req, res) {
       pubkey: MERKLE_TREE_KEY,
       poseidon: provider.poseidon,
     });
-    console.log("✔️ building merkletree done");
+    console.log("✔️ building merkletree done.");
     provider.solMerkleTree = mt;
     return res.status(200).json({ data: mt });
   } catch (e) {
@@ -87,16 +84,19 @@ const relayerPayer = ADMIN_AUTH_KEYPAIR;
 const relayerFeeRecipient = solana.Keypair.generate();
 const relayerFee = new anchor.BN(100000);
 
+const rpcPort = 8899;
+
 (async () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+  process.env.ANCHOR_PROVIDER_URL = `http://127.0.0.1:${rpcPort}`; // runscript starts dedicated validator on this port.
 
   const providerAnchor = anchor.AnchorProvider.local(
-    "http://127.0.0.1:8899",
+    `http://127.0.0.1:${rpcPort}`,
     confirmConfig
   );
   anchor.setProvider(providerAnchor);
   console.log("anchor provider set");
+
   await createTestAccounts(providerAnchor.connection);
   console.log("test accounts created");
   let LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
@@ -118,7 +118,12 @@ const relayerFee = new anchor.BN(100000);
     ),
     "confirmed"
   );
-  console.log("Relayer initialized", relayer);
+  console.log(
+    "Relayer initialized",
+    relayer.accounts.relayerPubkey.toBase58(),
+    "relayerRecipient: ",
+    relayer.accounts.relayerRecipient.toBase58()
+  );
 })();
 
 app.listen(port, async () => {
