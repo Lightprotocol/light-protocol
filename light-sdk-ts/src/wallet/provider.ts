@@ -37,7 +37,7 @@ export class Provider {
   poseidon: any;
   lookUpTable?: PublicKey;
   solMerkleTree?: SolMerkleTree;
-  provider?: AnchorProvider; // temp -?
+  provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
 
   /**
@@ -87,6 +87,7 @@ export class Provider {
     if (browserWallet) {
       //@ts-ignore
       this.connection = connection;
+      this.provider = { connection: connection! };
       this.browserWallet = browserWallet;
     }
   }
