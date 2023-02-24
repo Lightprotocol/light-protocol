@@ -9,6 +9,10 @@ import {
   MERKLE_TREE_KEY,
   setUpMerkleTree,
   SolMerkleTree,
+<<<<<<< HEAD
+=======
+  verifierProgramId,
+>>>>>>> e84de8b5 (relayer setting up its own test-validator with runScript.sh)
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
@@ -91,6 +95,7 @@ const rpcPort = 8899;
   );
   anchor.setProvider(providerAnchor);
   console.log("anchor provider set");
+
   await createTestAccounts(providerAnchor.connection);
   console.log("test accounts created");
   let LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
