@@ -91,7 +91,6 @@ const rpcPort = 8899;
   );
   anchor.setProvider(providerAnchor);
   console.log("anchor provider set");
-
   await createTestAccounts(providerAnchor.connection);
   console.log("test accounts created");
   let LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);

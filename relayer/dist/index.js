@@ -1,12 +1,13 @@
 "use strict";
+//@ts-check
 // basic webserver
-const { ADMIN_AUTH_KEYPAIR, Relayer, Provider, confirmConfig, updateMerkleTreeForTest, } = require("light-sdk");
+const { ADMIN_AUTH_KEYPAIR, Relayer, Provider, confirmConfig, updateMerkleTreeForTest, createTestAccounts, IDL_MERKLE_TREE_PROGRAM, IDL_VERIFIER_PROGRAM, initLookUpTableFromFile, merkleTreeProgramId, MERKLE_TREE_KEY, setUpMerkleTree, SolMerkleTree, verifierProgramId, } = require("light-sdk");
 const anchor = require("@coral-xyz/anchor");
 const solana = require("@solana/web3.js");
 const express = require("express");
-const { sendTransaction } = require("./sendTransaction");
+// const { relay } = require("./relay");
 const app = express();
-// const port = 3000;
+const port = 3331;
 // Add CORS headers
 app.use((req, res, next) => {
     res.header("Access-Control-Allow-Origin", "*");
@@ -14,13 +15,47 @@ app.use((req, res, next) => {
     next();
 });
 // endpoints:
-// /relay (unshield, transfer)
 app.post("/relay", async function (req, res) {
+    throw new Error("/relayer endpoint not implemented yet.");
     try {
         if (!req.body.instructions)
             throw new Error("No instructions provided");
-        await relay(req);
+        // await relay(req);
         return res.status(200).json({ status: "ok" });
+    }
+    catch (e) {
+        console.log(e);
+        return res.status(500).json({ status: "error" });
+    }
+});
+app.post("/merkletree", async function (req, res) {
+    try {
+        const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+        const merkletreeIsInited = await provider.provider.connection.getAccountInfo(MERKLE_TREE_KEY);
+        if (!merkletreeIsInited) {
+            // await setUpMerkleTree(provider.provider!);
+            // console.log("merkletree inited");
+            throw new Error("merkletree not inited yet.");
+        }
+        console.log("building merkletree...");
+        const mt = await SolMerkleTree.build({
+            pubkey: MERKLE_TREE_KEY,
+            poseidon: provider.poseidon,
+        });
+        console.log("✔️ building merkletree done");
+        provider.solMerkleTree = mt;
+        return res.status(200).json({ data: mt });
+    }
+    catch (e) {
+        console.log(e);
+        return res.status(500).json({ status: "error" });
+    }
+});
+app.post("/lookuptable", async function (req, res) {
+    try {
+        const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+        const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider);
+        return res.status(200).json({ data: LOOK_UP_TABLE });
     }
     catch (e) {
         console.log(e);
@@ -36,42 +71,19 @@ const relayerFee = new anchor.BN(100000);
     process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
     const providerAnchor = anchor.AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
     anchor.setProvider(providerAnchor);
+    console.log("anchor provider set");
+    await createTestAccounts(providerAnchor.connection);
+    console.log("test accounts created");
+    let LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
+    console.log("lookup table initialized");
+    await setUpMerkleTree(providerAnchor);
     /// *** this is not really necessary at this point *** TODO: remove
-    const provider = await Provider.native(relayerPayer);
-    relayer = new Relayer(relayerPayer.publicKey, provider.lookUpTable, relayerFeeRecipient.publicKey, relayerFee);
-    await provider.provider.connection.confirmTransaction(await provider.provider.connection.requestAirdrop(relayer.accounts.relayerRecipient, 1_000_000), "confirmed");
+    console.log("merkletree set up done");
+    relayer = new Relayer(relayerPayer.publicKey, LOOK_UP_TABLE, relayerFeeRecipient.publicKey, relayerFee);
+    await providerAnchor.connection.confirmTransaction(await providerAnchor.connection.requestAirdrop(relayer.accounts.relayerRecipient, 1_000_000), "confirmed");
     console.log("Relayer initialized", relayer);
 })();
-async function relay(req) {
-    const { instructions } = req.body;
-    const provider = await Provider.native(relayerPayer);
-    try {
-        let ixs = JSON.parse(instructions);
-        console.log("PARSED IX:", ixs);
-        if (ixs) {
-            let tx = "Something went wrong";
-            for (let ix in ixs) {
-                let txTmp = await sendTransaction(ixs[ix], provider);
-                if (txTmp) {
-                    console.log("tx ::", txTmp);
-                    await this.provider.provider?.connection.confirmTransaction(txTmp, "confirmed");
-                    tx = txTmp;
-                }
-                else {
-                    throw new Error("send transaction failed");
-                }
-            }
-            return tx;
-        }
-        else {
-            throw new Error("No parameters provided");
-        }
-    }
-    catch (e) {
-        console.log(e);
-    }
-    //TODO: add a check mechanism here await tx.checkBalances();
-    console.log("confirmed tx, updating merkletree...");
-    await updateMerkleTreeForTest(provider.provider);
-    console.log("merkletree update done. returning 200.");
-}
+app.listen(port, async () => {
+    console.log(`Webserver started on port ${port}`);
+    console.log("rpc:", process.env.RPC_URL);
+});
