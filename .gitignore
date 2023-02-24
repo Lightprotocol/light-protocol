@@ -14,6 +14,7 @@
 
 # relayer
 /relayer/node_modules/
+/relayer/dist/
 
 # light-sdk-ts
 /light-sdk-ts/node_modules/
