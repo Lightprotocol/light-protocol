@@ -3,9 +3,9 @@ export {
   IDL as IDL_MERKLE_TREE_PROGRAM,
 } from "./merkle_tree_program";
 export {
-  VerifierProgram,
-  IDL as IDL_VERIFIER_PROGRAM,
-} from "./verifier_program";
+  VerifierProgramStorage,
+  IDL as IDL_VERIFIER_PROGRAM_STORAGE,
+} from "./verifier_program_storage";
 export {
   VerifierProgramOne,
   IDL as IDL_VERIFIER_PROGRAM_ONE,

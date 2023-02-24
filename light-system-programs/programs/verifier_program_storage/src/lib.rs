@@ -37,7 +37,7 @@ pub fn wrap_event<'info>(
 }
 
 #[program]
-pub mod verifier_program {
+pub mod verifier_program_storage {
     use super::*;
 
     /// Saves the provided message in a temporary PDA.
