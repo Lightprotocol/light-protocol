@@ -1,16 +1,16 @@
-const {
+import {
   TransactionSignature,
   TransactionMessage,
   ComputeBudgetProgram,
   AddressLookupTableAccount,
   VersionedTransaction,
-} = require("@solana/web3.js");
-const { confirmConfig, Provider } = require("light-sdk");
+} from "@solana/web3.js";
+import { confirmConfig, Provider } from "light-sdk";
 
-async function sendTransaction(
+export async function sendTransaction(
   ix: any,
-  provider: typeof Provider
-): Promise<typeof TransactionSignature | undefined> {
+  provider: Provider
+): Promise<TransactionSignature | undefined> {
   if (!provider.provider) throw new Error("no provider set");
 
   const recentBlockhash = (
@@ -72,4 +72,3 @@ async function sendTransaction(
   }
   return res;
 }
-module.exports = { sendTransaction };

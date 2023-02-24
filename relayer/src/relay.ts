@@ -1,6 +1,7 @@
-import { updateMerkleTreeForTest } from "light-sdk";
-
-async function relay(req: express.Request) {
+import { Keypair } from "@solana/web3.js";
+import { Provider, updateMerkleTreeForTest } from "light-sdk";
+import { sendTransaction } from "./sendTransaction";
+export async function relay(req: express.Request, relayerPayer: Keypair) {
   const { instructions } = req.body;
   const provider = await Provider.native(relayerPayer);
 
@@ -13,7 +14,7 @@ async function relay(req: express.Request) {
         let txTmp = await sendTransaction(ixs[ix], provider);
         if (txTmp) {
           console.log("tx ::", txTmp);
-          await this.provider.provider?.connection.confirmTransaction(
+          await provider.provider?.connection.confirmTransaction(
             txTmp,
             "confirmed"
           );
@@ -31,10 +32,14 @@ async function relay(req: express.Request) {
   }
   //TODO: add a check mechanism here await tx.checkBalances();
   console.log("confirmed tx, updating merkletree...");
-  await updateMerkleTreeForTest(provider.provider!);
-  console.log("merkletree update done. returning 200.");
+  try {
+    await updateMerkleTreeForTest(provider.provider!);
+    console.log("merkletree update done. returning 200.");
+  } catch (e) {
+    console.log("merkletree update failed. ", e);
+  }
 }
 
-module.exports = {
-  relay,
-};
+// module.exports = {
+//   relay,
+// };
