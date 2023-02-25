@@ -1,6 +1,6 @@
-export type VerifierProgram = {
+export type VerifierProgramStorage = {
   "version": "0.1.0",
-  "name": "verifier_program",
+  "name": "verifier_program_storage",
   "instructions": [
     {
       "name": "shieldedTransferFirst",
@@ -105,9 +105,9 @@ export type VerifierProgram = {
   ]
 };
 
-export const IDL: VerifierProgram = {
+export const IDL: VerifierProgramStorage = {
   "version": "0.1.0",
-  "name": "verifier_program",
+  "name": "verifier_program_storage",
   "instructions": [
     {
       "name": "shieldedTransferFirst",
