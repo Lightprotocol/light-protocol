@@ -77,7 +77,6 @@ describe("Verifier Two test", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    // overwrite transaction
     depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
     depositFeeAmount =
@@ -107,11 +106,11 @@ describe("Verifier Two test", () => {
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET//, MINT
+        assets: [FEE_ASSET, MINT
       ],
         amounts: [
           new anchor.BN(depositFeeAmount),
-          // new anchor.BN(depositAmount),
+          new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
       });
@@ -146,11 +145,11 @@ describe("Verifier Two test", () => {
 
       var deposit_utxo2 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET//, MINT
+        assets: [FEE_ASSET, MINT
         ],
         amounts: [
           new anchor.BN(depositFeeAmount),
-          // new anchor.BN(depositAmount),
+          new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
       });
@@ -300,10 +299,10 @@ describe("Verifier Two test", () => {
     }
   });
 
-  it.skip("Wrong Mint", async () => {
+  it("Wrong Mint", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);
-      let relayer = new anchor.web3.Account();
+      let relayer = SolanaKeypair.generate();
       const newMintKeypair = SolanaKeypair.generate();
       await createMintWrapper({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
@@ -315,7 +314,7 @@ describe("Verifier Two test", () => {
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
         userAccount: relayer,
-        amount: 0,
+        amount: new BN(0),
       });
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
