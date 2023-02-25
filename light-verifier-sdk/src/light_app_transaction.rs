@@ -14,7 +14,7 @@ use crate::light_transaction::Config;
 #[derive(Clone)]
 pub struct AppTransaction<'a, T: Config> {
     pub checked_public_inputs: Vec<Vec<u8>>,
-    pub proof_a: &'a [u8; 64],
+    pub proof_a: [u8; 64],
     pub proof_b: &'a [u8; 128],
     pub proof_c: &'a [u8; 64],
     pub e_phantom: PhantomData<T>,
@@ -32,8 +32,16 @@ impl<'a, T: Config> AppTransaction<'a, T> {
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<'a, T> {
+        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
+            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
+        )
+        .unwrap();
+        let mut proof_a_neg = [0u8; 65];
+        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
+
+        let proof_a_neg: [u8; 64] = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         AppTransaction {
-            proof_a,
+            proof_a: proof_a_neg,
             proof_b,
             proof_c,
             verified_proof: false,
@@ -59,9 +67,10 @@ impl<'a, T: Config> AppTransaction<'a, T> {
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input.as_slice());
         }
+        msg!("public_inputs: {:?}", public_inputs);
 
         let mut verifier = Groth16Verifier::new(
-            self.proof_a,
+            &self.proof_a,
             self.proof_b,
             self.proof_c,
             public_inputs.as_slice(),

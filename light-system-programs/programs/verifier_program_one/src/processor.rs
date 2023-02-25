@@ -24,26 +24,32 @@ impl Config for TransactionConfig {
 
 pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-    proof: Vec<u8>,
-    public_amount: Vec<u8>,
-    nullifiers: Vec<Vec<u8>>,
-    leaves: Vec<Vec<Vec<u8>>>,
-    fee_amount: Vec<u8>,
-    encrypted_utxos: Vec<u8>,
-    root_index: &u64,
-    relayer_fee: &u64,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    public_amount: &'a [u8; 32],
+    nullifiers: &'a [[u8; 32]; 10],
+    leaves: &'a [[[u8; 32]; 2]; 1],
+    fee_amount: &'a [u8; 32],
+    encrypted_utxos: &'a Vec<u8>,
+    root_index: &'a u64,
+    relayer_fee: &'a u64,
 ) -> Result<()> {
-    let tx = Transaction::<TransactionConfig>::new(
-        proof,
+    let checked_public_inputs = Vec::<Vec<u8>>::new();
+    let pool_type = [0u8; 32];
+    let tx = Transaction::<1, 10, TransactionConfig>::new(
+        proof_a,
+        proof_b,
+        proof_c,
         public_amount,
         fee_amount,
-        Vec::<Vec<u8>>::new(), // checked_public_inputs
+        &checked_public_inputs, // checked_public_inputs
         nullifiers,
         leaves,
-        encrypted_utxos,
+        &encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),
-        vec![0u8; 32], //pool_type
+        &pool_type, //pool_type
         None,
         &VERIFYINGKEY,
     );
@@ -54,8 +60,10 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
 
 pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-    proof: Vec<u8>,
-    pool_type: Vec<u8>,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    pool_type: [u8; 32],
 ) -> Result<()> {
     let accounts = Accounts::new(
         ctx.program_id,
@@ -74,22 +82,37 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,
     )?;
+    let checked_public_inputs = Vec::<Vec<u8>>::new();
 
-    let mut tx = Transaction::<TransactionConfig>::new(
-        proof,
-        ctx.accounts.verifier_state.public_amount.to_vec(),
-        ctx.accounts.verifier_state.fee_amount.to_vec(),
-        Vec::<Vec<u8>>::new(), // checked_public_inputs
-        ctx.accounts.verifier_state.nullifiers.to_vec(),
-        vec![ctx.accounts.verifier_state.leaves.to_vec()],
-        ctx.accounts.verifier_state.encrypted_utxos.to_vec(),
+    let leaves = [[
+        ctx.accounts.verifier_state.leaves[0],
+        ctx.accounts.verifier_state.leaves[1],
+    ]; 1];
+    let nullifier: [[u8; 32]; 10] = ctx
+        .accounts
+        .verifier_state
+        .nullifiers
+        .to_vec()
+        .try_into()
+        .unwrap();
+
+    let mut tx = Transaction::<1, 10, TransactionConfig>::new(
+        proof_a,
+        proof_b,
+        proof_c,
+        &ctx.accounts.verifier_state.public_amount,
+        &ctx.accounts.verifier_state.fee_amount,
+        &checked_public_inputs, // checked_public_inputs
+        &nullifier,
+        &leaves,
+        &ctx.accounts.verifier_state.encrypted_utxos,
         ctx.accounts.verifier_state.relayer_fee,
         ctx.accounts
             .verifier_state
             .merkle_root_index
             .try_into()
             .unwrap(),
-        pool_type,
+        &pool_type,
         Some(&accounts),
         &VERIFYINGKEY,
     );

@@ -18,7 +18,7 @@ pub struct VerifierState10Ins<T: Config> {
     pub relayer_fee: u64,
     pub encrypted_utxos: Vec<u8>,
     pub merkle_root_index: u64,
-    pub checked_public_inputs: Vec<[u8; 32]>,
+    pub checked_public_inputs: Vec<Vec<u8>>,
     pub proof_a: [u8; 64],
     pub proof_b: [u8; 128],
     pub proof_c: [u8; 64],
@@ -54,9 +54,13 @@ impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
         Pubkey::new(&T::ID[..])
     }
 }
-/*
-impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
-    fn from(light_tx: Transaction<'_, '_, '_, T>) -> VerifierState10Ins<T> {
+
+impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
+    From<Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>> for VerifierState10Ins<T>
+{
+    fn from(
+        light_tx: Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>,
+    ) -> VerifierState10Ins<T> {
         assert_eq!(T::NR_LEAVES / 2, light_tx.leaves.len());
         assert_eq!(T::NR_NULLIFIERS, light_tx.nullifiers.len());
         // assert_eq!(T::NR_CHECKED_PUBLIC_INPUTS, light_tx.checked_public_inputs.len());
@@ -67,26 +71,26 @@ impl<T: Config> From<Transaction<'_, '_, '_, T>> for VerifierState10Ins<T> {
             leaves.push(pair[0].clone());
             leaves.push(pair[1].clone());
         }
+
         #[allow(deprecated)]
         VerifierState10Ins {
             merkle_root_index: <usize as TryInto<u64>>::try_into(light_tx.merkle_root_index)
                 .unwrap(),
             signer: Pubkey::new(&[0u8; 32]),
-            nullifiers: light_tx.nullifiers,
+            nullifiers: light_tx.nullifiers.to_vec(),
             leaves,
             public_amount: *light_tx.public_amount,
             fee_amount: *light_tx.fee_amount,
-            mint_pubkey: *light_tx.mint_pubkey,
-            relayer_fee: *light_tx.relayer_fee,
-            encrypted_utxos: light_tx.encrypted_utxos,
-            proof_a: *light_tx.proof_a,
+            mint_pubkey: light_tx.mint_pubkey,
+            relayer_fee: light_tx.relayer_fee,
+            encrypted_utxos: light_tx.encrypted_utxos.to_vec(),
+            proof_a: light_tx.proof_a,
             proof_b: *light_tx.proof_b,
             proof_c: *light_tx.proof_c,
             merkle_root: light_tx.merkle_root,
             tx_integrity_hash: light_tx.tx_integrity_hash,
-            checked_public_inputs: light_tx.checked_public_inputs,
+            checked_public_inputs: light_tx.checked_public_inputs.to_vec(),
             e_phantom: PhantomData,
         }
     }
 }
-*/

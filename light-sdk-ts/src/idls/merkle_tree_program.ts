@@ -773,7 +773,12 @@ export type MerkleTreeProgram = {
         {
           "name": "nullifiers",
           "type": {
-            "vec": "bytes"
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         }
       ]
@@ -2024,7 +2029,12 @@ export const IDL: MerkleTreeProgram = {
         {
           "name": "nullifiers",
           "type": {
-            "vec": "bytes"
+            "vec": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
           }
         }
       ]

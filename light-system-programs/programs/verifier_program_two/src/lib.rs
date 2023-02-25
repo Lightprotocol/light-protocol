@@ -32,10 +32,12 @@ pub mod verifier_program_two {
     /// This instruction is used to invoke this system verifier and can only be invoked via cpi.
     pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-        proof: Vec<u8>,
-        connecting_hash: Vec<u8>,
+        proof_a: [u8; 64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64],
+        connecting_hash: [u8; 32],
     ) -> Result<()> {
-        process_shielded_transfer(ctx, proof, connecting_hash)?;
+        process_shielded_transfer(ctx, &proof_a, &proof_b, &proof_c, &connecting_hash)?;
         Ok(())
     }
 }

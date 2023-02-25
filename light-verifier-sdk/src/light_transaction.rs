@@ -104,9 +104,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         .unwrap();
         let mut proof_a_neg = [0u8; 65];
         <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
-        // : change_endianness(&proof_a_neg[..64]),
-        // : proof[64..64 + 128];
-        // : proof[64 + 128..256];
+
         let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         Transaction {
             merkle_root: [0u8; 32],
