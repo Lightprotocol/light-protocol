@@ -91,11 +91,6 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
             .clone(),
         program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info().clone(),
         merkle_tree: ctx.accounts.merkle_tree.to_account_info().clone(),
-        pre_inserted_leaves_index: ctx
-            .accounts
-            .pre_inserted_leaves_index
-            .to_account_info()
-            .clone(),
         token_program: ctx.accounts.token_program.to_account_info().clone(),
         sender: ctx.accounts.sender.to_account_info().clone(),
         recipient: ctx.accounts.recipient.to_account_info().clone(),
@@ -103,7 +98,6 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
         recipient_fee: ctx.accounts.recipient_fee.to_account_info().clone(),
         // relayer recipient and escrow will never be used in the same transaction
         relayer_recipient: ctx.accounts.relayer_recipient.to_account_info().clone(),
-        escrow: ctx.accounts.relayer_recipient.to_account_info().clone(),
         token_authority: ctx.accounts.token_authority.to_account_info().clone(),
     };
 

@@ -17,10 +17,7 @@ use anchor_spl::token::Token;
 
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-    RegisteredVerifier,
-};
+use merkle_tree_program::{poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier};
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 #[error_code]
 pub enum ErrorCode {
@@ -58,12 +55,6 @@ pub struct LightInstruction<'info> {
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    #[account(
-        mut,
-        address = anchor_lang::prelude::Pubkey::find_program_address(&[merkle_tree.key().to_bytes().as_ref()], &MerkleTreeProgram::id()).0
-    )]
-    /// CHECK: Is the same as in integrity hash.
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
@@ -83,9 +74,6 @@ pub struct LightInstruction<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during sol deposits.
-    #[account(mut)]
-    pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,

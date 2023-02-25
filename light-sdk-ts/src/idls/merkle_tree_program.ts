@@ -141,11 +141,6 @@ export type MerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "merkleTreeAuthorityPda",
           "isMut": true,
           "isSigner": false
@@ -628,7 +623,7 @@ export type MerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
+          "name": "merkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -670,10 +665,6 @@ export type MerkleTreeProgram = {
               256
             ]
           }
-        },
-        {
-          "name": "merkleTreePdaPubkey",
-          "type": "publicKey"
         }
       ]
     },
@@ -971,6 +962,10 @@ export type MerkleTreeProgram = {
           },
           {
             "name": "lockDuration",
+            "type": "u64"
+          },
+          {
+            "name": "nextQueuedIndex",
             "type": "u64"
           }
         ]
@@ -1397,11 +1392,6 @@ export const IDL: MerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "merkleTreeAuthorityPda",
           "isMut": true,
           "isSigner": false
@@ -1884,7 +1874,7 @@ export const IDL: MerkleTreeProgram = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
+          "name": "merkleTree",
           "isMut": true,
           "isSigner": false
         },
@@ -1926,10 +1916,6 @@ export const IDL: MerkleTreeProgram = {
               256
             ]
           }
-        },
-        {
-          "name": "merkleTreePdaPubkey",
-          "type": "publicKey"
         }
       ]
     },
@@ -2227,6 +2213,10 @@ export const IDL: MerkleTreeProgram = {
           },
           {
             "name": "lockDuration",
+            "type": "u64"
+          },
+          {
+            "name": "nextQueuedIndex",
             "type": "u64"
           }
         ]

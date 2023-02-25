@@ -29,11 +29,6 @@ export type VerifierProgramZero = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -69,11 +64,6 @@ export type VerifierProgramZero = {
         },
         {
           "name": "relayerRecipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
@@ -180,11 +170,6 @@ export const IDL: VerifierProgramZero = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -220,11 +205,6 @@ export const IDL: VerifierProgramZero = {
         },
         {
           "name": "relayerRecipient",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
-          "name": "escrow",
           "isMut": true,
           "isSigner": false
         },
