@@ -375,11 +375,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                 &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                 &self.accounts.unwrap().authority.to_account_info(),
                 &self.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i].to_account_info(),
-                &self
-                    .accounts
-                    .unwrap()
-                    .pre_inserted_leaves_index
-                    .to_account_info(),
+                &self.accounts.unwrap().merkle_tree.to_account_info(),
                 &self.accounts.unwrap().system_program.to_account_info(),
                 &self
                     .accounts
@@ -388,7 +384,6 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                     .to_account_info(),
                 change_endianness(&leaves[0]).try_into().unwrap(),
                 change_endianness(&leaves[1]).try_into().unwrap(),
-                self.accounts.unwrap().merkle_tree.key(),
                 msg,
             )?;
         }
@@ -670,7 +665,6 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                     fee_amount_checked,
                 )?;
                 msg!("withdrew sol for the user");
-                
             }
         }
         if !self.is_deposit_fee() && relayer_fee > 0 {
@@ -722,7 +716,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             &self
                 .accounts
                 .unwrap()
-                .escrow
+                .sender_fee
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
@@ -738,7 +732,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
             &self
                 .accounts
                 .unwrap()
-                .escrow
+                .sender_fee
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
