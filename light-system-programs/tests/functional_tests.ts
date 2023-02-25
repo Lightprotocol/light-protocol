@@ -44,7 +44,7 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
   verifierStorageProgramId,
   User,
-  IDL_VERIFIER_PROGRAM,
+  IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
 } from "light-sdk";
 
@@ -74,7 +74,7 @@ describe("verifier_program", () => {
 
   const msg = Buffer.alloc(887).fill(1);
   const verifierProgram = new anchor.Program(
-    IDL_VERIFIER_PROGRAM,
+    IDL_VERIFIER_PROGRAM_STORAGE,
     verifierStorageProgramId,
   );
   const [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
