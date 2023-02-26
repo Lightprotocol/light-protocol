@@ -57,7 +57,6 @@ describe("Verifier Two test", () => {
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  console.log("skipping mint test and removed spl asset from utxos for out of memory");
   console.log = () => {};
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
