@@ -27,8 +27,10 @@ impl Config for TransactionConfig {
 
 pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-    proof: Vec<u8>,
-    connecting_hash: Vec<u8>,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    connecting_hash: &[u8; 32],
 ) -> Result<()> {
     let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
         &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
@@ -62,28 +64,28 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
             hash(&ctx.accounts.verifier_state.owner.to_bytes()).try_to_vec()?[1..].to_vec(),
         ]
         .concat(),
-        connecting_hash,
+        connecting_hash.to_vec(),
     ];
-    let mut tx = Transaction::<TransactionConfig>::new(
-        proof,
-        verifier_state.public_amount.to_vec(),
-        verifier_state.fee_amount.to_vec(),
-        checked_inputs,
-        verifier_state.nullifiers.to_vec(),
-        vec![
-            vec![
-                verifier_state.leaves[0].to_vec(),
-                verifier_state.leaves[1].to_vec(),
-            ],
-            vec![
-                verifier_state.leaves[2].to_vec(),
-                verifier_state.leaves[3].to_vec(),
-            ],
-        ],
-        verifier_state.encrypted_utxos.to_vec(),
+    let leaves = [
+        [verifier_state.leaves[0], verifier_state.leaves[1]],
+        [verifier_state.leaves[2], verifier_state.leaves[3]],
+    ];
+
+    let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();
+    let pool_type = [0u8; 32];
+    let mut tx = Transaction::<2, 4, TransactionConfig>::new(
+        proof_a,
+        proof_b,
+        proof_c,
+        &verifier_state.public_amount,
+        &verifier_state.fee_amount,
+        &checked_inputs,
+        &nullifiers,
+        &leaves,
+        &verifier_state.encrypted_utxos,
         verifier_state.relayer_fee,
         verifier_state.merkle_root_index.try_into().unwrap(),
-        vec![0u8; 32], //verifier_state.pool_type,
+        &pool_type, //verifier_state.pool_type,
         Some(&accounts),
         &VERIFYINGKEY,
     );

@@ -6,7 +6,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     authority: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
-    nullifiers: Vec<Vec<u8>>,
+    nullifiers: Vec<[u8; 32]>,
     nullifier_pdas: Vec<AccountInfo<'a>>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;

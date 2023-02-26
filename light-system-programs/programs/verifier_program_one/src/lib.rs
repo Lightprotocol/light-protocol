@@ -34,27 +34,31 @@ pub mod verifier_program_one {
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount: Vec<u8>,
+        public_amount: [u8; 32],
         nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
-        fee_amount: Vec<u8>,
+        fee_amount: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
-        let mut nullifiers_vec = Vec::<Vec<u8>>::new();
-        for nullifier in nullifiers {
-            nullifiers_vec.push(nullifier.to_vec());
-        }
-
+        // let mut nullifiers_vec = Vec::<Vec<u8>>::new();
+        // for nullifier in nullifiers {
+        //     nullifiers_vec.push(nullifier.to_vec());
+        // }
+        let proof_a = [0u8; 64];
+        let proof_b = [0u8; 128];
+        let proof_c = [0u8; 64];
         process_transfer_10_ins_2_outs_first(
             ctx,
-            vec![0u8; 256],
-            public_amount,
-            nullifiers_vec,
-            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            fee_amount,
-            encrypted_utxos,
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            &public_amount,
+            &nullifiers,
+            &[[leaves[0], leaves[1]]; 1],
+            &fee_amount,
+            &encrypted_utxos,
             &root_index,
             &relayer_fee,
         )
@@ -65,9 +69,11 @@ pub mod verifier_program_one {
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof: Vec<u8>,
+        proof_a: [u8; 64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64],
     ) -> Result<()> {
-        process_transfer_10_ins_2_outs_second(ctx, proof, vec![0u8; 32])
+        process_transfer_10_ins_2_outs_second(ctx, &proof_a, &proof_b, &proof_c, [0u8; 32])
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.

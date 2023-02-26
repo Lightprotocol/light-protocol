@@ -47,21 +47,22 @@ pub trait Config {
 }
 
 #[derive(Clone)]
-pub struct Transaction<'info, 'a, 'c, T: Config> {
-    pub merkle_root: Vec<u8>,
-    pub public_amount: Vec<u8>,
-    pub tx_integrity_hash: Vec<u8>,
-    pub fee_amount: Vec<u8>,
-    pub mint_pubkey: Vec<u8>,
-    pub checked_public_inputs: Vec<Vec<u8>>,
-    pub nullifiers: Vec<Vec<u8>>,
-    pub leaves: Vec<Vec<Vec<u8>>>,
+pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
+{
+    pub merkle_root: [u8; 32],
+    pub public_amount: &'a [u8; 32],
+    pub tx_integrity_hash: [u8; 32],
+    pub fee_amount: &'a [u8; 32],
+    pub mint_pubkey: [u8; 32],
+    pub checked_public_inputs: &'a Vec<Vec<u8>>,
+    pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
+    pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
     pub relayer_fee: u64,
-    pub proof_a: Vec<u8>,
-    pub proof_b: Vec<u8>,
-    pub proof_c: Vec<u8>,
-    pub encrypted_utxos: Vec<u8>,
-    pub pool_type: Vec<u8>,
+    pub proof_a: [u8; 64],
+    pub proof_b: &'a [u8; 128],
+    pub proof_c: &'a [u8; 64],
+    pub encrypted_utxos: &'a Vec<u8>,
+    pub pool_type: &'a [u8; 32],
     pub merkle_root_index: usize,
     pub transferred_funds: bool,
     pub computed_tx_integrity_hash: bool,
@@ -75,43 +76,49 @@ pub struct Transaction<'info, 'a, 'c, T: Config> {
     pub verifyingkey: &'a Groth16Verifyingkey<'a>,
 }
 
-impl<T: Config> Transaction<'_, '_, '_, T> {
+impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
+    Transaction<'_, '_, '_, NR_LEAVES, NR_NULLIFIERS, T>
+{
     #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
-        proof: Vec<u8>,
-        public_amount: Vec<u8>,
-        fee_amount: Vec<u8>,
-        checked_public_inputs: Vec<Vec<u8>>,
-        nullifiers: Vec<Vec<u8>>,
-        leaves: Vec<Vec<Vec<u8>>>,
-        encrypted_utxos: Vec<u8>,
+        proof_a: &'a [u8; 64],
+        proof_b: &'a [u8; 128],
+        proof_c: &'a [u8; 64],
+        public_amount: &'a [u8; 32],
+        fee_amount: &'a [u8; 32],
+        checked_public_inputs: &'a Vec<Vec<u8>>,
+        nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
+        leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
+        encrypted_utxos: &'a Vec<u8>,
         relayer_fee: u64,
         merkle_root_index: usize,
-        pool_type: Vec<u8>,
+        pool_type: &'a [u8; 32],
         accounts: Option<&'a Accounts<'info, 'a, 'c>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
-    ) -> Transaction<'info, 'a, 'c, T> {
+    ) -> Transaction<'info, 'a, 'c, NR_LEAVES, NR_NULLIFIERS, T> {
         assert_eq!(T::NR_NULLIFIERS, nullifiers.len());
         assert_eq!(T::NR_LEAVES / 2, leaves.len());
-
-        let proof_a: G1 =
-            <G1 as FromBytes>::read(&*[&change_endianness(&proof[0..64])[..], &[0u8][..]].concat())
-                .unwrap();
+        let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
+            &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
+        )
+        .unwrap();
         let mut proof_a_neg = [0u8; 65];
-        <G1 as ToBytes>::write(&proof_a.neg(), &mut proof_a_neg[..]).unwrap();
+        <G1 as ToBytes>::write(&proof_a_neg_g1.neg(), &mut proof_a_neg[..]).unwrap();
+
+        let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         Transaction {
-            merkle_root: vec![0u8; 32],
+            merkle_root: [0u8; 32],
             public_amount,
-            tx_integrity_hash: vec![0u8; 32],
+            tx_integrity_hash: [0u8; 32],
             fee_amount,
-            mint_pubkey: vec![0u8; 32],
+            mint_pubkey: [0u8; 32],
             checked_public_inputs,
             nullifiers,
             leaves,
             relayer_fee,
-            proof_a: change_endianness(&proof_a_neg[..64]).to_vec(),
-            proof_b: proof[64..64 + 128].to_vec(),
-            proof_c: proof[64 + 128..256].to_vec(),
+            proof_a: proof_a_neg,
+            proof_b,
+            proof_c,
             encrypted_utxos,
             merkle_root_index,
             transferred_funds: false,
@@ -157,31 +164,31 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         }
 
         let mut public_inputs = vec![
-            self.merkle_root[..].to_vec(),
-            self.public_amount[..].to_vec(),
-            self.tx_integrity_hash[..].to_vec(),
-            self.fee_amount[..].to_vec(),
-            self.mint_pubkey[..].to_vec(),
+            self.merkle_root.as_slice(),
+            self.public_amount.as_slice(),
+            self.tx_integrity_hash.as_slice(),
+            self.fee_amount.as_slice(),
+            self.mint_pubkey.as_slice(),
         ];
 
         for input in self.nullifiers.iter() {
-            public_inputs.push(input.to_vec());
+            public_inputs.push(input.as_slice());
         }
 
         for input in self.leaves.iter() {
-            public_inputs.push(input[0].to_vec());
-            public_inputs.push(input[1].to_vec());
+            public_inputs.push(input[0].as_slice());
+            public_inputs.push(input[1].as_slice());
         }
 
         for input in self.checked_public_inputs.iter() {
-            public_inputs.push(input.to_vec());
+            public_inputs.push(input);
         }
 
         let mut verifier = Groth16Verifier::new(
-            self.proof_a.clone(),
-            self.proof_b.clone(),
-            self.proof_c.clone(),
-            public_inputs,
+            &self.proof_a,
+            self.proof_b,
+            self.proof_c,
+            public_inputs.as_slice(),
             self.verifyingkey,
         )
         .unwrap();
@@ -278,7 +285,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         let hash = Fr::from_be_bytes_mod_order(&hash(&input[..]).try_to_vec()?[..]);
         let mut bytes = Vec::<u8>::new();
         <Fp256<FrParameters> as ToBytes>::write(&hash, &mut bytes).unwrap();
-        self.tx_integrity_hash = change_endianness(&bytes[..32]);
+        self.tx_integrity_hash = change_endianness(&bytes[..32]).try_into().unwrap();
         // msg!("tx_integrity_hash be: {:?}", self.tx_integrity_hash);
         // msg!("Fq::from_be_bytes_mod_order(&hash[..]) : {}", hash);
         self.computed_tx_integrity_hash = true;
@@ -289,7 +296,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
     pub fn fetch_root(&mut self) -> Result<()> {
         let merkle_tree = self.accounts.unwrap().merkle_tree.load()?;
         self.merkle_root =
-            change_endianness(merkle_tree.roots[self.merkle_root_index].to_vec().as_ref());
+            change_endianness(merkle_tree.roots[self.merkle_root_index].to_vec().as_ref())
+                .try_into()
+                .unwrap();
         self.fetched_root = true;
         Ok(())
     }
@@ -314,20 +323,22 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
                 //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
                 // );
                 if self.public_amount[24..32] == vec![0u8; 8] {
-                    self.mint_pubkey = vec![0u8; 32];
+                    self.mint_pubkey = [0u8; 32];
                 } else {
                     self.mint_pubkey = [
                         vec![0u8],
                         hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
                     ]
-                    .concat();
+                    .concat()
+                    .try_into()
+                    .unwrap();
                 }
 
                 self.fetched_mint = true;
                 Ok(())
             }
             Err(_) => {
-                self.mint_pubkey = vec![0u8; 32];
+                self.mint_pubkey = [0u8; 32];
                 self.fetched_mint = true;
                 Ok(())
             }
@@ -452,7 +463,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         // check mintPubkey
         let (pub_amount_checked, _) = self.check_amount(
             0,
-            change_endianness(&self.public_amount).try_into().unwrap(),
+            change_endianness(self.public_amount.as_slice())
+                .try_into()
+                .unwrap(),
         )?;
 
         // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
@@ -606,7 +619,9 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
-            change_endianness(&self.fee_amount).try_into().unwrap(),
+            change_endianness(self.fee_amount.as_slice())
+                .try_into()
+                .unwrap(),
         )?;
         msg!("fee amount {} ", fee_amount_checked);
         if fee_amount_checked > 0 {
@@ -758,7 +773,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
 
     pub fn check_sol_pool_account_derivation(&self, pubkey: &Pubkey, data: &[u8]) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
-            &[&[0u8; 32], &self.pool_type, POOL_CONFIG_SEED],
+            &[&[0u8; 32], self.pool_type, POOL_CONFIG_SEED],
             &MerkleTreeProgram::id(),
         );
         let mut cloned_data = data.clone();
@@ -772,7 +787,7 @@ impl<T: Config> Transaction<'_, '_, '_, T> {
 
     pub fn check_spl_pool_account_derivation(&self, pubkey: &Pubkey, mint: &Pubkey) -> Result<()> {
         let derived_pubkey = Pubkey::find_program_address(
-            &[&mint.to_bytes(), &self.pool_type, POOL_SEED],
+            &[&mint.to_bytes(), self.pool_type, POOL_SEED],
             &MerkleTreeProgram::id(),
         );
 
