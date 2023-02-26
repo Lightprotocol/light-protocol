@@ -917,9 +917,6 @@ export class Transaction {
             ...nacl.randomBytes(
               this.params.verifier.config.out * 128 - tmpArray.length,
             ),
-            // new Array(
-            //   this.params.verifier.config.out * 128 - tmpArray.length,
-            // ).fill(0),
           );
         }
         return new Uint8Array([...tmpArray]);
