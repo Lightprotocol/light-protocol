@@ -31,31 +31,34 @@ pub mod verifier_program_zero {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-        proof: Vec<u8>,
-        amount: Vec<u8>,
+        proof_a: [u8; 64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64],
+        amount: [u8; 32],
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
-        fee_amount: Vec<u8>,
+        fee_amount: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
+        let len_missing_bytes = 256 - encrypted_utxos.len();
+        let mut enc_utxos = encrypted_utxos;
+        enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
         process_shielded_transfer_2_in_2_out(
             ctx,
-            proof.to_vec(),
-            amount.to_vec(),
-            vec![nullifiers[0].to_vec(), nullifiers[1].to_vec()],
-            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            fee_amount.to_vec(),
-            [
-                encrypted_utxos.to_vec(),
-                vec![0u8; 256 - encrypted_utxos.len()],
-            ]
-            .concat(),
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            &amount,
+            &nullifiers,
+            &[leaves; 1],
+            &fee_amount,
+            &enc_utxos,
             root_index,
             relayer_fee,
-            Vec::<Vec<u8>>::new(), // checked_public_inputs
-            vec![0u8; 32],         //pool_type
+            &Vec::<Vec<u8>>::new(), // checked_public_inputs
+            &[0u8; 32],             //pool_type
         )
     }
 }

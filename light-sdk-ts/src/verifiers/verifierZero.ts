@@ -43,9 +43,9 @@ export class VerifierZero implements Verifier {
       if (publicInputsBytes.length == 9) {
         return {
           root: publicInputsBytes[0],
-          publicAmount: Buffer.from(publicInputsBytes[1]),
+          publicAmount: publicInputsBytes[1],
           extDataHash: publicInputsBytes[2],
-          feeAmount: Buffer.from(publicInputsBytes[3]),
+          feeAmount: publicInputsBytes[3],
           mintPubkey: publicInputsBytes[4],
           nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
           leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
@@ -82,11 +82,13 @@ export class VerifierZero implements Verifier {
 
     const ix = await this.verifierProgram.methods
       .shieldedTransferInputs(
-        Buffer.from(transaction.proofBytes),
-        Buffer.from(transaction.publicInputs.publicAmount),
+        transaction.proofBytes.proofA,
+        transaction.proofBytes.proofB,
+        transaction.proofBytes.proofC,
+        transaction.publicInputs.publicAmount,
         transaction.publicInputs.nullifiers,
         transaction.publicInputs.leaves[0],
-        Buffer.from(transaction.publicInputs.feeAmount),
+        transaction.publicInputs.feeAmount,
         new anchor.BN(transaction.rootIndex.toString()),
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase

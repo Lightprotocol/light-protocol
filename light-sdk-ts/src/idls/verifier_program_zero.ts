@@ -83,12 +83,40 @@ export type VerifierProgramZero = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "amount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -120,7 +148,12 @@ export type VerifierProgramZero = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",
@@ -224,12 +257,40 @@ export const IDL: VerifierProgramZero = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "amount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -261,7 +322,12 @@ export const IDL: VerifierProgramZero = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",

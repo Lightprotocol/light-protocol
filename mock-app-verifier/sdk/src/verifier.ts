@@ -102,15 +102,15 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
-
+      
     var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
  
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        Buffer.from(transaction.publicInputs.publicAmount),
+        transaction.publicInputs.publicAmount,
         transaction.publicInputs.nullifiers,
         transaction.publicInputs.leaves,
-        Buffer.from(transaction.publicInputs.feeAmount),
+        transaction.publicInputs.feeAmount,
         new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos.slice(0, 512))
@@ -124,8 +124,12 @@ export class MockVerifier implements Verifier {
 
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
-        Buffer.from(transaction.proofBytesApp),
-        Buffer.from(transaction.proofBytes),
+        transaction.proofBytesApp.proofA,
+        transaction.proofBytesApp.proofB,
+        transaction.proofBytesApp.proofC,
+        transaction.proofBytes.proofA,
+        transaction.proofBytes.proofB,
+        transaction.proofBytes.proofC,
         Buffer.from(transaction.publicInputsApp.connectingHash)
       )
       .accounts({
