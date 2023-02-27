@@ -914,38 +914,14 @@ export class Transaction {
 
         if (tmpArray.length < 512) {
           tmpArray.push(
-            new Array(
+            ...nacl.randomBytes(
               this.params.verifier.config.out * 128 - tmpArray.length,
-            ).fill(0),
+            ),
           );
         }
-        // TODO: find generic way to make it work for both the multisig and the marketplace
-        if (this.appParams.overwrite) {
-          const utxoBytes =
-            this.params?.outputUtxos[this.appParams.overwriteIndex].toBytes();
-          tmpArray = this.overWriteEncryptedUtxos(utxoBytes, tmpArray, 0).slice(
-            0,
-            512,
-          );
-        }
-        // return new Uint8Array(tmpArray.flat());
         return new Uint8Array([...tmpArray]);
       }
     }
-  }
-
-  // need this for the marketplace rn
-  overWriteEncryptedUtxos(
-    bytes: Uint8Array,
-    toOverwriteBytes: Uint8Array,
-    offSet: number = 0,
-  ) {
-    // this.params.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
-    return Uint8Array.from([
-      ...toOverwriteBytes.slice(0, offSet),
-      ...bytes,
-      ...toOverwriteBytes.slice(offSet + bytes.length, toOverwriteBytes.length),
-    ]);
   }
 
   // send transaction should be the same for both deposit and withdrawal
