@@ -17,11 +17,12 @@ export class VerifierZero implements Verifier {
   config: { in: number; out: number };
   instructions?: anchor.web3.TransactionInstruction[];
   pubkey: anchor.BN;
-  constructor() {
+  constructor(provider: anchor.Provider) {
     try {
       this.verifierProgram = new Program(
         IDL_VERIFIER_PROGRAM_ZERO,
         verifierProgramZeroProgramId,
+        provider,
       );
     } catch (error) {
       console.log(error);

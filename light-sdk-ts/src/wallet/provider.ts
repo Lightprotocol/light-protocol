@@ -1,4 +1,9 @@
-import { AnchorError, AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import {
+  AnchorError,
+  AnchorProvider,
+  setProvider,
+  Wallet,
+} from "@coral-xyz/anchor";
 import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
@@ -7,11 +12,13 @@ import {
   ConfirmOptions,
 } from "@solana/web3.js";
 import {
+  ADMIN_AUTH_KEYPAIR,
   initLookUpTable,
   initLookUpTableFromFile,
   setUpMerkleTree,
 } from "../test-utils";
-import { MERKLE_TREE_KEY } from "../constants";
+import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
+import { MerkleTree } from "../merkleTree/merkleTree";
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
@@ -67,10 +74,10 @@ export class Provider {
       throw new Error(
         "Connection provided in node environment. Provide a url instead",
       );
-    if (browserWallet && url)
-      throw new Error(
-        "Url provided in browser environment. Provide a connection instead",
-      );
+    // if (browserWallet && url)
+    //   throw new Error(
+    //     "Url provided in browser environment. Provide a connection instead",
+    //   );
 
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
@@ -110,7 +117,7 @@ export class Provider {
   private async fetchLookupTable() {
     if (this.browserWallet) {
       const response = await axios.get("http://localhost:3331/lookuptable");
-      this.lookUpTable = response.data.data;
+      this.lookUpTable = new PublicKey(response.data.data);
       console.log("lookuptable fetched from 3331");
       return;
     }
@@ -121,7 +128,18 @@ export class Provider {
   private async fetchMerkleTree() {
     if (this.browserWallet) {
       const response = await axios.get("http://localhost:3331/merkletree");
-      this.solMerkleTree = response.data.data;
+
+      const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
+
+      const pubkey = new PublicKey(response.data.data.pubkey);
+
+      const mt = new MerkleTree(
+        MERKLE_TREE_HEIGHT,
+        this.poseidon,
+        fetchedMerkleTree._layers[0],
+      );
+
+      this.solMerkleTree = { ...response.data.data, merkleTree: mt, pubkey };
       console.log("merkletree fetched from 3331");
       return;
     }

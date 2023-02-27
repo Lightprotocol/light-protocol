@@ -92,11 +92,7 @@ export class User {
     this.account = account;
   }
 
-  async getBalance({
-    latest = true,
-  }: {
-    latest?: boolean;
-  }): Promise<Balance[]> {
+  async getBalance({ latest = true }: { latest?: boolean }): Promise<any> {
     const balances: Balance[] = [];
     if (!this.utxos) throw new Error("Utxos not initialized");
     if (!this.account) throw new Error("Keypair not initialized");
@@ -107,54 +103,62 @@ export class User {
     if (!this.provider.lookUpTable)
       throw new Error("Look up table not initialized");
 
-    if (latest) {
-      let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-      //TODO: add: "pending" to balances
-      //TODO: add init by cached (subset of leavesPdas)
-      // TODO: add incoming utxos
-      const params = {
-        leavesPdas,
-        merkleTree: this.provider.solMerkleTree.merkleTree!,
-        provider: this.provider.provider!,
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        merkleTreeProgram: merkleTreeProgramId,
-      };
-      const utxos = await getUnspentUtxos(params);
-      this.utxos = utxos;
-      console.log("✔️ updated utxos", this.utxos.length);
-    } else {
-      console.log("✔️ read utxos from cache", this.utxos.length);
-    }
-    this.utxos.forEach((utxo) => {
-      utxo.assets.forEach((asset, i) => {
-        const tokenAccount = asset;
-        const amount = utxo.amounts[i].toNumber();
-
-        const existingBalance = balances.find(
-          (balance) =>
-            balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
+    try {
+      if (latest) {
+        let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+          MERKLE_TREE_KEY,
+          this.provider,
         );
-        if (existingBalance) {
-          existingBalance.amount += amount;
-        } else {
-          let tokenData = TOKEN_REGISTRY.find(
-            (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
+
+        //TODO: add: "pending" to balances
+        //TODO: add init by cached (subset of leavesPdas)
+        // TODO: add incoming utxos
+        const params = {
+          leavesPdas,
+          merkleTree: this.provider.solMerkleTree.merkleTree!,
+          provider: this.provider.provider!,
+          account: this.account,
+          poseidon: this.provider.poseidon,
+          merkleTreeProgram: merkleTreeProgramId,
+        };
+        const utxos = await getUnspentUtxos(params);
+        this.utxos = utxos;
+        console.log("✔️ updated utxos", this.utxos.length);
+      } else {
+        console.log("✔️ read utxos from cache", this.utxos.length);
+      }
+      this.utxos.forEach((utxo) => {
+        utxo.assets.forEach((asset, i) => {
+          const tokenAccount = asset;
+          const amount = utxo.amounts[i].toNumber();
+
+          const existingBalance = balances.find(
+            (balance) =>
+              balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
           );
-          if (!tokenData)
-            throw new Error(
-              `Token ${tokenAccount.toBase58()} not found in registry`,
+          if (existingBalance) {
+            existingBalance.amount += amount;
+          } else {
+            let tokenData = TOKEN_REGISTRY.find(
+              (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
             );
-          balances.push({
-            symbol: tokenData.symbol,
-            amount,
-            tokenAccount,
-            decimals: tokenData.decimals,
-          });
-        }
+            if (!tokenData)
+              throw new Error(
+                `Token ${tokenAccount.toBase58()} not found in registry`,
+              );
+            balances.push({
+              symbol: tokenData.symbol,
+              amount,
+              tokenAccount,
+              decimals: tokenData.decimals,
+            });
+          }
+        });
       });
-    });
-    return balances;
+      return balances;
+    } catch (err) {
+      console.log("error in getting the user balance =============>", { err });
+    }
   }
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
@@ -519,11 +523,27 @@ export class User {
           ? this.provider.nodeWallet!.publicKey
           : userTokenAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
-        verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
+        verifier: new VerifierZero(this.provider), // TODO: add support for 10in here -> verifier1
       });
       return txParams;
     } else {
-      throw new Error("Browser wallet support not implemented yet!");
+      const verifier = new VerifierZero(this.provider);
+
+      let txParams = new TransactionParameters({
+        outputUtxos: shieldUtxos,
+        inputUtxos: inUtxos,
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        sender: tokenCtx.isSol
+          ? this.provider.browserWallet!.publicKey
+          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+        senderFee: this.provider.browserWallet!.publicKey,
+        verifier, // TODO: add support for 10in here -> verifier1
+        provider: this.provider,
+      });
+
+      return txParams;
+
+      // throw new Error("Browser wallet support not implemented yet!");
     }
   }
   /**
@@ -628,14 +648,16 @@ export class User {
 
     await tx.compileAndProve(txParams);
 
+    console.log("compiled and prooofeddd");
+
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      console.log("====================>", { e });
+      // console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
 
     console.log = () => {};
@@ -646,8 +668,7 @@ export class User {
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
       console.log("updating merkle tree...");
-      console.log = () => {};
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(this.provider.provider!, this.provider);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -928,7 +949,10 @@ export class User {
     }
 
     // TODO: optimize: fetch once, then filter
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+      MERKLE_TREE_KEY,
+      this.provider,
+    );
 
     const params = {
       leavesPdas,
@@ -952,10 +976,14 @@ export class User {
   static async load(
     provider: Provider,
     cachedUser?: CachedUserState,
-  ): Promise<User> {
-    const user = new User({ provider });
-    await user.load(cachedUser, provider);
-    return user;
+  ): Promise<any> {
+    try {
+      const user = new User({ provider });
+      await user.load(cachedUser, provider);
+      return user;
+    } catch (err) {
+      console.log({ err });
+    }
   }
 
   // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...

@@ -8,6 +8,7 @@ import {
   TransactionSignature,
   TransactionInstruction,
 } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
 import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
@@ -25,7 +26,7 @@ import {
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 import { readFileSync } from "fs";
 import { Provider as LightProvider } from "./wallet";
-const anchor = require("@coral-xyz/anchor");
+import axios from "axios";
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
 var ffjavascript = require("ffjavascript");
@@ -37,6 +38,7 @@ var assert = require("assert");
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 
 export type transactionParameters = {
+  provider: anchor.Provider;
   inputUtxos?: Array<Utxo>;
   outputUtxos?: Array<Utxo>;
   accounts: {
@@ -64,6 +66,7 @@ export type transactionParameters = {
 };
 
 export class TransactionParameters implements transactionParameters {
+  provider: anchor.Provider;
   inputUtxos?: Array<Utxo>;
   outputUtxos?: Array<Utxo>;
   accounts: {
@@ -111,6 +114,7 @@ export class TransactionParameters implements transactionParameters {
     verifierApp,
     relayer,
     encryptedUtxos,
+    provider,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -128,6 +132,7 @@ export class TransactionParameters implements transactionParameters {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
+        provider,
       );
     } catch (error) {
       console.log(error);
@@ -457,19 +462,20 @@ export class Transaction {
 
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-      const buffer = readFileSync(completePathWtns);
+      // const buffer = readFileSync(completePathWtns);
 
-      let witnessCalculator = await verifier.calculateWtns(buffer);
+      // let witnessCalculator = await verifier.calculateWtns(buffer);
+
+      // let wtns = await witnessCalculator.calculateWTNSBin(
+      //   stringifyBigInts(inputs),
+      //   0,
+      // );
 
       console.time("Proof generation");
-      let wtns = await witnessCalculator.calculateWTNSBin(
+      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         stringifyBigInts(inputs),
-        0,
-      );
-
-      const { proof, publicSignals } = await snarkjs.groth16.prove(
+        completePathWtns,
         completePathZkey,
-        wtns,
       );
       const proofJson = JSON.stringify(proof, null, 1);
       const publicInputsJson = JSON.stringify(publicSignals, null, 1);
@@ -648,6 +654,7 @@ export class Transaction {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
+        this.provider,
       );
       let root = Uint8Array.from(
         leInt2Buff(

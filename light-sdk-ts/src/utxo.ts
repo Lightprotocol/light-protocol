@@ -1,7 +1,22 @@
 import { Account } from "./account";
 import nacl, { box } from "tweetnacl";
 const crypto = require("crypto");
-const randomBN = (nbytes = 30) => new anchor.BN(crypto.randomBytes(nbytes));
+
+const randomBytes = (length: number): Buffer => {
+  function randomString(length: number, chars: string) {
+    var result = "";
+    for (var i = length; i > 0; --i)
+      result += chars[Math.floor(Math.random() * chars.length)];
+    return result;
+  }
+  var rString = randomString(length, "0123456789abcdefghijklmnopqrstuvwxyz");
+  const buf1 = Buffer.from(rString, "hex");
+  return buf1;
+};
+
+const randomBN = (nbytes = 30) => {
+  return new anchor.BN(randomBytes(nbytes));
+};
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
 import {
