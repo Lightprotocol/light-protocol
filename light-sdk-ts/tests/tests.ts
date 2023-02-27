@@ -1,4 +1,5 @@
 import { assert, expect } from "chai";
+var chaiAsPromised = require("chai-as-promised");
 let circomlibjs = require("circomlibjs");
 import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
@@ -17,6 +18,8 @@ import {
   MERKLE_TREE_KEY,
   MINT,
   Transaction,
+  UtxoError,
+  UtxoErrorCode,
 } from "../src";
 import { SolMerkleTree } from "../src/merkleTree/solMerkleTree";
 const { blake2b } = require("@noble/hashes/blake2b");
@@ -208,6 +211,84 @@ describe("verifier_program", () => {
     );
     assert.equal(k0Pubkey.pubkey.toString(), k0.pubkey.toString());
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
+  });
+
+  it("Test Utxo errors", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    const amountFee = "1";
+    const amountToken = "2";
+    const assetPubkey = MINT;
+    const seed32 = new Uint8Array(32).fill(1).toString();
+    let inputs = {
+      keypair: new Account({ poseidon, seed: seed32 }),
+      amountFee,
+      amountToken,
+      assetPubkey,
+      assets: [SystemProgram.programId, assetPubkey],
+      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
+      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+    };
+
+    expect(() => {
+      new Utxo({
+        poseidon,
+        assets: [inputs.assets[1]],
+        amounts: inputs.amounts,
+        account: inputs.keypair,
+        blinding: inputs.blinding,
+      });
+    })
+      .to.throw(UtxoError)
+      .to.include({
+        code: UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
+        codeMessage: "Length missmatch assets: 1 != amounts: 2",
+      });
+
+    expect(() => {
+      new Utxo({
+        poseidon,
+        assets: [MINT, MINT, MINT],
+        amounts: [new anchor.BN(1), new anchor.BN(1), new anchor.BN(1)],
+        account: inputs.keypair,
+        blinding: inputs.blinding,
+      });
+    })
+      .to.throw(UtxoError)
+      .to.include({
+        code: UtxoErrorCode.EXCEEDED_MAX_ASSETS,
+        codeMessage: "assets.length 3 > N_ASSETS 2",
+      });
+
+    expect(() => {
+      new Utxo({
+        poseidon,
+        assets: inputs.assets,
+        amounts: [inputs.amounts[0], new anchor.BN(-1)],
+        account: inputs.keypair,
+        blinding: inputs.blinding,
+      });
+    })
+      .to.throw(UtxoError)
+      .to.include({
+        code: UtxoErrorCode.NEGATIVE_AMOUNT,
+        codeMessage: "amount cannot be negative, amounts[1] = -1",
+      });
+
+    expect(() => {
+      new Utxo({
+        poseidon,
+        assets: inputs.assets,
+        amounts: inputs.amounts,
+        account: inputs.keypair,
+        blinding: inputs.blinding,
+        appData: new Array(32).fill(1),
+      });
+    })
+      .to.throw(UtxoError)
+      .to.include({
+        code: UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
+        codeMessage: "No appDataFromBytesFn provided",
+      });
   });
 
   it("Test Utxo encryption", async () => {
