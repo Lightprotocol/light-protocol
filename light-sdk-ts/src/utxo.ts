@@ -372,7 +372,7 @@ export class Utxo {
    * @description PoseidonHash(commitment, index, signature)
    * @param {number} index Merkle tree index of the utxo commitment (Optional)
    *
-   * @returns string
+   * @returns {string}
    */
   getNullifier(index?: number | undefined) {
     if (!this.index) {
@@ -471,8 +471,8 @@ export class Utxo {
 
   /**
    * @description Compares two Utxos.
-   * @param utxo0
-   * @param utxo1
+   * @param {Utxo} utxo0
+   * @param {Utxo} utxo1
    */
   static equal(utxo0: Utxo, utxo1: Utxo) {
     assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());

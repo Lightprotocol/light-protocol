@@ -7,9 +7,8 @@ export enum UtxoErrorCode {
   BLINDING_EXCEEDS_SIZE = "BLINDING_EXCEEDS_SIZE",
 }
 
-/** Thrown when something fails in the Utxo class.
- *
- * @note
+/**
+ * @description Thrown when something fails in the Utxo class.
  **/
 export class UtxoError extends Error {
   name = this.constructor.name;
