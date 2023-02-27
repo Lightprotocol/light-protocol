@@ -14,12 +14,75 @@ export class UtxoError extends Error {
   name = this.constructor.name;
   code: string;
   codeMessage: string;
-  codeStack: string | null;
 
-  constructor(code: string, codeMessage: string, codeStack?: string) {
+  constructor(code: string, codeMessage: string) {
     super(`Utxo error ${code}: ${codeMessage}`);
     this.code = code;
     this.codeMessage = codeMessage;
-    this.codeStack = codeStack || null;
   }
 }
+
+export enum ProviderErrorCode {
+  SOL_MERKLE_TREE_UNDEFINED = "SOL_MERKLE_TREE_UNDEFINED",
+  ANCHOR_PROVIDER_UNDEFINED = "ANCHOR_PROVIDER_UNDEFINED",
+  PROVIDER_UNDEFINED = "PROVIDER_UNDEFINED",
+}
+
+export enum SolMerkleTreeErrorCode {
+  MERKLE_TREE_UNDEFINED = "MERKLE_TREE_UNDEFINED",
+}
+
+export enum TransactionErrorCode {
+  TX_PARAMETERS_UNDEFINED = "TX_PARAMETERS_UNDEFINED",
+  APP_PARAMETERS_UNDEFINED = "APP_PARAMETERS_UNDEFINED",
+  RELAYER_UNDEFINED = "TransactionParameters.relayer is undefined",
+  WALLET_UNDEFINED = "WALLET_UNDEFINED",
+  NO_UTXOS_PROVIDED = "NO_UTXOS_PROVIDED",
+  EXCEEDED_MAX_ASSETS = "EXCEEDED_MAX_ASSETS",
+  VERIFIER_PROGRAM_UNDEFINED = "VERIFIER_PROGRAM_UNDEFINED",
+  SPL_RECIPIENT_UNDEFINED = "SPL_RECIPIENT_UNDEFINED",
+  SOL_RECIPIENT_UNDEFINED = "SOL_RECIPIENT_UNDEFINED",
+  SPL_SENDER_UNDEFINED = "SPL_SENDER_UNDEFINED",
+  SOL_SENDER_UNDEFINED = "SOL_SENDER_UNDEFINED",
+  ASSET_PUBKEYS_UNDEFINED = "ASSET_PUBKEYS_UNDEFINED",
+  ACTION_IS_NO_WITHDRAWAL = "ACTION_IS_NO_WITHDRAWAL",
+  ACTION_IS_NO_DEPOSIT = "ACTION_IS_NO_DEPOSIT",
+  INPUT_UTXOS_UNDEFINED = "INPUT_UTXOS_UNDEFINED",
+  OUTPUT_UTXOS_UNDEFINED = "OUTPUT_UTXOS_UNDEFINED",
+  GET_MINT_FAILED = "GET_MINT_FAILED",
+  VERIFIER_UNDEFINED = "VERIFIER_UNDEFINED",
+  PROOF_INPUT_UNDEFINED = "PROOF_INPUT_UNDEFINED",
+  NO_PARAMETERS_PROVIDED = "NO_PARAMETERS_PROVIDED",
+  ROOT_NOT_FOUND = "ROOT_NOT_FOUND",
+  VERIFIER_CONFIG_UNDEFINED = "VERIFIER_CONFIG_UNDEFINED",
+  RELAYER_FEE_UNDEFINED = "RELAYER_FEE_UNDEFINED",
+  ENCRYPTING_UTXOS_FAILED = "ENCRYPTING_UTXOS_FAILED",
+  GET_INSTRUCTIONS_FAILED = "GET_INSTRUCTIONS_FAILED",
+  SEND_TRANSACTION_FAILED = "SEND_TRANSACTION_FAILED",
+  PUBLIC_INPUTS_UNDEFINED = "PUBLIC_INPUTS_UNDEFINED",
+  MERKLE_TREE_PROGRAM_UNDEFINED = "MERKLE_TREE_PROGRAM_UNDEFINED",
+  INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE = "INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE",
+  INVALID_PROOF = "INVALID_PROOF",
+  POSEIDON_HASHER_UNDEFINED = "POSEIDON_HASHER_UNDEFINED",
+}
+
+export class MetaError extends Error {
+  code: string;
+  codeMessage?: string;
+  functionName: string;
+
+  constructor(code: string, functionName: string, codeMessage?: string) {
+    super(`${code}: ${codeMessage}`);
+
+    this.codeMessage = codeMessage;
+    this.code = code;
+    this.functionName = functionName;
+  }
+}
+
+/**
+ * @description Thrown when something fails in the Transaction class.
+ **/
+export class TransactionError extends MetaError {}
+
+export class TransactioParameterError extends MetaError {}

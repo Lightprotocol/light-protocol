@@ -20,8 +20,13 @@ import {
   Transaction,
   UtxoError,
   UtxoErrorCode,
+  TransactionParameters,
+  VerifierZero,
+  TransactionError,
+  TransactionErrorCode,
+  ProviderErrorCode,
+  Provider,
 } from "../src";
-import { SolMerkleTree } from "../src/merkleTree/solMerkleTree";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
@@ -394,7 +399,81 @@ describe("verifier_program", () => {
     await functionalCircuitTest();
   });
 
-  it("assign Accounts", async () => {});
+  it.only("Test Transaction errors", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
+
+    let tx = new Transaction({
+      provider: lightProvider,
+    });
+
+    let txParams = new TransactionParameters({
+      outputUtxos: [deposit_utxo1],
+      merkleTreePubkey: mockPubkey,
+      sender: mockPubkey,
+      senderFee: mockPubkey,
+      verifier: new VerifierZero(),
+    });
+
+    expect(async () => {
+      await tx.getAssetPubkeys([], [])
+    }).to.throw(TransactionError).to.include({
+      code: TransactionErrorCode.NO_UTXOS_PROVIDED,
+      functionName: "getAssetPubkeys",
+    });
+
+    expect(async () => {
+      await tx.getAssetPubkeys([deposit_utxo1], [])
+    }).to.throw(TransactionError).to.include({
+      code: TransactionErrorCode.RELAYER_UNDEFINED,
+      functionName: "getAssetPubkeys",
+    });
+    
+  });
+
+  it("Test Transaction constructor", async () => {
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    let lightProvider: Provider = {};
+
+    expect(() => {new Transaction({
+      provider: lightProvider,
+    })}).to.throw(TransactionError).to.include({
+      code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
+      functionName: "constructor",
+    });
+    lightProvider = {poseidon: poseidon};
+
+    expect(() => {new Transaction({
+      provider: lightProvider,
+    })}).to.throw(TransactionError).to.include({
+      code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+      functionName: "constructor",
+    });
+
+    lightProvider = {poseidon: poseidon, solMerkleTree: 1};
+
+    expect(() => {new Transaction({
+      provider: lightProvider,
+    })}).to.throw(TransactionError).to.include({
+      code: TransactionErrorCode.WALLET_UNDEFINED,
+      functionName: "constructor",
+    });
+  })
+
   it("getIndices", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 

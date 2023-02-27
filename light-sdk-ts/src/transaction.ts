@@ -22,6 +22,12 @@ import {
   Account,
   merkleTreeProgramId,
   Relayer,
+  TransationError,
+  TransactionErrorCode,
+  TransactionError,
+  ProviderErrorCode,
+  SolMerkleTreeErrorCode,
+  TransactioParameterError,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 import { Provider } from "./wallet";
@@ -138,10 +144,24 @@ export class TransactionParameters implements transactionParameters {
       //   programId: merkleTreeProgramId,
       // };
     }
-    if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
-    if (!verifier) throw new Error("verifier undefined");
+    if (!this.merkleTreeProgram)
+      throw new TransactioParameterError(
+        TransactionErrorCode.MERKLE_TREE_PROGRAM_UNDEFINED,
+        "constructor",
+        "merkleTreeProgram not set",
+      );
+    if (!verifier)
+      throw new TransactioParameterError(
+        TransactionErrorCode.VERIFIER_UNDEFINED,
+        "constructor",
+        "verifier undefined",
+      );
     if (!verifier.verifierProgram)
-      throw new Error("verifier.verifierProgram undefined");
+      throw new TransactioParameterError(
+        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        "constructor",
+        "verifier.program undefined",
+      );
 
     this.accounts = {
       systemProgramId: SystemProgram.programId,
@@ -164,9 +184,19 @@ export class TransactionParameters implements transactionParameters {
     this.verifier = verifier;
     this.outputUtxos = outputUtxos;
     this.inputUtxos = inputUtxos;
-    if (!this.outputUtxos && !inputUtxos) {
-      throw new Error("No utxos provided.");
-    }
+
+    if (!this.outputUtxos)
+      throw new TransactioParameterError(
+        TransactionErrorCode.OUTPUT_UTXOS_UNDEFINED,
+        "constructor",
+        "",
+      );
+    if (!this.inputUtxos)
+      throw new TransactioParameterError(
+        TransactionErrorCode.INPUT_UTXOS_UNDEFINED,
+        "constructor",
+        "",
+      );
     this.verifierApp = verifierApp;
     this.relayer = relayer;
     this.encryptedUtxos = encryptedUtxos;
@@ -215,6 +245,7 @@ export class Transaction {
   senderFeeBalancePriorTx?: BN;
   recipientFeeBalancePriorTx?: BN;
   is_token?: boolean;
+
   /**
    * Initialize transaction
    *
@@ -228,10 +259,24 @@ export class Transaction {
     provider: Provider;
     shuffleEnabled?: boolean;
   }) {
-    if (!provider.poseidon) throw new Error("Poseidon not set");
-    if (!provider.solMerkleTree) throw new Error("Merkle tree not set");
+    if (!provider.poseidon)
+      throw new TransactionError(
+        TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
+        "constructor",
+        "Wallet not set",
+      );
+    if (!provider.solMerkleTree)
+      throw new TransactionError(
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "constructor",
+        "Merkle tree not set",
+      );
     if (!provider.browserWallet && !provider.nodeWallet)
-      throw new Error("Wallet not set");
+      throw new TransactionError(
+        TransactionErrorCode.WALLET_UNDEFINED,
+        "constructor",
+        "Wallet not set",
+      );
     this.provider = provider;
 
     this.shuffleEnabled = shuffleEnabled;
@@ -255,7 +300,11 @@ export class Transaction {
     } else if (this.params) {
       return await this.params.verifier.getInstructions(this);
     } else {
-      throw new Error("No parameters provided");
+      throw new TransactionError(
+        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+        "proveAndCreateInstructions",
+        "",
+      );
     }
   }
 
@@ -274,6 +323,8 @@ export class Transaction {
 
     if (params.relayer) {
       // TODO: rename to send
+      // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
+      // also the action is more explicit for the dev
       this.action = "WITHDRAWAL";
       console.log("withdrawal");
     } else if (
@@ -289,18 +340,22 @@ export class Transaction {
         this.provider.lookUpTable,
       );
     } else {
-      throw new Error(
-        "Couldn't assign relayer- no relayer nor wallet, or provider provided.",
+      throw new TransactionError(
+        TransactionErrorCode.WALLET_UNDEFINED,
+        "compile",
+        `Couldn't assign relayer- no relayer nor wallet, or provider provided. For withdrawal define relayer, for deposit define wallet and lookuptable.`,
       );
     }
-    if (this.params.relayer) {
-      this.params.accounts.signingAddress =
-        this.params.relayer.accounts.relayerPubkey;
-    } else {
-      throw new Error(
+
+    if (!this.params.relayer) {
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "compile",
         `Relayer not provided, or assigment failed at deposit this.params: ${this.params}`,
       );
     }
+    this.params.accounts.signingAddress =
+      this.params.relayer.accounts.relayerPubkey;
 
     // prepare utxos
     const pubkeys = this.getAssetPubkeys(params.inputUtxos, params.outputUtxos);
@@ -331,112 +386,158 @@ export class Transaction {
     } else if (this.assetPubkeysCircuit) {
       return this.assetPubkeysCircuit[1];
     } else {
-      throw new Error("Get mint failed");
+      throw new TransactionError(
+        TransactionErrorCode.GET_MINT_FAILED,
+        "getMint",
+        "Get mint failed",
+      );
     }
   }
 
   getProofInput() {
-    if (
-      this.params &&
-      this.provider.solMerkleTree?.merkleTree &&
-      this.params.inputUtxos &&
-      this.params.outputUtxos &&
-      this.assetPubkeysCircuit
-    ) {
-      this.proofInputSystem = {
-        root: this.provider.solMerkleTree.merkleTree.root(),
-        inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
-        // TODO: move public and fee amounts into tx preparation
-        publicAmount: this.getExternalAmount(1).toString(),
-        feeAmount: this.getExternalAmount(0).toString(),
-        mintPubkey: this.getMint(),
-        inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
-        inPathIndices: this.inputMerklePathIndices,
-        inPathElements: this.inputMerklePathElements,
-      };
-      this.proofInput = {
-        extDataHash: this.getTxIntegrityHash().toString(),
-        outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
-        inAmount: this.params.inputUtxos?.map((x) => x.amounts),
-        inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
-        assetPubkeys: this.assetPubkeysCircuit,
-        // data for 2 transaction outputUtxos
-        outAmount: this.params.outputUtxos?.map((x) => x.amounts),
-        outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
-        outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
-        inIndices: this.getIndices(this.params.inputUtxos),
-        outIndices: this.getIndices(this.params.outputUtxos),
-        inInstructionType: this.params.inputUtxos?.map(
-          (x) => x.instructionType,
-        ),
-        outInstructionType: this.params.outputUtxos?.map(
-          (x) => x.instructionType,
-        ),
-        inPoolType: this.params.inputUtxos?.map((x) => x.poolType),
-        outPoolType: this.params.outputUtxos?.map((x) => x.poolType),
-        inVerifierPubkey: this.params.inputUtxos?.map(
-          (x) => x.verifierAddressCircuit,
-        ),
-        outVerifierPubkey: this.params.outputUtxos?.map(
-          (x) => x.verifierAddressCircuit,
-        ),
-      };
-      if (this.appParams) {
-        this.proofInput.connectingHash = Transaction.getConnectingHash(
-          this.params,
-          this.provider.poseidon,
-          this.proofInput.extDataHash, //this.getTxIntegrityHash().toString()
-        );
-        this.proofInput.verifier = this.params.verifier?.pubkey;
-      }
-    } else {
-      throw new Error(`getProofInput has undefined inputs`);
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+    if (!this.params.inputUtxos)
+      throw new TransactionError(
+        TransactionErrorCode.INPUT_UTXOS_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+    if (!this.params.outputUtxos)
+      throw new TransactionError(
+        TransactionErrorCode.OUTPUT_UTXOS_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+    if (!this.provider.solMerkleTree)
+      throw new TransactionError(
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+    if (!this.provider.solMerkleTree.merkleTree)
+      throw new TransactionError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+    if (!this.assetPubkeysCircuit)
+      throw new TransactionError(
+        TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+        "getProofInput",
+        "",
+      );
+
+    this.proofInputSystem = {
+      root: this.provider.solMerkleTree.merkleTree.root(),
+      inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
+      // TODO: move public and fee amounts into tx preparation
+      publicAmount: this.getExternalAmount(1).toString(),
+      feeAmount: this.getExternalAmount(0).toString(),
+      mintPubkey: this.getMint(),
+      inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
+      inPathIndices: this.inputMerklePathIndices,
+      inPathElements: this.inputMerklePathElements,
+    };
+    this.proofInput = {
+      extDataHash: this.getTxIntegrityHash().toString(),
+      outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
+      inAmount: this.params.inputUtxos?.map((x) => x.amounts),
+      inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
+      assetPubkeys: this.assetPubkeysCircuit,
+      outAmount: this.params.outputUtxos?.map((x) => x.amounts),
+      outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
+      outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
+      inIndices: this.getIndices(this.params.inputUtxos),
+      outIndices: this.getIndices(this.params.outputUtxos),
+      inInstructionType: this.params.inputUtxos?.map((x) => x.instructionType),
+      outInstructionType: this.params.outputUtxos?.map(
+        (x) => x.instructionType,
+      ),
+      inPoolType: this.params.inputUtxos?.map((x) => x.poolType),
+      outPoolType: this.params.outputUtxos?.map((x) => x.poolType),
+      inVerifierPubkey: this.params.inputUtxos?.map(
+        (x) => x.verifierAddressCircuit,
+      ),
+      outVerifierPubkey: this.params.outputUtxos?.map(
+        (x) => x.verifierAddressCircuit,
+      ),
+    };
+    if (this.appParams) {
+      this.proofInput.connectingHash = Transaction.getConnectingHash(
+        this.params,
+        this.provider.poseidon,
+        this.proofInput.extDataHash, //this.getTxIntegrityHash().toString()
+      );
+      this.proofInput.verifier = this.params.verifier?.pubkey;
     }
   }
 
   async getAppProof() {
-    if (this.appParams && this.params) {
-      this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
-        this.params,
-        this.provider.poseidon,
-        this.getTxIntegrityHash().toString(),
+    if (!this.appParams)
+      throw new TransactionError(
+        TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
+        "getAppProof",
+        "",
       );
-      const path = require("path");
-      // TODO: find a better more flexible solution
-      const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
-      let { proofBytes, publicInputs } = await this.getProofInternal(
-        this.appParams.verifier,
-        {
-          ...this.appParams.inputs,
-          ...this.proofInput,
-          inPublicKey: this.params?.inputUtxos?.map(
-            (utxo) => utxo.account.pubkey,
-          ),
-        },
-        firstPath,
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getAppProof",
+        "",
       );
 
-      this.proofBytesApp = proofBytes;
-      this.publicInputsApp = publicInputs;
-    } else {
-      throw new Error("No app params or params provided");
-    }
+    this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
+      this.params,
+      this.provider.poseidon,
+      this.getTxIntegrityHash().toString(),
+    );
+    const path = require("path");
+    // TODO: find a better more flexible solution, pass in path with app params
+    const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
+    let { proofBytes, publicInputs } = await this.getProofInternal(
+      this.appParams.verifier,
+      {
+        ...this.appParams.inputs,
+        ...this.proofInput,
+        inPublicKey: this.params?.inputUtxos?.map(
+          (utxo) => utxo.account.pubkey,
+        ),
+      },
+      firstPath,
+    );
+
+    this.proofBytesApp = proofBytes;
+    this.publicInputsApp = publicInputs;
   }
 
   async getProof() {
     const path = require("path");
     const firstPath = path.resolve(__dirname, "../build-circuits/");
-    if (this.params && this.params?.verifier) {
-      let { proofBytes, publicInputs } = await this.getProofInternal(
-        this.params?.verifier,
-        { ...this.proofInput, ...this.proofInputSystem },
-        firstPath,
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getProof",
+        "",
       );
-      this.proofBytes = proofBytes;
-      this.publicInputs = publicInputs;
-    } else {
-      throw new Error("Params not defined.");
-    }
+    if (!this.params.verifier)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_UNDEFINED,
+        "getProof",
+        "",
+      );
+
+    let { proofBytes, publicInputs } = await this.getProofInternal(
+      this.params?.verifier,
+      { ...this.proofInput, ...this.proofInputSystem },
+      firstPath,
+    );
+    this.proofBytes = proofBytes;
+    this.publicInputs = publicInputs;
 
     // TODO: remove anchor provider if possible
     if (this.provider.provider) {
@@ -445,39 +546,49 @@ export class Transaction {
   }
 
   async getProofInternal(verifier: Verifier, inputs: any, firstPath: string) {
-    if (!this.provider.solMerkleTree?.merkleTree) {
-      throw new Error("merkle tree not built");
-    }
-    if (!this.proofInput) {
-      throw new Error("transaction not compiled");
-    }
-    if (!this.params) {
-      throw new Error("params undefined probably not compiled");
-    } else {
-      // console.log("this.proofInput ", inputs);
-
-      try {
-        const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
-        const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-
-        console.time("Proof generation");
-        const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-          stringifyBigInts(inputs),
-          completePathWtns,
-          completePathZkey,
+    if (!this.provider.solMerkleTree)
+      throw new TransactionError(
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "getProofInternal",
+        "",
+      );
+    if (!this.provider.solMerkleTree.merkleTree)
+      throw new TransactionError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getProofInternal",
+        "",
+      );
+      if (!this.proofInput)
+        throw new TransactionError(
+          TransactionErrorCode.PROOF_INPUT_UNDEFINED,
+          "transaction not compiled",
         );
-        const proofJson = JSON.stringify(proof, null, 1);
-        const publicInputsJson = JSON.stringify(publicSignals, null, 1);
-        console.timeEnd("Proof generation");
+      if (!this.params)
+        throw new TransactionError(
+          TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+          "getProof",
+          "params undefined probably not compiled",
+        );
+      const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
+      const completePathZkey = firstPath + "/" + verifier.zkeyPath;
+      console.time("Proof generation");
 
-        const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
-        const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
-        if (res === true) {
-          console.log("Verification OK");
-        } else {
-          console.log("Invalid proof");
-          throw new Error("Invalid Proof");
-        }
+      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+        stringifyBigInts(inputs),
+        completePathWtns,
+        completePathZkey,
+      );
+      console.timeEnd("Proof generation");
+
+
+      const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
+      const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+      if (res === true) {
+        console.log("Verification OK");
+      } else {
+        console.log("Invalid proof");
+        throw new Error("Invalid Proof");
+      }
 
         var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
         var publicInputsBytes = new Array<Array<number>>();
@@ -519,73 +630,93 @@ export class Transaction {
     return connectingHash;
   }
 
+  /**
+   * @description Assigns spl and sol sender or recipient accounts to transaction parameters based on action.
+   */
   assignAccounts() {
-    if (!this.params) throw new Error("Params undefined");
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "assignAccounts",
+        "Params undefined",
+      );
     if (!this.params.verifier.verifierProgram)
-      throw new Error("Verifier.verifierProgram undefined");
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "assignAccounts",
+        "Verifier.verifierProgram undefined.",
+      );
+    if (!this.assetPubkeys)
+      throw new TransactionError(
+        TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+        "assignAccounts assetPubkeys undefined",
+        "assignAccounts",
+      );
 
-    if (this.assetPubkeys && this.params) {
-      if (!this.params.accounts.sender && !this.params.accounts.senderFee) {
-        if (this.action !== "WITHDRAWAL") {
-          throw new Error("No relayer provided for withdrawal");
-        }
-        this.params.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
-          this.assetPubkeys[1],
-          merkleTreeProgramId,
+    if (!this.params.accounts.sender && !this.params.accounts.senderFee) {
+      if (this.action !== "WITHDRAWAL") {
+        throw new TransactionError(
+          TransactionErrorCode.ACTION_IS_NO_WITHDRAWAL,
+          "assignAccounts",
+          "Action is deposit but should not be. Spl & sol sender accounts provided but no relayer which is used to identify transfers and withdrawals.",
         );
-        this.params.accounts.senderFee =
-          MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
+      }
+      this.params.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
+        this.assetPubkeys[1],
+        merkleTreeProgramId,
+      );
+      this.params.accounts.senderFee =
+        MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
-        if (!this.params.accounts.recipient) {
-          this.params.accounts.recipient = SystemProgram.programId;
-          if (!this.publicAmount?.eq(new BN(0))) {
-            throw new Error(
-              "sth is wrong assignAccounts !params.accounts.recipient",
-            );
-          }
+      if (!this.params.accounts.recipient) {
+        this.params.accounts.recipient = SystemProgram.programId;
+        if (!this.publicAmount?.eq(new BN(0))) {
+          throw new TransactionError(
+            TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+            "assignAccounts",
+            "Spl recipient is undefined while public spl amount is != 0.",
+          );
         }
-        if (!this.params.accounts.recipientFee) {
-          this.params.accounts.recipientFee = SystemProgram.programId;
-          if (!this.feeAmount?.eq(new BN(0))) {
-            throw new Error(
-              "sth is wrong assignAccounts !params.accounts.recipientFee",
-            );
-          }
+      }
+      if (!this.params.accounts.recipientFee) {
+        this.params.accounts.recipientFee = SystemProgram.programId;
+        if (!this.feeAmount?.eq(new BN(0))) {
+          throw new TransactionError(
+            TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+            "assignAccounts",
+            "Sol recipient is undefined while public spl amount is != 0.",
+          );
         }
-      } else {
-        if (this.action !== "DEPOSIT") {
-          throw new Error("Relayer should not be provided for deposit.");
-        }
-
-        this.params.accounts.recipient = MerkleTreeConfig.getSplPoolPdaToken(
-          this.assetPubkeys[1],
-          merkleTreeProgramId,
-        );
-        this.params.accounts.recipientFee =
-          MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
-        if (!this.params.accounts.sender) {
-          this.params.accounts.sender = SystemProgram.programId;
-          if (!this.publicAmount?.eq(new BN(0))) {
-            throw new Error(
-              "sth is wrong assignAccounts !params.accounts.sender",
-            );
-          }
-        }
-        this.params.accounts.senderFee = PublicKey.findProgramAddressSync(
-          [anchor.utils.bytes.utf8.encode("escrow")],
-          this.params.verifier.verifierProgram.programId,
-        )[0];
-        // if (!this.params.accounts.senderFee) {
-
-        //   if (!this.feeAmount?.eq(new BN(0))) {
-        //     throw new Error(
-        //       "sth is wrong assignAccounts !params.accounts.senderFee",
-        //     );
-        //   }
-        // }
       }
     } else {
-      throw new Error("assignAccounts assetPubkeys undefined");
+      if (this.action !== "DEPOSIT") {
+        throw new TransactionError(
+          TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
+          "assignAccounts",
+          "Action is withdrawal but should not be. Spl & sol sender accounts are provided and a relayer which is used to identify transfers and withdrawals. For a deposit do not provide a relayer.",
+        );
+      }
+
+      this.params.accounts.recipient = MerkleTreeConfig.getSplPoolPdaToken(
+        this.assetPubkeys[1],
+        merkleTreeProgramId,
+      );
+      this.params.accounts.recipientFee =
+        MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
+      if (!this.params.accounts.sender) {
+        this.params.accounts.sender = SystemProgram.programId;
+        if (!this.publicAmount?.eq(new BN(0))) {
+          throw new TransactionError(
+            TransactionErrorCode.SPL_SENDER_UNDEFINED,
+            "assignAccounts",
+            "Spl sender is undefined while public spl amount is != 0.",
+          );
+        }
+      }
+      this.params.accounts.senderFee = PublicKey.findProgramAddressSync(
+        [anchor.utils.bytes.utf8.encode("escrow")],
+        this.params.verifier.verifierProgram.programId,
+      )[0];
     }
   }
 
@@ -636,11 +767,35 @@ export class Transaction {
     }
 
     if (assetPubkeys.length == 0) {
-      throw new Error("No utxos provided.");
+      throw new TransactionError(
+        TransactionErrorCode.NO_UTXOS_PROVIDED,
+        "getAssetPubkeys",
+        "No input or output utxos provided.",
+      );
     }
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getAssetPubkeys",
+        "Params undefined",
+      );
+
+    if (assetPubkeys.length > this.params?.verifier.config.out) {
+      throw new TransactionError(
+        TransactionErrorCode.EXCEEDED_MAX_ASSETS,
+        "getAssetPubkeys",
+        `Utxos contain too many different assets ${this.params?.verifier.config.out} > max allowed: ${N_ASSET_PUBKEYS}`,
+      );
+    }
+
     if (assetPubkeys.length > N_ASSET_PUBKEYS) {
-      throw new Error("Utxos contain too many different assets.");
+      throw new TransactionError(
+        TransactionErrorCode.EXCEEDED_MAX_ASSETS,
+        "getAssetPubkeys",
+        `Utxos contain too many different assets ${assetPubkeys.length} > max allowed: ${N_ASSET_PUBKEYS}`,
+      );
     }
+
     while (assetPubkeysCircuit.length < N_ASSET_PUBKEYS) {
       assetPubkeysCircuit.push(new BN(0));
     }
@@ -648,9 +803,25 @@ export class Transaction {
     return { assetPubkeysCircuit, assetPubkeys };
   }
 
+  // TODO: add index to merkle tree and check correctness at setup
+  // TODO: repeat check for example at tx init to acertain that the merkle tree is not outdated
+  /**
+   * @description fetches the merkle tree pda from the chain and checks in which index the root of the local merkle tree is.
+   */
   async getRootIndex() {
     if (!this.provider.solMerkleTree)
-      throw new Error("provider.solMerkeTree not set");
+      throw new TransactionError(
+        ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        "getRootIndex",
+        "",
+      );
+    if (!this.provider.solMerkleTree.merkleTree)
+      throw new TransactionError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getRootIndex",
+        "",
+      );
+
     if (this.provider.provider && this.provider.solMerkleTree.merkleTree) {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
@@ -678,7 +849,11 @@ export class Transaction {
       });
 
       if (this.rootIndex === undefined) {
-        throw new Error(`Root index not found for root${root}`);
+        throw new TransactionError(
+          TransactionErrorCode.ROOT_NOT_FOUND,
+          "getRootIndex",
+          `Root index not found for root${root}`,
+        );
       }
     } else {
       console.log(
@@ -688,192 +863,290 @@ export class Transaction {
     }
   }
 
+  /**
+   * @description Adds empty utxos until the desired number of utxos is reached.
+   * @note The zero knowledge proof circuit needs all inputs to be defined.
+   * @note Therefore, we have to pass in empty inputs for values we don't use.
+   * @param utxos
+   * @param len
+   * @returns
+   */
   addEmptyUtxos(utxos: Utxo[] = [], len: number): Utxo[] {
-    if (this.params && this.params.verifier.config) {
-      while (utxos.length < len) {
-        utxos.push(new Utxo({ poseidon: this.provider.poseidon }));
-      }
-    } else {
-      throw new Error(
-        `input utxos ${utxos}, config ${this.params?.verifier.config}`,
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "addEmptyUtxos",
+        "Params undefined",
       );
+    if (!this.params.verifier.config)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_CONFIG_UNDEFINED,
+        "addEmptyUtxos",
+        "",
+      );
+
+    while (utxos.length < len) {
+      utxos.push(new Utxo({ poseidon: this.provider.poseidon }));
     }
     return utxos;
   }
 
-  // the fee plus the amount to pay has to be bigger than the amount in the input utxo
-  // which doesn't make sense it should be the other way arround right
-  // the external amount can only be made up of utxos of asset[0]
-  // This might be too specific since the circuit allows assets to be in any index
+  /**
+   * @description Calculates the external amount for one asset.
+   * @note This function might be too specific since the circuit allows assets to be in any index
+   * @param assetIndex the index of the asset the external amount should be computed for
+   * @returns {BN} the public amount of the asset
+   */
   // TODO: write test
+  // TODO: rename to publicAmount
   getExternalAmount(assetIndex: number): BN {
-    if (
-      this.params &&
-      this.params.inputUtxos &&
-      this.params.outputUtxos &&
-      this.assetPubkeysCircuit
-    ) {
-      return new anchor.BN(0)
-        .add(
-          this.params.outputUtxos
-            .filter((utxo: Utxo) => {
-              return (
-                utxo.assetsCircuit[assetIndex].toString("hex") ==
-                this.assetPubkeysCircuit![assetIndex].toString("hex")
-              );
-            })
-            .reduce(
-              (sum, utxo) =>
-                // add all utxos of the same asset
-                sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0),
-            ),
-        )
-        .sub(
-          this.params.inputUtxos
-            .filter((utxo) => {
-              return (
-                utxo.assetsCircuit[assetIndex].toString("hex") ==
-                this.assetPubkeysCircuit![assetIndex].toString("hex")
-              );
-            })
-            .reduce(
-              (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
-              new anchor.BN(0),
-            ),
-        )
-        .add(FIELD_SIZE)
-        .mod(FIELD_SIZE);
-    } else {
-      throw new Error(
-        `this.params.inputUtxos ${this.params?.inputUtxos} && this.params.outputUtxos ${this.params?.outputUtxos} && this.assetPubkeysCircuit ${this.assetPubkeysCircuit}`,
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getExternalAmount",
+        "",
       );
-    }
+    if (!this.params.inputUtxos)
+      throw new TransactionError(
+        TransactionErrorCode.INPUT_UTXOS_UNDEFINED,
+        "getExternalAmount",
+        "",
+      );
+    if (!this.params.outputUtxos)
+      throw new TransactionError(
+        TransactionErrorCode.OUTPUT_UTXOS_UNDEFINED,
+        "getExternalAmount",
+        "",
+      );
+    if (!this.assetPubkeysCircuit)
+      throw new TransactionError(
+        TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+        "getExternalAmount",
+        "",
+      );
+
+    return new anchor.BN(0)
+      .add(
+        this.params.outputUtxos
+          .filter((utxo: Utxo) => {
+            return (
+              utxo.assetsCircuit[assetIndex].toString("hex") ==
+              this.assetPubkeysCircuit![assetIndex].toString("hex")
+            );
+          })
+          .reduce(
+            (sum, utxo) =>
+              // add all utxos of the same asset
+              sum.add(utxo.amounts[assetIndex]),
+            new anchor.BN(0),
+          ),
+      )
+      .sub(
+        this.params.inputUtxos
+          .filter((utxo) => {
+            return (
+              utxo.assetsCircuit[assetIndex].toString("hex") ==
+              this.assetPubkeysCircuit![assetIndex].toString("hex")
+            );
+          })
+          .reduce(
+            (sum, utxo) => sum.add(utxo.amounts[assetIndex]),
+            new anchor.BN(0),
+          ),
+      )
+      .add(FIELD_SIZE)
+      .mod(FIELD_SIZE);
   }
 
+  /**
+   * @description Computes the indices in which the asset for the utxo is in the asset pubkeys array.
+   * @note Using the indices the zero knowledege proof circuit enforces that only utxos containing the
+   * @note assets in the asset pubkeys array are contained in the transaction.
+   * @param utxos
+   * @returns
+   */
   // TODO: make this work for edge case of two 2 different assets plus fee asset in the same transaction
   // TODO: fix edge case of an assetpubkey being 0
   // TODO: !== !! and check non-null
   getIndices(utxos: Utxo[]): string[][][] {
-    let inIndices: string[][][] = [];
-    if (this.assetPubkeysCircuit) {
-      utxos.map((utxo, index) => {
-        let tmpInIndices = [];
-        for (var a = 0; a < utxo.assets.length; a++) {
-          let tmpInIndices1: string[] = [];
+    if (!this.assetPubkeysCircuit)
+      throw new TransactionError(
+        TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+        "getIndices",
+        "",
+      );
 
-          for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
-            try {
-              if (
-                utxo.assetsCircuit[a].toString() ===
-                  this.assetPubkeysCircuit![i].toString() &&
-                !tmpInIndices1.includes("1") &&
-                this.assetPubkeysCircuit![i].toString() != "0"
-              ) {
-                tmpInIndices1.push("1");
-              } else {
-                tmpInIndices1.push("0");
-              }
-            } catch (error) {
+    let inIndices: string[][][] = [];
+    utxos.map((utxo) => {
+      let tmpInIndices = [];
+      for (var a = 0; a < utxo.assets.length; a++) {
+        let tmpInIndices1: string[] = [];
+
+        for (var i = 0; i < N_ASSET_PUBKEYS; i++) {
+          try {
+            if (
+              utxo.assetsCircuit[a].toString() ===
+                this.assetPubkeysCircuit![i].toString() &&
+              !tmpInIndices1.includes("1") &&
+              this.assetPubkeysCircuit![i].toString() != "0"
+            ) {
+              tmpInIndices1.push("1");
+            } else {
               tmpInIndices1.push("0");
             }
+          } catch (error) {
+            tmpInIndices1.push("0");
           }
-
-          tmpInIndices.push(tmpInIndices1);
         }
 
-        inIndices.push(tmpInIndices);
-      });
-    } else {
-      throw new Error("assetPubkeysCircuit undefined");
-    }
+        tmpInIndices.push(tmpInIndices1);
+      }
+
+      inIndices.push(tmpInIndices);
+    });
 
     // console.log(inIndices);
     return inIndices;
   }
-
+  /**
+   * @description Gets the merkle proofs for every input utxo with amounts > 0.
+   * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
+   */
   getMerkleProofs() {
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getMerkleProofs",
+        "",
+      );
+    if (!this.params.inputUtxos)
+      throw new TransactionError(
+        TransactionErrorCode.INPUT_UTXOS_UNDEFINED,
+        "getMerkleProofs",
+        "",
+      );
+    if (!this.provider.solMerkleTree)
+      throw new TransactionError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getMerkleProofs",
+        "",
+      );
+    if (!this.provider.solMerkleTree.merkleTree)
+      throw new TransactionError(
+        SolMerkleTreeErrorCode.MERKLE_TREE_UNDEFINED,
+        "getMerkleProofs",
+        "",
+      );
+
     this.inputMerklePathIndices = [];
     this.inputMerklePathElements = [];
-    if (this.params && this.params.inputUtxos && this.provider.solMerkleTree) {
-      // getting merkle proofs
-      for (const inputUtxo of this.params.inputUtxos) {
-        if (
-          inputUtxo.amounts[0] > new BN(0) ||
-          inputUtxo.amounts[1] > new BN(0)
-        ) {
-          inputUtxo.index = this.provider.solMerkleTree!.merkleTree.indexOf(
-            inputUtxo.getCommitment(),
-          );
+    // getting merkle proofs
+    for (const inputUtxo of this.params.inputUtxos) {
+      if (
+        inputUtxo.amounts[0] > new BN(0) ||
+        inputUtxo.amounts[1] > new BN(0)
+      ) {
+        inputUtxo.index = this.provider.solMerkleTree.merkleTree.indexOf(
+          inputUtxo.getCommitment(),
+        );
 
-          if (inputUtxo.index || inputUtxo.index == 0) {
-            if (inputUtxo.index < 0) {
-              throw new Error(
-                `Input commitment ${inputUtxo.getCommitment()} was not found`,
-              );
-            }
-            this.inputMerklePathIndices.push(inputUtxo.index);
-            this.inputMerklePathElements.push(
-              this.provider.solMerkleTree.merkleTree.path(inputUtxo.index)
-                .pathElements,
+        if (inputUtxo.index || inputUtxo.index == 0) {
+          if (inputUtxo.index < 0) {
+            throw new TransactionError(
+              TransactionErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
+              "getMerkleProofs",
+              `Input commitment ${inputUtxo.getCommitment()} was not found`,
             );
           }
-        } else {
-          this.inputMerklePathIndices.push(0);
+          this.inputMerklePathIndices.push(inputUtxo.index);
           this.inputMerklePathElements.push(
-            new Array<string>(
-              this.provider.solMerkleTree.merkleTree.levels,
-            ).fill("0"),
+            this.provider.solMerkleTree.merkleTree.path(inputUtxo.index)
+              .pathElements,
           );
         }
+      } else {
+        this.inputMerklePathIndices.push(0);
+        this.inputMerklePathElements.push(
+          new Array<string>(this.provider.solMerkleTree.merkleTree.levels).fill(
+            "0",
+          ),
+        );
       }
     }
   }
 
+  /**
+   * @description
+   * @returns
+   */
   getTxIntegrityHash(): BN {
-    if (this.params && this.params.relayer) {
-      if (
-        !this.params.accounts.recipient ||
-        !this.params.accounts.recipientFee ||
-        !this.params.relayer.relayerFee
-      ) {
-        throw new Error(
-          `getTxIntegrityHash: recipient ${this.params.accounts.recipient} recipientFee ${this.params.accounts.recipientFee} relayerFee ${this.params.relayer.relayerFee}`,
-        );
-      } else if (this.txIntegrityHash) {
-        return this.txIntegrityHash;
-      } else {
-        if (!this.params.encryptedUtxos) {
-          this.params.encryptedUtxos = this.encryptOutUtxos();
-        }
-        if (
-          this.params.encryptedUtxos &&
-          this.params.encryptedUtxos.length > 512
-        ) {
-          this.params.encryptedUtxos = this.params.encryptedUtxos.slice(0, 512);
-        }
-        if (this.params.encryptedUtxos && !this.txIntegrityHash) {
-          let extDataBytes = new Uint8Array([
-            ...this.params.accounts.recipient?.toBytes(),
-            ...this.params.accounts.recipientFee.toBytes(),
-            ...this.params.relayer.accounts.relayerPubkey.toBytes(),
-            ...this.params.relayer.relayerFee.toArray("le", 8),
-            ...this.params.encryptedUtxos,
-          ]);
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.params.relayer)
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.params.accounts.recipient)
+      throw new TransactionError(
+        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.params.accounts.recipientFee)
+      throw new TransactionError(
+        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.params.relayer.relayerFee)
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_FEE_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
 
-          const hash = keccak_256
-            .create({ dkLen: 32 })
-            .update(Buffer.from(extDataBytes))
-            .digest();
-          const txIntegrityHash: BN = new anchor.BN(hash).mod(FIELD_SIZE);
-          this.txIntegrityHash = txIntegrityHash;
-          return txIntegrityHash;
-        } else {
-          throw new Error("Encrypting Utxos failed");
-        }
-      }
+    if (this.txIntegrityHash) {
+      return this.txIntegrityHash;
     } else {
-      throw new Error("params or relayer undefined");
+      if (!this.params.encryptedUtxos) {
+        this.params.encryptedUtxos = this.encryptOutUtxos();
+      }
+
+      if (
+        this.params.encryptedUtxos &&
+        this.params.encryptedUtxos.length > 512
+      ) {
+        this.params.encryptedUtxos = this.params.encryptedUtxos.slice(0, 512);
+      }
+      if (this.params.encryptedUtxos && !this.txIntegrityHash) {
+        let extDataBytes = new Uint8Array([
+          ...this.params.accounts.recipient?.toBytes(),
+          ...this.params.accounts.recipientFee.toBytes(),
+          ...this.params.relayer.accounts.relayerPubkey.toBytes(),
+          ...this.params.relayer.relayerFee.toArray("le", 8),
+          ...this.params.encryptedUtxos,
+        ]);
+
+        const hash = keccak_256
+          .create({ dkLen: 32 })
+          .update(Buffer.from(extDataBytes))
+          .digest();
+        const txIntegrityHash: BN = new anchor.BN(hash).mod(FIELD_SIZE);
+        this.txIntegrityHash = txIntegrityHash;
+        return txIntegrityHash;
+      } else {
+        throw new TransactionError(
+          TransactionErrorCode.ENCRYPTING_UTXOS_FAILED,
+          "getTxIntegrityHash",
+          "",
+        );
+      }
     }
   }
 
@@ -882,7 +1155,7 @@ export class Transaction {
     if (encryptedUtxos) {
       encryptedOutputs = Array.from(encryptedUtxos);
     } else if (this.params && this.params.outputUtxos) {
-      this.params.outputUtxos.map((utxo, index) =>
+      this.params.outputUtxos.map((utxo) =>
         encryptedOutputs.push(utxo.encrypt()),
       );
 
@@ -923,33 +1196,48 @@ export class Transaction {
   // in case there is more than one transaction to be sent to the verifier these can be sent separately
 
   async getTestValues() {
-    if (!this.provider) {
-      throw new Error("Provider undefined");
-    }
-
-    if (!this.provider.provider) {
-      throw new Error("Provider.provider undefined");
-    }
-
-    if (!this.params) {
-      throw new Error("params undefined");
-    }
-
-    if (!this.params.relayer) {
-      throw new Error("params.relayer undefined");
-    }
-
-    if (!this.params.accounts.senderFee) {
-      throw new Error("params.accounts.senderFee undefined");
-    }
-
-    if (!this.params.accounts.recipient) {
-      throw new Error("params.accounts.recipient undefined");
-    }
-
-    if (!this.params.accounts.recipientFee) {
-      throw new Error("params.accounts.recipient undefined");
-    }
+    if (!this.provider)
+      throw new TransactionError(
+        ProviderErrorCode.PROVIDER_UNDEFINED,
+        "getTestValues",
+        "",
+      );
+    if (!this.provider.provider)
+      throw new TransactionError(
+        ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+        "getTestValues",
+        "Provider.provider undefined",
+      );
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getTestValues",
+        "",
+      );
+    if (!this.params.relayer)
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "getTestValues",
+        "",
+      );
+    if (!this.params.accounts.recipient)
+      throw new TransactionError(
+        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        "getTestValues",
+        "",
+      );
+    if (!this.params.accounts.recipientFee)
+      throw new TransactionError(
+        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        "getTestValues",
+        "",
+      );
+    if (!this.params.accounts.senderFee)
+      throw new TransactionError(
+        TransactionErrorCode.SOL_SENDER_UNDEFINED,
+        "getTestValues",
+        "",
+      );
 
     try {
       this.recipientBalancePriorTx = new BN(
@@ -1024,7 +1312,14 @@ export class Transaction {
   }
 
   async getInstructionsJson(): Promise<string[]> {
-    if (!this.appParams && this.params) {
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getInstructionsJson",
+        "",
+      );
+
+    if (!this.appParams) {
       const instructions = await this.params.verifier.getInstructions(this);
       let serialized = instructions.map((ix) => JSON.stringify(ix));
       return serialized;
@@ -1046,9 +1341,24 @@ export class Transaction {
       // request to relayer
       throw new Error("withdrawal with relayer is not implemented");
     } else {
-      if (!this.provider.provider) throw new Error("no provider set");
-      if (!this.params) throw new Error("params undefined");
-      if (!this.params.relayer) throw new Error("params.relayer undefined");
+      if (!this.provider.provider)
+        throw new TransactionError(
+          ProviderErrorCode.ANCHOR_PROVIDER_UNDEFINED,
+          "sendTransaction",
+          "Provider.provider undefined",
+        );
+      if (!this.params)
+        throw new TransactionError(
+          TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+          "sendTransaction",
+          "",
+        );
+      if (!this.params.relayer)
+        throw new TransactionError(
+          TransactionErrorCode.RELAYER_UNDEFINED,
+          "sendTransaction",
+          "",
+        );
 
       const recentBlockhash = (
         await this.provider.provider.connection.getRecentBlockhash("confirmed")
@@ -1130,22 +1440,32 @@ export class Transaction {
   }
 
   async getInstructions(): Promise<TransactionInstruction[]> {
-    if (this.params) {
-      return await this.params.verifier.getInstructions(this);
-    } else {
-      throw new Error("Params not provided.");
-    }
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getInstructions",
+        "",
+      );
+    return await this.params.verifier.getInstructions(this);
   }
 
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
-    if (!this.provider.nodeWallet && !this.provider.browserWallet) {
-      throw new Error(
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "sendAndConfirmTransaction",
+        "",
+      );
+
+    if (!this.provider.nodeWallet && !this.provider.browserWallet)
+      throw new TransactionError(
+        TransactionErrorCode.WALLET_UNDEFINED,
+        "sendAndConfirmTransaction",
         "Cannot use sendAndConfirmTransaction without payer or browserWallet",
       );
-    }
+
     await this.getTestValues();
     var instructions;
-    if (!this.params) throw new Error("params undefined");
 
     if (!this.appParams) {
       instructions = await this.params.verifier.getInstructions(this);
@@ -1157,70 +1477,96 @@ export class Transaction {
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
-          console.log("tx ::", txTmp);
+          console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
             "confirmed",
           );
           tx = txTmp;
         } else {
-          throw new Error("send transaction failed");
+          throw new TransactionError(
+            TransactionErrorCode.SEND_TRANSACTION_FAILED,
+            "sendAndConfirmTransaction",
+            "",
+          );
         }
       }
       return tx;
     } else {
-      throw new Error("No parameters provided");
+      throw new TransactionError(
+        TransactionErrorCode.GET_INSTRUCTIONS_FAILED,
+        "sendAndConfirmTransaction",
+        "",
+      );
     }
   }
 
   // TODO: deal with this: set own payer just for that? where is this used?
   async closeVerifierState(): Promise<TransactionSignature> {
-    if (
-      (this.provider.nodeWallet || this.provider.browserWallet) &&
-      this.params &&
-      !this.appParams
-    ) {
-      if (!this.params.verifier.verifierProgram)
-        throw new Error("verifier.verifierProgram undefined");
-      return await this.params?.verifier.verifierProgram.methods
-        .closeVerifierState()
-        .accounts({
-          ...this.params.accounts,
-        })
-        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
-        .rpc(confirmConfig);
-    } else if (this.provider.nodeWallet && this.params && this.appParams) {
-      return await this.appParams?.verifier.verifierProgram.methods
-        .closeVerifierState()
-        .accounts({
-          ...this.params.accounts,
-        })
-        .signers([this.provider.nodeWallet])
-        .rpc(confirmConfig);
-    } else {
-      throw new Error("No payer or params provided.");
-    }
+    if (!this.provider.nodeWallet && !this.provider.browserWallet)
+      throw new TransactionError(
+        TransactionErrorCode.WALLET_UNDEFINED,
+        "closeVerifierState",
+        "Cannot use closeVerifierState without payer or browserWallet",
+      );
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "closeVerifierState",
+        "",
+      );
+    if (!this.appParams)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "closeVerifierState",
+        "",
+      );
+    if (!this.params.verifier.verifierProgram)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        "closeVerifierState",
+        "",
+      );
+    return await this.params?.verifier.verifierProgram.methods
+      .closeVerifierState()
+      .accounts({
+        ...this.params.accounts,
+      })
+      .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
+      .rpc(confirmConfig);
   }
 
   async getPdaAddresses() {
-    if (!this.params) {
-      throw new Error("this.params undefined");
-    }
-
-    if (!this.params.relayer) {
-      throw new Error("this.params.relayer undefined");
-    }
-
-    if (!this.publicInputs) {
-      throw new Error("this.publicInputs undefined");
-    }
-
-    if (!this.merkleTreeProgram) {
-      throw new Error("this.merkleTreeProgram undefined");
-    }
-    if (!this.params.verifier.verifierProgram) {
-      throw new Error("params.verifier.verifierProgram undefined");
-    }
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
+    if (!this.publicInputs)
+      throw new TransactionError(
+        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
+    if (!this.params.verifier.verifierProgram)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
+    if (!this.params.relayer)
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
+    if (!this.merkleTreeProgram)
+      throw new TransactionError(
+        TransactionErrorCode.MERKLE_TREE_PROGRAM_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
 
     let nullifiers = this.publicInputs.nullifiers;
     let merkleTreeProgram = this.merkleTreeProgram;
@@ -1276,13 +1622,19 @@ export class Transaction {
 
   // TODO: check why this is called encr keypair but account class
   async checkBalances(account?: Account) {
-    if (!this.publicInputs) {
-      throw new Error("public inputs undefined");
-    }
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
+    if (!this.publicInputs)
+      throw new TransactionError(
+        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
+        "getPdaAddresses",
+        "",
+      );
 
-    if (!this.params) {
-      throw new Error("params undefined");
-    }
     const checkUndefined = (variables: Array<any>) => {
       variables.map((v) => {
         if (!v) {
@@ -1290,10 +1642,6 @@ export class Transaction {
         }
       });
     };
-
-    if (!this.params) {
-      throw new Error("params undefined");
-    }
 
     if (!this.params.accounts.senderFee) {
       throw new Error("params.accounts.senderFee undefined");
