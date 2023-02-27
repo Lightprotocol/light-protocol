@@ -2,9 +2,14 @@
   "name": "relayer",
   "version": "1.0.0",
   "description": "",
-  "main": "/dist/index.js",
+  "main": "/lib/index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "sh runScript.sh && node lib/index.js",
+    "build": "npx tsc",
+    "format": "prettier --write \"src/**/*.{ts,js}\"",
+    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
+    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check"
   },
   "keywords": [],
   "dependencies": {
