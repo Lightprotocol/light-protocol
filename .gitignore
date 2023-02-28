@@ -21,6 +21,8 @@
 /test-ledger/
 */yarn-error.log
 **/yarn-error.log
+
+/**/lookUpTable.txt
 # light-sdk-ts
 /light-sdk-ts/node_modules/
 /light-sdk-ts/lib/
