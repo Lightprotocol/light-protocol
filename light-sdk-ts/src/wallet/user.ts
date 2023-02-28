@@ -694,6 +694,9 @@ export class User {
   }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+
+    console.log("before the spl address");
+
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
       throw new Error("SPL not implemented yet!");
@@ -706,29 +709,44 @@ export class User {
       amount = amount * 1e9;
     }
 
+    console.log("processing the utxos ===========>");
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
       pubAmount: amount,
     });
+
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount: -amount,
       inUtxos,
     });
 
+    console.log("utxo processed ===============>");
+
     // TODO: replace with ping to relayer webserver
+
     let relayer = new Relayer(
-      this.provider.nodeWallet!.publicKey,
+      this.provider.browserWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
 
+    console.log("relayer is started");
+
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
       provider: this.provider,
     });
+
+    console.log("transaction is setup", tx);
+
+    const verifier = new VerifierZero(this.provider);
+
+    console.log({ verifier });
+
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -736,9 +754,12 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
-      verifier: new VerifierZero(),
+      verifier,
       relayer,
+      provider: this.provider,
     });
+
+    console.log({ txParams });
 
     await tx.compileAndProve(txParams);
 
@@ -769,7 +790,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(this.provider.provider!, this.provider);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
