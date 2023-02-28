@@ -1,7 +1,7 @@
 import { Keypair } from "@solana/web3.js";
 import { Provider, updateMerkleTreeForTest } from "light-sdk";
 import { sendTransaction } from "./sendTransaction";
-export async function relay(req: express.Request, relayerPayer: Keypair) {
+export async function relay(req: express.request, relayerPayer: Keypair) {
   const { instructions } = req.body;
   const provider = await Provider.native(relayerPayer);
 
@@ -39,7 +39,3 @@ export async function relay(req: express.Request, relayerPayer: Keypair) {
     console.log("merkletree update failed. ", e);
   }
 }
-
-// module.exports = {
-//   relay,
-// };
