@@ -82,7 +82,6 @@ export class TransactionParameters implements transactionParameters {
     registeredVerifierPda: PublicKey;
     authority: PublicKey;
     signingAddress?: PublicKey;
-    preInsertedLeavesIndex: PublicKey;
     programMerkleTree: PublicKey;
   };
   relayer?: Relayer;
@@ -460,7 +459,7 @@ export class Transaction {
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
       const buffer = readFileSync(completePathWtns);
 
-      let witnessCalculator = await verifier.calculateWtns(buffer);
+      let witnessCalculator = await verifier.calculateWtns(buffer.toString());
 
       console.time("Proof generation");
       let wtns = await witnessCalculator.calculateWTNSBin(
