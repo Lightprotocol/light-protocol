@@ -9,10 +9,6 @@ import {
   MERKLE_TREE_KEY,
   setUpMerkleTree,
   SolMerkleTree,
-<<<<<<< HEAD
-=======
-  verifierProgramId,
->>>>>>> e84de8b5 (relayer setting up its own test-validator with runScript.sh)
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
