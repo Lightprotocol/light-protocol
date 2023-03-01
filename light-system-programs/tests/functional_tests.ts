@@ -48,7 +48,6 @@ import {
   IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
   RECIPIENT_TOKEN_ACCOUNT,
-  IDL_VERIFIER_PROGRAM,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -507,6 +506,7 @@ describe("verifier_program", () => {
     }
     await tx.checkBalances();
   });
+
   it("(user class) shield SPL", async () => {
     let amount = 2;
     let token = "USDC";
@@ -529,6 +529,57 @@ describe("verifier_program", () => {
     const user = await User.load(provider);
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
+    let balance = await user.getBalance({ latest: true });
+    console.log(
+      "balance: ",
+      balance,
+      "utxos:",
+      user.utxos[0],
+      user.utxos[1],
+      user.utxos[2],
+    );
+  });
+  it("(user class) unshield SPL", async () => {
+    let amount = 1;
+    let token = "USDC";
+    let solRecipient = SolanaKeypair.generate();
+
+    console.log("test user wallet: ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR); // userKeypair
+    let recipientTokenAccount = await newAccountWithTokens({
+      connection: provider.provider.connection,
+      MINT,
+      ADMIN_AUTH_KEYPAIR,
+      userAccount: solRecipient, //RECIPIENT_TOKEN_ACCOUNT,
+      amount: 0,
+    });
+    console.log("recipientTokenAccount: ", recipientTokenAccount.toBase58());
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      2_000_000_000,
+    );
+    let balancet = await provider.provider.connection.getTokenAccountBalance(
+      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+    );
+    console.log(
+      "balancet CfyD2..",
+      balancet,
+      balancet.value.uiAmount,
+      balancet.value,
+    );
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const user = await User.load(provider);
+    await user.unshield({ amount, token, recipient: solRecipient.publicKey });
+    // TODO: add random amount and amount checks
+    let balance = await user.getBalance({ latest: true });
+    console.log(
+      "balance: ",
+      balance,
+      "utxos:",
+      user.utxos[0],
+      user.utxos[1],
+      user.utxos[2],
+    );
   });
 
   it("(user class) shield SPL", async () => {

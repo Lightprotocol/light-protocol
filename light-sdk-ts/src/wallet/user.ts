@@ -821,6 +821,9 @@ export class User {
       inUtxos,
       relayer,
     });
+    console.log("user.utxos:", this.utxos[0], this.utxos[1]);
+    console.log("in selected: ", inUtxos[0], inUtxos[1]);
+    console.log("out selected: ", outUtxos[0], outUtxos[1]);
 
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
