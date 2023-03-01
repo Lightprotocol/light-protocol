@@ -794,6 +794,9 @@ export class User {
       inUtxos,
       relayer,
     });
+    console.log("user.utxos:", this.utxos[0], this.utxos[1]);
+    console.log("in selected: ", inUtxos[0], inUtxos[1]);
+    console.log("out selected: ", outUtxos[0], outUtxos[1]);
 
     let tx = new Transaction({
       provider: this.provider,
