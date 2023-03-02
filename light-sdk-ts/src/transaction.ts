@@ -10,11 +10,7 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
-import {
-  PRE_INSERTED_LEAVES_INDEX,
-  confirmConfig,
-  MERKLE_TREE_KEY,
-} from "./constants";
+import { confirmConfig, MERKLE_TREE_KEY } from "./constants";
 import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
@@ -27,7 +23,6 @@ import {
   Relayer,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { readFileSync } from "fs";
 import { Provider as LightProvider } from "./wallet";
 const anchor = require("@coral-xyz/anchor");
 const snarkjs = require("snarkjs");
@@ -82,7 +77,6 @@ export class TransactionParameters implements transactionParameters {
     registeredVerifierPda: PublicKey;
     authority: PublicKey;
     signingAddress?: PublicKey;
-    preInsertedLeavesIndex: PublicKey;
     programMerkleTree: PublicKey;
   };
   relayer?: Relayer;
@@ -134,9 +128,9 @@ export class TransactionParameters implements transactionParameters {
     } catch (error) {
       console.log(error);
       console.log("assuming test mode thus continuing");
-      this.merkleTreeProgram = {
-        programId: merkleTreeProgramId,
-      };
+      // this.merkleTreeProgram = {
+      //   programId: merkleTreeProgramId,
+      // };
     }
     if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
     if (!verifier) throw new Error("verifier undefined");
@@ -148,18 +142,18 @@ export class TransactionParameters implements transactionParameters {
       tokenProgram: TOKEN_PROGRAM_ID,
       merkleTree: merkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
-        this.merkleTreeProgram.programId,
+        merkleTreeProgramId,
         verifier.verifierProgram.programId,
       ),
       authority: Transaction.getSignerAuthorityPda(
-        this.merkleTreeProgram.programId,
+        merkleTreeProgramId,
         verifier.verifierProgram.programId,
       ),
       sender: sender,
       recipient: recipient,
       senderFee: senderFee, // TODO: change to feeSender
       recipientFee: recipientFee, // TODO: change name to feeRecipient
-      programMerkleTree: this.merkleTreeProgram.programId,
+      programMerkleTree: merkleTreeProgramId,
     };
     this.verifier = verifier;
     this.outputUtxos = outputUtxos;
@@ -458,19 +452,11 @@ export class Transaction {
 
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-      const buffer = readFileSync(completePathWtns);
 
-      let witnessCalculator = await verifier.calculateWtns(buffer);
-
-      console.time("Proof generation");
-      let wtns = await witnessCalculator.calculateWTNSBin(
+      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         stringifyBigInts(inputs),
-        0,
-      );
-
-      const { proof, publicSignals } = await snarkjs.groth16.prove(
+        completePathWtns,
         completePathZkey,
-        wtns,
       );
 
       console.timeEnd("Proof generation");
@@ -483,6 +469,7 @@ export class Transaction {
         console.log("Invalid proof");
         throw new Error("Invalid Proof");
       }
+
       // const curve = await  ffjavascript.getCurveFromName(vKey.curve);
       // let neg_proof_a = curve.G1.neg(curve.G1.fromObject(proof.pi_a))
       // proof.pi_a = [
@@ -677,7 +664,9 @@ export class Transaction {
           this.provider.solMerkleTree.pubkey,
         );
 
-      merkle_tree_account_data.roots.map((x: any, index: any) => {
+      // stupid reassignment to get rid of error
+      const tmp: any = merkle_tree_account_data.roots;
+      tmp.map((x: any, index: any) => {
         if (x.toString() === root.toString()) {
           this.rootIndex = index;
         }
@@ -1036,7 +1025,7 @@ export class Transaction {
       return serialized;
     } else {
       const instructions = await this.appParams.verifier.getInstructions(this);
-      let serialized = instructions.map((ix) => JSON.stringify(ix));
+      let serialized = instructions.map((ix: any) => JSON.stringify(ix));
       return serialized;
     }
   }
