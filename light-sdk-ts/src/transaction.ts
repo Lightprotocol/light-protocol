@@ -123,7 +123,7 @@ export class TransactionParameters implements transactionParameters {
   publicAmountSpl: BN;
   publicAmountSol: BN;
   assetPubkeys: PublicKey[];
-  assetPubkeysCircuit: BN[];
+  assetPubkeysCircuit: string[];
   action: Action;
 
   constructor({
@@ -234,7 +234,6 @@ export class TransactionParameters implements transactionParameters {
     }
 
     const pubkeys = Transaction.getAssetPubkeys(
-      this,
       this.inputUtxos,
       this.outputUtxos,
     );
@@ -266,8 +265,6 @@ export class TransactionParameters implements transactionParameters {
 
     // Checking plausibility of inputs
     if (this.action === Action.DEPOSIT) {
-      console.log("here", sender);
-
       /**
        * No relayer
        * public amounts are u64s
@@ -289,7 +286,6 @@ export class TransactionParameters implements transactionParameters {
           "Public amount needs to be a u64 at deposit.",
         );
       }
-      console.log(this.publicAmountSpl);
 
       try {
         this.publicAmountSpl.toArray("be", 8);
@@ -1105,15 +1101,15 @@ export class Transaction {
   static getExternalAmount(
     assetIndex: number,
     params: TransactionParameters,
-    assetPubkeysCircuit: BN[],
+    assetPubkeysCircuit: string[],
   ): BN {
     return new anchor.BN(0)
       .add(
         params.outputUtxos
           .filter((utxo: Utxo) => {
             return (
-              utxo.assetsCircuit[assetIndex].toString("hex") ==
-              assetPubkeysCircuit![assetIndex].toString("hex")
+              utxo.assetsCircuit[assetIndex].toString() ==
+              assetPubkeysCircuit![assetIndex]
             );
           })
           .reduce(
@@ -1127,8 +1123,8 @@ export class Transaction {
         params.inputUtxos
           .filter((utxo) => {
             return (
-              utxo.assetsCircuit[assetIndex].toString("hex") ==
-              assetPubkeysCircuit[assetIndex].toString("hex")
+              utxo.assetsCircuit[assetIndex].toString() ==
+              assetPubkeysCircuit[assetIndex]
             );
           })
           .reduce(

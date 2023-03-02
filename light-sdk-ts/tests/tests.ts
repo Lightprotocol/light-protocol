@@ -489,7 +489,7 @@ describe("verifier_program", () => {
 
   })
 
-  it.only("Test getAssetPubkeys",async () => {
+  it("Test getAssetPubkeys",async () => {
     const poseidon = await buildPoseidonOpt();
     let inputUtxos = [new Utxo({poseidon}), new Utxo({poseidon})];
     let outputUtxos = [new Utxo({poseidon, amounts: [new anchor.BN(2), new anchor.BN(4)], assets: [SystemProgram.programId, MINT]}), new Utxo({poseidon})];
@@ -504,7 +504,7 @@ describe("verifier_program", () => {
     assert.equal(assetPubkeysCircuit[2].toString(), "0");
   })
 
-  it("Test Transaction errors", async () => {
+  it.only("Test Transaction errors", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString();
     let keypair = new Account({ poseidon: poseidon, seed: seed32 });
@@ -622,22 +622,6 @@ describe("verifier_program", () => {
       account: keypair,
     });
 
-    // getAssetPubkeys does weird stuff therefore the getExtAmount is fucked up etc.
-    try {
-      new TransactionParameters({
-        outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
-        merkleTreePubkey: mockPubkey,
-        sender: mockPubkey,
-        senderFee: mockPubkey,
-        verifier: new VerifierZero(),
-        lookUpTable: lightProvider.lookUpTable,
-        poseidon,
-        action: Action.DEPOSIT,
-      });
-    } catch (error) {
-      console.log(error);
-      
-    }
     expect( () => {
       new TransactionParameters({
         outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
