@@ -26,6 +26,11 @@ import {
   TransactionErrorCode,
   ProviderErrorCode,
   Provider,
+  Action,
+  TransactioParametersError,
+  TransactionParametersErrorCode,
+  Relayer,
+  FIELD_SIZE,
 } from "../src";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
@@ -399,7 +404,7 @@ describe("verifier_program", () => {
     await functionalCircuitTest();
   });
 
-  it.only("Test Transaction errors", async () => {
+  it("Test TransactionParameter errors", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString();
     let keypair = new Account({ poseidon: poseidon, seed: seed32 });
@@ -415,32 +420,274 @@ describe("verifier_program", () => {
 
     let lightProvider = await LightProvider.loadMock(mockPubkey);
 
-    let tx = new Transaction({
-      provider: lightProvider,
+    // let tx = new Transaction({
+    //   provider: lightProvider,
+    // });
+
+    /**
+     * General Transaction Parameter tests
+     */
+    expect( () => {
+      new TransactionParameters({
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionErrorCode.NO_UTXOS_PROVIDED,
+      functionName: "constructor",
     });
 
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        action: Action.DEPOSIT
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.NO_ACTION_PROVIDED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.NO_VERIFIER_PROVIDED,
+      functionName: "constructor",
+    });
+
+  })
+
+  it.only("Test getAssetPubkeys",async () => {
+    const poseidon = await buildPoseidonOpt();
+    let inputUtxos = [new Utxo({poseidon}), new Utxo({poseidon})];
+    let outputUtxos = [new Utxo({poseidon, amounts: [new anchor.BN(2), new anchor.BN(4)], assets: [SystemProgram.programId, MINT]}), new Utxo({poseidon})];
+
+    let {assetPubkeysCircuit, assetPubkeys}=Transaction.getAssetPubkeys(inputUtxos, outputUtxos);
+    assert.equal(assetPubkeys[0].toBase58(), SystemProgram.programId.toBase58());
+    assert.equal(assetPubkeys[1].toBase58(), MINT.toBase58());
+    assert.equal(assetPubkeys[2].toBase58(), SystemProgram.programId.toBase58());
+
+    assert.equal(assetPubkeysCircuit[0].toString(), hashAndTruncateToCircuit(SystemProgram.programId.toBuffer()).toString());
+    assert.equal(assetPubkeysCircuit[1].toString(), hashAndTruncateToCircuit(MINT.toBuffer()).toString());
+    assert.equal(assetPubkeysCircuit[2].toString(), "0");
+  })
+
+  it("Test Transaction errors", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
+    const relayer = new Relayer(
+      mockPubkey,
+      mockPubkey,
+    );
+    // let tx = new Transaction({
+    //   provider: lightProvider,
+    // });
+
+    /**
+     * Deposit Transaction Parameter tests
+     */
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        // senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        // lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+        relayer
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.RELAYER_DEFINED,
+      functionName: "constructor",
+    });
+
+    let utxo_sol_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let utxo_sol_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+      functionName: "constructor",
+    });
+
+    let utxo_spl_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      account: keypair,
+    });
+
+    let utxo_spl_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("1")],
+      account: keypair,
+    });
+
+    // getAssetPubkeys does weird stuff therefore the getExtAmount is fucked up etc.
+    try {
+      new TransactionParameters({
+        outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    } catch (error) {
+      console.log(error);
+      
+    }
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+      functionName: "constructor",
+    });
+
+
+
+    /*
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       merkleTreePubkey: mockPubkey,
       sender: mockPubkey,
       senderFee: mockPubkey,
       verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.DEPOSIT
     });
+    try {
+      
+    } catch (error) {
+      console.log(err);
+      
+    }
 
-    expect(async () => {
-      await tx.getAssetPubkeys([], [])
+    expect( () => {
+      tx.getAssetPubkeys([], [])
     }).to.throw(TransactionError).to.include({
       code: TransactionErrorCode.NO_UTXOS_PROVIDED,
       functionName: "getAssetPubkeys",
     });
 
-    expect(async () => {
-      await tx.getAssetPubkeys([deposit_utxo1], [])
+    expect( () => {
+      tx.getAssetPubkeys([deposit_utxo1], [])
     }).to.throw(TransactionError).to.include({
-      code: TransactionErrorCode.RELAYER_UNDEFINED,
+      code: TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
       functionName: "getAssetPubkeys",
     });
-    
+    */
   });
 
   it("Test Transaction constructor", async () => {
