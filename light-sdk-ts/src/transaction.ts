@@ -211,13 +211,13 @@ export class TransactionParameters implements transactionParameters {
       throw new TransactioParametersError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "constructor",
-        "",
+        "Sender sol always needs to be defined because we use it as the signer to instantiate the relayer object.",
       );
     } else if (action === Action.DEPOSIT && !lookUpTable) {
       throw new TransactioParametersError(
         TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "constructor",
-        "",
+        "At deposit lookup table needs to be defined to instantiate a relayer object with yourself as the relayer.",
       );
     }
 
@@ -241,12 +241,14 @@ export class TransactionParameters implements transactionParameters {
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
     this.publicAmountSol = Transaction.getExternalAmount(
       0,
-      this,
+      this.inputUtxos,
+      this.outputUtxos,
       this.assetPubkeysCircuit,
     );
     this.publicAmountSpl = Transaction.getExternalAmount(
       1,
-      this,
+      this.inputUtxos,
+      this.outputUtxos,
       this.assetPubkeysCircuit,
     );
     // safeguard should not be possible
@@ -310,14 +312,16 @@ export class TransactionParameters implements transactionParameters {
           "",
         );
       }
-      if (!this.publicAmountSol.eq(new BN(0)) && senderFee) {
+      console.log("this.publicAmountSol", this.publicAmountSol.toString());
+
+      if (!this.publicAmountSol.eq(new BN(0)) && !senderFee) {
         throw new TransactioParametersError(
           TransactionErrorCode.SOL_SENDER_UNDEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && sender) {
+      if (!this.publicAmountSpl.eq(new BN(0)) && !sender) {
         throw new TransactioParametersError(
           TransactionErrorCode.SPL_SENDER_UNDEFINED,
           "constructor",
@@ -449,7 +453,6 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    this.assignAccounts();
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
@@ -468,6 +471,8 @@ export class TransactionParameters implements transactionParameters {
       recipientFee: recipientFee, // TODO: change name to recipientSol
       programMerkleTree: merkleTreeProgramId,
     };
+    this.assignAccounts();
+
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
   }
 
@@ -1100,12 +1105,14 @@ export class Transaction {
   // TODO: rename to publicAmount
   static getExternalAmount(
     assetIndex: number,
-    params: TransactionParameters,
+    // params: TransactionParameters,
+    inputUtxos: Utxo[],
+    outputUtxos: Utxo[],
     assetPubkeysCircuit: string[],
   ): BN {
     return new anchor.BN(0)
       .add(
-        params.outputUtxos
+        outputUtxos
           .filter((utxo: Utxo) => {
             return (
               utxo.assetsCircuit[assetIndex].toString() ==
@@ -1120,7 +1127,7 @@ export class Transaction {
           ),
       )
       .sub(
-        params.inputUtxos
+        inputUtxos
           .filter((utxo) => {
             return (
               utxo.assetsCircuit[assetIndex].toString() ==

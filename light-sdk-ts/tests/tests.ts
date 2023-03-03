@@ -504,6 +504,28 @@ describe("verifier_program", () => {
     assert.equal(assetPubkeysCircuit[2].toString(), "0");
   })
 
+  it("Test getExtAmount",async () => {
+    const poseidon = await buildPoseidonOpt();
+    let inputUtxos = [new Utxo({poseidon}), new Utxo({poseidon})];
+    let outputUtxos = [new Utxo({poseidon, amounts: [new anchor.BN(2), new anchor.BN(4)], assets: [SystemProgram.programId, MINT]}), new Utxo({poseidon})];
+    let {assetPubkeysCircuit, assetPubkeys}=Transaction.getAssetPubkeys(inputUtxos, outputUtxos);
+
+    let publicAmount =Transaction.getExternalAmount(0, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    assert.equal(publicAmount.toString(), "2");
+    let publicAmountSpl =Transaction.getExternalAmount(1, inputUtxos, outputUtxos, assetPubkeysCircuit);
+
+    assert.equal(publicAmountSpl.toString(), "4");
+
+    
+    outputUtxos[1] = new Utxo({poseidon, amounts: [new anchor.BN(3), new anchor.BN(5)], assets: [SystemProgram.programId, MINT]})
+    let publicAmountSpl2Outputs =Transaction.getExternalAmount(1, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    assert.equal(publicAmountSpl2Outputs.toString(), "9");
+
+    let publicAmountSol2Outputs =Transaction.getExternalAmount(0, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    assert.equal(publicAmountSol2Outputs.toString(), "5");
+
+  })
+
   it.only("Test Transaction errors", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString();
@@ -588,7 +610,7 @@ describe("verifier_program", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(depositAmount)],
+      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(0)],
       account: keypair,
     });
 
@@ -638,6 +660,117 @@ describe("verifier_program", () => {
       functionName: "constructor",
     });
 
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionErrorCode.SPL_SENDER_UNDEFINED,
+      functionName: "constructor",
+    });
+
+    
+    // should work since no sol amount
+    // sender fee always needs to be defined because we use it as the signer
+    // should work since no spl amount
+    new TransactionParameters({
+      outputUtxos: [utxo_sol_amount_no_u642],
+      merkleTreePubkey: mockPubkey,
+      senderFee: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.DEPOSIT,
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
+      functionName: "constructor",
+    });
+
+    expect( () => {
+      new TransactionParameters({
+        outputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        senderFee: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+    }).to.throw(TransactioParametersError).to.include({
+      code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
+      functionName: "constructor",
+    });
 
 
     /*
