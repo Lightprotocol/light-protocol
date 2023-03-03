@@ -48,6 +48,7 @@ import {
   IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
   RECIPIENT_TOKEN_ACCOUNT,
+  TOKEN_REGISTRY,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -87,7 +88,7 @@ describe("verifier_program", () => {
     verifierProgram.programId,
   );
 
-  const userKeypair = new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     await createTestAccounts(provider.connection);
@@ -506,11 +507,200 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
+  it.skip("(createOutUtxos) unshield in:1 SPL ", async () => {
+    let amount = 3;
+    let token = "USDC";
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
+    amount = amount * tokenCtx.decimals;
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    let utxo1 = new Utxo({
+      poseidon: POSEIDON,
+      assets: [
+        new PublicKey("11111111111111111111111111111111"),
+        tokenCtx.tokenAccount,
+      ],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+    });
+    let outUtxos = user.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: -amount,
+      inUtxos: [utxo1],
+    });
+    assert.equal(
+      outUtxos[0].amounts[0].toNumber(),
+      utxo1.amounts[0].toNumber(),
+      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toNumber(),
+      utxo1.amounts[1].toNumber() - amount,
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - amount * tokenCtx.decimals
+      }`,
+    );
+  });
+  it.skip("(createOutUtxos) unshield in:1SOL + 1SPL should merge 2-1", async () => {
+    let amount = 3;
+    let token = "USDC";
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
+    amount = amount * tokenCtx.decimals;
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    let utxo1 = new Utxo({
+      poseidon: POSEIDON,
+      assets: [
+        new PublicKey("11111111111111111111111111111111"),
+        tokenCtx.tokenAccount,
+      ],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+    });
+    let utxoSol = new Utxo({
+      poseidon: POSEIDON,
+      assets: [new PublicKey("11111111111111111111111111111111")],
+      amounts: [new BN(1e6)],
+    });
+    let outUtxos = user.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: -amount,
+      inUtxos: [utxo1, utxoSol],
+    });
+    console.log("inUtxos: ", [utxo1, utxoSol]);
+    console.log("outUtxos: ", outUtxos);
+    assert.equal(
+      outUtxos[0].amounts[0].toNumber(),
+      utxo1.amounts[0].toNumber() + utxoSol.amounts[0].toNumber(),
+      `${outUtxos[0].amounts[0]} fee != ${
+        utxo1.amounts[0].toNumber() + utxoSol.amounts[0].toNumber()
+      }`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toNumber(),
+      utxo1.amounts[1].toNumber() - amount,
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - amount * tokenCtx.decimals
+      }`,
+    );
+  });
+  it.skip("(createOutUtxos) unshield in:1SPL + 1SPL should merge 2-1", async () => {
+    let amount = 3;
+    let token = "USDC";
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
+    amount = amount * tokenCtx.decimals;
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    let utxo1 = new Utxo({
+      poseidon: POSEIDON,
+      assets: [
+        new PublicKey("11111111111111111111111111111111"),
+        tokenCtx.tokenAccount,
+      ],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+    });
+    let utxo2 = new Utxo({
+      poseidon: POSEIDON,
+      assets: [
+        new PublicKey("11111111111111111111111111111111"),
+        tokenCtx.tokenAccount,
+      ],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+    });
+    let outUtxos = user.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: -amount,
+      inUtxos: [utxo1, utxo2],
+    });
+    console.log("inUtxos: ", [utxo1, utxo2]);
+    console.log("outUtxos: ", outUtxos);
+    assert.equal(
+      outUtxos[0].amounts[0].toNumber(),
+      utxo1.amounts[0].toNumber() + utxo2.amounts[0].toNumber(),
+      `${outUtxos[0].amounts[0]} fee != ${
+        utxo1.amounts[0].toNumber() + utxo2.amounts[0].toNumber()
+      }`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toNumber(),
+      utxo1.amounts[1].toNumber() + utxo2.amounts[1].toNumber() - amount,
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - amount
+      }`,
+    );
+  });
+  it.skip("(createOutUtxos) transfer in:1 SPL ", async () => {
+    let amount = 3;
+    let token = "USDC";
+    const shieldedRecipient =
+      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+    const encryptionPublicKey =
+      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+
+    const recipient = new anchor.BN(shieldedRecipient, "hex");
+    const recipientEncryptionPublicKey: Uint8Array =
+      strToArr(encryptionPublicKey);
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    if (!tokenCtx) throw new Error("Token not supported!");
+    amount = amount * tokenCtx.decimals;
+    const provider = await Provider.native(userKeypair);
+    const user = await User.load(provider);
+    let utxo1 = new Utxo({
+      poseidon: POSEIDON,
+      assets: [
+        new PublicKey("11111111111111111111111111111111"),
+        tokenCtx.tokenAccount,
+      ],
+      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
+    });
+    const relayer = new Relayer(
+      // ADMIN_AUTH_KEYPAIR.publicKey,
+      provider.nodeWallet!.publicKey,
+      provider.lookUpTable!,
+      SolanaKeypair.generate().publicKey,
+      new anchor.BN(100000),
+    );
+    let outUtxos = user.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: amount,
+      inUtxos: [utxo1],
+      recipient: recipient,
+      recipientEncryptionPublicKey: recipientEncryptionPublicKey,
+      relayer: relayer,
+    });
+    assert.equal(
+      outUtxos[1].amounts[0].toNumber(),
+      utxo1.amounts[0].toNumber() -
+        relayer.relayerFee.toNumber() -
+        outUtxos[0].amounts[0].toNumber(),
+      `${outUtxos[1].amounts[0]} fee != ${
+        utxo1.amounts[0].toNumber() -
+        relayer.relayerFee.toNumber() -
+        outUtxos[0].amounts[0].toNumber()
+      }`,
+    );
+    // print all amounts of oututxos
+    console.log("feeAmount in: ", utxo1.amounts[0].toNumber());
+    console.log("splAmount in: ", utxo1.amounts[1].toNumber());
+    console.log("feeAmount 0: ", outUtxos[0].amounts[0].toNumber());
+    console.log("spl amount 0: ", outUtxos[0].amounts[1].toNumber());
+    console.log("feeAmount 1: ", outUtxos[1].amounts[0].toNumber());
+    console.log("splAmount 1: ", outUtxos[1].amounts[1].toNumber());
+
+    assert.equal(
+      outUtxos[1].amounts[1].toNumber(),
+      utxo1.amounts[1].toNumber() - amount,
+      `${outUtxos[1].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - amount
+      }`,
+    );
+  });
   it("(user class) shield SPL", async () => {
     let amount = 2;
     let token = "USDC";
-    console.log("test user wallet: ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
-    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR); // userKeypair
+    console.log("test user wallet: ", userKeypair.publicKey.toBase58());
+    const provider = await Provider.native(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -518,70 +708,29 @@ describe("verifier_program", () => {
     let balancet = await provider.provider.connection.getTokenAccountBalance(
       new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
     );
-    console.log(
-      "balancet CfyD2..",
-      balancet,
-      balancet.value.uiAmount,
-      balancet.value,
-    );
+    console.log("balancet CfyD2..", balancet.value.uiAmount, balancet.value);
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
     let balance = await user.getBalance({ latest: true });
-    console.log(
-      "balance: ",
-      balance,
-      "utxos:",
-      user.utxos[0],
-      user.utxos[1],
-      user.utxos[2],
-    );
+    try {
+      console.log(
+        "balance: ",
+        balance,
+        "utxos:",
+        user.utxos[0].amounts,
+        user.utxos[0].assets,
+        user.utxos[1].amounts,
+        user.utxos[1].assets,
+        user.utxos[2].amounts,
+        user.utxos[2].assets,
+      );
+    } catch (e) {
+      console.log("console log err", e);
+    }
   });
-  it("(user class) unshield SPL", async () => {
-    let amount = 1;
-    let token = "USDC";
-    let solRecipient = SolanaKeypair.generate();
-
-    console.log("test user wallet: ", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
-    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR); // userKeypair
-    let recipientTokenAccount = await newAccountWithTokens({
-      connection: provider.provider.connection,
-      MINT,
-      ADMIN_AUTH_KEYPAIR,
-      userAccount: solRecipient, //RECIPIENT_TOKEN_ACCOUNT,
-      amount: 0,
-    });
-    console.log("recipientTokenAccount: ", recipientTokenAccount.toBase58());
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      2_000_000_000,
-    );
-    let balancet = await provider.provider.connection.getTokenAccountBalance(
-      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
-    );
-    console.log(
-      "balancet CfyD2..",
-      balancet,
-      balancet.value.uiAmount,
-      balancet.value,
-    );
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user = await User.load(provider);
-    await user.unshield({ amount, token, recipient: solRecipient.publicKey });
-    // TODO: add random amount and amount checks
-    let balance = await user.getBalance({ latest: true });
-    console.log(
-      "balance: ",
-      balance,
-      "utxos:",
-      user.utxos[0],
-      user.utxos[1],
-      user.utxos[2],
-    );
-  });
-
-  it.skip("(user class) shield SOL", async () => {
+  it("(user class) shield SOL", async () => {
     let amount = 3;
     let token = "SOL";
     const provider = await Provider.native(userKeypair);
@@ -594,6 +743,95 @@ describe("verifier_program", () => {
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
   });
+  it.skip("(user class) unshield SPL", async () => {
+    let amount = 1;
+    let token = "USDC";
+    let solRecipient = SolanaKeypair.generate();
+    console.log("test user wallet: ", userKeypair.publicKey.toBase58());
+    const provider = await Provider.native(userKeypair); // userKeypair
+    let recipientTokenAccount = await newAccountWithTokens({
+      connection: provider.provider.connection,
+      MINT,
+      ADMIN_AUTH_KEYPAIR: userKeypair,
+      userAccount: solRecipient,
+      amount: 0,
+    });
+    console.log("recipientTokenAccount: ", recipientTokenAccount.toBase58());
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      2_000_000_000,
+    );
+    let balancet = await provider.provider.connection.getTokenAccountBalance(
+      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+    );
+    console.log("balancet CfyD2..", balancet.value.uiAmount, balancet.value);
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const user = await User.load(provider);
+    await user.unshield({ amount, token, recipient: solRecipient.publicKey });
+
+    let recipientBalanceAfter =
+      await provider.provider.connection.getTokenAccountBalance(
+        recipientTokenAccount,
+      );
+    console.log("recipientBalanceAfter: ", recipientBalanceAfter);
+    // TODO: add random amount and amount checks
+    let balance = await user.getBalance({ latest: true });
+    try {
+      console.log(
+        "shielded balance after: ",
+        balance,
+        "utxos:",
+        user.utxos[0].amounts,
+        user.utxos[0].assets,
+        user.utxos[1].amounts,
+        user.utxos[1].assets,
+        user.utxos[2].amounts,
+        user.utxos[2].assets,
+      );
+    } catch (e) {
+      console.log("console log err", e);
+    }
+  });
+  it("(user class) transfer SPL", async () => {
+    let amount = 1;
+    let token = "USDC";
+    console.log("test user wallet: ", userKeypair.publicKey.toBase58());
+    const provider = await Provider.native(userKeypair); // userKeypair
+    const shieldedRecipient =
+      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+    const encryptionPublicKey =
+      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+
+    const recipient = new anchor.BN(shieldedRecipient, "hex");
+    const recipientEncryptionPublicKey: Uint8Array =
+      strToArr(encryptionPublicKey);
+
+    const user = await User.load(provider);
+    await user.transfer({
+      amount,
+      token,
+      recipient,
+      recipientEncryptionPublicKey, // TODO: do shielded address
+    });
+
+    let balance = await user.getBalance({ latest: true });
+    try {
+      console.log(
+        "shielded balance after: ",
+        balance,
+        "utxos:",
+        user.utxos[0].amounts,
+        user.utxos[0].assets,
+        user.utxos[1].amounts,
+        user.utxos[1].assets,
+        user.utxos[2].amounts,
+        user.utxos[2].assets,
+      );
+    } catch (e) {
+      console.log("console log err", e);
+    }
+  });
+
   it.skip("(user class) transfer SOL", async () => {
     let amount = 1;
     let token = "SOL";

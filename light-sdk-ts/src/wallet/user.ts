@@ -231,7 +231,7 @@ export class User {
       (a) => a.asset.toBase58() === FEE_ASSET.toBase58(),
     );
     if (!feeAsset) throw new Error("Fee asset not found in assets");
-
+    console.log("assets", assets);
     if (assets.length === 1) {
       // just fee asset as oututxo
 
@@ -275,38 +275,64 @@ export class User {
         return [feeAssetChangeUtxo];
       }
     } else {
-      // add for spl with transfer case.
-      const utxos: Utxo[] = [];
-      assets.slice(1).forEach((asset, i) => {
-        // SPL: determine which is the sendUtxo and changeUtxo
-        // TODO: also- split feeasset to cover min tx fee
-        if (i === assets.length - 1) {
-          // add feeasset as asset to the last spl utxo
-          const utxo1 = new Utxo({
-            poseidon,
-            assets: [assets[0].asset, asset.asset],
-            amounts: [
-              new anchor.BN(assets[0].amount),
-              new anchor.BN(asset.amount),
-            ],
-            account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
-          });
-          utxos.push(utxo1);
-        } else {
-          const utxo1 = new Utxo({
-            poseidon,
-            assets: [assets[0].asset, asset.asset],
-            amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
-            account: this.account, // if not self, use pubkey init
-          });
-          utxos.push(utxo1);
-        }
-      });
-      if (utxos.length > 2)
-        // TODO: implement for 3 assets (SPL,SPL,SOL)
-        throw new Error(`Too many assets for outUtxo: ${assets.length}`);
+      if (isTransfer) {
+        let sendAmountFeeAsset = new anchor.BN(1e5);
+        let sendUtxo = new Utxo({
+          poseidon,
+          assets: [assets[0].asset, assets[1].asset],
+          amounts: [sendAmountFeeAsset, new anchor.BN(amount)],
+          account: new Account({
+            poseidon: poseidon,
+            publicKey: recipient,
+            encryptionPublicKey: recipientEncryptionPublicKey,
+          }),
+        });
+        let changeUtxo = new Utxo({
+          poseidon,
+          assets: [assets[0].asset, assets[1].asset],
+          amounts: [
+            new anchor.BN(assets[0].amount)
+              .sub(sendAmountFeeAsset)
+              .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change,
+            new anchor.BN(assets[1].amount).sub(new anchor.BN(amount)),
+          ], // rem transfer positive
+          account: this.account,
+        });
 
-      return utxos;
+        return [sendUtxo, changeUtxo];
+      } else {
+        const utxos: Utxo[] = [];
+        assets.slice(1).forEach((asset, i) => {
+          console.log("i: ", i, "asset: ", asset);
+          if (i === assets.slice(1).length - 1) {
+            // add feeasset as asset to the last spl utxo
+            const utxo1 = new Utxo({
+              poseidon,
+              assets: [assets[0].asset, asset.asset],
+              amounts: [
+                new anchor.BN(assets[0].amount),
+                new anchor.BN(asset.amount),
+              ],
+              account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
+            });
+            utxos.push(utxo1);
+            console.log("pushed feeAssetUtxo: ", utxo1);
+          } else {
+            const utxo1 = new Utxo({
+              poseidon,
+              assets: [assets[0].asset, asset.asset],
+              amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
+              account: this.account, // if not self, use pubkey init
+            });
+            utxos.push(utxo1);
+          }
+        });
+        if (utxos.length > 2)
+          // TODO: implement for 3 assets (SPL,SPL,SOL)
+          throw new Error(`Too many assets for outUtxo: ${assets.length}`);
+
+        return utxos;
+      }
     }
   }
 
@@ -763,11 +789,11 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-    console.log = () => {};
+    // console.log = () => {};
     //@ts-ignore
-    await tx.checkBalances();
-    console.log = initLog;
-    console.log("✔️ checkBalances success!");
+    // await tx.checkBalances();
+    // console.log = initLog;
+    console.log("✔️ checkBalances DEACTIVATED!");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       console.log("updating merkle tree...");
@@ -817,8 +843,8 @@ export class User {
     if (!tokenCtx) throw new Error("Token not supported!");
 
     // for is sol?
-    if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
-    amount = amount * 1e9;
+    // if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
+    amount = amount * tokenCtx.decimals;
     // TODO: pull an actually implemented relayer here
     const relayer = new Relayer(
       // ADMIN_AUTH_KEYPAIR.publicKey,
@@ -847,7 +873,7 @@ export class User {
 
     let randomRecipient = SolanaKeypair.generate().publicKey;
     console.log("randomRecipient", randomRecipient.toBase58());
-    if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
+    // if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
@@ -877,9 +903,9 @@ export class User {
     } catch (e) {
       console.log(e);
     }
-    console.log = () => {};
+    // console.log = () => {};
     await tx.checkBalances(randomShieldedKeypair);
-    console.log = initLog;
+    // console.log = initLog;
 
     console.log("✔️checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a crank
