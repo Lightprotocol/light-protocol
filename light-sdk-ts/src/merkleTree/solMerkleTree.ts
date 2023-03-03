@@ -39,7 +39,7 @@ export class SolMerkleTree {
     this.merkleTree = merkleTree;
   }
 
-  static async getLeaves(merkleTreePubkey: PublicKey, provider: Provider) {
+  static async getLeaves(merkleTreePubkey: PublicKey, provider?: Provider) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
       IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
@@ -57,7 +57,7 @@ export class SolMerkleTree {
 
   static async getCompressedLeaves(
     merkleTreePubkey: PublicKey,
-    provider: Provider,
+    provider?: Provider,
   ) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
       IDL_MERKLE_TREE_PROGRAM,
@@ -145,12 +145,14 @@ export class SolMerkleTree {
   static async build({
     pubkey,
     poseidon,
+    provider,
   }: {
     pubkey: PublicKey; // pubkey to bytes
     poseidon: any;
+    provider?: Provider;
   }) {
     const { leavesAccounts, merkleTreeIndex, mtFetched } =
-      await SolMerkleTree.getCompressedLeaves(pubkey);
+      await SolMerkleTree.getCompressedLeaves(pubkey, provider);
 
     leavesAccounts.sort(
       (a, b) =>
@@ -207,7 +209,7 @@ export class SolMerkleTree {
 
   static async getUninsertedLeaves(
     merkleTreePubkey: PublicKey,
-    provider: Provider,
+    provider?: Provider,
   ): Promise<
     Array<{
       publicKey: PublicKey;
@@ -240,7 +242,7 @@ export class SolMerkleTree {
 
   static async getUninsertedLeavesRelayer(
     merkleTreePubkey: PublicKey,
-    provider: Provider,
+    provider?: Provider,
   ) {
     return (
       await SolMerkleTree.getUninsertedLeaves(merkleTreePubkey, provider)
@@ -251,8 +253,8 @@ export class SolMerkleTree {
 
   static async getInsertedLeaves(
     merkleTreePubkey: PublicKey,
-    provider: Provider,
-  ) /*: Promise<{ pubkey: PublicKey; account: Account<Buffer>; }[]>*/ {
+    provider?: Provider,
+  ): Promise<any> {
     const { leavesAccounts, merkleTreeIndex } =
       await SolMerkleTree.getCompressedLeaves(merkleTreePubkey, provider);
 

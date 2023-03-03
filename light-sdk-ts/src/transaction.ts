@@ -25,8 +25,7 @@ import {
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 import { readFileSync } from "fs";
-import { Provider as LightProvider } from "./wallet";
-import axios from "axios";
+import { Provider } from "./wallet";
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
 var ffjavascript = require("ffjavascript");
@@ -38,7 +37,7 @@ var assert = require("assert");
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 
 export type transactionParameters = {
-  provider: anchor.Provider;
+  provider?: Provider;
   inputUtxos?: Array<Utxo>;
   outputUtxos?: Array<Utxo>;
   accounts: {
@@ -66,7 +65,7 @@ export type transactionParameters = {
 };
 
 export class TransactionParameters implements transactionParameters {
-  provider: anchor.Provider;
+  provider?: Provider;
   inputUtxos?: Array<Utxo>;
   outputUtxos?: Array<Utxo>;
   accounts: {
@@ -127,12 +126,14 @@ export class TransactionParameters implements transactionParameters {
     outputUtxos?: Utxo[];
     relayer?: Relayer;
     encryptedUtxos?: Uint8Array;
+    provider?: Provider;
   }) {
     try {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
-        provider,
+        // @ts-ignore
+        provider && provider,
       );
     } catch (error) {
       console.log(error);
@@ -191,7 +192,7 @@ export class Transaction {
   params?: TransactionParameters; // contains accounts
   appParams?: any;
   // TODO: relayer shd pls should be part of the provider by default + optional override on Transaction level
-  provider: LightProvider;
+  provider: Provider;
 
   //txInputs;
   publicInputs?: PublicInputs;
@@ -229,7 +230,7 @@ export class Transaction {
     provider,
     shuffleEnabled = false,
   }: {
-    provider: LightProvider;
+    provider: Provider;
     shuffleEnabled?: boolean;
   }) {
     if (!provider.poseidon) throw new Error("Poseidon not set");
@@ -460,52 +461,49 @@ export class Transaction {
     } else {
       // console.log("this.proofInput ", inputs);
 
-      const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
-      const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-      // const buffer = readFileSync(completePathWtns);
+      try {
+        const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
+        const completePathZkey = firstPath + "/" + verifier.zkeyPath;
 
-      // let witnessCalculator = await verifier.calculateWtns(buffer);
+        console.time("Proof generation");
+        const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+          stringifyBigInts(inputs),
+          completePathWtns,
+          completePathZkey,
+        );
+        const proofJson = JSON.stringify(proof, null, 1);
+        const publicInputsJson = JSON.stringify(publicSignals, null, 1);
+        console.timeEnd("Proof generation");
 
-      // let wtns = await witnessCalculator.calculateWTNSBin(
-      //   stringifyBigInts(inputs),
-      //   0,
-      // );
+        const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
+        const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+        if (res === true) {
+          console.log("Verification OK");
+        } else {
+          console.log("Invalid proof");
+          throw new Error("Invalid Proof");
+        }
 
-      console.time("Proof generation");
-      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-        stringifyBigInts(inputs),
-        completePathWtns,
-        completePathZkey,
-      );
-      const proofJson = JSON.stringify(proof, null, 1);
-      const publicInputsJson = JSON.stringify(publicSignals, null, 1);
-      console.timeEnd("Proof generation");
+        var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+        var publicInputsBytes = new Array<Array<number>>();
+        for (var i in publicInputsBytesJson) {
+          let ref: Array<number> = Array.from([
+            ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
+          ]).reverse();
+          publicInputsBytes.push(ref);
+          // TODO: replace ref, error is that le and be do not seem to be consistent
+          // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
+          // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
+        }
+        const publicInputs =
+          verifier.parsePublicInputsFromArray(publicInputsBytes);
 
-      const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
-      const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
-      if (res === true) {
-        console.log("Verification OK");
-      } else {
-        console.log("Invalid proof");
-        throw new Error("Invalid Proof");
+        const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
+        return { proofBytes, publicInputs };
+      } catch (error) {
+        console.error("error while generating and validating proof");
+        throw error;
       }
-
-      var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
-      var publicInputsBytes = new Array<Array<number>>();
-      for (var i in publicInputsBytesJson) {
-        let ref: Array<number> = Array.from([
-          ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
-        ]).reverse();
-        publicInputsBytes.push(ref);
-        // TODO: replace ref, error is that le and be do not seem to be consistent
-        // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
-        // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
-      }
-      const publicInputs =
-        verifier.parsePublicInputsFromArray(publicInputsBytes);
-
-      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
-      return { proofBytes, publicInputs };
     }
   }
 
@@ -654,7 +652,8 @@ export class Transaction {
       this.merkleTreeProgram = new Program(
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
-        this.provider,
+        // @ts-ignore
+        this.provider.browserWallet && this.provider,
       );
       let root = Uint8Array.from(
         leInt2Buff(
@@ -1124,14 +1123,12 @@ export class Transaction {
 
         try {
           let serializedTx = tx.serialize();
-          console.log("tx: ");
 
           res = await this.provider.provider.connection.sendRawTransaction(
             serializedTx,
             confirmConfig,
           );
           retries = 0;
-          // console.log(res);
         } catch (e: any) {
           retries--;
           if (retries == 0 || e.logs !== undefined) {
@@ -1558,21 +1555,10 @@ export class Transaction {
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
         );
-      console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
-      console.log(
-        "this.senderFeeBalancePriorTx: ",
-        this.senderFeeBalancePriorTx,
-      );
-
       assert(
         recipientFeeAccountBalance ==
           Number(this.recipientFeeBalancePriorTx) + Number(this.feeAmount),
       );
-      console.log(
-        "this.senderFeeBalancePriorTx ",
-        this.senderFeeBalancePriorTx,
-      );
-
       console.log(
         `${new BN(this.senderFeeBalancePriorTx)
           .sub(this.feeAmount)
@@ -1630,20 +1616,10 @@ export class Transaction {
         new anchor.BN(this.publicInputs.publicAmount.slice(24, 32)).toString(),
       );
 
-      console.log(
-        "recipientFeeBalancePriorTx: ",
-        this.recipientFeeBalancePriorTx,
-      );
-
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
         );
-      console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
-      console.log(
-        "this.senderFeeBalancePriorTx: ",
-        this.senderFeeBalancePriorTx,
-      );
 
       assert(
         recipientFeeAccountBalance ==

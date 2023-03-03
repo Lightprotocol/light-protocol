@@ -27,14 +27,12 @@ export async function executeUpdateMerkleTreeTransactions({
   leavesPdas,
   merkle_tree_pubkey,
   connection,
-  provider,
 }: {
   signer: Keypair;
   merkleTreeProgram: Program<MerkleTreeProgram>;
   leavesPdas: any;
   merkle_tree_pubkey: PublicKey;
   connection: Connection;
-  provider: anchor.AnchorProvider;
 }) {
   var merkleTreeAccountPrior = await merkleTreeProgram.account.merkleTree.fetch(
     merkle_tree_pubkey,
@@ -49,11 +47,15 @@ export async function executeUpdateMerkleTreeTransactions({
     )
   )[0];
 
-  try {
-    const transaction = new Transaction();
+  console.log(
+    "on line number 500000000000000000000 =======================> siqwiqwixuwqiw",
+    window,
+    typeof window === "undefined",
+  );
 
-    transaction.add(
-      await merkleTreeProgram.methods
+  try {
+    if (typeof window === "undefined") {
+      const tx1 = await merkleTreeProgram.methods
         .initializeMerkleTreeUpdateState
         // new anchor.BN(merkleTreeIndex) // merkle tree index
         ()
@@ -69,18 +71,41 @@ export async function executeUpdateMerkleTreeTransactions({
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ])
         .signers([signer])
-        .instruction(),
-    );
-
-    const response = await connection.sendTransaction(
-      transaction,
-      [signer],
-      confirmConfig,
-    );
-
-    await connection.confirmTransaction(response);
-  } catch (e) {
-    console.log("init Merkle tree update", e);
+        .rpc({
+          commitment: "confirmed",
+          preflightCommitment: "confirmed",
+        });
+    } else {
+      const transaction = new Transaction();
+      transaction.add(
+        await merkleTreeProgram.methods
+          .initializeMerkleTreeUpdateState
+          // new anchor.BN(merkleTreeIndex) // merkle tree index
+          ()
+          .accounts({
+            authority: signer.publicKey,
+            merkleTreeUpdateState: merkleTreeUpdateState,
+            systemProgram: SystemProgram.programId,
+            rent: DEFAULT_PROGRAMS.rent,
+            merkleTree: merkle_tree_pubkey,
+          })
+          .remainingAccounts(leavesPdas)
+          .preInstructions([
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ])
+          .signers([signer])
+          .instruction(),
+      );
+      const response = await connection.sendTransaction(
+        transaction,
+        [signer],
+        confirmConfig,
+      );
+      await connection.confirmTransaction(response);
+    }
+  } catch (err) {
+    console.error("failed while initing the merkle tree update state", err);
+    throw err;
   }
 
   await checkMerkleTreeUpdateStateCreated({
@@ -93,15 +118,19 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
   });
 
+  console.log("merkle treee update state created is checkedd ==============>");
+
   await executeMerkleTreeUpdateTransactions({
     signer,
     merkleTreeProgram,
     merkle_tree_pubkey,
-    provider,
     merkleTreeUpdateState,
     numberOfTransactions: 251,
     connection,
   });
+
+  console.log("successsfffullll everything ======================>");
+
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
     merkleTreeUpdateState,
@@ -112,12 +141,10 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
   });
 
-  // final tx to insert root
-  let success = false;
-  try {
-    const transaction = new Transaction();
+  console.log("state updated checkedddddddd = >>>>>>>>>>>>>>>");
 
-    transaction.add(
+  try {
+    if (typeof window === "undefined") {
       await merkleTreeProgram.methods
         .insertRootMerkleTree(new anchor.BN(254))
         .accounts({
@@ -130,16 +157,36 @@ export async function executeUpdateMerkleTreeTransactions({
         .preInstructions([
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
         ])
-        .instruction(),
-    );
+        .signers([signer])
+        .rpc({
+          commitment: "confirmed",
+          preflightCommitment: "confirmed",
+        });
+    } else {
+      const transaction = new Transaction();
 
-    const response = await connection.sendTransaction(
-      transaction,
-      [signer],
-      confirmConfig,
-    );
-
-    await connection.confirmTransaction(response);
+      transaction.add(
+        await merkleTreeProgram.methods
+          .insertRootMerkleTree(new anchor.BN(254))
+          .accounts({
+            authority: signer.publicKey,
+            merkleTreeUpdateState: merkleTreeUpdateState,
+            merkleTree: merkle_tree_pubkey,
+            logWrapper: SPL_NOOP_ADDRESS,
+          })
+          .remainingAccounts(leavesPdas)
+          .preInstructions([
+            ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
+          ])
+          .instruction(),
+      );
+      const response = await connection.sendTransaction(
+        transaction,
+        [signer],
+        confirmConfig,
+      );
+      await connection.confirmTransaction(response);
+    }
   } catch (e) {
     console.log(e);
   }
@@ -159,7 +206,6 @@ export async function executeMerkleTreeUpdateTransactions({
   merkleTreeProgram,
   merkleTreeUpdateState,
   merkle_tree_pubkey,
-  provider,
   signer,
   numberOfTransactions,
   connection,
@@ -167,16 +213,16 @@ export async function executeMerkleTreeUpdateTransactions({
   merkleTreeProgram: Program<MerkleTreeProgram>;
   merkleTreeUpdateState: PublicKey;
   merkle_tree_pubkey: PublicKey;
-  provider: anchor.AnchorProvider;
   signer: Keypair;
   numberOfTransactions: number;
   connection: Connection;
 }) {
-  let arr = [];
+  let transactions = [];
   let i = 0;
   // console.log("Sending Merkle tree update transactions: ",numberOfTransactions)
   // the number of tx needs to increase with greater batchsize
   // 29 + 2 * leavesPdas.length is a first approximation
+
   for (let ix_id = 0; ix_id < numberOfTransactions; ix_id++) {
     const transaction = new Transaction();
     transaction.add(
@@ -205,22 +251,32 @@ export async function executeMerkleTreeUpdateTransactions({
     );
     i += 1;
 
-    arr.push(transaction);
+    transactions.push(transaction);
   }
+
+  console.log(
+    "signer here =========================>",
+    signer.publicKey.toString(),
+  );
+
   let error;
   await Promise.all(
-    arr.map(async (tx, index) => {
+    transactions.map(async (tx, index) => {
       try {
         const response = await connection.sendTransaction(
           tx,
           [signer],
           confirmConfig,
         );
-
         await connection.confirmTransaction(response);
-      } catch (e) {
-        console.log("=============================>", e);
-        error = e;
+      } catch (err) {
+        console.error(
+          "failed at executing the merkle tree transaction:",
+          index,
+          err,
+        );
+
+        throw err;
       }
     }),
   );

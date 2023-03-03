@@ -107,6 +107,7 @@ export class User {
       if (latest) {
         let leavesPdas = await SolMerkleTree.getInsertedLeaves(
           MERKLE_TREE_KEY,
+          // @ts-ignore
           this.provider,
         );
 
@@ -158,6 +159,7 @@ export class User {
       return balances;
     } catch (err) {
       console.log("error in getting the user balance =============>", { err });
+      throw err;
     }
   }
 
@@ -523,12 +525,11 @@ export class User {
           ? this.provider.nodeWallet!.publicKey
           : userTokenAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
-        verifier: new VerifierZero(this.provider), // TODO: add support for 10in here -> verifier1
+        verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
       });
       return txParams;
     } else {
       const verifier = new VerifierZero(this.provider);
-
       let txParams = new TransactionParameters({
         outputUtxos: shieldUtxos,
         inputUtxos: inUtxos,
@@ -648,8 +649,6 @@ export class User {
 
     await tx.compileAndProve(txParams);
 
-    console.log("compiled and prooofeddd");
-
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(
@@ -668,7 +667,10 @@ export class User {
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
       console.log("updating merkle tree...");
-      await updateMerkleTreeForTest(this.provider.provider!, this.provider);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -728,7 +730,9 @@ export class User {
     // TODO: replace with ping to relayer webserver
 
     let relayer = new Relayer(
-      this.provider.browserWallet!.publicKey,
+      this.provider.browserWallet!
+        ? this.provider.browserWallet.publicKey
+        : this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
@@ -741,11 +745,9 @@ export class User {
       provider: this.provider,
     });
 
-    console.log("transaction is setup", tx);
-
-    const verifier = new VerifierZero(this.provider);
-
-    console.log({ verifier });
+    const verifier = new VerifierZero(
+      this.provider.browserWallet && this.provider,
+    );
 
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
@@ -758,8 +760,6 @@ export class User {
       relayer,
       provider: this.provider,
     });
-
-    console.log({ txParams });
 
     await tx.compileAndProve(txParams);
 
@@ -790,7 +790,10 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.provider.provider!, this.provider);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -837,13 +840,16 @@ export class User {
     if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
     amount = amount * 1e9;
     // TODO: pull an actually implemented relayer here
-    const relayer = new Relayer(
-      // ADMIN_AUTH_KEYPAIR.publicKey,
-      this.provider.nodeWallet!.publicKey,
+
+    let relayer = new Relayer(
+      this.provider.browserWallet!
+        ? this.provider.browserWallet.publicKey
+        : this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: amount, // priv pub doesnt need to distinguish here
@@ -903,7 +909,10 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️updated merkle tree!");
     } catch (e) {
@@ -972,7 +981,8 @@ export class User {
     // TODO: optimize: fetch once, then filter
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(
       MERKLE_TREE_KEY,
-      this.provider,
+      // @ts-ignore
+      this.provider.browserWallet && this.provider,
     );
 
     const params = {
@@ -1003,7 +1013,8 @@ export class User {
       await user.load(cachedUser, provider);
       return user;
     } catch (err) {
-      console.log({ err });
+      console.log("while loading the user", { err });
+      throw err;
     }
   }
 

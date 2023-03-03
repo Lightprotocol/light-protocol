@@ -74,10 +74,6 @@ export class Provider {
       throw new Error(
         "Connection provided in node environment. Provide a url instead",
       );
-    // if (browserWallet && url)
-    //   throw new Error(
-    //     "Url provided in browser environment. Provide a connection instead",
-    //   );
 
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
@@ -115,51 +111,57 @@ export class Provider {
   }
 
   private async fetchLookupTable() {
-    if (this.browserWallet) {
-      const response = await axios.get("http://localhost:3331/lookuptable");
-      this.lookUpTable = new PublicKey(response.data.data);
-      console.log("lookuptable fetched from 3331");
-      return;
+    try {
+      if (this.browserWallet) {
+        const response = await axios.get("http://localhost:3331/lookuptable");
+        this.lookUpTable = new PublicKey(response.data.data);
+        return;
+      }
+      if (!this.provider) throw new Error("No provider set.");
+      this.lookUpTable = await initLookUpTableFromFile(this.provider);
+    } catch (err) {
+      console.error(err);
+      throw err;
     }
-    if (!this.provider) throw new Error("No provider set.");
-    this.lookUpTable = await initLookUpTableFromFile(this.provider);
   }
 
   private async fetchMerkleTree() {
-    if (this.browserWallet) {
-      const response = await axios.get("http://localhost:3331/merkletree");
+    try {
+      if (this.browserWallet) {
+        const response = await axios.get("http://localhost:3331/merkletree");
 
-      const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
+        const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
 
-      const pubkey = new PublicKey(response.data.data.pubkey);
+        const pubkey = new PublicKey(response.data.data.pubkey);
 
-      const mt = new MerkleTree(
-        MERKLE_TREE_HEIGHT,
-        this.poseidon,
-        fetchedMerkleTree._layers[0],
+        const merkleTree = new MerkleTree(
+          MERKLE_TREE_HEIGHT,
+          this.poseidon,
+          fetchedMerkleTree._layers[0],
+        );
+
+        this.solMerkleTree = { ...response.data.data, merkleTree, pubkey };
+      }
+      // TODO: move to a seperate function
+      const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
+        MERKLE_TREE_KEY,
       );
+      if (!merkletreeIsInited) {
+        await setUpMerkleTree(this.provider!);
+        // TODO: throw error
+      }
 
-      this.solMerkleTree = { ...response.data.data, merkleTree: mt, pubkey };
-      console.log("merkletree fetched from 3331");
-      return;
+      const mt = await SolMerkleTree.build({
+        pubkey: MERKLE_TREE_KEY,
+        poseidon: this.poseidon,
+        provider: this.provider,
+      });
+      console.log("✔️ building merkletree done");
+      this.solMerkleTree = mt;
+    } catch (err) {
+      console.error(err);
+      throw err;
     }
-    // TODO: move to a seperate function
-    const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
-      MERKLE_TREE_KEY,
-    );
-    if (!merkletreeIsInited) {
-      await setUpMerkleTree(this.provider!);
-      console.log("merkletree inited");
-      // TODO: throw error
-    }
-
-    console.log("building merkletree...");
-    const mt = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: this.poseidon,
-    });
-    console.log("✔️ building merkletree done");
-    this.solMerkleTree = mt;
   }
 
   private async loadPoseidon() {

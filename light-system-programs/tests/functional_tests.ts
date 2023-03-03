@@ -96,7 +96,6 @@ describe("verifier_program", () => {
 
   it.skip("build compressed merkle tree", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
-    // await updateMerkleTreeForTest(provider);
     let merkleTree = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
       poseidon,
@@ -296,12 +295,12 @@ describe("verifier_program", () => {
         let res = await tx.sendAndConfirmTransaction();
         console.log(res);
       } catch (e) {
-        console.log(e);
+        console.log("erorr here  ------------------------->", e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
       await tx.checkBalances(KEYPAIR);
     }
-    await updateMerkleTreeForTest(provider);
+    await updateMerkleTreeForTest(provider.connection);
   });
 
   it("Withdraw", async () => {
@@ -464,8 +463,15 @@ describe("verifier_program", () => {
       userKeypair.publicKey,
       4_000_000_000,
     );
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
+
+    console.log("res ================>", res);
+
+    await provider.provider.connection.confirmTransaction(res, "confirmed")
+
     const user = await User.load(provider);
+
+    console.log("user set ================>")
+
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
   });

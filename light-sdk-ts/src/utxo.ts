@@ -15,7 +15,11 @@ const randomBytes = (length: number): Buffer => {
 };
 
 const randomBN = (nbytes = 30) => {
-  return new anchor.BN(randomBytes(nbytes));
+  try {
+    return new anchor.BN(crypto.randomBytes(nbytes));
+  } catch (err) {
+    return new anchor.BN(randomBytes(nbytes));
+  }
 };
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
@@ -30,8 +34,6 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 import { BN } from "@coral-xyz/anchor";
 import { CONSTANT_SECRET_AUTHKEY } from "./constants";
-import { MINT } from "./index";
-import { hex } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 import { assert } from "chai";
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants

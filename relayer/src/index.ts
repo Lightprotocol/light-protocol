@@ -4,16 +4,11 @@ import {
   Relayer,
   Provider,
   confirmConfig,
-  updateMerkleTreeForTest,
   createTestAccounts,
-  IDL_MERKLE_TREE_PROGRAM,
-  IDL_VERIFIER_PROGRAM,
   initLookUpTableFromFile,
-  merkleTreeProgramId,
   MERKLE_TREE_KEY,
   setUpMerkleTree,
   SolMerkleTree,
-  verifierProgramId,
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";

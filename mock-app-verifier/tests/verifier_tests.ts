@@ -137,7 +137,7 @@ describe("Verifier Two test", () => {
       );
       // does one successful transaction
       await transaction.sendAndConfirmTransaction();
-      await updateMerkleTreeForTest(provider);
+      await updateMerkleTreeForTest(provider.connection);
 
       // // Deposit
       var transaction1 = new Transaction({
