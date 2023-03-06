@@ -509,7 +509,7 @@ describe("verifier_program", () => {
     await tx.checkBalances();
   });
 
-  it.skip("(createOutUtxos) unshield in:1 SPL ", async () => {
+  it("(createOutUtxos) unshield in:1 SPL ", async () => {
     let amount = 3;
     let token = "USDC";
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
@@ -529,6 +529,7 @@ describe("verifier_program", () => {
       mint: tokenCtx.tokenAccount,
       amount: -amount,
       inUtxos: [utxo1],
+      extraSolAmount: 0,
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -543,7 +544,7 @@ describe("verifier_program", () => {
       }`,
     );
   });
-  it.skip("(createOutUtxos) unshield in:1SOL + 1SPL should merge 2-1", async () => {
+  it("(createOutUtxos) unshield in:1SOL + 1SPL should merge 2-1", async () => {
     let amount = 3;
     let token = "USDC";
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
@@ -568,6 +569,7 @@ describe("verifier_program", () => {
       mint: tokenCtx.tokenAccount,
       amount: -amount,
       inUtxos: [utxo1, utxoSol],
+      extraSolAmount: 0,
     });
     console.log("inUtxos: ", [utxo1, utxoSol]);
     console.log("outUtxos: ", outUtxos);
@@ -586,7 +588,7 @@ describe("verifier_program", () => {
       }`,
     );
   });
-  it.skip("(createOutUtxos) unshield in:1SPL + 1SPL should merge 2-1", async () => {
+  it("(createOutUtxos) unshield in:1SPL + 1SPL should merge 2-1", async () => {
     let amount = 3;
     let token = "USDC";
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
@@ -614,6 +616,7 @@ describe("verifier_program", () => {
       mint: tokenCtx.tokenAccount,
       amount: -amount,
       inUtxos: [utxo1, utxo2],
+      extraSolAmount: 0,
     });
     console.log("inUtxos: ", [utxo1, utxo2]);
     console.log("outUtxos: ", outUtxos);
@@ -632,7 +635,7 @@ describe("verifier_program", () => {
       }`,
     );
   });
-  it.skip("(createOutUtxos) transfer in:1 SPL ", async () => {
+  it("(createOutUtxos) transfer in:1 SPL ", async () => {
     let amount = 3;
     let token = "USDC";
     const shieldedRecipient =
@@ -670,6 +673,7 @@ describe("verifier_program", () => {
       recipient: recipient,
       recipientEncryptionPublicKey: recipientEncryptionPublicKey,
       relayer: relayer,
+      extraSolAmount: 0,
     });
     assert.equal(
       outUtxos[1].amounts[0].toNumber(),
@@ -699,7 +703,7 @@ describe("verifier_program", () => {
     );
   });
   it("(user class) shield SPL", async () => {
-    let amount = 2;
+    let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
     const provider = await Provider.native(userKeypair); // userKeypair
@@ -851,7 +855,7 @@ describe("verifier_program", () => {
   });
 
   it("(user class) shield SOL", async () => {
-    let amount = 3;
+    let amount = 15;
     let token = "SOL";
     const provider = await Provider.native(userKeypair);
     let res = await provider.provider.connection.requestAirdrop(
@@ -863,7 +867,7 @@ describe("verifier_program", () => {
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
   });
-  it.skip("(user class) unshield SPL", async () => {
+  it("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
@@ -975,7 +979,7 @@ describe("verifier_program", () => {
     // TODO: add random amount, recipient and amount checks
   });
 
-  it.skip("(user class) unshield SOL", async () => {
+  it("(user class) unshield SOL", async () => {
     let amount = 1;
     let token = "SOL";
     let recipient = new PublicKey(
