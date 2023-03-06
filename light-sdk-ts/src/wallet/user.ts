@@ -573,7 +573,6 @@ export class User {
           console.log("userTokenAccount at shield", userTokenAccount);
           let balancet =
             await this.provider.provider!.connection.getTokenAccountBalance(
-              // new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
               userTokenAccount,
             );
           console.log("balance in shield..", balancet);
@@ -608,7 +607,6 @@ export class User {
             this.provider.provider!.connection,
             this.provider.nodeWallet!,
             userTokenAccount,
-            // tokenCtx.tokenAccount, // TODO: must be user's token account
             // TODO: make dynamic based on verifier
             AUTHORITY, //delegate
             // this.provider.nodeWallet!, // owner
@@ -689,14 +687,23 @@ export class User {
     if (!tokenCtx) throw new Error("Token not supported!");
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
-      throw new Error("SPL not implemented yet!");
+      // throw new Error("SPL not implemented yet!");
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.tokenAccount,
         recipient,
       );
+      // let test =
+      //   await this.provider.provider?.connection.getTokenAccountsByOwner(
+      //     recipient,
+      //     {
+      //       mint: tokenCtx.tokenAccount,
+      //     },
+      //   );
+      console.log("recipientSPLAddress", recipientSPLAddress.toBase58());
       // * units
+      // throw new Error("..breakSPL not implemented yet!");
     } else {
-      amount = amount * 1e9;
+      amount = amount * tokenCtx.decimals;
     }
 
     const inUtxos = this.selectInUtxos({
@@ -709,6 +716,9 @@ export class User {
       amount: -amount,
       inUtxos,
     });
+    console.log("user.utxos:", this.utxos[0], this.utxos[1]);
+    console.log("in selected: ", inUtxos[0], inUtxos[1]);
+    console.log("out selected: ", outUtxos[0], outUtxos[1]);
 
     // TODO: replace with ping to relayer webserver
     let relayer = new Relayer(
@@ -909,7 +919,6 @@ export class User {
 
   async load(cachedUser?: CachedUserState, provider?: Provider) {
     if (cachedUser) {
-      // this.account = cachedUser.account;
       this.seed = cachedUser.seed;
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
       if (!provider) throw new Error("No provider provided");
