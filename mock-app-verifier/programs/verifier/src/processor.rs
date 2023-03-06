@@ -26,19 +26,23 @@ impl Config for TransactionsConfig {
 
 pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-    proof: Vec<u8>,
-    public_amount: Vec<u8>,
-    nullifiers: Vec<Vec<u8>>,
-    leaves: Vec<Vec<Vec<u8>>>,
-    fee_amount: Vec<u8>,
-    checked_public_inputs: Vec<Vec<u8>>,
-    encrypted_utxos: Vec<u8>,
-    pool_type: Vec<u8>,
-    root_index: &u64,
-    relayer_fee: &u64,
+    proof_a: &'a [u8; 64],
+    proof_b: &'a [u8; 128],
+    proof_c: &'a [u8; 64],
+    public_amount: &'a [u8; 32],
+    nullifiers: &'a [[u8; 32]; 4],
+    leaves: &'a [[[u8; 32]; 2]; 2],
+    fee_amount: &'a [u8; 32],
+    checked_public_inputs: &'a Vec<Vec<u8>>,
+    encrypted_utxos: &'a Vec<u8>,
+    pool_type: &'a [u8; 32],
+    root_index: &'a u64,
+    relayer_fee: &'a u64,
 ) -> Result<()> {
-    let tx = Transaction::<TransactionsConfig>::new(
-        proof,
+    let tx = Transaction::<2, 4, TransactionsConfig>::new(
+        proof_a,
+        proof_b,
+        proof_c,
         public_amount,
         fee_amount,
         checked_public_inputs,
@@ -58,12 +62,18 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
 
 pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
     ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-    proof_app: Vec<u8>,
-    proof_verifier: Vec<u8>,
+    proof_a_app: &'a [u8; 64],
+    proof_b_app: &'a [u8; 128],
+    proof_c_app: &'a [u8; 64],
+    proof_a_verifier: &'a [u8; 64],
+    proof_b_verifier: &'a [u8; 128],
+    proof_c_verifier: &'a [u8; 64],
 ) -> Result<()> {
     // verify app proof
     let mut app_verifier = AppTransaction::<TransactionsConfig>::new(
-        proof_app,
+        proof_a_app,
+        proof_b_app,
+        proof_c_app,
         ctx.accounts.verifier_state.checked_public_inputs.clone(),
         &VERIFYINGKEY,
     );
@@ -91,11 +101,6 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
             .clone(),
         program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info().clone(),
         merkle_tree: ctx.accounts.merkle_tree.to_account_info().clone(),
-        pre_inserted_leaves_index: ctx
-            .accounts
-            .pre_inserted_leaves_index
-            .to_account_info()
-            .clone(),
         token_program: ctx.accounts.token_program.to_account_info().clone(),
         sender: ctx.accounts.sender.to_account_info().clone(),
         recipient: ctx.accounts.recipient.to_account_info().clone(),
@@ -103,7 +108,6 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
         recipient_fee: ctx.accounts.recipient_fee.to_account_info().clone(),
         // relayer recipient and escrow will never be used in the same transaction
         relayer_recipient: ctx.accounts.relayer_recipient.to_account_info().clone(),
-        escrow: ctx.accounts.relayer_recipient.to_account_info().clone(),
         token_authority: ctx.accounts.token_authority.to_account_info().clone(),
     };
 
@@ -120,7 +124,12 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
 
     verifier_program_two::cpi::shielded_transfer_inputs(
         cpi_ctx,
-        proof_verifier,
-        ctx.accounts.verifier_state.checked_public_inputs[1].clone(),
+        *proof_a_verifier,
+        *proof_b_verifier,
+        *proof_c_verifier,
+        <Vec<u8> as TryInto<[u8; 32]>>::try_into(
+            ctx.accounts.verifier_state.checked_public_inputs[1].to_vec(),
+        )
+        .unwrap(),
     )
 }

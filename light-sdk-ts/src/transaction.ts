@@ -10,7 +10,7 @@ import {
 } from "@solana/web3.js";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
-import { PRE_INSERTED_LEAVES_INDEX, confirmConfig } from "./constants";
+import { confirmConfig, MERKLE_TREE_KEY } from "./constants";
 import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
@@ -23,7 +23,6 @@ import {
   Relayer,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { readFileSync } from "fs";
 import { Provider as LightProvider } from "./wallet";
 const anchor = require("@coral-xyz/anchor");
 const snarkjs = require("snarkjs");
@@ -46,7 +45,6 @@ export type transactionParameters = {
     recipientFee?: PublicKey;
     verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
-    escrow?: PublicKey;
   };
   relayer?: Relayer;
   encryptedUtxos?: Uint8Array;
@@ -73,14 +71,12 @@ export class TransactionParameters implements transactionParameters {
     recipientFee?: PublicKey;
     verifierState?: PublicKey;
     tokenAuthority?: PublicKey;
-    escrow?: PublicKey;
     systemProgramId: PublicKey;
     merkleTree: PublicKey;
     tokenProgram: PublicKey;
     registeredVerifierPda: PublicKey;
     authority: PublicKey;
     signingAddress?: PublicKey;
-    preInsertedLeavesIndex: PublicKey;
     programMerkleTree: PublicKey;
   };
   relayer?: Relayer;
@@ -132,9 +128,9 @@ export class TransactionParameters implements transactionParameters {
     } catch (error) {
       console.log(error);
       console.log("assuming test mode thus continuing");
-      this.merkleTreeProgram = {
-        programId: merkleTreeProgramId,
-      };
+      // this.merkleTreeProgram = {
+      //   programId: merkleTreeProgramId,
+      // };
     }
     if (!this.merkleTreeProgram) throw new Error("merkleTreeProgram not set");
     if (!verifier) throw new Error("verifier undefined");
@@ -146,19 +142,18 @@ export class TransactionParameters implements transactionParameters {
       tokenProgram: TOKEN_PROGRAM_ID,
       merkleTree: merkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
-        this.merkleTreeProgram.programId,
+        merkleTreeProgramId,
         verifier.verifierProgram.programId,
       ),
       authority: Transaction.getSignerAuthorityPda(
-        this.merkleTreeProgram.programId,
+        merkleTreeProgramId,
         verifier.verifierProgram.programId,
       ),
-      preInsertedLeavesIndex: PRE_INSERTED_LEAVES_INDEX,
       sender: sender,
       recipient: recipient,
       senderFee: senderFee, // TODO: change to feeSender
       recipientFee: recipientFee, // TODO: change name to feeRecipient
-      programMerkleTree: this.merkleTreeProgram.programId,
+      programMerkleTree: merkleTreeProgramId,
     };
     this.verifier = verifier;
     this.outputUtxos = outputUtxos;
@@ -318,7 +313,7 @@ export class Transaction {
     // prep and get proof inputs
     this.publicAmount = this.getExternalAmount(1);
     this.feeAmount = this.getExternalAmount(0);
-    this.assignAccounts(params);
+    this.assignAccounts();
     this.getMerkleProofs();
     this.getProofInput();
     await this.getRootIndex();
@@ -457,22 +452,13 @@ export class Transaction {
 
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-      const buffer = readFileSync(completePathWtns);
 
-      let witnessCalculator = await verifier.calculateWtns(buffer);
-
-      console.time("Proof generation");
-      let wtns = await witnessCalculator.calculateWTNSBin(
+      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         stringifyBigInts(inputs),
-        0,
+        completePathWtns,
+        completePathZkey,
       );
 
-      const { proof, publicSignals } = await snarkjs.groth16.prove(
-        completePathZkey,
-        wtns,
-      );
-      const proofJson = JSON.stringify(proof, null, 1);
-      const publicInputsJson = JSON.stringify(publicSignals, null, 1);
       console.timeEnd("Proof generation");
 
       const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
@@ -483,6 +469,16 @@ export class Transaction {
         console.log("Invalid proof");
         throw new Error("Invalid Proof");
       }
+
+      // const curve = await  ffjavascript.getCurveFromName(vKey.curve);
+      // let neg_proof_a = curve.G1.neg(curve.G1.fromObject(proof.pi_a))
+      // proof.pi_a = [
+      //   ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(0,32)).toString(),
+      //     ffjavascript.utils.stringifyBigInts(neg_proof_a.slice(32,64)).toString(),
+      //       '1'
+      // ];
+      const proofJson = JSON.stringify(proof, null, 1);
+      const publicInputsJson = JSON.stringify(publicSignals, null, 1);
 
       var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
       var publicInputsBytes = new Array<Array<number>>();
@@ -520,7 +516,11 @@ export class Transaction {
     return connectingHash;
   }
 
-  assignAccounts(params: TransactionParameters) {
+  assignAccounts() {
+    if (!this.params) throw new Error("Params undefined");
+    if (!this.params.verifier.verifierProgram)
+      throw new Error("Verifier.verifierProgram undefined");
+
     if (this.assetPubkeys && this.params) {
       if (!this.params.accounts.sender && !this.params.accounts.senderFee) {
         if (this.action !== "WITHDRAWAL") {
@@ -568,14 +568,18 @@ export class Transaction {
             );
           }
         }
-        if (!this.params.accounts.senderFee) {
-          this.params.accounts.senderFee = SystemProgram.programId;
-          if (!this.feeAmount?.eq(new BN(0))) {
-            throw new Error(
-              "sth is wrong assignAccounts !params.accounts.senderFee",
-            );
-          }
-        }
+        this.params.accounts.senderFee = PublicKey.findProgramAddressSync(
+          [anchor.utils.bytes.utf8.encode("escrow")],
+          this.params.verifier.verifierProgram.programId,
+        )[0];
+        // if (!this.params.accounts.senderFee) {
+
+        //   if (!this.feeAmount?.eq(new BN(0))) {
+        //     throw new Error(
+        //       "sth is wrong assignAccounts !params.accounts.senderFee",
+        //     );
+        //   }
+        // }
       }
     } else {
       throw new Error("assignAccounts assetPubkeys undefined");
@@ -660,7 +664,9 @@ export class Transaction {
           this.provider.solMerkleTree.pubkey,
         );
 
-      merkle_tree_account_data.roots.map((x: any, index: any) => {
+      // stupid reassignment to get rid of error
+      const tmp: any = merkle_tree_account_data.roots;
+      tmp.map((x: any, index: any) => {
         if (x.toString() === root.toString()) {
           this.rootIndex = index;
         }
@@ -897,38 +903,14 @@ export class Transaction {
 
         if (tmpArray.length < 512) {
           tmpArray.push(
-            new Array(
+            ...nacl.randomBytes(
               this.params.verifier.config.out * 128 - tmpArray.length,
-            ).fill(0),
+            ),
           );
         }
-        // TODO: find generic way to make it work for both the multisig and the marketplace
-        if (this.appParams.overwrite) {
-          const utxoBytes =
-            this.params?.outputUtxos[this.appParams.overwriteIndex].toBytes();
-          tmpArray = this.overWriteEncryptedUtxos(utxoBytes, tmpArray, 0).slice(
-            0,
-            512,
-          );
-        }
-        // return new Uint8Array(tmpArray.flat());
         return new Uint8Array([...tmpArray]);
       }
     }
-  }
-
-  // need this for the marketplace rn
-  overWriteEncryptedUtxos(
-    bytes: Uint8Array,
-    toOverwriteBytes: Uint8Array,
-    offSet: number = 0,
-  ) {
-    // this.params.encryptedUtxos.slice(offSet, bytes.length + offSet) = bytes;
-    return Uint8Array.from([
-      ...toOverwriteBytes.slice(0, offSet),
-      ...bytes,
-      ...toOverwriteBytes.slice(offSet + bytes.length, toOverwriteBytes.length),
-    ]);
   }
 
   // send transaction should be the same for both deposit and withdrawal
@@ -996,12 +978,19 @@ export class Transaction {
         this.params.accounts.recipientFee,
       );
     }
-
-    this.senderFeeBalancePriorTx = new BN(
-      await this.provider.provider.connection.getBalance(
-        this.params.accounts.senderFee,
-      ),
-    );
+    if (this.action === "DEPOSIT") {
+      this.senderFeeBalancePriorTx = new BN(
+        await this.provider.provider.connection.getBalance(
+          this.params.relayer.accounts.relayerPubkey,
+        ),
+      );
+    } else {
+      this.senderFeeBalancePriorTx = new BN(
+        await this.provider.provider.connection.getBalance(
+          this.params.accounts.senderFee,
+        ),
+      );
+    }
 
     this.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
@@ -1036,7 +1025,7 @@ export class Transaction {
       return serialized;
     } else {
       const instructions = await this.appParams.verifier.getInstructions(this);
-      let serialized = instructions.map((ix) => JSON.stringify(ix));
+      let serialized = instructions.map((ix: any) => JSON.stringify(ix));
       return serialized;
     }
   }
@@ -1268,10 +1257,6 @@ export class Transaction {
       });
     }
 
-    this.params.accounts.escrow = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("escrow")],
-      this.params.verifier.verifierProgram.programId,
-    )[0];
     if (this.appParams) {
       this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
         [signer.toBytes(), anchor.utils.bytes.utf8.encode("VERIFIER_STATE")],
@@ -1496,18 +1481,11 @@ export class Transaction {
     console.log(`mode ${this.action}, this.is_token ${this.is_token}`);
 
     try {
-      var preInsertedLeavesIndexAccount =
-        await this.provider.provider.connection.getAccountInfo(
-          PRE_INSERTED_LEAVES_INDEX,
-        );
-
-      const preInsertedLeavesIndexAccountAfterUpdate =
-        await this.merkleTreeProgram.account.preInsertedLeavesIndex.fetch(
-          PRE_INSERTED_LEAVES_INDEX,
-        );
+      const merkleTreeAfterUpdate =
+        await this.merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
       console.log(
-        "Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex) ",
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
+        "Number(merkleTreeAfterUpdate.nextQueuedIndex) ",
+        Number(merkleTreeAfterUpdate.nextQueuedIndex),
       );
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
@@ -1520,7 +1498,7 @@ export class Transaction {
       );
 
       assert.equal(
-        Number(preInsertedLeavesIndexAccountAfterUpdate.nextIndex),
+        Number(merkleTreeAfterUpdate.nextQueuedIndex),
         Number(leavesAccountData.leftLeafIndex) +
           this.params.leavesPdaPubkeys.length * 2,
       );
@@ -1549,7 +1527,7 @@ export class Transaction {
 
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderFee,
+          this.params.relayer.accounts.relayerPubkey,
         );
       console.log("senderFeeAccountBalance: ", senderFeeAccountBalance);
       console.log(
@@ -1838,13 +1816,13 @@ export class Transaction {
         }
       }
     }
-    return [
-      mydata.pi_a[0],
-      mydata.pi_a[1],
-      mydata.pi_b[0].flat().reverse(),
-      mydata.pi_b[1].flat().reverse(),
-      mydata.pi_c[0],
-      mydata.pi_c[1],
-    ].flat();
+    return {
+      proofA: [mydata.pi_a[0], mydata.pi_a[1]].flat(),
+      proofB: [
+        mydata.pi_b[0].flat().reverse(),
+        mydata.pi_b[1].flat().reverse(),
+      ].flat(),
+      proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
+    };
   }
 }

@@ -57,7 +57,6 @@ describe("Verifier Two test", () => {
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  console.log("skipping mint test and removed spl asset from utxos for out of memory");
   console.log = () => {};
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
@@ -77,7 +76,6 @@ describe("Verifier Two test", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    // overwrite transaction
     depositAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
     depositFeeAmount =
@@ -107,11 +105,11 @@ describe("Verifier Two test", () => {
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET//, MINT
+        assets: [FEE_ASSET, MINT
       ],
         amounts: [
           new anchor.BN(depositFeeAmount),
-          // new anchor.BN(depositAmount),
+          new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
       });
@@ -146,11 +144,11 @@ describe("Verifier Two test", () => {
 
       var deposit_utxo2 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET//, MINT
+        assets: [FEE_ASSET, MINT
         ],
         amounts: [
           new anchor.BN(depositFeeAmount),
-          // new anchor.BN(depositAmount),
+          new anchor.BN(depositAmount),
         ],
         account: KEYPAIR,
       });
@@ -300,10 +298,10 @@ describe("Verifier Two test", () => {
     }
   });
 
-  it.skip("Wrong Mint", async () => {
+  it("Wrong Mint", async () => {
     for (var tx in transactions) {
       var tmp_tx = _.cloneDeep(transactions[tx]);
-      let relayer = new anchor.web3.Account();
+      let relayer = SolanaKeypair.generate();
       const newMintKeypair = SolanaKeypair.generate();
       await createMintWrapper({
         authorityKeypair: ADMIN_AUTH_KEYPAIR,
@@ -315,7 +313,7 @@ describe("Verifier Two test", () => {
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
         userAccount: relayer,
-        amount: 0,
+        amount: new BN(0),
       });
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
@@ -415,14 +413,6 @@ describe("Verifier Two test", () => {
         SolanaKeypair.generate().publicKey
       );
       await sendTestTx(tmp_tx, "Account", "authority");
-    }
-  });
-
-  it("Wrong preInsertedLeavesIndex", async () => {
-    for (var tx in transactions) {
-      var tmp_tx = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.preInsertedLeavesIndex = REGISTERED_VERIFIER_PDA;
-      await sendTestTx(tmp_tx, "preInsertedLeavesIndex");
     }
   });
 

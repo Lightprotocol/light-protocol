@@ -1,6 +1,6 @@
-export type VerifierProgram = {
+export type VerifierProgramStorage = {
   "version": "0.1.0",
-  "name": "verifier_program",
+  "name": "verifier_program_storage",
   "instructions": [
     {
       "name": "shieldedTransferFirst",
@@ -50,6 +50,36 @@ export type VerifierProgram = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "shieldedTransferSecond",
+      "docs": [
+        "Stores the provided message in a compressed account, closes the",
+        "temporary PDA."
+      ],
+      "accounts": [
+        {
+          "name": "signingAddress",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -64,13 +94,20 @@ export type VerifierProgram = {
           }
         ]
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NoopProgram",
+      "msg": "The provided program is not the noop program."
     }
   ]
 };
 
-export const IDL: VerifierProgram = {
+export const IDL: VerifierProgramStorage = {
   "version": "0.1.0",
-  "name": "verifier_program",
+  "name": "verifier_program_storage",
   "instructions": [
     {
       "name": "shieldedTransferFirst",
@@ -120,6 +157,36 @@ export const IDL: VerifierProgram = {
         }
       ],
       "args": []
+    },
+    {
+      "name": "shieldedTransferSecond",
+      "docs": [
+        "Stores the provided message in a compressed account, closes the",
+        "temporary PDA."
+      ],
+      "accounts": [
+        {
+          "name": "signingAddress",
+          "isMut": true,
+          "isSigner": true
+        },
+        {
+          "name": "systemProgram",
+          "isMut": false,
+          "isSigner": false
+        },
+        {
+          "name": "verifierState",
+          "isMut": true,
+          "isSigner": false
+        },
+        {
+          "name": "logWrapper",
+          "isMut": false,
+          "isSigner": false
+        }
+      ],
+      "args": []
     }
   ],
   "accounts": [
@@ -134,6 +201,13 @@ export const IDL: VerifierProgram = {
           }
         ]
       }
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "NoopProgram",
+      "msg": "The provided program is not the noop program."
     }
   ]
 };

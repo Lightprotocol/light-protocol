@@ -1,7 +1,6 @@
 use anchor_lang::prelude::*;
 
 declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
-// use solana_security_txt::security_txt;
 
 #[cfg(not(feature = "no-entrypoint"))]
 solana_security_txt::security_txt! {
@@ -284,15 +283,8 @@ pub mod merkle_tree_program {
         leaf_left: [u8; 32],
         leaf_right: [u8; 32],
         encrypted_utxo: [u8; 256],
-        merkle_tree_pda_pubkey: Pubkey,
     ) -> Result<()> {
-        process_insert_two_leaves(
-            ctx,
-            leaf_left,
-            leaf_right,
-            encrypted_utxo,
-            merkle_tree_pda_pubkey,
-        )
+        process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
     }
 
     /// Withdraws sol from a liquidity pool.
@@ -321,7 +313,7 @@ pub mod merkle_tree_program {
 
     pub fn initialize_nullifiers<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, InitializeNullifiers<'info>>,
-        nullifiers: Vec<Vec<u8>>,
+        nullifiers: Vec<[u8; 32]>,
     ) -> Result<()> {
         process_insert_nullifiers(ctx, nullifiers)
     }

@@ -14,8 +14,8 @@ pub use processor::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-    program::MerkleTreeProgram, utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
+    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
@@ -31,31 +31,34 @@ pub mod verifier_program_zero {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-        proof: Vec<u8>,
-        amount: Vec<u8>,
+        proof_a: [u8; 64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64],
+        amount: [u8; 32],
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
-        fee_amount: Vec<u8>,
+        fee_amount: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
+        let len_missing_bytes = 256 - encrypted_utxos.len();
+        let mut enc_utxos = encrypted_utxos;
+        enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
         process_shielded_transfer_2_in_2_out(
             ctx,
-            proof.to_vec(),
-            amount.to_vec(),
-            vec![nullifiers[0].to_vec(), nullifiers[1].to_vec()],
-            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            fee_amount.to_vec(),
-            [
-                encrypted_utxos.to_vec(),
-                vec![0u8; 256 - encrypted_utxos.len()],
-            ]
-            .concat(),
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            &amount,
+            &nullifiers,
+            &[leaves; 1],
+            &fee_amount,
+            &enc_utxos,
             root_index,
             relayer_fee,
-            Vec::<Vec<u8>>::new(), // checked_public_inputs
-            vec![0u8; 32],         //pool_type
+            &Vec::<Vec<u8>>::new(), // checked_public_inputs
+            &[0u8; 32],             //pool_type
         )
     }
 }
@@ -67,9 +70,8 @@ pub struct LightInstruction<'info> {
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
     #[account(mut)]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
+    pub merkle_tree: AccountLoader<'info, MerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
@@ -89,9 +91,6 @@ pub struct LightInstruction<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during sol deposits.
-    #[account(mut)]
-    pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: AccountInfo<'info>,

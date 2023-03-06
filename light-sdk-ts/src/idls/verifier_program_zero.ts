@@ -29,11 +29,6 @@ export type VerifierProgramZero = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -73,11 +68,6 @@ export type VerifierProgramZero = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -93,12 +83,40 @@ export type VerifierProgramZero = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "amount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -130,7 +148,12 @@ export type VerifierProgramZero = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",
@@ -180,11 +203,6 @@ export const IDL: VerifierProgramZero = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -224,11 +242,6 @@ export const IDL: VerifierProgramZero = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -244,12 +257,40 @@ export const IDL: VerifierProgramZero = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "amount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -281,7 +322,12 @@ export const IDL: VerifierProgramZero = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",

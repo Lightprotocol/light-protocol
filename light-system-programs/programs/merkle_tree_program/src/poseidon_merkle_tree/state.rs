@@ -13,6 +13,7 @@ pub struct MerkleTree {
     pub height: u64,
     pub merkle_tree_nr: u64,
     pub lock_duration: u64,
+    pub next_queued_index: u64,
 }
 
 #[account]

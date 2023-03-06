@@ -44,7 +44,7 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
   verifierStorageProgramId,
   User,
-  IDL_VERIFIER_PROGRAM,
+  IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
 } from "light-sdk";
 
@@ -74,8 +74,15 @@ describe("verifier_program", () => {
 
   const msg = Buffer.alloc(887).fill(1);
   const verifierProgram = new anchor.Program(
-    IDL_VERIFIER_PROGRAM,
+    IDL_VERIFIER_PROGRAM_STORAGE,
     verifierStorageProgramId,
+  );
+  const [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
+    [
+      ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
+      anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
+    ],
+    verifierProgram.programId,
   );
 
   const userKeypair = new SolanaKeypair();
@@ -106,14 +113,6 @@ describe("verifier_program", () => {
 
   // TODO(vadorovsky): We probably need some parts of that test to the SDK.
   it("shielded transfer 1 & close", async () => {
-    let [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
-        anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
-      ],
-      verifierProgram.programId,
-    );
-
     let balance = await provider.connection.getBalance(
       verifierState,
       "confirmed",
@@ -162,6 +161,39 @@ describe("verifier_program", () => {
     );
     assert.equal(accountInfo, null);
   });
+
+  it("shielded transfer 1 & 2", async () => {
+    let tx0 = await verifierProgram.methods
+      .shieldedTransferFirst(msg)
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        systemProgram: solana.SystemProgram.programId,
+        verifierState: verifierState,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
+
+    console.log(tx0);
+
+    let tx1 = await verifierProgram.methods
+      .shieldedTransferSecond()
+      .accounts({
+        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+        verifierState: verifierState,
+        logWrapper: SPL_NOOP_ADDRESS,
+      })
+      .signers([ADMIN_AUTH_KEYPAIR])
+      .rpc(confirmConfig);
+
+    console.log(tx1);
+
+    let accountInfo = await provider.connection.getAccountInfo(
+      verifierState,
+      "confirmed",
+    );
+    assert.equal(accountInfo, null);
+  });
+
 
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
@@ -424,16 +456,18 @@ describe("verifier_program", () => {
       provider: lightProvider,
       // relayer,
     });
-
+    console.log(inputUtxos);
+    
     let txParams = new TransactionParameters({
       inputUtxos,
-      outputUtxos: [
-        new Utxo({
-          poseidon: POSEIDON,
-          assets: inputUtxos[0].assets,
-          amounts: [new BN(0), inputUtxos[0].amounts[1]],
-        }),
-      ],
+      // outputUtxos: [new Utxo({poseidon: POSEIDON})],
+      // outputUtxos: [
+      //   new Utxo({
+      //     poseidon: POSEIDON,
+      //     assets: inputUtxos[0].assets,
+      //     amounts: inputUtxos[0].amounts,
+      //   }),
+      // ],
 
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
