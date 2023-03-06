@@ -146,7 +146,7 @@ export const TOKEN_REGISTRY = [
   },
   {
     symbol: "USDC",
-    decimals: 1e6,
+    decimals: 1e2,
     isNft: false,
     isSol: false,
     // copied from MINT (test-utils)

@@ -368,6 +368,7 @@ export class User {
         );
     } else console.log("mint is FEE_ASSET");
 
+    console.log("extraSolUtxos (SPL!)", extraSolUtxos);
     /**
      * for shields and transfers we'll always have spare utxos,
      * hence no reason to find perfect matches
@@ -500,6 +501,7 @@ export class User {
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     // TODO: check with spl -> selects proper tokens?
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: 0,
@@ -578,15 +580,25 @@ export class User {
     // We're assuming "USDC for now"
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+
+    console.log("tokenctx??", tokenCtx);
     if (!tokenCtx.isSol) {
-      throw new Error("SPL not supported yet!");
-      await createTestAccounts(this.provider.provider!.connection!);
-      console.log("created test accounts!");
+      // throw new Error("SPL not supported yet!");
+      // await createTestAccounts(this.provider.provider!.connection!);
+      console.log("!tokenCtx.isSOL..");
 
       if (this.provider.nodeWallet) {
         // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
         var balanceUserToken = null;
         try {
+          console.log("userTokenAccount at shield", userTokenAccount);
+          let balancet =
+            await this.provider.provider!.connection.getTokenAccountBalance(
+              // new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
+              userTokenAccount,
+            );
+          console.log("balance in shield..", balancet);
+
           balanceUserToken = await getAccount(
             this.provider!.provider!.connection,
             // hardcoded assumed for now
@@ -599,6 +611,7 @@ export class User {
         }
         try {
           if (balanceUserToken == null) {
+            console.log("newAccontWithTokens in shield..");
             await newAccountWithTokens({
               connection: this.provider!.provider!.connection,
               MINT: tokenCtx!.tokenAccount,
@@ -610,12 +623,12 @@ export class User {
         } catch (error) {
           console.log("spl token account creation failed: ", error);
         }
-
+        amount = amount * tokenCtx.decimals;
         try {
           await splToken.approve(
             this.provider.provider!.connection,
             this.provider.nodeWallet!,
-            userTokenAccount, //°
+            userTokenAccount,
             // tokenCtx.tokenAccount, // TODO: must be user's token account
             // TODO: make dynamic based on verifier
             AUTHORITY, //delegate
@@ -633,8 +646,8 @@ export class User {
       }
     } else {
       console.log("- is SOL");
+      amount = amount * tokenCtx.decimals;
     }
-    amount = amount * tokenCtx.decimals;
     // TODO: add browserWallet support
     let tx = new Transaction({
       provider: this.provider,
