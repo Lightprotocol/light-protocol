@@ -604,10 +604,6 @@ describe("Test TransactionParameters Transfer Errors", () => {
       ],
       account: keypair,
     });
-    console.log("relayer.relayerFee ", relayer.relayerFee);
-
-    console.log("outputUtxo ", outputUtxo.amounts[0]);
-    console.log("deposit_utxo1 ", deposit_utxo1.amounts[0]);
 
     const params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
