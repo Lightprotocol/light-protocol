@@ -23,6 +23,7 @@ import {
   merkleTreeProgramId,
 } from "../constants";
 import {
+  ADMIN_AUTH_KEY,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
   MINT,
@@ -171,6 +172,7 @@ export class User {
     recipient,
     recipientEncryptionPublicKey,
     relayer,
+    extraSolAmount,
   }: {
     mint: PublicKey;
     amount: number;
@@ -178,6 +180,7 @@ export class User {
     recipient?: anchor.BN;
     recipientEncryptionPublicKey?: Uint8Array;
     relayer?: Relayer;
+    extraSolAmount: number;
   }) {
     const { poseidon } = this.provider;
     if (!poseidon) throw new Error("Poseidon not initialized");
@@ -199,8 +202,16 @@ export class User {
       }
     }
     var isTransfer = false;
+    var isUnshield = false;
     if (recipient && recipientEncryptionPublicKey && relayer) isTransfer = true;
-
+    console.log(
+      "isTransfer",
+      isTransfer,
+      recipient,
+      recipientEncryptionPublicKey,
+      relayer,
+    );
+    if (!recipientEncryptionPublicKey && relayer) isUnshield = true;
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
     assets.push({
@@ -238,10 +249,17 @@ export class User {
     );
     if (!feeAsset) throw new Error("Fee asset not found in assets");
     console.log("assets", assets);
-    if (assets.length === 1) {
+
+    if (assets.length === 1 || assetIndex === 0) {
       // just fee asset as oututxo
 
       if (isTransfer) {
+        console.log(
+          "SOL isTransfer --amount feeAsset:",
+          amount,
+          "inutxos:",
+          inUtxos,
+        );
         let feeAssetSendUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset],
@@ -252,23 +270,49 @@ export class User {
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
+        console.log(
+          "feeAssetSendUtxo created.. \n assets[0].amount",
+          assets[0].amount,
+          "amount",
+          amount,
+          "relayer?.relayerFee",
+          relayer?.relayerFee,
+        );
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
-          assets: [assets[0].asset],
+          assets: [
+            assets[0].asset,
+            assets[1] ? assets[1].asset : assets[0].asset,
+          ],
           amounts: [
             new anchor.BN(assets[0].amount)
               .sub(new anchor.BN(amount))
               .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change
+            assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
           ], // rem transfer positive
           account: this.account,
         });
 
         return [feeAssetSendUtxo, feeAssetChangeUtxo];
       } else {
+        console.log(
+          "SOL - shield/unshield, isUnshield: ",
+          isUnshield,
+          "extrasolamount=",
+          extraSolAmount,
+        );
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
-          assets: [assets[0].asset],
-          amounts: [new anchor.BN(assets[0].amount)],
+          assets: [
+            assets[0].asset,
+            assets[1] ? assets[1].asset : assets[0].asset,
+          ],
+          amounts: [
+            !isUnshield
+              ? new anchor.BN(extraSolAmount + assets[0].amount)
+              : new anchor.BN(assets[0].amount),
+            assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
+          ],
           account: recipient
             ? new Account({
                 poseidon: poseidon,
@@ -283,6 +327,14 @@ export class User {
     } else {
       if (isTransfer) {
         let sendAmountFeeAsset = new anchor.BN(1e5);
+        console.log(
+          "SPL isTransfer --amount feeAsset:",
+          amount,
+          "feeAs",
+          sendAmountFeeAsset,
+          "inutxos:",
+          inUtxos,
+        );
         let sendUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset, assets[1].asset],
@@ -293,36 +345,39 @@ export class User {
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
+        console.log("sendUtxo created..");
         let changeUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset, assets[1].asset],
           amounts: [
             new anchor.BN(assets[0].amount)
               .sub(sendAmountFeeAsset)
-              .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change,
+              .sub(relayer?.relayerFee || new anchor.BN(0)),
             new anchor.BN(assets[1].amount).sub(new anchor.BN(amount)),
-          ], // rem transfer positive
+          ],
           account: this.account,
         });
 
         return [sendUtxo, changeUtxo];
       } else {
+        console.log("SPL isTransfer", isTransfer);
         const utxos: Utxo[] = [];
         assets.slice(1).forEach((asset, i) => {
-          console.log("i: ", i, "asset: ", asset);
           if (i === assets.slice(1).length - 1) {
-            // add feeasset as asset to the last spl utxo
+            // add feeAsset as asset to the last spl utxo
             const utxo1 = new Utxo({
               poseidon,
               assets: [assets[0].asset, asset.asset],
               amounts: [
-                new anchor.BN(assets[0].amount),
+                // only implemented for shield! assumes passed in only if needed
+                !isUnshield
+                  ? new anchor.BN(extraSolAmount + assets[0].amount)
+                  : new anchor.BN(assets[0].amount),
                 new anchor.BN(asset.amount),
               ],
               account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
             });
             utxos.push(utxo1);
-            console.log("pushed feeAssetUtxo: ", utxo1);
           } else {
             const utxo1 = new Utxo({
               poseidon,
@@ -345,14 +400,14 @@ export class User {
   // TODO: adapt to rule: fee_asset is always first.
   selectInUtxos({
     mint,
-    privAmount,
-    pubAmount,
+    amount,
+    extraSolAmount,
   }: {
     mint: PublicKey;
-    privAmount: number;
-    pubAmount: number;
+    amount: number;
+    extraSolAmount: number;
   }) {
-    const amount = privAmount + pubAmount; // TODO: verify that this is correct w -
+    // TODO: verify that this is correct w -
     if (this.utxos === undefined) return [];
     if (this.utxos.length >= UTXO_MERGE_THRESHOLD)
       return [...this.utxos.slice(0, UTXO_MERGE_MAXIMUM)];
@@ -519,10 +574,12 @@ export class User {
   getTxParams({
     tokenCtx,
     amount,
+    extraSolAmount,
     action,
   }: {
     tokenCtx: TokenContext;
     amount: number;
+    extraSolAmount: number;
     action: string;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
@@ -530,8 +587,8 @@ export class User {
 
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
-      privAmount: 0,
-      pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
+      extraSolAmount,
+      amount: -1 * amount, // at shield, doesnt matter what val inutxos have.
     });
     // TODO: add fees !
     // console.log("inUtxos", inUtxos);
@@ -539,6 +596,7 @@ export class User {
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
+      extraSolAmount, // SHIELD ONLY FOR NOW!!
     });
     // console.log("outUtxos", shieldUtxos);
 
@@ -585,34 +643,20 @@ export class User {
     token,
     amount,
     recipient,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
-    recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
+    recipient?: anchor.BN;
+    extraSolAmount?: number;
   }) {
-    /**
-     * TODO:
-     * considerations for these.
-     * - move relayer class to e.g. provider with optional override in tx?
-     * - then would be good to add "tx and relayer" inception in there
-     * - i wana hide the relayer. (default) -> new tx maybe too! shd be good.
-     * - just important to know: where is the customization required where not
-     *  */
-
     if (!this.provider) throw new Error("Provider not set!");
     if (recipient)
       throw new Error("Shields to other users not implemented yet!");
-    // TODO: use getAssetByLookup fns instead (utils)
-    // We're assuming "USDC for now"
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
 
-    console.log("tokenctx??", tokenCtx);
     if (!tokenCtx.isSol) {
-      // throw new Error("SPL not supported yet!");
-      // await createTestAccounts(this.provider.provider!.connection!);
-      console.log("!tokenCtx.isSOL..");
-
       if (this.provider.nodeWallet) {
         // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
         var balanceUserToken = null;
@@ -636,7 +680,7 @@ export class User {
         }
         try {
           if (balanceUserToken == null) {
-            console.log("newAccontWithTokens in shield..");
+            console.log("newAccountWithTokens in shield..");
             await newAccountWithTokens({
               connection: this.provider!.provider!.connection,
               MINT: tokenCtx!.tokenAccount,
@@ -668,11 +712,15 @@ export class User {
         // TODO: implement browserWallet support; for UI
         throw new Error("Browser wallet support not implemented yet!");
       }
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
     } else {
       console.log("- is SOL");
       amount = amount * tokenCtx.decimals;
+      extraSolAmount = 0;
     }
-    // TODO: add browserWallet support
+
     let tx = new Transaction({
       provider: this.provider,
     });
@@ -682,6 +730,7 @@ export class User {
       tokenCtx,
       amount,
       action: "SHIELD",
+      extraSolAmount,
     });
 
     await tx.compileAndProve(txParams);
@@ -696,10 +745,8 @@ export class User {
       // console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
 
-    console.log = () => {};
     //@ts-ignore
     await tx.checkBalances(); // This is a test
-    console.log = initLog;
     console.log("✔️ checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
@@ -721,57 +768,44 @@ export class User {
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
    * @params recipient: PublicKey - Solana address
+   * @params extraSolAmount: number - optional, if not set, will use provider minimumLamports
    */
   async unshield({
     token,
     amount,
     recipient,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
     recipient: PublicKey;
+    extraSolAmount?: number;
   }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
 
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
-      // throw new Error("SPL not implemented yet!");
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.tokenAccount,
         recipient,
       );
-      // let test =
-      //   await this.provider.provider?.connection.getTokenAccountsByOwner(
-      //     recipient,
-      //     {
-      //       mint: tokenCtx.tokenAccount,
-      //     },
-      //   );
-      console.log("recipientSPLAddress", recipientSPLAddress.toBase58());
-      // * units
-      // throw new Error("..breakSPL not implemented yet!");
+
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
     } else {
-      amount = amount * tokenCtx.decimals;
+      extraSolAmount = 0;
     }
+    amount = amount * tokenCtx.decimals;
+
+    // TODO: replace with dynamic ping to relayer webserver
 
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
-      privAmount: 0,
-      pubAmount: amount,
+      amount,
+      extraSolAmount,
     });
-
-    const outUtxos = this.createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: -amount,
-      inUtxos,
-    });
-    console.log("user.utxos:", this.utxos[0], this.utxos[1]);
-    console.log("in selected: ", inUtxos[0], inUtxos[1]);
-    console.log("out selected: ", outUtxos[0], outUtxos[1]);
-
-    // TODO: replace with ping to relayer webserver
-
     let relayer = new Relayer(
       this.provider.browserWallet!
         ? this.provider.browserWallet.publicKey
@@ -780,6 +814,13 @@ export class User {
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
+
+    const outUtxos = this.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: -amount,
+      inUtxos,
+      relayer,
+    });
 
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
@@ -822,11 +863,8 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-    // console.log = () => {};
-    //@ts-ignore
     // await tx.checkBalances();
-    // console.log = initLog;
-    console.log("✔️ checkBalances DEACTIVATED!");
+    console.log("checkBalances INACTIVE");
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       console.log("updating merkle tree...");
@@ -858,27 +896,17 @@ export class User {
     amount,
     recipient, // shieldedaddress
     recipientEncryptionPublicKey,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
-    recipient: anchor.BN; // TODO: Keypair.pubkey -> type
+    recipient: anchor.BN;
     recipientEncryptionPublicKey: Uint8Array;
+    extraSolAmount?: number;
   }) {
-    // TODO: move this to a CLI command
-    // THIS is for the current checkBalances...need privkey
-    const randomShieldedKeypair = new Account({
-      poseidon: this.provider.poseidon,
-    });
-    recipient = randomShieldedKeypair.pubkey;
-    recipientEncryptionPublicKey =
-      randomShieldedKeypair.encryptionKeypair.publicKey;
-    // TEST END
-
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
 
-    // for is sol?
-    // if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
     amount = amount * tokenCtx.decimals;
     // TODO: pull an actually implemented relayer here
 
@@ -891,11 +919,19 @@ export class User {
       new anchor.BN(100000),
     );
 
+    if (!tokenCtx.isSol) {
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
+    } else {
+      extraSolAmount = 0;
+    }
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
-      privAmount: amount, // priv pub doesnt need to distinguish here
-      pubAmount: 0,
+      amount,
+      extraSolAmount,
     });
+    console.log("transfer inUtxos", inUtxos);
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount: amount, // if recipient -> priv
@@ -903,22 +939,22 @@ export class User {
       recipient: recipient,
       recipientEncryptionPublicKey: recipientEncryptionPublicKey,
       relayer: relayer,
+      extraSolAmount: 0, //extraSolAmount, TODO: enable
     });
+    console.log("transfer outUtxos", outUtxos);
 
     let tx = new Transaction({
       provider: this.provider,
     });
 
-    let randomRecipient = SolanaKeypair.generate().publicKey;
-    console.log("randomRecipient", randomRecipient.toBase58());
-    // if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
+    const placeHolderAddress = SolanaKeypair.generate().publicKey;
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      recipient: randomRecipient,
-      recipientFee: randomRecipient,
+      recipient: placeHolderAddress,
+      recipientFee: placeHolderAddress,
       relayer,
     });
 
@@ -941,11 +977,8 @@ export class User {
     } catch (e) {
       console.log(e);
     }
-    // console.log = () => {};
-    await tx.checkBalances(randomShieldedKeypair);
-    // console.log = initLog;
-
-    console.log("✔️checkBalances success!");
+    //@ts-ignore
+    // await tx.checkBalances();
     // TODO: replace this with a ping to a relayer that's running a crank
     try {
       console.log("updating merkle tree...");
