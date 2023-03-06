@@ -10,35 +10,23 @@ import { Scalar } from "ffjavascript";
 import { Account } from "../src/account";
 import { Utxo } from "../src/utxo";
 import {
-  ADMIN_AUTH_KEYPAIR,
   FEE_ASSET,
   functionalCircuitTest,
   hashAndTruncateToCircuit,
   Provider as LightProvider,
-  MERKLE_TREE_KEY,
   MINT,
   Transaction,
   UtxoError,
   UtxoErrorCode,
-  TransactionParameters,
-  VerifierZero,
   TransactionError,
   TransactionErrorCode,
   ProviderErrorCode,
   Provider,
+  TransactionParameters,
+  VerifierZero,
   Action,
-  TransactioParametersError,
-  TransactionParametersErrorCode,
   Relayer,
-  FIELD_SIZE,
-  verifierProgramZeroProgramId,
-  MerkleTreeConfig,
-  merkleTreeProgramId,
-  AUTHORITY,
-  VerifierTwo,
-  VerifierOne,
 } from "../src";
-import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
@@ -459,9 +447,6 @@ describe("verifier_program", () => {
 
     let mockPubkey = SolanaKeypair.generate().publicKey;
     let lightProvider = await LightProvider.loadMock(mockPubkey);
-    let tx = new Transaction({
-      provider: lightProvider,
-    });
 
     var deposit_utxo1 = new Utxo({
       poseidon,
@@ -469,11 +454,30 @@ describe("verifier_program", () => {
       amounts: [new anchor.BN(1), new anchor.BN(2)],
     });
 
-    tx.assetPubkeysCircuit = [
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
-      hashAndTruncateToCircuit(MINT.toBytes()),
-      new anchor.BN(0),
-    ];
+    const relayer = new Relayer(
+      mockPubkey,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
+
+    var params = new TransactionParameters({
+      inputUtxos: [deposit_utxo1],
+      merkleTreePubkey: mockPubkey,
+      verifier: new VerifierZero(),
+      recipient: mockPubkey,
+      recipientFee: mockPubkey,
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    let tx = new Transaction({
+      provider: lightProvider,
+      params,
+    });
+
     const indices1 = tx.getIndices([deposit_utxo1]);
     assert.equal(indices1[0][0][0], "1");
     assert.equal(indices1[0][0][1], "0");

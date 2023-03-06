@@ -98,25 +98,11 @@ export type remainingAccount = {
 };
 
 export class TransactionParameters implements transactionParameters {
-  provider?: Provider;
-  inputUtxos?: Array<Utxo>;
-  outputUtxos?: Array<Utxo>;
-  accounts: {
-    sender?: PublicKey;
-    recipient?: PublicKey;
-    senderFee?: PublicKey;
-    recipientFee?: PublicKey;
-    verifierState?: PublicKey;
-    tokenAuthority?: PublicKey;
-    systemProgramId: PublicKey;
-    merkleTree: PublicKey;
-    tokenProgram: PublicKey;
-    registeredVerifierPda: PublicKey;
-    authority: PublicKey;
-    signingAddress?: PublicKey;
-    programMerkleTree: PublicKey;
-  };
-  relayer?: Relayer;
+  inputUtxos: Array<Utxo>;
+  outputUtxos: Array<Utxo>;
+  accounts: lightAccounts;
+  // @ts-ignore:
+  relayer: Relayer;
   encryptedUtxos?: Uint8Array;
   verifier: Verifier;
   poseidon: any;
@@ -502,7 +488,7 @@ export class TransactionParameters implements transactionParameters {
     };
 
     this.assignAccounts();
-
+    // @ts-ignore:
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
   }
 
@@ -703,27 +689,26 @@ export class Transaction {
 
     //TODO: change to check whether browser/node wallet are the same as signing address
     if (params.action === Action.DEPOSIT) {
+      let wallet =
+        this.provider.browserWallet !== undefined
+          ? this.provider.browserWallet
+          : this.provider.nodeWallet;
       if (
-        !params.relayer &&
-        (this.provider.browserWallet || this.provider.nodeWallet) &&
-        this.provider.lookUpTable
+        wallet?.publicKey.toBase58() !==
+          params.relayer.accounts.relayerPubkey.toBase58() &&
+        wallet?.publicKey.toBase58() !==
+          params.accounts.signingAddress?.toBase58()
       ) {
-        this.params.relayer = new Relayer(
-          this.provider.browserWallet
-            ? this.provider.browserWallet.publicKey
-            : this.provider.nodeWallet!.publicKey,
-          this.provider.lookUpTable,
-        );
-      } else {
         throw new TransactionError(
-          TransactionErrorCode.WALLET_UNDEFINED,
+          TransactionErrorCode.WALLET_RELAYER_INCONSISTENT,
           "compile",
-          `Couldn't assign relayer- no relayer nor wallet, or provider provided. For withdrawal define relayer, for deposit define wallet and lookuptable.`,
+          `Node or Browser wallet and senderFee used to instantiate yourself as relayer at deposit are inconsistent.`,
         );
       }
     }
 
     this.transactionInputs = {};
+    this.testValues = {};
   }
 
   /** Returns serialized instructions */
@@ -1111,10 +1096,8 @@ export class Transaction {
         await this.merkleTreeProgram.account.merkleTree.fetch(
           this.provider.solMerkleTree.pubkey,
         );
-
-      // stupid reassignment to get rid of error
-      const tmp: any = merkle_tree_account_data.roots;
-      tmp.map((x: any, index: any) => {
+      // @ts-ignore: unknown type error
+      merkle_tree_account_data.roots.map((x: any, index: any) => {
         if (x.toString() === root.toString()) {
           this.transactionInputs.rootIndex = index;
         }
@@ -1131,7 +1114,7 @@ export class Transaction {
       console.log(
         "provider not defined did not fetch rootIndex set root index to 0",
       );
-      this.rootIndex = 0;
+      this.transactionInputs.rootIndex = 0;
     }
   }
 
@@ -1322,9 +1305,10 @@ export class Transaction {
         "getTxIntegrityHash",
         "",
       );
-
-    if (this.txIntegrityHash) {
-      return this.txIntegrityHash;
+    // Should not be computed twice because cipher texts of encrypted utxos are random
+    // threfore the hash will not be consistent
+    if (this.testValues && this.testValues.txIntegrityHash) {
+      return this.testValues.txIntegrityHash;
     } else {
       if (!this.params.encryptedUtxos) {
         this.params.encryptedUtxos = this.encryptOutUtxos();
@@ -1336,7 +1320,11 @@ export class Transaction {
       ) {
         this.params.encryptedUtxos = this.params.encryptedUtxos.slice(0, 512);
       }
-      if (this.params.encryptedUtxos && !this.txIntegrityHash) {
+      if (
+        this.params.encryptedUtxos &&
+        this.testValues &&
+        !this.testValues.txIntegrityHash
+      ) {
         let extDataBytes = new Uint8Array([
           ...this.params.accounts.recipient?.toBytes(),
           ...this.params.accounts.recipientFee.toBytes(),
@@ -1350,7 +1338,7 @@ export class Transaction {
           .update(Buffer.from(extDataBytes))
           .digest();
         const txIntegrityHash: BN = new anchor.BN(hash).mod(FIELD_SIZE);
-        this.txIntegrityHash = txIntegrityHash;
+        this.testValues.txIntegrityHash = txIntegrityHash;
         return txIntegrityHash;
       } else {
         throw new TransactionError(
@@ -1450,9 +1438,15 @@ export class Transaction {
         "getTestValues",
         "",
       );
+    if (!this.testValues)
+      throw new TransactionError(
+        TransactionErrorCode.TRANSACTION_INPUTS_UNDEFINED,
+        "getTestValues",
+        "",
+      );
 
     try {
-      this.recipientBalancePriorTx = new BN(
+      this.testValues.recipientBalancePriorTx = new BN(
         (
           await getAccount(
             this.provider.provider.connection,
@@ -1463,7 +1457,7 @@ export class Transaction {
     } catch (e) {
       // covers the case of the recipient being a native sol address not a spl token address
       try {
-        this.recipientBalancePriorTx = new BN(
+        this.testValues.recipientBalancePriorTx = new BN(
           await this.provider.provider.connection.getBalance(
             this.params.accounts.recipient,
           ),
@@ -1472,32 +1466,32 @@ export class Transaction {
     }
 
     try {
-      this.recipientFeeBalancePriorTx = new BN(
+      this.testValues.recipientFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         ),
       );
     } catch (error) {
       console.log(
-        "this.recipientFeeBalancePriorTx fetch failed ",
+        "this.testValues.recipientFeeBalancePriorTx fetch failed ",
         this.params.accounts.recipientFee,
       );
     }
     if (this.params.action === "DEPOSIT") {
-      this.senderFeeBalancePriorTx = new BN(
+      this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
         ),
       );
     } else {
-      this.senderFeeBalancePriorTx = new BN(
+      this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
         ),
       );
     }
 
-    this.relayerRecipientAccountBalancePriorLastTx = new BN(
+    this.testValues.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
       ),
@@ -1752,7 +1746,7 @@ export class Transaction {
   }
 
   async getPdaAddresses() {
-    if (!this.publicInputs)
+    if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
         TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
         "getPdaAddresses",
@@ -1770,13 +1764,15 @@ export class Transaction {
         "getPdaAddresses",
         "",
       );
+    if (!this.remainingAccounts)
+      throw new Error("Remaining accounts undefined");
 
-    let nullifiers = this.publicInputs.nullifiers;
+    let nullifiers = this.transactionInputs.publicInputs.nullifiers;
     let signer = this.params.relayer.accounts.relayerPubkey;
 
-    this.params.nullifierPdaPubkeys = [];
+    this.remainingAccounts.nullifierPdaPubkeys = [];
     for (var i in nullifiers) {
-      this.params.nullifierPdaPubkeys.push({
+      this.remainingAccounts.nullifierPdaPubkeys.push({
         isSigner: false,
         isWritable: true,
         pubkey: PublicKey.findProgramAddressSync(
@@ -1789,14 +1785,22 @@ export class Transaction {
       });
     }
 
-    this.params.leavesPdaPubkeys = [];
-    for (var j = 0; j < this.publicInputs.leaves.length; j++) {
-      this.params.leavesPdaPubkeys.push({
+    this.remainingAccounts.leavesPdaPubkeys = [];
+    for (
+      var j = 0;
+      j < this.transactionInputs.publicInputs.leaves.length;
+      j++
+    ) {
+      this.remainingAccounts.leavesPdaPubkeys.push({
         isSigner: false,
         isWritable: true,
         pubkey: PublicKey.findProgramAddressSync(
           [
-            Buffer.from(Array.from(this.publicInputs.leaves[j][0]).reverse()),
+            Buffer.from(
+              Array.from(
+                this.transactionInputs.publicInputs.leaves[j][0],
+              ).reverse(),
+            ),
             anchor.utils.bytes.utf8.encode("leaves"),
           ],
           merkleTreeProgramId,
@@ -1825,7 +1829,7 @@ export class Transaction {
         "getPdaAddresses",
         "",
       );
-    if (!this.publicInputs)
+    if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
         TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
         "getPdaAddresses",
@@ -1855,8 +1859,10 @@ export class Transaction {
     if (!this.params.accounts.recipient) {
       throw new Error("params.accounts.recipient undefined");
     }
-
-    if (!this.senderFeeBalancePriorTx) {
+    if (!this.testValues) {
+      throw new Error("test values undefined");
+    }
+    if (!this.testValues.senderFeeBalancePriorTx) {
       throw new Error("senderFeeBalancePriorTx undefined");
     }
 
@@ -1893,14 +1899,6 @@ export class Transaction {
       throw new Error("params.outputUtxos undefined");
     }
 
-    if (!this.params.leavesPdaPubkeys) {
-      throw new Error("params.leavesPdaPubkeys undefined");
-    }
-
-    if (!this.params.leavesPdaPubkeys) {
-      throw new Error("params.leavesPdaPubkeys undefined");
-    }
-
     if (!this.params.relayer) {
       throw new Error("params.relayer undefined");
     }
@@ -1908,21 +1906,32 @@ export class Transaction {
     if (!this.params.accounts.sender) {
       throw new Error("params.accounts.sender undefined");
     }
-    if (!this.params.nullifierPdaPubkeys) {
-      throw new Error("params.nullifierPdaPubkeys undefined");
+    if (!this.remainingAccounts) {
+      throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
+    }
+    if (!this.remainingAccounts.nullifierPdaPubkeys) {
+      throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
+    }
+
+    if (!this.remainingAccounts.leavesPdaPubkeys) {
+      throw new Error("remainingAccounts.leavesPdaPubkeys undefined");
     }
 
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
-      this.is_token = false;
+      this.testValues.is_token = false;
     } else {
-      this.is_token = true;
+      this.testValues.is_token = true;
     }
 
-    for (var i = 0; i < this.params.nullifierPdaPubkeys?.length; i++) {
+    for (
+      var i = 0;
+      i < this.remainingAccounts.nullifierPdaPubkeys?.length;
+      i++
+    ) {
       var nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
-          this.params.nullifierPdaPubkeys[i].pubkey,
+          this.remainingAccounts.nullifierPdaPubkeys[i].pubkey,
           {
             commitment: "confirmed",
           },
@@ -1936,20 +1945,20 @@ export class Transaction {
     let leavesAccount;
     var leavesAccountData;
     // Checking that leaves were inserted
-    for (var i = 0; i < this.params.leavesPdaPubkeys.length; i++) {
+    for (var i = 0; i < this.remainingAccounts.leavesPdaPubkeys.length; i++) {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          this.params.leavesPdaPubkeys[i].pubkey,
+          this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
         );
 
       assert(
         leavesAccountData.nodeLeft.toString() ==
-          this.publicInputs.leaves[i][0].reverse().toString(),
+          this.transactionInputs.publicInputs.leaves[i][0].reverse().toString(),
         "left leaf not inserted correctly",
       );
       assert(
         leavesAccountData.nodeRight.toString() ==
-          this.publicInputs.leaves[i][1].reverse().toString(),
+          this.transactionInputs.publicInputs.leaves[i][1].reverse().toString(),
         "right leaf not inserted correctly",
       );
       assert(
@@ -2022,7 +2031,9 @@ export class Transaction {
       }
     }
 
-    console.log(`mode ${this.params.action}, this.is_token ${this.is_token}`);
+    console.log(
+      `mode ${this.params.action}, this.testValues.is_token ${this.testValues.is_token}`,
+    );
 
     try {
       const merkleTreeAfterUpdate =
@@ -2033,18 +2044,18 @@ export class Transaction {
       );
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          this.params.leavesPdaPubkeys[0].pubkey,
+          this.remainingAccounts.leavesPdaPubkeys[0].pubkey,
         );
       console.log(
         `${Number(leavesAccountData.leftLeafIndex)} + ${
-          this.params.leavesPdaPubkeys.length * 2
+          this.remainingAccounts.leavesPdaPubkeys.length * 2
         }`,
       );
 
       assert.equal(
         Number(merkleTreeAfterUpdate.nextQueuedIndex),
         Number(leavesAccountData.leftLeafIndex) +
-          this.params.leavesPdaPubkeys.length * 2,
+          this.remainingAccounts.leavesPdaPubkeys.length * 2,
       );
     } catch (e) {
       console.log("preInsertedLeavesIndex: ", e);
@@ -2059,14 +2070,14 @@ export class Transaction {
     }
     console.log("nrInstructions ", nrInstructions);
 
-    if (this.params.action == "DEPOSIT" && this.is_token == false) {
+    if (this.params.action == "DEPOSIT" && this.testValues.is_token == false) {
       var recipientFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
         );
       console.log(
-        "recipientFeeBalancePriorTx: ",
-        this.recipientFeeBalancePriorTx,
+        "testValues.recipientFeeBalancePriorTx: ",
+        this.testValues.recipientFeeBalancePriorTx,
       );
 
       var senderFeeAccountBalance =
@@ -2075,7 +2086,7 @@ export class Transaction {
         );
       assert(
         recipientFeeAccountBalance ==
-          Number(this.recipientFeeBalancePriorTx) +
+          Number(this.testValues.recipientFeeBalancePriorTx) +
             Number(this.params.publicAmountSol),
       );
       console.log(
@@ -2085,12 +2096,15 @@ export class Transaction {
           .toString()} == ${senderFeeAccountBalance}`,
       );
       assert(
-        new BN(this.senderFeeBalancePriorTx)
+        new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString() == senderFeeAccountBalance.toString(),
       );
-    } else if (this.params.action == "DEPOSIT" && this.is_token == true) {
+    } else if (
+      this.params.action == "DEPOSIT" &&
+      this.testValues.is_token == true
+    ) {
       console.log("DEPOSIT and token");
 
       var recipientAccount = await getAccount(
@@ -2106,36 +2120,40 @@ export class Transaction {
       // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
 
       console.log(
-        `Balance now ${recipientAccount.amount} balance beginning ${this.recipientBalancePriorTx}`,
+        `Balance now ${recipientAccount.amount} balance beginning ${this.testValues.recipientBalancePriorTx}`,
       );
       console.log(
         `Balance now ${recipientAccount.amount} balance beginning ${
-          Number(this.recipientBalancePriorTx) +
+          Number(this.testValues.recipientBalancePriorTx) +
           Number(this.params.publicAmountSpl)
         }`,
       );
       assert(
         recipientAccount.amount.toString() ===
           (
-            Number(this.recipientBalancePriorTx) +
+            Number(this.testValues.recipientBalancePriorTx) +
             Number(this.params.publicAmountSpl)
           ).toString(),
         "amount not transferred correctly",
       );
       console.log(
         `Blanace now ${recipientFeeAccountBalance} ${
-          Number(this.recipientFeeBalancePriorTx) +
+          Number(this.testValues.recipientFeeBalancePriorTx) +
           Number(this.params.publicAmountSol)
         }`,
       );
       console.log("fee amount: ", this.params.publicAmountSol);
       console.log(
         "fee amount from inputs. ",
-        new anchor.BN(this.publicInputs.feeAmount.slice(24, 32)).toString(),
+        new anchor.BN(
+          this.transactionInputs.publicInputs.feeAmount.slice(24, 32),
+        ).toString(),
       );
       console.log(
         "pub amount from inputs. ",
-        new anchor.BN(this.publicInputs.publicAmount.slice(24, 32)).toString(),
+        new anchor.BN(
+          this.transactionInputs.publicInputs.publicAmount.slice(24, 32),
+        ).toString(),
       );
 
       var senderFeeAccountBalance =
@@ -2145,22 +2163,25 @@ export class Transaction {
 
       assert(
         recipientFeeAccountBalance ==
-          Number(this.recipientFeeBalancePriorTx) +
+          Number(this.testValues.recipientFeeBalancePriorTx) +
             Number(this.params.publicAmountSol),
       );
       console.log(
-        `${new BN(this.senderFeeBalancePriorTx)
+        `${new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString()} == ${senderFeeAccountBalance}`,
       );
       assert(
-        new BN(this.senderFeeBalancePriorTx)
+        new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString() == senderFeeAccountBalance.toString(),
       );
-    } else if (this.params.action == "WITHDRAWAL" && this.is_token == false) {
+    } else if (
+      this.params.action == "WITHDRAWAL" &&
+      this.testValues.is_token == false
+    ) {
       var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
       );
@@ -2173,20 +2194,22 @@ export class Transaction {
       // console.log("relayerAccount ", relayerAccount);
       // console.log("this.params.relayer.relayerFee: ", this.params.relayer.relayerFee);
       console.log(
-        "relayerRecipientAccountBalancePriorLastTx ",
-        this.relayerRecipientAccountBalancePriorLastTx,
+        "testValues.relayerRecipientAccountBalancePriorLastTx ",
+        this.testValues.relayerRecipientAccountBalancePriorLastTx,
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
           .sub(this.params.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx!,
+          this.testValues.relayerRecipientAccountBalancePriorLastTx,
         )}`,
       );
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
-          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .toString()}  == ${new anchor.BN(
+          this.testValues.recipientFeeBalancePriorTx,
+        )
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`,
       );
@@ -2195,7 +2218,7 @@ export class Transaction {
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
           .toString(),
-        new anchor.BN(this.recipientFeeBalancePriorTx)
+        new anchor.BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
@@ -2204,9 +2227,12 @@ export class Transaction {
         new anchor.BN(relayerAccount)
           .sub(this.params.relayer.relayerFee)
           .toString(),
-        this.relayerRecipientAccountBalancePriorLastTx?.toString(),
+        this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
-    } else if (this.params.action == "WITHDRAWAL" && this.is_token == true) {
+    } else if (
+      this.params.action == "WITHDRAWAL" &&
+      this.testValues.is_token == true
+    ) {
       var senderAccount = await getAccount(
         this.provider.provider.connection,
         this.params.accounts.sender,
@@ -2219,8 +2245,8 @@ export class Transaction {
 
       // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
       console.log(
-        "this.recipientBalancePriorTx ",
-        this.recipientBalancePriorTx,
+        "this.testValues.recipientBalancePriorTx ",
+        this.testValues.recipientBalancePriorTx,
       );
       console.log("this.params.publicAmountSpl ", this.params.publicAmountSpl);
       console.log(
@@ -2230,14 +2256,14 @@ export class Transaction {
 
       console.log(
         `${recipientAccount.amount}, ${new anchor.BN(
-          this.recipientBalancePriorTx!,
+          this.testValues.recipientBalancePriorTx,
         )
           .sub(this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`,
       );
       assert.equal(
         recipientAccount.amount.toString(),
-        new anchor.BN(this.recipientBalancePriorTx)
+        new anchor.BN(this.testValues.recipientBalancePriorTx)
           .sub(this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
         "amount not transferred correctly",
@@ -2255,21 +2281,23 @@ export class Transaction {
       // console.log("relayerAccount ", relayerAccount);
       // console.log("this.params.relayer.relayerFee: ", this.params.relayer.relayerFee);
       console.log(
-        "relayerRecipientAccountBalancePriorLastTx ",
-        this.relayerRecipientAccountBalancePriorLastTx,
+        "testValues.relayerRecipientAccountBalancePriorLastTx ",
+        this.testValues.relayerRecipientAccountBalancePriorLastTx,
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
           .sub(this.params.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx!,
+          this.testValues.relayerRecipientAccountBalancePriorLastTx,
         )}`,
       );
 
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
-          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .toString()}  == ${new anchor.BN(
+          this.testValues.recipientFeeBalancePriorTx,
+        )
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`,
       );
@@ -2278,7 +2306,7 @@ export class Transaction {
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
           .toString(),
-        new anchor.BN(this.recipientFeeBalancePriorTx)
+        new anchor.BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
@@ -2288,7 +2316,7 @@ export class Transaction {
           .sub(this.params.relayer.relayerFee)
           // .add(new anchor.BN("5000"))
           .toString(),
-        this.relayerRecipientAccountBalancePriorLastTx?.toString(),
+        this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else {
       throw Error("mode not supplied");

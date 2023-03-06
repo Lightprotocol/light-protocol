@@ -9,6 +9,7 @@ import {
   TransactionParameters,
   Utxo,
   VerifierZero,
+  Action,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
@@ -47,16 +48,20 @@ export async function functionalCircuitTest() {
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
-    senderFee: mockPubkey,
+    senderFee: lightProvider.nodeWallet?.publicKey,
     verifier: new VerifierZero(),
+    action: Action.DEPOSIT,
+    poseidon,
+    lookUpTable: mockPubkey,
   });
 
   let tx = new Transaction({
     provider: lightProvider,
+    params: txParams,
   });
 
   // successful proofgeneration
-  await tx.compile(txParams);
+  await tx.compile();
 
   await tx.getProof();
   let x = true;
