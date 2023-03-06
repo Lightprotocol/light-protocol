@@ -2,6 +2,7 @@ const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
+  AccountInfo,
   Connection,
   Keypair,
   PublicKey,
@@ -134,14 +135,40 @@ export async function newAccountWithTokens({
   MINT: PublicKey;
   ADMIN_AUTH_KEYPAIR: Keypair;
   userAccount: Keypair;
-  amount: BN;
+  amount: number;
 }): Promise<any> {
-  let tokenAccount = await createAccount(
-    connection,
-    ADMIN_AUTH_KEYPAIR,
-    MINT,
-    userAccount.publicKey,
-  );
+  let tokenAccount;
+  try {
+    tokenAccount = await createAccount(
+      connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      userAccount.publicKey,
+      // userAccount
+    );
+
+    console.log(
+      "tokenAccount created: ",
+      tokenAccount,
+      tokenAccount.toBase58(),
+    );
+  } catch (e) {
+    console.log(e);
+  }
+  console.log("tokenAccount:: ", tokenAccount?.toBase58());
+  try {
+    await mintTo(
+      connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      tokenAccount,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      amount,
+      [],
+    );
+  } catch (e) {
+    console.log(e);
+  }
 
   await mintTo(
     connection,
@@ -243,7 +270,7 @@ export async function createTestAccounts(connection: Connection) {
       solana.SystemProgram.transfer({
         fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
         toPubkey: AUTHORITY,
-        lamports: 1_000_000_000,
+        lamports: 3_000_000_000,
       }),
     );
     await sendAndConfirmTransaction(
