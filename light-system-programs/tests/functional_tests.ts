@@ -333,7 +333,7 @@ describe("verifier_program", () => {
       }
       await tx.checkBalances(KEYPAIR);
     }
-    await updateMerkleTreeForTest(provider);
+    await updateMerkleTreeForTest(provider.connection);
   });
 
   it("Withdraw", async () => {
