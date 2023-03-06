@@ -189,19 +189,18 @@ export class SolMerkleTree {
       poseidon,
       leaves,
     );
-    const tmpMtFetchedRoots: any = mtFetched.roots;
-
     if (
       Array.from(
         leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
-      ).toString() !=
-      tmpMtFetchedRoots[mtFetched.currentRootIndex.toNumber()].toString()
+        // @ts-ignore: unknown type error
+      ).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()
     ) {
       throw new Error(
         `building merkle tree from chain failed: root local ${Array.from(
           leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
         ).toString()} != root fetched ${
-          tmpMtFetchedRoots[mtFetched.currentRootIndex.toNumber()]
+          // @ts-ignore: unknown type error
+          mtFetched.roots[mtFetched.currentRootIndex]
         }`,
       );
     }
