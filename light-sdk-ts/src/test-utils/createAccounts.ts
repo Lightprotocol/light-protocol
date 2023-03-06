@@ -135,28 +135,27 @@ export async function newAccountWithTokens({
   MINT: PublicKey;
   ADMIN_AUTH_KEYPAIR: Keypair;
   userAccount: Keypair;
-  amount: number;
+  amount: BN;
 }): Promise<any> {
-  let tokenAccount;
+  let tokenAccount = await createAccount(
+    connection,
+    ADMIN_AUTH_KEYPAIR,
+    MINT,
+    userAccount.publicKey,
+  );
+
   try {
-    tokenAccount = await createAccount(
+    await mintTo(
       connection,
       ADMIN_AUTH_KEYPAIR,
       MINT,
-      userAccount.publicKey,
-      // userAccount
-    );
-
-    console.log(
-      "tokenAccount created: ",
       tokenAccount,
-      tokenAccount.toBase58(),
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      amount.toNumber(),
+      [],
     );
   } catch (e) {
-    console.log(e);
-  }
-  console.log("tokenAccount:: ", tokenAccount?.toBase58());
-  try {
+    console.log("mintTo error", e);
     await mintTo(
       connection,
       ADMIN_AUTH_KEYPAIR,
@@ -166,19 +165,7 @@ export async function newAccountWithTokens({
       amount,
       [],
     );
-  } catch (e) {
-    console.log(e);
   }
-
-  await mintTo(
-    connection,
-    ADMIN_AUTH_KEYPAIR,
-    MINT,
-    tokenAccount,
-    ADMIN_AUTH_KEYPAIR.publicKey,
-    amount.toNumber(),
-    [],
-  );
   return tokenAccount;
 }
 
