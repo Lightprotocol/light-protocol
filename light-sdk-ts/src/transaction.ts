@@ -432,36 +432,41 @@ export class TransactionParameters implements transactionParameters {
           "constructor",
           "For a transfer public spl amount needs to be zero",
         );
+
       const tmpSol = this.publicAmountSol;
       if (!tmpSol.sub(FIELD_SIZE).mul(new BN(-1)).eq(relayer.relayerFee))
         throw new TransactioParametersError(
-          TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
+          TransactionParametersErrorCode.PUBLIC_AMOUNT_SOL_NOT_ZERO,
           "constructor",
-          "",
+          `public amount ${tmpSol.sub(FIELD_SIZE).mul(new BN(-1))}  should be ${
+            relayer.relayerFee
+          }`,
         );
-      if (!this.publicAmountSol.eq(new BN(0)) && recipientFee) {
-        throw new TransactioParametersError(
-          TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
-          "constructor",
-          "",
-        );
-      }
-      if (!this.publicAmountSpl.eq(new BN(0)) && recipient) {
+
+      if (recipient) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
-          "",
+          "This is a transfer, no spl amount should be withdrawn. To withdraw an spl amount mark the transaction as withdrawal.",
         );
       }
-      // && senderFee.toBase58() != merkle tree token pda
-      if (!this.publicAmountSol.eq(new BN(0)) && senderFee) {
+
+      if (recipientFee) {
+        throw new TransactioParametersError(
+          TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
+          "constructor",
+          "This is a transfer, no sol amount should be withdrawn. To withdraw an sol amount mark the transaction as withdrawal.",
+        );
+      }
+
+      if (senderFee) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && sender) {
+      if (sender) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
@@ -554,9 +559,11 @@ export class TransactionParameters implements transactionParameters {
           );
         }
       }
+
       if (!this.accounts.recipientFee) {
         this.accounts.recipientFee = SystemProgram.programId;
         if (
+          !this.publicAmountSol.eq(new BN(0)) &&
           !this.publicAmountSol
             ?.sub(FIELD_SIZE)
             .mul(new BN(-1))
