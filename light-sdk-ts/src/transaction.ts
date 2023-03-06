@@ -285,7 +285,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit.",
+          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
         );
       }
 
@@ -295,7 +295,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit.",
+          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
         );
       }
       if (!this.publicAmountSol.eq(new BN(0)) && recipientFee) {
@@ -312,7 +312,6 @@ export class TransactionParameters implements transactionParameters {
           "",
         );
       }
-      console.log("this.publicAmountSol", this.publicAmountSol.toString());
 
       if (!this.publicAmountSol.eq(new BN(0)) && !senderFee) {
         throw new TransactioParametersError(
@@ -336,6 +335,7 @@ export class TransactionParameters implements transactionParameters {
        * sender is the merkle tree
        * recipient is the user
        */
+      // TODO: should I throw an error when a lookup table is defined?
       if (!relayer)
         throw new TransactioParametersError(
           TransactionErrorCode.RELAYER_UNDEFINED,
@@ -358,6 +358,29 @@ export class TransactionParameters implements transactionParameters {
           "constructor",
           "",
         );
+      try {
+        if (!tmpSol.eq(new BN(0))) {
+          tmpSol.sub(FIELD_SIZE).toArray("be", 8);
+        }
+      } catch (error) {
+        throw new TransactioParametersError(
+          TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+          "constructor",
+          "Public amount needs to be a u64 at deposit.",
+        );
+      }
+
+      try {
+        if (!tmpSpl.eq(new BN(0))) {
+          tmpSpl.sub(FIELD_SIZE).toArray("be", 8);
+        }
+      } catch (error) {
+        throw new TransactioParametersError(
+          TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+          "constructor",
+          "Public amount needs to be a u64 at deposit.",
+        );
+      }
 
       if (!this.publicAmountSol.eq(new BN(0)) && !recipientFee) {
         throw new TransactioParametersError(
@@ -410,7 +433,7 @@ export class TransactionParameters implements transactionParameters {
           "For a transfer public spl amount needs to be zero",
         );
       const tmpSol = this.publicAmountSol;
-      if (!tmpSol.sub(FIELD_SIZE).eq(relayer.relayerFee))
+      if (!tmpSol.sub(FIELD_SIZE).mul(new BN(-1)).eq(relayer.relayerFee))
         throw new TransactioParametersError(
           TransactionParametersErrorCode.INVALID_PUBLIC_AMOUNT,
           "constructor",
@@ -470,7 +493,9 @@ export class TransactionParameters implements transactionParameters {
       senderFee: senderFee, // TODO: change to senderSol
       recipientFee: recipientFee, // TODO: change name to recipientSol
       programMerkleTree: merkleTreeProgramId,
+      tokenAuthority: Transaction.getTokenAuthority(),
     };
+
     this.assignAccounts();
 
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
@@ -508,14 +533,10 @@ export class TransactionParameters implements transactionParameters {
         "assignAccounts",
       );
 
-    if (!this.accounts.sender && !this.accounts.senderFee) {
-      if (this.action !== "WITHDRAWAL") {
-        throw new TransactioParametersError(
-          TransactionErrorCode.ACTION_IS_NO_WITHDRAWAL,
-          "assignAccounts",
-          "Action is deposit but should not be. Spl & sol sender accounts provided but no relayer which is used to identify transfers and withdrawals.",
-        );
-      }
+    if (
+      this.action.toString() === Action.WITHDRAWAL.toString() ||
+      this.action.toString() === Action.TRANSFER.toString()
+    ) {
       this.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
         this.assetPubkeys[1],
         merkleTreeProgramId,
@@ -535,7 +556,13 @@ export class TransactionParameters implements transactionParameters {
       }
       if (!this.accounts.recipientFee) {
         this.accounts.recipientFee = SystemProgram.programId;
-        if (!this.publicAmountSol?.eq(new BN(0))) {
+        if (
+          !this.publicAmountSol
+            ?.sub(FIELD_SIZE)
+            .mul(new BN(-1))
+            .sub(new BN(this.relayer.relayerFee))
+            .eq(new BN(0))
+        ) {
           throw new TransactioParametersError(
             TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
             "assignAccounts",
@@ -544,7 +571,7 @@ export class TransactionParameters implements transactionParameters {
         }
       }
     } else {
-      if (this.action !== "DEPOSIT") {
+      if (this.action.toString() !== Action.DEPOSIT.toString()) {
         throw new TransactioParametersError(
           TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
           "assignAccounts",
@@ -568,11 +595,17 @@ export class TransactionParameters implements transactionParameters {
           );
         }
       }
-      this.accounts.senderFee = PublicKey.findProgramAddressSync(
-        [anchor.utils.bytes.utf8.encode("escrow")],
+      this.accounts.senderFee = TransactionParameters.getEscrowPda(
         this.verifier.verifierProgram.programId,
-      )[0];
+      );
     }
+  }
+
+  static getEscrowPda(verifierProgramId: PublicKey): PublicKey {
+    return PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("escrow")],
+      verifierProgramId,
+    )[0];
   }
 }
 // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
@@ -1476,7 +1509,7 @@ export class Transaction {
   static getRegisteredVerifierPda(
     merkleTreeProgramId: PublicKey,
     verifierProgramId: PublicKey,
-  ) {
+  ): PublicKey {
     return PublicKey.findProgramAddressSync(
       [verifierProgramId.toBytes()],
       merkleTreeProgramId,
@@ -1775,11 +1808,6 @@ export class Transaction {
         this.params.verifier.verifierProgram.programId,
       )[0];
     }
-
-    this.params.accounts.tokenAuthority = PublicKey.findProgramAddressSync(
-      [anchor.utils.bytes.utf8.encode("spl")],
-      merkleTreeProgramId,
-    )[0];
   }
 
   // TODO: check why this is called encr keypair but account class
@@ -2316,5 +2344,12 @@ export class Transaction {
       ].flat(),
       proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
     };
+  }
+
+  static getTokenAuthority(): PublicKey {
+    return PublicKey.findProgramAddressSync(
+      [anchor.utils.bytes.utf8.encode("spl")],
+      merkleTreeProgramId,
+    )[0];
   }
 }

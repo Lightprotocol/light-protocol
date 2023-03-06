@@ -31,7 +31,15 @@ import {
   TransactionParametersErrorCode,
   Relayer,
   FIELD_SIZE,
+  verifierProgramZeroProgramId,
+  MerkleTreeConfig,
+  merkleTreeProgramId,
+  AUTHORITY,
+  VerifierTwo,
+  VerifierOne,
 } from "../src";
+import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { realpath } from "fs";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
@@ -427,7 +435,7 @@ describe("verifier_program", () => {
     /**
      * General Transaction Parameter tests
      */
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         merkleTreePubkey: mockPubkey,
         sender: mockPubkey,
@@ -435,14 +443,16 @@ describe("verifier_program", () => {
         verifier: new VerifierZero(),
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT
+        action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionErrorCode.NO_UTXOS_PROVIDED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.NO_UTXOS_PROVIDED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -450,14 +460,16 @@ describe("verifier_program", () => {
         senderFee: mockPubkey,
         verifier: new VerifierZero(),
         lookUpTable: lightProvider.lookUpTable,
-        action: Action.DEPOSIT
+        action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -467,12 +479,14 @@ describe("verifier_program", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.NO_ACTION_PROVIDED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.NO_ACTION_PROVIDED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -480,53 +494,108 @@ describe("verifier_program", () => {
         senderFee: mockPubkey,
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT
+        action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.NO_VERIFIER_PROVIDED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.NO_VERIFIER_PROVIDED,
+        functionName: "constructor",
+      });
+  });
 
-  })
-
-  it("Test getAssetPubkeys",async () => {
+  it("Test getAssetPubkeys", async () => {
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [new Utxo({poseidon}), new Utxo({poseidon})];
-    let outputUtxos = [new Utxo({poseidon, amounts: [new anchor.BN(2), new anchor.BN(4)], assets: [SystemProgram.programId, MINT]}), new Utxo({poseidon})];
+    let inputUtxos = [new Utxo({ poseidon }), new Utxo({ poseidon })];
+    let outputUtxos = [
+      new Utxo({
+        poseidon,
+        amounts: [new anchor.BN(2), new anchor.BN(4)],
+        assets: [SystemProgram.programId, MINT],
+      }),
+      new Utxo({ poseidon }),
+    ];
 
-    let {assetPubkeysCircuit, assetPubkeys}=Transaction.getAssetPubkeys(inputUtxos, outputUtxos);
-    assert.equal(assetPubkeys[0].toBase58(), SystemProgram.programId.toBase58());
+    let { assetPubkeysCircuit, assetPubkeys } = Transaction.getAssetPubkeys(
+      inputUtxos,
+      outputUtxos,
+    );
+    assert.equal(
+      assetPubkeys[0].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
     assert.equal(assetPubkeys[1].toBase58(), MINT.toBase58());
-    assert.equal(assetPubkeys[2].toBase58(), SystemProgram.programId.toBase58());
+    assert.equal(
+      assetPubkeys[2].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
 
-    assert.equal(assetPubkeysCircuit[0].toString(), hashAndTruncateToCircuit(SystemProgram.programId.toBuffer()).toString());
-    assert.equal(assetPubkeysCircuit[1].toString(), hashAndTruncateToCircuit(MINT.toBuffer()).toString());
+    assert.equal(
+      assetPubkeysCircuit[0].toString(),
+      hashAndTruncateToCircuit(SystemProgram.programId.toBuffer()).toString(),
+    );
+    assert.equal(
+      assetPubkeysCircuit[1].toString(),
+      hashAndTruncateToCircuit(MINT.toBuffer()).toString(),
+    );
     assert.equal(assetPubkeysCircuit[2].toString(), "0");
-  })
+  });
 
-  it("Test getExtAmount",async () => {
+  it("Test getExtAmount", async () => {
     const poseidon = await buildPoseidonOpt();
-    let inputUtxos = [new Utxo({poseidon}), new Utxo({poseidon})];
-    let outputUtxos = [new Utxo({poseidon, amounts: [new anchor.BN(2), new anchor.BN(4)], assets: [SystemProgram.programId, MINT]}), new Utxo({poseidon})];
-    let {assetPubkeysCircuit, assetPubkeys}=Transaction.getAssetPubkeys(inputUtxos, outputUtxos);
+    let inputUtxos = [new Utxo({ poseidon }), new Utxo({ poseidon })];
+    let outputUtxos = [
+      new Utxo({
+        poseidon,
+        amounts: [new anchor.BN(2), new anchor.BN(4)],
+        assets: [SystemProgram.programId, MINT],
+      }),
+      new Utxo({ poseidon }),
+    ];
+    let { assetPubkeysCircuit, assetPubkeys } = Transaction.getAssetPubkeys(
+      inputUtxos,
+      outputUtxos,
+    );
 
-    let publicAmount =Transaction.getExternalAmount(0, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    let publicAmount = Transaction.getExternalAmount(
+      0,
+      inputUtxos,
+      outputUtxos,
+      assetPubkeysCircuit,
+    );
     assert.equal(publicAmount.toString(), "2");
-    let publicAmountSpl =Transaction.getExternalAmount(1, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    let publicAmountSpl = Transaction.getExternalAmount(
+      1,
+      inputUtxos,
+      outputUtxos,
+      assetPubkeysCircuit,
+    );
 
     assert.equal(publicAmountSpl.toString(), "4");
 
-    
-    outputUtxos[1] = new Utxo({poseidon, amounts: [new anchor.BN(3), new anchor.BN(5)], assets: [SystemProgram.programId, MINT]})
-    let publicAmountSpl2Outputs =Transaction.getExternalAmount(1, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    outputUtxos[1] = new Utxo({
+      poseidon,
+      amounts: [new anchor.BN(3), new anchor.BN(5)],
+      assets: [SystemProgram.programId, MINT],
+    });
+    let publicAmountSpl2Outputs = Transaction.getExternalAmount(
+      1,
+      inputUtxos,
+      outputUtxos,
+      assetPubkeysCircuit,
+    );
     assert.equal(publicAmountSpl2Outputs.toString(), "9");
 
-    let publicAmountSol2Outputs =Transaction.getExternalAmount(0, inputUtxos, outputUtxos, assetPubkeysCircuit);
+    let publicAmountSol2Outputs = Transaction.getExternalAmount(
+      0,
+      inputUtxos,
+      outputUtxos,
+      assetPubkeysCircuit,
+    );
     assert.equal(publicAmountSol2Outputs.toString(), "5");
+  });
 
-  })
-
-  it.only("Test Transaction errors", async () => {
+  it("Test Transaction Parameters Deposit errors", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let seed32 = new Uint8Array(32).fill(1).toString();
     let keypair = new Account({ poseidon: poseidon, seed: seed32 });
@@ -541,10 +610,7 @@ describe("verifier_program", () => {
     let mockPubkey = SolanaKeypair.generate().publicKey;
 
     let lightProvider = await LightProvider.loadMock(mockPubkey);
-    const relayer = new Relayer(
-      mockPubkey,
-      mockPubkey,
-    );
+    const relayer = new Relayer(mockPubkey, mockPubkey);
     // let tx = new Transaction({
     //   provider: lightProvider,
     // });
@@ -552,7 +618,7 @@ describe("verifier_program", () => {
     /**
      * Deposit Transaction Parameter tests
      */
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -561,14 +627,16 @@ describe("verifier_program", () => {
         verifier: new VerifierZero(),
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT
+        action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -577,14 +645,16 @@ describe("verifier_program", () => {
         verifier: new VerifierZero(),
         // lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT
+        action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -594,27 +664,32 @@ describe("verifier_program", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.DEPOSIT,
-        relayer
+        relayer,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.RELAYER_DEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.RELAYER_DEFINED,
+        functionName: "constructor",
+      });
 
     let utxo_sol_amount_no_u641 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(depositAmount)],
+      amounts: [
+        new anchor.BN("18446744073709551615"),
+        new anchor.BN(depositAmount),
+      ],
       account: keypair,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
-      amounts: [new anchor.BN( "18446744073709551615"), new anchor.BN(0)],
+      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
     });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
         merkleTreePubkey: mockPubkey,
@@ -625,10 +700,12 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
 
     let utxo_spl_amount_no_u641 = new Utxo({
       poseidon: poseidon,
@@ -644,7 +721,7 @@ describe("verifier_program", () => {
       account: keypair,
     });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
         merkleTreePubkey: mockPubkey,
@@ -655,12 +732,14 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -672,12 +751,14 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -689,12 +770,14 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -704,12 +787,14 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_SENDER_UNDEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -719,12 +804,13 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionErrorCode.SPL_SENDER_UNDEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SPL_SENDER_UNDEFINED,
+        functionName: "constructor",
+      });
 
-    
     // should work since no sol amount
     // sender fee always needs to be defined because we use it as the signer
     // should work since no spl amount
@@ -738,7 +824,7 @@ describe("verifier_program", () => {
       action: Action.DEPOSIT,
     });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -750,12 +836,14 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
-      functionName: "constructor",
-    });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
+        functionName: "constructor",
+      });
 
-    expect( () => {
+    expect(() => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
@@ -767,11 +855,12 @@ describe("verifier_program", () => {
         poseidon,
         action: Action.DEPOSIT,
       });
-    }).to.throw(TransactioParametersError).to.include({
-      code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
-      functionName: "constructor",
-    });
-
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
+        functionName: "constructor",
+      });
 
     /*
     let txParams = new TransactionParameters({
@@ -807,36 +896,934 @@ describe("verifier_program", () => {
     */
   });
 
+  it("Test Transaction Parameters Withdrawal errors", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
+    const relayer = new Relayer(mockPubkey, mockPubkey);
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        // senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        poseidon,
+        action: Action.WITHDRAWAL,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.RELAYER_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    let utxo_sol_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN("18446744073709551615"),
+        new anchor.BN(depositAmount),
+      ],
+      account: keypair,
+    });
+    let utxo_sol_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      account: keypair,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
+
+    let utxo_spl_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      account: keypair,
+    });
+
+    let utxo_spl_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("1")],
+      account: keypair,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipientFee: mockPubkey,
+        recipient: mockPubkey,
+        sender: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    // should work since no spl amount
+    new TransactionParameters({
+      inputUtxos: [utxo_sol_amount_no_u642],
+      merkleTreePubkey: mockPubkey,
+      recipientFee: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    // should work since no sol amount
+    new TransactionParameters({
+      inputUtxos: [utxo_spl_amount_no_u642],
+      merkleTreePubkey: mockPubkey,
+      recipient: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
+
+  it.only("Test Transaction Parameters Deposit Functional", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    let mockPubkey1 = SolanaKeypair.generate().publicKey;
+    let mockPubkey2 = SolanaKeypair.generate().publicKey;
+    let mockPubkey3 = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey3);
+
+    for (var j in verifiers) {
+      const outputUtxos = [deposit_utxo1];
+
+      const params = new TransactionParameters({
+        outputUtxos,
+        merkleTreePubkey: mockPubkey2,
+        sender: mockPubkey,
+        senderFee: mockPubkey1,
+        verifier: verifiers[j],
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.DEPOSIT,
+      });
+
+      assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
+      assert.equal(
+        params.publicAmountSol.toString(),
+        depositFeeAmount.toString(),
+      );
+      assert.equal(
+        params.assetPubkeys[0].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.assetPubkeys[1].toBase58(), MINT.toBase58());
+      assert.equal(
+        params.assetPubkeys[2].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.accounts.sender?.toBase58(), mockPubkey.toBase58());
+      assert.equal(
+        params.accounts.senderFee?.toBase58(),
+        TransactionParameters.getEscrowPda(
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(
+        params.accounts.merkleTree.toBase58(),
+        mockPubkey2.toBase58(),
+      );
+      assert.equal(params.accounts.verifierState, undefined);
+      assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
+      assert.equal(params.accounts.signingAddress, mockPubkey1);
+      assert.equal(
+        params.accounts.signingAddress,
+        params.relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.authority.toBase58(),
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(
+        params.accounts.registeredVerifierPda.toBase58(),
+        Transaction.getRegisteredVerifierPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
+      assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
+      assert.equal(
+        params.accounts.tokenAuthority?.toBase58(),
+        Transaction.getTokenAuthority().toBase58(),
+      );
+      assert.equal(
+        params.verifier.config.in.toString(),
+        verifiers[j].config.in.toString(),
+      );
+      assert.equal(params.action.toString(), Action.DEPOSIT.toString());
+      assert.equal(
+        params.relayer.accounts.lookUpTable.toBase58(),
+        lightProvider.lookUpTable?.toBase58(),
+      );
+      assert.equal(params.inputUtxos.length, params.verifier.config.in);
+      assert.equal(params.outputUtxos.length, params.verifier.config.out);
+
+      for (var i in outputUtxos) {
+        assert.equal(
+          params.outputUtxos[i].getCommitment(),
+          outputUtxos[i].getCommitment(),
+        );
+      }
+    }
+  });
+
+  it.only("Test Transaction Parameters Withdrawal Functional", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    let mockPubkey1 = SolanaKeypair.generate().publicKey;
+    let mockPubkey2 = SolanaKeypair.generate().publicKey;
+    let mockPubkey3 = SolanaKeypair.generate().publicKey;
+
+    const relayer = new Relayer(mockPubkey3, mockPubkey);
+
+    for (var j in verifiers) {
+      const inputUtxos = [deposit_utxo1];
+
+      const params = new TransactionParameters({
+        inputUtxos,
+        merkleTreePubkey: mockPubkey2,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey1,
+        verifier: verifiers[j],
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+      assert.equal(params.action.toString(), Action.WITHDRAWAL.toString());
+      assert.equal(
+        params.publicAmountSpl
+          .sub(FIELD_SIZE)
+          .mul(new anchor.BN(-1))
+          .toString(),
+        depositAmount.toString(),
+      );
+      assert.equal(
+        params.publicAmountSol
+          .sub(FIELD_SIZE)
+          .mul(new anchor.BN(-1))
+          .toString(),
+        depositFeeAmount.toString(),
+      );
+      assert.equal(
+        params.assetPubkeys[0].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.assetPubkeys[1].toBase58(), MINT.toBase58());
+      assert.equal(
+        params.assetPubkeys[2].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(
+        params.accounts.recipient?.toBase58(),
+        mockPubkey.toBase58(),
+      );
+      assert.equal(
+        params.accounts.recipientFee?.toBase58(),
+        mockPubkey1.toBase58(),
+      );
+      assert.equal(
+        params.accounts.merkleTree.toBase58(),
+        mockPubkey2.toBase58(),
+      );
+      assert.equal(params.accounts.verifierState, undefined);
+      assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
+      assert.equal(
+        params.accounts.signingAddress,
+        relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.signingAddress,
+        params.relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.authority.toBase58(),
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(
+        params.accounts.registeredVerifierPda.toBase58(),
+        Transaction.getRegisteredVerifierPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
+      assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
+      assert.equal(
+        params.accounts.tokenAuthority?.toBase58(),
+        Transaction.getTokenAuthority().toBase58(),
+      );
+      assert.equal(
+        params.verifier.config.in.toString(),
+        verifiers[j].config.in.toString(),
+      );
+      assert.equal(
+        params.relayer.accounts.lookUpTable.toBase58(),
+        relayer.accounts.lookUpTable?.toBase58(),
+      );
+      assert.equal(params.inputUtxos.length, params.verifier.config.in);
+      assert.equal(params.outputUtxos.length, params.verifier.config.out);
+
+      for (var i in inputUtxos) {
+        assert.equal(
+          params.inputUtxos[i].getCommitment(),
+          inputUtxos[i].getCommitment(),
+        );
+      }
+    }
+  });
+
+  it.only("Test Transaction Parameters Transfer Functional", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    let mockPubkey1 = SolanaKeypair.generate().publicKey;
+    let mockPubkey2 = SolanaKeypair.generate().publicKey;
+    let mockPubkey3 = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
+
+    const relayer = new Relayer(
+      mockPubkey,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
+
+    var outputUtxo = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(depositFeeAmount).sub(relayer.relayerFee),
+        new anchor.BN(depositAmount),
+      ],
+      account: keypair,
+    });
+
+    for (var j in verifiers) {
+      const inputUtxos = [deposit_utxo1];
+      const outputUtxos = [outputUtxo];
+
+      const params = new TransactionParameters({
+        inputUtxos,
+        outputUtxos,
+        merkleTreePubkey: mockPubkey2,
+        verifier: verifiers[j],
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.TRANSFER,
+        relayer,
+      });
+
+      assert.equal(params.action.toString(), Action.TRANSFER.toString());
+      assert.equal(params.publicAmountSpl.toString(), "0");
+      assert.equal(
+        params.publicAmountSol
+          .sub(FIELD_SIZE)
+          .mul(new anchor.BN(-1))
+          .toString(),
+        relayer.relayerFee.toString(),
+      );
+      assert.equal(
+        params.assetPubkeys[0].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.assetPubkeys[1].toBase58(), MINT.toBase58());
+      assert.equal(
+        params.assetPubkeys[2].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(
+        params.accounts.recipient?.toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(
+        params.accounts.recipientFee?.toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(
+        params.accounts.merkleTree.toBase58(),
+        mockPubkey2.toBase58(),
+      );
+      assert.equal(params.accounts.verifierState, undefined);
+      assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
+      assert.equal(
+        params.accounts.signingAddress,
+        relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.signingAddress,
+        params.relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.authority.toBase58(),
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(
+        params.accounts.registeredVerifierPda.toBase58(),
+        Transaction.getRegisteredVerifierPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
+      assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
+      assert.equal(
+        params.accounts.tokenAuthority?.toBase58(),
+        Transaction.getTokenAuthority().toBase58(),
+      );
+      assert.equal(
+        params.verifier.config.in.toString(),
+        verifiers[j].config.in.toString(),
+      );
+      assert.equal(
+        params.relayer.accounts.lookUpTable.toBase58(),
+        relayer.accounts.lookUpTable?.toBase58(),
+      );
+      assert.equal(params.inputUtxos.length, params.verifier.config.in);
+      assert.equal(params.outputUtxos.length, params.verifier.config.out);
+
+      for (var i in inputUtxos) {
+        assert.equal(
+          params.inputUtxos[i].getCommitment(),
+          inputUtxos[i].getCommitment(),
+        );
+      }
+
+      for (var i in outputUtxos) {
+        assert.equal(
+          params.outputUtxos[i].getCommitment(),
+          outputUtxos[i].getCommitment(),
+        );
+      }
+    }
+  });
+
+  it("Test Transaction Parameters Transaction errors", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+    let seed32 = new Uint8Array(32).fill(1).toString();
+    let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    let depositAmount = 20_000;
+    let depositFeeAmount = 10_000;
+    let deposit_utxo1 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
+      account: keypair,
+    });
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+
+    let lightProvider = await LightProvider.loadMock(mockPubkey);
+    const relayer = new Relayer(mockPubkey, mockPubkey);
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        // senderFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        poseidon,
+        action: Action.WITHDRAWAL,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.RELAYER_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    let utxo_sol_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN("18446744073709551615"),
+        new anchor.BN(depositAmount),
+      ],
+      account: keypair,
+    });
+    let utxo_sol_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
+      account: keypair,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
+
+    let utxo_spl_amount_no_u641 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
+      account: keypair,
+    });
+
+    let utxo_spl_amount_no_u642 = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [new anchor.BN(0), new anchor.BN("1")],
+      account: keypair,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipientFee: mockPubkey,
+        recipient: mockPubkey,
+        sender: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipient: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    // should work since no spl amount
+    new TransactionParameters({
+      inputUtxos: [utxo_sol_amount_no_u642],
+      merkleTreePubkey: mockPubkey,
+      recipientFee: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    // should work since no sol amount
+    new TransactionParameters({
+      inputUtxos: [utxo_spl_amount_no_u642],
+      merkleTreePubkey: mockPubkey,
+      recipient: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        senderFee: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SOL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+
+    expect(() => {
+      new TransactionParameters({
+        inputUtxos: [deposit_utxo1],
+        merkleTreePubkey: mockPubkey,
+        sender: mockPubkey,
+        recipient: mockPubkey,
+        recipientFee: mockPubkey,
+        verifier: new VerifierZero(),
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.WITHDRAWAL,
+        relayer,
+      });
+    })
+      .to.throw(TransactioParametersError)
+      .to.include({
+        code: TransactionParametersErrorCode.SPL_SENDER_DEFINED,
+        functionName: "constructor",
+      });
+  });
+
   it("Test Transaction constructor", async () => {
     let mockPubkey = SolanaKeypair.generate().publicKey;
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
     let lightProvider: Provider = {};
 
-    expect(() => {new Transaction({
-      provider: lightProvider,
-    })}).to.throw(TransactionError).to.include({
-      code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
-      functionName: "constructor",
-    });
-    lightProvider = {poseidon: poseidon};
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
+        functionName: "constructor",
+      });
+    lightProvider = { poseidon: poseidon };
 
-    expect(() => {new Transaction({
-      provider: lightProvider,
-    })}).to.throw(TransactionError).to.include({
-      code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
-      functionName: "constructor",
-    });
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        functionName: "constructor",
+      });
 
-    lightProvider = {poseidon: poseidon, solMerkleTree: 1};
+    lightProvider = { poseidon: poseidon, solMerkleTree: 1 };
 
-    expect(() => {new Transaction({
-      provider: lightProvider,
-    })}).to.throw(TransactionError).to.include({
-      code: TransactionErrorCode.WALLET_UNDEFINED,
-      functionName: "constructor",
-    });
-  })
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.WALLET_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
 
   it("getIndices", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
