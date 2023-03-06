@@ -117,7 +117,7 @@ describe("Mock verifier functional", () => {
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
     await tx.checkBalances();
-    await updateMerkleTreeForTest(provider);
+    await updateMerkleTreeForTest(provider.connection);
   });
 
   it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {

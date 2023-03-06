@@ -1,4 +1,9 @@
-import { AnchorError, AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import {
+  AnchorError,
+  AnchorProvider,
+  setProvider,
+  Wallet,
+} from "@coral-xyz/anchor";
 import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
@@ -7,11 +12,14 @@ import {
   ConfirmOptions,
 } from "@solana/web3.js";
 import {
+  ADMIN_AUTH_KEYPAIR,
   initLookUpTable,
   initLookUpTableFromFile,
   setUpMerkleTree,
 } from "../test-utils";
-import { MERKLE_TREE_KEY } from "../constants";
+import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
+import { MerkleTree } from "../merkleTree/merkleTree";
+const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
 /**
@@ -36,7 +44,7 @@ export class Provider {
   poseidon: any;
   lookUpTable?: PublicKey;
   solMerkleTree?: SolMerkleTree;
-  provider?: AnchorProvider; // temp -?
+  provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
 
   /**
@@ -66,10 +74,6 @@ export class Provider {
       throw new Error(
         "Connection provided in node environment. Provide a url instead",
       );
-    if (browserWallet && url)
-      throw new Error(
-        "Url provided in browser environment. Provide a connection instead",
-      );
 
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
@@ -86,6 +90,7 @@ export class Provider {
     if (browserWallet) {
       //@ts-ignore
       this.connection = connection;
+      this.provider = { connection: connection! };
       this.browserWallet = browserWallet;
     }
   }
@@ -106,30 +111,57 @@ export class Provider {
   }
 
   private async fetchLookupTable() {
-    if (!this.provider) throw new Error("No provider set.");
-    // TODO: replace with api call to relayer - lookuptable
-    this.lookUpTable = await initLookUpTableFromFile(this.provider);
+    try {
+      if (this.browserWallet) {
+        const response = await axios.get("http://localhost:3331/lookuptable");
+        this.lookUpTable = new PublicKey(response.data.data);
+        return;
+      }
+      if (!this.provider) throw new Error("No provider set.");
+      this.lookUpTable = await initLookUpTableFromFile(this.provider);
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   }
 
   private async fetchMerkleTree() {
-    // Api call to relayer - merkletree
-    // TODO: move to a seperate function
-    const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
-      MERKLE_TREE_KEY,
-    );
-    if (!merkletreeIsInited) {
-      await setUpMerkleTree(this.provider!);
-      console.log("merkletree inited");
-      // TODO: throw error
-    }
+    try {
+      if (this.browserWallet) {
+        const response = await axios.get("http://localhost:3331/merkletree");
 
-    console.log("building merkletree...");
-    const mt = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: this.poseidon,
-    });
-    console.log("✔️ building merkletree done");
-    this.solMerkleTree = mt;
+        const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
+
+        const pubkey = new PublicKey(response.data.data.pubkey);
+
+        const merkleTree = new MerkleTree(
+          MERKLE_TREE_HEIGHT,
+          this.poseidon,
+          fetchedMerkleTree._layers[0],
+        );
+
+        this.solMerkleTree = { ...response.data.data, merkleTree, pubkey };
+      }
+      // TODO: move to a seperate function
+      const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
+        MERKLE_TREE_KEY,
+      );
+      if (!merkletreeIsInited) {
+        await setUpMerkleTree(this.provider!);
+        // TODO: throw error
+      }
+
+      const mt = await SolMerkleTree.build({
+        pubkey: MERKLE_TREE_KEY,
+        poseidon: this.poseidon,
+        provider: this.provider,
+      });
+      console.log("✔️ building merkletree done");
+      this.solMerkleTree = mt;
+    } catch (err) {
+      console.error(err);
+      throw err;
+    }
   }
 
   private async loadPoseidon() {
