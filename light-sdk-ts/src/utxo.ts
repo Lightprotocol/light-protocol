@@ -35,19 +35,29 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 import { BN } from "@coral-xyz/anchor";
 import { CONSTANT_SECRET_AUTHKEY } from "./constants";
 import { assert } from "chai";
+import { UtxoError, UtxoErrorCode } from "./errors";
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
-// TODO: write test
 export class Utxo {
-  /** Initialize a new UTXO - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
-   *
-   * @param {new BN[]} amounts array UTXO amount
-   * @param {new BN | new BN | number | string} blinding Blinding factor
+  /**
+   * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
+   * @param {PublicKey[]} assets  array of utxo assets, assets[0] is the sol asset assets[1] is the spl asset
+   * @param {BN} blinding Blinding factor, a 31 bytes big number, to add randomness to the commitment hash.
+   * @param {Account} account the account owning the utxo.
+   * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
+   * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
+   * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
+   * @param {BN} verifierAddressCircuit hashAndTruncateToCircuit(verifierAddress) to fit into 254 bit field size of bn254.
+   * @param {BN} instructionType is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
+   * @param {BN} poolType is the pool type domain of the utxo default is [0;32].
+   * @param {any} poseidon poseidon hasher instance.
+   * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
+   * @param {string} _commitment cached commitment hash to avoid recomputing.
+   * @param {string} _nullifier cached nullifier hash to avoid recomputing.
    */
-
   amounts: BN[];
   assets: PublicKey[];
   assetsCircuit: BN[];
@@ -64,12 +74,28 @@ export class Utxo {
   poseidon: any;
   includeAppData: boolean;
 
+  /**
+   * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
+   *
+   * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount
+   * @param {PublicKey[]} assets  array of utxo assets, assets[0] is the sol asset assets[1] is the spl asset
+   * @param {BN} blinding Blinding factor, a 31 bytes big number, to add randomness to the commitment hash.
+   * @param {Account} account the account owning the utxo.
+   * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
+   * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
+   * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
+   * @param {BN} instructionType is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
+   * @param {any} poseidon poseidon hasher instance.
+   * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
+   * @param {function} appDataFromBytesFn function to deserialize appData from bytes.
+   * @param {appData} appData array of application data, is used to compute the instructionDataHash.
+   */
   constructor({
     poseidon,
     // TODO: reduce to one (the first will always be 0 and the third is not necessary)
     assets = [SystemProgram.programId],
     amounts = [new BN("0")],
-    account, // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    account,
     blinding = new BN(randomBN(), 31, "be"),
     poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
@@ -82,7 +108,7 @@ export class Utxo {
     poseidon: any;
     assets?: PublicKey[];
     amounts?: BN[];
-    account?: Account; // shielded pool keypair that is derived from seedphrase. OutUtxo: supply pubkey
+    account?: Account;
     blinding?: BN;
     poolType?: BN;
     verifierAddress?: PublicKey;
@@ -93,12 +119,25 @@ export class Utxo {
     instructionType?: BN;
   }) {
     // check that blinding is 31 bytes
-    blinding.toArray("be", 31);
+    try {
+      blinding.toArray("be", 31);
+    } catch (_) {
+      throw new UtxoError(
+        UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
+        `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
+      );
+    }
     if (assets.length != amounts.length) {
-      throw `utxo constructor: asset.length  ${assets.length}!= amount.length ${amounts.length}`;
+      throw new UtxoError(
+        UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
+        `Length missmatch assets: ${assets.length} != amounts: ${amounts.length}`,
+      );
     }
     if (assets.length > N_ASSETS) {
-      throw `assets.lengt ${assets.length} > N_ASSETS ${N_ASSETS}`;
+      throw new UtxoError(
+        UtxoErrorCode.EXCEEDED_MAX_ASSETS,
+        `assets.length ${assets.length} > N_ASSETS ${N_ASSETS}`,
+      );
     }
 
     while (assets.length < N_ASSETS) {
@@ -107,7 +146,10 @@ export class Utxo {
 
     for (var i = 0; i < N_ASSETS; i++) {
       if (amounts[i] < new BN(0)) {
-        throw `utxo constructor: amount cannot be negative, amounts[${i}] = ${amounts[i]}`;
+        throw new UtxoError(
+          UtxoErrorCode.NEGATIVE_AMOUNT,
+          `amount cannot be negative, amounts[${i}] = ${amounts[i]}`,
+        );
       }
     }
 
@@ -122,20 +164,18 @@ export class Utxo {
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = new BN(0);
-    } else {
     }
 
+    // checks that amounts are U64
     this.amounts = amounts.map((x) => {
       try {
-        // check that amounts are U64
-        // TODO: add test
         x.toArray("be", 8);
       } catch (_) {
-        throw new Error("amount not u64");
+        throw new UtxoError(UtxoErrorCode.NOT_U64, `amount ${x} not a u64`);
       }
-
       return new BN(x.toString());
     });
+
     this.blinding = blinding;
     this.account = account;
     this.index = index;
@@ -146,7 +186,6 @@ export class Utxo {
     this.includeAppData = includeAppData;
 
     // TODO: make variable length
-    // TODO: evaluate whether to hashAndTruncate feeAsset as well
     if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
       this.assetsCircuit = [
         hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
@@ -171,7 +210,6 @@ export class Utxo {
       );
     }
     if (appData.length > 0) {
-      // TODO: write function which creates the instructionTypeHash
       if (appDataFromBytesFn && !instructionType) {
         // console.log(
         //   "appDataFromBytesFn(appData) ",
@@ -193,21 +231,27 @@ export class Utxo {
       } else if (instructionType) {
         this.instructionType = instructionType;
       } else {
-        throw new Error("No appDataFromBytesFn provided");
+        throw new UtxoError(
+          UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
+          "No appDataFromBytesFn provided",
+        );
       }
     } else {
       this.instructionType = new BN("0");
     }
   }
 
+  /**
+   * @description Parses a utxo to bytes.
+   * @returns {Uint8Array}
+   */
   toBytes() {
-    //TODO: get assetIndex(this.asset[1])
     const assetIndex = getAssetIndex(this.assets[1]);
     if (assetIndex.toString() == "-1") {
       throw new Error("Asset not found in lookup table");
     }
 
-    // case no appData
+    // case no or excluding appData
     if (!this.includeAppData) {
       return new Uint8Array([
         ...this.blinding.toArray("be", 31),
@@ -230,36 +274,42 @@ export class Utxo {
     ]);
   }
 
-  // take a decrypted byteArray as input
+  /**
+   * @description Parses a utxo from bytes.
+   * @param poseidon poseidon hasher instance
+   * @param bytes byte array of a serialized utxo
+   * @param account account of the utxo
+   * @param appDataFromBytesFn function to parse app data from bytes
+   * @param includeAppData whether to include app data when encrypting or not
+   * @returns {Utxo}
+   */
   // TODO: make robust and versatile for any combination of filled in fields or not
   // TODO: find a better solution to get the private key in
   // TODO: check length to rule out parsing app utxo
+  // TODO: validate account
+  // TODO: add generic utxo type which builds from idl
   static fromBytes({
     poseidon,
     bytes,
     account,
-    keypairInAppDataOffset,
-    appDataLength,
     appDataFromBytesFn,
     includeAppData = false,
   }: {
     poseidon: any;
     bytes: Uint8Array;
     account?: Account;
-    keypairInAppDataOffset?: number;
-    appDataLength?: number;
     appDataFromBytesFn?: Function;
     includeAppData?: boolean;
   }): Utxo {
-    const blinding = new BN(bytes.slice(0, 31), undefined, "be"); // blinding
+    const blinding = new BN(bytes.slice(0, 31), undefined, "be");
     const amounts = [
       new BN(bytes.slice(31, 39), undefined, "be"),
       new BN(bytes.slice(39, 47), undefined, "be"),
-    ]; // amounts
+    ];
     const assets = [
       SystemProgram.programId,
       fetchAssetByIdLookUp(new BN(bytes.slice(47, 55), undefined, "be")),
-    ]; // assets MINT
+    ];
 
     if (account) {
       return new Utxo({
@@ -270,7 +320,10 @@ export class Utxo {
         blinding,
         includeAppData,
       });
-    } else {
+    }
+    // TODO: add identifier that utxo is app utxo
+    // TODO: add option to use account abstraction standard pubkey new BN(0)
+    else {
       const instructionType = new BN(bytes.slice(55, 87), 32, "be");
 
       const poolType = new BN(bytes.slice(87, 95), 8, "be");
@@ -297,8 +350,8 @@ export class Utxo {
   }
 
   /**
-   * Returns commitment for this UTXO
-   *signature:
+   * @description Returns commitment for this utxo
+   * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, instructionType, poolType, verifierAddressCircuit)
    * @returns {string}
    */
   getCommitment(): string {
@@ -334,15 +387,18 @@ export class Utxo {
   }
 
   /**
-   * Returns nullifier for this UTXO
+   * @description Computes the nullifier for this utxo.
+   * @description PoseidonHash(commitment, index, signature)
+   * @param {number} index Merkle tree index of the utxo commitment (Optional)
    *
-   * @returns {BN}
+   * @returns {string}
    */
   getNullifier(index?: number | undefined) {
     if (!this.index) {
       this.index = index;
     }
     if (!this._nullifier) {
+      // TODO: enable this error
       if (
         //(this.amounts[0] > new BN(0) || this.amounts[0] > new BN(0))
         false &&
@@ -373,9 +429,9 @@ export class Utxo {
   }
 
   /**
-   * Encrypt UTXO to recipient pubkey
+   * @description Encrypts the utxo to the utxo's accounts public key with nacl.box.
    *
-   * @returns {string}
+   * @returns {Uint8Array} with the last 24 bytes being the nonce
    */
   // TODO: add fill option to 128 bytes to be filled with 0s
   // TODO: add encrypt custom (app utxos with idl)
@@ -397,9 +453,11 @@ export class Utxo {
 
   // TODO: add decrypt custom (app utxos with idl)
   /**
-   *
-   * @param encBytes
-   * @returns
+   * @description Decrypts a utxo from an array of bytes, the last 24 bytes are the nonce.
+   * @param {any} poseidon
+   * @param {Uint8Array} encBytes
+   * @param {Account} account
+   * @returns {Utxo | null}
    */
   static decrypt({
     poseidon,
@@ -430,6 +488,11 @@ export class Utxo {
     }
   }
 
+  /**
+   * @description Compares two Utxos.
+   * @param {Utxo} utxo0
+   * @param {Utxo} utxo1
+   */
   static equal(utxo0: Utxo, utxo1: Utxo) {
     assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
     assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());

@@ -18,8 +18,8 @@ use anchor_spl::token::Token;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::state::VerifierState10Ins;
 use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-    program::MerkleTreeProgram, utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
+    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
@@ -34,27 +34,31 @@ pub mod verifier_program_one {
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount: Vec<u8>,
+        public_amount: [u8; 32],
         nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
-        fee_amount: Vec<u8>,
+        fee_amount: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
-        let mut nullifiers_vec = Vec::<Vec<u8>>::new();
-        for nullifier in nullifiers {
-            nullifiers_vec.push(nullifier.to_vec());
-        }
-
+        // let mut nullifiers_vec = Vec::<Vec<u8>>::new();
+        // for nullifier in nullifiers {
+        //     nullifiers_vec.push(nullifier.to_vec());
+        // }
+        let proof_a = [0u8; 64];
+        let proof_b = [0u8; 128];
+        let proof_c = [0u8; 64];
         process_transfer_10_ins_2_outs_first(
             ctx,
-            vec![0u8; 256],
-            public_amount,
-            nullifiers_vec,
-            vec![vec![leaves[0].to_vec(), leaves[1].to_vec()]],
-            fee_amount,
-            encrypted_utxos,
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            &public_amount,
+            &nullifiers,
+            &[[leaves[0], leaves[1]]; 1],
+            &fee_amount,
+            &encrypted_utxos,
             &root_index,
             &relayer_fee,
         )
@@ -65,9 +69,11 @@ pub mod verifier_program_one {
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof: Vec<u8>,
+        proof_a: [u8; 64],
+        proof_b: [u8; 128],
+        proof_c: [u8; 64],
     ) -> Result<()> {
-        process_transfer_10_ins_2_outs_second(ctx, proof, vec![0u8; 32])
+        process_transfer_10_ins_2_outs_second(ctx, &proof_a, &proof_b, &proof_c, [0u8; 32])
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
@@ -85,8 +91,8 @@ pub struct LightInstructionFirst<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 2048/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
+    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
 }
 
 /// Executes light transaction with state created in the first instruction.
@@ -95,15 +101,12 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
     pub system_program: Program<'info, System>,
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
+    #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    #[account(
-        mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
@@ -123,9 +126,6 @@ pub struct LightInstructionSecond<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during sol deposits.
-    #[account(mut)]
-    pub escrow: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
@@ -139,5 +139,5 @@ pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
     pub signing_address: Signer<'info>,
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
-    pub verifier_state: Account<'info, VerifierState10Ins<TransactionConfig>>,
+    pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
 }

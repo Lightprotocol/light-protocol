@@ -33,7 +33,12 @@ export type VerifierProgramOne = {
       "args": [
         {
           "name": "publicAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -65,7 +70,12 @@ export type VerifierProgramOne = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",
@@ -111,11 +121,6 @@ export type VerifierProgramOne = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -155,11 +160,6 @@ export type VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -175,8 +175,31 @@ export type VerifierProgramOne = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         }
       ]
     },
@@ -237,7 +260,12 @@ export const IDL: VerifierProgramOne = {
       "args": [
         {
           "name": "publicAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "nullifiers",
@@ -269,7 +297,12 @@ export const IDL: VerifierProgramOne = {
         },
         {
           "name": "feeAmount",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         },
         {
           "name": "rootIndex",
@@ -315,11 +348,6 @@ export const IDL: VerifierProgramOne = {
         },
         {
           "name": "merkleTree",
-          "isMut": false,
-          "isSigner": false
-        },
-        {
-          "name": "preInsertedLeavesIndex",
           "isMut": true,
           "isSigner": false
         },
@@ -359,11 +387,6 @@ export const IDL: VerifierProgramOne = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -379,8 +402,31 @@ export const IDL: VerifierProgramOne = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         }
       ]
     },

@@ -6,7 +6,7 @@ pub fn insert_nullifiers_cpi<'a, 'b>(
     authority: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
-    nullifiers: Vec<Vec<u8>>,
+    nullifiers: Vec<[u8; 32]>,
     nullifier_pdas: Vec<AccountInfo<'a>>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
@@ -83,12 +83,11 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     two_leaves_pda: &'b AccountInfo<'a>,
-    pre_inserted_leaves_index_account: &'b AccountInfo<'a>,
+    merkle_tree_account: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaf_left: [u8; 32],
     leaf_right: [u8; 32],
-    merkle_tree_tmp_account: Pubkey,
     encrypted_utxos: Vec<u8>,
 ) -> Result<()> {
     let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
@@ -99,7 +98,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         authority: authority.clone(),
         two_leaves_pda: two_leaves_pda.clone(),
         system_program: system_program.clone(),
-        pre_inserted_leaves_index: pre_inserted_leaves_index_account.clone(),
+        merkle_tree: merkle_tree_account.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
     };
 
@@ -115,7 +114,6 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         .concat()
         .try_into()
         .unwrap(),
-        merkle_tree_tmp_account,
     )
 }
 

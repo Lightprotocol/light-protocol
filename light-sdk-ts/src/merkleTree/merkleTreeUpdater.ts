@@ -46,13 +46,6 @@ export async function executeUpdateMerkleTreeTransactions({
       merkleTreeProgram.programId,
     )
   )[0];
-
-  console.log(
-    "on line number 500000000000000000000 =======================> siqwiqwixuwqiw",
-    window,
-    typeof window === "undefined",
-  );
-
   try {
     if (typeof window === "undefined") {
       const tx1 = await merkleTreeProgram.methods
@@ -118,8 +111,6 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeProgram,
   });
 
-  console.log("merkle treee update state created is checkedd ==============>");
-
   await executeMerkleTreeUpdateTransactions({
     signer,
     merkleTreeProgram,
@@ -128,8 +119,6 @@ export async function executeUpdateMerkleTreeTransactions({
     numberOfTransactions: 251,
     connection,
   });
-
-  console.log("successsfffullll everything ======================>");
 
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
@@ -140,8 +129,6 @@ export async function executeUpdateMerkleTreeTransactions({
     current_instruction_index: 56,
     merkleTreeProgram,
   });
-
-  console.log("state updated checkedddddddd = >>>>>>>>>>>>>>>");
 
   try {
     if (typeof window === "undefined") {
@@ -253,11 +240,6 @@ export async function executeMerkleTreeUpdateTransactions({
 
     transactions.push(transaction);
   }
-
-  console.log(
-    "signer here =========================>",
-    signer.publicKey.toString(),
-  );
 
   let error;
   await Promise.all(

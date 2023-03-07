@@ -77,10 +77,10 @@ export class VerifierOne implements Verifier {
     }
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        Buffer.from(transaction.publicInputs.publicAmount),
+        transaction.publicInputs.publicAmount,
         transaction.publicInputs.nullifiers,
         transaction.publicInputs.leaves[0],
-        Buffer.from(transaction.publicInputs.feeAmount),
+        transaction.publicInputs.feeAmount,
         new anchor.BN(transaction.rootIndex.toString()),
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos),
@@ -92,7 +92,11 @@ export class VerifierOne implements Verifier {
       .instruction();
 
     const ix2 = await this.verifierProgram.methods
-      .shieldedTransferSecond(Buffer.from(transaction.proofBytes))
+      .shieldedTransferSecond(
+        transaction.proofBytes.proofA,
+        transaction.proofBytes.proofB,
+        transaction.proofBytes.proofC,
+      )
       .accounts({
         ...transaction.params.accounts,
         ...transaction.params.relayer.accounts,

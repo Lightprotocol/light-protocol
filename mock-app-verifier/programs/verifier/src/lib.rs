@@ -21,11 +21,9 @@ use crate::processor::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
+use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree;
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use merkle_tree_program::{
-    initialize_new_merkle_tree_18::PreInsertedLeavesIndex, poseidon_merkle_tree::state::MerkleTree,
-};
 use verifier_program_two::{self, program::VerifierProgramTwo};
 
 declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
@@ -48,34 +46,32 @@ pub mod mock_verifier {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount: Vec<u8>,
+        public_amount: [u8; 32],
         nullifiers: [[u8; 32]; 4],
         leaves: [[[u8; 32]; 2]; 2],
-        fee_amount: Vec<u8>,
+        fee_amount: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
-        let mut nullifiers_vec = Vec::<Vec<u8>>::new();
-        for nullifier in nullifiers {
-            nullifiers_vec.push(nullifier.to_vec());
-        }
-
-        let mut leaves_vec = Vec::<Vec<Vec<u8>>>::new();
-        for leaves_pair in leaves {
-            leaves_vec.push(vec![leaves_pair[0].to_vec(), leaves_pair[1].to_vec()]);
-        }
+        let proof_a = [0u8; 64];
+        let proof_b = [0u8; 128];
+        let proof_c = [0u8; 64];
+        let pool_type = [0u8; 32];
+        let checked_inputs = Vec::new();
 
         process_transfer_4_ins_4_outs_4_checked_first(
             ctx,
-            vec![0u8; 256],
-            public_amount,
-            nullifiers_vec,
-            leaves_vec,
-            fee_amount,
-            Vec::new(),
-            encrypted_utxos.to_vec(),
-            vec![0u8; 32],
+            &proof_a,
+            &proof_b,
+            &proof_c,
+            &public_amount,
+            &nullifiers,
+            &leaves,
+            &fee_amount,
+            &checked_inputs,
+            &encrypted_utxos,
+            &pool_type,
             &root_index,
             &relayer_fee,
         )
@@ -86,8 +82,12 @@ pub mod mock_verifier {
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof_app: Vec<u8>,
-        proof_verifier: Vec<u8>,
+        proof_a_app: [u8; 64],
+        proof_b_app: [u8; 128],
+        proof_c_app: [u8; 64],
+        proof_a_verifier: [u8; 64],
+        proof_b_verifier: [u8; 128],
+        proof_c_verifier: [u8; 64],
         connecting_hash: Vec<u8>,
     ) -> Result<()> {
         ctx.accounts.verifier_state.checked_public_inputs.insert(
@@ -102,7 +102,15 @@ pub mod mock_verifier {
             .verifier_state
             .checked_public_inputs
             .insert(1, connecting_hash);
-        process_transfer_4_ins_4_outs_4_checked_second(ctx, proof_app, proof_verifier)
+        process_transfer_4_ins_4_outs_4_checked_second(
+            ctx,
+            &proof_a_app,
+            &proof_b_app,
+            &proof_c_app,
+            &proof_a_verifier,
+            &proof_b_verifier,
+            &proof_c_verifier,
+        )
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
@@ -120,7 +128,7 @@ pub struct LightInstructionFirst<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 2548/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
+    #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
     pub verifier_state: Account<'info, VerifierState10Ins<TransactionsConfig>>,
 }
 
@@ -136,10 +144,6 @@ pub struct LightInstructionSecond<'info> {
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
     pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    #[account(
-        mut,seeds= [merkle_tree.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id()
-    )]
-    pub pre_inserted_leaves_index: Account<'info, PreInsertedLeavesIndex>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program= VerifierProgramTwo::id())]
     pub authority: UncheckedAccount<'info>,
@@ -159,10 +163,7 @@ pub struct LightInstructionSecond<'info> {
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
     pub relayer_recipient: UncheckedAccount<'info>,
-    // /// CHECK:` Is checked when it is used during sol deposits.
-    // #[account(mut)]
-    // pub escrow: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during spl withdrawals.
+    /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,
     /// CHECK: Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.

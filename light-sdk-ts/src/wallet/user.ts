@@ -158,7 +158,7 @@ export class User {
       });
       return balances;
     } catch (err) {
-      console.log("error in getting the user balance =============>", { err });
+      console.log("error in getting the user balance", { err });
       throw err;
     }
   }
@@ -655,7 +655,7 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log("====================>", { e });
+      console.log({ e });
       // console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
 
@@ -697,8 +697,6 @@ export class User {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
 
-    console.log("before the spl address");
-
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
       throw new Error("SPL not implemented yet!");
@@ -710,8 +708,6 @@ export class User {
     } else {
       amount = amount * 1e9;
     }
-
-    console.log("processing the utxos ===========>");
 
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
@@ -725,8 +721,6 @@ export class User {
       inUtxos,
     });
 
-    console.log("utxo processed ===============>");
-
     // TODO: replace with ping to relayer webserver
 
     let relayer = new Relayer(
@@ -737,8 +731,6 @@ export class User {
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
-
-    console.log("relayer is started");
 
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({

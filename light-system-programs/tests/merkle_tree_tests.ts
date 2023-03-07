@@ -706,7 +706,6 @@ describe("Merkle Tree Tests", () => {
           .rpc(confirmConfig);
         console.log("success 1");
       } catch (e) {
-        console.log("error is happening here ====================>", { e });
         error = e;
       }
       assert(error.error.errorCode.code == "FirstLeavesPdaIncorrectIndex");
@@ -845,7 +844,6 @@ describe("Merkle Tree Tests", () => {
       });
     } catch (err) {
       error = err;
-      console.log("here inside the catch block  ======================>");
     }
     assert(
       error.logs.includes(
@@ -982,7 +980,6 @@ describe("Merkle Tree Tests", () => {
       merkleTreeAccountPrior,
       numberOfLeaves: 2,
       leavesPdas: [leavesPdas[0]],
-      merkleTree: merkleTree,
       merkle_tree_pubkey: merkle_tree_pubkey,
       merkleTreeProgram,
     });

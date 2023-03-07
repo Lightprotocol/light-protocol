@@ -34,11 +34,6 @@ export type VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -74,11 +69,6 @@ export type VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -94,12 +84,40 @@ export type VerifierProgramTwo = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "connectingHash",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     }
@@ -149,11 +167,6 @@ export const IDL: VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "preInsertedLeavesIndex",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "authority",
           "isMut": true,
           "isSigner": false
@@ -189,11 +202,6 @@ export const IDL: VerifierProgramTwo = {
           "isSigner": false
         },
         {
-          "name": "escrow",
-          "isMut": true,
-          "isSigner": false
-        },
-        {
           "name": "tokenAuthority",
           "isMut": true,
           "isSigner": false
@@ -209,12 +217,40 @@ export const IDL: VerifierProgramTwo = {
       ],
       "args": [
         {
-          "name": "proof",
-          "type": "bytes"
+          "name": "proofA",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
+        },
+        {
+          "name": "proofB",
+          "type": {
+            "array": [
+              "u8",
+              128
+            ]
+          }
+        },
+        {
+          "name": "proofC",
+          "type": {
+            "array": [
+              "u8",
+              64
+            ]
+          }
         },
         {
           "name": "connectingHash",
-          "type": "bytes"
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
         }
       ]
     }
