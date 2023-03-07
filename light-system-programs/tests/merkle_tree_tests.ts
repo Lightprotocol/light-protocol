@@ -49,7 +49,7 @@ describe("Merkle Tree Tests", () => {
   // Configure the client to use the local cluster.
   var provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
-    confirmConfig
+    confirmConfig,
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
@@ -64,20 +64,20 @@ describe("Merkle Tree Tests", () => {
     // await setUpMerkleTree(provider);
 
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = new anchor.web3.Account();
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         INVALID_SIGNER.publicKey,
-        1_000_000_000_000
+        1_000_000_000_000,
       ),
-      "confirmed"
+      "confirmed",
     );
     INVALID_MERKLE_TREE_AUTHORITY_PDA = solana.PublicKey.findProgramAddressSync(
       [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     )[0];
   });
 
@@ -104,22 +104,22 @@ describe("Merkle Tree Tests", () => {
     });
 
     let newTree = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
     assert.equal(
       merkleTree.merkleTree.root(),
       new anchor.BN(
         newTree.roots[newTree.currentRootIndex.toNumber()],
         32,
-        "le"
-      )
+        "le",
+      ),
     );
   });
 
   it("Initialize Merkle Tree Test", async () => {
     const verifierProgramZero = new anchor.Program(
       IDL_VERIFIER_PROGRAM_ZERO,
-      verifierProgramZeroProgramId
+      verifierProgramZeroProgramId,
     );
     // const verifierProgramOne = new anchor.Program(VerifierProgramOne, verifierProgramOneProgramId);
 
@@ -130,21 +130,21 @@ describe("Merkle Tree Tests", () => {
     // - can only be invoked by current authority
 
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = new anchor.web3.Account();
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         INVALID_SIGNER.publicKey,
-        1_000_000_000_000
+        1_000_000_000_000,
       ),
-      "confirmed"
+      "confirmed",
     );
 
     INVALID_MERKLE_TREE_AUTHORITY_PDA = solana.PublicKey.findProgramAddressSync(
       [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     )[0];
     let merkleTreeConfig = new MerkleTreeConfig({
       merkleTreePubkey: MERKLE_TREE_KEY,
@@ -167,8 +167,8 @@ describe("Merkle Tree Tests", () => {
     assert.isTrue(
       error.logs.includes(
         // "Program log: AnchorError caused by account: merkle_tree_authority_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
-        "Program log: Instruction: InitializeMerkleTreeAuthority"
-      )
+        "Program log: Instruction: InitializeMerkleTreeAuthority",
+      ),
     );
     error = undefined;
 
@@ -183,8 +183,8 @@ describe("Merkle Tree Tests", () => {
 
     assert.isTrue(
       error.logs.includes(
-        "Program log: Instruction: InitializeMerkleTreeAuthority"
-      )
+        "Program log: Instruction: InitializeMerkleTreeAuthority",
+      ),
     );
     error = undefined;
 
@@ -196,9 +196,9 @@ describe("Merkle Tree Tests", () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         newAuthority.publicKey,
-        1_000_000_000_000
+        1_000_000_000_000,
       ),
-      "confirmed"
+      "confirmed",
     );
 
     // update merkle tree with invalid signer
@@ -206,7 +206,7 @@ describe("Merkle Tree Tests", () => {
     try {
       await merkleTreeConfig.updateMerkleTreeAuthority(
         newAuthority.publicKey,
-        true
+        true,
       );
       console.log("Registering AUTHORITY success");
     } catch (e) {
@@ -221,7 +221,7 @@ describe("Merkle Tree Tests", () => {
     try {
       await merkleTreeConfig.updateMerkleTreeAuthority(
         newAuthority.publicKey,
-        true
+        true,
       );
       console.log("Registering AUTHORITY success");
     } catch (e) {
@@ -230,14 +230,14 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
     await merkleTreeConfig.updateMerkleTreeAuthority(newAuthority.publicKey);
     merkleTreeConfig.payer = newAuthority;
     await merkleTreeConfig.updateMerkleTreeAuthority(
-      ADMIN_AUTH_KEYPAIR.publicKey
+      ADMIN_AUTH_KEYPAIR.publicKey,
     );
     merkleTreeConfig.payer = ADMIN_AUTH_KEYPAIR;
 
@@ -267,7 +267,7 @@ describe("Merkle Tree Tests", () => {
 
     // assert.equal(error.error.origin, "registered_verifier_pda");
     assert.isTrue(
-      error.logs.includes("Program log: Instruction: RegisterVerifier")
+      error.logs.includes("Program log: Instruction: RegisterVerifier"),
     );
     merkleTreeConfig.registeredVerifierPdas[0].registeredVerifierPda = tmp;
     error = undefined;
@@ -301,7 +301,7 @@ describe("Merkle Tree Tests", () => {
 
     let merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda
+        merkleTreeConfig.merkleTreeAuthorityPda,
       );
     // assert.equal(merkleTreeAuthority.enableNfts, true);
     // await merkleTreeConfig.enableNfts(false);
@@ -335,7 +335,7 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.getMerkleTreeAuthorityPda();
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
@@ -366,7 +366,7 @@ describe("Merkle Tree Tests", () => {
 
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
@@ -374,13 +374,13 @@ describe("Merkle Tree Tests", () => {
 
     merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda
+        merkleTreeConfig.merkleTreeAuthorityPda,
       );
     assert.equal(merkleTreeAuthority.enablePermissionlessSplTokens, true);
     await merkleTreeConfig.enablePermissionlessSplTokens(false);
     merkleTreeAuthority =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda
+        merkleTreeConfig.merkleTreeAuthorityPda,
       );
     assert.equal(merkleTreeAuthority.enablePermissionlessSplTokens, false);
 
@@ -407,7 +407,7 @@ describe("Merkle Tree Tests", () => {
 
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
@@ -415,12 +415,12 @@ describe("Merkle Tree Tests", () => {
 
     let registeredPoolTypePdaAccount =
       await merkleTreeProgram.account.registeredPoolType.fetch(
-        merkleTreeConfig.poolTypes[0].poolPda
+        merkleTreeConfig.poolTypes[0].poolPda,
       );
 
     assert.equal(
       registeredPoolTypePdaAccount.poolType.toString(),
-      new Uint8Array(32).fill(0).toString()
+      new Uint8Array(32).fill(0).toString(),
     );
 
     // update merkle tree with invalid signer
@@ -448,7 +448,7 @@ describe("Merkle Tree Tests", () => {
 
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
@@ -458,16 +458,16 @@ describe("Merkle Tree Tests", () => {
 
     let registeredSolPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
-        MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda
+        MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda,
       );
     assert.equal(
       registeredSolPdaAccount.poolType.toString(),
-      new Uint8Array(32).fill(0).toString()
+      new Uint8Array(32).fill(0).toString(),
     );
     assert.equal(registeredSolPdaAccount.index, 0);
     assert.equal(
       registeredSolPdaAccount.assetPoolPubkey.toBase58(),
-      MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58()
+      MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58(),
     );
 
     let mint = await createMintWrapper({
@@ -498,7 +498,7 @@ describe("Merkle Tree Tests", () => {
 
     assert.equal(
       error.error.errorMessage,
-      "The program expected this account to be already initialized"
+      "The program expected this account to be already initialized",
     );
     error = undefined;
 
@@ -508,30 +508,30 @@ describe("Merkle Tree Tests", () => {
 
     let registeredSplPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
-        merkleTreeConfig.poolPdas[0].pda
+        merkleTreeConfig.poolPdas[0].pda,
       );
     registeredSplPdaAccount =
       await merkleTreeProgram.account.registeredAssetPool.fetch(
-        merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda
+        merkleTreeConfig.poolPdas[merkleTreeConfig.poolPdas.length - 1].pda,
       );
 
     console.log(registeredSplPdaAccount);
 
     assert.equal(
       registeredSplPdaAccount.poolType.toString(),
-      new Uint8Array(32).fill(0).toString()
+      new Uint8Array(32).fill(0).toString(),
     );
     assert.equal(registeredSplPdaAccount.index.toString(), "1");
     assert.equal(
       registeredSplPdaAccount.assetPoolPubkey.toBase58(),
       merkleTreeConfig.poolPdas[
         merkleTreeConfig.poolPdas.length - 1
-      ].token.toBase58()
+      ].token.toBase58(),
     );
 
     let merkleTreeAuthority1 =
       await merkleTreeProgram.account.merkleTreeAuthority.fetch(
-        merkleTreeConfig.merkleTreeAuthorityPda
+        merkleTreeConfig.merkleTreeAuthorityPda,
       );
     console.log(merkleTreeAuthority1);
     assert.equal(merkleTreeAuthority1.registeredAssetIndex.toString(), "2");
@@ -572,11 +572,11 @@ describe("Merkle Tree Tests", () => {
       userTokenAccount,
       Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        new VerifierZero().verifierProgram.programId
+        new VerifierZero().verifierProgram.programId,
       ), //delegate
       USER_TOKEN_ACCOUNT, // owner
       depositAmount * 10,
-      [USER_TOKEN_ACCOUNT]
+      [USER_TOKEN_ACCOUNT],
     );
 
     let lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
@@ -630,13 +630,13 @@ describe("Merkle Tree Tests", () => {
     const signer = ADMIN_AUTH_KEYPAIR;
 
     let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
     let error;
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      MERKLE_TREE_KEY
+      MERKLE_TREE_KEY,
     );
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
@@ -648,7 +648,7 @@ describe("Merkle Tree Tests", () => {
         Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
         anchor.utils.bytes.utf8.encode("storage"),
       ],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     )[0];
     let merkle_tree_pubkey = MERKLE_TREE_KEY;
     let connection = provider.connection;
@@ -706,7 +706,7 @@ describe("Merkle Tree Tests", () => {
           .rpc(confirmConfig);
         console.log("success 1");
       } catch (e) {
-        console.log(e);
+        console.log("error is happening here ====================>", { e });
         error = e;
       }
       assert(error.error.errorCode.code == "FirstLeavesPdaIncorrectIndex");
@@ -729,7 +729,7 @@ describe("Merkle Tree Tests", () => {
         merkleTreeProgram.programId.toBuffer(),
         new anchor.BN(1).toArray("le", 8),
       ],
-      merkleTreeProgram.programId
+      merkleTreeProgram.programId,
     )[0];
     if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
       await merkleTreeConfig.initializeNewMerkleTree(different_merkle_tree);
@@ -803,7 +803,7 @@ describe("Merkle Tree Tests", () => {
       signer,
       merkleTreeProgram,
       merkle_tree_pubkey,
-      provider,
+      connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 10,
     });
@@ -831,23 +831,26 @@ describe("Merkle Tree Tests", () => {
           Buffer.from(new Uint8Array(maliciousSigner.publicKey.toBytes())),
           anchor.utils.bytes.utf8.encode("storage"),
         ],
-        merkleTreeProgram.programId
+        merkleTreeProgram.programId,
       )[0];
     let s = false;
-    error = await executeMerkleTreeUpdateTransactions({
-      signer: maliciousSigner,
-      merkleTreeProgram,
-      merkle_tree_pubkey,
-      provider,
-      merkleTreeUpdateState,
-      numberOfTransactions: 1,
-    });
-    console.log(error);
-
+    try {
+      await executeMerkleTreeUpdateTransactions({
+        signer: maliciousSigner,
+        merkleTreeProgram,
+        merkle_tree_pubkey,
+        connection: provider.connection,
+        merkleTreeUpdateState,
+        numberOfTransactions: 1,
+      });
+    } catch (err) {
+      error = err;
+      console.log("here inside the catch block  ======================>");
+    }
     assert(
       error.logs.includes(
-        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority."
-      )
+        "Program log: AnchorError caused by account: authority. Error Code: InvalidAuthority. Error Number: 6016. Error Message: InvalidAuthority.",
+      ),
     );
 
     // Test property: 4
@@ -896,7 +899,7 @@ describe("Merkle Tree Tests", () => {
       signer,
       merkleTreeProgram,
       merkle_tree_pubkey,
-      provider,
+      connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 50,
     });
@@ -979,7 +982,6 @@ describe("Merkle Tree Tests", () => {
       merkleTreeAccountPrior,
       numberOfLeaves: 2,
       leavesPdas: [leavesPdas[0]],
-      merkleTree: merkleTree,
       merkle_tree_pubkey: merkle_tree_pubkey,
       merkleTreeProgram,
     });
