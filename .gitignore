@@ -23,6 +23,8 @@
 **/yarn-error.log
 
 /**/lookUpTable.txt
+*/yarn-error.log
+**/yarn-error.log
 # light-sdk-ts
 /light-sdk-ts/node_modules/
 /light-sdk-ts/lib/
