@@ -741,6 +741,8 @@ export class Transaction {
     if (this.appParams) {
       await this.getAppProof();
     }
+    await this.getRootIndex();
+    await this.getPdaAddresses();
   }
 
   /**
@@ -1569,6 +1571,22 @@ export class Transaction {
           "",
         );
 
+      if (this.transactionInputs.rootIndex === undefined) {
+        throw new TransactionError(
+          TransactionErrorCode.ROOT_INDEX_NOT_FETCHED,
+          "sendTransaction",
+          "",
+        );
+      }
+
+      if (!this.remainingAccounts?.leavesPdaPubkeys) {
+        throw new TransactionError(
+          TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
+          "sendTransaction",
+          "Run await getPdaAddresses() before invoking sendTransaction",
+        );
+      }
+
       const recentBlockhash = (
         await this.provider.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
@@ -1655,9 +1673,6 @@ export class Transaction {
         "getInstructions",
         "",
       );
-    await this.getRootIndex();
-
-    await this.getPdaAddresses();
     return await this.params.verifier.getInstructions(this);
   }
 
@@ -1717,6 +1732,7 @@ export class Transaction {
   }
 
   // TODO: deal with this: set own payer just for that? where is this used?
+  // This is used by applications not the relayer
   async closeVerifierState(): Promise<TransactionSignature> {
     if (!this.provider.nodeWallet && !this.provider.browserWallet)
       throw new TransactionError(
@@ -1742,13 +1758,23 @@ export class Transaction {
         "closeVerifierState",
         "",
       );
-    return await this.params?.verifier.verifierProgram.methods
-      .closeVerifierState()
-      .accounts({
-        ...this.params.accounts,
-      })
-      .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
-      .rpc(confirmConfig);
+    if (this.appParams) {
+      return await this.appParams?.verifier.verifierProgram.methods
+        .closeVerifierState()
+        .accounts({
+          ...this.params.accounts,
+        })
+        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
+        .rpc(confirmConfig);
+    } else {
+      return await this.params?.verifier.verifierProgram.methods
+        .closeVerifierState()
+        .accounts({
+          ...this.params.accounts,
+        })
+        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
+        .rpc(confirmConfig);
+    }
   }
 
   async getPdaAddresses() {
