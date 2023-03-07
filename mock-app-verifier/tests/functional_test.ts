@@ -30,6 +30,7 @@ import {
   VerifierTwo,
   confirmConfig,
   Relayer,
+  Action,
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -93,7 +94,10 @@ describe("Mock verifier functional", () => {
       merkleTreePubkey: MERKLE_TREE_KEY,
       sender: userTokenAccount, // just any token account
       senderFee: ADMIN_AUTH_KEY, //
+      lookUpTable: LOOK_UP_TABLE,
       verifier: new VerifierTwo(),
+      poseidon,
+      action: Action.DEPOSIT
     });
 
     const appParams = {
@@ -103,15 +107,16 @@ describe("Mock verifier functional", () => {
 
     let tx = new Transaction({
       provider: lightProvider,
+      params: txParams,
+      appParams
     });
 
-    await tx.compile(txParams, appParams);
+    await tx.compile();
     await tx.provider.provider.connection.confirmTransaction(
       await tx.provider.provider.connection.requestAirdrop(
         tx.params.accounts.authority,
         1_000_000_000,
-        "confirmed",
-      ),
+      )
     );
     await tx.getProof();
     await tx.getAppProof();
@@ -142,7 +147,8 @@ describe("Mock verifier functional", () => {
       recipient: userTokenAccount, // just any token account
       recipientFee: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),
-
+      action: Action.WITHDRAWAL,
+      poseidon,
       relayer,
     });
 
@@ -153,9 +159,11 @@ describe("Mock verifier functional", () => {
 
     let tx = new Transaction({
       provider: lightProvider,
+      params: txParams,
+      appParams
     });
 
-    await tx.compile(txParams, appParams);
+    await tx.compile();
     await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
