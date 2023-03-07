@@ -574,6 +574,7 @@ export class User {
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
         poseidon: this.provider.poseidon,
         action,
+        lookUpTable: this.provider.lookUpTable,
       });
       return txParams;
     } else {

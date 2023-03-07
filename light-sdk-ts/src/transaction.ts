@@ -11,7 +11,7 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
 import { BN, Program } from "@coral-xyz/anchor";
-import { confirmConfig, MERKLE_TREE_KEY } from "./constants";
+import { AUTHORITY, confirmConfig, MERKLE_TREE_KEY } from "./constants";
 import { N_ASSET_PUBKEYS, Utxo } from "./utxo";
 import { PublicInputs, Verifier } from "./verifiers";
 import { checkRentExemption } from "./test-utils/testChecks";
@@ -536,7 +536,8 @@ export class TransactionParameters implements transactionParameters {
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
       if (!this.accounts.recipient) {
-        this.accounts.recipient = SystemProgram.programId;
+        // AUTHORITY is used as place holder
+        this.accounts.recipient = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
           throw new TransactionError(
             TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
@@ -547,7 +548,8 @@ export class TransactionParameters implements transactionParameters {
       }
 
       if (!this.accounts.recipientFee) {
-        this.accounts.recipientFee = SystemProgram.programId;
+        // AUTHORITY is used as place holder
+        this.accounts.recipientFee = AUTHORITY;
         if (
           !this.publicAmountSol.eq(new BN(0)) &&
           !this.publicAmountSol
@@ -2322,6 +2324,8 @@ export class Transaction {
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
+    } else if (this.params.action === Action.TRANSFER) {
+      console.log("balance check for transfer not implemented");
     } else {
       throw Error("mode not supplied");
     }
