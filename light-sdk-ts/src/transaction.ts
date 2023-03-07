@@ -709,6 +709,7 @@ export class Transaction {
 
     this.transactionInputs = {};
     this.testValues = {};
+    this.remainingAccounts = {};
   }
 
   /** Returns serialized instructions */
@@ -1673,7 +1674,10 @@ export class Transaction {
         "Cannot use sendAndConfirmTransaction without payer or browserWallet",
       );
 
+    await this.getRootIndex();
+    await this.getPdaAddresses();
     await this.getTestValues();
+
     var instructions;
 
     if (!this.appParams) {

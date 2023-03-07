@@ -6,7 +6,7 @@ import {
 import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Transaction, TransactionParameters } from "../transaction";
+import { Action, Transaction, TransactionParameters } from "../transaction";
 import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
 
@@ -545,6 +545,7 @@ export class User {
     extraSolAmount: number;
     action: string;
     userSplAccount?: PublicKey;
+    action: Action;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     // TODO: check with spl -> selects proper tokens?
@@ -571,6 +572,8 @@ export class User {
           : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
+        poseidon: this.provider.poseidon,
+        action,
       });
       return txParams;
     } else {
@@ -646,20 +649,20 @@ export class User {
       amount = amount * tokenCtx.decimals;
       extraSolAmount = 0;
     }
-
-    let tx = new Transaction({
-      provider: this.provider,
-    });
+    amount = amount * tokenCtx.decimals;
 
     const txParams = this.getTxParams({
       tokenCtx,
       amount,
-      action: "SHIELD",
-      extraSolAmount,
-      userSplAccount: userSplAccount ? userSplAccount : undefined,
+      action: Action.DEPOSIT, //"SHIELD",
+    });
+    // TODO: add browserWallet support
+    let tx = new Transaction({
+      provider: this.provider,
+      params: txParams,
     });
 
-    await tx.compileAndProve(txParams);
+    await tx.compileAndProve();
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -735,15 +738,13 @@ export class User {
       extraSolAmount: 0,
     });
 
-    /** payer is the nodeWallet of the relayer (always the one sending) */
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
-    const verifier = new VerifierZero(
-      this.provider.browserWallet && this.provider,
+    // TODO: replace with ping to relayer webserver
+    let relayer = new Relayer(
+      this.provider.nodeWallet!.publicKey,
+      this.provider.lookUpTable!,
+      SolanaKeypair.generate().publicKey,
+      new anchor.BN(100000),
     );
-
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -753,10 +754,16 @@ export class User {
       recipientFee: recipient, // feeRecipient
       verifier,
       relayer,
+      poseidon: this.provider.poseidon,
+      action: Action.WITHDRAWAL,
+    });
+    /** payer is the nodeWallet of the relayer (always the one sending) */
+    let tx = new Transaction({
       provider: this.provider,
+      params: txParams,
     });
 
-    await tx.compileAndProve(txParams);
+    await tx.compileAndProve();
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -839,22 +846,27 @@ export class User {
       extraSolAmount: 0, //extraSolAmount, TODO: enable
     });
 
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
-    const placeHolderAddress = SolanaKeypair.generate().publicKey;
+    let randomRecipient = SolanaKeypair.generate().publicKey;
+    console.log("randomRecipient", randomRecipient.toBase58());
+    if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      recipient: placeHolderAddress,
-      recipientFee: placeHolderAddress,
+      // recipient: randomRecipient,
+      // recipientFee: randomRecipient,
       relayer,
+      poseidon: this.provider.poseidon,
+      action: Action.TRANSFER,
     });
 
-    await tx.compileAndProve(txParams);
+    let tx = new Transaction({
+      provider: this.provider,
+      params: txParams,
+    });
+
+    await tx.compileAndProve();
     // TODO: remove once relayer implemented.
     // add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -889,7 +901,7 @@ export class User {
         txConfig: { in: number; out: number },
         verifier, can be verifier object
     }
-    * 
+    *
     */
 
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
