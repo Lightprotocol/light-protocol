@@ -101,6 +101,16 @@ export type VerifierProgramStorage = {
       "code": 6000,
       "name": "NoopProgram",
       "msg": "The provided program is not the noop program."
+    },
+    {
+      "code": 6001,
+      "name": "MsgTooLarge",
+      "msg": "Message too large, the limit per one method call is 1024 bytes."
+    },
+    {
+      "code": 6002,
+      "name": "VerifierStateNoSpace",
+      "msg": "Cannot allocate more space for the verifier state account (message too large)."
     }
   ]
 };
@@ -208,6 +218,16 @@ export const IDL: VerifierProgramStorage = {
       "code": 6000,
       "name": "NoopProgram",
       "msg": "The provided program is not the noop program."
+    },
+    {
+      "code": 6001,
+      "name": "MsgTooLarge",
+      "msg": "Message too large, the limit per one method call is 1024 bytes."
+    },
+    {
+      "code": 6002,
+      "name": "VerifierStateNoSpace",
+      "msg": "Cannot allocate more space for the verifier state account (message too large)."
     }
   ]
 };

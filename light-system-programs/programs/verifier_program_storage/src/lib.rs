@@ -10,10 +10,24 @@ declare_id!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 
 pub const NOOP_PROGRAM_ID: &str = "noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV";
 
+/// Size of the transaction message (per one method call).
+pub const MSG_PER_CALL_SIZE: usize = 1024;
+/// Initial size of the verifier state account (message + discriminator).
+pub const VERIFIER_STATE_INITIAL_SIZE: usize = MSG_PER_CALL_SIZE + 8;
+/// Maximum size of the transaction message to which we can reallocate.
+pub const MSG_MAX_SIZE: usize = 2048;
+/// Maximum size of the verifier state account to which we can reallocate
+/// (message + discriminator).
+pub const VERIFIER_STATE_MAX_SIZE: usize = MSG_MAX_SIZE + 8;
+
 #[error_code]
 pub enum VerifierError {
     #[msg("The provided program is not the noop program.")]
     NoopProgram,
+    #[msg("Message too large, the limit per one method call is 1024 bytes.")]
+    MsgTooLarge,
+    #[msg("Cannot allocate more space for the verifier state account (message too large).")]
+    VerifierStateNoSpace,
 }
 
 pub fn wrap_event<'info>(
@@ -45,8 +59,24 @@ pub mod verifier_program_storage {
         ctx: Context<LightInstructionFirst<'info>>,
         msg: Vec<u8>,
     ) -> Result<()> {
+        if msg.len() > MSG_PER_CALL_SIZE {
+            return Err(VerifierError::MsgTooLarge.into());
+        }
         let state = &mut ctx.accounts.verifier_state;
-        state.msg = msg.clone();
+
+        // Reallocate space if needed.
+        let cur_acc_size = state.to_account_info().data_len();
+        let new_needed_size = state.msg.len() + msg.len() + 8;
+        if new_needed_size > cur_acc_size {
+            let new_acc_size = cur_acc_size + MSG_PER_CALL_SIZE;
+            if new_acc_size > VERIFIER_STATE_MAX_SIZE {
+                return Err(VerifierError::VerifierStateNoSpace.into());
+            }
+            state.to_account_info().realloc(new_acc_size, false)?;
+            state.reload()?;
+        }
+
+        state.msg.extend_from_slice(&msg);
 
         Ok(())
     }
@@ -87,10 +117,10 @@ pub struct LightInstructionFirst<'info> {
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
     #[account(
-        init,
+        init_if_needed,
         seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED],
         bump,
-        space = 1024 + 8,
+        space = VERIFIER_STATE_INITIAL_SIZE,
         payer = signing_address
     )]
     pub verifier_state: Account<'info, VerifierState>,
