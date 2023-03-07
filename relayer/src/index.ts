@@ -25,9 +25,8 @@ app.use((req, res, next) => {
   );
   next();
 });
-// endpoints:
+
 app.post("/relay", async function (req, res) {
-  // throw new Error("/relayer endpoint not implemented yet.");
   try {
     if (!req.body.instructions) throw new Error("No instructions provided");
     await relay(req, relayerPayer);
