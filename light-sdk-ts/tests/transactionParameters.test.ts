@@ -24,6 +24,7 @@ import {
   merkleTreeProgramId,
   VerifierTwo,
   VerifierOne,
+  AUTHORITY,
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -105,11 +106,11 @@ describe("Transaction Parameters Functional", () => {
       );
       assert.equal(
         params.accounts.recipient?.toBase58(),
-        SystemProgram.programId.toBase58(),
+        AUTHORITY.toBase58(),
       );
       assert.equal(
         params.accounts.recipientFee?.toBase58(),
-        SystemProgram.programId.toBase58(),
+        AUTHORITY.toBase58(),
       );
       assert.equal(
         params.accounts.merkleTree.toBase58(),

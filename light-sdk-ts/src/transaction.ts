@@ -29,6 +29,7 @@ import {
   TransactioParametersError,
   initLookUpTable,
   TransactionParametersErrorCode,
+  Provider,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 import { Provider } from "./wallet";
@@ -909,37 +910,36 @@ export class Transaction {
         "getProofInternal",
         "",
       );
-      if (!this.proofInput)
-        throw new TransactionError(
-          TransactionErrorCode.PROOF_INPUT_UNDEFINED,
-          "transaction not compiled",
-        );
-      if (!this.params)
-        throw new TransactionError(
-          TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-          "getProof",
-          "params undefined probably not compiled",
-        );
-      const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
-      const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-      console.time("Proof generation");
-
-      const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-        stringifyBigInts(inputs),
-        completePathWtns,
-        completePathZkey,
+    if (!this.proofInput)
+      throw new TransactionError(
+        TransactionErrorCode.PROOF_INPUT_UNDEFINED,
+        "transaction not compiled",
       );
-      console.timeEnd("Proof generation");
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getProof",
+        "params undefined probably not compiled",
+      );
+    const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
+    const completePathZkey = firstPath + "/" + verifier.zkeyPath;
+    console.time("Proof generation");
 
+    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
+      stringifyBigInts(inputs),
+      completePathWtns,
+      completePathZkey,
+    );
+    console.timeEnd("Proof generation");
 
-      const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
-      const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
-      if (res === true) {
-        console.log("Verification OK");
-      } else {
-        console.log("Invalid proof");
-        throw new Error("Invalid Proof");
-      }
+    const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
+    const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+    if (res === true) {
+      console.log("Verification OK");
+    } else {
+      console.log("Invalid proof");
+      throw new Error("Invalid Proof");
+    }
 
         var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
         var publicInputsBytes = new Array<Array<number>>();
@@ -1741,12 +1741,6 @@ export class Transaction {
         "Cannot use closeVerifierState without payer or browserWallet",
       );
     if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "closeVerifierState",
-        "",
-      );
-    if (!this.appParams)
       throw new TransactionError(
         TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
         "closeVerifierState",

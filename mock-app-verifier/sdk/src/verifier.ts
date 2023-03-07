@@ -20,7 +20,6 @@ import {
   IDL,
   MockVerifier as MockVerifierType,
 } from "../../target/types/mock_verifier";
-import { assert } from "chai";
 
 export class MockVerifier implements Verifier {
   verifierProgram: Program<MockVerifierType>;
