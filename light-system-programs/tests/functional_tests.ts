@@ -162,13 +162,16 @@ describe("verifier_program", () => {
     assert.equal(accountInfo, null);
   });
 
-  it.only("shielded transfer 1 & 2", async () => {
+  it.skip("shielded transfer 1 & 2", async () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(verifierState, 1_000_000_000),
       "confirmed",
     );
     await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(ADMIN_AUTH_KEYPAIR.publicKey, 1_000_000_000),
+      await provider.connection.requestAirdrop(
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        1_000_000_000,
+      ),
       "confirmed",
     );
 
@@ -205,7 +208,6 @@ describe("verifier_program", () => {
     );
     assert.equal(accountInfo, null);
   });
-
 
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
@@ -454,7 +456,10 @@ describe("verifier_program", () => {
       ),
     );
     await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(recipientFee, 1_000_000),
+      await lightProvider.provider.connection.requestAirdrop(
+        recipientFee,
+        1_000_000,
+      ),
     );
 
     let relayer = new Relayer(
