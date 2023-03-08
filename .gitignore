@@ -19,6 +19,8 @@
 /relayer/lookUpTable.txt
 /relayer/test-ledger/
 /test-ledger/
+*/yarn-error.log
+**/yarn-error.log
 
 # light-sdk-ts
 /light-sdk-ts/node_modules/

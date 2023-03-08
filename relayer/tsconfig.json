@@ -1,5 +1,6 @@
 {
   "compilerOptions": {
+<<<<<<< HEAD
     "target": "es6",
     "module": "commonjs",
     "declaration": true,
@@ -16,4 +17,21 @@
   "exclude": ["node_modules", "**/tests/*"],
   "dry": false,
   "debug": false
+=======
+    "target": "esnext",
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "module": "esnext",
+    "rootDir": "./src",
+    "moduleResolution": "node",
+    "types": ["node"],
+    "resolveJsonModule": true,
+    "outDir": "./dist/",
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true
+  },
+  "include": ["./**/*.ts"]
+>>>>>>> 30582e73 (adding relayer untested)
 }

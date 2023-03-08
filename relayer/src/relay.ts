@@ -33,9 +33,11 @@ export async function relay(req: express.request, relayerPayer: Keypair) {
   //TODO: add a check mechanism here await tx.checkBalances();
   console.log("confirmed tx, updating merkletree...");
   try {
+    //@ts-ignore
     await updateMerkleTreeForTest(provider.provider!);
     console.log("merkletree update done. returning 200.");
   } catch (e) {
     console.log("merkletree update failed. ", e);
+    throw new Error(`mt update failed: ${e}`);
   }
 }
