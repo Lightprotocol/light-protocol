@@ -1,0 +1,19 @@
+{
+  "compilerOptions": {
+    "target": "es6",
+    "module": "commonjs",
+    "declaration": true,
+    "outDir": "./lib",
+    "strict": true,
+    "esModuleInterop": true,
+    "resolveJsonModule": true,
+    "moduleResolution": "node",
+    "rootDirs": ["src", "generated"],
+    "baseUrl": "src",
+    "useUnknownInCatchVariables": false
+  },
+  "include": ["src", "__tests__", "tests"],
+  "exclude": ["node_modules", "**/tests/*"],
+  "dry": false,
+  "debug": false
+}

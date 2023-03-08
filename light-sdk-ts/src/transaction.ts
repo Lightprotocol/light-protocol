@@ -453,6 +453,8 @@ export class Transaction {
       const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
       const completePathZkey = firstPath + "/" + verifier.zkeyPath;
 
+      console.time("Proof generation");
+
       const { proof, publicSignals } = await snarkjs.groth16.fullProve(
         stringifyBigInts(inputs),
         completePathWtns,

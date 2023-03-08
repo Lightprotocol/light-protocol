@@ -12,6 +12,7 @@ import {
   setUpMerkleTree,
 } from "../test-utils";
 import { MERKLE_TREE_KEY } from "../constants";
+const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
 /**
@@ -36,7 +37,7 @@ export class Provider {
   poseidon: any;
   lookUpTable?: PublicKey;
   solMerkleTree?: SolMerkleTree;
-  provider?: AnchorProvider; // temp -?
+  provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
 
   /**
@@ -86,6 +87,7 @@ export class Provider {
     if (browserWallet) {
       //@ts-ignore
       this.connection = connection;
+      this.provider = { connection: connection! };
       this.browserWallet = browserWallet;
     }
   }
@@ -106,13 +108,23 @@ export class Provider {
   }
 
   private async fetchLookupTable() {
+    if (this.browserWallet) {
+      const response = await axios.get("http://localhost:3331/lookuptable");
+      this.lookUpTable = response.data.data;
+      console.log("lookuptable fetched from 3331");
+      return;
+    }
     if (!this.provider) throw new Error("No provider set.");
-    // TODO: replace with api call to relayer - lookuptable
     this.lookUpTable = await initLookUpTableFromFile(this.provider);
   }
 
   private async fetchMerkleTree() {
-    // Api call to relayer - merkletree
+    if (this.browserWallet) {
+      const response = await axios.get("http://localhost:3331/merkletree");
+      this.solMerkleTree = response.data.data;
+      console.log("merkletree fetched from 3331");
+      return;
+    }
     // TODO: move to a seperate function
     const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
       MERKLE_TREE_KEY,
