@@ -72,7 +72,7 @@ describe("verifier_program", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
-  const msg = Buffer.alloc(887).fill(1);
+  const msg = Buffer.alloc(877).fill(1);
   const verifierProgram = new anchor.Program(
     IDL_VERIFIER_PROGRAM_STORAGE,
     verifierStorageProgramId,
@@ -161,20 +161,35 @@ describe("verifier_program", () => {
     assert.equal(accountInfo, null);
   });
 
-  it("shielded transfer 1 & 2", async () => {
-    let tx0 = await verifierProgram.methods
-      .shieldedTransferFirst(msg)
-      .accounts({
-        signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
-        systemProgram: solana.SystemProgram.programId,
-        verifierState: verifierState,
-      })
-      .signers([ADMIN_AUTH_KEYPAIR])
-      .rpc(confirmConfig);
+  it.skip("shielded transfer 1 & 2", async () => {
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(verifierState, 1_000_000_000),
+      "confirmed",
+    );
+    await provider.connection.confirmTransaction(
+      await provider.connection.requestAirdrop(
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        1_000_000_000,
+      ),
+      "confirmed",
+    );
 
-    console.log(tx0);
+    for (var i = 0; i < 2; i++) {
+      let msg_i = Buffer.alloc(877).fill(i);
+      let tx = await verifierProgram.methods
+        .shieldedTransferFirst(msg_i)
+        .accounts({
+          signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
+          systemProgram: solana.SystemProgram.programId,
+          verifierState: verifierState,
+        })
+        .signers([ADMIN_AUTH_KEYPAIR])
+        .rpc(confirmConfig);
 
-    let tx1 = await verifierProgram.methods
+      console.log("tx" + i + ": " + tx);
+    }
+
+    let tx = await verifierProgram.methods
       .shieldedTransferSecond()
       .accounts({
         signingAddress: ADMIN_AUTH_KEYPAIR.publicKey,
@@ -184,7 +199,7 @@ describe("verifier_program", () => {
       .signers([ADMIN_AUTH_KEYPAIR])
       .rpc(confirmConfig);
 
-    console.log(tx1);
+    console.log(tx);
 
     let accountInfo = await provider.connection.getAccountInfo(
       verifierState,
@@ -192,7 +207,6 @@ describe("verifier_program", () => {
     );
     assert.equal(accountInfo, null);
   });
-
 
   it("Deposit 10 utxo", async () => {
     if (LOOK_UP_TABLE === undefined) {
@@ -459,7 +473,7 @@ describe("verifier_program", () => {
       // relayer,
     });
     console.log(inputUtxos);
-    
+
     let txParams = new TransactionParameters({
       inputUtxos,
       // outputUtxos: [new Utxo({poseidon: POSEIDON})],

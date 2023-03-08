@@ -5,7 +5,7 @@
   "main": "lib/index.js",
   "scripts": {
     "test": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/**.ts --exit",
-    "build": "npx tsc",
+    "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
