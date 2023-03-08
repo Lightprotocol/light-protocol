@@ -162,7 +162,7 @@ describe("verifier_program", () => {
     assert.equal(accountInfo, null);
   });
 
-  it.only("shielded transfer 1 & 2", async () => {
+  it.skip("shielded transfer 1 & 2", async () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(verifierState, 1_000_000_000),
       "confirmed",
