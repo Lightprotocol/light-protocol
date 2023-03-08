@@ -647,6 +647,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
+      //@ts-ignore
       await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
@@ -748,6 +749,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
+      //@ts-ignore
       await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
@@ -861,6 +863,7 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
+      //@ts-ignore
       await updateMerkleTreeForTest(this.provider.provider!);
       console.log = initLog;
       console.log("✔️updated merkle tree!");
