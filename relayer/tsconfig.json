@@ -1,14 +1,9 @@
 {
   "compilerOptions": {
-<<<<<<< HEAD
-<<<<<<< HEAD
-=======
->>>>>>> e84de8b5 (relayer setting up its own test-validator with runScript.sh)
     "target": "es6",
     "module": "commonjs",
     "declaration": true,
     "outDir": "./lib",
-<<<<<<< HEAD
     "strict": true,
     "esModuleInterop": true,
     "resolveJsonModule": true,
@@ -21,35 +16,4 @@
   "exclude": ["node_modules", "**/tests/*"],
   "dry": false,
   "debug": false
-=======
-    "target": "esnext",
-    "experimentalDecorators": true,
-    "emitDecoratorMetadata": true,
-    "module": "esnext",
-    "rootDir": "./src",
-    "moduleResolution": "node",
-    "types": ["node"],
-    "resolveJsonModule": true,
-    "outDir": "./dist/",
-    "esModuleInterop": true,
-    "forceConsistentCasingInFileNames": true,
-=======
->>>>>>> e84de8b5 (relayer setting up its own test-validator with runScript.sh)
-    "strict": true,
-    "esModuleInterop": true,
-    "resolveJsonModule": true,
-    "moduleResolution": "node",
-    "rootDirs": ["src", "generated"],
-    "baseUrl": "src",
-    "useUnknownInCatchVariables": false
-  },
-<<<<<<< HEAD
-  "include": ["./**/*.ts"]
->>>>>>> 30582e73 (adding relayer untested)
-=======
-  "include": ["src", "__tests__", "tests"],
-  "exclude": ["node_modules", "**/tests/*"],
-  "dry": false,
-  "debug": false
->>>>>>> e84de8b5 (relayer setting up its own test-validator with runScript.sh)
 }
