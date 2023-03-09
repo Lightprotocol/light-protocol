@@ -793,6 +793,7 @@ export class User {
       amount: -amount,
       inUtxos,
       relayer,
+      extraSolAmount: 0,
     });
 
     let tx = new Transaction({
