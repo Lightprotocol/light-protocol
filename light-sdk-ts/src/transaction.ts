@@ -1635,14 +1635,14 @@ export class Transaction {
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
           .sub(this.params.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx,
+          this.relayerRecipientAccountBalancePriorLastTx!,
         )}`,
       );
       console.log("SWEN: rfa", recipientFeeAccount);
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
-          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx!)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`,
       );
@@ -1651,7 +1651,7 @@ export class Transaction {
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
           .toString(),
-        new anchor.BN(this.recipientFeeBalancePriorTx)
+        new anchor.BN(this.recipientFeeBalancePriorTx!)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
@@ -1686,15 +1686,15 @@ export class Transaction {
 
       console.log(
         `${recipientAccount.amount}, ${new anchor.BN(
-          this.recipientBalancePriorTx,
+          this.recipientBalancePriorTx!,
         )
-          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE)!)
           .toString()}`,
       );
       assert.equal(
         recipientAccount.amount.toString(),
-        new anchor.BN(this.recipientBalancePriorTx)
-          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
+        new anchor.BN(this.recipientBalancePriorTx!)
+          .sub(this.publicAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE)!)
           .toString(),
         "amount not transferred correctly",
       );
@@ -1718,14 +1718,14 @@ export class Transaction {
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
           .sub(this.params.relayer.relayerFee)
           .toString()} == ${new anchor.BN(
-          this.relayerRecipientAccountBalancePriorLastTx,
+          this.relayerRecipientAccountBalancePriorLastTx!,
         )}`,
       );
 
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
-          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx)
+          .toString()}  == ${new anchor.BN(this.recipientFeeBalancePriorTx!)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString()}`,
       );
@@ -1734,7 +1734,7 @@ export class Transaction {
         new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
           .toString(),
-        new anchor.BN(this.recipientFeeBalancePriorTx)
+        new anchor.BN(this.recipientFeeBalancePriorTx!)
           .sub(this.feeAmount?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
