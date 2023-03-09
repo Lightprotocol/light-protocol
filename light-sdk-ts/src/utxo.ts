@@ -1,7 +1,14 @@
 import { Account } from "./account";
 import nacl, { box } from "tweetnacl";
 const crypto = require("crypto");
-const randomBN = (nbytes = 30) => new anchor.BN(crypto.randomBytes(nbytes));
+
+const randomBN = (nbytes = 30) => {
+  try {
+    return new anchor.BN(crypto.randomBytes(nbytes));
+  } catch (err) {
+    return nacl.randomBytes(30);
+  }
+};
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
 import {

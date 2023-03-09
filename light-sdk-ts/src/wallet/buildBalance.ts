@@ -127,9 +127,10 @@ export async function getUnspentUtxos({
 
       let nullifier = decryptedUtxo.getNullifier();
       if (!nullifier) continue;
+
       let nullifierPubkey = PublicKey.findProgramAddressSync(
         [
-          new anchor.BN(nullifier.toString()).toBuffer(),
+          Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
           anchor.utils.bytes.utf8.encode("nf"),
         ],
         merkleTreeProgramId, // Merkle...
