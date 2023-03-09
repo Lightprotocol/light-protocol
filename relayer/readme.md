@@ -16,7 +16,7 @@
 
 ```
 
-3. `Npm I` && `Npx tsc` in /relayer
+3. `yarn` && `yarn tsc` in /relayer
 
 4. `Node dist/index.js` to start relayer on port 3331
 
