@@ -493,14 +493,16 @@ describe("verifier_program", () => {
 
     let txParams = new TransactionParameters({
       inputUtxos,
-      // outputUtxos: [new Utxo({poseidon: POSEIDON})],
-      // outputUtxos: [
-      //   new Utxo({
-      //     poseidon: POSEIDON,
-      //     assets: inputUtxos[0].assets,
-      //     amounts: inputUtxos[0].amounts,
-      //   }),
-      // ],
+      outputUtxos: [
+        new Utxo({
+          poseidon: POSEIDON,
+          assets: inputUtxos[0].assets,
+          amounts: [
+            new BN(0),
+            inputUtxos[0].amounts[1]
+          ]
+        })
+      ],
 
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
