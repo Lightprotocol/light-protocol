@@ -8,7 +8,7 @@ _Requirements:_
   - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
-  - `npm i -g @project-serum/anchor-cli`
+  - `yarn i -g @project-serum/anchor-cli`
 - node v19
 
 - Execute the build script to download a custom solana test validator and build the project:
@@ -35,12 +35,12 @@ _Rust tests:_
 _Sdk tests:_
 
 - `cd light-sdk-ts/`
-- `npm test`
+- `yarn test`
 
 _Circuit tests:_
 
 - `cd light-circuits`
-- `npm test`
+- `yarn test`
 
 _Anchor tests:_
 
@@ -52,9 +52,9 @@ Tests can be executed in bulk or one by one.
 **Without external validator:**
 
 - `cd light-system-programs/`
-- `npm test`
-- `npm test-verifiers`
-- `npm test-merkle-tree`
+- `yarn test`
+- `yarn test-verifiers`
+- `yarn test-merkle-tree`
 
 **Manual:**
 
