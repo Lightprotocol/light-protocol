@@ -820,6 +820,7 @@ export class User {
       amount: -amount,
       inUtxos,
       relayer,
+      extraSolAmount: 0,
     });
 
     /** payer is the nodeWallet of the relayer (always the one sending) */

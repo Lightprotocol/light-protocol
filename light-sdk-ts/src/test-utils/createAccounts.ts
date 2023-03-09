@@ -154,6 +154,7 @@ export async function newAccountWithTokens({
       amount.toNumber(),
       [],
     );
+    //FIXME: remove this
   } catch (e) {
     console.log("mintTo error", e);
     await mintTo(
@@ -162,6 +163,7 @@ export async function newAccountWithTokens({
       MINT,
       tokenAccount,
       ADMIN_AUTH_KEYPAIR.publicKey,
+      //@ts-ignore
       amount,
       [],
     );

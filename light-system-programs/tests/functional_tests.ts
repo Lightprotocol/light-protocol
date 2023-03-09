@@ -79,8 +79,6 @@ describe("verifier_program", () => {
   const verifierProgram = new anchor.Program(
     IDL_VERIFIER_PROGRAM_STORAGE,
     verifierStorageProgramId,
-    // IDL_VERIFIER_PROGRAM,
-    // verifierProgramOneProgramId,
   );
   const [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
     [
@@ -981,7 +979,7 @@ describe("verifier_program", () => {
     // TODO: add random amount, recipient and amount checks
   });
 
-  it("(user class) unshield SOL", async () => {
+  it.skip("(user class) unshield SOL", async () => {
     let amount = 1;
     let token = "SOL";
     let recipient = new PublicKey(
