@@ -53,7 +53,6 @@ export type MerkleTreeProgram = {
       value: "[34 , 14 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 241 ,]";
     },
     {
-<<<<<<< HEAD
       name: "AUTHORITY_SEED";
       type: {
         defined: "&[u8]";
@@ -125,79 +124,6 @@ export type MerkleTreeProgram = {
     },
   ];
   instructions: [
-=======
-      "name": "AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"AUTHORITY_SEED\""
-    },
-    {
-      "name": "MERKLE_TREE_AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"MERKLE_TREE_AUTHORITY\""
-    },
-    {
-      "name": "TREE_ROOT_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"TREE_ROOT_SEED\""
-    },
-    {
-      "name": "STORAGE_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"storage\""
-    },
-    {
-      "name": "LEAVES_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"leaves\""
-    },
-    {
-      "name": "NULLIFIER_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"nf\""
-    },
-    {
-      "name": "POOL_TYPE_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pooltype\""
-    },
-    {
-      "name": "POOL_CONFIG_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pool-config\""
-    },
-    {
-      "name": "POOL_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pool\""
-    },
-    {
-      "name": "TOKEN_AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"spl\""
-    }
-  ],
-  "instructions": [
->>>>>>> fdddca3e (tests all running.macOS->test scripts adapted)
     {
       name: "initializeNewMerkleTree";
       docs: [
@@ -1321,7 +1247,6 @@ export const IDL: MerkleTreeProgram = {
         "[34 , 14 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 0 , 1 , 2 , 241 ,]",
     },
     {
-<<<<<<< HEAD
       name: "AUTHORITY_SEED",
       type: {
         defined: "&[u8]",
@@ -1391,77 +1316,6 @@ export const IDL: MerkleTreeProgram = {
       },
       value: 'b"spl"',
     },
-=======
-      "name": "AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"AUTHORITY_SEED\""
-    },
-    {
-      "name": "MERKLE_TREE_AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"MERKLE_TREE_AUTHORITY\""
-    },
-    {
-      "name": "TREE_ROOT_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"TREE_ROOT_SEED\""
-    },
-    {
-      "name": "STORAGE_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"storage\""
-    },
-    {
-      "name": "LEAVES_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"leaves\""
-    },
-    {
-      "name": "NULLIFIER_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"nf\""
-    },
-    {
-      "name": "POOL_TYPE_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pooltype\""
-    },
-    {
-      "name": "POOL_CONFIG_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pool-config\""
-    },
-    {
-      "name": "POOL_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"pool\""
-    },
-    {
-      "name": "TOKEN_AUTHORITY_SEED",
-      "type": {
-        "defined": "&[u8]"
-      },
-      "value": "b\"spl\""
-    }
->>>>>>> fdddca3e (tests all running.macOS->test scripts adapted)
   ],
   instructions: [
     {
