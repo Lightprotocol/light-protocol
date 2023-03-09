@@ -138,12 +138,12 @@ export class Provider {
       // TODO: throw error
     }
 
-    console.log("building merkletree...");
+    // console.log("building merkletree...");
     const mt = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
       poseidon: this.poseidon,
     });
-    console.log("✔️ building merkletree done");
+    // console.log("✔️ building merkletree done");
     this.solMerkleTree = mt;
   }
 

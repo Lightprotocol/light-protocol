@@ -198,13 +198,7 @@ export class User {
     var isTransfer = false;
     var isUnshield = false;
     if (recipient && recipientEncryptionPublicKey && relayer) isTransfer = true;
-    console.log(
-      "isTransfer",
-      isTransfer,
-      recipient,
-      recipientEncryptionPublicKey,
-      relayer,
-    );
+
     if (!recipientEncryptionPublicKey && relayer) isUnshield = true;
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
@@ -242,18 +236,11 @@ export class User {
       (a) => a.asset.toBase58() === FEE_ASSET.toBase58(),
     );
     if (!feeAsset) throw new Error("Fee asset not found in assets");
-    console.log("assets", assets);
 
     if (assets.length === 1 || assetIndex === 0) {
       // just fee asset as oututxo
 
       if (isTransfer) {
-        console.log(
-          "SOL isTransfer --amount feeAsset:",
-          amount,
-          "inutxos:",
-          inUtxos,
-        );
         let feeAssetSendUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset],
@@ -264,14 +251,7 @@ export class User {
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
-        console.log(
-          "feeAssetSendUtxo created.. \n assets[0].amount",
-          assets[0].amount,
-          "amount",
-          amount,
-          "relayer?.relayerFee",
-          relayer?.relayerFee,
-        );
+
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
           assets: [
@@ -289,12 +269,6 @@ export class User {
 
         return [feeAssetSendUtxo, feeAssetChangeUtxo];
       } else {
-        console.log(
-          "SOL - shield/unshield, isUnshield: ",
-          isUnshield,
-          "extrasolamount=",
-          extraSolAmount,
-        );
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
           assets: [
@@ -321,14 +295,7 @@ export class User {
     } else {
       if (isTransfer) {
         let sendAmountFeeAsset = new anchor.BN(1e5);
-        console.log(
-          "SPL isTransfer --amount feeAsset:",
-          amount,
-          "feeAs",
-          sendAmountFeeAsset,
-          "inutxos:",
-          inUtxos,
-        );
+
         let sendUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset, assets[1].asset],
@@ -339,7 +306,6 @@ export class User {
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
-        console.log("sendUtxo created..");
         let changeUtxo = new Utxo({
           poseidon,
           assets: [assets[0].asset, assets[1].asset],
@@ -354,7 +320,6 @@ export class User {
 
         return [sendUtxo, changeUtxo];
       } else {
-        console.log("SPL isTransfer", isTransfer);
         const utxos: Utxo[] = [];
         assets.slice(1).forEach((asset, i) => {
           if (i === assets.slice(1).length - 1) {
@@ -443,7 +408,6 @@ export class User {
         );
     } else console.log("mint is FEE_ASSET");
 
-    console.log("extraSolUtxos (SPL!)", extraSolUtxos);
     /**
      * for shields and transfers we'll always have spare utxos,
      * hence no reason to find perfect matches
@@ -585,16 +549,12 @@ export class User {
       amount: -1 * amount, // at shield, doesnt matter what val inutxos have.
     });
     // TODO: add fees !
-    // console.log("inUtxos", inUtxos);
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
       extraSolAmount, // SHIELD ONLY FOR NOW!!
     });
-    // console.log("outUtxos", shieldUtxos);
-
-    // TODO: get associated token account of nodewallet
 
     if (this.provider.nodeWallet) {
       let txParams = new TransactionParameters({
@@ -640,13 +600,6 @@ export class User {
         // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
         var balanceUserToken = null;
         try {
-          console.log("userTokenAccount at shield", userTokenAccount);
-          let balancet =
-            await this.provider.provider!.connection.getTokenAccountBalance(
-              userTokenAccount,
-            );
-          console.log("balance in shield..", balancet);
-
           balanceUserToken = await getAccount(
             this.provider!.provider!.connection,
             // hardcoded assumed for now
@@ -659,7 +612,6 @@ export class User {
         }
         try {
           if (balanceUserToken == null) {
-            console.log("newAccountWithTokens in shield..");
             await newAccountWithTokens({
               connection: this.provider!.provider!.connection,
               MINT: tokenCtx!.tokenAccount,
@@ -695,7 +647,6 @@ export class User {
         ? extraSolAmount * 1e9
         : this.provider.minimumLamports;
     } else {
-      console.log("- is SOL");
       amount = amount * tokenCtx.decimals;
       extraSolAmount = 0;
     }
@@ -723,13 +674,14 @@ export class User {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-
+    console.log = () => {};
     //@ts-ignore
     await tx.checkBalances(); // This is a test
+    console.log = initLog;
     console.log("✔️ checkBalances success!");
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
-      console.log("updating merkle tree...");
+      // console.log("updating merkle tree...");
       console.log = () => {};
       //@ts-ignore
       await updateMerkleTreeForTest(this.provider.provider!);
@@ -894,7 +846,6 @@ export class User {
       amount,
       extraSolAmount,
     });
-    console.log("transfer inUtxos", inUtxos);
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount: amount, // if recipient -> priv
@@ -904,7 +855,6 @@ export class User {
       relayer: relayer,
       extraSolAmount: 0, //extraSolAmount, TODO: enable
     });
-    console.log("transfer outUtxos", outUtxos);
 
     let tx = new Transaction({
       provider: this.provider,
