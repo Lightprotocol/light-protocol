@@ -92,11 +92,7 @@ export class User {
     this.account = account;
   }
 
-  async getBalance({
-    latest = true,
-  }: {
-    latest?: boolean;
-  }): Promise<Balance[]> {
+  async getBalance({ latest = true }: { latest?: boolean }): Promise<any> {
     const balances: Balance[] = [];
     if (!this.utxos) throw new Error("Utxos not initialized");
     if (!this.account) throw new Error("Keypair not initialized");
@@ -107,54 +103,64 @@ export class User {
     if (!this.provider.lookUpTable)
       throw new Error("Look up table not initialized");
 
-    if (latest) {
-      let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-      //TODO: add: "pending" to balances
-      //TODO: add init by cached (subset of leavesPdas)
-      // TODO: add incoming utxos
-      const params = {
-        leavesPdas,
-        merkleTree: this.provider.solMerkleTree.merkleTree!,
-        provider: this.provider.provider!,
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        merkleTreeProgram: merkleTreeProgramId,
-      };
-      const utxos = await getUnspentUtxos(params);
-      this.utxos = utxos;
-      console.log("✔️ updated utxos", this.utxos.length);
-    } else {
-      console.log("✔️ read utxos from cache", this.utxos.length);
-    }
-    this.utxos.forEach((utxo) => {
-      utxo.assets.forEach((asset, i) => {
-        const tokenAccount = asset;
-        const amount = utxo.amounts[i].toNumber();
-
-        const existingBalance = balances.find(
-          (balance) =>
-            balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
+    try {
+      if (latest) {
+        let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+          MERKLE_TREE_KEY,
+          // @ts-ignore
+          this.provider,
         );
-        if (existingBalance) {
-          existingBalance.amount += amount;
-        } else {
-          let tokenData = TOKEN_REGISTRY.find(
-            (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
+
+        //TODO: add: "pending" to balances
+        //TODO: add init by cached (subset of leavesPdas)
+        // TODO: add incoming utxos
+        const params = {
+          leavesPdas,
+          merkleTree: this.provider.solMerkleTree.merkleTree!,
+          provider: this.provider.provider!,
+          account: this.account,
+          poseidon: this.provider.poseidon,
+          merkleTreeProgram: merkleTreeProgramId,
+        };
+        const utxos = await getUnspentUtxos(params);
+        this.utxos = utxos;
+        console.log("✔️ updated utxos", this.utxos.length);
+      } else {
+        console.log("✔️ read utxos from cache", this.utxos.length);
+      }
+      this.utxos.forEach((utxo) => {
+        utxo.assets.forEach((asset, i) => {
+          const tokenAccount = asset;
+          const amount = utxo.amounts[i].toNumber();
+
+          const existingBalance = balances.find(
+            (balance) =>
+              balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
           );
-          if (!tokenData)
-            throw new Error(
-              `Token ${tokenAccount.toBase58()} not found in registry`,
+          if (existingBalance) {
+            existingBalance.amount += amount;
+          } else {
+            let tokenData = TOKEN_REGISTRY.find(
+              (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
             );
-          balances.push({
-            symbol: tokenData.symbol,
-            amount,
-            tokenAccount,
-            decimals: tokenData.decimals,
-          });
-        }
+            if (!tokenData)
+              throw new Error(
+                `Token ${tokenAccount.toBase58()} not found in registry`,
+              );
+            balances.push({
+              symbol: tokenData.symbol,
+              amount,
+              tokenAccount,
+              decimals: tokenData.decimals,
+            });
+          }
+        });
       });
-    });
-    return balances;
+      return balances;
+    } catch (err) {
+      console.log("error in getting the user balance", { err });
+      throw err;
+    }
   }
 
   // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
@@ -523,7 +529,22 @@ export class User {
       });
       return txParams;
     } else {
-      throw new Error("Browser wallet support not implemented yet!");
+      const verifier = new VerifierZero(this.provider);
+      let txParams = new TransactionParameters({
+        outputUtxos: shieldUtxos,
+        inputUtxos: inUtxos,
+        merkleTreePubkey: MERKLE_TREE_KEY,
+        sender: tokenCtx.isSol
+          ? this.provider.browserWallet!.publicKey
+          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+        senderFee: this.provider.browserWallet!.publicKey,
+        verifier, // TODO: add support for 10in here -> verifier1
+        provider: this.provider,
+      });
+
+      return txParams;
+
+      // throw new Error("Browser wallet support not implemented yet!");
     }
   }
   /**
@@ -634,8 +655,8 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      console.log({ e });
+      // console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
 
     console.log = () => {};
@@ -646,9 +667,10 @@ export class User {
     // TODO: replace this with a ping to a relayer that's running a merkletree update crank
     try {
       console.log("updating merkle tree...");
-      console.log = () => {};
-      //@ts-ignore
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -674,6 +696,7 @@ export class User {
   }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
       throw new Error("SPL not implemented yet!");
@@ -691,6 +714,7 @@ export class User {
       privAmount: 0,
       pubAmount: amount,
     });
+
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount: -amount,
@@ -698,8 +722,11 @@ export class User {
     });
 
     // TODO: replace with ping to relayer webserver
+
     let relayer = new Relayer(
-      this.provider.nodeWallet!.publicKey,
+      this.provider.browserWallet!
+        ? this.provider.browserWallet.publicKey
+        : this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
@@ -709,6 +736,11 @@ export class User {
     let tx = new Transaction({
       provider: this.provider,
     });
+
+    const verifier = new VerifierZero(
+      this.provider.browserWallet && this.provider,
+    );
+
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -716,8 +748,9 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
-      verifier: new VerifierZero(),
+      verifier,
       relayer,
+      provider: this.provider,
     });
 
     await tx.compileAndProve(txParams);
@@ -749,8 +782,10 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      //@ts-ignore
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️ updated merkle tree!");
     } catch (e) {
@@ -797,13 +832,16 @@ export class User {
     if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
     amount = amount * 1e9;
     // TODO: pull an actually implemented relayer here
-    const relayer = new Relayer(
-      // ADMIN_AUTH_KEYPAIR.publicKey,
-      this.provider.nodeWallet!.publicKey,
+
+    let relayer = new Relayer(
+      this.provider.browserWallet!
+        ? this.provider.browserWallet.publicKey
+        : this.provider.nodeWallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       privAmount: amount, // priv pub doesnt need to distinguish here
@@ -863,8 +901,10 @@ export class User {
     try {
       console.log("updating merkle tree...");
       console.log = () => {};
-      //@ts-ignore
-      await updateMerkleTreeForTest(this.provider.provider!);
+      await updateMerkleTreeForTest(
+        this.provider.provider?.connection!,
+        this.provider.browserWallet && this.provider,
+      );
       console.log = initLog;
       console.log("✔️updated merkle tree!");
     } catch (e) {
@@ -931,7 +971,11 @@ export class User {
     }
 
     // TODO: optimize: fetch once, then filter
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+      MERKLE_TREE_KEY,
+      // @ts-ignore
+      this.provider.browserWallet && this.provider,
+    );
 
     const params = {
       leavesPdas,
@@ -955,10 +999,15 @@ export class User {
   static async load(
     provider: Provider,
     cachedUser?: CachedUserState,
-  ): Promise<User> {
-    const user = new User({ provider });
-    await user.load(cachedUser, provider);
-    return user;
+  ): Promise<any> {
+    try {
+      const user = new User({ provider });
+      await user.load(cachedUser, provider);
+      return user;
+    } catch (err) {
+      console.log("while loading the user", { err });
+      throw err;
+    }
   }
 
   // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...
