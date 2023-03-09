@@ -11,8 +11,8 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
-pub mod poseidon_merkle_tree;
-pub use poseidon_merkle_tree::*;
+pub mod transaction_merkle_tree;
+pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
 pub use verifier_invoked_instructions::*;
 pub mod errors;
@@ -32,7 +32,7 @@ use crate::config_accounts::{
 
 use crate::errors::ErrorCode;
 
-use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
+use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
 use crate::utils::config::{self, ZERO_BYTES_MERKLE_TREE_18};
 
@@ -43,14 +43,14 @@ use crate::verifier_invoked_instructions::{
     spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 
-use crate::poseidon_merkle_tree::{
+use crate::transaction_merkle_tree::{
     initialize_new_merkle_tree_18::{
-        process_initialize_new_merkle_tree_18, InitializeNewMerkleTree,
+        process_initialize_new_merkle_tree_18, InitializeNewTransactionMerkleTree,
     },
     update_instructions::{
         initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
         insert_root::{process_insert_root, InsertRoot},
-        update_merkle_tree::{process_update_merkle_tree, UpdateMerkleTree},
+        update_merkle_tree::{process_update_merkle_tree, UpdateTransactionMerkleTree},
     },
 };
 
@@ -60,8 +60,8 @@ pub mod merkle_tree_program {
 
     /// Initializes a new Merkle tree from config bytes.
     /// Can only be called from the merkle_tree_authority.
-    pub fn initialize_new_merkle_tree(
-        ctx: Context<InitializeNewMerkleTree>,
+    pub fn initialize_new_transaction_merkle_tree(
+        ctx: Context<InitializeNewTransactionMerkleTree>,
         lock_duration: u64,
     ) -> Result<()> {
         if !ctx
@@ -72,7 +72,7 @@ pub mod merkle_tree_program {
         {
             return err!(ErrorCode::InvalidAuthority);
         }
-        let merkle_tree = &mut ctx.accounts.merkle_tree.load_init()?;
+        let merkle_tree = &mut ctx.accounts.transaction_merkle_tree.load_init()?;
 
         let merkle_tree_index = ctx.accounts.merkle_tree_authority_pda.merkle_tree_index;
         process_initialize_new_merkle_tree_18(
@@ -109,7 +109,10 @@ pub mod merkle_tree_program {
         ctx: Context<UpdateLockDuration>,
         lock_duration: u64,
     ) -> Result<()> {
-        ctx.accounts.merkle_tree.load_mut()?.lock_duration = lock_duration;
+        ctx.accounts
+            .transaction_merkle_tree
+            .load_mut()?
+            .lock_duration = lock_duration;
         Ok(())
     }
 
@@ -250,8 +253,8 @@ pub mod merkle_tree_program {
     }
 
     /// Computes poseidon hashes to update the Merkle tree.
-    pub fn update_merkle_tree<'a, 'b, 'c, 'info>(
-        mut ctx: Context<'a, 'b, 'c, 'info, UpdateMerkleTree<'info>>,
+    pub fn update_transaction_merkle_tree<'a, 'b, 'c, 'info>(
+        mut ctx: Context<'a, 'b, 'c, 'info, UpdateTransactionMerkleTree<'info>>,
         _bump: u64,
     ) -> Result<()> {
         process_update_merkle_tree(&mut ctx)

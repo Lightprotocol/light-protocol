@@ -1,14 +1,16 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::program::MerkleTreeProgram;
-use merkle_tree_program::{poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier};
+use merkle_tree_program::{
+    transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
+};
 
 pub struct Accounts<'info, 'a, 'c> {
     pub program_id: &'a Pubkey,
     pub signing_address: AccountInfo<'info>,
     pub system_program: &'a Program<'info, System>,
     pub program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
-    pub merkle_tree: &'a AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: &'a AccountLoader<'info, TransactionMerkleTree>,
     pub authority: AccountInfo<'info>,
     pub token_program: Option<&'a Program<'info, Token>>,
     pub sender: Option<AccountInfo<'info>>,
@@ -28,7 +30,7 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
         signing_address: AccountInfo<'info>,
         system_program: &'a Program<'info, System>,
         program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
-        merkle_tree: &'a AccountLoader<'info, MerkleTree>,
+        transaction_merkle_tree: &'a AccountLoader<'info, TransactionMerkleTree>,
         authority: AccountInfo<'info>,
         token_program: Option<&'a Program<'info, Token>>,
         sender: Option<AccountInfo<'info>>,
@@ -45,7 +47,7 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
             signing_address,
             system_program,
             program_merkle_tree,
-            merkle_tree,
+            transaction_merkle_tree,
             authority,
             token_program,
             sender,

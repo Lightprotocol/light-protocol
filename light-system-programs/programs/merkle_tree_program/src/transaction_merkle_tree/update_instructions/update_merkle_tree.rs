@@ -1,31 +1,32 @@
 use crate::errors::ErrorCode;
-use crate::poseidon_merkle_tree::processor::compute_updated_merkle_tree;
-use crate::poseidon_merkle_tree::processor::pubkey_check;
-use crate::state::MerkleTree;
+use crate::transaction_merkle_tree::{
+    processor::{compute_updated_merkle_tree, pubkey_check},
+    state::TransactionMerkleTree,
+};
 use crate::utils::constants::{IX_ORDER, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 use anchor_lang::prelude::*;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey, sysvar};
 
 #[derive(Accounts)]
-pub struct UpdateMerkleTree<'info> {
+pub struct UpdateTransactionMerkleTree<'info> {
     /// CHECK:` should be consistent
     #[account(mut, address=merkle_tree_update_state.load()?.relayer @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     /// CHECK:` that merkle tree is locked for this account
     #[account(mut, seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED], bump,
-        constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key() @ErrorCode::ContractStillLocked
+        constraint=transaction_merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key() @ErrorCode::ContractStillLocked
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state
     #[account(mut, address= merkle_tree_update_state.load()?.merkle_tree_pda_pubkey @ErrorCode::InvalidMerkleTree)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
 }
 
 #[allow(clippy::comparison_chain)]
-pub fn process_update_merkle_tree(ctx: &mut Context<UpdateMerkleTree>) -> Result<()> {
+pub fn process_update_merkle_tree(ctx: &mut Context<UpdateTransactionMerkleTree>) -> Result<()> {
     let mut merkle_tree_update_state_data = ctx.accounts.merkle_tree_update_state.load_mut()?;
-    let mut merkle_tree_pda_data = ctx.accounts.merkle_tree.load_mut()?;
+    let mut merkle_tree_pda_data = ctx.accounts.transaction_merkle_tree.load_mut()?;
 
     msg!(
         "\n prior process_instruction {}\n",

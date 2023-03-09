@@ -414,7 +414,7 @@ export class TransactionParameters implements transactionParameters {
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
-      merkleTree: merkleTreePubkey,
+      transactionMerkleTree: merkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
         verifier.verifierProgram.programId,

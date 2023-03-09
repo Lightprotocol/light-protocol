@@ -1,13 +1,13 @@
 use anchor_lang::prelude::*;
 
-use crate::state::MerkleTree;
+use crate::transaction_merkle_tree::state::TransactionMerkleTree;
 use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
 use crate::MerkleTreeAuthority;
 use anchor_lang::solana_program::{msg, pubkey::Pubkey};
 use std::cell::RefMut;
 
 #[derive(Accounts)]
-pub struct InitializeNewMerkleTree<'info> {
+pub struct InitializeNewTransactionMerkleTree<'info> {
     #[account(mut)]
     pub authority: Signer<'info>,
     /// CHECK: it should be unpacked internally
@@ -19,7 +19,7 @@ pub struct InitializeNewMerkleTree<'info> {
         payer = authority,
         space = 8880 //10240 //1698
     )]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
     #[account(mut, seeds = [MERKLE_TREE_AUTHORITY_SEED], bump)]
@@ -37,7 +37,7 @@ pub struct PreInsertedLeavesIndex {
 }
 
 pub fn process_initialize_new_merkle_tree_18(
-    merkle_tree_state_data: &mut RefMut<'_, MerkleTree>,
+    merkle_tree_state_data: &mut RefMut<'_, TransactionMerkleTree>,
     height: u64,
     zero_bytes: Vec<[u8; 32]>,
     mt_index: u64,
@@ -67,7 +67,7 @@ mod test {
 
     #[test]
     fn test_init_merkle_tree() {
-        let mt = MerkleTree {
+        let mt = TransactionMerkleTree {
             filled_subtrees: [[0u8; 32]; 18],
             current_root_index: 0u64,
             next_index: 0u64,

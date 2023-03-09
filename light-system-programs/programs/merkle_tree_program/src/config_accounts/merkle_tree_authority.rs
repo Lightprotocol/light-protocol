@@ -1,6 +1,6 @@
 use crate::config;
 use crate::errors::ErrorCode;
-use crate::state::MerkleTree;
+use crate::transaction_merkle_tree::state::TransactionMerkleTree;
 use crate::utils::constants::MERKLE_TREE_AUTHORITY_SEED;
 use anchor_lang::prelude::*;
 
@@ -65,5 +65,5 @@ pub struct UpdateLockDuration<'info> {
     #[account( address=merkle_tree_authority_pda.pubkey @ErrorCode::InvalidAuthority)]
     pub authority: Signer<'info>,
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
 }

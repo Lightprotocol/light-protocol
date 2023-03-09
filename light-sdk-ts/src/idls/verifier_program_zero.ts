@@ -28,7 +28,7 @@ export type VerifierProgramZero = {
           isSigner: false;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -181,7 +181,7 @@ export const IDL: VerifierProgramZero = {
           isSigner: false,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },

@@ -26,7 +26,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   connection,
   merkleTreeUpdateState,
   relayer,
-  MerkleTree,
+  transactionMerkleTree,
   leavesPdas,
   current_instruction_index,
   merkleTreeProgram,
@@ -34,7 +34,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   connection: Connection;
   merkleTreeUpdateState: PublicKey;
   relayer: PublicKey;
-  MerkleTree: PublicKey;
+  transactionMerkleTree: PublicKey;
   leavesPdas: Array<any>;
   current_instruction_index: number;
   merkleTreeProgram: anchor.Program<MerkleTreeProgram>;
@@ -63,10 +63,11 @@ export async function checkMerkleTreeUpdateStateCreated({
   //   merkleTreeTmpAccountInfo.data,
   // );
 
-  var MerkleTreeAccountInfo = await merkleTreeProgram.account.merkleTree.fetch(
-    MerkleTree,
-    "confirmed",
-  );
+  var MerkleTreeAccountInfo =
+    await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      transactionMerkleTree,
+      "confirmed",
+    );
 
   // console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
   console.log(
@@ -87,7 +88,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   );
   assert.equal(
     merkleTreeUpdateStateData.merkleTreePdaPubkey.toBase58(),
-    MerkleTree.toBase58(),
+    transactionMerkleTree.toBase58(),
     "the incorrect merkle tree pubkey was saved",
   );
   assert.equal(
@@ -115,7 +116,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   merkleTreeAccountPrior,
   numberOfLeaves,
   leavesPdas,
-  merkle_tree_pubkey,
+  transactionMerkleTree,
   merkleTreeProgram,
 }: {
   connection: Connection;
@@ -123,7 +124,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
   merkleTreeAccountPrior: any;
   numberOfLeaves: number;
   leavesPdas: any;
-  merkle_tree_pubkey: PublicKey;
+  transactionMerkleTree: PublicKey;
   merkleTreeProgram: Program<MerkleTreeProgram>;
 }) {
   var merkleTreeTmpStateAccount = await connection.getAccountInfo(
@@ -137,10 +138,11 @@ export async function checkMerkleTreeBatchUpdateSuccess({
     "Shielded transaction failed merkleTreeTmpStateAccount is not closed",
   );
 
-  var merkleTreeAccount = await merkleTreeProgram.account.merkleTree.fetch(
-    merkle_tree_pubkey,
-    "confirmed",
-  );
+  var merkleTreeAccount =
+    await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      transactionMerkleTree,
+      "confirmed",
+    );
   // Merkle tree is locked by merkleTreeUpdateState
   assert.equal(
     merkleTreeAccount.pubkeyLocked.toBase58(),

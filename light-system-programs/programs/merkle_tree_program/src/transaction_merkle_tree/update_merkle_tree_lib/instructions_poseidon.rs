@@ -1,4 +1,4 @@
-use crate::poseidon_merkle_tree::poseidon_round_constants_split;
+use crate::transaction_merkle_tree::poseidon_round_constants_split;
 use anchor_lang::prelude::*;
 use ark_ed_on_bn254::Fq;
 use ark_ff::{
@@ -9,7 +9,7 @@ use ark_std::Zero;
 use arkworks_gadgets::poseidon::{sbox::PoseidonSbox, PoseidonParameters, Rounds};
 use arkworks_gadgets::utils;
 
-use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
+use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 use std::ops::{Add, AddAssign, Mul};
 
 //configuration for the poseidon hash to be compatible with circom bn254 with 2 inputs
