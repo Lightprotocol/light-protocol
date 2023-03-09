@@ -48,12 +48,12 @@ app.get("/merkletree", async function (req, res) {
       throw new Error("merkletree not inited yet.");
     }
 
-    console.log("building merkletree...");
+    // console.log("building merkletree...");
     const mt = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
       poseidon: provider.poseidon,
     });
-    console.log("✔️ building merkletree done.");
+    // console.log("✔️ building merkletree done.");
     provider.solMerkleTree = mt;
     return res.status(200).json({ data: mt });
   } catch (e) {

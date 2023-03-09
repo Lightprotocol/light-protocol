@@ -91,10 +91,12 @@ describe("verifier_program", () => {
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
 
   before("init test setup Merkle tree lookup table etc ", async () => {
+    let initLog = console.log;
+    console.log = () => {};
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
-
+    console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Account({
@@ -729,9 +731,9 @@ describe("verifier_program", () => {
       MINT,
       ADMIN_AUTH_KEYPAIR: userKeypair,
       userAccount: solRecipient,
-      amount: 0,
+      amount: new anchor.BN(0),
     });
-    console.log("recipientTokenAccount: ", recipientTokenAccount.toBase58());
+    // console.log("recipientTokenAccount: ", recipientTokenAccount.toBase58());
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -741,12 +743,12 @@ describe("verifier_program", () => {
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient: solRecipient.publicKey });
 
-    let recipientBalanceAfter =
-      await provider.provider.connection.getTokenAccountBalance(
-        recipientTokenAccount,
-      );
-    console.log("recipientBalanceAfter: ", recipientBalanceAfter);
     // TODO: add random amount and amount checks
+    // let recipientBalanceAfter =
+    //   await provider.provider.connection.getTokenAccountBalance(
+    //     recipientTokenAccount,
+    //   );
+    // console.log("recipientBalanceAfter: ", recipientBalanceAfter);
     // let balance = await user.getBalance({ latest: true });
   });
   it("(user class) transfer SPL", async () => {
