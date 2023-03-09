@@ -126,8 +126,6 @@ describe("verifier_program", () => {
       );
     }
 
-    console.log(verifierState);
-
     let tx0 = await verifierProgram.methods
       .shieldedTransferFirst(msg)
       .accounts({
@@ -475,7 +473,6 @@ describe("verifier_program", () => {
       provider: lightProvider,
       // relayer,
     });
-    console.log(inputUtxos);
 
     let txParams = new TransactionParameters({
       inputUtxos,
@@ -568,8 +565,6 @@ describe("verifier_program", () => {
       inUtxos: [utxo1, utxoSol],
       extraSolAmount: 0,
     });
-    console.log("inUtxos: ", [utxo1, utxoSol]);
-    console.log("outUtxos: ", outUtxos);
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
       utxo1.amounts[0].toNumber() + utxoSol.amounts[0].toNumber(),
@@ -615,8 +610,6 @@ describe("verifier_program", () => {
       inUtxos: [utxo1, utxo2],
       extraSolAmount: 0,
     });
-    console.log("inUtxos: ", [utxo1, utxo2]);
-    console.log("outUtxos: ", outUtxos);
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
       utxo1.amounts[0].toNumber() + utxo2.amounts[0].toNumber(),
@@ -683,13 +676,6 @@ describe("verifier_program", () => {
         outUtxos[0].amounts[0].toNumber()
       }`,
     );
-    // print all amounts of oututxos
-    console.log("feeAmount in: ", utxo1.amounts[0].toNumber());
-    console.log("splAmount in: ", utxo1.amounts[1].toNumber());
-    console.log("feeAmount 0: ", outUtxos[0].amounts[0].toNumber());
-    console.log("spl amount 0: ", outUtxos[0].amounts[1].toNumber());
-    console.log("feeAmount 1: ", outUtxos[1].amounts[0].toNumber());
-    console.log("splAmount 1: ", outUtxos[1].amounts[1].toNumber());
 
     assert.equal(
       outUtxos[1].amounts[1].toNumber(),
@@ -708,30 +694,12 @@ describe("verifier_program", () => {
       userKeypair.publicKey,
       2_000_000_000,
     );
-    let balancet = await provider.provider.connection.getTokenAccountBalance(
-      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
-    );
-    console.log("balancet CfyD2..", balancet.value.uiAmount, balancet.value);
+
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
-    let balance = await user.getBalance({ latest: true });
-    try {
-      console.log(
-        "balance: ",
-        balance,
-        "utxos:",
-        user.utxos[0].amounts,
-        user.utxos[0].assets,
-        user.utxos[1].amounts,
-        user.utxos[1].assets,
-        user.utxos[2].amounts,
-        user.utxos[2].assets,
-      );
-    } catch (e) {
-      console.log("console log err", e);
-    }
+    // let balance = await user.getBalance({ latest: true });
   });
 
   it("(user class) shield SOL", async () => {
@@ -768,10 +736,7 @@ describe("verifier_program", () => {
       userKeypair.publicKey,
       2_000_000_000,
     );
-    let balancet = await provider.provider.connection.getTokenAccountBalance(
-      new PublicKey("CfyD2mSomGrjnyMKWrgNEk1ApaaUvKRDsnQngGkCVTFk"),
-    );
-    console.log("balancet CfyD2..", balancet.value.uiAmount, balancet.value);
+
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient: solRecipient.publicKey });
@@ -782,22 +747,7 @@ describe("verifier_program", () => {
       );
     console.log("recipientBalanceAfter: ", recipientBalanceAfter);
     // TODO: add random amount and amount checks
-    let balance = await user.getBalance({ latest: true });
-    try {
-      console.log(
-        "shielded balance after: ",
-        balance,
-        "utxos:",
-        user.utxos[0].amounts,
-        user.utxos[0].assets,
-        user.utxos[1].amounts,
-        user.utxos[1].assets,
-        user.utxos[2].amounts,
-        user.utxos[2].assets,
-      );
-    } catch (e) {
-      console.log("console log err", e);
-    }
+    // let balance = await user.getBalance({ latest: true });
   });
   it("(user class) transfer SPL", async () => {
     let amount = 1;
@@ -820,23 +770,8 @@ describe("verifier_program", () => {
       recipient,
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
-
-    let balance = await user.getBalance({ latest: true });
-    try {
-      console.log(
-        "shielded balance after: ",
-        balance,
-        "utxos:",
-        user.utxos[0].amounts,
-        user.utxos[0].assets,
-        user.utxos[1].amounts,
-        user.utxos[1].assets,
-        user.utxos[2].amounts,
-        user.utxos[2].assets,
-      );
-    } catch (e) {
-      console.log("console log err", e);
-    }
+    // TODO: add balance checks
+    // let balance = await user.getBalance({ latest: true });
   });
 
   it.skip("(user class) transfer SOL", async () => {
