@@ -24,7 +24,6 @@ import {
   Relayer,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { readFileSync } from "fs";
 import { Provider } from "./wallet";
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
