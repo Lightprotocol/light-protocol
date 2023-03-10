@@ -49,11 +49,11 @@ describe("verifier_program", () => {
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
-    console.log = () => {};
+    // console.log = () => {};
     await createTestAccounts(provider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
-    console.log = initLog;
+    // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
   });
 
@@ -239,7 +239,7 @@ describe("verifier_program", () => {
       }`,
     );
   });
-  it("(user class) shield SPL", async () => {
+  it.only("(user class) shield SPL", async () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());

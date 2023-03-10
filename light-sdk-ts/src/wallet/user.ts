@@ -540,11 +540,13 @@ export class User {
     amount,
     extraSolAmount,
     action,
+    userSplAccount,
   }: {
     tokenCtx: TokenContext;
     amount: number;
     extraSolAmount: number;
     action: string;
+    userSplAccount?: PublicKey;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     // TODO: check with spl -> selects proper tokens?
@@ -552,9 +554,8 @@ export class User {
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
       extraSolAmount,
-      amount: -1 * amount, // at shield, doesnt matter what val inutxos have.
+      amount: -1 * amount,
     });
-    // TODO: add fees !
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
@@ -569,7 +570,7 @@ export class User {
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: tokenCtx.isSol
           ? this.provider.nodeWallet!.publicKey
-          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+          : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
       });
@@ -582,15 +583,13 @@ export class User {
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: tokenCtx.isSol
           ? this.provider.browserWallet!.publicKey
-          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+          : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.browserWallet!.publicKey,
         verifier, // TODO: add support for 10in here -> verifier1
         provider: this.provider,
       });
 
       return txParams;
-
-      // throw new Error("Browser wallet support not implemented yet!");
     }
   }
   /**
@@ -615,45 +614,54 @@ export class User {
       throw new Error("Shields to other users not implemented yet!");
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+    // let recipientSPLAddress: PublicKey = new PublicKey(0);
 
+    let userSplAccount = null;
     if (!tokenCtx.isSol) {
       if (this.provider.nodeWallet) {
-        // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
-        var balanceUserToken = null;
-        try {
-          balanceUserToken = await getAccount(
-            this.provider!.provider!.connection,
-            // hardcoded assumed for now
-            userTokenAccount,
-            "confirmed",
-            TOKEN_PROGRAM_ID,
-          );
-        } catch (e) {
-          console.log("couldn't find SPL account, initing...");
-        }
-        try {
-          if (balanceUserToken == null) {
-            await newAccountWithTokens({
-              connection: this.provider!.provider!.connection,
-              MINT: tokenCtx!.tokenAccount,
-              ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
-              userAccount: USER_TOKEN_ACCOUNT,
-              amount: new anchor.BN(100_000_000_000),
-            });
-          }
-        } catch (error) {
-          console.log("spl token account creation failed: ", error);
-        }
+        userSplAccount = splToken.getAssociatedTokenAddressSync(
+          tokenCtx!.tokenAccount,
+          this.provider!.nodeWallet!.publicKey,
+        );
+        console.log("user", this.provider.nodeWallet!.publicKey.toBase58());
+        console.log("admin", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
+        console.assert(
+          userSplAccount.toBase58() === userTokenAccount.toBase58(),
+          `!! userSpl !== userTokenAccount, ${userSplAccount.toBase58()} !== ${userTokenAccount.toBase58()}`,
+        );
+        // var balanceUserToken = null;
+        // try {
+        //   balanceUserToken = await getAccount(
+        //     this.provider!.provider!.connection,
+        //     userSplAccount,
+        //     "confirmed",
+        //     TOKEN_PROGRAM_ID,
+        //   );
+        // } catch (e) {
+        //   console.log(e);
+        //   throw new Error("couldn't find SPL account!");
+        // }
+        // try {
+        //   if (balanceUserToken == null) {
+        //     await newAccountWithTokens({
+        //       connection: this.provider!.provider!.connection,
+        //       MINT: tokenCtx!.tokenAccount,
+        //       ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
+        //       userAccount: USER_TOKEN_ACCOUNT,
+        //       amount: new anchor.BN(100_000_000_000),
+        //     });
+        //   }
+        // } catch (error) {
+        //   console.log("spl token account creation failed: ", error);
+        // }
         amount = amount * tokenCtx.decimals;
         try {
           await splToken.approve(
             this.provider.provider!.connection,
             this.provider.nodeWallet!,
-            userTokenAccount,
-            // TODO: make dynamic based on verifier
-            AUTHORITY, //delegate
-            // this.provider.nodeWallet!, // owner
-            USER_TOKEN_ACCOUNT, // owner2
+            userSplAccount, //userTokenAccount,
+            AUTHORITY, //TODO: make dynamic based on verifier
+            this.provider.nodeWallet!, //USER_TOKEN_ACCOUNT, // owner2
             amount,
             [this.provider.nodeWallet!],
           );
@@ -676,12 +684,12 @@ export class User {
       provider: this.provider,
     });
 
-    // add: different token select. -> tokenCtx
     const txParams = this.getTxParams({
       tokenCtx,
       amount,
       action: "SHIELD",
       extraSolAmount,
+      userSplAccount: userSplAccount ? userSplAccount : undefined,
     });
 
     await tx.compileAndProve(txParams);

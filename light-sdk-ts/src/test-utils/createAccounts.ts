@@ -14,6 +14,7 @@ var _ = require("lodash");
 import {
   createAccount,
   getAccount,
+  getAssociatedTokenAddressSync,
   mintTo,
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
@@ -33,6 +34,7 @@ import {
   userTokenAccount,
   confirmConfig,
   AUTHORITY_ONE,
+  TOKEN_REGISTRY,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -124,6 +126,7 @@ export const newProgramOwnedAccount = async ({
   throw "Can't create program account with lamports";
 };
 
+// FIXME: doesn't need a keypair for userAccount...
 export async function newAccountWithTokens({
   connection,
   MINT,
@@ -285,11 +288,22 @@ export async function createTestAccounts(connection: Connection) {
   }
 
   let balanceUserToken = null;
-
+  let userSplAccount = null;
   try {
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === "USDC");
+    userSplAccount = getAssociatedTokenAddressSync(
+      tokenCtx!.tokenAccount,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+    );
+    console.log(
+      "test setup: admin spl acc",
+      userSplAccount.toBase58(),
+      userTokenAccount.toBase58(),
+    );
+
     balanceUserToken = await getAccount(
       connection,
-      userTokenAccount,
+      userSplAccount, //userTokenAccount,
       "confirmed",
       TOKEN_PROGRAM_ID,
     );
@@ -302,7 +316,7 @@ export async function createTestAccounts(connection: Connection) {
         connection: connection,
         MINT,
         ADMIN_AUTH_KEYPAIR,
-        userAccount: USER_TOKEN_ACCOUNT,
+        userAccount: ADMIN_AUTH_KEYPAIR, //USER_TOKEN_ACCOUNT,
         amount: new BN(100_000_000_0000),
       });
     }
