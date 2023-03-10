@@ -753,11 +753,7 @@ export class User {
 
     // TODO: replace with dynamic ping to relayer webserver
 
-    const inUtxos = this.selectInUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount,
-      extraSolAmount,
-    });
+    // TODO: replace with dynamic ping to relayer webserver
     let relayer = new Relayer(
       this.provider.browserWallet!
         ? this.provider.browserWallet.publicKey
@@ -766,6 +762,11 @@ export class User {
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
+    const inUtxos = this.selectInUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount,
+      extraSolAmount,
+    });
 
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,

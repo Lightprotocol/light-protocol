@@ -77,7 +77,6 @@ export class Provider {
       throw new Error(
         "Connection provided in node environment. Provide a url instead",
       );
-
     this.minimumLamports = minimumLamports;
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
