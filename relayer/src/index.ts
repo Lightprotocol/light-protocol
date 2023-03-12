@@ -9,6 +9,7 @@ import {
   MERKLE_TREE_KEY,
   setUpMerkleTree,
   SolMerkleTree,
+  userTokenAccount,
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
@@ -21,7 +22,7 @@ app.use((req, res, next) => {
   res.header("Access-Control-Allow-Origin", "*");
   res.header(
     "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept"
+    "Origin, X-Requested-With, Content-Type, Accept",
   );
   next();
 });
@@ -86,11 +87,12 @@ const rpcPort = 8899;
 
   const providerAnchor = anchor.AnchorProvider.local(
     `http://127.0.0.1:${rpcPort}`,
-    confirmConfig
+    confirmConfig,
   );
   anchor.setProvider(providerAnchor);
   console.log("anchor provider set");
 
+  // TODO: use updated -- buildscript -> add relayer tests
   await createTestAccounts(providerAnchor.connection);
   console.log("test accounts created");
   let LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
@@ -102,21 +104,21 @@ const rpcPort = 8899;
     relayerPayer.publicKey,
     LOOK_UP_TABLE,
     relayerFeeRecipient.publicKey,
-    relayerFee
+    relayerFee,
   );
 
   await providerAnchor!.connection.confirmTransaction(
     await providerAnchor!.connection.requestAirdrop(
       relayer.accounts.relayerRecipient,
-      1_000_000
+      1_000_000,
     ),
-    "confirmed"
+    "confirmed",
   );
   console.log(
     "Relayer initialized",
     relayer.accounts.relayerPubkey.toBase58(),
     "relayerRecipient: ",
-    relayer.accounts.relayerRecipient.toBase58()
+    relayer.accounts.relayerRecipient.toBase58(),
   );
 })();
 

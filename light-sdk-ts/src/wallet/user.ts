@@ -114,7 +114,6 @@ export class User {
 
         //TODO: add: "pending" to balances
         //TODO: add init by cached (subset of leavesPdas)
-        // TODO: add incoming utxos
         const params = {
           leavesPdas,
           merkleTree: this.provider.solMerkleTree.merkleTree!,
@@ -159,8 +158,7 @@ export class User {
       });
       return balances;
     } catch (err) {
-      console.log("error in getting the user balance", { err });
-      throw err;
+      throw new Error(`Èrror in getting the user balance: ${err.message}`);
     }
   }
 
@@ -634,8 +632,8 @@ export class User {
             amount,
             [this.provider.nodeWallet!],
           );
-        } catch (error) {
-          console.log("error approving", error);
+        } catch (e) {
+          throw new Error(`Error approving token transfer! ${e}`);
         }
       } else {
         // TODO: implement browserWallet support; for UI
@@ -669,7 +667,7 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log({ e });
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
     console.log = () => {};
     //@ts-ignore
@@ -775,7 +773,7 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log("tx.sendAndConfirm failed", e);
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
     // await tx.checkBalances();
     console.log("checkBalances INACTIVE");
@@ -873,7 +871,7 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
     //@ts-ignore
     // await tx.checkBalances();
@@ -970,9 +968,8 @@ export class User {
       const user = new User({ provider });
       await user.load(cachedUser, provider);
       return user;
-    } catch (err) {
-      console.log("while loading the user", { err });
-      throw err;
+    } catch (e) {
+      throw new Error(`Error while loading user! ${e}`);
     }
   }
 

@@ -14,21 +14,17 @@ import {
   ADMIN_AUTH_KEYPAIR,
   MINT,
   Provider,
-  KEYPAIR_PRIVKEY,
   newAccountWithTokens,
   createTestAccounts,
   confirmConfig,
   Relayer,
-  verifierStorageProgramId,
   User,
-  IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
   TOKEN_REGISTRY,
   updateMerkleTreeForTest,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
-import { Account } from "light-sdk/lib/account";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -361,7 +357,7 @@ describe("verifier_program", () => {
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
     // TODO: add balance checks
-    // let balance = await user.getBalance({ latest: true });
+
     try {
       console.log("updating merkle tree...");
       let initLog = console.log;
