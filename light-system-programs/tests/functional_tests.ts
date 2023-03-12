@@ -30,6 +30,7 @@ import {
   Provider,
   KEYPAIR_PRIVKEY,
   AUTHORITY_ONE,
+  newAccountWithTokens,
   USER_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
@@ -46,6 +47,8 @@ import {
   User,
   IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
+  RECIPIENT_TOKEN_ACCOUNT,
+  TOKEN_REGISTRY,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -85,13 +88,16 @@ describe("verifier_program", () => {
     verifierProgram.programId,
   );
 
-  const userKeypair = new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  let userSplAccount = null;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
-    await createTestAccounts(provider.connection);
+    let initLog = console.log;
+    // console.log = () => {};
+    await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
-
+    // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Account({
@@ -99,6 +105,10 @@ describe("verifier_program", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
+    // userSplAccount = token.getAssociatedTokenAddressSync(
+    //   tokenCtx!.tokenAccount,
+    //   this.provider!.nodeWallet!.publicKey,
+    // );
   });
 
   it.skip("build compressed merkle tree", async () => {
@@ -122,8 +132,6 @@ describe("verifier_program", () => {
         "confirmed",
       );
     }
-
-    console.log(verifierState);
 
     let tx0 = await verifierProgram.methods
       .shieldedTransferFirst(msg)
@@ -472,7 +480,6 @@ describe("verifier_program", () => {
       provider: lightProvider,
       // relayer,
     });
-    console.log(inputUtxos);
 
     let txParams = new TransactionParameters({
       inputUtxos,
@@ -501,56 +508,5 @@ describe("verifier_program", () => {
       console.log(e);
     }
     await tx.checkBalances();
-  });
-
-  it("(user class) shield SOL", async () => {
-    let amount = 3;
-    let token = "SOL";
-    const provider = await Provider.native(userKeypair);
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      4_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed")
-
-    const user = await User.load(provider);
-
-    await user.shield({ amount, token });
-    // TODO: add random amount and amount checks
-  });
-  it("(user class) transfer SOL", async () => {
-    let amount = 1;
-    let token = "SOL";
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    await user.transfer({
-      amount,
-      token,
-      recipient,
-      recipientEncryptionPublicKey, // TODO: do shielded address
-    });
-
-    // TODO: add random amount, recipient and amount checks
-  });
-
-  it("(user class) unshield SOL", async () => {
-    let amount = 1;
-    let token = "SOL";
-    let recipient = new PublicKey(
-      "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
-    );
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    await user.unshield({ amount, token, recipient });
-    // TODO: add random amount and amount checks
   });
 });

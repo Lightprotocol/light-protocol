@@ -2,6 +2,7 @@ const solana = require("@solana/web3.js");
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 import {
+  AccountInfo,
   Connection,
   Keypair,
   PublicKey,
@@ -13,6 +14,7 @@ var _ = require("lodash");
 import {
   createAccount,
   getAccount,
+  getAssociatedTokenAddressSync,
   mintTo,
   MINT_SIZE,
   TOKEN_PROGRAM_ID,
@@ -29,9 +31,10 @@ import {
   USER_TOKEN_ACCOUNT,
   RECIPIENT_TOKEN_ACCOUNT,
   ADMIN_AUTH_KEY,
-  userTokenAccount,
+  // userTokenAccount,
   confirmConfig,
   AUTHORITY_ONE,
+  TOKEN_REGISTRY,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -123,6 +126,7 @@ export const newProgramOwnedAccount = async ({
   throw "Can't create program account with lamports";
 };
 
+// FIXME: doesn't need a keypair for userAccount...
 export async function newAccountWithTokens({
   connection,
   MINT,
@@ -143,15 +147,30 @@ export async function newAccountWithTokens({
     userAccount.publicKey,
   );
 
-  await mintTo(
-    connection,
-    ADMIN_AUTH_KEYPAIR,
-    MINT,
-    tokenAccount,
-    ADMIN_AUTH_KEYPAIR.publicKey,
-    amount.toNumber(),
-    [],
-  );
+  try {
+    await mintTo(
+      connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      tokenAccount,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      amount.toNumber(),
+      [],
+    );
+    //FIXME: remove this
+  } catch (e) {
+    console.log("mintTo error", e);
+    await mintTo(
+      connection,
+      ADMIN_AUTH_KEYPAIR,
+      MINT,
+      tokenAccount,
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      //@ts-ignore
+      amount,
+      [],
+    );
+  }
   return tokenAccount;
 }
 
@@ -215,7 +234,10 @@ export async function createMintWrapper({
   }
 }
 
-export async function createTestAccounts(connection: Connection) {
+export async function createTestAccounts(
+  connection: Connection,
+  userTokenAccount?: PublicKey,
+) {
   // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
@@ -243,7 +265,7 @@ export async function createTestAccounts(connection: Connection) {
       solana.SystemProgram.transfer({
         fromPubkey: ADMIN_AUTH_KEYPAIR.publicKey,
         toPubkey: AUTHORITY,
-        lamports: 1_000_000_000,
+        lamports: 3_000_000_000,
       }),
     );
     await sendAndConfirmTransaction(
@@ -269,11 +291,26 @@ export async function createTestAccounts(connection: Connection) {
   }
 
   let balanceUserToken = null;
-
+  let userSplAccount = null;
   try {
+    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === "USDC");
+    if (userTokenAccount) {
+      userSplAccount = userTokenAccount;
+    } else {
+      userSplAccount = getAssociatedTokenAddressSync(
+        tokenCtx!.tokenAccount,
+        ADMIN_AUTH_KEYPAIR.publicKey,
+      );
+    }
+    console.log(
+      "test setup: admin spl acc",
+      userSplAccount.toBase58(),
+      userTokenAccount?.toBase58(),
+    );
+
     balanceUserToken = await getAccount(
       connection,
-      userTokenAccount,
+      userSplAccount, //userTokenAccount,
       "confirmed",
       TOKEN_PROGRAM_ID,
     );
@@ -286,7 +323,7 @@ export async function createTestAccounts(connection: Connection) {
         connection: connection,
         MINT,
         ADMIN_AUTH_KEYPAIR,
-        userAccount: USER_TOKEN_ACCOUNT,
+        userAccount: userTokenAccount ? USER_TOKEN_ACCOUNT : ADMIN_AUTH_KEYPAIR, //USER_TOKEN_ACCOUNT, // this is to support legacy tests
         amount: new BN(100_000_000_0000),
       });
     }

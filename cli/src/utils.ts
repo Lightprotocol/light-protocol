@@ -72,7 +72,7 @@ export const readWalletFromFile = () => {
     let asUint8Array: Uint8Array = new Uint8Array(secretKey);
     let keypair: solana.Keypair = solana.Keypair.fromSecretKey(asUint8Array);
 
-    console.log("Wallet found!");
+    console.log("Wallet found!", keypair.publicKey.toString());
     return keypair;
   } catch (e: any) {
     throw new Error("secret.txt not found or corrupted!");

@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import {  Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 const token = require("@solana/spl-token");
@@ -49,7 +49,7 @@ describe("Verifier Zero and One Tests", () => {
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
-    confirmConfig
+    confirmConfig,
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
@@ -62,7 +62,7 @@ describe("Verifier Zero and One Tests", () => {
   const verifiers = [new VerifierZero(), new VerifierOne()];
 
   before(async () => {
-    await createTestAccounts(provider.connection);
+    await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
 
@@ -88,11 +88,11 @@ describe("Verifier Zero and One Tests", () => {
         userTokenAccount,
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[verifier].verifierProgram.programId
+          verifiers[verifier].verifierProgram.programId,
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 10,
-        [USER_TOKEN_ACCOUNT]
+        [USER_TOKEN_ACCOUNT],
       );
 
       let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
@@ -152,17 +152,17 @@ describe("Verifier Zero and One Tests", () => {
       var tokenRecipient = recipientTokenAccount;
 
       let lightProviderWithdrawal = await LightProvider.native(
-        ADMIN_AUTH_KEYPAIR
+        ADMIN_AUTH_KEYPAIR,
       );
       const relayerRecipient = SolanaKeypair.generate().publicKey;
       await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(relayerRecipient, 10000000)
+        await provider.connection.requestAirdrop(relayerRecipient, 10000000),
       );
       let relayer = new Relayer(
         ADMIN_AUTH_KEYPAIR.publicKey,
         lightProvider.lookUpTable,
         relayerRecipient,
-        new BN(100000)
+        new BN(100000),
       );
 
       let tx = new Transaction({
@@ -186,10 +186,9 @@ describe("Verifier Zero and One Tests", () => {
   afterEach(async () => {
     // Check that no nullifier was inserted, otherwise the prior test failed
     for (var tx in transactions) {
-
       await checkNfInserted(
         transactions[tx].params.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
     }
   });
@@ -197,7 +196,7 @@ describe("Verifier Zero and One Tests", () => {
   const sendTestTx = async (
     tx: Transaction,
     type: string,
-    account?: string
+    account?: string,
   ) => {
     const instructions = await tx.params.verifier.getInstructions(tx);
     var e;
@@ -220,19 +219,19 @@ describe("Verifier Zero and One Tests", () => {
 
     if (type === "ProofVerificationFails") {
       assert.isTrue(
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
     } else if (type === "Account") {
       assert.isTrue(
         e.logs.includes(
-          `Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`
-        )
+          `Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`,
+        ),
       );
     } else if (type === "preInsertedLeavesIndex") {
       assert.isTrue(
         e.logs.includes(
-          "Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected."
-        )
+          "Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected.",
+        ),
       );
     } else if (type === "Includes") {
       assert.isTrue(e.logs.includes(account));
@@ -334,9 +333,9 @@ describe("Verifier Zero and One Tests", () => {
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(
           wrongSinger.publicKey,
-          1_000_000_000
+          1_000_000_000,
         ),
-        "confirmed"
+        "confirmed",
       );
       tmp_tx.payer = wrongSinger;
       tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
@@ -381,7 +380,7 @@ describe("Verifier Zero and One Tests", () => {
       var tmp_tx = _.cloneDeep(transactions[tx]);
       tmp_tx.params.accounts.authority = Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        SolanaKeypair.generate().publicKey
+        SolanaKeypair.generate().publicKey,
       );
       await sendTestTx(tmp_tx, "Account", "authority");
     }
@@ -398,7 +397,7 @@ describe("Verifier Zero and One Tests", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
+          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
         );
       }
     }
@@ -416,7 +415,7 @@ describe("Verifier Zero and One Tests", () => {
           await sendTestTx(
             tmp_tx,
             "Includes",
-            "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
+            "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
           );
         }
       } else {
@@ -428,7 +427,7 @@ describe("Verifier Zero and One Tests", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
+          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.",
         );
       }
     }

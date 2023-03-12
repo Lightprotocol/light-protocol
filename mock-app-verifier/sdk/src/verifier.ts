@@ -49,7 +49,7 @@ export class MockVerifier implements Verifier {
     // TODO: implement check that encryptedUtxos.length == this.messageDataLength
     this.messageDataLength = 512;
     this.pubkey = hashAndTruncateToCircuit(
-      this.verifierProgram.programId.toBytes()
+      this.verifierProgram.programId.toBytes(),
     );
   }
 
@@ -61,7 +61,7 @@ export class MockVerifier implements Verifier {
       };
     } else {
       throw new Error(
-        `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`
+        `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.nrPublicInputs}`,
       );
     }
   }
@@ -71,7 +71,7 @@ export class MockVerifier implements Verifier {
 
   // TODO: discuss with Swen how to split this into send and confirm,
   async getInstructions(
-    transaction: Transaction
+    transaction: Transaction,
   ): Promise<TransactionInstruction[]> {
     const invokingVerifierPubkey = (
       await PublicKey.findProgramAddress(
@@ -81,14 +81,14 @@ export class MockVerifier implements Verifier {
             : transaction.provider.nodeWallet!.publicKey.toBytes(),
           // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
-        this.verifierProgram.programId
+        this.verifierProgram.programId,
       )
     )[0];
     // await transaction.instance.provider.connection.confirmTransaction(
     //   await transaction.instance.provider.connection.requestAirdrop(invokingVerifierPubkey, 1_000_000_000, "confirmed")
     // );
 
-    console.log("pre ix1");
+    // console.log("pre ix1");
     // console.log("transaction.publicInputs ", transaction.publicInputs);
 
     // console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
@@ -102,9 +102,9 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.publicInputsApp ", transaction.publicInputsApp);
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
-      
+
     var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
- 
+
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         transaction.publicInputs.publicAmount,
@@ -113,13 +113,13 @@ export class MockVerifier implements Verifier {
         transaction.publicInputs.feeAmount,
         new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
-        Buffer.from(transaction.params.encryptedUtxos.slice(0, 512))
+        Buffer.from(transaction.params.encryptedUtxos.slice(0, 512)),
       )
       .accounts({
         ...transaction.params.accounts,
       })
       .instruction();
-    console.log("pre ix2");
+    // console.log("pre ix2");
     // console.log("transaction.publicInputsApp.connectingHash ", transaction.publicInputsApp.connectingHash);
 
     const ix2 = await this.verifierProgram.methods
@@ -130,7 +130,7 @@ export class MockVerifier implements Verifier {
         transaction.proofBytes.proofA,
         transaction.proofBytes.proofB,
         transaction.proofBytes.proofC,
-        Buffer.from(transaction.publicInputsApp.connectingHash)
+        Buffer.from(transaction.publicInputsApp.connectingHash),
       )
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,

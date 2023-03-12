@@ -12,26 +12,23 @@ import { Connection } from "@solana/web3.js";
 
 export async function updateMerkleTreeForTest(
   connection: Connection,
-  provider?: Provider,
+  provider?: anchor.Provider,
 ) {
   try {
     const merkleTreeProgram = new anchor.Program(
       IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
-      // @ts-ignore
       provider && provider,
     );
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
       MERKLE_TREE_KEY,
-      // @ts-ignore
       provider && provider,
     );
 
-    let poseidon = await circomlibjs.buildPoseidonOpt();
+    // let poseidon = await circomlibjs.buildPoseidonOpt();
 
-    //@ts-ignore
     await executeUpdateMerkleTreeTransactions({
       connection,
       signer: ADMIN_AUTH_KEYPAIR,
