@@ -59,7 +59,7 @@ describe("Merkle Tree Tests", () => {
 
   var INVALID_MERKLE_TREE_AUTHORITY_PDA, INVALID_SIGNER;
   before(async () => {
-    await createTestAccounts(provider.connection);
+    await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     // await setUpMerkleTree(provider);
 

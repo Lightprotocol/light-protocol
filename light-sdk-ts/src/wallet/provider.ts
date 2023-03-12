@@ -46,6 +46,7 @@ export class Provider {
   solMerkleTree?: SolMerkleTree;
   provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
+  minimumLamports: number;
 
   /**
    * Init either with nodeWallet or browserWallet. Feepayer is the provided wallet
@@ -57,12 +58,14 @@ export class Provider {
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
+    minimumLamports = 5000 * 10,
   }: {
     nodeWallet?: SolanaKeypair;
     browserWallet?: BrowserWallet;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
+    minimumLamports?: number;
   }) {
     if (nodeWallet && browserWallet)
       throw new Error("Both node and browser environments provided.");
@@ -74,7 +77,7 @@ export class Provider {
       throw new Error(
         "Connection provided in node environment. Provide a url instead",
       );
-
+    this.minimumLamports = minimumLamports;
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
     if (nodeWallet) {

@@ -53,7 +53,7 @@ describe("Verifier Two test", () => {
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
-    confirmConfig
+    confirmConfig,
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -65,7 +65,7 @@ describe("Verifier Two test", () => {
   const verifiers = [new VerifierTwo()];
 
   before(async () => {
-    await createTestAccounts(provider.connection);
+    await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
 
@@ -90,11 +90,11 @@ describe("Verifier Two test", () => {
         userTokenAccount,
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[verifier].verifierProgram.programId
+          verifiers[verifier].verifierProgram.programId,
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 10,
-        [USER_TOKEN_ACCOUNT]
+        [USER_TOKEN_ACCOUNT],
       );
 
       let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
@@ -105,8 +105,7 @@ describe("Verifier Two test", () => {
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET, MINT
-      ],
+        assets: [FEE_ASSET, MINT],
         amounts: [
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
@@ -130,8 +129,8 @@ describe("Verifier Two test", () => {
       await transaction.provider.provider.connection.confirmTransaction(
         await transaction.provider.provider.connection.requestAirdrop(
           transaction.params.accounts.authority,
-          1_000_000_000
-        )
+          1_000_000_000,
+        ),
       );
       // does one successful transaction
       await transaction.sendAndConfirmTransaction();
@@ -144,8 +143,7 @@ describe("Verifier Two test", () => {
 
       var deposit_utxo2 = new Utxo({
         poseidon: POSEIDON,
-        assets: [FEE_ASSET, MINT
-        ],
+        assets: [FEE_ASSET, MINT],
         amounts: [
           new anchor.BN(depositFeeAmount),
           new anchor.BN(depositAmount),
@@ -171,17 +169,17 @@ describe("Verifier Two test", () => {
       var tokenRecipient = recipientTokenAccount;
 
       let lightProviderWithdrawal = await LightProvider.native(
-        ADMIN_AUTH_KEYPAIR
+        ADMIN_AUTH_KEYPAIR,
       );
       const relayerRecipient = SolanaKeypair.generate().publicKey;
       await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(relayerRecipient, 10000000)
+        await provider.connection.requestAirdrop(relayerRecipient, 10000000),
       );
       let relayer = new Relayer(
         ADMIN_AUTH_KEYPAIR.publicKey,
         lightProvider.lookUpTable,
         relayerRecipient,
-        new BN(100000)
+        new BN(100000),
       );
 
       let tx = new Transaction({
@@ -207,7 +205,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       await checkNfInserted(
         transactions[tx].params.nullifierPdaPubkeys,
-        provider.connection
+        provider.connection,
       );
     }
   });
@@ -215,13 +213,13 @@ describe("Verifier Two test", () => {
   const sendTestTx = async (
     tx: Transaction,
     type: string,
-    account?: string
+    account?: string,
   ) => {
     var instructions = await tx.appParams.verifier.getInstructions(tx);
     console.log("aftere instructions");
     const provider = anchor.AnchorProvider.local(
       "http://127.0.0.1:8899",
-      confirmConfig
+      confirmConfig,
     );
     tx.provider.provider = provider;
     // if (tx.app_params){
@@ -248,19 +246,19 @@ describe("Verifier Two test", () => {
 
     if (type === "ProofVerificationFails") {
       assert.isTrue(
-        e.logs.includes("Program log: error ProofVerificationFailed")
+        e.logs.includes("Program log: error ProofVerificationFailed"),
       );
     } else if (type === "Account") {
       assert.isTrue(
         e.logs.includes(
-          `Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`
-        )
+          `Program log: AnchorError caused by account: ${account}. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.`,
+        ),
       );
     } else if (type === "preInsertedLeavesIndex") {
       assert.isTrue(
         e.logs.includes(
-          "Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected."
-        )
+          "Program log: AnchorError caused by account: pre_inserted_leaves_index. Error Code: AccountDiscriminatorMismatch. Error Number: 3002. Error Message: 8 byte discriminator did not match what was expected.",
+        ),
       );
     } else if (type === "Includes") {
       console.log("trying includes: ", account);
@@ -363,9 +361,9 @@ describe("Verifier Two test", () => {
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(
           wrongSinger.publicKey,
-          1_000_000_000
+          1_000_000_000,
         ),
-        "confirmed"
+        "confirmed",
       );
       tmp_tx.payer = wrongSinger;
       tmp_tx.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
@@ -410,7 +408,7 @@ describe("Verifier Two test", () => {
       var tmp_tx = _.cloneDeep(transactions[tx]);
       tmp_tx.params.accounts.authority = Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        SolanaKeypair.generate().publicKey
+        SolanaKeypair.generate().publicKey,
       );
       await sendTestTx(tmp_tx, "Account", "authority");
     }
@@ -427,7 +425,7 @@ describe("Verifier Two test", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
+          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
         );
       }
     }
@@ -445,7 +443,7 @@ describe("Verifier Two test", () => {
           await sendTestTx(
             tmp_tx,
             "Includes",
-            "Program log: Instruction: InsertTwoLeaves"
+            "Program log: Instruction: InsertTwoLeaves",
           );
         }
       } else {
@@ -457,7 +455,7 @@ describe("Verifier Two test", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
-          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
+          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.",
         );
       }
     }

@@ -24,7 +24,6 @@ import {
   Relayer,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { readFileSync } from "fs";
 import { Provider } from "./wallet";
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
@@ -1139,10 +1138,6 @@ export class Transaction {
   }
 
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
-    console.log(
-      "browserwallet in sendAndConfirmTransaction?: ",
-      this.provider.browserWallet,
-    );
     if (!this.provider.nodeWallet && !this.provider.browserWallet) {
       throw new Error(
         "Cannot use sendAndConfirmTransaction without payer or browserWallet",
@@ -1638,7 +1633,6 @@ export class Transaction {
           this.relayerRecipientAccountBalancePriorLastTx!,
         )}`,
       );
-      console.log("SWEN: rfa", recipientFeeAccount);
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
           .add(new anchor.BN(this.params.relayer.relayerFee.toString()))

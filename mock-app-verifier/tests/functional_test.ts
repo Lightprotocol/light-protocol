@@ -50,7 +50,7 @@ describe("Mock verifier functional", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
-    confirmConfig
+    confirmConfig,
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
@@ -58,7 +58,7 @@ describe("Mock verifier functional", () => {
   before(async () => {
     console.log("Initing accounts");
 
-    await createTestAccounts(provider.connection);
+    await createTestAccounts(provider.connection, userTokenAccount);
     POSEIDON = await buildPoseidonOpt();
     KEYPAIR = new Account({
       poseidon: POSEIDON,
@@ -68,7 +68,7 @@ describe("Mock verifier functional", () => {
     relayerRecipient = SolanaKeypair.generate().publicKey;
     LOOK_UP_TABLE = await initLookUpTableFromFile(
       provider,
-      "lookUpTable.txt" /*Array.from([relayerRecipient])*/
+      "lookUpTable.txt" /*Array.from([relayerRecipient])*/,
     );
   });
 
@@ -110,8 +110,8 @@ describe("Mock verifier functional", () => {
       await tx.provider.provider.connection.requestAirdrop(
         tx.params.accounts.authority,
         1_000_000_000,
-        "confirmed"
-      )
+        "confirmed",
+      ),
     );
     await tx.getProof();
     await tx.getAppProof();
@@ -129,10 +129,10 @@ describe("Mock verifier functional", () => {
       ADMIN_AUTH_KEYPAIR.publicKey,
       lightProvider.lookUpTable,
       relayerRecipient,
-      new BN(0)
+      new BN(0),
     );
     await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(relayerRecipient, 10000000)
+      await provider.connection.requestAirdrop(relayerRecipient, 10000000),
     );
 
     // TODO: add check that recipients are defined if withdrawal

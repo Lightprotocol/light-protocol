@@ -23,6 +23,7 @@ import {
   merkleTreeProgramId,
 } from "../constants";
 import {
+  ADMIN_AUTH_KEY,
   ADMIN_AUTH_KEYPAIR,
   createTestAccounts,
   MINT,
@@ -113,7 +114,6 @@ export class User {
 
         //TODO: add: "pending" to balances
         //TODO: add init by cached (subset of leavesPdas)
-        // TODO: add incoming utxos
         const params = {
           leavesPdas,
           merkleTree: this.provider.solMerkleTree.merkleTree!,
@@ -158,8 +158,7 @@ export class User {
       });
       return balances;
     } catch (err) {
-      console.log("error in getting the user balance", { err });
-      throw err;
+      throw new Error(`Èrror in getting the user balance: ${err.message}`);
     }
   }
 
@@ -171,6 +170,7 @@ export class User {
     recipient,
     recipientEncryptionPublicKey,
     relayer,
+    extraSolAmount,
   }: {
     mint: PublicKey;
     amount: number;
@@ -178,6 +178,7 @@ export class User {
     recipient?: anchor.BN;
     recipientEncryptionPublicKey?: Uint8Array;
     relayer?: Relayer;
+    extraSolAmount: number;
   }) {
     const { poseidon } = this.provider;
     if (!poseidon) throw new Error("Poseidon not initialized");
@@ -199,8 +200,10 @@ export class User {
       }
     }
     var isTransfer = false;
+    var isUnshield = false;
     if (recipient && recipientEncryptionPublicKey && relayer) isTransfer = true;
 
+    if (!recipientEncryptionPublicKey && relayer) isUnshield = true;
     type Asset = { amount: number; asset: PublicKey };
     let assets: Asset[] = [];
     assets.push({
@@ -238,7 +241,7 @@ export class User {
     );
     if (!feeAsset) throw new Error("Fee asset not found in assets");
 
-    if (assets.length === 1) {
+    if (assets.length === 1 || assetIndex === 0) {
       // just fee asset as oututxo
 
       if (isTransfer) {
@@ -252,13 +255,18 @@ export class User {
             encryptionPublicKey: recipientEncryptionPublicKey,
           }),
         });
+
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
-          assets: [assets[0].asset],
+          assets: [
+            assets[0].asset,
+            assets[1] ? assets[1].asset : assets[0].asset,
+          ],
           amounts: [
             new anchor.BN(assets[0].amount)
               .sub(new anchor.BN(amount))
               .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change
+            assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
           ], // rem transfer positive
           account: this.account,
         });
@@ -267,8 +275,16 @@ export class User {
       } else {
         let feeAssetChangeUtxo = new Utxo({
           poseidon,
-          assets: [assets[0].asset],
-          amounts: [new anchor.BN(assets[0].amount)],
+          assets: [
+            assets[0].asset,
+            assets[1] ? assets[1].asset : assets[0].asset,
+          ],
+          amounts: [
+            !isUnshield
+              ? new anchor.BN(extraSolAmount + assets[0].amount)
+              : new anchor.BN(assets[0].amount),
+            assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
+          ],
           account: recipient
             ? new Account({
                 poseidon: poseidon,
@@ -281,52 +297,80 @@ export class User {
         return [feeAssetChangeUtxo];
       }
     } else {
-      // add for spl with transfer case.
-      const utxos: Utxo[] = [];
-      assets.slice(1).forEach((asset, i) => {
-        // SPL: determine which is the sendUtxo and changeUtxo
-        // TODO: also- split feeasset to cover min tx fee
-        if (i === assets.length - 1) {
-          // add feeasset as asset to the last spl utxo
-          const utxo1 = new Utxo({
-            poseidon,
-            assets: [assets[0].asset, asset.asset],
-            amounts: [
-              new anchor.BN(assets[0].amount),
-              new anchor.BN(asset.amount),
-            ],
-            account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
-          });
-          utxos.push(utxo1);
-        } else {
-          const utxo1 = new Utxo({
-            poseidon,
-            assets: [assets[0].asset, asset.asset],
-            amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
-            account: this.account, // if not self, use pubkey init
-          });
-          utxos.push(utxo1);
-        }
-      });
-      if (utxos.length > 2)
-        // TODO: implement for 3 assets (SPL,SPL,SOL)
-        throw new Error(`Too many assets for outUtxo: ${assets.length}`);
+      if (isTransfer) {
+        let sendAmountFeeAsset = new anchor.BN(1e5);
 
-      return utxos;
+        let sendUtxo = new Utxo({
+          poseidon,
+          assets: [assets[0].asset, assets[1].asset],
+          amounts: [sendAmountFeeAsset, new anchor.BN(amount)],
+          account: new Account({
+            poseidon: poseidon,
+            publicKey: recipient,
+            encryptionPublicKey: recipientEncryptionPublicKey,
+          }),
+        });
+        let changeUtxo = new Utxo({
+          poseidon,
+          assets: [assets[0].asset, assets[1].asset],
+          amounts: [
+            new anchor.BN(assets[0].amount)
+              .sub(sendAmountFeeAsset)
+              .sub(relayer?.relayerFee || new anchor.BN(0)),
+            new anchor.BN(assets[1].amount).sub(new anchor.BN(amount)),
+          ],
+          account: this.account,
+        });
+
+        return [sendUtxo, changeUtxo];
+      } else {
+        const utxos: Utxo[] = [];
+        assets.slice(1).forEach((asset, i) => {
+          if (i === assets.slice(1).length - 1) {
+            // add feeAsset as asset to the last spl utxo
+            const utxo1 = new Utxo({
+              poseidon,
+              assets: [assets[0].asset, asset.asset],
+              amounts: [
+                // only implemented for shield! assumes passed in only if needed
+                !isUnshield
+                  ? new anchor.BN(extraSolAmount + assets[0].amount)
+                  : new anchor.BN(assets[0].amount),
+                new anchor.BN(asset.amount),
+              ],
+              account: this.account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
+            });
+            utxos.push(utxo1);
+          } else {
+            const utxo1 = new Utxo({
+              poseidon,
+              assets: [assets[0].asset, asset.asset],
+              amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
+              account: this.account, // if not self, use pubkey init
+            });
+            utxos.push(utxo1);
+          }
+        });
+        if (utxos.length > 2)
+          // TODO: implement for 3 assets (SPL,SPL,SOL)
+          throw new Error(`Too many assets for outUtxo: ${assets.length}`);
+
+        return utxos;
+      }
     }
   }
 
   // TODO: adapt to rule: fee_asset is always first.
   selectInUtxos({
     mint,
-    privAmount,
-    pubAmount,
+    amount,
+    extraSolAmount,
   }: {
     mint: PublicKey;
-    privAmount: number;
-    pubAmount: number;
+    amount: number;
+    extraSolAmount: number;
   }) {
-    const amount = privAmount + pubAmount; // TODO: verify that this is correct w -
+    // TODO: verify that this is correct w -
     if (this.utxos === undefined) return [];
     if (this.utxos.length >= UTXO_MERGE_THRESHOLD)
       return [...this.utxos.slice(0, UTXO_MERGE_MAXIMUM)];
@@ -492,29 +536,30 @@ export class User {
   getTxParams({
     tokenCtx,
     amount,
+    extraSolAmount,
     action,
+    userSplAccount,
   }: {
     tokenCtx: TokenContext;
     amount: number;
+    extraSolAmount: number;
     action: string;
+    userSplAccount?: PublicKey;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     // TODO: check with spl -> selects proper tokens?
+
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
-      privAmount: 0,
-      pubAmount: -1 * amount, // at shield, doesnt matter what val inutxos have.
+      extraSolAmount,
+      amount: -1 * amount,
     });
-    // TODO: add fees !
-    // console.log("inUtxos", inUtxos);
     let shieldUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
       amount,
       inUtxos,
+      extraSolAmount, // SHIELD ONLY FOR NOW!!
     });
-    // console.log("outUtxos", shieldUtxos);
-
-    // TODO: get associated token account of nodewallet
 
     if (this.provider.nodeWallet) {
       let txParams = new TransactionParameters({
@@ -523,7 +568,7 @@ export class User {
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: tokenCtx.isSol
           ? this.provider.nodeWallet!.publicKey
-          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+          : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
       });
@@ -536,15 +581,13 @@ export class User {
         merkleTreePubkey: MERKLE_TREE_KEY,
         sender: tokenCtx.isSol
           ? this.provider.browserWallet!.publicKey
-          : userTokenAccount, // TODO: must be users token account DYNAMIC here
+          : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.browserWallet!.publicKey,
         verifier, // TODO: add support for 10in here -> verifier1
         provider: this.provider,
       });
 
       return txParams;
-
-      // throw new Error("Browser wallet support not implemented yet!");
     }
   }
   /**
@@ -557,94 +600,63 @@ export class User {
     token,
     amount,
     recipient,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
-    recipient?: anchor.BN; // TODO: consider replacing with Keypair.x type
+    recipient?: anchor.BN;
+    extraSolAmount?: number;
   }) {
-    /**
-     * TODO:
-     * considerations for these.
-     * - move relayer class to e.g. provider with optional override in tx?
-     * - then would be good to add "tx and relayer" inception in there
-     * - i wana hide the relayer. (default) -> new tx maybe too! shd be good.
-     * - just important to know: where is the customization required where not
-     *  */
-
     if (!this.provider) throw new Error("Provider not set!");
     if (recipient)
       throw new Error("Shields to other users not implemented yet!");
-    // TODO: use getAssetByLookup fns instead (utils)
-    // We're assuming "USDC for now"
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
+
+    let userSplAccount = null;
     if (!tokenCtx.isSol) {
-      throw new Error("SPL not supported yet!");
-      await createTestAccounts(this.provider.provider!.connection!);
-      console.log("created test accounts!");
-
       if (this.provider.nodeWallet) {
-        // TODO: should be dynamic look up (getAssociatedTokenAccount,...)
-        var balanceUserToken = null;
-        try {
-          balanceUserToken = await getAccount(
-            this.provider!.provider!.connection,
-            // hardcoded assumed for now
-            userTokenAccount,
-            "confirmed",
-            TOKEN_PROGRAM_ID,
-          );
-        } catch (e) {
-          console.log("couldn't find SPL account, initing...");
-        }
-        try {
-          if (balanceUserToken == null) {
-            await newAccountWithTokens({
-              connection: this.provider!.provider!.connection,
-              MINT: tokenCtx!.tokenAccount,
-              ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
-              userAccount: USER_TOKEN_ACCOUNT,
-              amount: new anchor.BN(100_000_000_000),
-            });
-          }
-        } catch (error) {
-          console.log("spl token account creation failed: ", error);
-        }
+        userSplAccount = splToken.getAssociatedTokenAddressSync(
+          tokenCtx!.tokenAccount,
+          this.provider!.nodeWallet!.publicKey,
+        );
 
+        amount = amount * tokenCtx.decimals;
         try {
           await splToken.approve(
             this.provider.provider!.connection,
             this.provider.nodeWallet!,
-            userTokenAccount, //°
-            // tokenCtx.tokenAccount, // TODO: must be user's token account
-            // TODO: make dynamic based on verifier
-            AUTHORITY, //delegate
-            // this.provider.nodeWallet!, // owner
-            USER_TOKEN_ACCOUNT, // owner2
+            userSplAccount, //userTokenAccount,
+            AUTHORITY, //TODO: make dynamic based on verifier
+            this.provider.nodeWallet!, //USER_TOKEN_ACCOUNT, // owner2
             amount,
             [this.provider.nodeWallet!],
           );
-        } catch (error) {
-          console.log("error approving", error);
+        } catch (e) {
+          throw new Error(`Error approving token transfer! ${e}`);
         }
       } else {
         // TODO: implement browserWallet support; for UI
         throw new Error("Browser wallet support not implemented yet!");
       }
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
     } else {
-      console.log("- is SOL");
+      amount = amount * tokenCtx.decimals;
+      extraSolAmount = 0;
     }
-    amount = amount * tokenCtx.decimals;
-    // TODO: add browserWallet support
+
     let tx = new Transaction({
       provider: this.provider,
     });
 
-    // add: different token select. -> tokenCtx
     const txParams = this.getTxParams({
       tokenCtx,
       amount,
       action: "SHIELD",
+      extraSolAmount,
+      userSplAccount: userSplAccount ? userSplAccount : undefined,
     });
 
     await tx.compileAndProve(txParams);
@@ -655,74 +667,52 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log({ e });
-      // console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-
     console.log = () => {};
     //@ts-ignore
     await tx.checkBalances(); // This is a test
     console.log = initLog;
     console.log("✔️ checkBalances success!");
-    // TODO: replace this with a ping to a relayer that's running a merkletree update crank
-    try {
-      console.log("updating merkle tree...");
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️ updated merkle tree!");
-    } catch (e) {
-      console.log = initLog;
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // TODO: add a ping to relayer merkletree update crank
   }
 
   /**
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
    * @params recipient: PublicKey - Solana address
+   * @params extraSolAmount: number - optional, if not set, will use provider minimumLamports
    */
   async unshield({
     token,
     amount,
     recipient,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
     recipient: PublicKey;
+    extraSolAmount?: number;
   }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
 
     let recipientSPLAddress: PublicKey = new PublicKey(0);
     if (!tokenCtx.isSol) {
-      throw new Error("SPL not implemented yet!");
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.tokenAccount,
         recipient,
       );
-      // * units
+
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
     } else {
-      amount = amount * 1e9;
+      extraSolAmount = 0;
     }
+    amount = amount * tokenCtx.decimals;
 
-    const inUtxos = this.selectInUtxos({
-      mint: tokenCtx.tokenAccount,
-      privAmount: 0,
-      pubAmount: amount,
-    });
-
-    const outUtxos = this.createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: -amount,
-      inUtxos,
-    });
-
-    // TODO: replace with ping to relayer webserver
-
+    // TODO: replace with dynamic ping to relayer webserver
     let relayer = new Relayer(
       this.provider.browserWallet!
         ? this.provider.browserWallet.publicKey
@@ -731,6 +721,19 @@ export class User {
       SolanaKeypair.generate().publicKey,
       new anchor.BN(100000),
     );
+    const inUtxos = this.selectInUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount,
+      extraSolAmount,
+    });
+
+    const outUtxos = this.createOutUtxos({
+      mint: tokenCtx.tokenAccount,
+      amount: -amount,
+      inUtxos,
+      relayer,
+      extraSolAmount: 0,
+    });
 
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
@@ -770,28 +773,11 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    console.log = () => {};
-    //@ts-ignore
-    await tx.checkBalances();
-    console.log = initLog;
-    console.log("✔️ checkBalances success!");
-    // TODO: replace this with a ping to a relayer that's running a crank
-    try {
-      console.log("updating merkle tree...");
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️ updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // await tx.checkBalances();
+    console.log("checkBalances INACTIVE");
+    // TODO: add a ping to a relayer that's running a crank
   }
 
   // TODO: add separate lookup function for users.
@@ -809,30 +795,19 @@ export class User {
     amount,
     recipient, // shieldedaddress
     recipientEncryptionPublicKey,
+    extraSolAmount,
   }: {
     token: string;
     amount: number;
-    recipient: anchor.BN; // TODO: Keypair.pubkey -> type
+    recipient: anchor.BN;
     recipientEncryptionPublicKey: Uint8Array;
+    extraSolAmount?: number;
   }) {
-    // TODO: move this to a CLI command
-    // THIS is for the current checkBalances...need privkey
-    const randomShieldedKeypair = new Account({
-      poseidon: this.provider.poseidon,
-    });
-    recipient = randomShieldedKeypair.pubkey;
-    recipientEncryptionPublicKey =
-      randomShieldedKeypair.encryptionKeypair.publicKey;
-    // TEST END
-
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
+    if (!tokenCtx) throw new Error("This token is not supported!");
 
-    // for is sol?
-    if (!tokenCtx.isSol) throw new Error("SPL not implemented yet!");
-    amount = amount * 1e9;
+    amount = amount * tokenCtx.decimals;
     // TODO: pull an actually implemented relayer here
-
     let relayer = new Relayer(
       this.provider.browserWallet!
         ? this.provider.browserWallet.publicKey
@@ -842,10 +817,17 @@ export class User {
       new anchor.BN(100000),
     );
 
+    if (!tokenCtx.isSol) {
+      extraSolAmount = extraSolAmount
+        ? extraSolAmount * 1e9
+        : this.provider.minimumLamports;
+    } else {
+      extraSolAmount = 0;
+    }
     const inUtxos = this.selectInUtxos({
       mint: tokenCtx.tokenAccount,
-      privAmount: amount, // priv pub doesnt need to distinguish here
-      pubAmount: 0,
+      amount,
+      extraSolAmount,
     });
     const outUtxos = this.createOutUtxos({
       mint: tokenCtx.tokenAccount,
@@ -854,22 +836,21 @@ export class User {
       recipient: recipient,
       recipientEncryptionPublicKey: recipientEncryptionPublicKey,
       relayer: relayer,
+      extraSolAmount: 0, //extraSolAmount, TODO: enable
     });
 
     let tx = new Transaction({
       provider: this.provider,
     });
 
-    let randomRecipient = SolanaKeypair.generate().publicKey;
-    console.log("randomRecipient", randomRecipient.toBase58());
-    if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
+    const placeHolderAddress = SolanaKeypair.generate().publicKey;
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      recipient: randomRecipient,
-      recipientFee: randomRecipient,
+      recipient: placeHolderAddress,
+      recipientFee: placeHolderAddress,
       relayer,
     });
 
@@ -890,27 +871,11 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
+      throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    console.log = () => {};
-    await tx.checkBalances(randomShieldedKeypair);
-    console.log = initLog;
-
-    console.log("✔️checkBalances success!");
-    // TODO: replace this with a ping to a relayer that's running a crank
-    try {
-      console.log("updating merkle tree...");
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    //@ts-ignore
+    // await tx.checkBalances();
+    // TODO: add: browserWallet -> ping relayer to update merkletree!
   }
 
   appInteraction() {
@@ -936,7 +901,6 @@ export class User {
 
   async load(cachedUser?: CachedUserState, provider?: Provider) {
     if (cachedUser) {
-      // this.account = cachedUser.account;
       this.seed = cachedUser.seed;
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
       if (!provider) throw new Error("No provider provided");
@@ -1004,9 +968,8 @@ export class User {
       const user = new User({ provider });
       await user.load(cachedUser, provider);
       return user;
-    } catch (err) {
-      console.log("while loading the user", { err });
-      throw err;
+    } catch (e) {
+      throw new Error(`Error while loading user! ${e}`);
     }
   }
 
