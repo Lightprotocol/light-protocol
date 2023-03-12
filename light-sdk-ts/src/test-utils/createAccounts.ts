@@ -31,7 +31,7 @@ import {
   USER_TOKEN_ACCOUNT,
   RECIPIENT_TOKEN_ACCOUNT,
   ADMIN_AUTH_KEY,
-  userTokenAccount,
+  // userTokenAccount,
   confirmConfig,
   AUTHORITY_ONE,
   TOKEN_REGISTRY,
@@ -234,7 +234,10 @@ export async function createMintWrapper({
   }
 }
 
-export async function createTestAccounts(connection: Connection) {
+export async function createTestAccounts(
+  connection: Connection,
+  userTokenAccount?: PublicKey,
+) {
   // const connection = new Connection('http://127.0.0.1:8899', 'confirmed');
 
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
@@ -291,14 +294,18 @@ export async function createTestAccounts(connection: Connection) {
   let userSplAccount = null;
   try {
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === "USDC");
-    userSplAccount = getAssociatedTokenAddressSync(
-      tokenCtx!.tokenAccount,
-      ADMIN_AUTH_KEYPAIR.publicKey,
-    );
+    if (userTokenAccount) {
+      userSplAccount = userTokenAccount;
+    } else {
+      userSplAccount = getAssociatedTokenAddressSync(
+        tokenCtx!.tokenAccount,
+        ADMIN_AUTH_KEYPAIR.publicKey,
+      );
+    }
     console.log(
       "test setup: admin spl acc",
       userSplAccount.toBase58(),
-      userTokenAccount.toBase58(),
+      userTokenAccount?.toBase58(),
     );
 
     balanceUserToken = await getAccount(
@@ -316,7 +323,7 @@ export async function createTestAccounts(connection: Connection) {
         connection: connection,
         MINT,
         ADMIN_AUTH_KEYPAIR,
-        userAccount: ADMIN_AUTH_KEYPAIR, //USER_TOKEN_ACCOUNT,
+        userAccount: userTokenAccount ? USER_TOKEN_ACCOUNT : ADMIN_AUTH_KEYPAIR, //USER_TOKEN_ACCOUNT, // this is to support legacy tests
         amount: new BN(100_000_000_0000),
       });
     }

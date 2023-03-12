@@ -89,14 +89,15 @@ describe("verifier_program", () => {
   );
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  let userSplAccount = null;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
-    console.log = () => {};
-    await createTestAccounts(provider.connection);
+    // console.log = () => {};
+    await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
-    console.log = initLog;
+    // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Account({
@@ -104,6 +105,10 @@ describe("verifier_program", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
+    // userSplAccount = token.getAssociatedTokenAddressSync(
+    //   tokenCtx!.tokenAccount,
+    //   this.provider!.nodeWallet!.publicKey,
+    // );
   });
 
   it.skip("build compressed merkle tree", async () => {

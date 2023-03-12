@@ -300,6 +300,7 @@ describe("verifier_program", () => {
       throw new Error("Failed to update merkle tree!");
     }
   });
+
   it("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
@@ -323,13 +324,6 @@ describe("verifier_program", () => {
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient: solRecipient.publicKey });
 
-    // TODO: add random amount and amount checks
-    // let recipientBalanceAfter =
-    //   await provider.provider.connection.getTokenAccountBalance(
-    //     recipientTokenAccount,
-    //   );
-    // console.log("recipientBalanceAfter: ", recipientBalanceAfter);
-    // let balance = await user.getBalance({ latest: true });
     try {
       console.log("updating merkle tree...");
       let initLog = console.log;
