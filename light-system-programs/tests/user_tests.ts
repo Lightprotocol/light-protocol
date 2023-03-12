@@ -24,6 +24,7 @@ import {
   IDL_VERIFIER_PROGRAM_STORAGE,
   strToArr,
   TOKEN_REGISTRY,
+  updateMerkleTreeForTest,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -239,7 +240,8 @@ describe("verifier_program", () => {
       }`,
     );
   });
-  it.only("(user class) shield SPL", async () => {
+
+  it("(user class) shield SPL", async () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
@@ -252,6 +254,21 @@ describe("verifier_program", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     await user.shield({ amount, token });
+
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      // console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      // console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
     // TODO: add random amount and amount checks
     // let balance = await user.getBalance({ latest: true });
   });
@@ -268,6 +285,20 @@ describe("verifier_program", () => {
     const user = await User.load(provider);
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
   });
   it("(user class) unshield SPL", async () => {
     let amount = 1;
@@ -299,6 +330,20 @@ describe("verifier_program", () => {
     //   );
     // console.log("recipientBalanceAfter: ", recipientBalanceAfter);
     // let balance = await user.getBalance({ latest: true });
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
   });
   it("(user class) transfer SPL", async () => {
     let amount = 1;
@@ -323,6 +368,20 @@ describe("verifier_program", () => {
     });
     // TODO: add balance checks
     // let balance = await user.getBalance({ latest: true });
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
   });
 
   it("(user class) transfer SOL", async () => {
@@ -344,6 +403,20 @@ describe("verifier_program", () => {
       recipient,
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
 
     // TODO: add random amount, recipient and amount checks
   });
@@ -357,6 +430,20 @@ describe("verifier_program", () => {
     const provider = await Provider.native(userKeypair);
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
+    try {
+      console.log("updating merkle tree...");
+      let initLog = console.log;
+      console.log = () => {};
+      await updateMerkleTreeForTest(
+        provider.provider?.connection!,
+        // provider.provider,
+      );
+      console.log = initLog;
+      console.log("✔️updated merkle tree!");
+    } catch (e) {
+      console.log(e);
+      throw new Error("Failed to update merkle tree!");
+    }
     // TODO: add random amount and amount checks
   });
 });

@@ -614,7 +614,6 @@ export class User {
       throw new Error("Shields to other users not implemented yet!");
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx) throw new Error("Token not supported!");
-    // let recipientSPLAddress: PublicKey = new PublicKey(0);
 
     let userSplAccount = null;
     if (!tokenCtx.isSol) {
@@ -623,37 +622,7 @@ export class User {
           tokenCtx!.tokenAccount,
           this.provider!.nodeWallet!.publicKey,
         );
-        console.log("user", this.provider.nodeWallet!.publicKey.toBase58());
-        console.log("admin", ADMIN_AUTH_KEYPAIR.publicKey.toBase58());
-        console.assert(
-          userSplAccount.toBase58() === userTokenAccount.toBase58(),
-          `!! userSpl !== userTokenAccount, ${userSplAccount.toBase58()} !== ${userTokenAccount.toBase58()}`,
-        );
-        // var balanceUserToken = null;
-        // try {
-        //   balanceUserToken = await getAccount(
-        //     this.provider!.provider!.connection,
-        //     userSplAccount,
-        //     "confirmed",
-        //     TOKEN_PROGRAM_ID,
-        //   );
-        // } catch (e) {
-        //   console.log(e);
-        //   throw new Error("couldn't find SPL account!");
-        // }
-        // try {
-        //   if (balanceUserToken == null) {
-        //     await newAccountWithTokens({
-        //       connection: this.provider!.provider!.connection,
-        //       MINT: tokenCtx!.tokenAccount,
-        //       ADMIN_AUTH_KEYPAIR: this.provider.nodeWallet!, // TODO: change naming
-        //       userAccount: USER_TOKEN_ACCOUNT,
-        //       amount: new anchor.BN(100_000_000_000),
-        //     });
-        //   }
-        // } catch (error) {
-        //   console.log("spl token account creation failed: ", error);
-        // }
+
         amount = amount * tokenCtx.decimals;
         try {
           await splToken.approve(
@@ -701,27 +670,13 @@ export class User {
       );
     } catch (e) {
       console.log({ e });
-      // console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
     console.log = () => {};
     //@ts-ignore
     await tx.checkBalances(); // This is a test
     console.log = initLog;
     console.log("✔️ checkBalances success!");
-    // TODO: replace this with a ping to a relayer that's running a merkletree update crank
-    try {
-      console.log("updating merkle tree...");
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️ updated merkle tree!");
-    } catch (e) {
-      console.log = initLog;
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // TODO: add a ping to relayer merkletree update crank
   }
 
   /**
@@ -758,8 +713,6 @@ export class User {
       extraSolAmount = 0;
     }
     amount = amount * tokenCtx.decimals;
-
-    // TODO: replace with dynamic ping to relayer webserver
 
     // TODO: replace with dynamic ping to relayer webserver
     let relayer = new Relayer(
@@ -822,25 +775,11 @@ export class User {
         `https://explorer.solana.com/tx/${res}?cluster=custom&customUrl=http%3A%2F%2Flocalhost%3A8899`,
       );
     } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
+      console.log("tx.sendAndConfirm failed", e);
     }
     // await tx.checkBalances();
     console.log("checkBalances INACTIVE");
-    // TODO: replace this with a ping to a relayer that's running a crank
-    try {
-      console.log("updating merkle tree...");
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️ updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // TODO: add a ping to a relayer that's running a crank
   }
 
   // TODO: add separate lookup function for users.
@@ -867,11 +806,10 @@ export class User {
     extraSolAmount?: number;
   }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
+    if (!tokenCtx) throw new Error("This token is not supported!");
 
     amount = amount * tokenCtx.decimals;
     // TODO: pull an actually implemented relayer here
-
     let relayer = new Relayer(
       this.provider.browserWallet!
         ? this.provider.browserWallet.publicKey
@@ -939,20 +877,7 @@ export class User {
     }
     //@ts-ignore
     // await tx.checkBalances();
-    // TODO: replace this with a ping to a relayer that's running a crank
-    try {
-      console.log("updating merkle tree...");
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        this.provider.provider?.connection!,
-        this.provider.browserWallet && this.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // TODO: add: browserWallet -> ping relayer to update merkletree!
   }
 
   appInteraction() {
