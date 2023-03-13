@@ -38,6 +38,7 @@ import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
 import { Provider } from "./provider";
 import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { assert } from "chai";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -538,12 +539,11 @@ export class User {
     amount,
     extraSolAmount,
     action,
-    userSplAccount,
+    userSplAccount = AUTHORITY,
   }: {
     tokenCtx: TokenContext;
     amount: number;
     extraSolAmount: number;
-    action: string;
     userSplAccount?: PublicKey;
     action: Action;
   }): TransactionParameters {
@@ -589,6 +589,9 @@ export class User {
         senderFee: this.provider.browserWallet!.publicKey,
         verifier, // TODO: add support for 10in here -> verifier1
         provider: this.provider,
+        poseidon: this.provider.poseidon,
+        action,
+        lookUpTable: this.provider.lookUpTable,
       });
 
       return txParams;
@@ -650,13 +653,18 @@ export class User {
       amount = amount * tokenCtx.decimals;
       extraSolAmount = 0;
     }
-    amount = amount * tokenCtx.decimals;
-
+    // amount = amount * tokenCtx.decimals;
+    // let account = await splToken.getAccount(this.provider.provider.connection, userSplAccount, "confirmed");
+    // console.log("account state  before tx params", account);
     const txParams = this.getTxParams({
       tokenCtx,
       amount,
       action: Action.DEPOSIT, //"SHIELD",
+      extraSolAmount,
+      // @ts-ignore
+      userSplAccount,
     });
+
     // TODO: add browserWallet support
     let tx = new Transaction({
       provider: this.provider,
@@ -739,13 +747,6 @@ export class User {
       extraSolAmount: 0,
     });
 
-    // TODO: replace with ping to relayer webserver
-    let relayer = new Relayer(
-      this.provider.nodeWallet!.publicKey,
-      this.provider.lookUpTable!,
-      SolanaKeypair.generate().publicKey,
-      new anchor.BN(100000),
-    );
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -753,11 +754,12 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
-      verifier,
+      verifier: new VerifierZero(),
       relayer,
       poseidon: this.provider.poseidon,
       action: Action.WITHDRAWAL,
     });
+
     /** payer is the nodeWallet of the relayer (always the one sending) */
     let tx = new Transaction({
       provider: this.provider,
@@ -849,7 +851,6 @@ export class User {
 
     let randomRecipient = SolanaKeypair.generate().publicKey;
     console.log("randomRecipient", randomRecipient.toBase58());
-    if (!tokenCtx.isSol) throw new Error("spl not implemented yet!");
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,

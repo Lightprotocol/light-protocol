@@ -32,7 +32,6 @@ import {
   Provider,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { Provider } from "./wallet";
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
 var ffjavascript = require("ffjavascript");
@@ -143,7 +142,6 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable?: PublicKey;
     provider?: Provider;
   }) {
-
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
         TransactionErrorCode.NO_UTXOS_PROVIDED,
@@ -940,27 +938,28 @@ export class Transaction {
       console.log("Invalid proof");
       throw new Error("Invalid Proof");
     }
-
-        var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
-        var publicInputsBytes = new Array<Array<number>>();
-        for (var i in publicInputsBytesJson) {
-          let ref: Array<number> = Array.from([
-            ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
-          ]).reverse();
-          publicInputsBytes.push(ref);
-          // TODO: replace ref, error is that le and be do not seem to be consistent
-          // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
-          // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
-        }
-        const publicInputs =
-          verifier.parsePublicInputsFromArray(publicInputsBytes);
-
-        const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
-        return { proofBytes, publicInputs };
-      } catch (error) {
-        console.error("error while generating and validating proof");
-        throw error;
+    const proofJson = JSON.stringify(proof, null, 1);
+    const publicInputsJson = JSON.stringify(publicSignals, null, 1);
+    try {
+      var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
+      var publicInputsBytes = new Array<Array<number>>();
+      for (var i in publicInputsBytesJson) {
+        let ref: Array<number> = Array.from([
+          ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
+        ]).reverse();
+        publicInputsBytes.push(ref);
+        // TODO: replace ref, error is that le and be do not seem to be consistent
+        // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
+        // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
       }
+      const publicInputs =
+        verifier.parsePublicInputsFromArray(publicInputsBytes);
+
+      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
+      return { proofBytes, publicInputs };
+    } catch (error) {
+      console.error("error while generating and validating proof");
+      throw error;
     }
   }
 
@@ -1942,6 +1941,22 @@ export class Transaction {
     if (!this.remainingAccounts.leavesPdaPubkeys) {
       throw new Error("remainingAccounts.leavesPdaPubkeys undefined");
     }
+    if (!this.testValues) {
+      throw new Error("test values undefined");
+    }
+    if (!this.testValues.recipientFeeBalancePriorTx) {
+      throw new Error("test values recipientFeeBalancePriorTx undefined");
+    }
+
+    if (!this.testValues.recipientBalancePriorTx) {
+      throw new Error("test values recipientBalancePriorTx undefined");
+    }
+
+    if (!this.testValues.relayerRecipientAccountBalancePriorLastTx) {
+      throw new Error(
+        "test values relayerRecipientAccountBalancePriorLastTx undefined",
+      );
+    }
 
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
@@ -2116,7 +2131,7 @@ export class Transaction {
             Number(this.params.publicAmountSol),
       );
       console.log(
-        `${new BN(this.senderFeeBalancePriorTx)
+        `${new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
           .toString()} == ${senderFeeAccountBalance}`,

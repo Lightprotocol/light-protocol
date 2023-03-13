@@ -134,7 +134,7 @@ describe("Verifier Zero and One Tests", () => {
      );
      // does one successful transaction
      await transaction.sendAndConfirmTransaction();
-     await updateMerkleTreeForTest(provider);
+     await updateMerkleTreeForTest(provider.connection);
 
      // // Deposit
      var deposit_utxo2 = new Utxo({
