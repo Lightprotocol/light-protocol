@@ -2,6 +2,8 @@ import { VerifierProgramTwo, IDL_VERIFIER_PROGRAM_TWO } from "../idls/index";
 import { Program } from "@coral-xyz/anchor";
 import {
   hashAndTruncateToCircuit,
+  VerifierError,
+  VerifierErrorCode,
   verifierProgramTwoProgramId,
 } from "../index";
 import { Transaction } from "../transaction";
@@ -31,25 +33,36 @@ export class VerifierTwo implements Verifier {
   }
 
   parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
-    if (publicInputsBytes.length == this.config.nrPublicInputs) {
-      return {
-        root: publicInputsBytes[0],
-        publicAmount: publicInputsBytes[1],
-        extDataHash: publicInputsBytes[2],
-        feeAmount: publicInputsBytes[3],
-        mintPubkey: publicInputsBytes[4],
-        nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
-        leaves: Array.from([
-          publicInputsBytes.slice(9, 11),
-          publicInputsBytes.slice(11, 13),
-        ]),
-        checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
-        connectingHash: Array.from(publicInputsBytes.slice(13, 14)),
-        verifier: Array.from(publicInputsBytes.slice(14, 15)),
-      };
-    } else {
-      throw `publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.config.nrPublicInputs}`;
+    if (!publicInputsBytes) {
+      throw new VerifierError(
+        VerifierErrorCode.PUBLIC_INPUTS_UNDEFINED,
+        "parsePublicInputsFromArray",
+        "verifier zero:",
+      );
     }
+    if (publicInputsBytes.length != this.config.nrPublicInputs) {
+      throw new VerifierError(
+        VerifierErrorCode.INVALID_INPUTS_NUMBER,
+        "parsePublicInputsFromArray",
+        `verifier zero: publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.config.nrPublicInputs}`,
+      );
+    }
+
+    return {
+      root: publicInputsBytes[0],
+      publicAmount: publicInputsBytes[1],
+      extDataHash: publicInputsBytes[2],
+      feeAmount: publicInputsBytes[3],
+      mintPubkey: publicInputsBytes[4],
+      nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
+      leaves: Array.from([
+        publicInputsBytes.slice(9, 11),
+        publicInputsBytes.slice(11, 13),
+      ]),
+      checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
+      connectingHash: Array.from(publicInputsBytes.slice(13, 14)),
+      verifier: Array.from(publicInputsBytes.slice(14, 15)),
+    };
   }
 
   initVerifierProgram(): void {

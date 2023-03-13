@@ -104,10 +104,7 @@ describe("Transaction Parameters Functional", () => {
         params.assetPubkeys[2].toBase58(),
         SystemProgram.programId.toBase58(),
       );
-      assert.equal(
-        params.accounts.recipient?.toBase58(),
-        AUTHORITY.toBase58(),
-      );
+      assert.equal(params.accounts.recipient?.toBase58(), AUTHORITY.toBase58());
       assert.equal(
         params.accounts.recipientFee?.toBase58(),
         AUTHORITY.toBase58(),
@@ -374,10 +371,8 @@ describe("Test TransactionParameters Methods", () => {
       new Utxo({ poseidon }),
     ];
 
-    let { assetPubkeysCircuit, assetPubkeys } = Transaction.getAssetPubkeys(
-      inputUtxos,
-      outputUtxos,
-    );
+    let { assetPubkeysCircuit, assetPubkeys } =
+      TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
     assert.equal(
       assetPubkeys[0].toBase58(),
       SystemProgram.programId.toBase58(),
@@ -410,19 +405,17 @@ describe("Test TransactionParameters Methods", () => {
       }),
       new Utxo({ poseidon }),
     ];
-    let { assetPubkeysCircuit, assetPubkeys } = Transaction.getAssetPubkeys(
-      inputUtxos,
-      outputUtxos,
-    );
+    let { assetPubkeysCircuit, assetPubkeys } =
+      TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
 
-    let publicAmount = Transaction.getExternalAmount(
+    let publicAmount = TransactionParameters.getExternalAmount(
       0,
       inputUtxos,
       outputUtxos,
       assetPubkeysCircuit,
     );
     assert.equal(publicAmount.toString(), "2");
-    let publicAmountSpl = Transaction.getExternalAmount(
+    let publicAmountSpl = TransactionParameters.getExternalAmount(
       1,
       inputUtxos,
       outputUtxos,
@@ -436,7 +429,7 @@ describe("Test TransactionParameters Methods", () => {
       amounts: [new anchor.BN(3), new anchor.BN(5)],
       assets: [SystemProgram.programId, MINT],
     });
-    let publicAmountSpl2Outputs = Transaction.getExternalAmount(
+    let publicAmountSpl2Outputs = TransactionParameters.getExternalAmount(
       1,
       inputUtxos,
       outputUtxos,
@@ -444,7 +437,7 @@ describe("Test TransactionParameters Methods", () => {
     );
     assert.equal(publicAmountSpl2Outputs.toString(), "9");
 
-    let publicAmountSol2Outputs = Transaction.getExternalAmount(
+    let publicAmountSol2Outputs = TransactionParameters.getExternalAmount(
       0,
       inputUtxos,
       outputUtxos,

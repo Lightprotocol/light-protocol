@@ -491,9 +491,6 @@ describe("verifier_program", () => {
       new BN(100000),
     );
 
-
-    console.log(inputUtxos);
-
     let txParams = new TransactionParameters({
       inputUtxos,
       // outputUtxos: [new Utxo({poseidon: POSEIDON})],

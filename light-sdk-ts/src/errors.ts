@@ -5,21 +5,9 @@ export enum UtxoErrorCode {
   NEGATIVE_AMOUNT = "NEGATIVE_AMOUNT",
   NOT_U64 = "NOT_U64",
   BLINDING_EXCEEDS_SIZE = "BLINDING_EXCEEDS_SIZE",
-}
-
-/**
- * @description Thrown when something fails in the Utxo class.
- **/
-export class UtxoError extends Error {
-  name = this.constructor.name;
-  code: string;
-  codeMessage: string;
-
-  constructor(code: string, codeMessage: string) {
-    super(`Utxo error ${code}: ${codeMessage}`);
-    this.code = code;
-    this.codeMessage = codeMessage;
-  }
+  INDEX_NOT_PROVIDED = "INDEX_NOT_PROVIDED",
+  ACCOUNT_HAS_NO_PRIVKEY = "ACCOUNT_HAS_NO_PRIVKEY",
+  ASSET_NOT_FOUND = "ASSET_NOT_FOUND",
 }
 
 export enum ProviderErrorCode {
@@ -28,9 +16,16 @@ export enum ProviderErrorCode {
   PROVIDER_UNDEFINED = "PROVIDER_UNDEFINED",
 }
 
+export enum VerifierErrorCode {
+  PUBLIC_INPUTS_UNDEFINED = "PUBLIC_INPUTS_UNDEFINED",
+  INVALID_INPUTS_NUMBER = "INVALID_INPUTS_NUMBER",
+  ENCRYPTING_UTXOS_UNDEFINED = "ENCRYPTING_UTXOS_UNDEFINED",
+}
+
 export enum SolMerkleTreeErrorCode {
   MERKLE_TREE_UNDEFINED = "MERKLE_TREE_UNDEFINED",
 }
+
 export enum TransactionParametersErrorCode {
   NO_VERIFIER_PROVIDED = "NO_VERIFIER_PROVIDED",
   NO_POSEIDON_HASHER_PROVIDED = "NO_POSEIDON_HASHER_PROVIDED",
@@ -49,6 +44,7 @@ export enum TransactionParametersErrorCode {
 }
 
 export enum TransactionErrorCode {
+  PROVIDER_UNDEFINED = "PROVIDER_UNDEFINED",
   ROOT_INDEX_NOT_FETCHED = "ROOT_INDEX_NOT_FETCHED",
   REMAINING_ACCOUNTS_NOT_CREATED = "REMAINING_ACCOUNTS_NOT_CREATED",
   TRANSACTION_INPUTS_UNDEFINED = "TRANSACTION_INPUTS_UNDEFINED",
@@ -106,3 +102,10 @@ export class MetaError extends Error {
 export class TransactionError extends MetaError {}
 
 export class TransactioParametersError extends MetaError {}
+
+/**
+ * @description Thrown when something fails in the Utxo class.
+ **/
+export class UtxoError extends MetaError {}
+
+export class VerifierError extends MetaError {}
