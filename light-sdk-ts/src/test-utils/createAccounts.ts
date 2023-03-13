@@ -330,6 +330,17 @@ export async function createTestAccounts(
   } catch (error) {
     console.log(error);
   }
+  console.log("userSplAccount ", userSplAccount);
+
+  console.log(
+    "funded account",
+    await getAccount(
+      connection,
+      userSplAccount!, //userTokenAccount,
+      "confirmed",
+      TOKEN_PROGRAM_ID,
+    ),
+  );
 
   try {
     if (balanceUserToken == null) {

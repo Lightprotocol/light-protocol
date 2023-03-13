@@ -49,6 +49,7 @@ import {
   strToArr,
   RECIPIENT_TOKEN_ACCOUNT,
   TOKEN_REGISTRY,
+  Action,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -258,9 +259,7 @@ describe("verifier_program", () => {
       );
       const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-      let tx = new Transaction({
-        provider: lightProvider,
-      });
+
 
       let deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -278,8 +277,15 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierOne(),
+        poseidon: POSEIDON,
+        lookUpTable: LOOK_UP_TABLE,
+        action: Action.DEPOSIT
       });
-      await tx.compileAndProve(txParams);
+      let tx = new Transaction({
+        provider: lightProvider,
+        params: txParams
+      });
+      await tx.compileAndProve();
 
       try {
         let res = await tx.sendAndConfirmTransaction();
@@ -322,9 +328,7 @@ describe("verifier_program", () => {
 
       const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-      let tx = new Transaction({
-        provider: lightProvider,
-      });
+
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -342,8 +346,15 @@ describe("verifier_program", () => {
         sender: userTokenAccount,
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
+        lookUpTable: LOOK_UP_TABLE,
+        action: Action.DEPOSIT,
+        poseidon: POSEIDON
       });
-      await tx.compileAndProve(txParams);
+      let tx = new Transaction({
+        provider: lightProvider,
+        params: txParams
+      });
+      await tx.compileAndProve();
 
       try {
         let res = await tx.sendAndConfirmTransaction();
@@ -388,12 +399,7 @@ describe("verifier_program", () => {
       new BN(100000),
     );
 
-    let tx = new Transaction({
-      provider: lightProvider,
-      // relayer,
-      // payer: ADMIN_AUTH_KEYPAIR,
-      // shuffleEnabled: false,
-    });
+
 
     let txParams = new TransactionParameters({
       inputUtxos: [decryptedUtxo1],
@@ -402,9 +408,18 @@ describe("verifier_program", () => {
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
       relayer,
+      action: Action.WITHDRAWAL,
+      poseidon
+    });
+    let tx = new Transaction({
+      provider: lightProvider,
+      // relayer,
+      // payer: ADMIN_AUTH_KEYPAIR,
+      shuffleEnabled: false,
+      params: txParams
     });
 
-    await tx.compileAndProve(txParams);
+    await tx.compileAndProve();
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -476,10 +491,8 @@ describe("verifier_program", () => {
       new BN(100000),
     );
 
-    let tx = new Transaction({
-      provider: lightProvider,
-      // relayer,
-    });
+
+    console.log(inputUtxos);
 
     let txParams = new TransactionParameters({
       inputUtxos,
@@ -498,8 +511,16 @@ describe("verifier_program", () => {
       recipientFee,
       verifier: new VerifierOne(),
       relayer,
+      poseidon: POSEIDON,
+      action: Action.WITHDRAWAL
     });
-    await tx.compileAndProve(txParams);
+    let tx = new Transaction({
+      provider: lightProvider,
+      // relayer,
+      params: txParams
+    });
+
+    await tx.compileAndProve();
 
     try {
       let res = await tx.sendAndConfirmTransaction();

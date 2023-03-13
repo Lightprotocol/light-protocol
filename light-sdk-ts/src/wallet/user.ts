@@ -6,7 +6,7 @@ import {
 import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Transaction, TransactionParameters } from "../transaction";
+import { Action, Transaction, TransactionParameters } from "../transaction";
 import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
 
@@ -38,6 +38,7 @@ import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
 import { Provider } from "./provider";
 import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { assert } from "chai";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -538,13 +539,13 @@ export class User {
     amount,
     extraSolAmount,
     action,
-    userSplAccount,
+    userSplAccount = AUTHORITY,
   }: {
     tokenCtx: TokenContext;
     amount: number;
     extraSolAmount: number;
-    action: string;
     userSplAccount?: PublicKey;
+    action: Action;
   }): TransactionParameters {
     /// TODO: pass in flag "SHIELD", "UNSHIELD", "TRANSFER"
     // TODO: check with spl -> selects proper tokens?
@@ -571,6 +572,9 @@ export class User {
           : userSplAccount, // TODO: must be users token account DYNAMIC here
         senderFee: this.provider.nodeWallet!.publicKey,
         verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
+        poseidon: this.provider.poseidon,
+        action,
+        lookUpTable: this.provider.lookUpTable,
       });
       return txParams;
     } else {
@@ -585,6 +589,9 @@ export class User {
         senderFee: this.provider.browserWallet!.publicKey,
         verifier, // TODO: add support for 10in here -> verifier1
         provider: this.provider,
+        poseidon: this.provider.poseidon,
+        action,
+        lookUpTable: this.provider.lookUpTable,
       });
 
       return txParams;
@@ -646,20 +653,25 @@ export class User {
       amount = amount * tokenCtx.decimals;
       extraSolAmount = 0;
     }
-
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
+    // amount = amount * tokenCtx.decimals;
+    // let account = await splToken.getAccount(this.provider.provider.connection, userSplAccount, "confirmed");
+    // console.log("account state  before tx params", account);
     const txParams = this.getTxParams({
       tokenCtx,
       amount,
-      action: "SHIELD",
+      action: Action.DEPOSIT, //"SHIELD",
       extraSolAmount,
-      userSplAccount: userSplAccount ? userSplAccount : undefined,
+      // @ts-ignore
+      userSplAccount,
     });
 
-    await tx.compileAndProve(txParams);
+    // TODO: add browserWallet support
+    let tx = new Transaction({
+      provider: this.provider,
+      params: txParams,
+    });
+
+    await tx.compileAndProve();
 
     try {
       let res = await tx.sendAndConfirmTransaction();
@@ -735,15 +747,6 @@ export class User {
       extraSolAmount: 0,
     });
 
-    /** payer is the nodeWallet of the relayer (always the one sending) */
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
-    const verifier = new VerifierZero(
-      this.provider.browserWallet && this.provider,
-    );
-
     // refactor idea: getTxparams -> in,out
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
@@ -751,12 +754,19 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
-      verifier,
+      verifier: new VerifierZero(),
       relayer,
-      provider: this.provider,
+      poseidon: this.provider.poseidon,
+      action: Action.WITHDRAWAL,
     });
 
-    await tx.compileAndProve(txParams);
+    /** payer is the nodeWallet of the relayer (always the one sending) */
+    let tx = new Transaction({
+      provider: this.provider,
+      params: txParams,
+    });
+
+    await tx.compileAndProve();
 
     // TODO: add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -839,22 +849,26 @@ export class User {
       extraSolAmount: 0, //extraSolAmount, TODO: enable
     });
 
-    let tx = new Transaction({
-      provider: this.provider,
-    });
-
-    const placeHolderAddress = SolanaKeypair.generate().publicKey;
+    let randomRecipient = SolanaKeypair.generate().publicKey;
+    console.log("randomRecipient", randomRecipient.toBase58());
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       verifier: new VerifierZero(),
-      recipient: placeHolderAddress,
-      recipientFee: placeHolderAddress,
+      // recipient: randomRecipient,
+      // recipientFee: randomRecipient,
       relayer,
+      poseidon: this.provider.poseidon,
+      action: Action.TRANSFER,
     });
 
-    await tx.compileAndProve(txParams);
+    let tx = new Transaction({
+      provider: this.provider,
+      params: txParams,
+    });
+
+    await tx.compileAndProve();
     // TODO: remove once relayer implemented.
     // add check in client to avoid rent exemption issue
     // add enough funds such that rent exemption is ensured
@@ -889,7 +903,7 @@ export class User {
         txConfig: { in: number; out: number },
         verifier, can be verifier object
     }
-    * 
+    *
     */
 
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.

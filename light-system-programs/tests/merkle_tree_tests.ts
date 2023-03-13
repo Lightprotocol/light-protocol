@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { SystemProgram, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert, expect } from "chai";
@@ -38,6 +38,7 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   Account,
   Provider,
+  Action,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -67,7 +68,7 @@ describe("Merkle Tree Tests", () => {
       MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
-    INVALID_SIGNER = new anchor.web3.Account();
+    INVALID_SIGNER = Keypair.generate();
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         INVALID_SIGNER.publicKey,
@@ -86,7 +87,6 @@ describe("Merkle Tree Tests", () => {
     try {
       if (args) {
         expect(await fn(args)).throw();
-        s;
       } else {
         expect(await fn()).throw();
       }
@@ -111,8 +111,8 @@ describe("Merkle Tree Tests", () => {
       new anchor.BN(
         newTree.roots[newTree.currentRootIndex.toNumber()],
         32,
-        "le",
-      ),
+        "le"
+      ).toString()
     );
   });
 
@@ -192,7 +192,7 @@ describe("Merkle Tree Tests", () => {
     await merkleTreeConfig.initMerkleTreeAuthority();
     await merkleTreeConfig.initializeNewMerkleTree();
 
-    let newAuthority = new anchor.web3.Account();
+    let newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
         newAuthority.publicKey,
@@ -387,7 +387,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+      await merkleTreeConfig.registerPoolType(new Array(32).fill(0));
     } catch (e) {
       error = e;
     }
@@ -399,7 +399,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
     try {
-      await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+      await merkleTreeConfig.registerPoolType(new Array(32).fill(0));
     } catch (e) {
       error = e;
     }
@@ -411,7 +411,7 @@ describe("Merkle Tree Tests", () => {
     );
     error = undefined;
 
-    await merkleTreeConfig.registerPoolType(new Uint8Array(32).fill(0));
+    await merkleTreeConfig.registerPoolType(new Array(32).fill(0));
 
     let registeredPoolTypePdaAccount =
       await merkleTreeProgram.account.registeredPoolType.fetch(
@@ -426,7 +426,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+      await merkleTreeConfig.registerSolPool(new Array(32).fill(0));
     } catch (e) {
       error = e;
     }
@@ -439,7 +439,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
     try {
-      await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+      await merkleTreeConfig.registerSolPool(new Array(32).fill(0));
     } catch (e) {
       error = e;
     }
@@ -453,7 +453,7 @@ describe("Merkle Tree Tests", () => {
     error = undefined;
 
     // valid
-    await merkleTreeConfig.registerSolPool(new Uint8Array(32).fill(0));
+    await merkleTreeConfig.registerSolPool(new Array(32).fill(0));
     console.log("merkleTreeConfig ", merkleTreeConfig);
 
     let registeredSolPdaAccount =
@@ -464,7 +464,7 @@ describe("Merkle Tree Tests", () => {
       registeredSolPdaAccount.poolType.toString(),
       new Uint8Array(32).fill(0).toString(),
     );
-    assert.equal(registeredSolPdaAccount.index, 0);
+    assert.equal(registeredSolPdaAccount.index.toString(), "0");
     assert.equal(
       registeredSolPdaAccount.assetPoolPubkey.toBase58(),
       MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda.toBase58(),
@@ -478,7 +478,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with invalid signer
     merkleTreeConfig.payer = INVALID_SIGNER;
     try {
-      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+      await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
     } catch (e) {
       error = e;
     }
@@ -490,7 +490,7 @@ describe("Merkle Tree Tests", () => {
     // update merkle tree with INVALID_MERKLE_TREE_AUTHORITY_PDA
     merkleTreeConfig.merkleTreeAuthorityPda = INVALID_MERKLE_TREE_AUTHORITY_PDA;
     try {
-      await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+      await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
     } catch (e) {
       error = e;
     }
@@ -503,7 +503,7 @@ describe("Merkle Tree Tests", () => {
     error = undefined;
 
     // valid
-    await merkleTreeConfig.registerSplPool(new Uint8Array(32).fill(0), mint);
+    await merkleTreeConfig.registerSplPool(new Array(32).fill(0), mint);
     console.log(merkleTreeConfig.poolPdas);
 
     let registeredSplPdaAccount =
@@ -581,9 +581,7 @@ describe("Merkle Tree Tests", () => {
 
     let lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
 
-    var transaction = new Transaction({
-      provider: lightProvider,
-    });
+
 
     deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,
@@ -598,8 +596,15 @@ describe("Merkle Tree Tests", () => {
       sender: userTokenAccount,
       senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
+      action: Action.DEPOSIT,
+      lookUpTable: LOOK_UP_TABLE,
+      poseidon: POSEIDON
     });
-    await transaction.compileAndProve(txParams);
+    var transaction = new Transaction({
+      provider: lightProvider,
+      params: txParams
+    });
+    await transaction.compileAndProve();
     console.log(transaction.params.accounts);
 
     // does one successful transaction

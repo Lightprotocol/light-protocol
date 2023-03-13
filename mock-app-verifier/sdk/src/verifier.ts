@@ -20,7 +20,6 @@ import {
   IDL,
   MockVerifier as MockVerifierType,
 } from "../../target/types/mock_verifier";
-import { assert } from "chai";
 
 export class MockVerifier implements Verifier {
   verifierProgram: Program<MockVerifierType>;
@@ -107,11 +106,11 @@ export class MockVerifier implements Verifier {
 
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        transaction.publicInputs.publicAmount,
-        transaction.publicInputs.nullifiers,
-        transaction.publicInputs.leaves,
-        transaction.publicInputs.feeAmount,
-        new anchor.BN(transaction.rootIndex.toString()), // could make this smaller to u16
+        transaction.transactionInputs.publicInputs.publicAmount,
+        transaction.transactionInputs.publicInputs.nullifiers,
+        transaction.transactionInputs.publicInputs.leaves,
+        transaction.transactionInputs.publicInputs.feeAmount,
+        new anchor.BN(transaction.transactionInputs.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos.slice(0, 512)),
       )
@@ -124,13 +123,13 @@ export class MockVerifier implements Verifier {
 
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
-        transaction.proofBytesApp.proofA,
-        transaction.proofBytesApp.proofB,
-        transaction.proofBytesApp.proofC,
-        transaction.proofBytes.proofA,
-        transaction.proofBytes.proofB,
-        transaction.proofBytes.proofC,
-        Buffer.from(transaction.publicInputsApp.connectingHash),
+        transaction.transactionInputs.proofBytesApp.proofA,
+        transaction.transactionInputs.proofBytesApp.proofB,
+        transaction.transactionInputs.proofBytesApp.proofC,
+        transaction.transactionInputs.proofBytes.proofA,
+        transaction.transactionInputs.proofBytes.proofB,
+        transaction.transactionInputs.proofBytes.proofC,
+        Buffer.from(transaction.transactionInputs.publicInputsApp.connectingHash)
       )
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
@@ -139,8 +138,8 @@ export class MockVerifier implements Verifier {
         relayerRecipient: relayerRecipient,
       })
       .remainingAccounts([
-        ...transaction.params.nullifierPdaPubkeys,
-        ...transaction.params.leavesPdaPubkeys,
+        ...transaction.remainingAccounts.nullifierPdaPubkeys,
+        ...transaction.remainingAccounts.leavesPdaPubkeys,
       ])
       .instruction();
 

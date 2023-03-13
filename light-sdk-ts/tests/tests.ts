@@ -10,18 +10,23 @@ import { Scalar } from "ffjavascript";
 import { Account } from "../src/account";
 import { Utxo } from "../src/utxo";
 import {
-  ADMIN_AUTH_KEYPAIR,
   FEE_ASSET,
   functionalCircuitTest,
   hashAndTruncateToCircuit,
   Provider as LightProvider,
-  MERKLE_TREE_KEY,
   MINT,
   Transaction,
   UtxoError,
   UtxoErrorCode,
+  TransactionError,
+  TransactionErrorCode,
+  ProviderErrorCode,
+  Provider,
+  TransactionParameters,
+  VerifierZero,
+  Action,
+  Relayer,
 } from "../src";
-import { SolMerkleTree } from "../src/merkleTree/solMerkleTree";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 
@@ -394,15 +399,54 @@ describe("verifier_program", () => {
     await functionalCircuitTest();
   });
 
-  it("assign Accounts", async () => {});
+  it("Test Transaction constructor", async () => {
+    let mockPubkey = SolanaKeypair.generate().publicKey;
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    let lightProvider: Provider = {};
+
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.POSEIDON_HASHER_UNDEFINED,
+        functionName: "constructor",
+      });
+    lightProvider = { poseidon: poseidon };
+
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
+        functionName: "constructor",
+      });
+
+    lightProvider = { poseidon: poseidon, solMerkleTree: 1 };
+
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.WALLET_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
   it("getIndices", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
     let mockPubkey = SolanaKeypair.generate().publicKey;
     let lightProvider = await LightProvider.loadMock(mockPubkey);
-    let tx = new Transaction({
-      provider: lightProvider,
-    });
 
     var deposit_utxo1 = new Utxo({
       poseidon,
@@ -410,11 +454,30 @@ describe("verifier_program", () => {
       amounts: [new anchor.BN(1), new anchor.BN(2)],
     });
 
-    tx.assetPubkeysCircuit = [
-      hashAndTruncateToCircuit(SystemProgram.programId.toBytes()),
-      hashAndTruncateToCircuit(MINT.toBytes()),
-      new anchor.BN(0),
-    ];
+    const relayer = new Relayer(
+      mockPubkey,
+      mockPubkey,
+      mockPubkey,
+      new anchor.BN(5000),
+    );
+
+    var params = new TransactionParameters({
+      inputUtxos: [deposit_utxo1],
+      merkleTreePubkey: mockPubkey,
+      verifier: new VerifierZero(),
+      recipient: mockPubkey,
+      recipientFee: mockPubkey,
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.WITHDRAWAL,
+      relayer,
+    });
+
+    let tx = new Transaction({
+      provider: lightProvider,
+      params,
+    });
+
     const indices1 = tx.getIndices([deposit_utxo1]);
     assert.equal(indices1[0][0][0], "1");
     assert.equal(indices1[0][0][1], "0");

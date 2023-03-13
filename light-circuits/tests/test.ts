@@ -13,6 +13,7 @@ import {
   VerifierTwo,
   Verifier,
   VerifierOne,
+  Action,
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
@@ -69,20 +70,29 @@ async function functionalCircuitTest(verifier: Verifier, app: boolean = false) {
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
-    senderFee: mockPubkey,
+    senderFee: lightProvider.nodeWallet.publicKey,
     verifier: verifier,
+    lookUpTable: mockPubkey,
+    action: Action.DEPOSIT,
+    poseidon
   });
 
-  let tx = new Transaction({
-    provider: lightProvider,
-  });
+  let tx 
 
   // successful proofgeneration
   if (app) {
-    await tx.compile(txParams, { mock: "123" });
+   tx = new Transaction({
+      provider: lightProvider,
+      params: txParams,
+      appParams: { mock: "123" }
+    });
   } else {
-    await tx.compile(txParams);
+    tx = new Transaction({
+      provider: lightProvider,
+      params: txParams,
+    });
   }
+  await tx.compile();
 
   await tx.getProof();
   // unsuccessful proofgeneration
