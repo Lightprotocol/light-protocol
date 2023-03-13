@@ -114,14 +114,11 @@ export class VerifierZero implements Verifier {
         "getInstructions",
         "verifier zero: params.encryptedUtxos undefined",
       );
-    if (
-      !transaction.provider.browserWallet &&
-      !transaction.provider.nodeWallet
-    ) {
+    if (!transaction.provider.wallet) {
       throw new VerifierError(
         TransactionErrorCode.WALLET_UNDEFINED,
         "getInstructions",
-        "verifier zero: Payer(browserwallet, nodewallet) not defined",
+        "verifier zero: Payer(wallet) not defined",
       );
     }
     if (!this.verifierProgram)

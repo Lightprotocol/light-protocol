@@ -61,13 +61,13 @@ describe("verifier_program", () => {
       });
   });
 
-  it("Native Provider", async ()=> {
+  it("Provider", async ()=> {
     let connection = new Connection("http://127.0.0.1:8899", "confirmed");
     await connection.confirmTransaction(await connection.requestAirdrop(ADMIN_AUTH_KEYPAIR.publicKey, 10_000_000_0000), "confirmed");
     const mockKeypair = SolanaKeypair.generate();
-    const lightProviderMock = await LightProvider.native(mockKeypair);
-    assert.equal(lightProviderMock.browserWallet, undefined);
-    assert.equal(lightProviderMock.nodeWallet?.publicKey.toBase58(), mockKeypair.publicKey.toBase58());
+    const lightProviderMock = await LightProvider.initialize(mockKeypair);
+    assert.equal(lightProviderMock.wallet.node_wallet, true);
+    assert.equal(lightProviderMock.wallet?.publicKey.toBase58(), mockKeypair.publicKey.toBase58());
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
     assert(lightProviderMock.poseidon);
     assert(lightProviderMock.lookUpTable);
@@ -78,7 +78,7 @@ describe("verifier_program", () => {
   });
 
   it("Fetch latestMerkleTree", async () => {
-    const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
 
     let depositFeeAmount = 10000;
     let depositAmount = 0;

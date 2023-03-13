@@ -67,15 +67,12 @@ export class SolMerkleTree {
 
     const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       merkleTreePubkey,
+      "confirmed",
     );
 
     const merkleTreeIndex = mtFetched.nextIndex;
-    // console.log(
-    //   "getCompressedLeaves merkleTreeIndex",
-    //   merkleTreeIndex.toNumber(),
-    // );
+
     merkleTreeProgram.account.twoLeavesBytesPda.all();
-    // merkleTreeProgram.account.twoLeavesBytesPda
 
     let leavesAccounts: Array<{
       account: QueuedLeavesPda;

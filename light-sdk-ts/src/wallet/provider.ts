@@ -3,7 +3,6 @@ import {
   AnchorProvider,
   BN,
   setProvider,
-  Wallet,
 } from "@coral-xyz/anchor";
 import { SolMerkleTree } from "../merkleTree";
 import {
@@ -11,22 +10,25 @@ import {
   Keypair as SolanaKeypair,
   Connection,
   ConfirmOptions,
+  Keypair,
 } from "@solana/web3.js";
 import { ADMIN_AUTH_KEYPAIR, initLookUpTableFromFile } from "../test-utils";
 import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
 import { MerkleTree } from "../merkleTree/merkleTree";
 import { ProviderError, ProviderErrorCode } from "../errors";
+import { useWallet } from "./useWallet";
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
 /**
  * use: signMessage, signTransaction, sendAndConfirmTransaction, publicKey from the useWallet() hook in solana/wallet-adapter and {connection} from useConnection()
  */
-export type BrowserWallet = {
+export type Wallet = {
   signMessage: (message: Uint8Array) => Promise<Uint8Array>;
   signTransaction: (transaction: any) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
+  node_wallet?: boolean;
 };
 
 /**
@@ -35,8 +37,7 @@ export type BrowserWallet = {
 // TODO: add relayer here; default deriv, if passed in can choose custom relayer.
 export class Provider {
   connection?: Connection;
-  browserWallet?: BrowserWallet;
-  nodeWallet?: SolanaKeypair;
+  wallet: Wallet;
   confirmConfig: ConfirmOptions;
   poseidon: any;
   lookUpTable?: PublicKey;
@@ -46,43 +47,36 @@ export class Provider {
   minimumLamports: BN;
 
   /**
-   * Init either with nodeWallet or browserWallet. Feepayer is the provided wallet
+   * Initialize with Wallet or SolanaKeypair. Feepayer is the provided wallet
    * Optionally provide confirmConfig, Default = 'confirmed'.
    */
   constructor({
-    nodeWallet,
-    browserWallet,
+    wallet,
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
     minimumLamports = new BN(5000 * 30),
   }: {
-    nodeWallet?: SolanaKeypair;
-    browserWallet?: BrowserWallet;
+    wallet: Wallet | SolanaKeypair;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
     minimumLamports?: BN;
   }) {
-    if (nodeWallet && browserWallet)
+    if (!wallet)
       throw new ProviderError(
-        ProviderErrorCode.NODE_WALLET_AND_BROWSER_WALLET_DEFINED,
-        "constructor",
-        "Both node and browser environments provided chose one.",
-      );
-    if (!nodeWallet && !browserWallet)
-      throw new ProviderError(
-        ProviderErrorCode.NODE_WALLET_AND_BROWSER_WALLET_UNDEFINED,
+        ProviderErrorCode.WALLET_UNDEFINED,
         "constructor",
         "No wallet provided.",
       );
-    if (browserWallet && !connection)
+
+    if (!("secretKey" in wallet) && !connection)
       throw new ProviderError(
         ProviderErrorCode.CONNECTION_UNDEFINED,
         "constructor",
         "No connection provided with browser wallet.",
       );
-    if (nodeWallet && connection)
+    if ("secretKey" in wallet && connection)
       throw new ProviderError(
         ProviderErrorCode.CONNECTION_DEFINED,
         "constructor",
@@ -92,8 +86,8 @@ export class Provider {
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
     this.minimumLamports = minimumLamports;
 
-    if (nodeWallet) {
-      this.nodeWallet = nodeWallet;
+    if ("secretKey" in wallet) {
+      this.wallet = useWallet(wallet as SolanaKeypair, url);
       // TODO: check if we can remove this.url!
       this.url = url;
       // TODO: check if we can remove this.provider!
@@ -101,18 +95,16 @@ export class Provider {
         setProvider(AnchorProvider.env());
         this.provider = AnchorProvider.local(url, confirmConfig);
       }
-    }
-    if (browserWallet) {
-      //@ts-ignore
+    } else {
       this.connection = connection;
       this.provider = { connection: connection! };
-      this.browserWallet = browserWallet;
+      this.wallet = wallet as Wallet;
     }
   }
 
   static async loadMock() {
     let mockProvider = new Provider({
-      nodeWallet: ADMIN_AUTH_KEYPAIR,
+      wallet: ADMIN_AUTH_KEYPAIR,
       url: "mock",
     });
     await mockProvider.loadPoseidon();
@@ -127,7 +119,7 @@ export class Provider {
 
   private async fetchLookupTable() {
     try {
-      if (this.browserWallet) {
+      if (!this.wallet.node_wallet) {
         const response = await axios.get("http://localhost:3331/lookuptable");
         this.lookUpTable = new PublicKey(response.data.data);
         return;
@@ -143,7 +135,7 @@ export class Provider {
 
   private async fetchMerkleTree(merkleTreePubkey: PublicKey) {
     try {
-      if (this.browserWallet) {
+      if (!this.wallet.node_wallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
 
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
@@ -161,6 +153,7 @@ export class Provider {
 
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
         merkleTreePubkey,
+        "confirmed"
       );
       if (!merkletreeIsInited) {
         throw new ProviderError(
@@ -198,51 +191,21 @@ export class Provider {
    * @param walletContext get from useWallet() hook
    * @param confirmConfig optional, default = 'confirmed'
    * @param connection get from useConnection() hook
-   */
-  static async browser(
-    browserWallet: BrowserWallet,
-    connection: Connection,
-    confirmConfig?: ConfirmOptions,
-  ): Promise<Provider> {
-    if (!browserWallet) {
-      throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
-    }
-    if (!connection) {
-      throw new ProviderError(
-        ProviderErrorCode.CONNECTION_UNDEFINED,
-        "browser",
-      );
-    }
-
-    const provider = new Provider({
-      browserWallet,
-      confirmConfig,
-      connection,
-    });
-    await provider.loadPoseidon();
-    await provider.fetchLookupTable();
-    await provider.fetchMerkleTree(MERKLE_TREE_KEY);
-    return provider;
-  }
-
-  /**
-   * Only use this if you have access to a local keypair. If you use WalletAdapter, e.g. in a browser, use getProvider() instead.
-   * @param keypair - user's keypair to sign transactions
-   * @param confirmConfig optional, default = 'confirmed'
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  static async native(
-    keypair: SolanaKeypair,
-    url?: string,
+  static async initialize(
+    wallet: Wallet | SolanaKeypair | Keypair,
+    connection?: Connection,
     confirmConfig?: ConfirmOptions,
+    url?: string,
   ): Promise<Provider> {
-    if (!keypair) {
-      throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "native");
+    if (!wallet) {
+      throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
     }
-
     const provider = new Provider({
-      nodeWallet: keypair,
+      wallet,
       confirmConfig,
+      connection,
       url,
     });
     await provider.loadPoseidon();

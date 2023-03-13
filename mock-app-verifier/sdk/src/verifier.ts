@@ -75,9 +75,7 @@ export class MockVerifier implements Verifier {
     const invokingVerifierPubkey = (
       await PublicKey.findProgramAddress(
         [
-          transaction.provider.browserWallet
-            ? transaction.provider.browserWallet.publicKey.toBytes()
-            : transaction.provider.nodeWallet!.publicKey.toBytes(),
+          transaction.provider.wallet.publicKey.toBytes()
           // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         this.verifierProgram.programId,

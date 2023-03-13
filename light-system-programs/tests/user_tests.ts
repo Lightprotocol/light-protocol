@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import {Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 const chai = require("chai");
@@ -41,7 +41,7 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 
 // TODO: remove deprecated function calls
-describe("user_tests", () => {
+describe("Test User", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -69,7 +69,7 @@ describe("user_tests", () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.initialize(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -152,8 +152,8 @@ describe("user_tests", () => {
 
   it("(user class) shield SOL", async () => {
     let amount = 15;
-    let token = "SOL";
-    const provider = await Provider.native(userKeypair);
+    let token = "SOL"
+    const provider = await Provider.initialize(userKeypair);
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
@@ -223,7 +223,7 @@ describe("user_tests", () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.initialize(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -322,7 +322,7 @@ describe("user_tests", () => {
   it("(user class) transfer SPL", async () => {
     let amountSpl = 1;
     const token = "USDC";
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.initialize(userKeypair); // userKeypair
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
@@ -403,7 +403,7 @@ describe("user_tests", () => {
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.native(userKeypair);
+    const provider = await Provider.initialize(userKeypair);
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -455,7 +455,7 @@ describe("user_tests", () => {
     let recipient = new PublicKey(
       "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
     );
-    const provider = await Provider.native(userKeypair);
+    const provider = await Provider.initialize(userKeypair);
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
     try {

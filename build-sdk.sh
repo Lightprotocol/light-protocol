@@ -20,3 +20,8 @@ pushd mock-app-verifier
 rm -rf node_modules
 yarn
 popd
+
+pushd relayer
+rm -rf node_modules
+yarn
+popd

@@ -77,7 +77,7 @@ describe("Mock verifier functional", () => {
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+    let lightProvider = await LightProvider.initialize(ADMIN_AUTH_KEYPAIR);
 
     outputUtxo = new Utxo({
       poseidon,
@@ -128,7 +128,7 @@ describe("Mock verifier functional", () => {
   it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+    let lightProvider = await LightProvider.initialize(ADMIN_AUTH_KEYPAIR);
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,

@@ -5,7 +5,7 @@ import {
   AddressLookupTableAccount,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { confirmConfig, Provider } from "light-sdk";
+import { confirmConfig, Provider, useWallet } from "light-sdk";
 
 export async function sendTransaction(
   ix: any,
@@ -17,7 +17,7 @@ export async function sendTransaction(
     await provider.provider.connection.getRecentBlockhash("confirmed")
   ).blockhash;
   const txMsg = new TransactionMessage({
-    payerKey: provider.nodeWallet!.publicKey,
+    payerKey: provider.wallet!.publicKey,
     instructions: [
       ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
       ix,
@@ -50,8 +50,7 @@ export async function sendTransaction(
   let retries = 3;
   let res;
   while (retries > 0) {
-    tx.sign([provider.nodeWallet!]);
-
+    tx = await provider.wallet.signTransaction(tx);
     try {
       let serializedTx = tx.serialize();
       console.log("tx: ");
