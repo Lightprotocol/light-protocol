@@ -107,18 +107,24 @@ export class Utxo {
     } catch (_) {
       throw new UtxoError(
         UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
+        "constructor",
+
         `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
       );
     }
     if (assets.length != amounts.length) {
       throw new UtxoError(
         UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
+        "constructor",
+
         `Length missmatch assets: ${assets.length} != amounts: ${amounts.length}`,
       );
     }
     if (assets.length > N_ASSETS) {
       throw new UtxoError(
         UtxoErrorCode.EXCEEDED_MAX_ASSETS,
+        "constructor",
+
         `assets.length ${assets.length} > N_ASSETS ${N_ASSETS}`,
       );
     }
@@ -131,6 +137,8 @@ export class Utxo {
       if (amounts[i] < new BN(0)) {
         throw new UtxoError(
           UtxoErrorCode.NEGATIVE_AMOUNT,
+          "constructor",
+
           `amount cannot be negative, amounts[${i}] = ${amounts[i]}`,
         );
       }
@@ -154,7 +162,11 @@ export class Utxo {
       try {
         x.toArray("be", 8);
       } catch (_) {
-        throw new UtxoError(UtxoErrorCode.NOT_U64, `amount ${x} not a u64`);
+        throw new UtxoError(
+          UtxoErrorCode.NOT_U64,
+          "constructor",
+          `amount ${x} not a u64`,
+        );
       }
       return new BN(x.toString());
     });
@@ -216,6 +228,7 @@ export class Utxo {
       } else {
         throw new UtxoError(
           UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
+          "constructor",
           "No appDataFromBytesFn provided",
         );
       }
@@ -231,7 +244,11 @@ export class Utxo {
   toBytes() {
     const assetIndex = getAssetIndex(this.assets[1]);
     if (assetIndex.toString() == "-1") {
-      throw new Error("Asset not found in lookup table");
+      throw new UtxoError(
+        UtxoErrorCode.ASSET_NOT_FOUND,
+        "toBytes",
+        "Asset not found in lookup table",
+      );
     }
 
     // case no or excluding appData
@@ -277,12 +294,14 @@ export class Utxo {
     account,
     appDataFromBytesFn,
     includeAppData = false,
+    index,
   }: {
     poseidon: any;
     bytes: Uint8Array;
     account?: Account;
     appDataFromBytesFn?: Function;
     includeAppData?: boolean;
+    index: number;
   }): Utxo {
     const blinding = new BN(bytes.slice(0, 31), undefined, "be");
     const amounts = [
@@ -302,6 +321,7 @@ export class Utxo {
         account,
         blinding,
         includeAppData,
+        index,
       });
     }
     // TODO: add identifier that utxo is app utxo
@@ -328,6 +348,7 @@ export class Utxo {
         appDataFromBytesFn,
         verifierAddress,
         includeAppData,
+        index,
       });
     }
   }
@@ -377,24 +398,36 @@ export class Utxo {
    * @returns {string}
    */
   getNullifier(index?: number | undefined) {
-    if (!this.index) {
+    if (this.index === undefined && index) {
       this.index = index;
     }
-    if (!this._nullifier) {
-      // TODO: enable this error
-      if (
-        //(this.amounts[0] > new BN(0) || this.amounts[0] > new BN(0))
-        false &&
-        (this.index === undefined ||
-          this.index === null ||
-          this.account.privkey === undefined ||
-          this.account.privkey === null)
-      ) {
-        throw new Error(
-          "Can not compute nullifier without utxo index or private key",
-        );
-      }
 
+    if (
+      this.index === undefined &&
+      this.amounts[0].eq(new BN(0)) &&
+      this.amounts[1].eq(new BN(0))
+    ) {
+      this.index = 0;
+    } else if (this.index === undefined) {
+      throw new UtxoError(
+        UtxoErrorCode.INDEX_NOT_PROVIDED,
+        "getNullifier",
+        "The index of an utxo in the merkle tree is required to compute the nullifier hash.",
+      );
+    }
+
+    if (
+      (!this.amounts[0].eq(new BN(0)) || !this.amounts[1].eq(new BN(0))) &&
+      this.account.privkey.toString() === "0"
+    ) {
+      throw new UtxoError(
+        UtxoErrorCode.ACCOUNT_HAS_NO_PRIVKEY,
+        "getNullifier",
+        "The index of an utxo in the merkle tree is required to compute the nullifier hash.",
+      );
+    }
+
+    if (!this._nullifier) {
       const signature = this.account.privkey
         ? this.account.sign(this.getCommitment(), this.index || 0)
         : 0;
@@ -440,16 +473,19 @@ export class Utxo {
    * @param {any} poseidon
    * @param {Uint8Array} encBytes
    * @param {Account} account
+   * @param {number} index
    * @returns {Utxo | null}
    */
   static decrypt({
     poseidon,
     encBytes,
     account,
+    index,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
     account: Account;
+    index: number;
   }): Utxo | null {
     const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
     const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
@@ -465,7 +501,7 @@ export class Utxo {
         return null;
       }
       const bytes = Buffer.from(cleartext);
-      return Utxo.fromBytes({ poseidon, bytes, account });
+      return Utxo.fromBytes({ poseidon, bytes, account, index });
     } else {
       return null;
     }

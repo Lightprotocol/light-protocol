@@ -100,6 +100,7 @@ export class MerkleTree {
     this._rebuild();
   }
 
+  // TODO: update does not work debug
   /**
    * Change an element in the tree
    * @param {number} index Index of element to change

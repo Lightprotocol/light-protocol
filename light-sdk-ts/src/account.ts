@@ -196,9 +196,17 @@ export class Account {
     const privkey = new BN(privateKey);
     return new Account({ poseidon, privateKey: privkey });
   }
-  static fromPubkey(publicKey: Uint8Array, encPubkey: Uint8Array): Account {
+  static fromPubkey(
+    publicKey: Uint8Array,
+    encPubkey: Uint8Array,
+    poseidon: any,
+  ): Account {
     const pubKey = new BN(publicKey, undefined, "be");
-    return new Account({ publicKey: pubKey, encryptionPublicKey: encPubkey });
+    return new Account({
+      publicKey: pubKey,
+      encryptionPublicKey: encPubkey,
+      poseidon,
+    });
   }
 
   static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {

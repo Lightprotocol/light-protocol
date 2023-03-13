@@ -7,6 +7,7 @@ import { QueuedLeavesPda } from "merkleTree/solMerkleTree";
 
 import { merkleTreeProgramId } from "../constants";
 import { Account } from "../account";
+import { assert } from "chai";
 
 /**deprecated */
 export async function getUnspentUtxo(
@@ -29,6 +30,7 @@ export async function getUnspentUtxo(
           Array.from(leavesPdas[i].account.encryptedUtxos),
         ),
         account: account,
+        index: leavesPdas[i].account.leftLeafIndex.toNumber(),
       });
       if (!decryptedUtxo1) {
         continue;
@@ -37,8 +39,7 @@ export async function getUnspentUtxo(
       const mtIndex = merkleTree.indexOf(
         decryptedUtxo1?.getCommitment()?.toString(),
       );
-
-      decryptedUtxo1.index = mtIndex;
+      assert.equal(mtIndex.toString(), decryptedUtxo1.index!.toString());
 
       let nullifier = decryptedUtxo1.getNullifier();
       if (!nullifier) throw new Error("getNullifier of decryptedUtxo failed");
@@ -106,6 +107,7 @@ export async function getUnspentUtxos({
           Array.from(leafPda.account.encryptedUtxos.slice(0, 95)),
         ),
         account,
+        index: leavesPdas[i].account.leftLeafIndex.toNumber(),
       }),
       Utxo.decrypt({
         poseidon: poseidon,
@@ -113,6 +115,7 @@ export async function getUnspentUtxos({
           Array.from(leafPda.account.encryptedUtxos.slice(95)),
         ),
         account,
+        index: leavesPdas[i].account.leftLeafIndex.toNumber() + 1,
       }),
     ];
 
@@ -123,7 +126,8 @@ export async function getUnspentUtxos({
       const mtIndex = merkleTree.indexOf(
         decryptedUtxo?.getCommitment()!.toString(),
       );
-      decryptedUtxo.index = mtIndex;
+      // decryptedUtxo.index = mtIndex;
+      assert.equal(mtIndex.toString(), decryptedUtxo.index!.toString());
 
       let nullifier = decryptedUtxo.getNullifier();
       if (!nullifier) continue;

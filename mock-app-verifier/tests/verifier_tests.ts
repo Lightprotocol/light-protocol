@@ -124,6 +124,7 @@ describe("Verifier Two test", () => {
       });
 
 
+
       const appParams0 = {
         verifier: new MockVerifier(),
         inputs: {},

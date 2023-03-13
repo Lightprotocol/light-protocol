@@ -100,7 +100,7 @@ export class Provider {
 
   static async loadMock(mockPubkey: PublicKey) {
     let mockProvider = new Provider({
-      nodeWallet: SolanaKeypair.generate(),
+      nodeWallet: ADMIN_AUTH_KEYPAIR,
       url: "mock",
     });
     await mockProvider.loadPoseidon();
