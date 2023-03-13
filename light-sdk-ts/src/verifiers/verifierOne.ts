@@ -57,11 +57,13 @@ export class VerifierOne implements Verifier {
     transaction: Transaction,
   ): Promise<anchor.web3.TransactionInstruction[]> {
     if (!transaction.params) throw new Error("params undefined");
-    if (!transaction.params.nullifierPdaPubkeys)
-      throw new Error("params.nullifierPdaPubkeys undefined");
-    if (!transaction.params.leavesPdaPubkeys)
-      throw new Error("params.leavesPdaPubkeys undefined");
-    if (!transaction.publicInputs)
+    if (!transaction.remainingAccounts)
+      throw new Error("remainingAccounts undefined");
+    if (!transaction.remainingAccounts.nullifierPdaPubkeys)
+      throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
+    if (!transaction.remainingAccounts.leavesPdaPubkeys)
+      throw new Error("remainingAccounts.leavesPdaPubkeys undefined");
+    if (!transaction.transactionInputs.publicInputs)
       throw new Error("params.publicInputs undefined");
     if (!transaction.params.relayer)
       throw new Error("params.params.relayer undefined");
@@ -77,11 +79,11 @@ export class VerifierOne implements Verifier {
     }
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        transaction.publicInputs.publicAmount,
-        transaction.publicInputs.nullifiers,
-        transaction.publicInputs.leaves[0],
-        transaction.publicInputs.feeAmount,
-        new anchor.BN(transaction.rootIndex.toString()),
+        transaction.transactionInputs.publicInputs.publicAmount,
+        transaction.transactionInputs.publicInputs.nullifiers,
+        transaction.transactionInputs.publicInputs.leaves[0],
+        transaction.transactionInputs.publicInputs.feeAmount,
+        new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos),
       )
@@ -93,17 +95,17 @@ export class VerifierOne implements Verifier {
 
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
-        transaction.proofBytes.proofA,
-        transaction.proofBytes.proofB,
-        transaction.proofBytes.proofC,
+        transaction.transactionInputs.proofBytes.proofA,
+        transaction.transactionInputs.proofBytes.proofB,
+        transaction.transactionInputs.proofBytes.proofC,
       )
       .accounts({
         ...transaction.params.accounts,
         ...transaction.params.relayer.accounts,
       })
       .remainingAccounts([
-        ...transaction.params.nullifierPdaPubkeys,
-        ...transaction.params.leavesPdaPubkeys,
+        ...transaction.remainingAccounts.nullifierPdaPubkeys,
+        ...transaction.remainingAccounts.leavesPdaPubkeys,
       ])
       .instruction();
     this.instructions = [ix1, ix2];
