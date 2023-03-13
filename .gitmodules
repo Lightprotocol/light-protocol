@@ -1,3 +1,6 @@
 [submodule "market-place-verifier"]
 path = market-place-verifier
 	url = git@github.com:Lightprotocol/market-place-verifier.git
+[submodule "light-macros"]
+	path = light-macros
+	url = git@github.com:Lightprotocol/light-macros.git

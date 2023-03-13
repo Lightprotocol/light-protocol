@@ -43,7 +43,7 @@ pub trait Config {
     /// Number of checked public inputs.
     const NR_CHECKED_PUBLIC_INPUTS: usize;
     /// Program ID of the verifier program.
-    const ID: [u8; 32];
+    const ID: Pubkey;
 }
 
 #[derive(Clone)]

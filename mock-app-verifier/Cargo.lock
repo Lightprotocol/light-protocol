@@ -1333,6 +1333,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-macros"
+version = "0.1.0"
+dependencies = [
+ "bs58 0.4.0",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "light-verifier-sdk"
 version = "0.1.0"
 dependencies = [
@@ -2502,6 +2512,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
+ "light-macros",
  "light-verifier-sdk",
  "merkle_tree_program",
  "solana-security-txt 1.1.0",
