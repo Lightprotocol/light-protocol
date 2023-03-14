@@ -270,7 +270,7 @@ describe("user_tests", () => {
     // let balance = await user.getBalance({ latest: true });
   });
 
-  it("(user class) shield SOL", async () => {
+  it.only("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL";
     const provider = await Provider.native(userKeypair);

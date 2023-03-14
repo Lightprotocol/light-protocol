@@ -1608,6 +1608,7 @@ export class Transaction {
           // TODO: versiontx??
           console.error("versioned tx might throw here");
           tx = await this.provider.browserWallet.signTransaction(tx);
+          console.log({ tx });
           // throw new Error(
           //   "versioned transaction in browser not implemented yet",
           // );
@@ -1615,7 +1616,6 @@ export class Transaction {
           /** Just need to define relayer pubkey as signer a creation */
           tx.sign([this.provider.nodeWallet!]);
         }
-
         try {
           let serializedTx = tx.serialize();
 
@@ -1676,12 +1676,14 @@ export class Transaction {
       let tx = "Something went wrong";
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
+        console.log({ txTmp });
         if (txTmp) {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
             "confirmed",
           );
+          console.log("tx : ", txTmp);
           tx = txTmp;
         } else {
           throw new TransactionError(
@@ -1926,6 +1928,8 @@ export class Transaction {
       );
     }
 
+    console.log("until this all things passes by ==========> 1111");
+
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.testValues.is_token = false;
@@ -1933,11 +1937,14 @@ export class Transaction {
       this.testValues.is_token = true;
     }
 
+    console.log("until this all things passes by ==========> 222");
+
     for (
       var i = 0;
       i < this.remainingAccounts.nullifierPdaPubkeys?.length;
       i++
     ) {
+      console.log(this.remainingAccounts.nullifierPdaPubkeys[i].pubkey);
       var nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
           this.remainingAccounts.nullifierPdaPubkeys[i].pubkey,
@@ -1951,14 +1958,29 @@ export class Transaction {
         connection: this.provider.provider!.connection,
       });
     }
+
+    console.log("until this all things passes by ==========> 333");
+
     let leavesAccount;
     var leavesAccountData;
     // Checking that leaves were inserted
     for (var i = 0; i < this.remainingAccounts.leavesPdaPubkeys.length; i++) {
-      leavesAccountData =
-        await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
-        );
+      console.log(this.remainingAccounts.leavesPdaPubkeys[i].pubkey);
+
+      try {
+        leavesAccountData =
+          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+            this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          );
+      } catch (err) {
+        console.log({ err });
+        leavesAccountData =
+          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+            this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          );
+      }
+
+      console.log({ leavesAccountData });
 
       assert(
         leavesAccountData.nodeLeft.toString() ==
@@ -1975,6 +1997,8 @@ export class Transaction {
           this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
+
+      console.log("until this all things passes by ==========> 444");
 
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         // console.log(j);
@@ -2040,6 +2064,8 @@ export class Transaction {
         }
       }
     }
+
+    console.log("until this all things passes by ==========> 555");
 
     console.log(
       `mode ${this.params.action}, this.testValues.is_token ${this.testValues.is_token}`,

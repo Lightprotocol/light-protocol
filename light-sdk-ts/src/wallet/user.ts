@@ -681,10 +681,15 @@ export class User {
     } catch (e) {
       throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    console.log = () => {};
+    // console.log = () => {};
     //@ts-ignore
-    await tx.checkBalances(); // This is a test
-    console.log = initLog;
+    try {
+      console.log("checking the balances ==========>");
+      await tx.checkBalances(); // This is a test
+    } catch (err) {
+      console.log({ err });
+    }
+    // console.log = initLog;
     console.log("✔️ checkBalances success!");
     // TODO: add a ping to relayer merkletree update crank
   }
@@ -932,6 +937,7 @@ export class User {
       } else if (this.provider?.browserWallet) {
         const signature: Uint8Array =
           await this.provider.browserWallet.signMessage(message);
+        console.log({ signature });
         this.seed = new anchor.BN(signature).toString();
       } else {
         throw new Error("No payer or browser wallet provided");

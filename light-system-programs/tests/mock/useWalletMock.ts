@@ -31,21 +31,16 @@ class MockProvider {
 
   async signTransaction(transaction) {
     try {
-      console.log(
-        "transaction here =================>",
-        transaction,
-        transaction instanceof Uint8Array,
-      );
       if (transaction instanceof Uint8Array) {
         let signature = await this.sign(transaction);
         return signature;
       } else {
         transaction.sign([this._keypair]);
-        console.log("after signing tx",{transaction})
+        console.log("after signing tx", { transaction });
         return transaction;
       }
     } catch (error) {
-        console.log("sign transaction",{error})
+      console.log("sign transaction", { error });
     }
   }
 
@@ -57,7 +52,7 @@ class MockProvider {
 
   async sendAndConfirmTransaction(transaction) {
     try {
-      console.log("transaction here ============>", { transaction });
+      console.log("are we using this one? ??transaction here ============>", { transaction });
       const signature = await transaction.sign(this._keypair.secretKey);
       return await sendAndConfirmTransaction(
         this._connection,
@@ -110,8 +105,9 @@ export const useWallet = (wallet: Keypair, connection: Connection) => {
     signMessage: async (message): Promise<Uint8Array> => {
       return await provider.signTransaction(message);
     },
-    signTransaction: async (transaction) =>
-      provider.signTransaction(transaction),
+    signTransaction: async (transaction): Promise<any> => {
+      return await provider.signTransaction(transaction);
+    },
     signAllTransactions: async (transactions) =>
       provider.signAllTransactions(transactions),
     sendAndConfirmTransaction: async (transactions) =>

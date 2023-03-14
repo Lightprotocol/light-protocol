@@ -32,7 +32,9 @@ describe("browser_wallet", () => {
     connection,
   );
 
+
   it("(user class) shield SPL", async () => {
+    console.log("inside this test")
     let amount = 20;
 
     let token = "USDC";
@@ -109,7 +111,7 @@ describe("browser_wallet", () => {
       console.log = () => {};
       await updateMerkleTreeForTest(
         provider.provider?.connection!,
-        // provider.provider,
+        provider.provider,
       );
       console.log = initLog;
       console.log("✔️updated merkle tree!");
