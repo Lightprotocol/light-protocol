@@ -30,6 +30,7 @@ import {
   initLookUpTable,
   TransactionParametersErrorCode,
   Provider,
+  ADMIN_AUTH_KEYPAIR,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 const snarkjs = require("snarkjs");
@@ -1608,7 +1609,7 @@ export class Transaction {
           // TODO: versiontx??
           console.error("versioned tx might throw here");
           tx = await this.provider.browserWallet.signTransaction(tx);
-          console.log({ tx });
+          // console.log({ tx });
           // throw new Error(
           //   "versioned transaction in browser not implemented yet",
           // );
@@ -1623,6 +1624,7 @@ export class Transaction {
             serializedTx,
             confirmConfig,
           );
+          console.log("res =======================>", res);
           retries = 0;
         } catch (e: any) {
           retries--;
@@ -1681,7 +1683,7 @@ export class Transaction {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
-            "confirmed",
+            "finalized",
           );
           console.log("tx : ", txTmp);
           tx = txTmp;
@@ -1967,18 +1969,11 @@ export class Transaction {
     for (var i = 0; i < this.remainingAccounts.leavesPdaPubkeys.length; i++) {
       console.log(this.remainingAccounts.leavesPdaPubkeys[i].pubkey);
 
-      try {
-        leavesAccountData =
-          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-            this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
-          );
-      } catch (err) {
-        console.log({ err });
-        leavesAccountData =
-          await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-            this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
-          );
-      }
+      leavesAccountData =
+        await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
+          this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          "finalized",
+        );
 
       console.log({ leavesAccountData });
 

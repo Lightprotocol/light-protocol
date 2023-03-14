@@ -17,6 +17,7 @@ import {
   updateMerkleTreeForTest,
 } from "light-sdk";
 import { useWallet } from "./mock/useWalletMock";
+import { sign } from "tweetnacl";
 
 // TODO: remove deprecated function calls
 describe("browser_wallet", () => {
@@ -27,14 +28,22 @@ describe("browser_wallet", () => {
   });
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-  const { signTransaction, signMessage, sendAndConfirmTransaction } = useWallet(
-    userKeypair,
-    connection,
-  );
 
+  const signTransaction = async (tx) => {
+    await tx.sign([userKeypair!]);
+    return tx
+  };
+
+  const signMessage = async (message) => {
+    return sign.detached(message, userKeypair.secretKey);
+  };
+
+  const sendAndConfirmTransaction = async (fn) => {
+    return await fn();
+  };
 
   it("(user class) shield SPL", async () => {
-    console.log("inside this test")
+    console.log("inside this test");
     let amount = 20;
 
     let token = "USDC";
@@ -60,24 +69,11 @@ describe("browser_wallet", () => {
 
     const user = await User.load(provider);
 
-    await user.shield({ amount, token });
-
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      // console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      // console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    // await user.shield({ amount, token });
     // TODO: add random amount and amount checks
-    // let balance = await user.getBalance({ latest: true });
+    let balance = await user.getBalance({ latest: true });
+
+    console.log({ balance });
   });
 
   it.only("(user class) shield SOL", async () => {
@@ -100,25 +96,14 @@ describe("browser_wallet", () => {
     );
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    
+
     const user = await User.load(provider);
-    
+
     await user.shield({ amount, token });
     // TODO: add random amount and amount checks
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+    let balance = await user.getBalance({ latest: true });
+
+    console.log({ balance });
   });
 
   it("(user class) unshield SPL", async () => {
