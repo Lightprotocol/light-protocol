@@ -54,73 +54,53 @@ export type MerkleTreeProgram = {
     },
     {
       name: "AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"AUTHORITY_SEED"';
+      type: "bytes";
+      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]";
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"MERKLE_TREE_AUTHORITY"';
+      type: "bytes";
+      value: "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]";
     },
     {
       name: "TREE_ROOT_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"TREE_ROOT_SEED"';
+      type: "bytes";
+      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]";
     },
     {
       name: "STORAGE_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"storage"';
+      type: "bytes";
+      value: "[115, 116, 111, 114, 97, 103, 101]";
     },
     {
       name: "LEAVES_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"leaves"';
+      type: "bytes";
+      value: "[108, 101, 97, 118, 101, 115]";
     },
     {
       name: "NULLIFIER_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"nf"';
+      type: "bytes";
+      value: "[110, 102]";
     },
     {
       name: "POOL_TYPE_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pooltype"';
+      type: "bytes";
+      value: "[112, 111, 111, 108, 116, 121, 112, 101]";
     },
     {
       name: "POOL_CONFIG_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pool-config"';
+      type: "bytes";
+      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]";
     },
     {
       name: "POOL_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"pool"';
+      type: "bytes";
+      value: "[112, 111, 111, 108]";
     },
     {
       name: "TOKEN_AUTHORITY_SEED";
-      type: {
-        defined: "&[u8]";
-      };
-      value: 'b"spl"';
+      type: "bytes";
+      value: "[115, 112, 108]";
     },
   ];
   instructions: [
@@ -1248,73 +1228,54 @@ export const IDL: MerkleTreeProgram = {
     },
     {
       name: "AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"AUTHORITY_SEED"',
+      type: "bytes",
+      value: "[65, 85, 84, 72, 79, 82, 73, 84, 89, 95, 83, 69, 69, 68]",
     },
     {
       name: "MERKLE_TREE_AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"MERKLE_TREE_AUTHORITY"',
+      type: "bytes",
+      value:
+        "[77, 69, 82, 75, 76, 69, 95, 84, 82, 69, 69, 95, 65, 85, 84, 72, 79, 82, 73, 84, 89]",
     },
     {
       name: "TREE_ROOT_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"TREE_ROOT_SEED"',
+      type: "bytes",
+      value: "[84, 82, 69, 69, 95, 82, 79, 79, 84, 95, 83, 69, 69, 68]",
     },
     {
       name: "STORAGE_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"storage"',
+      type: "bytes",
+      value: "[115, 116, 111, 114, 97, 103, 101]",
     },
     {
       name: "LEAVES_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"leaves"',
+      type: "bytes",
+      value: "[108, 101, 97, 118, 101, 115]",
     },
     {
       name: "NULLIFIER_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"nf"',
+      type: "bytes",
+      value: "[110, 102]",
     },
     {
       name: "POOL_TYPE_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pooltype"',
+      type: "bytes",
+      value: "[112, 111, 111, 108, 116, 121, 112, 101]",
     },
     {
       name: "POOL_CONFIG_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pool-config"',
+      type: "bytes",
+      value: "[112, 111, 111, 108, 45, 99, 111, 110, 102, 105, 103]",
     },
     {
       name: "POOL_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"pool"',
+      type: "bytes",
+      value: "[112, 111, 111, 108]",
     },
     {
       name: "TOKEN_AUTHORITY_SEED",
-      type: {
-        defined: "&[u8]",
-      },
-      value: 'b"spl"',
+      type: "bytes",
+      value: "[115, 112, 108]",
     },
   ],
   instructions: [

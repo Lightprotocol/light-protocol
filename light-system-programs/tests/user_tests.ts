@@ -47,7 +47,7 @@ describe("user_tests", () => {
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
     // console.log = () => {};
-    await createTestAccounts(provider.connection);
+    await createTestAccounts(provider.connection, );
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
     // console.log = initLog;
@@ -249,6 +249,7 @@ describe("user_tests", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
+    
     await user.shield({ amount, token });
 
     try {

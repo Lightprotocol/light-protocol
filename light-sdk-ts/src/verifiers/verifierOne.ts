@@ -4,6 +4,9 @@ import { Program } from "@coral-xyz/anchor";
 
 import {
   hashAndTruncateToCircuit,
+  TransactionErrorCode,
+  VerifierError,
+  VerifierErrorCode,
   verifierProgramOneProgramId,
 } from "../index";
 import { Transaction } from "../transaction";
@@ -36,10 +39,21 @@ export class VerifierOne implements Verifier {
     );
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
-    if (publicInputsBytes.length != 17) {
-      throw new Error(
-        `publicInputsBytes.length invalid ${publicInputsBytes.length} != 17`,
+  parsePublicInputsFromArray(
+    publicInputsBytes: Array<Array<number>>,
+  ): PublicInputs {
+    if (!publicInputsBytes) {
+      throw new VerifierError(
+        VerifierErrorCode.PUBLIC_INPUTS_UNDEFINED,
+        "parsePublicInputsFromArray",
+        "verifier one:",
+      );
+    }
+    if (publicInputsBytes.length != this.config.nrPublicInputs) {
+      throw new VerifierError(
+        VerifierErrorCode.INVALID_INPUTS_NUMBER,
+        "parsePublicInputsFromArray",
+        `verifier one: publicInputsBytes.length invalid ${publicInputsBytes.length} != ${this.config.nrPublicInputs}`,
       );
     }
     return {
@@ -56,32 +70,71 @@ export class VerifierOne implements Verifier {
   async getInstructions(
     transaction: Transaction,
   ): Promise<anchor.web3.TransactionInstruction[]> {
-    if (!transaction.params) throw new Error("params undefined");
-    if (!transaction.params.nullifierPdaPubkeys)
-      throw new Error("params.nullifierPdaPubkeys undefined");
-    if (!transaction.params.leavesPdaPubkeys)
-      throw new Error("params.leavesPdaPubkeys undefined");
-    if (!transaction.publicInputs)
-      throw new Error("params.publicInputs undefined");
+    if (!transaction.params)
+      throw new VerifierError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "getInstructions",
+      );
+    if (!transaction.remainingAccounts)
+      throw new VerifierError(
+        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
+        "getInstructions",
+        "verifier one: remainingAccounts undefined",
+      );
+    if (!transaction.remainingAccounts.nullifierPdaPubkeys)
+      throw new VerifierError(
+        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
+        "getInstructions",
+        "verifier one: remainingAccounts.nullifierPdaPubkeys undefined",
+      );
+    if (!transaction.remainingAccounts.leavesPdaPubkeys)
+      throw new VerifierError(
+        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
+        "getInstructions",
+        "verifier one: remainingAccounts.leavesPdaPubkeys undefined",
+      );
+    if (!transaction.transactionInputs.publicInputs)
+      throw new VerifierError(
+        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
+        "getInstructions",
+        "verifier one: params.publicInputs undefined",
+      );
     if (!transaction.params.relayer)
-      throw new Error("params.params.relayer undefined");
+      throw new VerifierError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "getInstructions",
+        "verifier one: params.params.relayer undefined",
+      );
     if (!transaction.params.encryptedUtxos)
-      throw new Error("params.encryptedUtxos undefined");
-    if (!this.verifierProgram) throw new Error("verifierProgram undefined");
-    // TODO: check if this is still required
+      throw new VerifierError(
+        VerifierErrorCode.ENCRYPTING_UTXOS_UNDEFINED,
+        "getInstructions",
+        "verifier one: params.encryptedUtxos undefined",
+      );
     if (
       !transaction.provider.browserWallet &&
       !transaction.provider.nodeWallet
     ) {
-      throw new Error("Payer(browserwallet, nodewallet) not defined");
+      throw new VerifierError(
+        TransactionErrorCode.WALLET_UNDEFINED,
+        "getInstructions",
+        "verifier one: Payer(browserwallet, nodewallet) not defined",
+      );
     }
+    if (!this.verifierProgram)
+      throw new VerifierError(
+        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        "getInstructions",
+        "verifier one: verifierProgram undefined",
+      );
+
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        transaction.publicInputs.publicAmount,
-        transaction.publicInputs.nullifiers,
-        transaction.publicInputs.leaves[0],
-        transaction.publicInputs.feeAmount,
-        new anchor.BN(transaction.rootIndex.toString()),
+        transaction.transactionInputs.publicInputs.publicAmount,
+        transaction.transactionInputs.publicInputs.nullifiers,
+        transaction.transactionInputs.publicInputs.leaves[0],
+        transaction.transactionInputs.publicInputs.feeAmount,
+        new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos),
       )
@@ -93,17 +146,17 @@ export class VerifierOne implements Verifier {
 
     const ix2 = await this.verifierProgram.methods
       .shieldedTransferSecond(
-        transaction.proofBytes.proofA,
-        transaction.proofBytes.proofB,
-        transaction.proofBytes.proofC,
+        transaction.transactionInputs.proofBytes.proofA,
+        transaction.transactionInputs.proofBytes.proofB,
+        transaction.transactionInputs.proofBytes.proofC,
       )
       .accounts({
         ...transaction.params.accounts,
         ...transaction.params.relayer.accounts,
       })
       .remainingAccounts([
-        ...transaction.params.nullifierPdaPubkeys,
-        ...transaction.params.leavesPdaPubkeys,
+        ...transaction.remainingAccounts.nullifierPdaPubkeys,
+        ...transaction.remainingAccounts.leavesPdaPubkeys,
       ])
       .instruction();
     this.instructions = [ix1, ix2];
