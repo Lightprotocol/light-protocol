@@ -4,7 +4,7 @@ import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
-
+import { BN } from "@coral-xyz/anchor";
 import { Account } from "../src/account";
 import { Utxo } from "../src/utxo";
 import {
@@ -51,7 +51,7 @@ describe("Transaction Parameters Functional", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey3);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -181,7 +181,7 @@ describe("Transaction Parameters Functional", () => {
         verifier: verifiers[j],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -240,7 +240,7 @@ describe("Transaction Parameters Functional", () => {
         params.verifier.config.in.toString(),
         verifiers[j].config.in.toString(),
       );
-      assert.equal(params.action.toString(), Action.DEPOSIT.toString());
+      assert.equal(params.action.toString(), Action.SHIELD.toString());
       assert.equal(
         params.relayer.accounts.lookUpTable.toBase58(),
         lightProvider.lookUpTable?.toBase58(),
@@ -268,10 +268,10 @@ describe("Transaction Parameters Functional", () => {
         recipientFee: mockPubkey1,
         verifier: verifiers[j],
         poseidon,
-        action: Action.WITHDRAWAL,
+        action: Action.UNSHIELD,
         relayer,
       });
-      assert.equal(params.action.toString(), Action.WITHDRAWAL.toString());
+      assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
         params.publicAmountSpl
           .sub(FIELD_SIZE)
@@ -468,7 +468,7 @@ describe("Test General TransactionParameters Errors", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey3);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -487,7 +487,7 @@ describe("Test General TransactionParameters Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -509,7 +509,7 @@ describe("Test General TransactionParameters Errors", () => {
           senderFee: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -552,7 +552,7 @@ describe("Test General TransactionParameters Errors", () => {
         senderFee: mockPubkey,
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
       });
     })
       .to.throw(TransactioParametersError)
@@ -581,7 +581,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -794,7 +794,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -810,7 +810,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       senderFee: mockPubkey,
       lookUpTable: mockPubkey,
       poseidon,
-      action: Action.DEPOSIT,
+      action: Action.SHIELD,
     });
   });
 
@@ -824,7 +824,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -845,7 +845,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -866,7 +866,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderFee: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -888,7 +888,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
           relayer,
         });
       })
@@ -926,7 +926,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -962,7 +962,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -985,7 +985,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1008,7 +1008,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1029,7 +1029,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1050,7 +1050,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1078,7 +1078,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
       });
     }
   });
@@ -1095,7 +1095,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1118,7 +1118,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.DEPOSIT,
+          action: Action.SHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1149,7 +1149,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -1174,7 +1174,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon,
       recipient: mockPubkey,
       recipientFee: mockPubkey,
-      action: Action.WITHDRAWAL,
+      action: Action.UNSHIELD,
       relayer,
     });
   });
@@ -1190,7 +1190,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1212,7 +1212,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           recipientFee: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
         });
       })
         .to.throw(TransactioParametersError)
@@ -1249,7 +1249,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           recipientFee: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1285,7 +1285,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1309,7 +1309,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1333,7 +1333,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1362,7 +1362,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.WITHDRAWAL,
+        action: Action.UNSHIELD,
         relayer,
       });
     }
@@ -1385,7 +1385,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
-        action: Action.WITHDRAWAL,
+        action: Action.UNSHIELD,
         relayer,
       });
     }
@@ -1403,7 +1403,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })
@@ -1427,7 +1427,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
-          action: Action.WITHDRAWAL,
+          action: Action.UNSHIELD,
           relayer,
         });
       })

@@ -1,4 +1,27 @@
-cd light-sdk-ts && yarn && yarn run build & sleep 5 && kill $! && cd ..;
-cd light-circuits && rm -rf ./node_modules && yarn && cd -;
-cd light-system-programs && rm -rf ./node_modules && yarn && cd -;
-cd mock-app-verifier && rm -rf ./node_modules && yarn && cd -;
+#!/usr/bin/env bash
+
+set -e
+
+pushd light-sdk-ts
+yarn run build
+popd
+
+pushd light-circuits
+rm -rf node_modules
+yarn
+popd
+
+pushd light-system-programs
+rm -rf node_modules
+yarn
+popd
+
+pushd mock-app-verifier
+rm -rf node_modules
+yarn
+popd
+
+pushd relayer
+rm -rf node_modules
+yarn
+popd

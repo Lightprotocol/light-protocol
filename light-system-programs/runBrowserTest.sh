@@ -1,5 +1,4 @@
-#!/bin/bash
-
+#!/bin/bash -e
 set -eux
 
 docker rm -f solana-validator || true
@@ -19,6 +18,23 @@ docker run -d \
     --quiet
 
 sleep 15
-$1
+
+# airdrops 
+solana airdrop 100000 ZBUKxVWviAJBy12edp5H6kvhcatGYW3BV4ijbgxpVSq && solana airdrop 100000 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k && solana airdrop 100000 8Ers2bBEWExdrh7KDFTrRbauPbFeEvsHz3UX4vxcK9xY && solana airdrop 10000 BEKmoiPHRUxUPik2WQuKqkoFLLkieyNPrTDup5h8c9S7
+
+# running a relayer
+
+pushd ../relayer
+
+node lib/index.js &
+relayer_pid=$!
+
+sleep 20
+
+popd
+
+yarn test-browser-wallet
 
 docker rm -f solana-validator
+
+kill $relayer_pid

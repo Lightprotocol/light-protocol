@@ -596,7 +596,7 @@ describe("Merkle Tree Tests", () => {
       sender: userTokenAccount,
       senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
-      action: Action.DEPOSIT,
+      action: Action.SHIELD,
       lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON
     });

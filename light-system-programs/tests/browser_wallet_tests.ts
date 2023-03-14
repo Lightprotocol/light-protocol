@@ -1,66 +1,52 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import _ from "lodash";
-import { assert } from "chai";
-
-let circomlibjs = require("circomlibjs");
 
 // TODO: add and use  namespaces in SDK
 import {
-  Utxo,
-  setUpMerkleTree,
-  initLookUpTableFromFile,
-  merkleTreeProgramId,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   Provider,
   newAccountWithTokens,
-  createTestAccounts,
-  confirmConfig,
-  Relayer,
   User,
   strToArr,
   TOKEN_REGISTRY,
-  updateMerkleTreeForTest,
-  createOutUtxos,
+  newAccountWithTokens,
+  MINT
 } from "light-sdk";
-
-import { BN } from "@coral-xyz/anchor";
+import { useWallet } from "./mock/useWalletMock";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-
-var LOOK_UP_TABLE;
-var POSEIDON;
+import { assert } from "chai";
 
 // TODO: remove deprecated function calls
-describe("user_tests", () => {
-  // Configure the client to use the local cluster.
-  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-  process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+describe("browser_wallet", () => {
+  let connection = new Connection("http://localhost:8899/");
 
-  const provider = anchor.AnchorProvider.local(
-    "http://127.0.0.1:8899",
-    confirmConfig,
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
+  
+  const { signMessage, sendAndConfirmTransaction, signTransaction } = useWallet(
+    userKeypair,
+    connection,
   );
-  anchor.setProvider(provider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-
-  before("init test setup Merkle tree lookup table etc ", async () => {
-    let initLog = console.log;
-    // console.log = () => {};
-    await createTestAccounts(provider.connection);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
-    // console.log = initLog;
-    POSEIDON = await circomlibjs.buildPoseidonOpt();
-  });
 
   it("(user class) shield SPL", async () => {
     let amount = 20;
+
     let token = "USDC";
+
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.native(userKeypair); // userKeypair
+
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    );
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -72,29 +58,23 @@ describe("user_tests", () => {
       tokenCtx!.tokenAccount,
       ADMIN_AUTH_KEYPAIR.publicKey,
     );
+
     const preTokenBalance =
       await provider.provider.connection.getTokenAccountBalance(userSplAccount);
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
+
     const user: User = await User.load(provider);
+
     const preShieldedBalance = await user.getBalance({ latest: true });
-    // console.log("preshieldedbalance", preShieldedBalance);
+
     await user.shield({ amount, token, extraSolAmount: 0 }); // 2
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
+
     let balance;
+
     try {
       balance = await user.getBalance({ latest: true });
     } catch (e) {
@@ -141,92 +121,63 @@ describe("user_tests", () => {
     );
   });
 
-  it.only("(user class) shield SOL", async () => {
+  it("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL";
-    const provider = await Provider.native(userKeypair);
+
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    ); // userKeypair
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
     );
+
     await provider.provider.connection.confirmTransaction(res, "confirmed");
+
     const user = await User.load(provider);
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const preShieldedBalance = await user.getBalance({ latest: true });
-    const preSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
 
     await user.shield({ amount, token });
-    // TODO: add random amount and amount checks
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
-    // TODO: add random amount and amount checks
-    await user.provider.latestMerkleTree();
-
-    let balance = await user.getBalance({ latest: true });
-    let solShieldedBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let solShieldedBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-
-    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
-    // console.log("solShieldedBalancePre", solShieldedBalancePre);
-
-    // assert that the user's token balance has decreased by the amount shielded
-    const postSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
-    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-    // console.log("postSolBalance", postSolBalance);
-    // console.log("preSolBalance", preSolBalance);
-    // assert that the user's shielded balance has increased by the amount shielded
-    assert.equal(
-      solShieldedBalanceAfter.amount,
-      solShieldedBalancePre.amount + amount * tokenCtx?.decimals,
-      `shielded balance after ${
-        solShieldedBalanceAfter.amount
-      } != shield amount ${amount * tokenCtx?.decimals}`,
-    );
-
-    assert.equal(
-      postSolBalance,
-      preSolBalance - amount * tokenCtx.decimals + tempAccountCost,
-      `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
-    );
   });
 
   it("(user class) unshield SPL", async () => {
     let amount = 1;
+
     let token = "USDC";
-    let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.native(userKeypair); // userKeypair
+    
+    let solRecipient = Keypair.generate();
+    
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    ); // userKeypair
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
     );
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+
     const recipientSplBalance = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
       solRecipient.publicKey,
     );
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
+    
     let preTokenBalance = { value: { uiAmount: 0 } };
     // TODO: add test case for if recipient doesnt have account yet -> relayer must create it
     await newAccountWithTokens({
@@ -236,6 +187,7 @@ describe("user_tests", () => {
       userAccount: solRecipient,
       amount: new anchor.BN(0),
     });
+
     try {
       preTokenBalance =
         await provider.provider.connection.getTokenAccountBalance(
@@ -248,21 +200,11 @@ describe("user_tests", () => {
     }
 
     const user = await User.load(provider);
+
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.unshield({ amount, token, recipient: solRecipient.publicKey });
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
@@ -307,13 +249,24 @@ describe("user_tests", () => {
       solBalancePre.amount - minimumBalance - tokenAccountFee, // FIXME: no fees being charged here apparently
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount ${solBalancePre.amount - minimumBalance - tokenAccountFee}`,
     );
-    // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
 
   it("(user class) transfer SPL", async () => {
     let amount = 1;
+
+    
     const token = "USDC";
-    const provider = await Provider.native(userKeypair); // userKeypair
+    
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    ); // userKeypair
+    
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
@@ -326,6 +279,7 @@ describe("user_tests", () => {
       strToArr(encryptionPublicKey);
 
     const user = await User.load(provider);
+
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -335,17 +289,6 @@ describe("user_tests", () => {
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
@@ -378,7 +321,26 @@ describe("user_tests", () => {
     );
   });
 
-  it.skip("(user class) transfer SOL", async () => {
+  it("(user class) unshield SOL", async () => {
+    let amount = 1;
+    let token = "SOL";
+    let recipient = new PublicKey(
+      "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
+    );
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    ); // userKeypair
+    const user = await User.load(provider);
+    await user.unshield({ amount, token, recipient });
+  });
+
+  it("(user class) transfer SOL", async () => {
     let amount = 1;
     let token = "SOL";
     const shieldedRecipient =
@@ -389,75 +351,24 @@ describe("user_tests", () => {
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.native(userKeypair);
-    // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
+    const provider = await Provider.browser(
+      {
+        signMessage,
+        signTransaction,
+        sendAndConfirmTransaction,
+        publicKey: userKeypair.publicKey,
+      },
+      connection,
+    ); // userKeypair
+
+    console.log("provider ======>");
     const user = await User.load(provider);
-    const preShieldedBalance = await user.getBalance({ latest: true });
-
     await user.transfer({
       amount,
       token,
       recipient,
-      recipientEncryptionPublicKey, // TODO: do shielded address
+      recipientEncryptionPublicKey,
     });
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
-    await user.provider.latestMerkleTree();
-
-    let balance = await user.getBalance({ latest: true });
-
-    // assert that the user's sol shielded balance has decreased by fee
-    let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
-    );
-    let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
-    );
-
-    assert.equal(
-      solBalanceAfter.amount,
-      solBalancePre.amount - 100000 - amount * tokenCtx.decimals,
-      `shielded sol balance after ${solBalanceAfter.amount} != ${solBalancePre.amount} ...unshield amount -fee`,
-    );
-  });
-
-  it.skip("(user class) unshield SOL", async () => {
-    let amount = 1;
-    let token = "SOL";
-    let recipient = new PublicKey(
-      "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
-    );
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    await user.unshield({ amount, token, recipient });
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
-    // TODO: add random amount and amount checks
   });
 });

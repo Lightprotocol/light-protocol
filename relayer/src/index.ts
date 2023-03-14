@@ -31,7 +31,6 @@ app.use((req, res, next) => {
 app.post("/updatemerkletree", async function (req, res) {
   try {
     const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
-    console.log({provider})
     await updateMerkleTreeForTest(provider.provider?.connection!);
     return res.status(200).json({ status: "ok" });
   } catch (e) {
@@ -43,6 +42,8 @@ app.post("/updatemerkletree", async function (req, res) {
 app.post("/relay", async function (req, res) {
   try {
     if (!req.body.instructions) throw new Error("No instructions provided");
+    // TODO: get body.recipientaddress (if spl) - if account doesnt exist create the account (also bumped fee then)
+    // inspect data, check that fee is correct
     await relay(req, relayerPayer);
     return res.status(200).json({ status: "ok" });
   } catch (e) {

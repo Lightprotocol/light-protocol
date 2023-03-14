@@ -54,6 +54,7 @@ export async function getUnspentUtxo(
       )[0];
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
+        "confirmed",
       );
       if (
         accountInfo == null &&
@@ -85,15 +86,11 @@ export async function getUnspentUtxos({
   provider,
   account,
   poseidon,
-  merkleTreeProgram: MerkleTreeProgram,
-  merkleTree,
 }: {
   leavesPdas: any;
   provider: anchor.Provider;
   account: Account;
   poseidon: any;
-  merkleTreeProgram: any;
-  merkleTree: MerkleTree;
 }): Promise<Utxo[]> {
   let decryptedUtxos: Utxo[] = [];
   // TODO: check performance vs a proper async map and check against fetching nullifiers separately (indexed)
@@ -122,13 +119,6 @@ export async function getUnspentUtxos({
     for (let decryptedUtxo of decrypted) {
       if (!decryptedUtxo) continue;
 
-      /** must add index */
-      const mtIndex = merkleTree.indexOf(
-        decryptedUtxo?.getCommitment()!.toString(),
-      );
-      // decryptedUtxo.index = mtIndex;
-      assert.equal(mtIndex.toString(), decryptedUtxo.index!.toString());
-
       let nullifier = decryptedUtxo.getNullifier();
       if (!nullifier) continue;
 
@@ -141,6 +131,7 @@ export async function getUnspentUtxos({
       )[0];
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
+        "confirmed",
       );
       console.log(
         "inserted -- spent?",

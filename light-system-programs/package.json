@@ -4,8 +4,11 @@
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
     "test": "sh runTest.sh 'ts-mocha -t 2000000 tests/functional_tests.ts --exit'",
     "test-user": "sh runTest.sh 'ts-mocha -t 2000000 tests/user_tests.ts --exit'",
+    "test-browser-wallet": "ts-mocha -t 2000000 tests/browser_wallet_tests.ts --exit",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
     "test-merkle-tree": "sh runTest.sh 'ts-mocha -t 2000000 tests/merkle_tree_tests.ts --exit'",
+    "test-provider": "sh runTest.sh 'ts-mocha -t 2000000 tests/provider.test.ts --exit'",
+
     "format": "prettier --write \"src/**/*.{ts,js}\""
   },
   "dependencies": {
@@ -14,6 +17,7 @@
     "@solana/spl-token": "0.3.7",
     "@solana/web3.js": "1.73.2",
     "circomlibjs": "^0.1.7",
+    "concat-stream": "^2.0.0",
     "ffjavascript": "^0.2.54",
     "fs": "^0.0.1-security",
     "light-sdk": "file:../light-sdk-ts",

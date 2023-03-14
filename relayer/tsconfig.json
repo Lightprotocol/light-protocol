@@ -10,10 +10,12 @@
     "moduleResolution": "node",
     "rootDirs": ["src", "generated"],
     "baseUrl": "src",
+    "skipLibCheck": true,
     "useUnknownInCatchVariables": false
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],
+  
   "dry": false,
   "debug": false
 }
