@@ -10,7 +10,7 @@ const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
 // @ts-ignore:
 import { buildEddsa } from "circomlibjs";
-
+// TODO: add fromPubkeyString()
 export class Account {
   /**
    * Initialize a new shielded account. Generates a random private key if not defined

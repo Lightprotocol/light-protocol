@@ -24,6 +24,7 @@ export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
+// TODO: add static createSolUtxo()
 export class Utxo {
   /**
    * @param {BN[]} amounts array of utxo amounts, amounts[0] is the sol amount amounts[1] is the spl amount

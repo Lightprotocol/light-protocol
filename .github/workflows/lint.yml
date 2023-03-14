@@ -1,0 +1,40 @@
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+name: lint
+
+jobs:
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+        with:
+          submodules: true
+          token: ${{ secrets.PAT_TOKEN }}
+
+      - name: Install stable Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: rustfmt, clippy
+
+      - name: Run cargo fmt
+        working-directory: ./light-system-programs
+        run: |
+          cargo fmt --all -- --check
+
+      # TODO(vadorovsky): Enable clippy once we fix the issue in Solana:
+      # https://github.com/solana-labs/solana/issues/29971
+      # - name: Run cargo clippy
+      #   working-directory: ./light-system-programs
+      #   run: |
+      #     cargo clippy -- -D warnings

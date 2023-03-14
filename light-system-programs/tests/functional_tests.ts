@@ -170,7 +170,7 @@ describe("verifier_program", () => {
     assert.equal(accountInfo, null);
   });
 
-  it.skip("shielded transfer 1 & 2", async () => {
+  it("shielded transfer 1 & 2", async () => {
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(verifierState, 1_000_000_000),
       "confirmed",
@@ -279,7 +279,7 @@ describe("verifier_program", () => {
         verifier: new VerifierOne(),
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.DEPOSIT
+        action: Action.SHIELD
       });
       let tx = new Transaction({
         provider: lightProvider,
@@ -347,7 +347,7 @@ describe("verifier_program", () => {
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
         poseidon: POSEIDON
       });
       let tx = new Transaction({
@@ -408,7 +408,7 @@ describe("verifier_program", () => {
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
       relayer,
-      action: Action.WITHDRAWAL,
+      action: Action.UNSHIELD,
       poseidon
     });
     let tx = new Transaction({
@@ -493,14 +493,16 @@ describe("verifier_program", () => {
 
     let txParams = new TransactionParameters({
       inputUtxos,
-      // outputUtxos: [new Utxo({poseidon: POSEIDON})],
-      // outputUtxos: [
-      //   new Utxo({
-      //     poseidon: POSEIDON,
-      //     assets: inputUtxos[0].assets,
-      //     amounts: inputUtxos[0].amounts,
-      //   }),
-      // ],
+      outputUtxos: [
+        new Utxo({
+          poseidon: POSEIDON,
+          assets: inputUtxos[0].assets,
+          amounts: [
+            new BN(0),
+            inputUtxos[0].amounts[1]
+          ]
+        })
+      ],
 
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
@@ -509,7 +511,7 @@ describe("verifier_program", () => {
       verifier: new VerifierOne(),
       relayer,
       poseidon: POSEIDON,
-      action: Action.WITHDRAWAL
+      action: Action.UNSHIELD
     });
     let tx = new Transaction({
       provider: lightProvider,
