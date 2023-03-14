@@ -39,6 +39,7 @@ import { getUnspentUtxos } from "./buildBalance";
 import { Provider } from "./provider";
 import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
+import axios from "axios";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -691,7 +692,12 @@ export class User {
     }
     // console.log = initLog;
     console.log("✔️ checkBalances success!");
-    // TODO: add a ping to relayer merkletree update crank
+    if (this.provider.browserWallet) {
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
+      console.log({ response });
+    }
   }
 
   /**
@@ -753,13 +759,14 @@ export class User {
     });
 
     // refactor idea: getTxparams -> in,out
+
     let txParams = new TransactionParameters({
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientFee: recipient, // feeRecipient
-      verifier: new VerifierZero(),
+      verifier: new VerifierZero(this.provider.browserWallet && this.provider),
       relayer,
       poseidon: this.provider.poseidon,
       action: Action.WITHDRAWAL,
@@ -792,7 +799,12 @@ export class User {
     }
     // await tx.checkBalances();
     console.log("checkBalances INACTIVE");
-    // TODO: add a ping to a relayer that's running a crank
+    if (this.provider.browserWallet) {
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
+      console.log({ response });
+    }
   }
 
   // TODO: add separate lookup function for users.
@@ -860,7 +872,7 @@ export class User {
       inputUtxos: inUtxos,
       outputUtxos: outUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      verifier: new VerifierZero(),
+      verifier: new VerifierZero(this.provider.browserWallet && this.provider),
       // recipient: randomRecipient,
       // recipientFee: randomRecipient,
       relayer,
@@ -894,7 +906,12 @@ export class User {
     }
     //@ts-ignore
     // await tx.checkBalances();
-    // TODO: add: browserWallet -> ping relayer to update merkletree!
+    if (this.provider.browserWallet) {
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
+      console.log({ response });
+    }
   }
 
   appInteraction() {

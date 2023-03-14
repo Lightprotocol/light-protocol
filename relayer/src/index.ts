@@ -10,6 +10,7 @@ import {
   setUpMerkleTree,
   SolMerkleTree,
   userTokenAccount,
+  updateMerkleTreeForTest,
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import * as solana from "@solana/web3.js";
@@ -25,6 +26,18 @@ app.use((req, res, next) => {
     "Origin, X-Requested-With, Content-Type, Accept",
   );
   next();
+});
+
+app.post("/updatemerkletree", async function (req, res) {
+  try {
+    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    console.log({provider})
+    await updateMerkleTreeForTest(provider.provider?.connection!);
+    return res.status(200).json({ status: "ok" });
+  } catch (e) {
+    console.log(e);
+    return res.status(500).json({ status: "error" });
+  }
 });
 
 app.post("/relay", async function (req, res) {
