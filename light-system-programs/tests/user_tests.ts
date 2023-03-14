@@ -30,7 +30,7 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 
 // TODO: remove deprecated function calls
-describe("verifier_program", () => {
+describe("user_tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
