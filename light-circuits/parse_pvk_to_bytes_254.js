@@ -1,7 +1,5 @@
-const { throws } = require('assert');
 var ffjavascript = require('ffjavascript');
 const {unstringifyBigInts, leInt2Buff} = ffjavascript.utils;
-const Scalar = ffjavascript.Scalar;
 var fs = require("fs")
 const process = require('process');
 

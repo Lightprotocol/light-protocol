@@ -29,5 +29,5 @@ verifier_program_two = { path = "../../../light-system-programs/programs/verifie
 solana-program = "1.15.2"
 
 # Light Deps
-groth16-solana = {path = "../../../groth16-solana"}
+groth16-solana = "0.0.1"
 light-verifier-sdk = {path = "../../../light-verifier-sdk"}
