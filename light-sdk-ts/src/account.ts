@@ -8,6 +8,7 @@ import {
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
+// @ts-ignore:
 import { buildEddsa } from "circomlibjs";
 
 export class Account {
