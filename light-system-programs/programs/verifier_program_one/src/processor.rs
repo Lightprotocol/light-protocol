@@ -1,5 +1,6 @@
 use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
+use light_macros::pubkey;
 use light_verifier_sdk::{
     accounts::Accounts,
     light_transaction::{Config, Transaction},
@@ -15,11 +16,8 @@ impl Config for TransactionConfig {
     const NR_LEAVES: usize = 2;
     /// Number of checked public inputs.
     const NR_CHECKED_PUBLIC_INPUTS: usize = 0;
-    /// ProgramId in bytes.
-    const ID: [u8; 32] = [
-        34, 112, 33, 68, 178, 147, 230, 193, 113, 82, 213, 107, 154, 193, 174, 159, 246, 190, 23,
-        138, 211, 16, 120, 183, 7, 91, 10, 173, 20, 245, 75, 167,
-    ];
+    /// ProgramId.
+    const ID: Pubkey = pubkey!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 }
 
 pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(

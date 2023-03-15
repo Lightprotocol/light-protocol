@@ -50,8 +50,7 @@ impl<T: Config> anchor_lang::AccountSerialize for VerifierState10Ins<T> {
 
 impl<T: Config> anchor_lang::Owner for VerifierState10Ins<T> {
     fn owner() -> Pubkey {
-        #[allow(deprecated)]
-        Pubkey::new(&T::ID[..])
+        T::ID
     }
 }
 
