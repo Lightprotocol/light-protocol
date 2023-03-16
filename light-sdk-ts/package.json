@@ -9,6 +9,7 @@
     "test-utxo": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/utxo.test.ts --exit",
     "test-verifiers": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/verifiers.test.ts --exit",
     "test-transaction": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/transaction.test.ts --exit",
+    "test-account": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/account.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
