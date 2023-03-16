@@ -2,6 +2,7 @@ use crate::verifying_key::VERIFYINGKEY;
 use crate::LightInstructionFirst;
 use crate::LightInstructionSecond;
 use anchor_lang::prelude::*;
+use light_macros::pubkey;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use light_verifier_sdk::{
     light_app_transaction::AppTransaction,
@@ -17,11 +18,8 @@ impl Config for TransactionsConfig {
     const NR_LEAVES: usize = 4;
     /// Number of checked public inputs, Kyc, Invoking Verifier, Apphash.
     const NR_CHECKED_PUBLIC_INPUTS: usize = 3;
-    /// ProgramId in bytes.
-    const ID: [u8; 32] = [
-        218, 7, 92, 178, 255, 94, 198, 129, 118, 19, 222, 83, 11, 105, 42, 135, 53, 71, 119, 105,
-        218, 71, 67, 12, 189, 129, 84, 51, 92, 74, 131, 39,
-    ];
+    /// ProgramId.
+    const ID: Pubkey = pubkey!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 }
 
 pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(

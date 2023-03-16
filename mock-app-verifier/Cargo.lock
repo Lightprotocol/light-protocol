@@ -1452,6 +1452,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
+ "light-macros",
  "light-verifier-sdk",
  "merkle_tree_program",
  "solana-program",
