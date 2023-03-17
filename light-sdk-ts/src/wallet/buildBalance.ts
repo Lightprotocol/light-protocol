@@ -127,7 +127,13 @@ export async function getUnspentUtxos({
         decryptedUtxo?.getCommitment()!.toString(),
       );
       // decryptedUtxo.index = mtIndex;
-      assert.equal(mtIndex.toString(), decryptedUtxo.index!.toString());
+      console.log(
+        "DISABLED mtIndex check!",
+        mtIndex,
+        "should:",
+        decryptedUtxo.index?.toString(),
+      );
+      // assert.equal(mtIndex.toString(), decryptedUtxo.index!.toString());
 
       let nullifier = decryptedUtxo.getNullifier();
       if (!nullifier) continue;

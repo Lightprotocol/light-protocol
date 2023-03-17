@@ -272,8 +272,8 @@ describe("verifier_program", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
-
-    await user.shield({ amount, token, extraSolAmount: 2 });
+    console.log("preshieldedbalance", preShieldedBalance);
+    await user.shield({ amount, token, extraSolAmount: 0 }); // 2
 
     try {
       console.log("updating merkle tree...");
@@ -287,7 +287,12 @@ describe("verifier_program", () => {
       throw new Error("Failed to update merkle tree!");
     }
     // TODO: add random amount and amount checks
-    let balance = await user.getBalance({ latest: true });
+    let balance;
+    try {
+      balance = await user.getBalance({ latest: true });
+    } catch (e) {
+      throw new Error(`ayayay ${e}`);
+    }
     let tokenBalanceAfter = balance.find(
       (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
     );
@@ -320,10 +325,12 @@ describe("verifier_program", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
     );
+    console.log("solBalancePre", solBalancePre);
+    console.log("solBalanceAfter", solBalanceAfter);
     assert.equal(
       solBalanceAfter.amount,
-      solBalancePre.amount + 2 * 1e9,
-      `shielded sol balance after ${solBalanceAfter.amount} != shield amount 2`,
+      solBalancePre.amount + 50000, //+ 2 * 1e9, this MINIMZM
+      `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
   });
 
@@ -368,6 +375,16 @@ describe("verifier_program", () => {
       (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
     );
 
+    console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
+    console.log("solShieldedBalancePre", solShieldedBalancePre);
+
+    // assert that the user's token balance has decreased by the amount shielded
+    const postSolBalance = await provider.provider.connection.getBalance(
+      userKeypair.publicKey,
+    );
+    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
+    console.log("postSolBalance", postSolBalance);
+    console.log("preSolBalance", preSolBalance);
     // assert that the user's shielded balance has increased by the amount shielded
     assert.equal(
       solShieldedBalanceAfter.amount,
@@ -376,12 +393,6 @@ describe("verifier_program", () => {
         solShieldedBalanceAfter.amount
       } != shield amount ${amount * tokenCtx?.decimals}`,
     );
-
-    // assert that the user's token balance has decreased by the amount shielded
-    const postSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
-    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
 
     assert.equal(
       postSolBalance,

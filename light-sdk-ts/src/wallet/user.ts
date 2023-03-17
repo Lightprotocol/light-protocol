@@ -118,74 +118,74 @@ export class User {
     if (!this.provider.lookUpTable)
       throw new Error("Look up table not initialized");
 
-    try {
-      if (latest) {
-        let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-          MERKLE_TREE_KEY,
-          this.provider.provider,
-        );
-        console.log("leavespdas", leavesPdas.length);
-        //TODO: add: "pending" to balances
-        //TODO: add init by cached (subset of leavesPdas)
-        const params = {
-          leavesPdas,
-          merkleTree: this.provider.solMerkleTree.merkleTree!,
-          provider: this.provider.provider!,
-          account: this.account,
-          poseidon: this.provider.poseidon,
-          merkleTreeProgram: merkleTreeProgramId,
-        };
-        const utxos = await getUnspentUtxos(params);
+    // try {
+    if (latest) {
+      let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+        MERKLE_TREE_KEY,
+        this.provider.provider,
+      );
+      console.log("1- leaves pdas?", leavesPdas.length);
+      //TODO: add: "pending" to balances
+      //TODO: add init by cached (subset of leavesPdas)
+      const params = {
+        leavesPdas,
+        merkleTree: this.provider.solMerkleTree.merkleTree!,
+        provider: this.provider.provider!,
+        account: this.account,
+        poseidon: this.provider.poseidon,
+        merkleTreeProgram: merkleTreeProgramId,
+      };
+      const utxos = await getUnspentUtxos(params);
 
-        this.utxos = utxos;
-        console.log("✔️ updated utxos", this.utxos.length);
-      } else {
-        console.log("✔️ read utxos from cache", this.utxos.length);
-      }
-
-      // add permissioned tokens to balance display
-      TOKEN_REGISTRY.forEach((token) => {
-        balances.push({
-          symbol: token.symbol,
-          amount: 0,
-          tokenAccount: token.tokenAccount,
-          decimals: token.decimals,
-        });
-      });
-
-      this.utxos.forEach((utxo) => {
-        utxo.assets.forEach((asset, i) => {
-          const tokenAccount = asset;
-          const amount = utxo.amounts[i].toNumber();
-
-          const existingBalance = balances.find(
-            (balance) =>
-              balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
-          );
-          if (existingBalance) {
-            existingBalance.amount += amount;
-          } else {
-            let tokenData = TOKEN_REGISTRY.find(
-              (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
-            );
-            if (!tokenData)
-              throw new Error(
-                `Token ${tokenAccount.toBase58()} not found in registry`,
-              );
-            balances.push({
-              symbol: tokenData.symbol,
-              amount,
-              tokenAccount,
-              decimals: tokenData.decimals,
-            });
-          }
-        });
-      });
-      // TODO: add "pending" balances,
-      return balances;
-    } catch (err) {
-      throw new Error(`Èrror in getting the user balance: ${err.message}`);
+      this.utxos = utxos;
+      console.log("✔️ updated utxos", this.utxos.length);
+    } else {
+      console.log("✔️ read utxos from cache", this.utxos.length);
     }
+
+    // add permissioned tokens to balance display
+    TOKEN_REGISTRY.forEach((token) => {
+      balances.push({
+        symbol: token.symbol,
+        amount: 0,
+        tokenAccount: token.tokenAccount,
+        decimals: token.decimals,
+      });
+    });
+
+    this.utxos.forEach((utxo) => {
+      utxo.assets.forEach((asset, i) => {
+        const tokenAccount = asset;
+        const amount = utxo.amounts[i].toNumber();
+
+        const existingBalance = balances.find(
+          (balance) =>
+            balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
+        );
+        if (existingBalance) {
+          existingBalance.amount += amount;
+        } else {
+          let tokenData = TOKEN_REGISTRY.find(
+            (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
+          );
+          if (!tokenData)
+            throw new Error(
+              `Token ${tokenAccount.toBase58()} not found in registry`,
+            );
+          balances.push({
+            symbol: tokenData.symbol,
+            amount,
+            tokenAccount,
+            decimals: tokenData.decimals,
+          });
+        }
+      });
+    });
+    // TODO: add "pending" balances,
+    return balances;
+    // } catch (err) {
+    //   throw new Error(`Èrror in getting the user balance: ${err.message}`);
+    // }
   }
 
   selectUtxos({
@@ -310,6 +310,7 @@ export class User {
           verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
           poseidon: this.provider.poseidon,
           action,
+          lookUpTable: this.provider.lookUpTable!,
         });
         return txParams;
       } else {
@@ -326,6 +327,7 @@ export class User {
           provider: this.provider,
           poseidon: this.provider.poseidon,
           action,
+          lookUpTable: this.provider.lookUpTable!,
         });
 
         return txParams;
@@ -396,11 +398,12 @@ export class User {
         verifier: new VerifierZero(),
         inputUtxos: inUtxos,
         outputUtxos: outUtxos,
-        recipient: feeRecipient,
-        recipientFee: feeRecipient,
+        // recipient: feeRecipient,
+        // recipientFee: feeRecipient,
         relayer,
         poseidon: this.provider.poseidon,
         action,
+        lookUpTable: this.provider.lookUpTable,
       });
       return txParams;
     } else throw new Error("Invalid action");
