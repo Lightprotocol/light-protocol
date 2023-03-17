@@ -48,7 +48,7 @@ export const  runCommand = (
 export const executeWithInput = (
   command: string,
   inputs: string[] = [],
-  opts: Options = { env: null, timeout: 200, maxTimeout: 100000 }
+  opts: Options = { env: null, timeout: 200, maxTimeout: 200000 }
 ): Promise<string> => {
   if (!Array.isArray(inputs)) {
     opts = inputs;

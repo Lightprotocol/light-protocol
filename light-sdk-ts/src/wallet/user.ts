@@ -908,7 +908,6 @@ export class User {
       const response = await axios.post(
         "http://localhost:3331/updatemerkletree",
       );
-      console.log({ response });
     }
   }
 

@@ -23,11 +23,9 @@ describe("browser_wallet", () => {
 
   before(async () => {
     connection = new Connection("http://127.0.0.1:8899");
-    console.log({ connection });
     const response = executeWithInput(
       "cd ../relayer && node lib/index.js && ../",
     );
-    console.log({response});
     await sleep(20000)
   });
 
@@ -46,7 +44,7 @@ describe("browser_wallet", () => {
     return await fn();
   };
 
-  it.only("(user class) shield SOL", async () => {
+  it("(user class) shield SOL", async () => {
 
     let amount = 15;
     let token = "SOL";

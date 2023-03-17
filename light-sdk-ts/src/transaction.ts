@@ -1119,6 +1119,7 @@ export class Transaction {
       let merkle_tree_account_data =
         await this.merkleTreeProgram.account.merkleTree.fetch(
           this.provider.solMerkleTree.pubkey,
+          "confirmed",
         );
       // @ts-ignore: unknown type error
       merkle_tree_account_data.roots.map((x: any, index: any) => {
