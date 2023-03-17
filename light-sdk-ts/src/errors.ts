@@ -10,6 +10,13 @@ export enum UtxoErrorCode {
   ASSET_NOT_FOUND = "ASSET_NOT_FOUND",
 }
 
+export enum RelayerErrorCode {
+  RELAYER_FEE_UNDEFINED = "RELAYER_FEE_UNDEFINED",
+  RELAYER_PUBKEY_UNDEFINED = "RELAYER_PUBKEY_UNDEFINED",
+  LOOK_UP_TABLE_UNDEFINED = "LOOK_UP_TABLE_UNDEFINED",
+  RELAYER_RECIPIENT_UNDEFINED = "RELAYER_RECIPIENT_UNDEFINED",
+}
+
 export enum AccountErrorCode {
   INVALID_SEED_SIZE = "INVALID_SEED_SIZE",
   SEED_UNDEFINED = "SEED_UNDEFINED",
@@ -122,3 +129,5 @@ export class UtxoError extends MetaError {}
 export class VerifierError extends MetaError {}
 
 export class AccountError extends MetaError {}
+
+export class RelayerError extends MetaError {}
