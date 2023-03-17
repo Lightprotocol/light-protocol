@@ -1110,7 +1110,9 @@ dependencies = [
 
 [[package]]
 name = "groth16-solana"
-version = "0.1.0"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "02357953b5d4b357ffab9f26a53475a432507e84ea2840b80d2b1cf3b4275fd2"
 dependencies = [
  "solana-program",
  "thiserror",
@@ -1331,6 +1333,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-macros"
+version = "0.1.0"
+dependencies = [
+ "bs58 0.4.0",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "light-verifier-sdk"
 version = "0.1.0"
 dependencies = [
@@ -1440,6 +1452,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
+ "light-macros",
  "light-verifier-sdk",
  "merkle_tree_program",
  "solana-program",
@@ -2500,6 +2513,7 @@ dependencies = [
  "anchor-lang",
  "anchor-spl",
  "groth16-solana",
+ "light-macros",
  "light-verifier-sdk",
  "merkle_tree_program",
  "solana-security-txt 1.1.0",

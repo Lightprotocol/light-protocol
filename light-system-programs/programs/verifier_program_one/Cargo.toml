@@ -22,5 +22,6 @@ solana-security-txt = "1.1.0"
 merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }
 
 # Light Deps
-groth16-solana = {path = "../../../groth16-solana"}
+groth16-solana = "0.0.1"
+light-macros = {path = "../../../light-macros"}
 light-verifier-sdk = {path = "../../../light-verifier-sdk"}

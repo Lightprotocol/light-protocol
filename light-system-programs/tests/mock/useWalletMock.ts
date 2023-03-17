@@ -11,6 +11,8 @@ import {
 } from "@solana/web3.js";
 import nacl from "tweetnacl";
 
+import { sign } from "tweetnacl";
+
 // Mock Solana web3 library
 class MockProvider {
   _publicKey: PublicKey;
@@ -23,25 +25,23 @@ class MockProvider {
     this._connection = connection;
   }
 
+  signTransaction = async (transaction) => {
+    await transaction.sign([this._keypair!]);
+    return transaction
+  };
+
+  signMessage = async (message) => {
+    return sign.detached(message, userKeypair.secretKey);
+  };
+
+  const sendAndConfirmTransaction = async (fn) => {
+    return await fn();
+  };
+
   async sendTransaction(transaction) {
     // Simulate transaction submission
     console.log("Mock transaction submitted:", transaction);
     return "mockTransactionSignature";
-  }
-
-  async signTransaction(transaction) {
-    try {
-      if (transaction instanceof Uint8Array) {
-        let signature = await this.sign(transaction);
-        return signature;
-      } else {
-        transaction.sign([this._keypair]);
-        console.log("after signing tx", { transaction });
-        return transaction;
-      }
-    } catch (error) {
-      console.log("sign transaction", { error });
-    }
   }
 
   async signAllTransactions(transactions) {

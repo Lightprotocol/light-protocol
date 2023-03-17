@@ -333,7 +333,7 @@ export class Utxo {
       const verifierAddress = new PublicKey(bytes.slice(95, 127));
       // ...new Array(1), separator is otherwise 0
       const appData = bytes.slice(128, bytes.length);
-      const burnerAccount = Account.fromPrivkey(
+      const burnerAccount = Account.fromBurnerSeed(
         poseidon,
         appData.slice(72, 104),
       );

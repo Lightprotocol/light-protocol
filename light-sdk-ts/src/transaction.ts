@@ -1427,6 +1427,7 @@ export class Transaction {
           await getAccount(
             this.provider.provider.connection,
             this.params.accounts.recipient,
+            "confirmed",
           )
         ).amount.toString(),
       );
@@ -1436,6 +1437,7 @@ export class Transaction {
         this.testValues.recipientBalancePriorTx = new BN(
           await this.provider.provider.connection.getBalance(
             this.params.accounts.recipient,
+            "confirmed",
           ),
         );
       } catch (e) {}
@@ -1445,6 +1447,7 @@ export class Transaction {
       this.testValues.recipientFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         ),
       );
     } catch (error) {
@@ -1457,12 +1460,14 @@ export class Transaction {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
+          "confirmed",
         ),
       );
     } else {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
+          "confirmed",
         ),
       );
     }
@@ -1470,6 +1475,7 @@ export class Transaction {
     this.testValues.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
+        "confirmed",
       ),
     );
   }
@@ -1619,10 +1625,9 @@ export class Transaction {
         }
         try {
           let serializedTx = tx.serialize();
-
           res = await this.provider.provider.connection.sendRawTransaction(
             serializedTx,
-            confirmConfig,
+            { preflightCommitment: "finalized", skipPreflight: true },
           );
           console.log("res =======================>", res);
           retries = 0;
@@ -2114,6 +2119,7 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
+          "finalized",
         );
       assert(
         recipientFeeAccountBalance ==
@@ -2190,8 +2196,8 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
+          "finalized",
         );
-
       assert(
         recipientFeeAccountBalance ==
           Number(this.testValues.recipientFeeBalancePriorTx) +

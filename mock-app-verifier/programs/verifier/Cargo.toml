@@ -24,10 +24,11 @@ anchor-spl = "0.26.0"
 solana-security-txt = "0.1.0"
 merkle_tree_program = { path = "../../../light-system-programs/programs/merkle_tree_program", features = ["cpi"] }
 verifier_program_two = { path = "../../../light-system-programs/programs/verifier_program_two", features = ["cpi"] }
+light-macros = { path = "../../../light-macros"}
 
 #solana
 solana-program = "1.15.2"
 
 # Light Deps
-groth16-solana = {path = "../../../groth16-solana"}
+groth16-solana = "0.0.1"
 light-verifier-sdk = {path = "../../../light-verifier-sdk"}

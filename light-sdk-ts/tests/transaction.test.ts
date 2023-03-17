@@ -88,7 +88,6 @@ describe("Transaction Error Tests", () => {
     });
   });
 
-
   it("Constructor PROVIDER_UNDEFINED", async () => {
     expect(() => {
       // @ts-ignore:

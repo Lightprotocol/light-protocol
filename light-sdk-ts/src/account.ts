@@ -1,8 +1,15 @@
 const nacl = require("tweetnacl");
 import { BN } from "@coral-xyz/anchor";
+import {
+  AccountError,
+  AccountErrorCode,
+  TransactionParametersErrorCode,
+} from "./errors";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
+// @ts-ignore:
+import { buildEddsa } from "circomlibjs";
 
 export class Account {
   /**
@@ -17,7 +24,7 @@ export class Account {
   poseidon: any;
   burnerSeed: Uint8Array;
   // keypair for eddsa poseidon signatures
-  poseidonEddsa?: {
+  poseidonEddsaKeypair?: {
     publicKey?: [Uint8Array, Uint8Array];
     privateKey: Uint8Array;
   };
@@ -41,6 +48,7 @@ export class Account {
     poseidonEddsaPrivateKey,
     eddsa,
     encryptionPublicKey,
+    encryptionPrivateKey,
   }: {
     poseidon?: any;
     seed?: string;
@@ -50,16 +58,33 @@ export class Account {
     poseidonEddsaPrivateKey?: Uint8Array;
     eddsa?: any;
     encryptionPublicKey?: Uint8Array;
+    encryptionPrivateKey?: Uint8Array;
   }) {
-    if (seed.length < 32) {
-      throw "seed too short length less than 32";
+    if (!poseidon) {
+      throw new AccountError(
+        TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
+        "constructor",
+      );
     }
-    if (poseidon) {
-      this.poseidon = poseidon;
-    }
+
+    this.poseidon = poseidon;
     this.burnerSeed = new Uint8Array();
     // creates a burner utxo by using the index for domain separation
     if (burner) {
+      if (!seed) {
+        throw new AccountError(
+          AccountErrorCode.SEED_UNDEFINED,
+          "constructor",
+          "seed is required to create a burner account",
+        );
+      }
+      if (seed.length < 32) {
+        throw new AccountError(
+          AccountErrorCode.INVALID_SEED_SIZE,
+          "constructor",
+          "seed too short length less than 32",
+        );
+      }
       // burnerSeed can be shared since hash cannot be inverted - only share this for app utxos
       // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
       // the encryption and private key of a utxo
@@ -70,22 +95,26 @@ export class Account {
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Account.getEddsaPrivateKey(
+      this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
     } else if (privateKey) {
+      if (!encryptionPrivateKey) {
+        throw new AccountError(
+          AccountErrorCode.ENCRYPTION_PRIVATE_KEY_UNDEFINED,
+          "constructor",
+        );
+      }
       this.privkey = privateKey;
       this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
       if (poseidonEddsaPrivateKey) {
-        this.poseidonEddsa = { privateKey: poseidonEddsaPrivateKey };
+        this.poseidonEddsaKeypair = { privateKey: poseidonEddsaPrivateKey };
       }
-      this.encryptionKeypair = {
-        publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
-        secretKey: new Uint8Array(),
-      };
+      this.encryptionKeypair =
+        nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
     } else if (publicKey) {
       this.pubkey = publicKey;
       this.privkey = new BN("0");
@@ -94,34 +123,69 @@ export class Account {
         secretKey: new Uint8Array(),
       };
     } else {
+      if (!seed) {
+        throw new AccountError(
+          AccountErrorCode.SEED_UNDEFINED,
+          "constructor",
+          "seed is required to create an account",
+        );
+      }
+      if (seed.length < 32) {
+        throw new AccountError(
+          AccountErrorCode.INVALID_SEED_SIZE,
+          "constructor",
+          "seed too short length less than 32",
+        );
+      }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
       this.privkey = Account.generateShieldedPrivateKey(seed);
       this.pubkey = Account.generateShieldedPublicKey(
         this.privkey,
         this.poseidon,
       );
-      this.poseidonEddsa = Account.getEddsaPrivateKey(seed);
+      this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
     }
     this.eddsa = eddsa;
   }
 
-  async getEddsaPublicKey(): Promise<[Uint8Array, Uint8Array]> {
-    if (this.poseidonEddsa && this.eddsa) {
-      this.poseidonEddsa.publicKey = this.eddsa.prv2pub(
-        this.poseidonEddsa.privateKey,
+  async getEddsaPublicKey(eddsa?: any): Promise<[Uint8Array, Uint8Array]> {
+    if (!this.poseidonEddsaKeypair) {
+      throw new AccountError(
+        AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
+        "getEddsaPublicKey",
+        "poseidonEddsaKeypair.privateKey undefined",
       );
-      if (this.poseidonEddsa.publicKey) {
-        return this.poseidonEddsa.publicKey;
-      } else {
-        throw new Error("get poseidonEddsa.publicKey failed");
-      }
-    } else {
-      throw new Error("poseidonEddsa.privateKey undefined");
     }
+    if (!this.poseidonEddsaKeypair.privateKey) {
+      throw new AccountError(
+        AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
+        "getEddsaPublicKey",
+        "poseidonEddsaKeypair.privateKey undefined",
+      );
+    }
+    if (!this.eddsa) {
+      if (eddsa) {
+        this.eddsa = eddsa;
+      } else {
+        this.eddsa = await buildEddsa();
+      }
+    }
+
+    this.poseidonEddsaKeypair.publicKey = this.eddsa.prv2pub(
+      this.poseidonEddsaKeypair.privateKey,
+    );
+    if (!this.poseidonEddsaKeypair.publicKey) {
+      throw new AccountError(
+        AccountErrorCode.POSEIDON_EDDSA_GET_PUBKEY_FAILED,
+        "signEddsa",
+        "poseidonEddsaKeypair.privateKey undefined",
+      );
+    }
+    return this.poseidonEddsaKeypair.publicKey;
   }
 
   static getEddsaPrivateKey(seed: string) {
-    const privkeySeed = seed + "poseidonEddsa";
+    const privkeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
       privateKey: blake2b.create(b2params).update(privkeySeed).digest(),
@@ -132,31 +196,35 @@ export class Account {
     return new BN(this.encryptionKeypair.publicKey).toBuffer("be", 32);
   }
 
-  // TODO: make eddsa wrapper class
-  // TODO: include eddsa into static from methods
+  // TODO: Add check for uint8array to be well formed
   async signEddsa(msg: string | Uint8Array, eddsa?: any): Promise<Uint8Array> {
+    if (!this.poseidonEddsaKeypair) {
+      throw new AccountError(
+        AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
+        "signEddsa",
+        "poseidonEddsaKeypair.privateKey undefined",
+      );
+    }
+
     if (!this.eddsa) {
-      if (!eddsa) {
+      if (eddsa) {
         this.eddsa = eddsa;
       } else {
-        throw new Error("Eddsa is not provided");
+        this.eddsa = await buildEddsa();
       }
     }
-    if (this.poseidonEddsa) {
-      if (typeof msg == "string") {
-        return this.eddsa.packSignature(
-          this.eddsa.signPoseidon(
-            this.poseidonEddsa.privateKey,
-            this.poseidon.F.e(ffjavascript.Scalar.e(msg)),
-          ),
-        );
-      } else {
-        return this.eddsa.packSignature(
-          this.eddsa.signPoseidon(this.poseidonEddsa.privateKey, msg),
-        );
-      }
+
+    if (typeof msg == "string") {
+      return this.eddsa.packSignature(
+        this.eddsa.signPoseidon(
+          this.poseidonEddsaKeypair.privateKey,
+          this.poseidon.F.e(ffjavascript.Scalar.e(msg)),
+        ),
+      );
     } else {
-      throw new Error("poseidonEddsa.privateKey undefined");
+      return this.eddsa.packSignature(
+        this.eddsa.signPoseidon(this.poseidonEddsaKeypair.privateKey, msg),
+      );
     }
   }
 
@@ -178,6 +246,13 @@ export class Account {
   }
 
   static createBurner(poseidon: any, seed: String, index: BN): Account {
+    if (seed.length < 32) {
+      throw new AccountError(
+        AccountErrorCode.INVALID_SEED_SIZE,
+        "constructor",
+        "seed too short length less than 32",
+      );
+    }
     const burnerSeed = blake2b
       .create(b2params)
       .update(seed + "burnerSeed" + index.toString("hex"))
@@ -192,10 +267,15 @@ export class Account {
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
-  static fromPrivkey(poseidon: any, privateKey: Uint8Array): Account {
+  static fromPrivkey(
+    poseidon: any,
+    privateKey: Uint8Array,
+    encryptionPrivateKey: Uint8Array,
+  ): Account {
     const privkey = new BN(privateKey);
-    return new Account({ poseidon, privateKey: privkey });
+    return new Account({ poseidon, privateKey: privkey, encryptionPrivateKey });
   }
+
   static fromPubkey(
     publicKey: Uint8Array,
     encPubkey: Uint8Array,
