@@ -85,15 +85,11 @@ export async function getUnspentUtxos({
   provider,
   account,
   poseidon,
-  merkleTreeProgram: MerkleTreeProgram,
-  merkleTree,
 }: {
   leavesPdas: any;
   provider: anchor.Provider;
   account: Account;
   poseidon: any;
-  merkleTreeProgram: any;
-  merkleTree: MerkleTree;
 }): Promise<Utxo[]> {
   let decryptedUtxos: Utxo[] = [];
   // TODO: check performance vs a proper async map and check against fetching nullifiers separately (indexed)
