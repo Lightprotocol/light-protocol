@@ -272,7 +272,7 @@ describe("verifier_program", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user = await User.load(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
-    console.log("preshieldedbalance", preShieldedBalance);
+    // console.log("preshieldedbalance", preShieldedBalance);
     await user.shield({ amount, token, extraSolAmount: 0 }); // 2
 
     try {
@@ -325,8 +325,8 @@ describe("verifier_program", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
     );
-    console.log("solBalancePre", solBalancePre);
-    console.log("solBalanceAfter", solBalanceAfter);
+    // console.log("solBalancePre", solBalancePre);
+    // console.log("solBalanceAfter", solBalanceAfter);
     assert.equal(
       solBalanceAfter.amount,
       solBalancePre.amount + 50000, //+ 2 * 1e9, this MINIMZM
@@ -375,16 +375,16 @@ describe("verifier_program", () => {
       (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
     );
 
-    console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
-    console.log("solShieldedBalancePre", solShieldedBalancePre);
+    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
+    // console.log("solShieldedBalancePre", solShieldedBalancePre);
 
     // assert that the user's token balance has decreased by the amount shielded
     const postSolBalance = await provider.provider.connection.getBalance(
       userKeypair.publicKey,
     );
     let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-    console.log("postSolBalance", postSolBalance);
-    console.log("preSolBalance", preSolBalance);
+    // console.log("postSolBalance", postSolBalance);
+    // console.log("preSolBalance", preSolBalance);
     // assert that the user's shielded balance has increased by the amount shielded
     assert.equal(
       solShieldedBalanceAfter.amount,

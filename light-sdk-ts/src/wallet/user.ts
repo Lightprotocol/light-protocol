@@ -124,7 +124,7 @@ export class User {
         MERKLE_TREE_KEY,
         this.provider.provider,
       );
-      console.log("1- leaves pdas?", leavesPdas.length);
+      console.log("leaves pdas", leavesPdas.length);
       //TODO: add: "pending" to balances
       //TODO: add init by cached (subset of leavesPdas)
       const params = {
