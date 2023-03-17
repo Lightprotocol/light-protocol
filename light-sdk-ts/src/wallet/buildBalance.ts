@@ -122,19 +122,6 @@ export async function getUnspentUtxos({
     for (let decryptedUtxo of decrypted) {
       if (!decryptedUtxo) continue;
 
-      /** must add index */
-      const mtIndex = merkleTree.indexOf(
-        decryptedUtxo?.getCommitment()!.toString(),
-      );
-      // decryptedUtxo.index = mtIndex;
-      console.log(
-        "DISABLED mtIndex check!",
-        mtIndex,
-        "should:",
-        decryptedUtxo.index?.toString(),
-      );
-      // assert.equal(mtIndex.toString(), decryptedUtxo.index!.toString());
-
       let nullifier = decryptedUtxo.getNullifier();
       if (!nullifier) continue;
 
