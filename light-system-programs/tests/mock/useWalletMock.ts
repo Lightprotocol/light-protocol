@@ -30,14 +30,6 @@ class MockProvider {
     return transaction
   };
 
-  signMessage = async (message) => {
-    return sign.detached(message, userKeypair.secretKey);
-  };
-
-  const sendAndConfirmTransaction = async (fn) => {
-    return await fn();
-  };
-
   async sendTransaction(transaction) {
     // Simulate transaction submission
     console.log("Mock transaction submitted:", transaction);
@@ -66,11 +58,6 @@ class MockProvider {
     } catch (err) {}
   }
 
-  async sign(transaction) {
-    // Sign the transaction using the keypair
-    const signature = nacl.sign.detached(transaction, this._keypair.secretKey);
-    return signature;
-  }
 
   signMessage(message: Uint8Array): Promise<Uint8Array> {
     return new Promise(async (resolve, reject) => {

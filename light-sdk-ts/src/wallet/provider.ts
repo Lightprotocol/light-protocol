@@ -133,6 +133,8 @@ export class Provider {
       if (this.browserWallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
 
+        console.log({ response });
+
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
 
         const pubkey = new PublicKey(response.data.data.pubkey);
@@ -148,6 +150,7 @@ export class Provider {
       // TODO: move to a seperate function
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
         MERKLE_TREE_KEY,
+        "confirmed",
       );
       if (!merkletreeIsInited) {
         await setUpMerkleTree(this.provider!);

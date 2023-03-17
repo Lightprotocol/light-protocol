@@ -67,6 +67,7 @@ export class SolMerkleTree {
 
     const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
       merkleTreePubkey,
+      "confirmed",
     );
 
     const merkleTreeIndex = mtFetched.nextIndex;

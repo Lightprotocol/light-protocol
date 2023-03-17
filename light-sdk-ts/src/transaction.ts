@@ -1934,18 +1934,12 @@ export class Transaction {
         "test values relayerRecipientAccountBalancePriorLastTx undefined",
       );
     }
-
-    console.log("until this all things passes by ==========> 1111");
-
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.testValues.is_token = false;
     } else {
       this.testValues.is_token = true;
     }
-
-    console.log("until this all things passes by ==========> 222");
-
     for (
       var i = 0;
       i < this.remainingAccounts.nullifierPdaPubkeys?.length;
@@ -1965,9 +1959,6 @@ export class Transaction {
         connection: this.provider.provider!.connection,
       });
     }
-
-    console.log("until this all things passes by ==========> 333");
-
     let leavesAccount;
     var leavesAccountData;
     // Checking that leaves were inserted
@@ -1997,9 +1988,6 @@ export class Transaction {
           this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
-
-      console.log("until this all things passes by ==========> 444");
-
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         // console.log(j);
 
@@ -2119,7 +2107,7 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
-          "finalized",
+          "confirmed",
         );
       assert(
         recipientFeeAccountBalance ==
@@ -2196,7 +2184,7 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
-          "finalized",
+          "confirmed",
         );
       assert(
         recipientFeeAccountBalance ==
@@ -2221,11 +2209,13 @@ export class Transaction {
     ) {
       var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
+        "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         );
 
       // console.log("relayerAccount ", relayerAccount);
@@ -2308,11 +2298,13 @@ export class Transaction {
 
       var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
+        "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         );
 
       // console.log("relayerAccount ", relayerAccount);

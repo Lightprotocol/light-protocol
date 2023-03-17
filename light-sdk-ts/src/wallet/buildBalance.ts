@@ -54,6 +54,7 @@ export async function getUnspentUtxo(
       )[0];
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
+        "confirmed",
       );
       if (
         accountInfo == null &&
@@ -141,6 +142,7 @@ export async function getUnspentUtxos({
       )[0];
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
+        "confirmed",
       );
       console.log(
         "inserted -- spent?",
