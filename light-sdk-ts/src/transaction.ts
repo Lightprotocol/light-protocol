@@ -1616,7 +1616,6 @@ export class Transaction {
           // TODO: versiontx??
           console.error("versioned tx might throw here");
           tx = await this.provider.browserWallet.signTransaction(tx);
-          // console.log({ tx });
           // throw new Error(
           //   "versioned transaction in browser not implemented yet",
           // );
@@ -1943,7 +1942,6 @@ export class Transaction {
       i < this.remainingAccounts.nullifierPdaPubkeys?.length;
       i++
     ) {
-      console.log(this.remainingAccounts.nullifierPdaPubkeys[i].pubkey);
       var nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
           this.remainingAccounts.nullifierPdaPubkeys[i].pubkey,

@@ -521,7 +521,9 @@ export class User {
     console.log = initLog;
     console.log("✔️ checkBalances success!");
     if (this.provider.browserWallet) {
-      await axios.post("http://localhost:3331/updatemerkletree");
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
     }
   }
 
@@ -588,7 +590,9 @@ export class User {
     // await tx.checkBalances();
     console.log("checkBalances INACTIVE");
     if (this.provider.browserWallet) {
-      await axios.post("http://localhost:3331/updatemerkletree");
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
     }
   }
 
@@ -653,7 +657,9 @@ export class User {
     //@ts-ignore
     // await tx.checkBalances();
     if (this.provider.browserWallet) {
-      await axios.post("http://localhost:3331/updatemerkletree");
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
     }
   }
 
