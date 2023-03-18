@@ -393,9 +393,13 @@ export class User {
         recipientEncryptionPublicKey,
       });
 
+      const verifier = new VerifierZero(
+        this.provider.browserWallet && this.provider,
+      );
+
       let txParams = new TransactionParameters({
         merkleTreePubkey: MERKLE_TREE_KEY,
-        verifier: new VerifierZero(),
+        verifier,
         inputUtxos: inUtxos,
         outputUtxos: outUtxos,
         // recipient: feeRecipient,

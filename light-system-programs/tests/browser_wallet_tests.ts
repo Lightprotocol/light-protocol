@@ -25,7 +25,8 @@ describe("browser_wallet", () => {
     const response = executeWithInput(
       "cd ../relayer && node lib/index.js && ../",
     );
-    await sleep(20000)
+    console.log("response here ===========>",response)
+    await sleep(30000)
   });
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
