@@ -4,33 +4,45 @@ import { Relayer } from "../relayer";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { Account } from "../account";
+import { Action } from "transaction";
 // TODO: v4: handle custom outCreator fns -> oututxo[] can be passed as param
+
+// I think this should be part of transaction parameters
+
+// pass in action
+// sanity checks for action
+// change amounts to solAmount, splAmount
+// pass in recipientAccount
+// make userAccount explicit
+//
 export function createOutUtxos({
   mint,
-  amount,
+  splAmount,
   inUtxos,
   recipient,
   recipientEncryptionPublicKey,
   relayer,
-  extraSolAmount,
+  solAmount,
   poseidon,
-  account,
+  senderAccount,
+  action,
 }: {
   mint: PublicKey;
-  amount: number;
+  splAmount: number;
   inUtxos: Utxo[];
   recipient?: anchor.BN;
   recipientEncryptionPublicKey?: Uint8Array;
   relayer?: Relayer;
-  extraSolAmount: number;
+  solAmount: number;
   poseidon: any;
-  account: Account;
+  senderAccount: Account;
+  action: Action;
 }) {
   //   const { poseidon } = provider;
   if (!poseidon) throw new Error("Poseidon not initialized");
-  if (!account) throw new Error("Shielded Account not initialized");
+  if (!senderAccount) throw new Error("Shielded Account not initialized");
 
-  if (amount < 0) {
+  if (splAmount < 0) {
     let inAmount = 0;
     inUtxos.forEach((inUtxo) => {
       inUtxo.assets.forEach((asset, i) => {
@@ -39,9 +51,9 @@ export function createOutUtxos({
         }
       });
     });
-    if (inAmount < Math.abs(amount)) {
+    if (inAmount < Math.abs(splAmount)) {
       throw new Error(
-        `Insufficient funds for unshield/transfer. In amount: ${inAmount}, out amount: ${amount}`,
+        `Insufficient funds for unshield/transfer. In splAmount: ${inAmount}, out splAmount: ${splAmount}`,
       );
     }
   }
@@ -62,9 +74,9 @@ export function createOutUtxos({
     (a) => a.asset.toBase58() === mint.toBase58(),
   );
   if (assetIndex === -1) {
-    assets.push({ asset: mint, amount: !isTransfer ? amount : 0 });
+    assets.push({ asset: mint, amount: !isTransfer ? splAmount : 0 });
   } else {
-    assets[assetIndex].amount += !isTransfer ? amount : 0;
+    assets[assetIndex].amount += !isTransfer ? splAmount : 0;
   }
 
   // add in-amounts to assets
@@ -94,7 +106,7 @@ export function createOutUtxos({
       let feeAssetSendUtxo = new Utxo({
         poseidon,
         assets: [assets[0].asset],
-        amounts: [new anchor.BN(amount)],
+        amounts: [new anchor.BN(solAmount)],
         account: new Account({
           poseidon: poseidon,
           publicKey: recipient,
@@ -110,11 +122,11 @@ export function createOutUtxos({
         ],
         amounts: [
           new anchor.BN(assets[0].amount)
-            .sub(new anchor.BN(amount))
+            .sub(new anchor.BN(solAmount))
             .sub(relayer?.relayerFee || new anchor.BN(0)), // sub from change
           assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
         ], // rem transfer positive
-        account: account,
+        account: senderAccount,
       });
 
       return [feeAssetSendUtxo, feeAssetChangeUtxo];
@@ -127,7 +139,7 @@ export function createOutUtxos({
         ],
         amounts: [
           !isUnshield
-            ? new anchor.BN(extraSolAmount + assets[0].amount)
+            ? new anchor.BN(solAmount + assets[0].amount)
             : new anchor.BN(assets[0].amount),
           assets[1] ? new anchor.BN(assets[1].amount) : new anchor.BN(0),
         ],
@@ -137,7 +149,7 @@ export function createOutUtxos({
               publicKey: recipient,
               encryptionPublicKey: recipientEncryptionPublicKey,
             })
-          : account, // if not self, use pubkey init
+          : senderAccount, // if not self, use pubkey init
       });
 
       return [feeAssetChangeUtxo];
@@ -149,7 +161,7 @@ export function createOutUtxos({
       let sendUtxo = new Utxo({
         poseidon,
         assets: [assets[0].asset, assets[1].asset],
-        amounts: [sendAmountFeeAsset, new anchor.BN(amount)],
+        amounts: [sendAmountFeeAsset, new anchor.BN(splAmount)],
         account: new Account({
           poseidon: poseidon,
           publicKey: recipient,
@@ -163,9 +175,9 @@ export function createOutUtxos({
           new anchor.BN(assets[0].amount)
             .sub(sendAmountFeeAsset)
             .sub(relayer?.relayerFee || new anchor.BN(0)),
-          new anchor.BN(assets[1].amount).sub(new anchor.BN(amount)),
+          new anchor.BN(assets[1].amount).sub(new anchor.BN(splAmount)),
         ],
-        account: account,
+        account: senderAccount,
       });
 
       return [sendUtxo, changeUtxo];
@@ -180,11 +192,11 @@ export function createOutUtxos({
             amounts: [
               // only implemented for shield! assumes passed in only if needed
               !isUnshield
-                ? new anchor.BN(extraSolAmount + assets[0].amount)
+                ? new anchor.BN(solAmount + assets[0].amount)
                 : new anchor.BN(assets[0].amount),
               new anchor.BN(asset.amount),
             ],
-            account: account, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
+            account: senderAccount, // if not self, use pubkey init // TODO: transfer: 1st is always recipient, 2nd change, both split sol min + rem to self
           });
           utxos.push(utxo1);
         } else {
@@ -192,7 +204,7 @@ export function createOutUtxos({
             poseidon,
             assets: [assets[0].asset, asset.asset],
             amounts: [new anchor.BN(0), new anchor.BN(asset.amount)],
-            account: account, // if not self, use pubkey init
+            account: senderAccount, // if not self, use pubkey init
           });
           utxos.push(utxo1);
         }
