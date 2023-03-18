@@ -1630,7 +1630,6 @@ export class Transaction {
             serializedTx,
             { preflightCommitment: "finalized", skipPreflight: true },
           );
-          console.log("res =======================>", res);
           retries = 0;
         } catch (e: any) {
           retries--;
@@ -1684,14 +1683,12 @@ export class Transaction {
       let tx = "Something went wrong";
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
-        console.log({ txTmp });
         if (txTmp) {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
             "finalized",
           );
-          console.log("tx : ", txTmp);
           tx = txTmp;
         } else {
           throw new TransactionError(
@@ -1964,15 +1961,11 @@ export class Transaction {
     var leavesAccountData;
     // Checking that leaves were inserted
     for (var i = 0; i < this.remainingAccounts.leavesPdaPubkeys.length; i++) {
-      console.log(this.remainingAccounts.leavesPdaPubkeys[i].pubkey);
-
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
           "finalized",
         );
-
-      console.log({ leavesAccountData });
 
       assert(
         leavesAccountData.nodeLeft.toString() ==
@@ -2053,8 +2046,6 @@ export class Transaction {
         }
       }
     }
-
-    console.log("until this all things passes by ==========> 555");
 
     console.log(
       `mode ${this.params.action}, this.testValues.is_token ${this.testValues.is_token}`,

@@ -515,15 +515,13 @@ export class User {
     } catch (e) {
       throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    // console.log = () => {};
+    console.log = () => {};
     //@ts-ignore
     await tx.checkBalances();
     console.log = initLog;
     console.log("✔️ checkBalances success!");
     if (this.provider.browserWallet) {
-      const response = await axios.post(
-        "http://localhost:3331/updatemerkletree",
-      );
+      await axios.post("http://localhost:3331/updatemerkletree");
     }
   }
 
@@ -590,9 +588,7 @@ export class User {
     // await tx.checkBalances();
     console.log("checkBalances INACTIVE");
     if (this.provider.browserWallet) {
-      const response = await axios.post(
-        "http://localhost:3331/updatemerkletree",
-      );
+      await axios.post("http://localhost:3331/updatemerkletree");
     }
   }
 
@@ -657,9 +653,7 @@ export class User {
     //@ts-ignore
     // await tx.checkBalances();
     if (this.provider.browserWallet) {
-      const response = await axios.post(
-        "http://localhost:3331/updatemerkletree",
-      );
+      await axios.post("http://localhost:3331/updatemerkletree");
     }
   }
 
@@ -703,7 +697,6 @@ export class User {
       } else if (this.provider?.browserWallet) {
         const signature: Uint8Array =
           await this.provider.browserWallet.signMessage(message);
-        console.log({ signature });
         this.seed = new anchor.BN(signature).toString();
       } else {
         throw new Error("No payer or browser wallet provided");

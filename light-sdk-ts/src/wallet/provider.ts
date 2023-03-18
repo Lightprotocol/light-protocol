@@ -133,8 +133,6 @@ export class Provider {
       if (this.browserWallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
 
-        console.log({ response });
-
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
 
         const pubkey = new PublicKey(response.data.data.pubkey);
