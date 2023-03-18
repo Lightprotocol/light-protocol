@@ -1627,7 +1627,7 @@ export class Transaction {
           let serializedTx = tx.serialize();
           res = await this.provider.provider.connection.sendRawTransaction(
             serializedTx,
-            { preflightCommitment: "finalized", skipPreflight: true },
+            confirmConfig,
           );
           retries = 0;
         } catch (e: any) {
