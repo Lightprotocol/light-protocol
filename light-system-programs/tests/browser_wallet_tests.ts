@@ -8,10 +8,9 @@ import {
   Provider,
   User,
   strToArr,
-  updateMerkleTreeForTest,
 } from "light-sdk";
 import { sign } from "tweetnacl";
-import { executeWithInput, runCommand } from "./mock/cmd";
+import { executeWithInput } from "./mock/cmd";
 
 const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
