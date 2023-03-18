@@ -1,11 +1,15 @@
 import { assert, expect } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
-import {BN} from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 let circomlibjs = require("circomlibjs");
-import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  PublicKey,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
@@ -68,10 +72,7 @@ describe("Test selectInUtxos Functional", () => {
     amount = amount * tokenCtx.decimals;
     let utxo1 = new Utxo({
       poseidon,
-      assets: [
-        SystemProgram.programId,
-        tokenCtx.tokenAccount,
-      ],
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
     });
 
@@ -82,6 +83,7 @@ describe("Test selectInUtxos Functional", () => {
       solAmount: 0,
       poseidon,
       senderAccount: k0,
+      action: Action.SHIELD,
     });
 
     assert.equal(
@@ -106,10 +108,7 @@ describe("Test selectInUtxos Functional", () => {
     amount = amount * tokenCtx.decimals;
     let utxo1 = new Utxo({
       poseidon,
-      assets: [
-        SystemProgram.programId,
-        tokenCtx.tokenAccount,
-      ],
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e8), new anchor.BN(5 * tokenCtx.decimals)],
     });
     let utxoSol = new Utxo({
@@ -124,6 +123,7 @@ describe("Test selectInUtxos Functional", () => {
       solAmount: 0,
       poseidon,
       senderAccount: k0,
+      action: Action.SHIELD,
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -149,18 +149,12 @@ describe("Test selectInUtxos Functional", () => {
     amount = amount * tokenCtx.decimals;
     let utxo1 = new Utxo({
       poseidon,
-      assets: [
-        SystemProgram.programId,
-        tokenCtx.tokenAccount,
-      ],
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
     });
     let utxo2 = new Utxo({
       poseidon,
-      assets: [
-        SystemProgram.programId,
-        tokenCtx.tokenAccount,
-      ],
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
     });
 
@@ -171,6 +165,7 @@ describe("Test selectInUtxos Functional", () => {
       solAmount: 0,
       poseidon,
       senderAccount: k0,
+      action: Action.SHIELD,
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -204,10 +199,7 @@ describe("Test selectInUtxos Functional", () => {
     amount = amount * tokenCtx.decimals;
     let utxo1 = new Utxo({
       poseidon,
-      assets: [
-        SystemProgram.programId,
-        tokenCtx.tokenAccount,
-      ],
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
     });
     const relayer = new Relayer(
@@ -227,6 +219,7 @@ describe("Test selectInUtxos Functional", () => {
       solAmount: 0,
       poseidon,
       senderAccount: k0,
+      action: Action.SHIELD,
     });
     assert.equal(
       outUtxos[1].amounts[0].toNumber(),
@@ -248,5 +241,4 @@ describe("Test selectInUtxos Functional", () => {
       }`,
     );
   });
-
 });

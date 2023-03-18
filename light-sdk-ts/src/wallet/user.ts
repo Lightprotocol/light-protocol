@@ -201,42 +201,46 @@ export class User {
     amount: number;
     extraSolAmount: number;
     relayer?: Relayer;
-    action: string;
+    action: Action;
     recipient?: anchor.BN;
     recipientEncryptionPublicKey?: Uint8Array;
   }): { inUtxos: Utxo[]; outUtxos: Utxo[] } {
     // selectInUtxos and createOutUtxos, return all utxos
     var inUtxos: Utxo[] = [];
     var outUtxos: Utxo[] = [];
-    if (extraSolAmount > 0 && action !== "SHIELD")
+    if (extraSolAmount > 0 && action !== Action.SHIELD)
       console.warn(
         "Extra sol for unshield/transfer not implemented yet, doing 0",
       );
 
-    if (action === "TRANSFER" && (!recipient || !recipientEncryptionPublicKey))
+    if (
+      action === Action.TRANSFER &&
+      (!recipient || !recipientEncryptionPublicKey)
+    )
       throw new Error(
         "Recipient or RecipientEncryptionPublicKey not provided for transfer",
       );
-    if (action !== "SHIELD" && !relayer)
+    if (action !== Action.SHIELD && !relayer)
       // TODO: could make easier to read by adding separate if/cases
       throw new Error(`No relayer provided for ${action.toLowerCase()}}`);
     inUtxos = selectInUtxos({
       mint: mint,
       extraSolAmount,
-      amount: action === "SHIELD" ? -1 * amount : amount,
+      amount: action === Action.SHIELD ? -1 * amount : amount,
       utxos: this.utxos!,
     });
     outUtxos = createOutUtxos({
       mint,
-      amount: action === "UNSHIELD" ? -1 * amount : amount,
+      splAmount: action === Action.UNSHIELD ? -1 * amount : amount,
       inUtxos,
-      extraSolAmount: action === "SHIELD" ? extraSolAmount : 0, // TODO: add support for extra sol for unshield & transfer
+      solAmount: action === Action.SHIELD ? extraSolAmount : 0, // TODO: add support for extra sol for unshield & transfer
       poseidon: this.provider.poseidon,
-      relayer: action !== "SHIELD" ? relayer : undefined,
-      account: this.account!,
-      recipient: action === "TRANSFER" ? recipient : undefined,
+      relayer: action !== Action.SHIELD ? relayer : undefined,
+      senderAccount: this.account!,
+      recipient: action === Action.TRANSFER ? recipient : undefined,
       recipientEncryptionPublicKey:
-        action === "TRANSFER" ? recipientEncryptionPublicKey : undefined,
+        action === Action.TRANSFER ? recipientEncryptionPublicKey : undefined,
+      action,
     });
 
     return { inUtxos, outUtxos };
@@ -291,12 +295,12 @@ export class User {
     recipientShieldedPublicKey?: anchor.BN;
     action: Action;
   }): Promise<TransactionParameters> {
-    if (action === Action.DEPOSIT) {
+    if (action === Action.SHIELD) {
       const { inUtxos, outUtxos } = this.selectUtxos({
         mint: tokenCtx.tokenAccount,
         amount,
         extraSolAmount,
-        action: "SHIELD",
+        action: Action.SHIELD,
       });
       if (this.provider.nodeWallet) {
         let txParams = new TransactionParameters({
@@ -332,7 +336,7 @@ export class User {
 
         return txParams;
       }
-    } else if (action === Action.WITHDRAWAL) {
+    } else if (action === Action.UNSHIELD) {
       if (!recipient) throw new Error("no recipient provided for unshield");
 
       let ataCreationFee = false;
@@ -356,7 +360,7 @@ export class User {
         amount,
         extraSolAmount,
         relayer,
-        action: "UNSHIELD",
+        action: Action.UNSHIELD,
       });
 
       const verifier = new VerifierZero(
@@ -388,7 +392,7 @@ export class User {
         amount,
         extraSolAmount,
         relayer,
-        action: "TRANSFER",
+        action: Action.TRANSFER,
         recipient: recipientShieldedPublicKey,
         recipientEncryptionPublicKey,
       });
@@ -493,7 +497,7 @@ export class User {
     const txParams = await this.getTxParams({
       tokenCtx,
       amount,
-      action: Action.DEPOSIT, //"SHIELD",
+      action: Action.SHIELD, //Action.SHIELD,
       extraSolAmount,
       // @ts-ignore
       userSplAccount,
@@ -566,7 +570,7 @@ export class User {
     const txParams = await this.getTxParams({
       tokenCtx,
       amount,
-      action: Action.WITHDRAWAL,
+      action: Action.UNSHIELD,
       extraSolAmount,
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientSPLAddress: recipientSPLAddress
