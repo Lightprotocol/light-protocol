@@ -568,7 +568,7 @@ describe("Test selectInUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         recipients: [
-            // @ts-ignore   
+          // @ts-ignore
           {
             account: recipientAccount,
             solAmount: new BN(0),
