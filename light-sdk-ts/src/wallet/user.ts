@@ -218,9 +218,15 @@ export class User {
 
     if (this.utxos) {
       inUtxos = selectInUtxos({
-        publicMint,
-        publicSolAmount,
-        publicSplAmount,
+        mint: publicMint,
+        extraSolAmount:
+          publicMint.toBase58() === SystemProgram.programId.toBase58()
+            ? 0
+            : publicSolAmount.toNumber(),
+        amount:
+          publicMint.toBase58() === SystemProgram.programId.toBase58()
+            ? publicSolAmount.toNumber()
+            : publicSplAmount.toNumber(),
         utxos: this.utxos,
       });
     } else {
