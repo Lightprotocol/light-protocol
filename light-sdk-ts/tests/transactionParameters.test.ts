@@ -4,7 +4,7 @@ import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
-
+import { BN } from "@coral-xyz/anchor";
 import { Account } from "../src/account";
 import { Utxo } from "../src/utxo";
 import {

@@ -615,19 +615,15 @@ export class TransactionParameters implements transactionParameters {
     if (inputUtxos) {
       inputUtxos.map((utxo) => {
         let found = false;
+        if (
+          assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
+        ) {
+          found = true;
+        }
 
-        for (var i in assetPubkeysCircuit) {
-          if (
-            assetPubkeysCircuit[i].toString() ===
-            utxo.assetsCircuit[1].toString()
-          ) {
-            found = true;
-          }
-
-          if (!found && utxo.assetsCircuit[1].toString() != "0") {
-            assetPubkeysCircuit.push(utxo.assetsCircuit[1].toString());
-            assetPubkeys.push(utxo.assets[1]);
-          }
+        if (!found && utxo.assetsCircuit[1].toString() != "0") {
+          assetPubkeysCircuit.push(utxo.assetsCircuit[1].toString());
+          assetPubkeys.push(utxo.assets[1]);
         }
       });
     }
@@ -637,8 +633,7 @@ export class TransactionParameters implements transactionParameters {
         let found = false;
         for (var i in assetPubkeysCircuit) {
           if (
-            assetPubkeysCircuit[i].toString() ===
-            utxo.assetsCircuit[1].toString()
+            assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
           ) {
             found = true;
           }
