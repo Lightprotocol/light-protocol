@@ -51,7 +51,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = new Uint8Array(32).fill(1).toString();
 
-describe("Test selectInUtxos Functional", () => {
+describe("Test createOutUtxos Functional", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
   const mockPublicKey = SolanaKeypair.generate().publicKey;
@@ -105,7 +105,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield SPL - no relayer fee", async () => {
+  it("unshield SPL - no relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -131,7 +131,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield SPL - with relayer fee", async () => {
+  it("unshield SPL - with relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -157,7 +157,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield sol - no relayer fee", async () => {
+  it("unshield sol - no relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -183,7 +183,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield sol - with relayer fee", async () => {
+  it("unshield sol - with relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -209,7 +209,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield spl & sol - no relayer fee", async () => {
+  it("unshield spl & sol - no relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -235,7 +235,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield spl & sol - with relayer fee", async () => {
+  it("unshield spl & sol - with relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
@@ -261,7 +261,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield in:1SOL + 1SPL should merge 2-1", async () => {
+  it("unshield in:1SOL + 1SPL should merge 2-1", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicSplAmount: splAmount,
@@ -287,7 +287,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) unshield in:1SPL + 1SPL should merge 2-1", async () => {
+  it("unshield in:1SPL + 1SPL should merge 2-1", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicSplAmount: splAmount,
@@ -313,7 +313,7 @@ describe("Test selectInUtxos Functional", () => {
     );
   });
 
-  it("(createOutUtxos) transfer in:1 SPL ", async () => {
+  it("transfer in:1 SPL ", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicSplAmount: splAmount,
@@ -354,7 +354,7 @@ describe("Test selectInUtxos Functional", () => {
   });
 });
 
-describe("Test selectInUtxos Errors", () => {
+describe("Test createOutUtxos Errors", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
   const mockPublicKey = SolanaKeypair.generate().publicKey;
