@@ -412,7 +412,7 @@ export class User {
       });
       return txParams;
     } else if (action === Action.TRANSFER) {
-      if (!shieldedRecipients)
+      if (!shieldedRecipients || shieldedRecipients.length === 0)
         throw new Error("no recipient provided for unshield");
       const { relayer, feeRecipient } = await this.getRelayer();
 
