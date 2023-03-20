@@ -1556,15 +1556,7 @@ export class Transaction {
         await this.provider.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
       const txMsg = new TransactionMessage({
-        payerKey:
-          this.params.relayer.accounts.relayerPubkey !==
-            this.provider.browserWallet?.publicKey &&
-          this.params.relayer.accounts.relayerPubkey !==
-            this.provider.nodeWallet?.publicKey
-            ? this.params.relayer.accounts.relayerPubkey
-            : this.provider.browserWallet
-            ? this.provider.browserWallet.publicKey
-            : this.provider.nodeWallet!.publicKey,
+        payerKey: this.params.relayer.accounts.relayerPubkey,
         instructions: [
           ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
           ix,
