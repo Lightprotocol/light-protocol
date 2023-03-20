@@ -35,8 +35,7 @@ popd
 
 yarn test-browser-wallet
 
-kill $relayer_pid
-
 $1
 docker rm -f solana-validator
 
+kill $relayer_pid

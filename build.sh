@@ -15,3 +15,8 @@ popd
 pushd light-circuits
 yarn install
 popd
+
+pushd relayer
+yarn install
+yarn run build
+popd
