@@ -1,0 +1,110 @@
+import { assert, expect } from "chai";
+
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import * as anchor from "@coral-xyz/anchor";
+import { it } from "mocha";
+
+import { Relayer, RelayerError, RelayerErrorCode } from "../src";
+
+process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
+process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+let mockKeypair = SolanaKeypair.generate();
+let mockKeypair1 = SolanaKeypair.generate();
+let relayerFee = new anchor.BN("123214");
+let relayerRecipient = SolanaKeypair.generate().publicKey;
+
+describe("Test Relayer Functional", () => {
+  it("Relayer Deposit", () => {
+    let relayer = new Relayer(mockKeypair.publicKey, mockKeypair1.publicKey);
+    assert.equal(
+      relayer.accounts.lookUpTable.toBase58(),
+      mockKeypair1.publicKey.toBase58(),
+    );
+    assert.equal(
+      relayer.accounts.relayerPubkey.toBase58(),
+      mockKeypair.publicKey.toBase58(),
+    );
+    assert.equal(relayer.relayerFee.toString(), "0");
+  });
+
+  it("Relayer Transfer/Withdrawal", () => {
+    let relayer = new Relayer(
+      mockKeypair.publicKey,
+      mockKeypair1.publicKey,
+      relayerRecipient,
+      relayerFee,
+    );
+    assert.equal(
+      relayer.accounts.lookUpTable.toBase58(),
+      mockKeypair1.publicKey.toBase58(),
+    );
+    assert.equal(
+      relayer.accounts.relayerPubkey.toBase58(),
+      mockKeypair.publicKey.toBase58(),
+    );
+    assert.equal(relayer.relayerFee.toString(), relayerFee.toString());
+    assert.equal(
+      relayer.accounts.relayerRecipient.toBase58(),
+      relayerRecipient.toBase58(),
+    );
+  });
+});
+
+describe("Test Relayer Errors", () => {
+  it("RELAYER_PUBKEY_UNDEFINED", () => {
+    expect(() => {
+      // @ts-ignore
+      new Relayer();
+    })
+      .to.throw(RelayerError)
+      .includes({
+        code: RelayerErrorCode.RELAYER_PUBKEY_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  it("LOOK_UP_TABLE_UNDEFINED", () => {
+    expect(() => {
+      // @ts-ignore
+      new Relayer(mockKeypair.publicKey);
+    })
+      .to.throw(RelayerError)
+      .includes({
+        code: RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  it("RELAYER_FEE_UNDEFINED", () => {
+    expect(() => {
+      // @ts-ignore
+      new Relayer(
+        mockKeypair.publicKey,
+        mockKeypair1.publicKey,
+        relayerRecipient,
+      );
+    })
+      .to.throw(RelayerError)
+      .includes({
+        code: RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  it("RELAYER_RECIPIENT_UNDEFINED", () => {
+    expect(() => {
+      // @ts-ignore
+      new Relayer(
+        mockKeypair.publicKey,
+        mockKeypair1.publicKey,
+        undefined,
+        relayerFee,
+      );
+    })
+      .to.throw(RelayerError)
+      .includes({
+        code: RelayerErrorCode.RELAYER_RECIPIENT_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+});

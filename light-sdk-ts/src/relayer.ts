@@ -1,5 +1,6 @@
 import { Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
+import { RelayerError, RelayerErrorCode } from "./errors";
 
 export class Relayer {
   accounts: {
@@ -22,6 +23,30 @@ export class Relayer {
     relayerRecipient?: PublicKey,
     relayerFee: BN = new BN(0),
   ) {
+    if (!relayerPubkey) {
+      throw new RelayerError(
+        RelayerErrorCode.RELAYER_PUBKEY_UNDEFINED,
+        "constructor",
+      );
+    }
+    if (!lookUpTable) {
+      throw new RelayerError(
+        RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+        "constructor",
+      );
+    }
+    if (relayerRecipient && relayerFee.toString() === "0") {
+      throw new RelayerError(
+        RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        "constructor",
+      );
+    }
+    if (relayerFee.toString() !== "0" && !relayerRecipient) {
+      throw new RelayerError(
+        RelayerErrorCode.RELAYER_RECIPIENT_UNDEFINED,
+        "constructor",
+      );
+    }
     if (relayerRecipient) {
       this.accounts = {
         relayerPubkey,

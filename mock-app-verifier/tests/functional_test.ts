@@ -134,7 +134,7 @@ describe("Mock verifier functional", () => {
       ADMIN_AUTH_KEYPAIR.publicKey,
       lightProvider.lookUpTable,
       relayerRecipient,
-      new BN(0),
+      new BN(100000),
     );
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(relayerRecipient, 10000000),
