@@ -1,8 +1,24 @@
 #!/bin/bash -e
-# running the solana validator
-../../solana/validator/solana-test-validator     --reset     --limit-ledger-size 500000000 --faucet-port 9002 --rpc-port 8899  --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i ../light-system-programs/target/deploy/verifier_program_zero.so     --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 ../light-system-programs/target/deploy/merkle_tree_program.so     --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL ../light-system-programs/target/deploy/verifier_program_one.so --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV ../../solana/web3.js/test/fixtures/noop-program/solana_sbf_rust_noop.so --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS ../light-system-programs/target/deploy/verifier_program_storage.so --quiet & 
-validator_pid=$!
-sleep 7
+set -eux
+
+docker rm -f solana-validator || true
+docker run -d \
+    --name solana-validator \
+    --net=host \
+    -v $HOME/.config/solana/id.json:/root/.config/solana/id.json \
+    -v $(pwd)/target/deploy:/usr/local/lib/light-protocol-onchain \
+    vadorovsky/solana:audit \
+    --reset \
+    --limit-ledger-size 500000000 \
+    --bpf-program J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i /usr/local/lib/light-protocol-onchain/verifier_program_zero.so \
+    --bpf-program JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6 /usr/local/lib/light-protocol-onchain/merkle_tree_program.so \
+    --bpf-program 3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL /usr/local/lib/light-protocol-onchain/verifier_program_one.so \
+    --bpf-program noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV /usr/local/lib/solana-program-library/spl_noop.so \
+    --bpf-program DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj /usr/local/lib/light-protocol-onchain/verifier_program_storage.so \
+    --quiet
+
+sleep 15
+$1
 
 # airdrops 
 solana airdrop 100000 ZBUKxVWviAJBy12edp5H6kvhcatGYW3BV4ijbgxpVSq && solana airdrop 100000 ALA2cnz41Wa2v2EYUdkYHsg7VnKsbH1j7secM5aiP8k && solana airdrop 100000 8Ers2bBEWExdrh7KDFTrRbauPbFeEvsHz3UX4vxcK9xY && solana airdrop 10000 BEKmoiPHRUxUPik2WQuKqkoFLLkieyNPrTDup5h8c9S7
@@ -20,5 +36,5 @@ popd
 
 yarn test-browser-wallet
 
-kill $validator_pid
+docker rm -f solana-validator
 kill $relayer_pid
