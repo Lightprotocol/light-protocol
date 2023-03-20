@@ -22,11 +22,6 @@ describe("browser_wallet", () => {
 
   before(async () => {
     connection = new Connection("http://127.0.0.1:8899");
-    const response = executeWithInput(
-      "cd ../relayer && node lib/index.js && ../",
-    );
-    console.log("response here ===========>",response)
-    await sleep(30000)
   });
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
