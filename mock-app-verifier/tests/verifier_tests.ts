@@ -119,7 +119,7 @@ describe("Verifier Two test", () => {
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE
       });
 
@@ -164,7 +164,7 @@ describe("Verifier Two test", () => {
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE
       });
       const appParams = {
@@ -206,7 +206,7 @@ describe("Verifier Two test", () => {
         verifier: verifiers[verifier],
         relayer,
         poseidon: POSEIDON,
-        action: Action.WITHDRAWAL
+        action: Action.UNSHIELD
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,

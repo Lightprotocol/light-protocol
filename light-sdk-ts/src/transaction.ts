@@ -71,9 +71,9 @@ export type transactionParameters = {
 };
 
 export enum Action {
-  DEPOSIT = "DEPOSIT",
+  SHIELD = "SHIELD",
   TRANSFER = "TRANSFER",
-  WITHDRAWAL = "WITHDRAWAL",
+  UNSHIELD = "UNSHIELD",
 }
 
 export type lightAccounts = {
@@ -177,7 +177,7 @@ export class TransactionParameters implements transactionParameters {
       throw new TransactioParametersError(
         TransactionParametersErrorCode.NO_ACTION_PROVIDED,
         "constructor",
-        "Define an action either Action.TRANSFER, Action.DEPOSIT,Action.WITHDRAWAL",
+        "Define an action either Action.TRANSFER, Action.SHIELD,Action.UNSHIELD",
       );
     }
 
@@ -191,15 +191,15 @@ export class TransactionParameters implements transactionParameters {
       this.verifier.config.out,
     );
 
-    if (action === Action.DEPOSIT && senderFee && lookUpTable) {
+    if (action === Action.SHIELD && senderFee && lookUpTable) {
       this.relayer = new Relayer(senderFee, lookUpTable);
-    } else if (action === Action.DEPOSIT && !senderFee) {
+    } else if (action === Action.SHIELD && !senderFee) {
       throw new TransactioParametersError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "constructor",
         "Sender sol always needs to be defined because we use it as the signer to instantiate the relayer object.",
       );
-    } else if (action === Action.DEPOSIT && !lookUpTable) {
+    } else if (action === Action.SHIELD && !lookUpTable) {
       throw new TransactioParametersError(
         TransactionParametersErrorCode.LOOK_UP_TABLE_UNDEFINED,
         "constructor",
@@ -207,7 +207,7 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    if (action !== Action.DEPOSIT) {
+    if (action !== Action.SHIELD) {
       if (relayer) {
         this.relayer = relayer;
       } else {
@@ -252,7 +252,7 @@ export class TransactionParameters implements transactionParameters {
       );
 
     // Checking plausibility of inputs
-    if (this.action === Action.DEPOSIT) {
+    if (this.action === Action.SHIELD) {
       /**
        * No relayer
        * public amounts are u64s
@@ -271,7 +271,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
+          `Public amount sol ${this.publicAmountSol} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
 
@@ -281,7 +281,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
+          `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
       if (!this.publicAmountSol.eq(new BN(0)) && recipientFee) {
@@ -313,7 +313,7 @@ export class TransactionParameters implements transactionParameters {
           "",
         );
       }
-    } else if (this.action === Action.WITHDRAWAL) {
+    } else if (this.action === Action.UNSHIELD) {
       /**
        * relayer is defined
        * public amounts sub FieldSize are negative or 0
@@ -525,7 +525,7 @@ export class TransactionParameters implements transactionParameters {
       );
 
     if (
-      this.action.toString() === Action.WITHDRAWAL.toString() ||
+      this.action.toString() === Action.UNSHIELD.toString() ||
       this.action.toString() === Action.TRANSFER.toString()
     ) {
       this.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
@@ -566,7 +566,7 @@ export class TransactionParameters implements transactionParameters {
         }
       }
     } else {
-      if (this.action.toString() !== Action.DEPOSIT.toString()) {
+      if (this.action.toString() !== Action.SHIELD.toString()) {
         throw new TransactioParametersError(
           TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
           "assignAccounts",
@@ -616,19 +616,15 @@ export class TransactionParameters implements transactionParameters {
     if (inputUtxos) {
       inputUtxos.map((utxo) => {
         let found = false;
+        if (
+          assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
+        ) {
+          found = true;
+        }
 
-        for (var i in assetPubkeysCircuit) {
-          if (
-            assetPubkeysCircuit[i].toString() ===
-            utxo.assetsCircuit[1].toString()
-          ) {
-            found = true;
-          }
-
-          if (!found && utxo.assetsCircuit[1].toString() != "0") {
-            assetPubkeysCircuit.push(utxo.assetsCircuit[1].toString());
-            assetPubkeys.push(utxo.assets[1]);
-          }
+        if (!found && utxo.assetsCircuit[1].toString() != "0") {
+          assetPubkeysCircuit.push(utxo.assetsCircuit[1].toString());
+          assetPubkeys.push(utxo.assets[1]);
         }
       });
     }
@@ -638,8 +634,7 @@ export class TransactionParameters implements transactionParameters {
         let found = false;
         for (var i in assetPubkeysCircuit) {
           if (
-            assetPubkeysCircuit[i].toString() ===
-            utxo.assetsCircuit[1].toString()
+            assetPubkeysCircuit.indexOf(utxo.assetsCircuit[1].toString()) !== -1
           ) {
             found = true;
           }
@@ -833,7 +828,7 @@ export class Transaction {
     this.appParams = appParams;
 
     //TODO: change to check whether browser/node wallet are the same as signing address
-    if (params.action === Action.DEPOSIT) {
+    if (params.action === Action.SHIELD) {
       let wallet =
         this.provider.browserWallet !== undefined
           ? this.provider.browserWallet
@@ -1457,7 +1452,7 @@ export class Transaction {
         this.params.accounts.recipientFee,
       );
     }
-    if (this.params.action === "DEPOSIT") {
+    if (this.params.action === "SHIELD") {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
@@ -1686,7 +1681,7 @@ export class Transaction {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
-            "finalized",
+            "confirmed",
           );
           tx = txTmp;
         } else {
@@ -1962,7 +1957,7 @@ export class Transaction {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
-          "finalized",
+          "confirmed",
         );
 
       assert(
@@ -2084,7 +2079,7 @@ export class Transaction {
     }
     console.log("nrInstructions ", nrInstructions);
 
-    if (this.params.action == "DEPOSIT" && this.testValues.is_token == false) {
+    if (this.params.action == "SHIELD" && this.testValues.is_token == false) {
       var recipientFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
@@ -2117,10 +2112,10 @@ export class Transaction {
           .toString() == senderFeeAccountBalance.toString(),
       );
     } else if (
-      this.params.action == "DEPOSIT" &&
+      this.params.action == "SHIELD" &&
       this.testValues.is_token == true
     ) {
-      console.log("DEPOSIT and token");
+      console.log("SHIELD and token");
 
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
@@ -2194,7 +2189,7 @@ export class Transaction {
           .toString() == senderFeeAccountBalance.toString(),
       );
     } else if (
-      this.params.action == "WITHDRAWAL" &&
+      this.params.action == "UNSHIELD" &&
       this.testValues.is_token == false
     ) {
       var relayerAccount = await this.provider.provider.connection.getBalance(
@@ -2247,7 +2242,7 @@ export class Transaction {
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
     } else if (
-      this.params.action == "WITHDRAWAL" &&
+      this.params.action == "UNSHIELD" &&
       this.testValues.is_token == true
     ) {
       var senderAccount = await getAccount(

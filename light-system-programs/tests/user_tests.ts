@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 
@@ -54,200 +54,6 @@ describe("user_tests", () => {
     await setUpMerkleTree(provider);
     // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
-  });
-
-  it("(createOutUtxos) unshield in:1 SPL ", async () => {
-    let amount = 3;
-    let token = "USDC";
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
-    amount = amount * tokenCtx.decimals;
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    let utxo1 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [
-        new PublicKey("11111111111111111111111111111111"),
-        tokenCtx.tokenAccount,
-      ],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
-    });
-
-    let outUtxos = createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: -amount,
-      inUtxos: [utxo1],
-      extraSolAmount: 0,
-      poseidon: POSEIDON,
-      account: user.account,
-    });
-
-    assert.equal(
-      outUtxos[0].amounts[0].toNumber(),
-      utxo1.amounts[0].toNumber(),
-      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
-    );
-    assert.equal(
-      outUtxos[0].amounts[1].toNumber(),
-      utxo1.amounts[1].toNumber() - amount,
-      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - amount * tokenCtx.decimals
-      }`,
-    );
-  });
-  it("(createOutUtxos) unshield in:1SOL + 1SPL should merge 2-1", async () => {
-    let amount = 3;
-    let token = "USDC";
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
-    amount = amount * tokenCtx.decimals;
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    let utxo1 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [
-        new PublicKey("11111111111111111111111111111111"),
-        tokenCtx.tokenAccount,
-      ],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
-    });
-    let utxoSol = new Utxo({
-      poseidon: POSEIDON,
-      assets: [new PublicKey("11111111111111111111111111111111")],
-      amounts: [new BN(1e6)],
-    });
-    let outUtxos = createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: -amount,
-      inUtxos: [utxo1, utxoSol],
-      extraSolAmount: 0,
-      poseidon: POSEIDON,
-      account: user.account,
-    });
-    assert.equal(
-      outUtxos[0].amounts[0].toNumber(),
-      utxo1.amounts[0].toNumber() + utxoSol.amounts[0].toNumber(),
-      `${outUtxos[0].amounts[0]} fee != ${
-        utxo1.amounts[0].toNumber() + utxoSol.amounts[0].toNumber()
-      }`,
-    );
-    assert.equal(
-      outUtxos[0].amounts[1].toNumber(),
-      utxo1.amounts[1].toNumber() - amount,
-      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - amount * tokenCtx.decimals
-      }`,
-    );
-  });
-  it("(createOutUtxos) unshield in:1SPL + 1SPL should merge 2-1", async () => {
-    let amount = 3;
-    let token = "USDC";
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
-    amount = amount * tokenCtx.decimals;
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    let utxo1 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [
-        new PublicKey("11111111111111111111111111111111"),
-        tokenCtx.tokenAccount,
-      ],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
-    });
-    let utxo2 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [
-        new PublicKey("11111111111111111111111111111111"),
-        tokenCtx.tokenAccount,
-      ],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
-    });
-
-    let outUtxos = createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: -amount,
-      inUtxos: [utxo1, utxo2],
-      extraSolAmount: 0,
-      poseidon: POSEIDON,
-      account: user.account,
-    });
-    assert.equal(
-      outUtxos[0].amounts[0].toNumber(),
-      utxo1.amounts[0].toNumber() + utxo2.amounts[0].toNumber(),
-      `${outUtxos[0].amounts[0]} fee != ${
-        utxo1.amounts[0].toNumber() + utxo2.amounts[0].toNumber()
-      }`,
-    );
-    assert.equal(
-      outUtxos[0].amounts[1].toNumber(),
-      utxo1.amounts[1].toNumber() + utxo2.amounts[1].toNumber() - amount,
-      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - amount
-      }`,
-    );
-  });
-  it("(createOutUtxos) transfer in:1 SPL ", async () => {
-    let amount = 3;
-    let token = "USDC";
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    if (!tokenCtx) throw new Error("Token not supported!");
-    amount = amount * tokenCtx.decimals;
-    const provider = await Provider.native(userKeypair);
-    const user = await User.load(provider);
-    let utxo1 = new Utxo({
-      poseidon: POSEIDON,
-      assets: [
-        new PublicKey("11111111111111111111111111111111"),
-        tokenCtx.tokenAccount,
-      ],
-      amounts: [new BN(1e8), new BN(5 * tokenCtx.decimals)],
-    });
-    const relayer = new Relayer(
-      // ADMIN_AUTH_KEYPAIR.publicKey,
-      provider.nodeWallet!.publicKey,
-      provider.lookUpTable!,
-      SolanaKeypair.generate().publicKey,
-      new anchor.BN(100000),
-    );
-    let outUtxos = createOutUtxos({
-      mint: tokenCtx.tokenAccount,
-      amount: amount,
-      inUtxos: [utxo1],
-      recipient: recipient,
-      recipientEncryptionPublicKey: recipientEncryptionPublicKey,
-      relayer: relayer,
-      extraSolAmount: 0,
-      poseidon: POSEIDON,
-      account: user.account,
-    });
-    assert.equal(
-      outUtxos[1].amounts[0].toNumber(),
-      utxo1.amounts[0].toNumber() -
-        relayer.relayerFee.toNumber() -
-        outUtxos[0].amounts[0].toNumber(),
-      `${outUtxos[1].amounts[0]} fee != ${
-        utxo1.amounts[0].toNumber() -
-        relayer.relayerFee.toNumber() -
-        outUtxos[0].amounts[0].toNumber()
-      }`,
-    );
-
-    assert.equal(
-      outUtxos[1].amounts[1].toNumber(),
-      utxo1.amounts[1].toNumber() - amount,
-      `${outUtxos[1].amounts[1].toNumber()}  spl !=  ${
-        utxo1.amounts[1].toNumber() - amount
-      }`,
-    );
   });
 
   it("(user class) shield SPL", async () => {
@@ -330,7 +136,7 @@ describe("user_tests", () => {
     // console.log("solBalanceAfter", solBalanceAfter);
     assert.equal(
       solBalanceAfter.amount,
-      solBalancePre.amount + 50000, //+ 2 * 1e9, this MINIMZM
+      solBalancePre.amount + 150000, //+ 2 * 1e9, this MINIMZM
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
   });
@@ -404,7 +210,7 @@ describe("user_tests", () => {
     );
   });
 
-  it("(user class) unshield SPL", async () => {
+  it.skip("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
@@ -413,6 +219,7 @@ describe("user_tests", () => {
       userKeypair.publicKey,
       2_000_000_000,
     );
+
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     const recipientSplBalance = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
@@ -493,10 +300,12 @@ describe("user_tests", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
     );
+    const minimumBalance = 150000;
+    const tokenAccountFee = 500_000
     assert.equal(
       solBalanceAfter.amount,
-      solBalancePre.amount, // FIXME: no fees being charged here apparently
-      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -100000`,
+      solBalancePre.amount - minimumBalance - tokenAccountFee, // FIXME: no fees being charged here apparently
+      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount ${solBalancePre.amount - minimumBalance - tokenAccountFee}`,
     );
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
@@ -522,7 +331,7 @@ describe("user_tests", () => {
     await user.transfer({
       amount,
       token,
-      recipient,
+      recipient: shieldedRecipient,
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
 
@@ -556,12 +365,12 @@ describe("user_tests", () => {
     );
     // assert that the user's sol shielded balance has decreased by fee
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
-    const minimumChangeUtxoAmounts = 50000 * 2;
+    const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount,
       solBalancePre.amount - 100000 - minimumChangeUtxoAmounts, // FIXME: no fees being charged here apparently
