@@ -78,7 +78,7 @@ export function createOutUtxos({
   recipients = [],
   action,
 }: {
-  inUtxos: Utxo[];
+  inUtxos?: Utxo[];
   publicMint?: PublicKey;
   publicSplAmount?: BN;
   publicSolAmount?: BN;
@@ -102,8 +102,16 @@ export function createOutUtxos({
   }
 
   const { assetPubkeysCircuit, assetPubkeys } =
-    TransactionParameters.getAssetPubkeys(inUtxos);
-
+    !inUtxos && action === Action.SHIELD
+      ? {
+          assetPubkeys: [
+            SystemProgram.programId,
+            publicMint ? publicMint : SystemProgram.programId,
+          ],
+          assetPubkeysCircuit: [],
+        }
+      : TransactionParameters.getAssetPubkeys(inUtxos);
+  if (!assetPubkeys) throw new Error();
   let assets: Asset[] = [];
 
   // TODO: make flexible with different verifiers
@@ -120,7 +128,9 @@ export function createOutUtxos({
   }
 
   recipients.map((recipient) => {
-    if (assetPubkeys.indexOf(recipient.mint) === -1) {
+    if (
+      !assetPubkeys.find((x) => x.toBase58() === recipient.mint?.toBase58())
+    ) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
         "createOutUtxos",
@@ -128,10 +138,19 @@ export function createOutUtxos({
       );
     }
   });
+  // add public mint if it does not exist in inUtxos
+  if (
+    publicMint &&
+    !assetPubkeys.find((x) => x.toBase58() === publicMint.toBase58())
+  ) {
+    assetPubkeys.push(publicMint);
+  }
 
   // checks sum inAmounts for every asset are less or equal to sum OutAmounts
   for (var i in assetPubkeys) {
-    const sumIn = getUtxoArrayAmount(assetPubkeys[i], inUtxos);
+    const sumIn = inUtxos
+      ? getUtxoArrayAmount(assetPubkeys[i], inUtxos)
+      : new BN(0);
     const sumOut = getRecipientsAmount(assetPubkeys[i], recipients);
 
     assets.push({
@@ -150,6 +169,12 @@ export function createOutUtxos({
       );
     }
   }
+  let publicSolAssetIndex = assets.findIndex(
+    (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
+  );
+  const key = "asset";
+
+  assets = [...new Map(assets.map((item) => [item[key], item])).values()];
 
   // subtract public amounts from sumIns
   if (action === Action.UNSHIELD) {
@@ -160,7 +185,7 @@ export function createOutUtxos({
         "publicSolAmount not initialized for unshield",
       );
     if (!publicSplAmount) publicSplAmount = new BN(0);
-    if (!publicSolAmount) publicSolAmount = new BN(0);
+    if (!publicSolAmount) throw new Error("Relayer fee not set.");
     if (publicSplAmount && !publicMint)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
@@ -171,11 +196,32 @@ export function createOutUtxos({
     let publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
+
+    assets[publicSplAssetIndex].sumIn =
+      assets[publicSplAssetIndex].sumIn.sub(publicSplAmount);
+    assets[publicSolAssetIndex].sumIn =
+      assets[publicSolAssetIndex].sumIn.sub(publicSolAmount);
+    // add public amounts to sumIns
+  } else if (action === Action.SHIELD) {
+    if (relayerFee) throw new Error("Shield and relayer fee defined");
+    if (!publicSplAmount) publicSplAmount = new BN(0);
+    if (!publicSolAmount) publicSolAmount = new BN(0);
+    let publicSplAssetIndex = assets.findIndex(
+      (x) => x.asset.toBase58() === publicMint?.toBase58(),
+    );
     let publicSolAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
     );
     assets[publicSplAssetIndex].sumIn =
-      assets[publicSplAssetIndex].sumIn.sub(publicSplAmount);
+      assets[publicSplAssetIndex].sumIn.add(publicSplAmount);
+    assets[publicSolAssetIndex].sumIn =
+      assets[publicSolAssetIndex].sumIn.add(publicSolAmount);
+  } else if (action === Action.TRANSFER) {
+    if (!publicSolAmount) throw new Error("Relayer fee not set.");
+    let publicSolAssetIndex = assets.findIndex(
+      (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
+    );
+
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.sub(publicSolAmount);
   }
@@ -217,13 +263,13 @@ export function createOutUtxos({
     let publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
-    let publicSolAssetIndex = assets.findIndex(
-      (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
-    );
-    assets[publicSplAssetIndex].sumIn =
-      assets[publicSplAssetIndex].sumIn.sub(splAmount);
-    assets[publicSolAssetIndex].sumIn =
-      assets[publicSolAssetIndex].sumIn.sub(solAmount);
+
+    assets[publicSplAssetIndex].sumIn = assets[publicSplAssetIndex].sumIn
+      .sub(splAmount)
+      .clone();
+    assets[publicSolAssetIndex].sumIn = assets[publicSolAssetIndex].sumIn
+      .sub(solAmount)
+      .clone();
   }
   // create change utxo
   // Also handles case that we have more than one change utxo because we wanted to withdraw sol and used utxos with different spl tokens
@@ -233,18 +279,25 @@ export function createOutUtxos({
       x.sumIn.toString() !== "0" &&
       x.asset.toBase58() !== SystemProgram.programId.toBase58(),
   );
-  let publicSolAssetIndex = assets.findIndex(
-    (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
-  );
-  for (var x = 0; x < publicSplAssets.length; x++) {
+
+  const nrOutUtxos = publicSplAssets.length ? publicSplAssets.length : 1;
+
+  for (var x = 0; x < nrOutUtxos; x++) {
     let solAmount = new BN(0);
     if (x == 0) {
       solAmount = assets[publicSolAssetIndex].sumIn;
     }
+    // catch case of sol deposit with undefined spl assets
+    let splAmount = publicSplAssets[x]?.sumIn
+      ? publicSplAssets[x].sumIn
+      : new BN(0);
+    let splAsset = publicSplAssets[x]?.asset
+      ? publicSplAssets[x].asset
+      : SystemProgram.programId;
     let changeUtxo = new Utxo({
       poseidon,
-      assets: [SystemProgram.programId, assets[1].asset],
-      amounts: [solAmount, publicSplAssets[x].sumIn],
+      assets: [SystemProgram.programId, splAsset],
+      amounts: [solAmount, splAmount],
       account: changeUtxoAccount,
     });
     outputUtxos.push(changeUtxo);
@@ -257,5 +310,6 @@ export function createOutUtxos({
       `Probably too many input assets possibly in combination with an incompatible number of shielded recipients ${outputUtxos}`,
     );
   }
+
   return outputUtxos;
 }

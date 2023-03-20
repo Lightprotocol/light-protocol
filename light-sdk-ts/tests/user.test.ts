@@ -105,6 +105,128 @@ describe("Test createOutUtxos Functional", () => {
     );
   });
 
+  it("shield sol", async () => {
+    let outUtxos = createOutUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicSplAmount: new BN(0),
+      publicSolAmount: solAmount,
+      poseidon,
+      changeUtxoAccount: k0,
+      action: Action.SHIELD,
+    });
+
+    assert.equal(
+      outUtxos[0].amounts[0].toString(),
+      solAmount.toString(),
+      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toString(),
+      "0",
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+      }`,
+    );
+  });
+
+  it("shield spl", async () => {
+    let outUtxos = createOutUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicSplAmount: new BN(10),
+      publicSolAmount: new BN(0),
+      poseidon,
+      changeUtxoAccount: k0,
+      action: Action.SHIELD,
+    });
+
+    assert.equal(
+      outUtxos[0].amounts[0].toString(),
+      "0",
+      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toString(),
+      "10",
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+      }`,
+    );
+  });
+
+  it("shield sol with input utxo", async () => {
+    let outUtxos = createOutUtxos({
+      inUtxos: [utxo1],
+      publicMint: tokenCtx.tokenAccount,
+      publicSplAmount: new BN(0),
+      publicSolAmount: solAmount,
+      poseidon,
+      changeUtxoAccount: k0,
+      action: Action.SHIELD,
+    });
+
+    assert.equal(
+      outUtxos[0].amounts[0].toString(),
+      utxo1.amounts[0].add(solAmount).toString(),
+      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toString(),
+      utxo1.amounts[1].toString(),
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+      }`,
+    );
+  });
+
+  it("shield sol & spl with input utxo", async () => {
+    let outUtxos = createOutUtxos({
+      inUtxos: [utxo1],
+      publicMint: tokenCtx.tokenAccount,
+      publicSplAmount: new BN(10),
+      publicSolAmount: solAmount,
+      poseidon,
+      changeUtxoAccount: k0,
+      action: Action.SHIELD,
+    });
+
+    assert.equal(
+      outUtxos[0].amounts[0].toString(),
+      utxo1.amounts[0].add(solAmount).toString(),
+      `${outUtxos[0].amounts[0].add(solAmount)} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toString(),
+      utxo1.amounts[1].add(new BN("10")).toString(),
+      `${utxo1.amounts[1].add(new BN("10")).toString()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+      }`,
+    );
+  });
+
+  it("shield sol & spl", async () => {
+    let outUtxos = createOutUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicSplAmount: new BN(10),
+      publicSolAmount: solAmount,
+      poseidon,
+      changeUtxoAccount: k0,
+      action: Action.SHIELD,
+    });
+
+    assert.equal(
+      outUtxos[0].amounts[0].toString(),
+      solAmount.toString(),
+      `${outUtxos[0].amounts[0]} fee != ${utxo1.amounts[0]}`,
+    );
+    assert.equal(
+      outUtxos[0].amounts[1].toString(),
+      "10",
+      `${outUtxos[0].amounts[1].toNumber()}  spl !=  ${
+        utxo1.amounts[1].toNumber() - splAmount * tokenCtx.decimals
+      }`,
+    );
+  });
+
   it("unshield SPL - no relayer fee", async () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
@@ -316,7 +438,7 @@ describe("Test createOutUtxos Functional", () => {
   it("transfer in:1 SPL ", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
+      publicSplAmount: new BN(0),
       inUtxos: [utxo1],
       recipients: [
         {
@@ -330,7 +452,7 @@ describe("Test createOutUtxos Functional", () => {
       publicSolAmount: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
-      action: Action.UNSHIELD,
+      action: Action.TRANSFER,
     });
     assert.equal(
       outUtxos[1].amounts[0].toNumber(),
@@ -346,7 +468,7 @@ describe("Test createOutUtxos Functional", () => {
 
     assert.equal(
       outUtxos[1].amounts[1].toNumber(),
-      utxo1.amounts[1].toNumber() - splAmount.toNumber() - 1,
+      utxo1.amounts[1].toNumber() - 1,
       `${outUtxos[1].amounts[1].toNumber()}  spl !=  ${
         utxo1.amounts[1].toNumber() - splAmount.toNumber()
       }`,
@@ -462,7 +584,7 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         // @ts-ignore
-        recipients: [{ mint: "123123" }],
+        recipients: [{ mint: SolanaKeypair.generate().publicKey }],
       });
     })
       .to.throw(CreateUtxoError)
@@ -539,6 +661,7 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
+        relayerFee: new BN(1),
         recipients: [
           {
             account: recipientAccount,

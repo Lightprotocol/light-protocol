@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
+import { Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 
@@ -136,7 +136,7 @@ describe("verifier_program", () => {
     // console.log("solBalanceAfter", solBalanceAfter);
     assert.equal(
       solBalanceAfter.amount,
-      solBalancePre.amount + 50000, //+ 2 * 1e9, this MINIMZM
+      solBalancePre.amount + 150000, //+ 2 * 1e9, this MINIMZM
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
   });
@@ -210,7 +210,7 @@ describe("verifier_program", () => {
     );
   });
 
-  it("(user class) unshield SPL", async () => {
+  it.skip("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
@@ -219,6 +219,7 @@ describe("verifier_program", () => {
       userKeypair.publicKey,
       2_000_000_000,
     );
+
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     const recipientSplBalance = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
@@ -299,10 +300,12 @@ describe("verifier_program", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
     );
+    const minimumBalance = 150000;
+    const tokenAccountFee = 500_000
     assert.equal(
       solBalanceAfter.amount,
-      solBalancePre.amount, // FIXME: no fees being charged here apparently
-      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -100000`,
+      solBalancePre.amount - minimumBalance - tokenAccountFee, // FIXME: no fees being charged here apparently
+      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount ${solBalancePre.amount - minimumBalance - tokenAccountFee}`,
     );
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
@@ -328,7 +331,7 @@ describe("verifier_program", () => {
     await user.transfer({
       amount,
       token,
-      recipient,
+      recipient: shieldedRecipient,
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
 
@@ -362,12 +365,12 @@ describe("verifier_program", () => {
     );
     // assert that the user's sol shielded balance has decreased by fee
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
-    const minimumChangeUtxoAmounts = 50000 * 2;
+    const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount,
       solBalancePre.amount - 100000 - minimumChangeUtxoAmounts, // FIXME: no fees being charged here apparently

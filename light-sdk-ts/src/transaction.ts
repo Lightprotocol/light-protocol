@@ -270,7 +270,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
+          `Public amount sol ${this.publicAmountSol} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
 
@@ -280,7 +280,7 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_NOT_U64,
           "constructor",
-          "Public amount needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos",
+          `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
       if (!this.publicAmountSol.eq(new BN(0)) && recipientFee) {

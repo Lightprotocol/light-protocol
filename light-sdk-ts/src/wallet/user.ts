@@ -198,8 +198,8 @@ export class User {
     recipients,
   }: {
     publicMint: PublicKey;
-    publicSplAmount: BN;
-    publicSolAmount: BN;
+    publicSplAmount?: BN;
+    publicSolAmount?: BN;
     relayerFee?: BN;
     action: Action;
     recipients?: Recipient[];
@@ -217,18 +217,34 @@ export class User {
       throw new Error(`No relayerFee provided for ${action.toLowerCase()}}`);
 
     if (this.utxos) {
-      inUtxos = selectInUtxos({
-        mint: publicMint,
-        extraSolAmount:
-          publicMint.toBase58() === SystemProgram.programId.toBase58()
-            ? 0
-            : publicSolAmount.toNumber(),
-        amount:
-          publicMint.toBase58() === SystemProgram.programId.toBase58()
-            ? publicSolAmount.toNumber()
-            : publicSplAmount.toNumber(),
-        utxos: this.utxos,
-      });
+      if (action !== Action.TRANSFER) {
+        inUtxos = selectInUtxos({
+          mint: publicMint,
+          extraSolAmount:
+            publicMint.toBase58() === SystemProgram.programId.toBase58()
+              ? 0
+              : // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSolAmount.toNumber(),
+          amount:
+            publicMint.toBase58() === SystemProgram.programId.toBase58()
+              ? // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSolAmount.toNumber()
+              : // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSplAmount.toNumber(),
+          utxos: this.utxos,
+        });
+      } else {
+        inUtxos = selectInUtxos({
+          mint: publicMint,
+          extraSolAmount:
+            // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+            recipients[0].solAmount.clone().toNumber(),
+          amount:
+            // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+            recipients[0].splAmount.clone().toNumber(),
+          utxos: this.utxos,
+        });
+      }
     } else {
       inUtxos = [];
     }
@@ -290,8 +306,8 @@ export class User {
     shieldedRecipients,
   }: {
     tokenCtx: TokenContext;
-    publicSplAmount: BN;
-    publicSolAmount: BN;
+    publicSplAmount?: BN;
+    publicSolAmount?: BN;
     userSplAccount?: PublicKey;
     recipient?: PublicKey;
     recipientSPLAddress?: PublicKey;
@@ -299,6 +315,13 @@ export class User {
     action: Action;
   }): Promise<TransactionParameters> {
     if (action === Action.SHIELD) {
+      if (!publicSolAmount && !publicSplAmount)
+        throw new Error(
+          "No public amount provided. Shield needs a public amount.",
+        );
+      publicSolAmount = publicSolAmount ? publicSolAmount : new BN(0);
+      publicSplAmount = publicSplAmount ? publicSplAmount : new BN(0);
+
       const { inUtxos, outUtxos } = this.selectUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicSplAmount,
@@ -306,6 +329,7 @@ export class User {
         action,
         recipients: shieldedRecipients,
       });
+
       if (this.provider.nodeWallet) {
         let txParams = new TransactionParameters({
           outputUtxos: outUtxos,
@@ -377,8 +401,8 @@ export class User {
         inputUtxos: inUtxos,
         outputUtxos: outUtxos,
         merkleTreePubkey: MERKLE_TREE_KEY,
-        recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
-        recipientFee: feeRecipient, // feeRecipient
+        recipient: recipientSPLAddress, // TODO: check needs token account? // recipient of spl
+        recipientFee: recipient, // feeRecipient
         verifier,
         relayer,
         provider: this.provider,
@@ -394,8 +418,6 @@ export class User {
 
       const { inUtxos, outUtxos } = this.selectUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount,
-        publicSolAmount,
         action,
         recipients: shieldedRecipients,
         relayerFee: relayer.relayerFee,
@@ -463,7 +485,6 @@ export class User {
           this.provider.provider?.connection!,
           userSplAccount,
         );
-        console.log("tokenBalance", tokenBalance, userSplAccount);
 
         if (!tokenBalance) throw new Error("ATA doesn't exist!");
 
@@ -494,15 +515,16 @@ export class User {
         ? extraSolAmount * 1e9
         : this.provider.minimumLamports;
     } else {
-      amount = amount * tokenCtx.decimals;
-      extraSolAmount = 0;
+      // amount = amount * tokenCtx.decimals;
+      extraSolAmount = amount * tokenCtx.decimals;
+      amount = 0;
     }
 
     const txParams = await this.getTxParams({
       tokenCtx,
-      amount,
-      action: Action.SHIELD, //Action.SHIELD,
-      extraSolAmount,
+      publicSplAmount: new BN(amount),
+      action: Action.SHIELD,
+      publicSolAmount: new BN(extraSolAmount),
       // @ts-ignore
       userSplAccount,
     });
@@ -523,8 +545,8 @@ export class User {
     } catch (e) {
       throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    console.log = () => {};
-    //@ts-ignore
+    // console.log = () => {};
+
     await tx.checkBalances();
     console.log = initLog;
     console.log("✔️ checkBalances success!");
@@ -557,6 +579,8 @@ export class User {
     if (!tokenCtx) throw new Error("Token not supported!");
 
     let recipientSPLAddress: PublicKey = new PublicKey(0);
+    amount = amount * tokenCtx.decimals;
+
     if (!tokenCtx.isSol) {
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.tokenAccount,
@@ -568,8 +592,8 @@ export class User {
         : this.provider.minimumLamports;
     } else {
       extraSolAmount = amount;
+      amount = 0;
     }
-    amount = amount * tokenCtx.decimals;
 
     const txParams = await this.getTxParams({
       tokenCtx,
@@ -624,7 +648,7 @@ export class User {
   }: {
     token: string;
     amount: number;
-    recipient: anchor.BN;
+    recipient: string;
     recipientEncryptionPublicKey: Uint8Array;
     extraSolAmount?: number;
   }) {
@@ -650,9 +674,7 @@ export class User {
     );
     const txParams = await this.getTxParams({
       tokenCtx,
-      publicSplAmount: new BN(amount),
       action: Action.TRANSFER,
-      publicSolAmount: new BN(extraSolAmount),
       shieldedRecipients: [
         {
           mint: tokenCtx.tokenAccount,
