@@ -21,6 +21,7 @@ import {
   MERKLE_TREE_KEY,
   TOKEN_REGISTRY,
   merkleTreeProgramId,
+  MINIMUM_LAMPORTS,
 } from "../constants";
 import {
   ADMIN_AUTH_KEY,
@@ -511,9 +512,7 @@ export class User {
         // TODO: implement browserWallet support; for UI
         throw new Error("Browser wallet support not implemented yet!");
       }
-      extraSolAmount = extraSolAmount
-        ? extraSolAmount * 1e9
-        : this.provider.minimumLamports;
+      extraSolAmount = extraSolAmount ? extraSolAmount * 1e9 : MINIMUM_LAMPORTS;
     } else {
       // amount = amount * tokenCtx.decimals;
       extraSolAmount = amount * tokenCtx.decimals;
@@ -562,7 +561,7 @@ export class User {
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
    * @params recipient: PublicKey - Solana address
-   * @params extraSolAmount: number - optional, if not set, will use provider minimumLamports
+   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
    */
   async unshield({
     token,
@@ -587,9 +586,7 @@ export class User {
         recipient,
       );
 
-      extraSolAmount = extraSolAmount
-        ? extraSolAmount * 1e9
-        : this.provider.minimumLamports;
+      extraSolAmount = extraSolAmount ? extraSolAmount * 1e9 : MINIMUM_LAMPORTS;
     } else {
       extraSolAmount = amount;
       amount = 0;
@@ -658,9 +655,7 @@ export class User {
     amount = amount * tokenCtx.decimals;
 
     if (!tokenCtx.isSol) {
-      extraSolAmount = extraSolAmount
-        ? extraSolAmount * 1e9
-        : this.provider.minimumLamports;
+      extraSolAmount = extraSolAmount ? extraSolAmount * 1e9 : MINIMUM_LAMPORTS;
     } else {
       extraSolAmount = amount;
       amount = 0;

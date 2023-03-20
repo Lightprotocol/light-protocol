@@ -35,7 +35,7 @@ export async function functionalCircuitTest(
   });
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
-  let lightProvider = await LightProvider.loadMock(mockPubkey);
+  let lightProvider = await LightProvider.loadMock();
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
