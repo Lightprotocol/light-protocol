@@ -279,7 +279,7 @@ describe("verifier_program", () => {
         verifier: new VerifierOne(),
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.DEPOSIT
+        action: Action.SHIELD
       });
       let tx = new Transaction({
         provider: lightProvider,
@@ -347,7 +347,7 @@ describe("verifier_program", () => {
         senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.DEPOSIT,
+        action: Action.SHIELD,
         poseidon: POSEIDON
       });
       let tx = new Transaction({
@@ -408,7 +408,7 @@ describe("verifier_program", () => {
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
       relayer,
-      action: Action.WITHDRAWAL,
+      action: Action.UNSHIELD,
       poseidon
     });
     let tx = new Transaction({
@@ -511,7 +511,7 @@ describe("verifier_program", () => {
       verifier: new VerifierOne(),
       relayer,
       poseidon: POSEIDON,
-      action: Action.WITHDRAWAL
+      action: Action.UNSHIELD
     });
     let tx = new Transaction({
       provider: lightProvider,

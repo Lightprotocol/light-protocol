@@ -58,7 +58,7 @@ export class Provider {
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
-    minimumLamports = 5000 * 10,
+    minimumLamports = 5000 * 30,
   }: {
     nodeWallet?: SolanaKeypair;
     browserWallet?: BrowserWallet;

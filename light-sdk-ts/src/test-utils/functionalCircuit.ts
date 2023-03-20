@@ -43,7 +43,7 @@ export async function functionalCircuitTest(
     senderFee: lightProvider.nodeWallet!.publicKey,
     verifier: verifier,
     lookUpTable: mockPubkey,
-    action: Action.DEPOSIT,
+    action: Action.SHIELD,
     poseidon,
   });
 
