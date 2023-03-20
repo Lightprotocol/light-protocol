@@ -15,9 +15,11 @@ use crate::processor::process_shielded_transfer;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 
+use light_macros::light_verifier_accounts;
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use merkle_tree_program::{poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier};
+
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 #[error_code]
 pub enum ErrorCode {
@@ -42,7 +44,7 @@ pub mod verifier_program_two {
     }
 }
 
-#[derive(Accounts)]
+#[light_verifier_accounts]
 pub struct LightInstruction<'info> {
     /// CHECK: Cannot be checked with Account because it assumes this program to be the owner
     // CHECK: Signer check to acertain the invoking program ID to be used as a public input.
@@ -52,35 +54,4 @@ pub struct LightInstruction<'info> {
     pub signing_address: Signer<'info>,
     /// CHECK: Is the same as in integrity hash.
     pub system_program: Program<'info, System>,
-    /// CHECK: Is the same as in integrity hash.
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    /// CHECK: Is the same as in integrity hash.
-    #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
-    pub token_authority: UncheckedAccount<'info>,
-    /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
-    /// CHECK: Is the same as in integrity hash.
-    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }

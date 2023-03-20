@@ -36,5 +36,5 @@ wallet = "~/.config/solana/id.json"
 [scripts]
 test = "yarn run ts-mocha -t 100000000 tests/functional_tests.ts --exit"
 
-[workspace]
-types = "../light-sdk-ts/src/idls"
+# [workspace]
+# types = "../light-sdk-ts/src/idls"

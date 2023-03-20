@@ -13,6 +13,8 @@ pub use processor::*;
 
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
+
+use light_macros::light_verifier_accounts;
 use merkle_tree_program::{
     poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
     utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
@@ -63,38 +65,9 @@ pub mod verifier_program_zero {
     }
 }
 
-#[derive(Accounts)]
+#[light_verifier_accounts]
 pub struct LightInstruction<'info> {
     #[account(mut)]
     pub signing_address: Signer<'info>,
     pub system_program: Program<'info, System>,
-    pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
-    /// CHECK: Is the same as in integrity hash.
-    #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
-    /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
-    #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
-    pub authority: UncheckedAccount<'info>,
-    pub token_program: Program<'info, Token>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is checked depending on deposit or withdrawal.
-    #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
-    /// CHECK:` Is not checked the relayer has complete freedom.
-    #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
-    /// CHECK:` Is checked when it is used during spl withdrawals.
-    #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
-    pub token_authority: AccountInfo<'info>,
-    /// Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.
-    #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
-    pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
