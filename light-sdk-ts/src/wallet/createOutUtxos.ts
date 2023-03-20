@@ -172,8 +172,9 @@ export function createOutUtxos({
   let publicSolAssetIndex = assets.findIndex(
     (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
   );
-  const key = "asset";
 
+  // remove duplicates
+  const key = "asset";
   assets = [...new Map(assets.map((item) => [item[key], item])).values()];
 
   // subtract public amounts from sumIns
