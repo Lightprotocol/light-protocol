@@ -102,7 +102,7 @@ describe("verifier_program", () => {
         verifier: new VerifierZero(),
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.DEPOSIT
+        action: Action.SHIELD
       });
       let tx = new Transaction({
         provider: lightProvider,

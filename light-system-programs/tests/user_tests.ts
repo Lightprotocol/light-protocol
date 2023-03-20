@@ -210,7 +210,7 @@ describe("verifier_program", () => {
     );
   });
 
-  it.skip("(user class) unshield SPL", async () => {
+  it("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();

@@ -10,6 +10,7 @@ yarn test
 yarn run test-merkle-tree
 yarn run test-verifiers
 yarn run test-user
+yarn run test-provider
 popd
 
 pushd light-sdk-ts
