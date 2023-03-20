@@ -9,7 +9,7 @@ anchor build
 yarn test
 yarn run test-merkle-tree
 yarn run test-verifiers
-yarn run test-browser-wallet
+./runBrowserTest.sh
 popd
 
 pushd light-sdk-ts
