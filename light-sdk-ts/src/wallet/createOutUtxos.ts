@@ -6,6 +6,7 @@ import { BN } from "@coral-xyz/anchor";
 import {
   CreateUtxoError,
   CreateUtxoErrorCode,
+  TransactionErrorCode,
   TransactionParametersErrorCode,
 } from "../errors";
 
@@ -111,7 +112,11 @@ export function createOutUtxos({
           assetPubkeysCircuit: [],
         }
       : TransactionParameters.getAssetPubkeys(inUtxos);
-  if (!assetPubkeys) throw new Error();
+  if (!assetPubkeys)
+    throw new CreateUtxoError(
+      TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
+      "constructor",
+    );
   let assets: Asset[] = [];
 
   // TODO: make flexible with different verifiers
@@ -186,7 +191,12 @@ export function createOutUtxos({
         "publicSolAmount not initialized for unshield",
       );
     if (!publicSplAmount) publicSplAmount = new BN(0);
-    if (!publicSolAmount) throw new Error("Relayer fee not set.");
+    if (!publicSolAmount)
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
+        "constructor",
+      );
+
     if (publicSplAmount && !publicMint)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
@@ -204,7 +214,12 @@ export function createOutUtxos({
       assets[publicSolAssetIndex].sumIn.sub(publicSolAmount);
     // add public amounts to sumIns
   } else if (action === Action.SHIELD) {
-    if (relayerFee) throw new Error("Shield and relayer fee defined");
+    if (relayerFee)
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
+        "createOutUtxos",
+        "Shield and relayer fee defined",
+      );
     if (!publicSplAmount) publicSplAmount = new BN(0);
     if (!publicSolAmount) publicSolAmount = new BN(0);
     let publicSplAssetIndex = assets.findIndex(
@@ -218,7 +233,11 @@ export function createOutUtxos({
     assets[publicSolAssetIndex].sumIn =
       assets[publicSolAssetIndex].sumIn.add(publicSolAmount);
   } else if (action === Action.TRANSFER) {
-    if (!publicSolAmount) throw new Error("Relayer fee not set.");
+    if (!publicSolAmount)
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
+        "constructor",
+      );
     let publicSolAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
     );
