@@ -11,6 +11,7 @@ import {
 } from "light-sdk";
 import { sign } from "tweetnacl";
 import { executeWithInput } from "./mock/cmd";
+import { useWallet } from "./mock/useWalletMock";
 
 const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -24,20 +25,8 @@ describe("browser_wallet", () => {
     connection = new Connection("http://127.0.0.1:8899");
   });
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-
-  const signTransaction = async (tx) => {
-    await tx.sign([userKeypair!]);
-    return tx;
-  };
-
-  const signMessage = async (message) => {
-    return sign.detached(message, userKeypair.secretKey);
-  };
-
-  const sendAndConfirmTransaction = async (fn) => {
-    return await fn();
-  };
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
+  const {signMessage,sendAndConfirmTransaction,signTransaction} = useWallet(userKeypair)
 
   it("(user class) shield SOL", async () => {
 

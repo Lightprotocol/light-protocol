@@ -43,13 +43,8 @@ export const useWallet = (wallet: Keypair) => {
   const provider = new MockProvider(wallet);
   return {
     publicKey: provider._publicKey,
-    signMessage: async (message): Promise<Uint8Array> => {
-      return await provider.signTransaction(message);
-    },
-    signTransaction: async (transaction): Promise<any> => {
-      return await provider.signTransaction(transaction);
-    },
-    sendAndConfirmTransaction: async (transactions) =>
-      provider.sendAndConfirmTransaction(transactions),
+    sendAndConfirmTransaction: provider.sendAndConfirmTransaction,
+    signMessage: provider.signMessage,
+    signTransaction: provider.signTransaction
   };
 };
