@@ -9,7 +9,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Action, Transaction, TransactionParameters } from "../transaction";
 import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
-
+import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 import {
   FEE_ASSET,
@@ -41,7 +41,8 @@ import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { assert } from "chai";
 import axios from "axios";
 import { selectInUtxos } from "./selectInUtxos";
-import { createOutUtxos } from "./createOutUtxos";
+import { createOutUtxos, Recipient } from "./createOutUtxos";
+import { strToArr } from "../utils";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -189,54 +190,78 @@ export class User {
   }
 
   selectUtxos({
-    mint,
-    amount,
-    extraSolAmount,
-    relayer,
+    publicMint,
+    publicSplAmount,
+    publicSolAmount,
+    relayerFee,
     action,
-    recipient,
-    recipientEncryptionPublicKey,
+    recipients,
   }: {
-    mint: PublicKey;
-    amount: number;
-    extraSolAmount: number;
-    relayer?: Relayer;
-    action: string;
-    recipient?: anchor.BN;
-    recipientEncryptionPublicKey?: Uint8Array;
+    publicMint: PublicKey;
+    publicSplAmount?: BN;
+    publicSolAmount?: BN;
+    relayerFee?: BN;
+    action: Action;
+    recipients?: Recipient[];
   }): { inUtxos: Utxo[]; outUtxos: Utxo[] } {
     // selectInUtxos and createOutUtxos, return all utxos
     var inUtxos: Utxo[] = [];
     var outUtxos: Utxo[] = [];
-    if (extraSolAmount > 0 && action !== "SHIELD")
-      console.warn(
-        "Extra sol for unshield/transfer not implemented yet, doing 0",
-      );
 
-    if (action === "TRANSFER" && (!recipient || !recipientEncryptionPublicKey))
+    if (action === Action.TRANSFER && !recipients)
       throw new Error(
         "Recipient or RecipientEncryptionPublicKey not provided for transfer",
       );
-    if (action !== "SHIELD" && !relayer)
+    if (action !== Action.SHIELD && !relayerFee)
       // TODO: could make easier to read by adding separate if/cases
-      throw new Error(`No relayer provided for ${action.toLowerCase()}}`);
-    inUtxos = selectInUtxos({
-      mint: mint,
-      extraSolAmount,
-      amount: action === "SHIELD" ? -1 * amount : amount,
-      utxos: this.utxos!,
-    });
+      throw new Error(`No relayerFee provided for ${action.toLowerCase()}}`);
+
+    if (this.utxos) {
+      if (action !== Action.TRANSFER) {
+        inUtxos = selectInUtxos({
+          mint: publicMint,
+          extraSolAmount:
+            publicMint.toBase58() === SystemProgram.programId.toBase58()
+              ? 0
+              : // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSolAmount.toNumber(),
+          amount:
+            publicMint.toBase58() === SystemProgram.programId.toBase58()
+              ? // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSolAmount.toNumber()
+              : // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+                publicSplAmount.toNumber(),
+          utxos: this.utxos,
+        });
+      } else {
+        inUtxos = selectInUtxos({
+          mint: publicMint,
+          extraSolAmount:
+            // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+            recipients[0].solAmount.clone().toNumber(),
+          amount:
+            // @ts-ignore: quickfix will change in next pr with selectInUtxos refactor
+            recipients[0].splAmount.clone().toNumber(),
+          utxos: this.utxos,
+        });
+      }
+    } else {
+      inUtxos = [];
+    }
+
+    if (!this.account) {
+      throw new Error("Account not defined");
+    }
     outUtxos = createOutUtxos({
-      mint,
-      amount: action === "UNSHIELD" ? -1 * amount : amount,
+      publicMint,
+      publicSplAmount,
       inUtxos,
-      extraSolAmount: action === "SHIELD" ? extraSolAmount : 0, // TODO: add support for extra sol for unshield & transfer
+      publicSolAmount, // TODO: add support for extra sol for unshield & transfer
       poseidon: this.provider.poseidon,
-      relayer: action !== "SHIELD" ? relayer : undefined,
-      account: this.account!,
-      recipient: action === "TRANSFER" ? recipient : undefined,
-      recipientEncryptionPublicKey:
-        action === "TRANSFER" ? recipientEncryptionPublicKey : undefined,
+      relayerFee,
+      changeUtxoAccount: this.account,
+      recipients,
+      action,
     });
 
     return { inUtxos, outUtxos };
@@ -270,34 +295,41 @@ export class User {
   // TODO: in UI, support wallet switching, "prefill option with button"
   async getTxParams({
     tokenCtx,
-    amount,
-    extraSolAmount,
+    publicSplAmount,
+    publicSolAmount,
     action,
     userSplAccount = AUTHORITY,
     // for unshield
     recipient,
     recipientSPLAddress,
     // for transfer
-    recipientEncryptionPublicKey,
-    recipientShieldedPublicKey,
+    shieldedRecipients,
   }: {
     tokenCtx: TokenContext;
-    amount: number;
-    extraSolAmount: number;
+    publicSplAmount?: BN;
+    publicSolAmount?: BN;
     userSplAccount?: PublicKey;
     recipient?: PublicKey;
     recipientSPLAddress?: PublicKey;
-    recipientEncryptionPublicKey?: Uint8Array;
-    recipientShieldedPublicKey?: anchor.BN;
+    shieldedRecipients?: Recipient[];
     action: Action;
   }): Promise<TransactionParameters> {
-    if (action === Action.DEPOSIT) {
+    if (action === Action.SHIELD) {
+      if (!publicSolAmount && !publicSplAmount)
+        throw new Error(
+          "No public amount provided. Shield needs a public amount.",
+        );
+      publicSolAmount = publicSolAmount ? publicSolAmount : new BN(0);
+      publicSplAmount = publicSplAmount ? publicSplAmount : new BN(0);
+
       const { inUtxos, outUtxos } = this.selectUtxos({
-        mint: tokenCtx.tokenAccount,
-        amount,
-        extraSolAmount,
-        action: "SHIELD",
+        publicMint: tokenCtx.tokenAccount,
+        publicSplAmount,
+        publicSolAmount,
+        action,
+        recipients: shieldedRecipients,
       });
+
       if (this.provider.nodeWallet) {
         let txParams = new TransactionParameters({
           outputUtxos: outUtxos,
@@ -332,7 +364,7 @@ export class User {
 
         return txParams;
       }
-    } else if (action === Action.WITHDRAWAL) {
+    } else if (action === Action.UNSHIELD) {
       if (!recipient) throw new Error("no recipient provided for unshield");
 
       let ataCreationFee = false;
@@ -352,11 +384,12 @@ export class User {
 
       const { relayer, feeRecipient } = await this.getRelayer(ataCreationFee);
       const { inUtxos, outUtxos } = this.selectUtxos({
-        mint: tokenCtx.tokenAccount,
-        amount,
-        extraSolAmount,
-        relayer,
-        action: "UNSHIELD",
+        publicMint: tokenCtx.tokenAccount,
+        publicSplAmount,
+        publicSolAmount,
+        action,
+        recipients: shieldedRecipients,
+        relayerFee: relayer.relayerFee,
       });
 
       const verifier = new VerifierZero(
@@ -368,8 +401,8 @@ export class User {
         inputUtxos: inUtxos,
         outputUtxos: outUtxos,
         merkleTreePubkey: MERKLE_TREE_KEY,
-        recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
-        recipientFee: feeRecipient, // feeRecipient
+        recipient: recipientSPLAddress, // TODO: check needs token account? // recipient of spl
+        recipientFee: recipient, // feeRecipient
         verifier,
         relayer,
         provider: this.provider,
@@ -379,18 +412,15 @@ export class User {
       });
       return txParams;
     } else if (action === Action.TRANSFER) {
-      if (!recipientShieldedPublicKey)
+      if (!shieldedRecipients || shieldedRecipients.length === 0)
         throw new Error("no recipient provided for unshield");
       const { relayer, feeRecipient } = await this.getRelayer();
 
       const { inUtxos, outUtxos } = this.selectUtxos({
-        mint: tokenCtx.tokenAccount,
-        amount,
-        extraSolAmount,
-        relayer,
-        action: "TRANSFER",
-        recipient: recipientShieldedPublicKey,
-        recipientEncryptionPublicKey,
+        publicMint: tokenCtx.tokenAccount,
+        action,
+        recipients: shieldedRecipients,
+        relayerFee: relayer.relayerFee,
       });
 
       let txParams = new TransactionParameters({
@@ -455,7 +485,6 @@ export class User {
           this.provider.provider?.connection!,
           userSplAccount,
         );
-        console.log("tokenBalance", tokenBalance, userSplAccount);
 
         if (!tokenBalance) throw new Error("ATA doesn't exist!");
 
@@ -486,15 +515,16 @@ export class User {
         ? extraSolAmount * 1e9
         : this.provider.minimumLamports;
     } else {
-      amount = amount * tokenCtx.decimals;
-      extraSolAmount = 0;
+      // amount = amount * tokenCtx.decimals;
+      extraSolAmount = amount * tokenCtx.decimals;
+      amount = 0;
     }
 
     const txParams = await this.getTxParams({
       tokenCtx,
-      amount,
-      action: Action.DEPOSIT, //"SHIELD",
-      extraSolAmount,
+      publicSplAmount: new BN(amount),
+      action: Action.SHIELD,
+      publicSolAmount: new BN(extraSolAmount),
       // @ts-ignore
       userSplAccount,
     });
@@ -515,8 +545,8 @@ export class User {
     } catch (e) {
       throw new Error(`Error in tx.sendAndConfirmTransaction! ${e}`);
     }
-    console.log = () => {};
-    //@ts-ignore
+    // console.log = () => {};
+
     await tx.checkBalances();
     console.log = initLog;
     console.log("✔️ checkBalances success!");
@@ -549,6 +579,8 @@ export class User {
     if (!tokenCtx) throw new Error("Token not supported!");
 
     let recipientSPLAddress: PublicKey = new PublicKey(0);
+    amount = amount * tokenCtx.decimals;
+
     if (!tokenCtx.isSol) {
       recipientSPLAddress = splToken.getAssociatedTokenAddressSync(
         tokenCtx!.tokenAccount,
@@ -559,15 +591,15 @@ export class User {
         ? extraSolAmount * 1e9
         : this.provider.minimumLamports;
     } else {
-      extraSolAmount = 0;
+      extraSolAmount = amount;
+      amount = 0;
     }
-    amount = amount * tokenCtx.decimals;
 
     const txParams = await this.getTxParams({
       tokenCtx,
-      amount,
-      action: Action.WITHDRAWAL,
-      extraSolAmount,
+      publicSplAmount: new BN(amount),
+      action: Action.UNSHIELD,
+      publicSolAmount: new BN(extraSolAmount),
       recipient: tokenCtx.isSol ? recipient : recipientSPLAddress, // TODO: check needs token account? // recipient of spl
       recipientSPLAddress: recipientSPLAddress
         ? recipientSPLAddress
@@ -616,7 +648,7 @@ export class User {
   }: {
     token: string;
     amount: number;
-    recipient: anchor.BN;
+    recipient: string;
     recipientEncryptionPublicKey: Uint8Array;
     extraSolAmount?: number;
   }) {
@@ -630,16 +662,27 @@ export class User {
         ? extraSolAmount * 1e9
         : this.provider.minimumLamports;
     } else {
-      extraSolAmount = 0;
+      extraSolAmount = amount;
+      amount = 0;
     }
+    const _recipient: Uint8Array = strToArr(recipient.toString());
 
+    const recipientAccount = Account.fromPubkey(
+      _recipient,
+      recipientEncryptionPublicKey,
+      this.provider.poseidon,
+    );
     const txParams = await this.getTxParams({
       tokenCtx,
-      amount,
       action: Action.TRANSFER,
-      extraSolAmount,
-      recipientShieldedPublicKey: recipient,
-      recipientEncryptionPublicKey,
+      shieldedRecipients: [
+        {
+          mint: tokenCtx.tokenAccount,
+          account: recipientAccount,
+          solAmount: new BN(extraSolAmount.toString()),
+          splAmount: new BN(amount.toString()),
+        },
+      ],
     });
     let tx = new Transaction({
       provider: this.provider,

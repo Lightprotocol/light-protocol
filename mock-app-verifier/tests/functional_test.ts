@@ -97,7 +97,7 @@ describe("Mock verifier functional", () => {
       lookUpTable: LOOK_UP_TABLE,
       verifier: new VerifierTwo(),
       poseidon,
-      action: Action.DEPOSIT
+      action: Action.SHIELD
     });
 
     const appParams = {
@@ -147,7 +147,7 @@ describe("Mock verifier functional", () => {
       recipient: userTokenAccount, // just any token account
       recipientFee: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),
-      action: Action.WITHDRAWAL,
+      action: Action.UNSHIELD,
       poseidon,
       relayer,
     });
