@@ -61,6 +61,11 @@ const getRecipientsAmount = (mint: PublicKey, recipients: Recipient[]) => {
 // transfer
 // check no publics
 
+// shield
+// sumInSol +sumSolAmount
+// sumInSpl +sumSplAmount
+// publicMint
+
 // create via recipients requested utxos and subtract amounts from sums
 // beforeEach utxo check that no amount is negative
 
@@ -219,6 +224,12 @@ export function createOutUtxos({
         CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
         "createOutUtxos",
         "Shield and relayer fee defined",
+      );
+    if (!publicSolAmount && !publicSplAmount)
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+        "createOutUtxos",
+        "publicSolAmount not initialized for unshield",
       );
     if (!publicSplAmount) publicSplAmount = new BN(0);
     if (!publicSolAmount) publicSolAmount = new BN(0);
