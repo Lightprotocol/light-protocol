@@ -20,7 +20,10 @@ docker run -d \
     --bpf-program Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS /usr/local/lib/mock-app-verifier/mock_verifier.so \
     --quiet
 
-sleep 15
+while ! solana balance | grep "500000000 SOL"; do
+    sleep 1
+done
+
 $1
 
 docker rm -f solana-validator

@@ -18,7 +18,15 @@ docker run -d \
     --bpf-program DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj /usr/local/lib/light-protocol-onchain/verifier_program_storage.so \
     --quiet
 
-sleep 15
+while ! solana balance | grep "500000000 SOL"; do
+    sleep 1
+done
+# Without that additional timeout, `shielded transfer 1 & 2` test fails with:
+#
+# Error: failed to send transaction: Transaction simulation failed:
+# Transaction results in an account (2) with insufficient funds for rent
+sleep 4
+
 $1
 
 docker rm -f solana-validator
