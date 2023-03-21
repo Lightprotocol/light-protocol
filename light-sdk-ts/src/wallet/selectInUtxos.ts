@@ -1,4 +1,4 @@
-import { PublicKey } from "@solana/web3.js";
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 import {
   UTXO_MERGE_THRESHOLD,
   UTXO_MERGE_MAXIMUM,
@@ -7,44 +7,359 @@ import {
 } from "../constants";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
+import { BN } from "@coral-xyz/anchor";
+import {
+  getRecipientsAmount,
+  getUtxoArrayAmount,
+  Recipient,
+} from "./createOutUtxos";
+import { Action } from "../transaction";
+import {
+  CreateUtxoErrorCode,
+  RelayerErrorCode,
+  SelectInUtxosError,
+  SelectInUtxosErrorCode,
+  TransactionErrorCode,
+} from "../errors";
 
 // TODO: turn these into static user.class methods
-const getAmount = (u: Utxo, asset: PublicKey) => {
+export const getAmount = (u: Utxo, asset: PublicKey) => {
   return u.amounts[u.assets.indexOf(asset)];
 };
 
-const getFeeSum = (utxos: Utxo[]) => {
+export const getUtxoSum = (utxos: Utxo[], asset: PublicKey) => {
   return utxos.reduce(
-    (sum, utxo) => sum + getAmount(utxo, FEE_ASSET).toNumber(),
-    0,
+    (sum, utxo) => sum.add(getAmount(utxo, asset)),
+    new BN(0),
   );
 };
 
+/**
+ * -------------------------------------------------------------
+ * Algorithm
+ *
+ * assumptions:
+ * - send/withdraw max 1 spl asset and sol
+ *
+ * general strategy:
+ * - merge biggest with smallest
+ * - try to keep sol amount with biggest spl utxos
+ * - try to not have more than two utxos of the same spl token
+ *
+ * Start:
+ *
+ * no utxos return []
+ *
+ * calculate sumInSpl
+ * calculate sumInSol
+ *
+ * check recipients contain only one spl asset
+ * check amounts are plausible
+ *
+ *
+ * get commitment hash for every utxo to have an identifier
+ * sort utxos descending for spl
+ *
+ * if spl select biggest utxo that satisfies spl amount || or biggest spl utxo and select smallest utxo that satisfies spl amount
+ * if sol check whether amount is covered already
+ * else
+ *    if possible select utxo with smallest spl amount that works
+ */
+const selectBiggestSmallest = (
+  filteredUtxos: Utxo[],
+  assetIndex: number,
+  sumOutSpl: BN,
+  threshold: number,
+  mint?: PublicKey,
+) => {
+  var selectedUtxos: Utxo[] = [];
+  var selectedUtxosAmount: BN = new BN(0);
+  var selectedUtxosSolAmount: BN = new BN(0);
+  // TODO: write sort that works with BN
+  filteredUtxos.sort(
+    (a, b) =>
+      a.amounts[assetIndex].toNumber() + b.amounts[assetIndex].toNumber(),
+  );
+
+  for (var utxo = 0; utxo < filteredUtxos.length; utxo++) {
+    // Init with biggest spl utxo
+    if (utxo == 0) {
+      selectedUtxos.push(filteredUtxos[utxo]);
+      selectedUtxosAmount = selectedUtxosAmount.add(
+        filteredUtxos[utxo].amounts[assetIndex],
+      );
+      selectedUtxosSolAmount = selectedUtxosSolAmount.add(
+        filteredUtxos[utxo].amounts[0],
+      );
+    } else {
+      // searching for the biggest in combination with the smallest combination possible
+      if (
+        selectedUtxosAmount
+          .add(filteredUtxos[utxo].amounts[assetIndex])
+          .gte(sumOutSpl)
+      ) {
+        selectedUtxosAmount = selectedUtxosAmount.add(
+          filteredUtxos[utxo].amounts[assetIndex],
+        );
+        selectedUtxosSolAmount = selectedUtxosSolAmount.add(
+          filteredUtxos[utxo].amounts[0],
+        );
+
+        if (selectedUtxos.length == threshold) {
+          // overwrite existing utxo
+          selectedUtxosAmount = selectedUtxosAmount.sub(
+            selectedUtxos[1].amounts[assetIndex],
+          );
+          selectedUtxosSolAmount = selectedUtxosSolAmount.sub(
+            selectedUtxos[1].amounts[0],
+          );
+          selectedUtxos[1] = filteredUtxos[utxo];
+        } else {
+          // add utxo
+          selectedUtxos.push(filteredUtxos[utxo]);
+        }
+      } else {
+        if (selectedUtxosAmount.lt(sumOutSpl)) {
+          throw new Error(
+            `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl}`,
+          );
+        }
+      }
+    }
+  }
+  return { selectedUtxosSolAmount, selectedUtxos };
+};
+
+// TODO: enable users to pass in this function to use their own selection strategies
+// TODO: add option how many utxos to select
 export function selectInUtxos({
-  mint,
-  amount,
-  extraSolAmount,
   utxos,
+  publicMint,
+  publicSplAmount,
+  publicSolAmount,
+  relayerFee,
+  recipients = [],
+  action,
 }: {
-  mint: PublicKey;
-  amount: number;
-  extraSolAmount: number;
-  utxos: Utxo[];
+  publicMint?: PublicKey;
+  publicSplAmount?: BN;
+  publicSolAmount?: BN;
+  relayerFee?: BN;
+  utxos?: Utxo[];
+  recipients?: Recipient[];
+  action: Action;
 }) {
-  // TODO: verify that this is correct w -
-  if (utxos === undefined) return [];
-  if (utxos.length >= UTXO_MERGE_THRESHOLD)
-    return [...utxos.slice(0, UTXO_MERGE_MAXIMUM)];
-  if (utxos.length == 1) return [...utxos]; // TODO: check if this still works for spl...
+  if (!publicMint && publicSplAmount)
+    throw new SelectInUtxosError(
+      CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
+      "selectInUtxos",
+      "Public mint not set but public spl amount",
+    );
+  if (publicMint && !publicSplAmount)
+    throw new SelectInUtxosError(
+      CreateUtxoErrorCode.PUBLIC_SPL_AMOUNT_UNDEFINED,
+      "selectInUtxos",
+      "Public spl amount not set but public mint",
+    );
+  if (action === Action.UNSHIELD && !publicSplAmount && !publicSolAmount)
+    throw new SelectInUtxosError(
+      CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+      "selectInUtxos",
+      "No public amounts defined",
+    );
+  if (action === Action.UNSHIELD && !relayerFee)
+    throw new SelectInUtxosError(
+      RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+      "selectInUtxos",
+      "Relayer fee undefined",
+    );
+  if (action === Action.TRANSFER && !relayerFee)
+    throw new SelectInUtxosError(
+      RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+      "selectInUtxos",
+      "Relayer fee undefined",
+    );
 
-  var options: Utxo[] = [];
+  if (!utxos && action === Action.SHIELD) return [];
+  else if (!utxos)
+    throw new SelectInUtxosError(
+      TransactionErrorCode.NO_UTXOS_PROVIDED,
+      "selectInUtxos",
+      `No utxos defined for ${action}`,
+    );
 
-  utxos = utxos.filter((utxo) => utxo.assets.includes(mint));
+  if (action === Action.SHIELD && relayerFee)
+    throw new SelectInUtxosError(
+      CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
+      "selectInUtxos",
+      "Relayer fee should not be defined with shield",
+    );
+  // TODO: evaluate whether this is too much of a footgun
+  if (action === Action.SHIELD) {
+    publicSolAmount = new BN(0);
+    publicSplAmount = new BN(0);
+  }
+
+  // TODO: add check that utxo holds sufficient balance
+  // TODO: add merge mode which essentially just switches to verifierOne, except when it is forced, add forced option
+  // if (utxos.length >= UTXO_MERGE_THRESHOLD)
+  //   return [...utxos.slice(0, UTXO_MERGE_MAXIMUM)];
+
+  if (recipients.length > 1)
+    throw new SelectInUtxosError(
+      CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+      "selectInUtxos",
+    );
+
+  // check publicMint and recipients mints are all the same
+  let mint = publicMint;
+  for (var recipient in recipients) {
+    if (!mint && recipients[recipient].splAmount?.gt(new BN(0)))
+      mint = recipients[recipient].mint;
+    if (mint && mint.toBase58() !== recipients[recipient].mint.toBase58())
+      throw new SelectInUtxosError(
+        SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
+        "selectInUtxos",
+        `Too many different mints in recipients ${recipients}`,
+      );
+  }
+
+  // if mint is provided filter for only utxos that contain the mint
+  let filteredUtxos: Utxo[] = [];
+  var sumInSpl = new BN(0);
+  var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
+  var sumOutSpl = publicSplAmount ? publicSplAmount : new BN(0);
+  var sumOutSol = getRecipientsAmount(SystemProgram.programId, recipients);
+  if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
+  if (publicSolAmount) sumOutSol = sumOutSol.add(publicSolAmount);
+
+  if (mint) {
+    filteredUtxos = utxos.filter((utxo) => utxo.assets.includes(mint!));
+    sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
+    sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
+    sumOutSpl = getRecipientsAmount(mint, recipients);
+  } else {
+    filteredUtxos = utxos;
+  }
+
+  if (utxos.length == 1) return [...utxos];
+  var selectedUtxosR: Utxo[] = [];
+  if (mint) {
+    var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
+      filteredUtxos,
+      1,
+      sumOutSpl,
+      2,
+      mint,
+    );
+    selectedUtxosR = selectedUtxos;
+
+    // if sol amount not satisfied
+    if (sumOutSol.gt(selectedUtxosSolAmount)) {
+      // filter for utxos which could satisfy
+      filteredUtxos = utxos.filter((utxo) =>
+        utxo.amounts[0].gte(sumOutSol.sub(selectedUtxosSolAmount)),
+      );
+
+      // if one spl utxo is enough try to find one sol utxo which can make up the difference in all utxos with only sol
+      if (selectedUtxosR[0].amounts[1].gte(sumOutSpl)) {
+        // exclude the utxo which is already selected and utxos which hold other assets than only sol
+        let reFilteredUtxos = utxos.filter(
+          (utxo) =>
+            utxo.getCommitment() != selectedUtxosR[0].getCommitment() &&
+            utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
+        );
+
+        // search for suitable sol utxo in remaining utxos
+        var { selectedUtxosSolAmount, selectedUtxos: selectedUtxo1 } =
+          selectBiggestSmallest(
+            reFilteredUtxos,
+            1,
+            sumOutSol.sub(selectedUtxosR[0].amounts[0]),
+            1,
+          );
+
+        // if a sol utxo was found replace small spl utxo
+        if (selectedUtxo1.length === 0)
+          throw new SelectInUtxosError(
+            SelectInUtxosErrorCode.FAILED_TO_SELECT_SOL_UTXO,
+            "selectInUtxos",
+            "Failed to select a sol utxo",
+          );
+        if (selectedUtxosR.length == 2) {
+          // overwrite existing utxo
+          selectedUtxosR[1] = selectedUtxo1[0];
+        } else {
+          // add utxo
+          selectedUtxosR.push(selectedUtxo1[0]);
+        }
+      }
+      // take utxo with smallest spl amount of utxos which satisfy
+      else if (filteredUtxos.length === 0) {
+        throw new SelectInUtxosError(
+          SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+          "selectInUtxos",
+          `Could not find a utxo combination for spl token ${mint} and amount ${sumOutSpl} and sol amount ${sumOutSol}`,
+        );
+      } else {
+        // sort ascending and take smallest index
+        filteredUtxos.sort((a, b) => a.amounts[1].sub(b.amounts[1]).toNumber());
+        if (selectedUtxosR.length == 2) {
+          // overwrite existing utxo
+          selectedUtxosR[1] = filteredUtxos[0];
+        } else {
+          // add utxo
+          selectedUtxosR.push(filteredUtxos[0]);
+        }
+      }
+    }
+  } else {
+    // case no spl amount only select sol
+    var { selectedUtxos } = selectBiggestSmallest(
+      filteredUtxos,
+      0,
+      sumOutSol,
+      2,
+      mint,
+    );
+    selectedUtxosR = selectedUtxos;
+  }
+
+  if (mint && !getUtxoArrayAmount(mint, selectedUtxosR).gte(sumOutSpl))
+    throw new SelectInUtxosError(
+      SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+      "selectInUtxos",
+      `Failed to get spl amount requested ${sumOutSpl} possible ${getUtxoArrayAmount(
+        mint,
+        selectedUtxosR,
+      )}`,
+    );
+  if (
+    !getUtxoArrayAmount(SystemProgram.programId, selectedUtxosR).gte(sumOutSol)
+  )
+    throw new SelectInUtxosError(
+      SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+      "selectInUtxos",
+      `Failed to get sol amount requested ${sumOutSol} possible ${getUtxoArrayAmount(
+        SystemProgram.programId,
+        selectedUtxosR,
+      )}`,
+    );
+
+  if (selectedUtxosR.length > 0) return selectedUtxosR;
+  else
+    throw new SelectInUtxosError(
+      SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+      "selectInUtxos",
+      "selectInUtxos failed to select utxos",
+    );
+
+  /*
   var extraSolUtxos;
-  if (mint !== FEE_ASSET) {
+  if (publicMint !== FEE_ASSET) {
     extraSolUtxos = utxos
       .filter((utxo) => {
-        let i = utxo.amounts.findIndex((amount) => amount === new anchor.BN(0));
+        let i = utxo.amounts.findIndex((publicSplAmount) => publicSplAmount === new anchor.BN(0));
         // The other asset must be 0 and SOL must be >0
         return (
           utxo.assets.includes(FEE_ASSET) &&
@@ -57,104 +372,104 @@ export function selectInUtxos({
           getAmount(a, FEE_ASSET).toNumber() -
           getAmount(b, FEE_ASSET).toNumber(),
       );
-  } else console.log("mint is FEE_ASSET");
+  } else console.log("publicMint is FEE_ASSET");
 
-  /**
+  **
    * for shields and transfers we'll always have spare utxos,
    * hence no reason to find perfect matches
-   * */
-  if (amount > 0) {
+   * *
+  if (publicSplAmount.gt(new BN(0))) {
     // perfect match (2-in, 0-out)
     for (let i = 0; i < utxos.length; i++) {
       for (let j = 0; j < utxos.length; j++) {
         if (i == j || getFeeSum([utxos[i], utxos[j]]) < UTXO_FEE_ASSET_MINIMUM)
           continue;
         else if (
-          getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) ==
-          new anchor.BN(amount)
+          getAmount(utxos[i], publicMint).add(getAmount(utxos[j], publicMint)) ==
+          new anchor.BN(publicSplAmount)
         ) {
-          options.push(utxos[i], utxos[j]);
-          return options;
+          selectedUtxos.push(utxos[i], utxos[j]);
+          return selectedUtxos;
         }
       }
     }
 
     // perfect match (1-in, 0-out)
-    if (options.length < 1) {
+    if (selectedUtxos.length < 1) {
       let match = utxos.filter(
-        (utxo) => getAmount(utxo, mint) == new anchor.BN(amount),
+        (utxo) => getAmount(utxo, publicMint) == new anchor.BN(publicSplAmount),
       );
       if (match.length > 0) {
         const sufficientFeeAsset = match.filter(
           (utxo) => getFeeSum([utxo]) >= UTXO_FEE_ASSET_MINIMUM,
         );
         if (sufficientFeeAsset.length > 0) {
-          options.push(sufficientFeeAsset[0]);
-          return options;
+          selectedUtxos.push(sufficientFeeAsset[0]);
+          return selectedUtxos;
         } else if (extraSolUtxos && extraSolUtxos.length > 0) {
-          options.push(match[0]);
-          /** handler 1: 2 in - 1 out here, with a feeutxo merged into place */
-          /** TODO:  add as fallback: use another MINT utxo */
+          selectedUtxos.push(match[0]);
+          ** handler 1: 2 in - 1 out here, with a feeutxo merged into place *
+          ** TODO:  add as fallback: use another MINT utxo *
           // Find the smallest sol utxo that can cover the fee
           for (let i = 0; i < extraSolUtxos.length; i++) {
             if (
               getFeeSum([match[0], extraSolUtxos[i]]) >= UTXO_FEE_ASSET_MINIMUM
             ) {
-              options.push(extraSolUtxos[i]);
+              selectedUtxos.push(extraSolUtxos[i]);
               break;
             }
           }
-          return options;
+          return selectedUtxos;
         }
       }
     }
   }
 
-  // 2 above amount - find the pair of the UTXO with the largest amount and the UTXO of the smallest amount, where its sum is greater than amount.
-  if (options.length < 1) {
+  // 2 above publicSplAmount - find the pair of the UTXO with the largest publicSplAmount and the UTXO of the smallest publicSplAmount, where its sum is greater than publicSplAmount.
+  if (selectedUtxos.length < 1) {
     for (let i = 0; i < utxos.length; i++) {
       for (let j = utxos.length - 1; j >= 0; j--) {
         if (i == j || getFeeSum([utxos[i], utxos[j]]) < UTXO_FEE_ASSET_MINIMUM)
           continue;
         else if (
-          getAmount(utxos[i], mint).add(getAmount(utxos[j], mint)) >
-          new anchor.BN(amount)
+          getAmount(utxos[i], publicMint).add(getAmount(utxos[j], publicMint)) >
+          new anchor.BN(publicSplAmount)
         ) {
-          options.push(utxos[i], utxos[j]);
-          return options;
+          selectedUtxos.push(utxos[i], utxos[j]);
+          return selectedUtxos;
         }
       }
     }
   }
 
-  // if 2-in is not sufficient to cover the transaction amount, use 10-in -> merge everything
+  // if 2-in is not sufficient to cover the transaction publicSplAmount, use 10-in -> merge everything
   // cases where utxos.length > UTXO_MERGE_MAXIMUM are handled above already
   if (
-    options.length < 1 &&
-    utxos.reduce((a, b) => a + getAmount(b, mint).toNumber(), 0) >= amount
+    selectedUtxos.length < 1 &&
+    utxos.reduce((a, b) => a.add(getAmount(b, publicMint)), new BN(0)) >= publicSplAmount
   ) {
     if (
       getFeeSum(utxos.slice(0, UTXO_MERGE_MAXIMUM)) >= UTXO_FEE_ASSET_MINIMUM
     ) {
-      options = [...utxos.slice(0, UTXO_MERGE_MAXIMUM)];
+      selectedUtxos = [...utxos.slice(0, UTXO_MERGE_MAXIMUM)];
     } else if (extraSolUtxos && extraSolUtxos.length > 0) {
-      // get a utxo set of (...utxos.slice(0, UTXO_MERGE_MAXIMUM-1)) that can cover the amount.
+      // get a utxo set of (...utxos.slice(0, UTXO_MERGE_MAXIMUM-1)) that can cover the publicSplAmount.
       // skip last one to the left (smallest utxo!)
       for (let i = utxos.length - 1; i > 0; i--) {
-        let sum = 0;
+        let sum = new BN(0);
         let utxoSet = [];
         for (let j = i; j > 0; j--) {
-          if (sum >= amount) break;
-          sum += getAmount(utxos[j], mint).toNumber();
+          if (sum.gte(publicSplAmount)) break;
+          sum = sum.add(getAmount(utxos[j], publicMint));
           utxoSet.push(utxos[j]);
         }
-        if (sum >= amount && getFeeSum(utxoSet) >= UTXO_FEE_ASSET_MINIMUM) {
-          options = utxoSet;
+        if (sum >= publicSplAmount && getFeeSum(utxoSet) >= UTXO_FEE_ASSET_MINIMUM) {
+          selectedUtxos = utxoSet;
           break;
         }
       }
       // find the smallest sol utxo that can cover the fee
-      if (options && options.length > 0)
+      if (selectedUtxos && selectedUtxos.length > 0)
         for (let i = 0; i < extraSolUtxos.length; i++) {
           if (
             getFeeSum([
@@ -162,12 +477,13 @@ export function selectInUtxos({
               extraSolUtxos[i],
             ]) >= UTXO_FEE_ASSET_MINIMUM
           ) {
-            options = [...options, extraSolUtxos[i]];
+            selectedUtxos = [...selectedUtxos, extraSolUtxos[i]];
             break;
           }
         }
       // TODO: add as fallback: use another MINT/third spl utxo
     }
   }
-  return options;
+  return selectedUtxos;
+  */
 }
