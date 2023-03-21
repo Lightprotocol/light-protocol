@@ -47,6 +47,7 @@ import {
   selectInUtxos,
   SelectInUtxosError,
   RelayerErrorCode,
+  SelectInUtxosErrorCode,
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -65,6 +66,7 @@ describe("Test selectInUtxos Functional", () => {
     token,
     tokenCtx,
     utxo1: Utxo,
+    utxo2: Utxo,
     relayerFee,
     utxoSol,
     recipientAccount;
@@ -83,6 +85,12 @@ describe("Test selectInUtxos Functional", () => {
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals)],
+      index: 0,
+    });
+    utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
@@ -255,6 +263,27 @@ describe("Test selectInUtxos Functional", () => {
 
     Utxo.equal(selectedUtxo[0], utxo1);
   });
+
+  it("3 utxos spl & sol", async () => {
+    const inUtxos = [utxoSol, utxo1, utxo2];
+
+    var selectedUtxo = selectInUtxos({
+      utxos: inUtxos,
+      action: Action.TRANSFER,
+      relayerFee: new BN(1000),
+      recipients: [
+        {
+          mint: utxo1.assets[1],
+          solAmount: utxo2.amounts[0],
+          splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+          account: new Account({ poseidon }),
+        },
+      ],
+    });
+
+    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(selectedUtxo[1], utxo2);
+  });
 });
 
 describe("Test selectInUtxos Errors", () => {
@@ -267,6 +296,7 @@ describe("Test selectInUtxos Errors", () => {
     token,
     tokenCtx,
     utxo1: Utxo,
+    utxo2: Utxo,
     relayerFee,
     utxoSol,
     recipientAccount;
@@ -285,6 +315,12 @@ describe("Test selectInUtxos Errors", () => {
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
+      index: 0,
+    });
+    utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
@@ -484,6 +520,81 @@ describe("Test selectInUtxos Errors", () => {
       .to.throw(SelectInUtxosError)
       .includes({
         code: CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
+        functionName: "selectInUtxos",
+      });
+  });
+
+  it("FAILED_TO_FIND_UTXO_COMBINATION sol", async () => {
+    const inUtxos = [utxoSol, utxo1];
+
+    expect(() => {
+      selectInUtxos({
+        utxos: inUtxos,
+        action: Action.TRANSFER,
+        relayerFee: new BN(1000),
+        recipients: [
+          {
+            mint: utxo1.assets[1],
+            solAmount: new BN(2e10),
+            splAmount: new BN(1),
+            account: new Account({ poseidon }),
+          },
+        ],
+      });
+    })
+      .to.throw(SelectInUtxosError)
+      .includes({
+        code: SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+        functionName: "selectInUtxos",
+      });
+  });
+
+  it("FAILED_TO_FIND_UTXO_COMBINATION spl", async () => {
+    const inUtxos = [utxoSol, utxo1];
+
+    expect(() => {
+      selectInUtxos({
+        utxos: inUtxos,
+        action: Action.TRANSFER,
+        relayerFee: new BN(1000),
+        recipients: [
+          {
+            mint: utxo1.assets[1],
+            solAmount: new BN(0),
+            splAmount: new BN(1e10),
+            account: new Account({ poseidon }),
+          },
+        ],
+      });
+    })
+      .to.throw(SelectInUtxosError)
+      .includes({
+        code: SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+        functionName: "selectInUtxos",
+      });
+  });
+
+  it("FAILED_TO_FIND_UTXO_COMBINATION spl & sol", async () => {
+    const inUtxos = [utxoSol, utxo1, utxo2];
+
+    expect(() => {
+      selectInUtxos({
+        utxos: inUtxos,
+        action: Action.TRANSFER,
+        relayerFee: new BN(1000),
+        recipients: [
+          {
+            mint: utxo1.assets[1],
+            solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
+            splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+            account: new Account({ poseidon }),
+          },
+        ],
+      });
+    })
+      .to.throw(SelectInUtxosError)
+      .includes({
+        code: SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
         functionName: "selectInUtxos",
       });
   });
