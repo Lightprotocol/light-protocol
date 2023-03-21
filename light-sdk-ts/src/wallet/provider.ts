@@ -1,9 +1,4 @@
-import {
-  AnchorError,
-  AnchorProvider,
-  setProvider,
-  Wallet,
-} from "@coral-xyz/anchor";
+import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
 import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
@@ -11,14 +6,10 @@ import {
   Connection,
   ConfirmOptions,
 } from "@solana/web3.js";
-import {
-  ADMIN_AUTH_KEYPAIR,
-  initLookUpTable,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
-} from "../test-utils";
+import { ADMIN_AUTH_KEYPAIR, initLookUpTableFromFile } from "../test-utils";
 import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
 import { MerkleTree } from "../merkleTree/merkleTree";
+import { ProviderError, ProviderErrorCode } from "../errors";
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
@@ -46,8 +37,8 @@ export class Provider {
   solMerkleTree?: SolMerkleTree;
   provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
-  minimumLamports: number;
-
+  // TODO: refactor by streamlining everything towards using connection and not anchor provider
+  // - get rid of url
   /**
    * Init either with nodeWallet or browserWallet. Feepayer is the provided wallet
    * Optionally provide confirmConfig, Default = 'confirmed'.
@@ -58,26 +49,38 @@ export class Provider {
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
-    minimumLamports = 5000 * 30,
   }: {
     nodeWallet?: SolanaKeypair;
     browserWallet?: BrowserWallet;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
-    minimumLamports?: number;
   }) {
     if (nodeWallet && browserWallet)
-      throw new Error("Both node and browser environments provided.");
-    if (!nodeWallet && !browserWallet) throw new Error("No wallet provided.");
-    if (nodeWallet && !url) throw new Error("No url provided.");
+      throw new ProviderError(
+        ProviderErrorCode.NODE_WALLET_AND_BROWSER_WALLET_DEFINED,
+        "constructor",
+        "Both node and browser environments provided chose one.",
+      );
+    if (!nodeWallet && !browserWallet)
+      throw new ProviderError(
+        ProviderErrorCode.NODE_WALLET_AND_BROWSER_WALLET_UNDEFINED,
+        "constructor",
+        "No wallet provided.",
+      );
     if (browserWallet && !connection)
-      throw new Error("No connection provided.");
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "constructor",
+        "No connection provided with browser wallet.",
+      );
     if (nodeWallet && connection)
-      throw new Error(
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_DEFINED,
+        "constructor",
         "Connection provided in node environment. Provide a url instead",
       );
-    this.minimumLamports = minimumLamports;
+
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
 
     if (nodeWallet) {
@@ -98,7 +101,7 @@ export class Provider {
     }
   }
 
-  static async loadMock(mockPubkey: PublicKey) {
+  static async loadMock() {
     let mockProvider = new Provider({
       nodeWallet: ADMIN_AUTH_KEYPAIR,
       url: "mock",
@@ -107,7 +110,7 @@ export class Provider {
     mockProvider.lookUpTable = SolanaKeypair.generate().publicKey;
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
-      pubkey: mockPubkey,
+      pubkey: MERKLE_TREE_KEY,
     });
 
     return mockProvider;
@@ -121,6 +124,7 @@ export class Provider {
         return;
       }
       if (!this.provider) throw new Error("No provider set.");
+      // TODO: remove this should not exist
       this.lookUpTable = await initLookUpTableFromFile(this.provider);
     } catch (err) {
       console.error(err);
@@ -128,7 +132,7 @@ export class Provider {
     }
   }
 
-  private async fetchMerkleTree() {
+  private async fetchMerkleTree(merkleTreePubkey: PublicKey) {
     try {
       if (this.browserWallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
@@ -145,21 +149,25 @@ export class Provider {
 
         this.solMerkleTree = { ...response.data.data, merkleTree, pubkey };
       }
-      // TODO: move to a seperate function
+
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
-        MERKLE_TREE_KEY,
+        merkleTreePubkey,
         "confirmed",
       );
       if (!merkletreeIsInited) {
-        await setUpMerkleTree(this.provider!);
-        // TODO: throw error
+        throw new ProviderError(
+          ProviderErrorCode.MERKLE_TREE_NOT_INITIALIZED,
+          "fetchMerkleTree",
+          `Merkle tree is not initialized if on local host run test utils setUpMerkleTree before initin the provider, on other networks check your merkle tree pubkey ${merkleTreePubkey}`,
+        );
       }
 
       const mt = await SolMerkleTree.build({
-        pubkey: MERKLE_TREE_KEY,
+        pubkey: merkleTreePubkey,
         poseidon: this.poseidon,
         provider: this.provider,
       });
+
       console.log("✔️ building merkletree done");
       this.solMerkleTree = mt;
     } catch (err) {
@@ -173,7 +181,7 @@ export class Provider {
     this.poseidon = poseidon;
   }
   async latestMerkleTree() {
-    await this.fetchMerkleTree();
+    await this.fetchMerkleTree(MERKLE_TREE_KEY);
   }
   // TODO: add loadEddsa
 
@@ -184,18 +192,28 @@ export class Provider {
    * @param connection get from useConnection() hook
    */
   static async browser(
-    walletContext?: BrowserWallet,
-    connection?: Connection,
+    browserWallet: BrowserWallet,
+    connection: Connection,
     confirmConfig?: ConfirmOptions,
   ): Promise<Provider> {
+    if (!browserWallet) {
+      throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
+    }
+    if (!connection) {
+      throw new ProviderError(
+        ProviderErrorCode.CONNECTION_UNDEFINED,
+        "browser",
+      );
+    }
+
     const provider = new Provider({
-      browserWallet: walletContext,
+      browserWallet,
       confirmConfig,
       connection,
     });
     await provider.loadPoseidon();
     await provider.fetchLookupTable();
-    await provider.fetchMerkleTree();
+    await provider.fetchMerkleTree(MERKLE_TREE_KEY);
     return provider;
   }
 
@@ -206,10 +224,14 @@ export class Provider {
    * @param url full-node rpc endpoint to instantiate a Connection
    */
   static async native(
-    keypair?: SolanaKeypair,
+    keypair: SolanaKeypair,
     url?: string,
     confirmConfig?: ConfirmOptions,
   ): Promise<Provider> {
+    if (!keypair) {
+      throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "native");
+    }
+
     const provider = new Provider({
       nodeWallet: keypair,
       confirmConfig,
@@ -217,7 +239,7 @@ export class Provider {
     });
     await provider.loadPoseidon();
     await provider.fetchLookupTable();
-    await provider.fetchMerkleTree();
+    await provider.fetchMerkleTree(MERKLE_TREE_KEY);
     return provider;
   }
 }

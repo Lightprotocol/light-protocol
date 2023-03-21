@@ -7,6 +7,8 @@
     "test-browser-wallet": "ts-mocha -t 2000000 tests/browser_wallet_tests.ts --exit",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
     "test-merkle-tree": "sh runTest.sh 'ts-mocha -t 2000000 tests/merkle_tree_tests.ts --exit'",
+    "test-provider": "sh runTest.sh 'ts-mocha -t 2000000 tests/provider.test.ts --exit'",
+
     "format": "prettier --write \"src/**/*.{ts,js}\""
   },
   "dependencies": {

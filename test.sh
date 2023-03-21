@@ -11,6 +11,7 @@ yarn run test-merkle-tree
 yarn run test-verifiers
 ./runBrowserTest.sh
 yarn run test-user
+yarn run test-provider
 popd
 
 pushd light-sdk-ts

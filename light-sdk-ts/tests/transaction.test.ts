@@ -69,7 +69,7 @@ describe("Transaction Error Tests", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey3);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -308,7 +308,7 @@ describe("Transaction Functional Tests", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey3);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -382,7 +382,7 @@ describe("Transaction Functional Tests", () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
 
     let mockPubkey = SolanaKeypair.generate().publicKey;
-    let lightProvider = await LightProvider.loadMock(mockPubkey);
+    let lightProvider = await LightProvider.loadMock();
 
     var deposit_utxo1 = new Utxo({
       poseidon,
