@@ -180,8 +180,8 @@ export function selectInUtxos({
       "Relayer fee undefined",
     );
 
-  if (!utxos && action === Action.SHIELD) return [];
-  else if (!utxos)
+  if ((!utxos || utxos.length === 0) && action === Action.SHIELD) return [];
+  else if (!utxos || utxos.length === 0)
     throw new SelectInUtxosError(
       TransactionErrorCode.NO_UTXOS_PROVIDED,
       "selectInUtxos",
