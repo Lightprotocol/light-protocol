@@ -1673,7 +1673,7 @@ export class Transaction {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
-            "confirmed",
+            "finalized",
           );
           tx = txTmp;
         } else {
@@ -1949,7 +1949,7 @@ export class Transaction {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
-          "confirmed",
+          "finalized",
         );
 
       assert(
