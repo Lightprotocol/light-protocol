@@ -580,7 +580,8 @@ export class TransactionParameters implements transactionParameters {
       this.accounts.recipientFee =
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
       if (!this.accounts.sender) {
-        this.accounts.sender = SystemProgram.programId;
+        // assigning a placeholder account
+        this.accounts.sender = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
           throw new TransactioParametersError(
             TransactionErrorCode.SPL_SENDER_UNDEFINED,

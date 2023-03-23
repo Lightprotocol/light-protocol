@@ -10,6 +10,12 @@ export enum UtxoErrorCode {
   ASSET_NOT_FOUND = "ASSET_NOT_FOUND",
 }
 
+export enum SelectInUtxosErrorCode {
+  INVALID_NUMER_OF_MINTS = "INVALID_NUMER_OF_MINTS",
+  FAILED_TO_SELECT_SOL_UTXO = "FAILED_TO_SELECT_SOL_UTXO",
+  FAILED_TO_FIND_UTXO_COMBINATION = "FAILED_TO_FIND_UTXO_COMBINATION",
+}
+
 export enum RelayerErrorCode {
   RELAYER_FEE_UNDEFINED = "RELAYER_FEE_UNDEFINED",
   RELAYER_PUBKEY_UNDEFINED = "RELAYER_PUBKEY_UNDEFINED",
@@ -29,6 +35,7 @@ export enum CreateUtxoErrorCode {
   INVALID_OUTPUT_UTXO_LENGTH = "INVALID_OUTPUT_UTXO_LENGTH",
   RELAYER_FEE_DEFINED = "RELAYER_FEE_DEFINED",
   PUBLIC_SOL_AMOUNT_UNDEFINED = "PUBLIC_SOL_AMOUNT_UNDEFINED",
+  PUBLIC_SPL_AMOUNT_UNDEFINED = "PUBLIC_SPL_AMOUNT_UNDEFINED",
 }
 export enum AccountErrorCode {
   INVALID_SEED_SIZE = "INVALID_SEED_SIZE",
@@ -156,3 +163,5 @@ export class RelayerError extends MetaError {}
 export class CreateUtxoError extends MetaError {}
 
 export class ProviderError extends MetaError {}
+
+export class SelectInUtxosError extends MetaError {}
