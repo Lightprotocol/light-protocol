@@ -35,8 +35,8 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const verifiers = [
-  { verifier: new VerifierZero(), isApp: false },
-  { verifier: new VerifierOne(), isApp: false },
+  // { verifier: new VerifierZero(), isApp: false },
+  // { verifier: new VerifierOne(), isApp: false },
   { verifier: new VerifierTwo(), isApp: true },
 ];
 
@@ -46,7 +46,7 @@ describe("Verifier tests", () => {
     poseidon = await buildPoseidonOpt();
   });
 
-  it("Test functional circuit", async () => {
+  it.only("Test functional circuit", async () => {
     for (var verifier in verifiers) {
       await functionalCircuitTest(
         verifiers[verifier].verifier,

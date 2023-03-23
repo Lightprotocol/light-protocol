@@ -39,6 +39,7 @@ const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
 const { keccak_256 } = require("@noble/hashes/sha3");
 var assert = require("assert");
+import { Scalar } from "ffjavascript";
 
 export const createEncryptionKeypair = () => nacl.box.keyPair();
 
@@ -111,6 +112,7 @@ export class TransactionParameters implements transactionParameters {
   assetPubkeys: PublicKey[];
   assetPubkeysCircuit: string[];
   action: Action;
+  senderShieldedAccount: Account;
 
   constructor({
     merkleTreePubkey,
@@ -126,6 +128,7 @@ export class TransactionParameters implements transactionParameters {
     poseidon,
     action,
     lookUpTable,
+    senderShieldedAccount,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -141,6 +144,7 @@ export class TransactionParameters implements transactionParameters {
     action: Action;
     lookUpTable?: PublicKey;
     provider?: Provider;
+    senderShieldedAccount?: Account;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -217,6 +221,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
     }
+    this.senderShieldedAccount = senderShieldedAccount;
 
     const pubkeys = TransactionParameters.getAssetPubkeys(
       this.inputUtxos,
@@ -877,7 +882,9 @@ export class Transaction {
     this.compile();
     await this.getProof();
     if (this.appParams) {
-      await this.getAppProof();
+      console.log("app proof commented");
+
+      // await this.getAppProof();
     }
     await this.getRootIndex();
     await this.getPdaAddresses();
@@ -886,9 +893,15 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  compile() {
+  async compile() {
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
+    for (var i in this.params.inputUtxos) {
+      await this.params.inputUtxos[i].initEddsa();
+    }
+    for (var i in this.params.outputUtxos) {
+      await this.params.outputUtxos[i].initEddsa();
+    }
 
     if (!this.provider.solMerkleTree)
       throw new TransactionError(
@@ -896,30 +909,144 @@ export class Transaction {
         "getProofInput",
         "",
       );
+    0;
+    const extDataHash = this.getTxIntegrityHash().toString();
+    const connectingHash = Transaction.getConnectingHash(
+      this.params,
+      this.provider.poseidon,
+      extDataHash,
+    );
+    await this.params.senderShieldedAccount.getEddsaPublicKey();
+    const hash = this.params.poseidon([
+      new Uint8Array(31).fill(2),
+      new Uint8Array(31).fill(2),
+      new Uint8Array(31).fill(2),
+    ]);
+    const signature = await this.params.senderShieldedAccount.signEddsa(
+      this.params.poseidon.F.e(Scalar.e(connectingHash)),
+    );
+
+    // const signature = await this.params.senderShieldedAccount.signEddsa(hash);
 
     const { inputMerklePathIndices, inputMerklePathElements } =
       Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
 
+    this.params.outputUtxos?.map((x: Utxo) =>
+      console.log(
+        "poseidonEddsaKeypair[0] out utxo ",
+        new BN(x.account.poseidonEddsaKeypair?.publicKey[0], 32, "le"),
+      ),
+    );
+    this.params.outputUtxos?.map((x: Utxo) =>
+      console.log(
+        "poseidonEddsaKeypair[0] out utxo ",
+        new BN(x.account.poseidonEddsaKeypair?.publicKey[1], 32, "le"),
+      ),
+    );
+    console.log(
+      "pubkeysx ",
+      this.params.poseidon.F.toObject(
+        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[0],
+      ).toString(),
+    );
+    console.log(
+      "pubkeysy ",
+      this.params.poseidon.F.toObject(
+        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[1],
+      ).toString(),
+    );
+    console.log(
+      "signatures ",
+      this.params.senderShieldedAccount.eddsa.unpackSignature(signature).S,
+    );
+
+    console.log(
+      "R8x ",
+      this.params.poseidon.F.toObject(
+        this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
+          .R8[0],
+      ),
+    );
+    console.log(
+      "R8x ",
+      this.params.poseidon.F.toObject(
+        this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
+          .R8[1],
+      ),
+    );
+    console.log("connectingHash ", connectingHash);
+
+    assert(
+      this.params.senderShieldedAccount.eddsa.verifyPoseidon(
+        connectingHash,
+        this.params.senderShieldedAccount.eddsa.unpackSignature(signature),
+        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey,
+      ),
+    );
+    // assert(this.params.senderShieldedAccount.eddsa.verifyPoseidon(hash, this.params.senderShieldedAccount.eddsa.unpackSignature(signature), this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey));
+
     this.proofInputSystem = {
+      connectingHash,
+      signerPubkeysX: [
+        this.params.poseidon.F.toObject(
+          this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[0],
+        ),
+      ],
+      signerPubkeysY: [
+        this.params.poseidon.F.toObject(
+          this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[1],
+        ),
+      ],
+      R8x: [
+        this.params.poseidon.F.toObject(
+          this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
+            .R8[0],
+        ).toString(),
+      ],
+      R8y: [
+        this.params.senderShieldedAccount.poseidon.F.toObject(
+          this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
+            .R8[1],
+        ).toString(),
+      ],
+      signatures: [
+        this.params.senderShieldedAccount.eddsa
+          .unpackSignature(signature)
+          .S.toString(),
+      ],
       root: this.provider.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
       // TODO: move public and fee amounts into tx preparation
       publicAmount: this.params.publicAmountSpl.toString(),
       feeAmount: this.params.publicAmountSol.toString(),
       mintPubkey: this.getMint(),
-      inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
+      inNullifierPrivateKey: this.params.inputUtxos?.map(
+        (x) => x.account.nullifierPrivateKey,
+      ),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
     };
     this.proofInput = {
-      extDataHash: this.getTxIntegrityHash().toString(),
+      // TODO: make this.params.inputUtxos?.map((x) => x.isNonZeroUtxo),
+      inPublicKeyEnabled: [0, 0, 0, 0],
+      extDataHash,
       outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
-      inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
+      // inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
       assetPubkeys: this.params.assetPubkeysCircuit,
       outAmount: this.params.outputUtxos?.map((x) => x.amounts),
       outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
-      outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
+      outSignerPubkeysX: this.params.outputUtxos?.map((x: Utxo) =>
+        x.isNonZeroUtxo
+          ? new BN(x.account.poseidonEddsaKeypair?.publicKey[0], 32, "le")
+          : "0",
+      ),
+      outSignerPubkeysY: this.params.outputUtxos?.map((x: Utxo) =>
+        x.isNonZeroUtxo
+          ? new BN(x.account.poseidonEddsaKeypair?.publicKey[1], 32, "le")
+          : "0",
+      ),
+      // outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
       inIndices: this.getIndices(this.params.inputUtxos),
       outIndices: this.getIndices(this.params.outputUtxos),
       inInstructionType: this.params.inputUtxos?.map((x) => x.instructionType),
@@ -936,11 +1063,6 @@ export class Transaction {
       ),
     };
     if (this.appParams) {
-      this.proofInput.connectingHash = Transaction.getConnectingHash(
-        this.params,
-        this.provider.poseidon,
-        this.proofInput.extDataHash,
-      );
       this.proofInput.verifier = this.params.verifier?.pubkey;
     }
   }

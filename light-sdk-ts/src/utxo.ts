@@ -57,6 +57,8 @@ export class Utxo {
   _nullifier?: string;
   poseidon: any;
   includeAppData: boolean;
+  // 1 if true, else 0
+  isNonZeroUtxo: number;
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -80,7 +82,7 @@ export class Utxo {
     assets = [SystemProgram.programId],
     amounts = [new BN("0")],
     account,
-    blinding = new BN(randomBN(), 31, "be"),
+    // blinding = new BN(randomBN(), 31, "be"),
     poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
     appData = [],
@@ -93,7 +95,8 @@ export class Utxo {
     assets?: PublicKey[];
     amounts?: BN[];
     account?: Account;
-    blinding?: BN;
+    // blinding?: BN;
+    nullifierKey?: BN;
     poolType?: BN;
     verifierAddress?: PublicKey;
     appData?: Array<any>;
@@ -103,16 +106,22 @@ export class Utxo {
     instructionType?: BN;
   }) {
     // check that blinding is 31 bytes
-    try {
-      blinding.toArray("be", 31);
-    } catch (_) {
-      throw new UtxoError(
-        UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
-        "constructor",
+    // try {
+    //   blinding.toArray("be", 31);
+    // } catch (_) {
+    //   throw new UtxoError(
+    //     UtxoErrorCode.BLINDING_EXCEEDS_SIZE,
+    //     "constructor",
 
-        `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
-      );
+    //     `Bliding ${blinding}, exceeds size of 31 bytes/248 bit.`,
+    //   );
+    // }
+    if (!amounts || (amounts.length === 1 && amounts[0].toString() === "0")) {
+      this.isNonZeroUtxo = 0;
+    } else {
+      this.isNonZeroUtxo = 1;
     }
+
     if (assets.length != amounts.length) {
       throw new UtxoError(
         UtxoErrorCode.INVALID_ASSET_OR_AMOUNTS_LENGTH,
@@ -172,7 +181,6 @@ export class Utxo {
       return new BN(x.toString());
     });
 
-    this.blinding = blinding;
     this.account = account;
     this.index = index;
     this.assets = assets;
@@ -236,6 +244,28 @@ export class Utxo {
     } else {
       this.instructionType = new BN("0");
     }
+
+    this.blinding = new BN(
+      leInt2Buff(
+        unstringifyBigInts(
+          poseidon.F.toString(
+            poseidon([
+              this.account.nullifierPublicKey.toString(),
+              this.instructionType.toString(),
+            ]),
+          ),
+        ),
+      ),
+      32,
+      "le",
+    );
+    console.log(
+      "blinding inputs: ",
+      this.account.nullifierPublicKey.toString(),
+    );
+    console.log("blinding inputs: ", this.instructionType.toString());
+
+    console.log("utxo constructor blinding ", this.blinding.toString());
   }
 
   /**
@@ -251,11 +281,12 @@ export class Utxo {
         "Asset not found in lookup table",
       );
     }
-
+    // TODO: replace blinding with AccountNullifierPrivkey
+    // TODO: need to distinguish between cases here, or in the account need to check that
     // case no or excluding appData
     if (!this.includeAppData) {
       return new Uint8Array([
-        ...this.blinding.toArray("be", 31),
+        ...this.blinding.toArray("be", 32),
         ...this.amounts[0].toArray("be", 8),
         ...this.amounts[1].toArray("be", 8),
         ...new BN(assetIndex).toArray("be", 8),
@@ -263,7 +294,7 @@ export class Utxo {
     }
 
     return new Uint8Array([
-      ...this.blinding.toArray("be", 31),
+      ...this.blinding.toArray("be", 32),
       ...this.amounts[0].toArray("be", 8),
       ...this.amounts[1].toArray("be", 8),
       ...assetIndex.toArray("be", 8),
@@ -320,7 +351,6 @@ export class Utxo {
         assets,
         amounts,
         account,
-        blinding,
         includeAppData,
         index,
       });
@@ -343,7 +373,6 @@ export class Utxo {
         assets,
         amounts,
         account: burnerAccount,
-        blinding,
         instructionType,
         appData: Array.from([...appData]),
         appDataFromBytesFn,
@@ -352,6 +381,10 @@ export class Utxo {
         index,
       });
     }
+  }
+
+  async initEddsa() {
+    await this.account.getEddsaPublicKey();
   }
 
   /**
@@ -366,25 +399,51 @@ export class Utxo {
         this.poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
       // console.log("this.assetsCircuit ", this.assetsCircuit);
+      console.log("amounts ", this.amounts);
+      console.log("isNonZeroUtxo ", this.isNonZeroUtxo);
 
-      // console.log("amountHash ", amountHash.toString());
-      // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());
-      // console.log("this.blinding ", this.blinding.toString());
-      // console.log("assetHash ", assetHash.toString());
-      // console.log("this.instructionType ", this.instructionType.toString());
-      // console.log("this.poolType ", this.poolType.toString());
+      const eddsaX = this.isNonZeroUtxo
+        ? new BN(
+            this.account.poseidonEddsaKeypair?.publicKey[0],
+            32,
+            "le",
+          ).toString()
+        : 0;
+      const eddsaY = this.isNonZeroUtxo
+        ? new BN(
+            this.account.poseidonEddsaKeypair?.publicKey[1],
+            32,
+            "le",
+          ).toString()
+        : 0;
+
+      console.log("amountHash ", amountHash.toString());
+      console.log("eddsaX ", eddsaX.toString());
+      console.log("eddsaY ", eddsaY.toString());
+      console.log("this.blinding ", this.blinding.toString());
+      console.log("assetHash ", assetHash.toString());
+      console.log("this.instructionType ", this.instructionType.toString());
+      console.log("this.poolType ", this.poolType.toString());
+      console.log(
+        "this.verifierAddressCircuit ",
+        this.verifierAddressCircuit.toString(),
+      );
+
       let commitment: string = this.poseidon.F.toString(
         this.poseidon([
+          0, // tx version
           amountHash,
-          this.account.pubkey.toString(),
+          eddsaX,
+          eddsaY,
           this.blinding.toString(),
           assetHash.toString(),
-          this.instructionType.toString(),
           this.poolType,
           this.verifierAddressCircuit,
         ]),
       );
       this._commitment = commitment;
+      console.log("commitment ", commitment);
+
       return this._commitment;
     } else {
       return this._commitment;
@@ -419,7 +478,7 @@ export class Utxo {
 
     if (
       (!this.amounts[0].eq(new BN(0)) || !this.amounts[1].eq(new BN(0))) &&
-      this.account.privkey.toString() === "0"
+      this.account.nullifierPrivateKey.toString() === "0"
     ) {
       throw new UtxoError(
         UtxoErrorCode.ACCOUNT_HAS_NO_PRIVKEY,
@@ -429,18 +488,25 @@ export class Utxo {
     }
 
     if (!this._nullifier) {
-      const signature = this.account.privkey
-        ? this.account.sign(this.getCommitment(), this.index || 0)
-        : 0;
-      // console.log("this.getCommitment() ", this.getCommitment());
-      // console.log("this.index || 0 ", this.index || 0);
-      // console.log("signature ", signature);
+      // const signature = this.account.privkey
+      //   ? this.account.sign(this.getCommitment(), this.index || 0)
+      //   : 0;
+      console.log("this.getCommitment() ", this.getCommitment());
+      console.log("this.index || 0 ", this.index || 0);
+      console.log(
+        "nullifierPrivateKey ",
+        this.account.nullifierPrivateKey.toString(),
+      );
 
       this._nullifier = this.poseidon.F.toString(
-        this.poseidon([this.getCommitment(), this.index || 0, signature]),
+        this.poseidon([
+          this.getCommitment(),
+          this.index || 0,
+          this.account.nullifierPrivateKey,
+        ]),
       );
     }
-    // console.log("this._nullifier ", this._nullifier);
+    console.log("this._nullifier ", this._nullifier);
 
     return this._nullifier;
   }
