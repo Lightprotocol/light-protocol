@@ -78,7 +78,7 @@ const selectBiggestSmallest = (
   // TODO: write sort that works with BN
   filteredUtxos.sort(
     (a, b) =>
-      a.amounts[assetIndex].toNumber() + b.amounts[assetIndex].toNumber(),
+      b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
   );
 
   for (var utxo = 0; utxo < filteredUtxos.length; utxo++) {
