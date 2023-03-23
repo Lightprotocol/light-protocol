@@ -13,6 +13,7 @@
     "test-relayer": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/relayer.test.ts --exit",
     "test-createOutUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/createOutUtxos.test.ts --exit",
     "test-provider": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/provider.test.ts --exit",
+    "test-selectInUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/selectInUtxos.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",

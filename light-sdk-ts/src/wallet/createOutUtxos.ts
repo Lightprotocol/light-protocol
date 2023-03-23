@@ -19,7 +19,7 @@ export type Recipient = {
   mint: PublicKey;
 };
 // mint: PublicKey, expectedAmount: BN,
-const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
+export const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
   let inAmount = new BN(0);
   inUtxos.forEach((inUtxo) => {
     inUtxo.assets.forEach((asset, i) => {
@@ -31,7 +31,10 @@ const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
   return inAmount;
 };
 
-const getRecipientsAmount = (mint: PublicKey, recipients: Recipient[]) => {
+export const getRecipientsAmount = (
+  mint: PublicKey,
+  recipients: Recipient[],
+) => {
   if (mint.toBase58() === SystemProgram.programId.toBase58()) {
     return recipients.reduce(
       (sum, recipient) => sum.add(recipient.solAmount),
