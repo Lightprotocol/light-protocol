@@ -125,7 +125,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       publicMint: utxo1.assets[1],
       relayerFee: new BN(1000),
-      publicSplAmount: new BN(1),
+      publicAmountSpl: new BN(1),
       utxos: inUtxos,
       action: Action.UNSHIELD,
     });
@@ -138,7 +138,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       relayerFee: new BN(1000),
-      publicSolAmount: new BN(1e7),
+      publicAmountSol: new BN(1e7),
       action: Action.UNSHIELD,
     });
 
@@ -154,8 +154,8 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.UNSHIELD,
       relayerFee: new BN(1000),
       publicMint: utxo1.assets[1],
-      publicSolAmount: new BN(1e7),
-      publicSplAmount: new BN(1),
+      publicAmountSol: new BN(1e7),
+      publicAmountSpl: new BN(1),
     });
 
     Utxo.equal(selectedUtxo[1], utxoSol);
@@ -231,8 +231,8 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
-      publicSolAmount: new BN(1e7),
-      publicSplAmount: new BN(1),
+      publicAmountSol: new BN(1e7),
+      publicAmountSpl: new BN(1),
     });
 
     Utxo.equal(selectedUtxo[0], utxo1);
@@ -244,7 +244,7 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
-      publicSolAmount: new BN(1e7),
+      publicAmountSol: new BN(1e7),
     });
 
     Utxo.equal(selectedUtxo[0], utxoSol);
@@ -258,7 +258,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
-      publicSplAmount: new BN(1),
+      publicAmountSpl: new BN(1),
     });
 
     Utxo.equal(selectedUtxo[0], utxo1);
@@ -382,8 +382,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.UNSHIELD,
         relayerFee: new BN(1000),
         // publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)
@@ -402,8 +402,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.UNSHIELD,
         relayerFee: new BN(1000),
         publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        // publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        // publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)
@@ -422,8 +422,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.UNSHIELD,
         // relayerFee: new BN(1000),
         publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)
@@ -442,8 +442,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.TRANSFER,
         // relayerFee: new BN(1000),
         publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)
@@ -462,8 +462,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.SHIELD,
         relayerFee: new BN(1000),
         publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)
@@ -482,8 +482,8 @@ describe("Test selectInUtxos Errors", () => {
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
         publicMint: utxo1.assets[1],
-        publicSolAmount: new BN(1e7),
-        publicSplAmount: new BN(1),
+        publicAmountSol: new BN(1e7),
+        publicAmountSpl: new BN(1),
       });
     })
       .to.throw(SelectInUtxosError)

@@ -131,13 +131,13 @@ export async function getUnspentUtxos({
       let accountInfo = await provider.connection.getAccountInfo(
         nullifierPubkey,
       );
-      console.log(
-        "inserted -- spent?",
-        accountInfo ? "yes" : "no ",
-        nullifierPubkey.toBase58(),
-        "amount:",
-        decryptedUtxo.amounts[0].toNumber(),
-      );
+      // console.log(
+      //   "inserted -- spent?",
+      //   accountInfo ? "yes" : "no ",
+      //   nullifierPubkey.toBase58(),
+      //   "amount:",
+      //   decryptedUtxo.amounts[0].toNumber(),
+      // );
       if (
         !accountInfo &&
         (decryptedUtxo.amounts[1].toString() !== "0" ||
@@ -146,9 +146,6 @@ export async function getUnspentUtxos({
         decryptedUtxos.push(decryptedUtxo);
       }
     }
-  }
-  if (decryptedUtxos.length == 0) {
-    console.log("no unspent leaf found");
   }
 
   return decryptedUtxos;
