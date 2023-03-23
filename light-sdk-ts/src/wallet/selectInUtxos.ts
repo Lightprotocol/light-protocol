@@ -135,33 +135,33 @@ const selectBiggestSmallest = (
 export function selectInUtxos({
   utxos,
   publicMint,
-  publicSplAmount,
-  publicSolAmount,
+  publicAmountSpl,
+  publicAmountSol,
   relayerFee,
   recipients = [],
   action,
 }: {
   publicMint?: PublicKey;
-  publicSplAmount?: BN;
-  publicSolAmount?: BN;
+  publicAmountSpl?: BN;
+  publicAmountSol?: BN;
   relayerFee?: BN;
   utxos?: Utxo[];
   recipients?: Recipient[];
   action: Action;
 }) {
-  if (!publicMint && publicSplAmount)
+  if (!publicMint && publicAmountSpl)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
       "selectInUtxos",
       "Public mint not set but public spl amount",
     );
-  if (publicMint && !publicSplAmount)
+  if (publicMint && !publicAmountSpl)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.PUBLIC_SPL_AMOUNT_UNDEFINED,
       "selectInUtxos",
       "Public spl amount not set but public mint",
     );
-  if (action === Action.UNSHIELD && !publicSplAmount && !publicSolAmount)
+  if (action === Action.UNSHIELD && !publicAmountSpl && !publicAmountSol)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
       "selectInUtxos",
@@ -196,8 +196,8 @@ export function selectInUtxos({
     );
   // TODO: evaluate whether this is too much of a footgun
   if (action === Action.SHIELD) {
-    publicSolAmount = new BN(0);
-    publicSplAmount = new BN(0);
+    publicAmountSol = new BN(0);
+    publicAmountSpl = new BN(0);
   }
 
   // TODO: add check that utxo holds sufficient balance
@@ -228,10 +228,10 @@ export function selectInUtxos({
   let filteredUtxos: Utxo[] = [];
   var sumInSpl = new BN(0);
   var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
-  var sumOutSpl = publicSplAmount ? publicSplAmount : new BN(0);
+  var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
   var sumOutSol = getRecipientsAmount(SystemProgram.programId, recipients);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
-  if (publicSolAmount) sumOutSol = sumOutSol.add(publicSolAmount);
+  if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
 
   if (mint) {
     filteredUtxos = utxos.filter((utxo) => utxo.assets.includes(mint!));

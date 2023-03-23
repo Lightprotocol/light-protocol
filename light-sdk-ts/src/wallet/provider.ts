@@ -1,4 +1,10 @@
-import { AnchorProvider, setProvider } from "@coral-xyz/anchor";
+import {
+  AnchorError,
+  AnchorProvider,
+  BN,
+  setProvider,
+  Wallet,
+} from "@coral-xyz/anchor";
 import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
@@ -37,8 +43,8 @@ export class Provider {
   solMerkleTree?: SolMerkleTree;
   provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
-  // TODO: refactor by streamlining everything towards using connection and not anchor provider
-  // - get rid of url
+  minimumLamports: BN;
+
   /**
    * Init either with nodeWallet or browserWallet. Feepayer is the provided wallet
    * Optionally provide confirmConfig, Default = 'confirmed'.
@@ -49,12 +55,14 @@ export class Provider {
     confirmConfig,
     connection,
     url = "http://127.0.0.1:8899",
+    minimumLamports = new BN(5000 * 30),
   }: {
     nodeWallet?: SolanaKeypair;
     browserWallet?: BrowserWallet;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
+    minimumLamports?: BN;
   }) {
     if (nodeWallet && browserWallet)
       throw new ProviderError(

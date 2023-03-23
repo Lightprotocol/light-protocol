@@ -80,8 +80,8 @@ export function createOutUtxos({
   poseidon,
   inUtxos,
   publicMint,
-  publicSplAmount,
-  publicSolAmount,
+  publicAmountSpl,
+  publicAmountSol,
   relayerFee,
   changeUtxoAccount,
   recipients = [],
@@ -89,8 +89,8 @@ export function createOutUtxos({
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
-  publicSplAmount?: BN;
-  publicSolAmount?: BN;
+  publicAmountSpl?: BN;
+  publicAmountSol?: BN;
   relayerFee?: BN;
   poseidon: any;
   changeUtxoAccount: Account;
@@ -105,8 +105,8 @@ export function createOutUtxos({
     );
 
   if (relayerFee) {
-    publicSolAmount = publicSolAmount
-      ? publicSolAmount.add(relayerFee)
+    publicAmountSol = publicAmountSol
+      ? publicAmountSol.add(relayerFee)
       : relayerFee;
   }
 
@@ -192,20 +192,20 @@ export function createOutUtxos({
 
   // subtract public amounts from sumIns
   if (action === Action.UNSHIELD) {
-    if (!publicSolAmount && !publicSplAmount)
+    if (!publicAmountSol && !publicAmountSpl)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
         "createOutUtxos",
-        "publicSolAmount not initialized for unshield",
+        "publicAmountSol not initialized for unshield",
       );
-    if (!publicSplAmount) publicSplAmount = new BN(0);
-    if (!publicSolAmount)
+    if (!publicAmountSpl) publicAmountSpl = new BN(0);
+    if (!publicAmountSol)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
         "constructor",
       );
 
-    if (publicSplAmount && !publicMint)
+    if (publicAmountSpl && !publicMint)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
         "createOutUtxos",
@@ -217,9 +217,9 @@ export function createOutUtxos({
     );
 
     assets[publicSplAssetIndex].sumIn =
-      assets[publicSplAssetIndex].sumIn.sub(publicSplAmount);
+      assets[publicSplAssetIndex].sumIn.sub(publicAmountSpl);
     assets[publicSolAssetIndex].sumIn =
-      assets[publicSolAssetIndex].sumIn.sub(publicSolAmount);
+      assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
     // add public amounts to sumIns
   } else if (action === Action.SHIELD) {
     if (relayerFee)
@@ -243,11 +243,11 @@ export function createOutUtxos({
       (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
     );
     assets[publicSplAssetIndex].sumIn =
-      assets[publicSplAssetIndex].sumIn.add(publicSplAmount);
+      assets[publicSplAssetIndex].sumIn.add(publicAmountSpl);
     assets[publicSolAssetIndex].sumIn =
-      assets[publicSolAssetIndex].sumIn.add(publicSolAmount);
+      assets[publicSolAssetIndex].sumIn.add(publicAmountSol);
   } else if (action === Action.TRANSFER) {
-    if (!publicSolAmount)
+    if (!publicAmountSol)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.PUBLIC_SOL_AMOUNT_UNDEFINED,
         "constructor",
@@ -257,7 +257,7 @@ export function createOutUtxos({
     );
 
     assets[publicSolAssetIndex].sumIn =
-      assets[publicSolAssetIndex].sumIn.sub(publicSolAmount);
+      assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
   }
 
   var outputUtxos: Utxo[] = [];

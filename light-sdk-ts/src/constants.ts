@@ -144,14 +144,14 @@ export const RELAYER_FEES = 1e6;
 export const TOKEN_REGISTRY = [
   {
     symbol: "SOL",
-    decimals: 1e9,
+    decimals: new anchor.BN(1e9),
     isNft: false, // TODO: parse from onchain state at configuration(decimlas, supply)
     isSol: true,
     tokenAccount: SystemProgram.programId,
   },
   {
     symbol: "USDC",
-    decimals: 1e2,
+    decimals: new anchor.BN(1e2),
     isNft: false,
     isSol: false,
     // copied from MINT (test-utils)
