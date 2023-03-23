@@ -10,16 +10,16 @@ const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
 // @ts-ignore:
 import { buildEddsa } from "circomlibjs";
-// TODO: add fromPubkeyString()
+// TODO: add fromnullifierPublicKeyString()
 export class Account {
   /**
    * Initialize a new shielded account. Generates a random private key if not defined
    *
-   * @param {BN} privkey
-   * @param {BN} pubkey
+   * @param {BN} nullifierPrivateKey
+   * @param {BN} nullifierPublicKey
    */
-  privkey: BN;
-  pubkey: BN;
+  nullifierPrivateKey: BN;
+  nullifierPublicKey: BN;
   encryptionKeypair: nacl.BoxKeyPair;
   poseidon: any;
   burnerSeed: Uint8Array;
@@ -89,10 +89,10 @@ export class Account {
       // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
       // the encryption and private key of a utxo
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
-      this.privkey = Account.generateShieldedPrivateKey(seed);
+      this.nullifierPrivateKey = Account.generateShieldedPrivateKey(seed);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
+      this.nullifierPublicKey = Account.generateShieldedPublicKey(
+        this.nullifierPrivateKey,
         this.poseidon,
       );
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
@@ -105,9 +105,9 @@ export class Account {
           "constructor",
         );
       }
-      this.privkey = privateKey;
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
+      this.nullifierPrivateKey = privateKey;
+      this.nullifierPublicKey = Account.generateShieldedPublicKey(
+        this.nullifierPrivateKey,
         this.poseidon,
       );
       if (poseidonEddsaPrivateKey) {
@@ -116,8 +116,8 @@ export class Account {
       this.encryptionKeypair =
         nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
     } else if (publicKey) {
-      this.pubkey = publicKey;
-      this.privkey = new BN("0");
+      this.nullifierPublicKey = publicKey;
+      this.nullifierPrivateKey = new BN("0");
       this.encryptionKeypair = {
         publicKey: encryptionPublicKey ? encryptionPublicKey : new Uint8Array(),
         secretKey: new Uint8Array(),
@@ -138,9 +138,9 @@ export class Account {
         );
       }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
-      this.privkey = Account.generateShieldedPrivateKey(seed);
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
+      this.nullifierPrivateKey = Account.generateShieldedPrivateKey(seed);
+      this.nullifierPublicKey = Account.generateShieldedPublicKey(
+        this.nullifierPrivateKey,
         this.poseidon,
       );
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
@@ -185,10 +185,13 @@ export class Account {
   }
 
   static getEddsaPrivateKey(seed: string) {
-    const privkeySeed = seed + "poseidonEddsaKeypair";
+    const nullifierPrivateKeySeed = seed + "poseidonEddsaKeypair";
     return {
       publicKey: undefined,
-      privateKey: blake2b.create(b2params).update(privkeySeed).digest(),
+      privateKey: blake2b
+        .create(b2params)
+        .update(nullifierPrivateKeySeed)
+        .digest(),
     };
   }
 
@@ -238,7 +241,7 @@ export class Account {
   sign(commitment: any, merklePath: any) {
     return this.poseidon.F.toString(
       this.poseidon([
-        this.privkey.toString(),
+        this.nullifierPrivateKey.toString(),
         commitment.toString(),
         merklePath,
       ]),
@@ -267,24 +270,28 @@ export class Account {
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
-  static fromPrivkey(
+  static fromPrivateKey(
     poseidon: any,
     privateKey: Uint8Array,
     encryptionPrivateKey: Uint8Array,
   ): Account {
-    const privkey = new BN(privateKey);
-    return new Account({ poseidon, privateKey: privkey, encryptionPrivateKey });
+    const nullifierPrivateKey = new BN(privateKey);
+    return new Account({
+      poseidon,
+      privateKey: nullifierPrivateKey,
+      encryptionPrivateKey,
+    });
   }
 
-  static fromPubkey(
+  static fromPublicKey(
     publicKey: Uint8Array,
-    encPubkey: Uint8Array,
+    encnullifierPublicKey: Uint8Array,
     poseidon: any,
   ): Account {
-    const pubKey = new BN(publicKey, undefined, "be");
+    const nullifierPublicKey = new BN(publicKey, undefined, "be");
     return new Account({
-      publicKey: pubKey,
-      encryptionPublicKey: encPubkey,
+      publicKey: nullifierPublicKey,
+      encryptionPublicKey: encnullifierPublicKey,
       poseidon,
     });
   }
@@ -299,9 +306,9 @@ export class Account {
   }
 
   static generateShieldedPrivateKey(seed: String): BN {
-    const privkeySeed = seed + "shielded";
+    const nullifierPrivateKeySeed = seed + "shielded";
     const privateKey = new BN(
-      blake2b.create(b2params).update(privkeySeed).digest(),
+      blake2b.create(b2params).update(nullifierPrivateKeySeed).digest(),
     );
     return privateKey;
   }

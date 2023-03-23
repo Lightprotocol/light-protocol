@@ -24,7 +24,9 @@ export async function functionalCircuitTest(
 ) {
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = new Uint8Array(32).fill(1).toString();
-  let keypair = new Account({ poseidon: poseidon, seed: seed32 });
+  let eddsa = await circomlibjs.buildEddsa();
+
+  let keypair = new Account({ poseidon: poseidon, seed: seed32, eddsa });
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let deposit_utxo1 = new Utxo({
@@ -45,6 +47,7 @@ export async function functionalCircuitTest(
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,
+    senderShieldedAccount: keypair,
   });
 
   let tx;

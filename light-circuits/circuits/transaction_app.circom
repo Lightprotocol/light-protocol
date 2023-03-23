@@ -3,6 +3,7 @@ include "../node_modules/circomlib/circuits/poseidon.circom";
 include "./merkleProof.circom";
 include "./keypair.circom";
 include "../node_modules/circomlib/circuits/gates.circom";
+include "../node_modules/circomlib/circuits/eddsaposeidon.circom";
 
 
 /*
@@ -38,7 +39,7 @@ template CheckIndices(n, nInAssets, nAssets) {
   }
 }
 
-
+// TODO: rename connectingHash to transactionHash
 // Universal multi asset JoinSplit transaction with
 // nIns s
 // nOuts outputs
@@ -62,10 +63,18 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal input feeAmount;
     signal input mintPubkey;
 
+    var nrMaxSignatures = 1;
+    signal input signerPubkeysX[nrMaxSignatures];
+    signal input signerPubkeysY[nrMaxSignatures];
+    signal input signatures[nrMaxSignatures];
+    signal input R8x[nrMaxSignatures];
+    signal input R8y[nrMaxSignatures];
+    // enables account abstraction and random filling utxos
+    signal input inPublicKeyEnabled[nIns];
+
     signal input  inputNullifier[nIns];
     signal input  inAmount[nIns][nInAssets];
-    signal input  inPrivateKey[nIns];
-    signal input  inBlinding[nIns];
+    signal input  inNullifierPrivateKey[nIns];
     signal input  inInstructionType[nIns];
     signal  input inPoolType[nIns];
     signal  input inVerifierPubkey[nIns];
@@ -78,12 +87,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     // data for transaction outputsAccount
     signal  input outputCommitment[nOuts];
     signal  input outAmount[nOuts][nOutAssets];
-    signal  input outPubkey[nOuts];
+    // signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
     signal  input outInstructionType[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
     signal  input outPoolType[nOuts];
     signal  input outVerifierPubkey[nOuts];
+    signal  input outSignerPubkeysX[nOuts];
+    signal  input outSignerPubkeysY[nOuts];
 
     signal  input assetPubkeys[nAssets];
 
@@ -107,6 +118,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         assetCheck[i].in <== assetPubkeys[i];
     }
 
+    component blindingHasher[nIns];
     component inKeypair[nIns];
     component inGetAsset[nIns][nInAssets][nAssets];
 
@@ -114,7 +126,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     component inAmountsHasher[nIns];
     component inAssetsHasher[nIns];
 
-    component inSignature[nIns];
+    // component inSignature[nIns];
     component inputNullifierHasher[nIns];
     component inTree[nIns];
     component inCheckRoot[nIns];
@@ -149,9 +161,21 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     // verify correctness of transaction s
     for (var tx = 0; tx < nIns; tx++) {
+        // ensure that all pool types are the same
+        inPoolType[0] === inPoolType[tx];
 
         inKeypair[tx] = Keypair();
-        inKeypair[tx].privateKey <== inPrivateKey[tx];
+        inKeypair[tx].privateKey <== inNullifierPrivateKey[tx];
+
+        blindingHasher[tx] = Poseidon(2);
+        blindingHasher[tx].inputs[0] <== inKeypair[tx].publicKey;
+        blindingHasher[tx].inputs[1] <== inInstructionType[tx];
+        log(77777777777777777777777777777777);
+        log(blindingHasher[tx].inputs[0]);
+        log(blindingHasher[tx].inputs[1]);
+        log(blindingHasher[tx].out);
+
+
 
         // determine the asset type
         // and checks that the asset is included in assetPubkeys[nInAssets]
@@ -180,27 +204,42 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             sumInAmount += inAmount[tx][a];
         }
 
-        inCommitmentHasher[tx] = Poseidon(7);
-        inCommitmentHasher[tx].inputs[0] <== inAmountsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[1] <== inKeypair[tx].publicKey;
-        inCommitmentHasher[tx].inputs[2] <== inBlinding[tx];
-        inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
-        inCommitmentHasher[tx].inputs[5] <== inPoolType[tx];
-        inCommitmentHasher[tx].inputs[6] <== inVerifierPubkey[tx];
+        inCommitmentHasher[tx] = Poseidon(8);
+        inCommitmentHasher[tx].inputs[0] <== 0; // transaction version
+        inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[2] <== signerPubkeysX[0] * inPublicKeyEnabled[tx];
+        inCommitmentHasher[tx].inputs[3] <== signerPubkeysY[0] * inPublicKeyEnabled[tx];
+        inCommitmentHasher[tx].inputs[4] <== blindingHasher[tx].out;
+        inCommitmentHasher[tx].inputs[5] <== inAssetsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
+        inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
+        log(888888888888888888888888888888);
 
-        // ensure that all pool types are the same
-        inPoolType[0] === inPoolType[tx];
+        log(inCommitmentHasher[tx].inputs[0]);
+        log(inCommitmentHasher[tx].inputs[1]);
+        log(inCommitmentHasher[tx].inputs[2]);
+        log(inCommitmentHasher[tx].inputs[3]);
+        log(inCommitmentHasher[tx].inputs[4]);
+        log(inCommitmentHasher[tx].inputs[5]);
+        log(inCommitmentHasher[tx].inputs[6]);
+        log(inCommitmentHasher[tx].inputs[7]);
 
-        inSignature[tx] = Signature();
-        inSignature[tx].privateKey <== inPrivateKey[tx];
-        inSignature[tx].commitment <== inCommitmentHasher[tx].out;
-        inSignature[tx].merklePath <== inPathIndices[tx];
+        // inSignature[tx] = Signature();
+        // inSignature[tx].privateKey <== inNullifierPrivateKey[tx];
+        // inSignature[tx].commitment <== inCommitmentHasher[tx].out;
+        // inSignature[tx].merklePath <== inPathIndices[tx];
 
         inputNullifierHasher[tx] = Poseidon(3);
         inputNullifierHasher[tx].inputs[0] <== inCommitmentHasher[tx].out;
         inputNullifierHasher[tx].inputs[1] <== inPathIndices[tx];
-        inputNullifierHasher[tx].inputs[2] <== inSignature[tx].out;
+        inputNullifierHasher[tx].inputs[2] <== inNullifierPrivateKey[tx];
+        log(99999999999999999999999);
+        log(inCommitmentHasher[tx].out);
+        log(inPathIndices[tx]);
+        log(inNullifierPrivateKey[tx]);
+        log(inputNullifierHasher[tx].out);
+        log(inputNullifier[tx]);
+        log(99999999999999999999999);
 
         inputNullifierHasher[tx].out === inputNullifier[tx];
 
@@ -281,8 +320,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         for (var i = 0; i < nOutAssets; i++) {
             outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
         }
-
-        outCommitmentHasher[tx] = Poseidon(7);
+        /*
         outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
         outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
         outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
@@ -290,7 +328,30 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
         outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
         outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
+        */
+        outCommitmentHasher[tx] = Poseidon(8);
+        outCommitmentHasher[tx].inputs[0] <== 0; // transaction version
+        outCommitmentHasher[tx].inputs[1] <== outAmountHasher[tx].out;
+        outCommitmentHasher[tx].inputs[2] <== outSignerPubkeysX[tx];
+        outCommitmentHasher[tx].inputs[3] <== outSignerPubkeysY[tx];
+        outCommitmentHasher[tx].inputs[4] <== outBlinding[tx];
+        outCommitmentHasher[tx].inputs[5] <== outAssetHasher[tx].out;
+        outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
+        outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
+        log(66666666666666666666666666666666666);
+        log(outCommitmentHasher[tx].inputs[0]);
+        log(outCommitmentHasher[tx].inputs[1]);
+        log(outCommitmentHasher[tx].inputs[2]);
+        log(outCommitmentHasher[tx].inputs[3]);
+        log(outCommitmentHasher[tx].inputs[4]);
+        log(outCommitmentHasher[tx].inputs[5]);
+        log(outCommitmentHasher[tx].inputs[6]);
+        log(outCommitmentHasher[tx].inputs[7]);
+        log(outCommitmentHasher[tx].out);
+        log(outputCommitment[tx]);
+        log(66666666666666666666666666666666666);
         outCommitmentHasher[tx].out === outputCommitment[tx];
+        
 
         // ensure that all pool types are the same
         outPoolType[0] === outPoolType[tx];
@@ -351,4 +412,33 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     connectingHash === connectingHasher.out;
 
+    
+    component sigVerifier[nrMaxSignatures];
+    for(var i = 0; i < nrMaxSignatures; i++) {
+        log("33333333333333333333333333333333333333");
+        log(signerPubkeysX[i]);
+        log(signerPubkeysY[i]);
+        log(signatures[i]);
+        log(R8x[i]);
+        log(R8y[i]);
+        log(connectingHasher.out);
+        sigVerifier[i] = EdDSAPoseidonVerifier();
+        sigVerifier[i].enabled <== 1;
+        sigVerifier[i].Ax <== signerPubkeysX[i];
+        sigVerifier[i].Ay <== signerPubkeysY[i];
+        sigVerifier[i].S <== signatures[i];
+        sigVerifier[i].R8x <== R8x[i];
+        sigVerifier[i].R8y <== R8y[i];
+        sigVerifier[i].M <== connectingHasher.out;
+    }
 }
+
+
+/** 
+* adding
+* - ecdsa poseidon signatures
+* - nullifier based on blinding
+* - blinding based on nullifierKey
+* - transaction version
+* - utxo storage, if not specified assume blinding H(pubkey, 0)
+*/
