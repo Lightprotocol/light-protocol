@@ -243,14 +243,9 @@ export async function createTestAccounts(
   let balance = await connection.getBalance(ADMIN_AUTH_KEY, "confirmed");
   if (balance === 0) {
     let amount = 1_000_000_000_000;
-    console.time("requestAirdrop");
 
     let res = await connection.requestAirdrop(ADMIN_AUTH_KEY, amount);
-    console.timeEnd("requestAirdrop");
-    console.time("confirmAirdrop");
-
     await connection.confirmTransaction(res, "confirmed");
-    console.timeEnd("confirmAirdrop");
 
     let Newbalance = await connection.getBalance(ADMIN_AUTH_KEY);
 
@@ -287,7 +282,10 @@ export async function createTestAccounts(
       mintKeypair: Keypair.fromSecretKey(MINT_PRIVATE_KEY),
       connection,
     });
-    console.log("created mint");
+    console.log(
+      "created mint ",
+      Keypair.fromSecretKey(MINT_PRIVATE_KEY).publicKey.toBase58(),
+    );
   }
 
   let balanceUserToken = null;
@@ -330,17 +328,17 @@ export async function createTestAccounts(
   } catch (error) {
     console.log(error);
   }
-  console.log("userSplAccount ", userSplAccount);
+  console.log("userSplAccount ", userSplAccount?.toBase58());
 
-  console.log(
-    "funded account",
-    await getAccount(
-      connection,
-      userSplAccount!, //userTokenAccount,
-      "confirmed",
-      TOKEN_PROGRAM_ID,
-    ),
-  );
+  // console.log(
+  //   "funded account",
+  //   await getAccount(
+  //     connection,
+  //     userSplAccount!, //userTokenAccount,
+  //     "confirmed",
+  //     TOKEN_PROGRAM_ID,
+  //   ),
+  // );
 
   try {
     if (balanceUserToken == null) {

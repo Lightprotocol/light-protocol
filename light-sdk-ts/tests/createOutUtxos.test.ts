@@ -108,8 +108,8 @@ describe("Test createOutUtxos Functional", () => {
   it("shield sol", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(0),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(0),
+      publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -132,8 +132,8 @@ describe("Test createOutUtxos Functional", () => {
   it("shield spl", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(10),
-      publicSolAmount: new BN(0),
+      publicAmountSpl: new BN(10),
+      publicAmountSol: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -157,8 +157,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(0),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(0),
+      publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -182,8 +182,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(10),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(10),
+      publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -206,8 +206,8 @@ describe("Test createOutUtxos Functional", () => {
   it("shield sol & spl", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(10),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(10),
+      publicAmountSol: solAmount,
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
@@ -231,8 +231,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
-      publicSolAmount: new BN(0),
+      publicAmountSpl: splAmount,
+      publicAmountSol: new BN(0),
       poseidon,
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
@@ -257,8 +257,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
-      publicSolAmount: new BN(0),
+      publicAmountSpl: splAmount,
+      publicAmountSol: new BN(0),
       poseidon,
       relayerFee,
       changeUtxoAccount: k0,
@@ -283,8 +283,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(0),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(0),
+      publicAmountSol: solAmount,
       poseidon,
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
@@ -309,8 +309,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(0),
-      publicSolAmount: solAmount,
+      publicAmountSpl: new BN(0),
+      publicAmountSol: solAmount,
       poseidon,
       relayerFee,
       changeUtxoAccount: k0,
@@ -335,8 +335,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
-      publicSolAmount: solAmount,
+      publicAmountSpl: splAmount,
+      publicAmountSol: solAmount,
       poseidon,
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
@@ -361,8 +361,8 @@ describe("Test createOutUtxos Functional", () => {
     let outUtxos = createOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
-      publicSolAmount: solAmount,
+      publicAmountSpl: splAmount,
+      publicAmountSol: solAmount,
       poseidon,
       relayerFee,
       changeUtxoAccount: k0,
@@ -386,9 +386,9 @@ describe("Test createOutUtxos Functional", () => {
   it("unshield in:1SOL + 1SPL should merge 2-1", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
+      publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
-      publicSolAmount: new BN(0),
+      publicAmountSol: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -412,9 +412,9 @@ describe("Test createOutUtxos Functional", () => {
   it("unshield in:1SPL + 1SPL should merge 2-1", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: splAmount,
+      publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxo1],
-      publicSolAmount: new BN(0),
+      publicAmountSol: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
@@ -438,7 +438,7 @@ describe("Test createOutUtxos Functional", () => {
   it("transfer in:1 SPL ", async () => {
     let outUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
-      publicSplAmount: new BN(0),
+      publicAmountSpl: new BN(0),
       inUtxos: [utxo1],
       recipients: [
         {
@@ -449,7 +449,7 @@ describe("Test createOutUtxos Functional", () => {
         },
       ],
       relayerFee,
-      publicSolAmount: new BN(0),
+      publicAmountSol: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
       action: Action.TRANSFER,
@@ -535,9 +535,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         // poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -555,9 +555,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -577,9 +577,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -599,9 +599,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -627,9 +627,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        // publicSplAmount: splAmount,
+        // publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        // publicSolAmount: new BN(0),
+        // publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -655,9 +655,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         // publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        // publicSolAmount: new BN(0),
+        // publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -684,9 +684,9 @@ describe("Test createOutUtxos Errors", () => {
       // @ts-ignore
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
@@ -712,9 +712,9 @@ describe("Test createOutUtxos Errors", () => {
   //         // @ts-ignore
   //         createOutUtxos({
   //             publicMint: tokenCtx.tokenAccount,
-  //             publicSplAmount: splAmount,
+  //             publicAmountSpl: splAmount,
   //             inUtxos: [utxo1, utxoSol],
-  //             publicSolAmount: new BN(0),
+  //             publicAmountSol: new BN(0),
   //             poseidon,
   //             changeUtxoAccount: k0,
   //             action: Action.UNSHIELD,
@@ -736,9 +736,9 @@ describe("Test createOutUtxos Errors", () => {
     expect(() => {
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
-        publicSplAmount: splAmount,
+        publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol0],
-        publicSolAmount: new BN(0),
+        publicAmountSol: new BN(0),
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,

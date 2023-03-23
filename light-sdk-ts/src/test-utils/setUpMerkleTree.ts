@@ -58,16 +58,16 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
       console.log(e);
     }
 
-    console.log("AUTHORITY: ", AUTHORITY);
+    // console.log("AUTHORITY: ", AUTHORITY);
 
-    console.log("AUTHORITY: ", Array.from(AUTHORITY.toBytes()));
+    // console.log("AUTHORITY: ", Array.from(AUTHORITY.toBytes()));
 
-    console.log(
-      "verifierProgramZero.programId: ",
-      Array.from(verifierProgramZero.programId.toBytes()),
-    );
-    console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58());
-    console.log("MERKLE_TREE_KEY: ", Array.from(MERKLE_TREE_KEY.toBytes()));
+    // console.log(
+    //   "verifierProgramZero.programId: ",
+    //   Array.from(verifierProgramZero.programId.toBytes()),
+    // );
+    // console.log("MERKLE_TREE_KEY: ", MERKLE_TREE_KEY.toBase58());
+    // console.log("MERKLE_TREE_KEY: ", Array.from(MERKLE_TREE_KEY.toBytes()));
     // console.log("MERKLE_TREE_PDA_TOKEN: ", MERKLE_TREE_PDA_TOKEN.toBase58())
     // console.log("MERKLE_TREE_PDA_TOKEN: ", Array.from(MERKLE_TREE_PDA_TOKEN.toBytes()))
 
@@ -100,7 +100,7 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
 
     try {
       await merkleTreeConfig.registerVerifier(verifierProgramTwo.programId);
-      console.log("Registering Verifier One success");
+      console.log("Registering Verifier Two success");
     } catch (e) {
       console.log(e);
     }
@@ -112,8 +112,8 @@ export async function setUpMerkleTree(provider: anchor.Provider) {
       console.log(e);
     }
 
-    console.log("MINT: ", MINT.toBase58());
-    console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL.toBase58());
+    // console.log("MINT: ", MINT.toBase58());
+    // console.log("POOL_TYPE_PDA: ", REGISTERED_POOL_PDA_SPL.toBase58());
     try {
       await merkleTreeConfig.registerSplPool(POOL_TYPE, MINT);
       console.log("Registering spl pool success");
