@@ -90,6 +90,7 @@ export class Provider {
       );
 
     this.confirmConfig = confirmConfig || { commitment: "confirmed" };
+    this.minimumLamports = minimumLamports;
 
     if (nodeWallet) {
       this.nodeWallet = nodeWallet;

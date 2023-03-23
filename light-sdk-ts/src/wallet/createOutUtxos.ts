@@ -228,14 +228,8 @@ export function createOutUtxos({
         "createOutUtxos",
         "Shield and relayer fee defined",
       );
-    if (!publicSolAmount && !publicSplAmount)
-      throw new CreateUtxoError(
-        CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        "createOutUtxos",
-        "publicSolAmount not initialized for unshield",
-      );
-    if (!publicSplAmount) publicSplAmount = new BN(0);
-    if (!publicSolAmount) publicSolAmount = new BN(0);
+    if (!publicAmountSpl) publicAmountSpl = new BN(0);
+    if (!publicAmountSol) publicAmountSol = new BN(0);
     let publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
     );
