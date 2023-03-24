@@ -6,6 +6,7 @@ import {
   SystemProgram,
   sendAndConfirmTransaction,
   Transaction,
+  AccountInfo,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
@@ -80,7 +81,7 @@ export async function initLookUpTable(
   recentSlot: number,
   extraAccounts?: Array<PublicKey>,
 ): Promise<PublicKey> {
-  var lookUpTableInfoInit = null;
+  var lookUpTableInfoInit: AccountInfo<Buffer> | null = null;
   if (lookupTableAddress != undefined) {
     lookUpTableInfoInit = await provider.connection.getAccountInfo(
       lookupTableAddress,

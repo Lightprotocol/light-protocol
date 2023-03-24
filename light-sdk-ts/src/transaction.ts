@@ -7,6 +7,7 @@ import {
   VersionedTransaction,
   TransactionSignature,
   TransactionInstruction,
+  Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
@@ -30,6 +31,7 @@ import {
   initLookUpTable,
   TransactionParametersErrorCode,
   Provider,
+  ADMIN_AUTH_KEYPAIR,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 const snarkjs = require("snarkjs");
@@ -808,7 +810,7 @@ export class Transaction {
         "constructor",
         "Merkle tree not set in provider",
       );
-    if (!provider.browserWallet && !provider.nodeWallet)
+    if (!provider.wallet)
       throw new TransactionError(
         TransactionErrorCode.WALLET_UNDEFINED,
         "constructor",
@@ -829,10 +831,7 @@ export class Transaction {
 
     //TODO: change to check whether browser/node wallet are the same as signing address
     if (params.action === Action.SHIELD) {
-      let wallet =
-        this.provider.browserWallet !== undefined
-          ? this.provider.browserWallet
-          : this.provider.nodeWallet;
+      let wallet = this.provider.wallet;
       if (
         wallet?.publicKey.toBase58() !==
           params.relayer.accounts.relayerPubkey.toBase58() &&
@@ -1103,7 +1102,7 @@ export class Transaction {
         IDL_MERKLE_TREE_PROGRAM,
         merkleTreeProgramId,
         // @ts-ignore
-        this.provider.browserWallet && this.provider,
+        this.provider.provider,
       );
       let root = Uint8Array.from(
         leInt2Buff(
@@ -1114,6 +1113,7 @@ export class Transaction {
       let merkle_tree_account_data =
         await this.merkleTreeProgram.account.merkleTree.fetch(
           this.provider.solMerkleTree.pubkey,
+          "confirmed",
         );
       // @ts-ignore: unknown type error
       merkle_tree_account_data.roots.map((x: any, index: any) => {
@@ -1509,7 +1509,7 @@ export class Transaction {
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
     if (false) {
-      // TODO: replace this with (this.provider.browserWallet.pubkey != new relayer... this.relayer
+      // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
       // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
       // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
@@ -1592,18 +1592,7 @@ export class Transaction {
       let retries = 3;
       let res;
       while (retries > 0) {
-        if (this.provider.browserWallet) {
-          // TODO: versiontx??
-          console.error("versioned tx might throw here");
-          tx = await this.provider.browserWallet.signTransaction(tx);
-          // throw new Error(
-          //   "versioned transaction in browser not implemented yet",
-          // );
-        } else {
-          /** Just need to define relayer pubkey as signer a creation */
-          tx.sign([this.provider.nodeWallet!]);
-        }
-
+        tx = await this.provider.wallet.signTransaction(tx);
         try {
           let serializedTx = tx.serialize();
 
@@ -1642,11 +1631,11 @@ export class Transaction {
         "",
       );
 
-    if (!this.provider.nodeWallet && !this.provider.browserWallet)
+    if (!this.provider.wallet)
       throw new TransactionError(
         TransactionErrorCode.WALLET_UNDEFINED,
         "sendAndConfirmTransaction",
-        "Cannot use sendAndConfirmTransaction without payer or browserWallet",
+        "Cannot use sendAndConfirmTransaction without wallet",
       );
 
     await this.getRootIndex();
@@ -1692,11 +1681,11 @@ export class Transaction {
   // TODO: deal with this: set own payer just for that? where is this used?
   // This is used by applications not the relayer
   async closeVerifierState(): Promise<TransactionSignature> {
-    if (!this.provider.nodeWallet && !this.provider.browserWallet)
+    if (!this.provider.wallet)
       throw new TransactionError(
         TransactionErrorCode.WALLET_UNDEFINED,
         "closeVerifierState",
-        "Cannot use closeVerifierState without payer or browserWallet",
+        "Cannot use closeVerifierState without wallet",
       );
     if (!this.params)
       throw new TransactionError(
@@ -1711,21 +1700,27 @@ export class Transaction {
         "",
       );
     if (this.appParams) {
-      return await this.appParams?.verifier.verifierProgram.methods
-        .closeVerifierState()
-        .accounts({
-          ...this.params.accounts,
-        })
-        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
-        .rpc(confirmConfig);
+      const transaction = new SolanaTransaction().add(
+        await this.appParams?.verifier.verifierProgram.methods
+          .closeVerifierState()
+          .accounts({
+            ...this.params.accounts,
+          })
+          .instruction(),
+      );
+
+      return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
-      return await this.params?.verifier.verifierProgram.methods
-        .closeVerifierState()
-        .accounts({
-          ...this.params.accounts,
-        })
-        .signers([this.provider.nodeWallet!]) // TODO: browserwallet? or only ever used by relayer?
-        .rpc(confirmConfig);
+      const transaction = new SolanaTransaction().add(
+        await this.params?.verifier.verifierProgram.methods
+          .closeVerifierState()
+          .accounts({
+            ...this.params.accounts,
+          })
+          .instruction(),
+      );
+
+      return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     }
   }
 
@@ -1913,14 +1908,12 @@ export class Transaction {
         "test values relayerRecipientAccountBalancePriorLastTx undefined",
       );
     }
-
     // Checking that nullifiers were inserted
     if (new BN(this.proofInput.publicAmount).toString() === "0") {
       this.testValues.is_token = false;
     } else {
       this.testValues.is_token = true;
     }
-
     for (
       var i = 0;
       i < this.remainingAccounts.nullifierPdaPubkeys?.length;
@@ -1946,6 +1939,7 @@ export class Transaction {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          "confirmed",
         );
 
       assert(
@@ -1963,7 +1957,6 @@ export class Transaction {
           this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
-
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         // console.log(j);
 
@@ -2035,7 +2028,10 @@ export class Transaction {
 
     try {
       const merkleTreeAfterUpdate =
-        await this.merkleTreeProgram.account.merkleTree.fetch(MERKLE_TREE_KEY);
+        await this.merkleTreeProgram.account.merkleTree.fetch(
+          MERKLE_TREE_KEY,
+          "confirmed",
+        );
       console.log(
         "Number(merkleTreeAfterUpdate.nextQueuedIndex) ",
         Number(merkleTreeAfterUpdate.nextQueuedIndex),
@@ -2043,6 +2039,7 @@ export class Transaction {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           this.remainingAccounts.leavesPdaPubkeys[0].pubkey,
+          "confirmed",
         );
       console.log(
         `${Number(leavesAccountData.leftLeafIndex)} + ${
@@ -2072,6 +2069,7 @@ export class Transaction {
       var recipientFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         );
       console.log(
         "testValues.recipientFeeBalancePriorTx: ",
@@ -2081,6 +2079,7 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
+          "confirmed",
         );
       assert(
         recipientFeeAccountBalance ==
@@ -2157,6 +2156,7 @@ export class Transaction {
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderFee,
+          "confirmed",
         );
 
       assert(
@@ -2182,11 +2182,13 @@ export class Transaction {
     ) {
       var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
+        "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         );
 
       // console.log("relayerAccount ", relayerAccount);
@@ -2269,11 +2271,13 @@ export class Transaction {
 
       var relayerAccount = await this.provider.provider.connection.getBalance(
         this.params.relayer.accounts.relayerRecipient,
+        "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientFee,
+          "confirmed",
         );
 
       // console.log("relayerAccount ", relayerAccount);

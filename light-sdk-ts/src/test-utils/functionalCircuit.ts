@@ -40,7 +40,7 @@ export async function functionalCircuitTest(
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
     sender: mockPubkey,
-    senderFee: lightProvider.nodeWallet!.publicKey,
+    senderFee: lightProvider.wallet!.publicKey,
     verifier: verifier,
     lookUpTable: mockPubkey,
     action: Action.SHIELD,

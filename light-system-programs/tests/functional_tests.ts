@@ -108,7 +108,7 @@ describe("verifier_program", () => {
     RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
     // userSplAccount = token.getAssociatedTokenAddressSync(
     //   tokenCtx!.tokenAccount,
-    //   this.provider!.nodeWallet!.publicKey,
+    //   this.provider!.wallet!.publicKey,
     // );
   });
 
@@ -193,7 +193,9 @@ describe("verifier_program", () => {
           verifierState: verifierState,
         })
         .signers([ADMIN_AUTH_KEYPAIR])
-        .rpc(confirmConfig);
+        .rpc({
+          commitment: "confirmed",
+        });
 
       console.log("tx" + i + ": " + tx);
     }
@@ -257,9 +259,7 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT],
       );
-      const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
-
-
+      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
       let deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -279,11 +279,11 @@ describe("verifier_program", () => {
         verifier: new VerifierOne(),
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
-        action: Action.SHIELD
+        action: Action.SHIELD,
       });
       let tx = new Transaction({
         provider: lightProvider,
-        params: txParams
+        params: txParams,
       });
       await tx.compileAndProve();
 
@@ -326,9 +326,7 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
-
-
+      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -348,11 +346,11 @@ describe("verifier_program", () => {
         verifier: new VerifierZero(),
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
-        poseidon: POSEIDON
+        poseidon: POSEIDON,
       });
       let tx = new Transaction({
         provider: lightProvider,
-        params: txParams
+        params: txParams,
       });
       await tx.compileAndProve();
 
@@ -390,7 +388,7 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
@@ -398,8 +396,6 @@ describe("verifier_program", () => {
       SolanaKeypair.generate().publicKey,
       new BN(100000),
     );
-
-
 
     let txParams = new TransactionParameters({
       inputUtxos: [decryptedUtxo1],
@@ -469,7 +465,7 @@ describe("verifier_program", () => {
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
-    const lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     await lightProvider.provider.connection.confirmTransaction(
       await lightProvider.provider.connection.requestAirdrop(
@@ -497,11 +493,8 @@ describe("verifier_program", () => {
         new Utxo({
           poseidon: POSEIDON,
           assets: inputUtxos[0].assets,
-          amounts: [
-            new BN(0),
-            inputUtxos[0].amounts[1]
-          ]
-        })
+          amounts: [new BN(0), inputUtxos[0].amounts[1]],
+        }),
       ],
 
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
@@ -511,12 +504,12 @@ describe("verifier_program", () => {
       verifier: new VerifierOne(),
       relayer,
       poseidon: POSEIDON,
-      action: Action.UNSHIELD
+      action: Action.UNSHIELD,
     });
     let tx = new Transaction({
       provider: lightProvider,
       // relayer,
-      params: txParams
+      params: txParams,
     });
 
     await tx.compileAndProve();

@@ -39,6 +39,7 @@ import {
   updateMerkleTreeForTest,
   VerifierTwo,
   Action,
+  useWallet,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -98,7 +99,7 @@ describe("Verifier Two test", () => {
         [USER_TOKEN_ACCOUNT],
       );
 
-      let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+      let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
 
 
 
@@ -182,7 +183,7 @@ describe("Verifier Two test", () => {
       // Withdrawal
       var tokenRecipient = recipientTokenAccount;
 
-      let lightProviderWithdrawal = await LightProvider.native(
+      let lightProviderWithdrawal = await LightProvider.init(
         ADMIN_AUTH_KEYPAIR,
       );
       const relayerRecipient = SolanaKeypair.generate().publicKey;
@@ -387,7 +388,7 @@ describe("Verifier Two test", () => {
         ),
         "confirmed",
       );
-      tmp_tx.provider.nodeWallet = wrongSinger;
+      tmp_tx.provider.wallet = useWallet(wrongSinger);
       tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
