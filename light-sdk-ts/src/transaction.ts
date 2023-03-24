@@ -7,7 +7,7 @@ import {
   VersionedTransaction,
   TransactionSignature,
   TransactionInstruction,
-  Transaction as createTransaction,
+  Transaction as solanaTransaction,
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID, getAccount } from "@solana/spl-token";
@@ -1700,7 +1700,7 @@ export class Transaction {
         "",
       );
     if (this.appParams) {
-      const transaction = new createTransaction().add(
+      const transaction = new solanaTransaction().add(
         await this.appParams?.verifier.verifierProgram.methods
           .closeVerifierState()
           .accounts({
@@ -1711,7 +1711,7 @@ export class Transaction {
 
       return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
-      const transaction = new createTransaction().add(
+      const transaction = new solanaTransaction().add(
         await this.params?.verifier.verifierProgram.methods
           .closeVerifierState()
           .accounts({
