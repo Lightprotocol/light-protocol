@@ -16,7 +16,7 @@ import { ADMIN_AUTH_KEYPAIR, initLookUpTableFromFile } from "../test-utils";
 import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
 import { MerkleTree } from "../merkleTree/merkleTree";
 import { ProviderError, ProviderErrorCode } from "../errors";
-import { Wallet } from "./useWallet";
+import { useWallet } from "./useWallet";
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
@@ -28,7 +28,7 @@ export type Wallet = {
   signTransaction: (transaction: any) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
-  isNodeWallet?: boolean;
+  node_wallet?: boolean;
 };
 
 /**
@@ -119,7 +119,7 @@ export class Provider {
 
   private async fetchLookupTable() {
     try {
-      if (!this.wallet.isNodeWallet) {
+      if (!this.wallet.node_wallet) {
         const response = await axios.get("http://localhost:3331/lookuptable");
         this.lookUpTable = new PublicKey(response.data.data);
         return;
@@ -135,7 +135,7 @@ export class Provider {
 
   private async fetchMerkleTree(merkleTreePubkey: PublicKey) {
     try {
-      if (!this.wallet.isNodeWallet) {
+      if (!this.wallet.node_wallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
 
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;
