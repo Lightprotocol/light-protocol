@@ -65,7 +65,7 @@ describe("verifier_program", () => {
     let connection = new Connection("http://127.0.0.1:8899", "confirmed");
     await connection.confirmTransaction(await connection.requestAirdrop(ADMIN_AUTH_KEYPAIR.publicKey, 10_000_000_0000), "confirmed");
     const mockKeypair = SolanaKeypair.generate();
-    const lightProviderMock = await LightProvider.initialize(mockKeypair);
+    const lightProviderMock = await LightProvider.init(mockKeypair);
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(lightProviderMock.wallet?.publicKey.toBase58(), mockKeypair.publicKey.toBase58());
     assert.equal(lightProviderMock.url, "http://127.0.0.1:8899");
@@ -78,7 +78,7 @@ describe("verifier_program", () => {
   });
 
   it("Fetch latestMerkleTree", async () => {
-    const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     let depositFeeAmount = 10000;
     let depositAmount = 0;

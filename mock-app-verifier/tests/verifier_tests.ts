@@ -99,7 +99,7 @@ describe("Verifier Two test", () => {
         [USER_TOKEN_ACCOUNT],
       );
 
-      let lightProvider = await LightProvider.initialize(ADMIN_AUTH_KEYPAIR);
+      let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
 
 
 
@@ -183,7 +183,7 @@ describe("Verifier Two test", () => {
       // Withdrawal
       var tokenRecipient = recipientTokenAccount;
 
-      let lightProviderWithdrawal = await LightProvider.initialize(
+      let lightProviderWithdrawal = await LightProvider.init(
         ADMIN_AUTH_KEYPAIR,
       );
       const relayerRecipient = SolanaKeypair.generate().publicKey;

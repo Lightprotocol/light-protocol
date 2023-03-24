@@ -95,7 +95,7 @@ describe("Verifier Zero and One Tests", () => {
        [USER_TOKEN_ACCOUNT]
      );
 
-     let lightProvider = await LightProvider.initialize(ADMIN_AUTH_KEYPAIR);
+     let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
 
 
 
@@ -171,7 +171,7 @@ describe("Verifier Zero and One Tests", () => {
      // Withdrawal
      var tokenRecipient = recipientTokenAccount;
 
-     let lightProviderWithdrawal = await LightProvider.initialize(
+     let lightProviderWithdrawal = await LightProvider.init(
        ADMIN_AUTH_KEYPAIR
      );
      const relayerRecipient = SolanaKeypair.generate().publicKey;

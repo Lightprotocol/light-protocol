@@ -193,7 +193,7 @@ export class Provider {
    * @param connection get from useConnection() hook
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  static async initialize(
+  static async init(
     wallet: Wallet | SolanaKeypair | Keypair,
     connection?: Connection,
     confirmConfig?: ConfirmOptions,

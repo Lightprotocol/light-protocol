@@ -6,7 +6,7 @@ export async function relay(
   req: Request, relayerPayer: Keypair
   ) {
   const { instructions } = req.body;
-  const provider = await Provider.initialize(relayerPayer);
+  const provider = await Provider.init(relayerPayer);
 
   try {
     let ixs = JSON.parse(instructions);

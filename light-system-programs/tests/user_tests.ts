@@ -69,7 +69,7 @@ describe("Test User", () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.initialize(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -153,7 +153,7 @@ describe("Test User", () => {
   it("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL"
-    const provider = await Provider.initialize(userKeypair);
+    const provider = await Provider.init(userKeypair);
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
@@ -223,7 +223,7 @@ describe("Test User", () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.initialize(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -322,7 +322,7 @@ describe("Test User", () => {
   it("(user class) transfer SPL", async () => {
     let amountSpl = 1;
     const token = "USDC";
-    const provider = await Provider.initialize(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
@@ -403,7 +403,7 @@ describe("Test User", () => {
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.initialize(userKeypair);
+    const provider = await Provider.init(userKeypair);
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -455,7 +455,7 @@ describe("Test User", () => {
     let recipient = new PublicKey(
       "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
     );
-    const provider = await Provider.initialize(userKeypair);
+    const provider = await Provider.init(userKeypair);
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
     try {
@@ -502,7 +502,7 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.initialize(userKeypair); // userKeypair
+    provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,

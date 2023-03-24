@@ -259,7 +259,7 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT],
       );
-      const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
+      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
       let deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -326,7 +326,7 @@ describe("verifier_program", () => {
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
 
-      const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
+      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -388,7 +388,7 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
@@ -465,7 +465,7 @@ describe("verifier_program", () => {
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
-    const lightProvider = await Provider.initialize(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     await lightProvider.provider.connection.confirmTransaction(
       await lightProvider.provider.connection.requestAirdrop(

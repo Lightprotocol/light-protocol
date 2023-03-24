@@ -88,7 +88,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED Provider", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.initialize(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -132,7 +132,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED browser", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.initialize(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -140,7 +140,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED browser", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.initialize(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -152,7 +152,7 @@ describe("Test Provider Functional", () => {
 
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.initialize(wallet),
+      LightProvider.init(wallet),
       ProviderErrorCode.CONNECTION_UNDEFINED,
     );
   });
