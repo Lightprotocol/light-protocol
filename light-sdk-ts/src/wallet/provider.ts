@@ -153,7 +153,7 @@ export class Provider {
 
       const merkletreeIsInited = await this.provider!.connection.getAccountInfo(
         merkleTreePubkey,
-        "confirmed",
+        "confirmed"
       );
       if (!merkletreeIsInited) {
         throw new ProviderError(

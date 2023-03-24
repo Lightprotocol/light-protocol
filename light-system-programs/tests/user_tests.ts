@@ -502,7 +502,7 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.initialize(userKeypair); // userKeypair
+    provider = await Provider.native(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
