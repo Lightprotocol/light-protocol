@@ -1701,7 +1701,7 @@ export class Transaction {
       );
     if (this.appParams) {
       const transaction = new createTransaction().add(
-        this.appParams?.verifier.verifierProgram.methods
+        await this.appParams?.verifier.verifierProgram.methods
           .closeVerifierState()
           .accounts({
             ...this.params.accounts,
