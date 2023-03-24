@@ -2,6 +2,7 @@ import {
   Keypair as SolanaKeypair,
   PublicKey,
   SystemProgram,
+  Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { Account } from "../account";
 import { Utxo } from "../utxo";
@@ -11,6 +12,7 @@ import { sign } from "tweetnacl";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
+
 import {
   FEE_ASSET,
   UTXO_MERGE_MAXIMUM,
@@ -23,16 +25,6 @@ import {
   merkleTreeProgramId,
   MINIMUM_LAMPORTS,
 } from "../constants";
-import {
-  ADMIN_AUTH_KEY,
-  ADMIN_AUTH_KEYPAIR,
-  createTestAccounts,
-  MINT,
-  newAccountWithTokens,
-  updateMerkleTreeForTest,
-  userTokenAccount,
-  USER_TOKEN_ACCOUNT,
-} from "../test-utils/index";
 import { SolMerkleTree } from "../merkleTree/index";
 import { VerifierZero } from "../verifiers/index";
 import { Relayer } from "../relayer";
@@ -108,7 +100,7 @@ export class User {
     utxos?: Utxo[];
     account?: Account;
   }) {
-    if (!provider.browserWallet && !provider.nodeWallet)
+    if (!provider.wallet)
       throw new UserError(
         UserErrorCode.NO_WALLET_PROVIDED,
         "constructor",
@@ -242,9 +234,7 @@ export class User {
     // TODO: pull an actually implemented relayer here via http request
     // This will then also remove the need to fund the relayer recipient account...
     let mockRelayer = new Relayer(
-      this.provider.browserWallet!
-        ? this.provider.browserWallet.publicKey
-        : this.provider.nodeWallet!.publicKey,
+      this.provider.wallet!.publicKey,
       this.provider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       ataCreationFee ? new anchor.BN(500000) : new anchor.BN(100000),
@@ -348,9 +338,7 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       sender: action === Action.SHIELD ? userSplAccount : undefined,
       senderFee:
-        action === Action.SHIELD
-          ? this.provider.nodeWallet!.publicKey
-          : undefined,
+        action === Action.SHIELD ? this.provider.wallet!.publicKey : undefined,
       recipient: recipientSPLAddress,
       recipientFee,
       verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
@@ -445,7 +433,7 @@ export class User {
       } else {
         userSplAccount = splToken.getAssociatedTokenAddressSync(
           tokenCtx!.tokenAccount,
-          this.provider!.nodeWallet!.publicKey,
+          this.provider!.wallet!.publicKey,
         );
       }
 
@@ -470,15 +458,19 @@ export class User {
         );
 
       try {
-        await splToken.approve(
-          this.provider.provider!.connection,
-          this.provider.nodeWallet!,
-          userSplAccount, //tokenAccount,
-          AUTHORITY, //TODO: make dynamic based on verifier
-          this.provider.nodeWallet!, //USER_TOKEN_ACCOUNT, // owner2
-          // change to bigint
-          publicAmountSpl.toNumber(),
-          [this.provider.nodeWallet!],
+        const transaction = new SolanaTransaction().add(
+          splToken.createApproveInstruction(
+            userSplAccount,
+            AUTHORITY,
+            this.provider.wallet!.publicKey,
+            publicAmountSpl.toNumber(),
+            [this.provider.wallet!.publicKey],
+          ),
+        );
+        console.log({ transaction });
+
+        const response = await this.provider.wallet!.sendAndConfirmTransaction(
+          transaction,
         );
       } catch (e) {
         throw new UserError(
@@ -515,7 +507,7 @@ export class User {
     }
 
     let response;
-    if (this.provider.browserWallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
 
@@ -635,7 +627,7 @@ export class User {
     }
 
     let response;
-    if (this.provider.browserWallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
     return { txHash, response };
@@ -722,7 +714,7 @@ export class User {
       );
     }
     let response;
-    if (this.provider.browserWallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
     return { txHash, response };
@@ -763,21 +755,10 @@ export class User {
       this.provider = provider;
     }
     if (!this.seed) {
-      if (this.provider.nodeWallet && this.provider?.browserWallet)
-        throw new UserError(
-          UserErrorCode.NO_WALLET_PROVIDED,
-          "load",
-          "No payer or browser wallet provided",
-        );
-      if (this.provider.nodeWallet) {
-        const signature: Uint8Array = sign.detached(
+      if (this.provider.wallet) {
+        const signature: Uint8Array = await this.provider.wallet.signMessage(
           message,
-          this.provider.nodeWallet.secretKey,
         );
-        this.seed = new anchor.BN(signature).toString();
-      } else if (this.provider?.browserWallet) {
-        const signature: Uint8Array =
-          await this.provider.browserWallet.signMessage(message);
         this.seed = new anchor.BN(signature).toString();
       } else {
         throw new UserError(
@@ -787,6 +768,7 @@ export class User {
         );
       }
     }
+
     // get the provider?
     if (!this.provider.poseidon) {
       this.provider.poseidon = await circomlibjs.buildPoseidonOpt();
@@ -802,7 +784,7 @@ export class User {
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(
       MERKLE_TREE_KEY,
       // @ts-ignore
-      this.provider.browserWallet && this.provider,
+      this.provider.provider,
     );
 
     const params = {

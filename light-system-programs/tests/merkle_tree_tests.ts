@@ -579,9 +579,7 @@ describe("Merkle Tree Tests", () => {
       [USER_TOKEN_ACCOUNT],
     );
 
-    let lightProvider = await Provider.native(ADMIN_AUTH_KEYPAIR);
-
-
+    let lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
     deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,

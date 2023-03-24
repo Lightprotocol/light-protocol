@@ -36,6 +36,7 @@ import {
   newAccountWithTokens,
   updateMerkleTreeForTest,
   Action,
+  useWallet
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -94,7 +95,7 @@ describe("Verifier Zero and One Tests", () => {
        [USER_TOKEN_ACCOUNT]
      );
 
-     let lightProvider = await LightProvider.native(ADMIN_AUTH_KEYPAIR);
+     let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
 
 
 
@@ -130,7 +131,8 @@ describe("Verifier Zero and One Tests", () => {
        await transaction.provider.provider.connection.requestAirdrop(
          transaction.params.accounts.authority,
          1_000_000_000
-       )
+       ),
+       "confirmed"
      );
      // does one successful transaction
      await transaction.sendAndConfirmTransaction();
@@ -169,7 +171,7 @@ describe("Verifier Zero and One Tests", () => {
      // Withdrawal
      var tokenRecipient = recipientTokenAccount;
 
-     let lightProviderWithdrawal = await LightProvider.native(
+     let lightProviderWithdrawal = await LightProvider.init(
        ADMIN_AUTH_KEYPAIR
      );
      const relayerRecipient = SolanaKeypair.generate().publicKey;
@@ -372,7 +374,7 @@ describe("Verifier Zero and One Tests", () => {
        ),
        "confirmed"
      );
-     tmp_tx.provider.nodeWallet = wrongSinger;
+     tmp_tx.provider.wallet = useWallet(wrongSinger);
      tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
      await sendTestTx(tmp_tx, "ProofVerificationFails");
    }

@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import {Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 const chai = require("chai");
@@ -69,7 +69,7 @@ describe("Test User", () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -152,8 +152,8 @@ describe("Test User", () => {
 
   it("(user class) shield SOL", async () => {
     let amount = 15;
-    let token = "SOL";
-    const provider = await Provider.native(userKeypair);
+    let token = "SOL"
+    const provider = await Provider.init(userKeypair);
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
@@ -223,7 +223,7 @@ describe("Test User", () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -322,7 +322,7 @@ describe("Test User", () => {
   it("(user class) transfer SPL", async () => {
     let amountSpl = 1;
     const token = "USDC";
-    const provider = await Provider.native(userKeypair); // userKeypair
+    const provider = await Provider.init(userKeypair); // userKeypair
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
@@ -403,7 +403,7 @@ describe("Test User", () => {
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.native(userKeypair);
+    const provider = await Provider.init(userKeypair);
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -455,7 +455,7 @@ describe("Test User", () => {
     let recipient = new PublicKey(
       "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
     );
-    const provider = await Provider.native(userKeypair);
+    const provider = await Provider.init(userKeypair);
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
     try {
@@ -502,7 +502,7 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.native(userKeypair); // userKeypair
+    provider = await Provider.init(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -510,7 +510,6 @@ describe("Test User Errors", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     user = await User.load(provider);
   });
-
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
       user.shield({ token }),

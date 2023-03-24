@@ -30,7 +30,7 @@ app.use((req, res, next) => {
 
 app.post("/updatemerkletree", async function (req, res) {
   try {
-    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
     console.log({provider})
     await updateMerkleTreeForTest(provider.provider?.connection!);
     return res.status(200).json({ status: "ok" });
@@ -55,7 +55,7 @@ app.post("/relay", async function (req, res) {
 
 app.get("/merkletree", async function (req, res) {
   try {
-    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
     const merkletreeIsInited =
       await provider.provider!.connection.getAccountInfo(MERKLE_TREE_KEY);
     if (!merkletreeIsInited) {
@@ -80,7 +80,7 @@ app.get("/merkletree", async function (req, res) {
 
 app.get("/lookuptable", async function (req, res) {
   try {
-    const provider = await Provider.native(ADMIN_AUTH_KEYPAIR);
+    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
     const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider!);
     return res.status(200).json({ data: LOOK_UP_TABLE });
   } catch (e) {

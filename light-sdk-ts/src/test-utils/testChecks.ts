@@ -126,6 +126,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
 }) {
   var merkleTreeTmpStateAccount = await connection.getAccountInfo(
     merkleTreeUpdateState,
+    "confirmed",
   );
 
   assert.equal(
@@ -136,6 +137,7 @@ export async function checkMerkleTreeBatchUpdateSuccess({
 
   var merkleTreeAccount = await merkleTreeProgram.account.merkleTree.fetch(
     merkle_tree_pubkey,
+    "confirmed",
   );
   // Merkle tree is locked by merkleTreeUpdateState
   assert.equal(

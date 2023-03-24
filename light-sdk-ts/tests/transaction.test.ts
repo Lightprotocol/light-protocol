@@ -83,7 +83,7 @@ describe("Transaction Error Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       sender: mockPubkey,
-      senderFee: lightProvider.nodeWallet?.publicKey,
+      senderFee: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
     });
   });
@@ -236,7 +236,7 @@ describe("Transaction Error Tests", () => {
         // @ts-ignore
         solMerkleTree: {},
         poseidon,
-        nodeWallet: lightProvider.nodeWallet,
+        wallet: lightProvider.wallet,
       },
       params,
     });
@@ -252,7 +252,7 @@ describe("Transaction Error Tests", () => {
         // @ts-ignore
         solMerkleTree: {},
         poseidon,
-        nodeWallet: lightProvider.nodeWallet,
+        wallet: lightProvider.wallet,
       },
       params,
     });
@@ -323,7 +323,7 @@ describe("Transaction Functional Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       sender: mockPubkey,
-      senderFee: lightProvider.nodeWallet?.publicKey,
+      senderFee: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
@@ -342,7 +342,7 @@ describe("Transaction Functional Tests", () => {
       verifier: new VerifierZero(),
       poseidon,
       recipient: mockPubkey,
-      recipientFee: lightProvider.nodeWallet?.publicKey,
+      recipientFee: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
     });
@@ -513,7 +513,7 @@ describe("Transaction Functional Tests", () => {
       verifier: new VerifierZero(),
       poseidon,
       recipient: AUTHORITY,
-      recipientFee: lightProvider.nodeWallet?.publicKey,
+      recipientFee: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
@@ -548,7 +548,7 @@ describe("Transaction Functional Tests", () => {
       verifier: new VerifierZero(),
       poseidon,
       recipient: AUTHORITY,
-      recipientFee: lightProvider.nodeWallet?.publicKey,
+      recipientFee: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
@@ -649,7 +649,7 @@ describe("Transaction Functional Tests", () => {
       verifier: new VerifierZero(),
       poseidon,
       recipient: AUTHORITY,
-      recipientFee: lightProvider.nodeWallet?.publicKey,
+      recipientFee: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),

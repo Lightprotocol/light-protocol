@@ -41,6 +41,7 @@ import {
   MERKLE_TREE_KEY,
   DEFAULT_ZERO,
   ProviderError,
+  useWallet,
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
 
@@ -65,9 +66,9 @@ describe("Test Provider Functional", () => {
 
   it("Mock Provider", async () => {
     const lightProviderMock = await LightProvider.loadMock();
-    assert.equal(lightProviderMock.browserWallet, undefined);
+    assert.equal(lightProviderMock.wallet.isNodeWallet,true);
     assert.equal(
-      lightProviderMock.nodeWallet?.publicKey.toBase58(),
+      lightProviderMock.wallet?.publicKey.toBase58(),
       ADMIN_AUTH_KEYPAIR.publicKey.toBase58(),
     );
     assert.equal(lightProviderMock.url, "mock");
@@ -84,10 +85,10 @@ describe("Test Provider Functional", () => {
     );
   });
 
-  it("KEYPAIR_UNDEFINED native", async () => {
+  it("KEYPAIR_UNDEFINED Provider", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.native(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -95,7 +96,7 @@ describe("Test Provider Functional", () => {
   it("CONNECTION_DEFINED", async () => {
     expect(() => {
       // @ts-ignore
-      new LightProvider({ nodeWallet: ADMIN_AUTH_KEYPAIR, connection: {} });
+      new LightProvider({ wallet: ADMIN_AUTH_KEYPAIR, connection: {} });
     })
       .to.throw(ProviderError)
       .includes({
@@ -104,14 +105,14 @@ describe("Test Provider Functional", () => {
       });
   });
 
-  it("NODE_WALLET_AND_BROWSER_WALLET_UNDEFINED", async () => {
+  it("WALLET_UNDEFINED", async () => {
     expect(() => {
       // @ts-ignore
       new LightProvider({});
     })
       .to.throw(ProviderError)
       .includes({
-        code: ProviderErrorCode.NODE_WALLET_AND_BROWSER_WALLET_UNDEFINED,
+        code: ProviderErrorCode.WALLET_UNDEFINED,
         functionName: "constructor",
       });
   });
@@ -119,7 +120,7 @@ describe("Test Provider Functional", () => {
   it("CONNECTION_UNDEFINED", async () => {
     expect(() => {
       // @ts-ignore
-      new LightProvider({ browserWallet: {} });
+      new LightProvider({ wallet: {} });
     })
       .to.throw(ProviderError)
       .includes({
@@ -131,7 +132,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED browser", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.browser(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -139,7 +140,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED browser", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.browser(),
+      LightProvider.init(),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -147,9 +148,11 @@ describe("Test Provider Functional", () => {
   it("CONNECTION_UNDEFINED browser", async () => {
     const mockKeypair = SolanaKeypair.generate();
 
+    const wallet = useWallet(mockKeypair)
+
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.browser(mockKeypair),
+      LightProvider.init(wallet),
       ProviderErrorCode.CONNECTION_UNDEFINED,
     );
   });

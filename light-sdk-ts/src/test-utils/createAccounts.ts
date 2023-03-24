@@ -288,8 +288,8 @@ export async function createTestAccounts(
     );
   }
 
-  let balanceUserToken = null;
-  let userSplAccount = null;
+  let balanceUserToken: null | any = null;
+  let userSplAccount: PublicKey | null = null;
   try {
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === "USDC");
     if (userTokenAccount) {
