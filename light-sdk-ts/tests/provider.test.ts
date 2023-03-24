@@ -66,7 +66,7 @@ describe("Test Provider Functional", () => {
 
   it("Mock Provider", async () => {
     const lightProviderMock = await LightProvider.loadMock();
-    assert.equal(lightProviderMock.wallet.node_wallet,true);
+    assert.equal(lightProviderMock.wallet.isNodeWallet,true);
     assert.equal(
       lightProviderMock.wallet?.publicKey.toBase58(),
       ADMIN_AUTH_KEYPAIR.publicKey.toBase58(),

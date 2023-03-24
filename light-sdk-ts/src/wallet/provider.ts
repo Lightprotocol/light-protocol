@@ -28,7 +28,7 @@ export type Wallet = {
   signTransaction: (transaction: any) => Promise<any>;
   sendAndConfirmTransaction: (transaction: any) => Promise<any>;
   publicKey: PublicKey;
-  node_wallet?: boolean;
+  isNodeWallet?: boolean;
 };
 
 /**
@@ -119,7 +119,7 @@ export class Provider {
 
   private async fetchLookupTable() {
     try {
-      if (!this.wallet.node_wallet) {
+      if (!this.wallet.isNodeWallet) {
         const response = await axios.get("http://localhost:3331/lookuptable");
         this.lookUpTable = new PublicKey(response.data.data);
         return;
@@ -135,7 +135,7 @@ export class Provider {
 
   private async fetchMerkleTree(merkleTreePubkey: PublicKey) {
     try {
-      if (!this.wallet.node_wallet) {
+      if (!this.wallet.isNodeWallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
 
         const fetchedMerkleTree: MerkleTree = response.data.data.merkleTree;

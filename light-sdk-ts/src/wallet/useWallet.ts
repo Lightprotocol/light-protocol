@@ -1,4 +1,5 @@
 import {
+  Commitment,
   Connection,
   Keypair,
   sendAndConfirmTransaction,
@@ -7,17 +8,19 @@ import { PublicKey, Transaction } from "@solana/web3.js";
 import { sign } from "tweetnacl";
 
 // Mock Solana web3 library
-class Provider {
+class Wallet {
   _publicKey: PublicKey;
   _keypair: Keypair;
   _connection: Connection;
   _url: string;
+  _commitment: Commitment;
 
-  constructor(keypair: Keypair, url: string) {
+  constructor(keypair: Keypair, url: string, commitment: Commitment) {
     this._publicKey = keypair.publicKey;
     this._keypair = keypair;
     this._connection = new Connection(url);
     this._url = url;
+    this._commitment = commitment;
   }
 
   signTransaction = async (tx: any): Promise<any> => {
@@ -49,7 +52,7 @@ class Provider {
         transaction,
         [this._keypair, ...signers],
         {
-          commitment: "confirmed",
+          commitment: this._commitment,
         },
       );
       console.log(response);
@@ -63,18 +66,19 @@ class Provider {
 
 // Mock useWallet hook
 export const useWallet = (
-  wallet: Keypair,
+  keypair: Keypair,
   url: string = "http://127.0.0.1:8899",
-  node_wallet: boolean = true,
+  isNodeWallet: boolean = true,
+  commitment: Commitment = "confirmed",
 ) => {
   url = url !== "mock" ? url : "http://127.0.0.1:8899";
-  const provider = new Provider(wallet, url);
+  const wallet = new Wallet(keypair, url, commitment);
   return {
-    publicKey: provider._publicKey,
-    sendAndConfirmTransaction: provider.sendAndConfirmTransaction,
-    signMessage: provider.signMessage,
-    signTransaction: provider.signTransaction,
-    signAllTransactions: provider.signAllTransactions,
-    node_wallet,
+    publicKey: wallet._publicKey,
+    sendAndConfirmTransaction: wallet.sendAndConfirmTransaction,
+    signMessage: wallet.signMessage,
+    signTransaction: wallet.signTransaction,
+    signAllTransactions: wallet.signAllTransactions,
+    isNodeWallet,
   };
 };

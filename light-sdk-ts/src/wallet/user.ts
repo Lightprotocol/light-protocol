@@ -2,7 +2,7 @@ import {
   Keypair as SolanaKeypair,
   PublicKey,
   SystemProgram,
-  Transaction as createTransaction,
+  Transaction as SolanaTransaction,
 } from "@solana/web3.js";
 import { Account } from "../account";
 import { Utxo } from "../utxo";
@@ -458,7 +458,7 @@ export class User {
         );
 
       try {
-        const transaction = new createTransaction().add(
+        const transaction = new SolanaTransaction().add(
           splToken.createApproveInstruction(
             userSplAccount,
             AUTHORITY,
@@ -507,7 +507,7 @@ export class User {
     }
 
     let response;
-    if (!this.provider.wallet.node_wallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
 
@@ -627,7 +627,7 @@ export class User {
     }
 
     let response;
-    if (!this.provider.wallet.node_wallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
     return { txHash, response };
@@ -714,7 +714,7 @@ export class User {
       );
     }
     let response;
-    if (!this.provider.wallet.node_wallet) {
+    if (!this.provider.wallet.isNodeWallet) {
       response = await axios.post("http://localhost:3331/updatemerkletree");
     }
     return { txHash, response };
