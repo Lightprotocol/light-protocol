@@ -171,7 +171,7 @@ describe("Verifier Zero and One Tests", () => {
      // Withdrawal
      var tokenRecipient = recipientTokenAccount;
 
-     let lightProviderWithdrawal = await LightProvider.native(
+     let lightProviderWithdrawal = await LightProvider.initialize(
        ADMIN_AUTH_KEYPAIR
      );
      const relayerRecipient = SolanaKeypair.generate().publicKey;

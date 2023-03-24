@@ -502,7 +502,7 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.native(userKeypair); // userKeypair
+    provider = await Provider.initialize(userKeypair); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -510,7 +510,6 @@ describe("Test User Errors", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     user = await User.load(provider);
   });
-
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
       user.shield({ token }),

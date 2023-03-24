@@ -338,9 +338,7 @@ export class User {
       merkleTreePubkey: MERKLE_TREE_KEY,
       sender: action === Action.SHIELD ? userSplAccount : undefined,
       senderFee:
-        action === Action.SHIELD
-          ? this.provider.wallet!.publicKey
-          : undefined,
+        action === Action.SHIELD ? this.provider.wallet!.publicKey : undefined,
       recipient: recipientSPLAddress,
       recipientFee,
       verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1

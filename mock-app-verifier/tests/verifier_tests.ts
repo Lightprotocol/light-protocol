@@ -39,6 +39,7 @@ import {
   updateMerkleTreeForTest,
   VerifierTwo,
   Action,
+  useWallet,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -387,7 +388,7 @@ describe("Verifier Two test", () => {
         ),
         "confirmed",
       );
-      tmp_tx.provider.nodeWallet = wrongSinger;
+      tmp_tx.provider.wallet = useWallet(wrongSinger);
       tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
