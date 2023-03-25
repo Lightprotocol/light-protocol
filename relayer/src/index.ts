@@ -1,100 +1,23 @@
-import { relay } from "./relay";
 import {
-  ADMIN_AUTH_KEYPAIR,
   Relayer,
-  Provider,
   confirmConfig,
   createTestAccounts,
   initLookUpTableFromFile,
-  MERKLE_TREE_KEY,
   setUpMerkleTree,
-  SolMerkleTree,
-  userTokenAccount,
-  updateMerkleTreeForTest,
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
-import * as solana from "@solana/web3.js";
 import express from "express";
+import { corsMiddleware } from "middleware";
+import router from "routes";
+import { relayerFee, relayerFeeRecipient, relayerPayer, rpcPort } from "config";
 const app = express();
 const port = 3331;
 
 // Add CORS headers
-app.use((req, res, next) => {
-  res.header("Access-Control-Allow-Origin", "*");
-  res.header(
-    "Access-Control-Allow-Headers",
-    "Origin, X-Requested-With, Content-Type, Accept",
-  );
-  next();
-});
-
-app.post("/updatemerkletree", async function (req, res) {
-  try {
-    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
-    console.log({provider})
-    await updateMerkleTreeForTest(provider.provider?.connection!);
-    return res.status(200).json({ status: "ok" });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
-  }
-});
-
-app.post("/relay", async function (req, res) {
-  try {
-    if (!req.body.instructions) throw new Error("No instructions provided");
-    // TODO: get body.recipientaddress (if spl) - if account doesnt exist create the account (also bumped fee then)
-    // inspect data, check that fee is correct
-    await relay(req, relayerPayer);
-    return res.status(200).json({ status: "ok" });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
-  }
-});
-
-app.get("/merkletree", async function (req, res) {
-  try {
-    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
-    const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(MERKLE_TREE_KEY);
-    if (!merkletreeIsInited) {
-      // await setUpMerkleTree(provider.provider!);
-      // console.log("merkletree inited");
-      throw new Error("merkletree not inited yet.");
-    }
-
-    // console.log("building merkletree...");
-    const mt = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: provider.poseidon,
-    });
-    // console.log("✔️ building merkletree done.");
-    provider.solMerkleTree = mt;
-    return res.status(200).json({ data: mt });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
-  }
-});
-
-app.get("/lookuptable", async function (req, res) {
-  try {
-    const provider = await Provider.init(ADMIN_AUTH_KEYPAIR);
-    const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider!);
-    return res.status(200).json({ data: LOOK_UP_TABLE });
-  } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
-  }
-});
+app.use(corsMiddleware);
+app.use(router)
 
 var relayer;
-const relayerPayer = ADMIN_AUTH_KEYPAIR;
-const relayerFeeRecipient = solana.Keypair.generate();
-const relayerFee = new anchor.BN(100000);
-
-const rpcPort = 8899;
 
 (async () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -105,6 +28,7 @@ const rpcPort = 8899;
     confirmConfig,
   );
   anchor.setProvider(providerAnchor);
+
   console.log("anchor provider set");
 
   // TODO: use updated -- buildscript -> add relayer tests

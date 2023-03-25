@@ -392,7 +392,7 @@ describe("verifier_program", () => {
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
+      lightProvider.lookUpTable!,
       SolanaKeypair.generate().publicKey,
       new BN(100000),
     );
@@ -460,21 +460,21 @@ describe("verifier_program", () => {
       0,
     );
 
-    let inputUtxos = [];
+    let inputUtxos: Utxo[] = [];
     inputUtxos.push(decryptedUtxo1);
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
     const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
 
-    await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(
+    await lightProvider.provider!.connection.confirmTransaction(
+      await lightProvider.provider!.connection.requestAirdrop(
         relayerRecipient,
         1_000_000,
       ),
     );
-    await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(
+    await lightProvider.provider!.connection.confirmTransaction(
+      await lightProvider.provider!.connection.requestAirdrop(
         recipientFee,
         1_000_000,
       ),
@@ -482,7 +482,7 @@ describe("verifier_program", () => {
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
+      lightProvider.lookUpTable!,
       relayerRecipient,
       new BN(100000),
     );

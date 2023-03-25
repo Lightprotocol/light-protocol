@@ -228,29 +228,6 @@ export class User {
     return balances;
   }
 
-  async getRelayer(
-    ataCreationFee: boolean = false,
-  ): Promise<{ relayer: Relayer; feeRecipient: PublicKey }> {
-    // TODO: pull an actually implemented relayer here via http request
-    // This will then also remove the need to fund the relayer recipient account...
-    let mockRelayer = new Relayer(
-      this.provider.wallet!.publicKey,
-      this.provider.lookUpTable!,
-      SolanaKeypair.generate().publicKey,
-      ataCreationFee ? new anchor.BN(500000) : new anchor.BN(100000),
-    );
-    await this.provider.provider!.connection.confirmTransaction(
-      await this.provider.provider!.connection.requestAirdrop(
-        mockRelayer.accounts.relayerRecipient,
-        1_000_000,
-      ),
-      "confirmed",
-    );
-    const placeHolderAddress = SolanaKeypair.generate().publicKey;
-
-    return { relayer: mockRelayer, feeRecipient: placeHolderAddress };
-  }
-
   // TODO: in UI, support wallet switching, "prefill option with button"
   async getTxParams({
     tokenCtx,
@@ -263,7 +240,7 @@ export class User {
     recipientSPLAddress,
     // for transfer
     shieldedRecipients,
-    ataCreationFee,
+    ataCreationFee = false,
   }: {
     tokenCtx: TokenContext;
     publicAmountSpl?: BN;
@@ -275,11 +252,12 @@ export class User {
     action: Action;
     ataCreationFee?: boolean;
   }): Promise<TransactionParameters> {
-    var relayer;
+    var relayerFee;
     if (action === Action.TRANSFER || action === Action.UNSHIELD) {
-      const { relayer: _relayer, feeRecipient: _feeRecipient } =
-        await this.getRelayer(ataCreationFee);
-      relayer = _relayer;
+      this.provider.relayer.relayerFee = ataCreationFee
+        ? new anchor.BN(500000)
+        : this.provider.relayer.relayerFee;
+      relayerFee = this.provider.relayer.relayerFee;
     }
 
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
@@ -292,7 +270,7 @@ export class User {
         "Recipient not provided for transfer",
       );
 
-    if (action !== Action.SHIELD && !relayer?.relayerFee)
+    if (action !== Action.SHIELD && !relayerFee)
       // TODO: could make easier to read by adding separate if/cases
       throw new UserError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
@@ -316,7 +294,7 @@ export class User {
       publicAmountSol,
       recipients: shieldedRecipients,
       utxos: this.utxos,
-      relayerFee: relayer?.relayerFee,
+      relayerFee,
       action,
     });
 
@@ -326,7 +304,7 @@ export class User {
       inUtxos: inputUtxos,
       publicAmountSol, // TODO: add support for extra sol for unshield & transfer
       poseidon: this.provider.poseidon,
-      relayerFee: relayer?.relayerFee,
+      relayerFee,
       changeUtxoAccount: this.account,
       recipients: shieldedRecipients,
       action,
@@ -341,11 +319,11 @@ export class User {
         action === Action.SHIELD ? this.provider.wallet!.publicKey : undefined,
       recipient: recipientSPLAddress,
       recipientFee,
-      verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
+      verifier: new VerifierZero(this.provider), // TODO: add support for 10in here -> verifier1
       poseidon: this.provider.poseidon,
       action,
       lookUpTable: this.provider.lookUpTable!,
-      relayer,
+      relayer: this.provider.relayer,
     });
     return txParams;
   }
@@ -414,7 +392,7 @@ export class User {
         "shield",
         "Cannot use senderTokenAccount for SOL!",
       );
-    let userSplAccount = undefined;
+    let userSplAccount: PublicKey | undefined = undefined;
     publicAmountSpl = publicAmountSpl
       ? convertAndComputeDecimals(publicAmountSpl, tokenCtx.decimals)
       : undefined;
@@ -469,9 +447,7 @@ export class User {
         );
         console.log({ transaction });
 
-        const response = await this.provider.wallet!.sendAndConfirmTransaction(
-          transaction,
-        );
+        await this.provider.wallet!.sendAndConfirmTransaction(transaction);
       } catch (e) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
@@ -506,11 +482,7 @@ export class User {
       );
     }
 
-    let response;
-    if (!this.provider.wallet.isNodeWallet) {
-      response = await axios.post("http://localhost:3331/updatemerkletree");
-    }
-
+    const response = this.provider.relayer?.updateMerkleTree(this.provider);
     return { txHash, response };
   }
 
@@ -626,10 +598,7 @@ export class User {
       );
     }
 
-    let response;
-    if (!this.provider.wallet.isNodeWallet) {
-      response = await axios.post("http://localhost:3331/updatemerkletree");
-    }
+    const response = this.provider.relayer?.updateMerkleTree(this.provider);
     return { txHash, response };
   }
 
@@ -713,10 +682,7 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
-    let response;
-    if (!this.provider.wallet.isNodeWallet) {
-      response = await axios.post("http://localhost:3331/updatemerkletree");
-    }
+    const response = this.provider.relayer.updateMerkleTree(this.provider);
     return { txHash, response };
   }
 

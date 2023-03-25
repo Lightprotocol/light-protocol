@@ -1,6 +1,9 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
-import { BN } from "@coral-xyz/anchor";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
+import { AnchorProvider, BN } from "@coral-xyz/anchor";
 import { RelayerError, RelayerErrorCode } from "./errors";
+import { updateMerkleTreeForTest } from "./test-utils";
+import axios from "axios";
+import { Provider } from "./wallet";
 
 export class Relayer {
   accounts: {
@@ -16,6 +19,7 @@ export class Relayer {
    * @param lookUpTable  The relayer's lookuptable - uniformly used currently
    * @param relayerRecipient Recipient account for SOL fees
    * @param relayerFee Fee amount
+   * @param ataCreationFee Fee amount for the ataCreation
    */
   constructor(
     relayerPubkey: PublicKey,
@@ -61,5 +65,42 @@ export class Relayer {
       };
     }
     this.relayerFee = relayerFee;
+  }
+
+  async updateMerkleTree(provider: Provider) {
+    try {
+      let response;
+      if (provider.wallet.isNodeWallet) {
+        response = await axios.post("http://localhost:3331/updatemerkletree");
+      } else {
+        response = await updateMerkleTreeForTest(
+          provider.provider?.connection!,
+          provider.provider,
+        );
+      }
+      return response;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
+  static init(
+    relayerPubkey: PublicKey,
+    lookUpTable: PublicKey,
+    relayerRecipient: PublicKey,
+    relayerFee: BN,
+    connection: Connection,
+  ): Relayer {
+    let relayer = new Relayer(
+      relayerPubkey,
+      lookUpTable,
+      relayerRecipient,
+      relayerFee,
+    );
+
+    //TODO: figure out the airdrop here for the relayerRecipient
+
+    return relayer;
   }
 }

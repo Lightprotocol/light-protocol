@@ -7,7 +7,6 @@ import { merkleTreeProgramId, MERKLE_TREE_KEY } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 const circomlibjs = require("circomlibjs");
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
-import { Provider } from "wallet";
 import { Connection } from "@solana/web3.js";
 
 export async function updateMerkleTreeForTest(

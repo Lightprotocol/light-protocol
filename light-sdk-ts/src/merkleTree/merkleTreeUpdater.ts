@@ -204,7 +204,7 @@ export async function executeMerkleTreeUpdateTransactions({
   numberOfTransactions: number;
   connection: Connection;
 }) {
-  let transactions = [];
+  let transactions: Transaction[] = [];
   let i = 0;
   // console.log("Sending Merkle tree update transactions: ",numberOfTransactions)
   // the number of tx needs to increase with greater batchsize
