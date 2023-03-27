@@ -29,18 +29,17 @@ import {
   User,
   strToArr,
   TOKEN_REGISTRY,
-  updateMerkleTreeForTest,
   createOutUtxos,
   Account,
   CreateUtxoErrorCode,
   UserErrorCode,
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
+  TestRelayer
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { TestRelayer } from "../../light-sdk-ts/src/test-utils/testRelayer";
 
 var LOOK_UP_TABLE;
 var POSEIDON;

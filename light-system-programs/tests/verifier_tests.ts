@@ -34,14 +34,14 @@ import {
   Relayer,
   checkNfInserted,
   newAccountWithTokens,
-  updateMerkleTreeForTest,
   Action,
   useWallet
+  TestRelayer
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
+var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1, RELAYER;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
@@ -74,6 +74,17 @@ describe("Verifier Zero and One Tests", () => {
      seed: KEYPAIR_PRIVKEY.toString(),
    });
 
+   const relayerRecipient = SolanaKeypair.generate().publicKey;
+
+    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+
+    RELAYER = await TestRelayer.init(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      LOOK_UP_TABLE,
+      relayerRecipient,
+      new BN(100000),
+    );
+
    depositAmount =
      10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
    depositFeeAmount =
@@ -88,16 +99,20 @@ describe("Verifier Zero and One Tests", () => {
        userTokenAccount,
        Transaction.getSignerAuthorityPda(
          merkleTreeProgramId,
-         verifiers[verifier].verifierProgram.programId
+         verifiers[verifier].verifierProgram!.programId
        ), //delegate
        USER_TOKEN_ACCOUNT, // owner
        depositAmount * 10,
        [USER_TOKEN_ACCOUNT]
      );
 
-     let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
-
-
+     let lightProvider = await LightProvider.init(
+      ADMIN_AUTH_KEYPAIR,
+      undefined,
+      undefined,
+      undefined,
+      RELAYER,
+    ); // userKeypair
 
      deposit_utxo1 = new Utxo({
        poseidon: POSEIDON,
@@ -136,7 +151,7 @@ describe("Verifier Zero and One Tests", () => {
      );
      // does one successful transaction
      await transaction.sendAndConfirmTransaction();
-     await updateMerkleTreeForTest(provider.connection);
+     await lightProvider.relayer.updateMerkleTree(lightProvider);
 
      // // Deposit
      var deposit_utxo2 = new Utxo({

@@ -11,26 +11,16 @@ import {
   KEYPAIR_PRIVKEY,
   Account,
   MERKLE_TREE_KEY,
-  MINT,
-  offerBurnerPrivkey,
-  offerAuthorityPrivkey,
-  bidderPrivkey,
-  feeRecipient1Privkey,
-  feeRecipientPrivkey,
   TransactionParameters,
   SolMerkleTree,
   Provider as LightProvider,
   userTokenAccount,
-  USER_TOKEN_ACCOUNT,
-  verifierProgramTwoProgramId,
-  merkleTreeProgramId,
-  VerifierZero,
-  updateMerkleTreeForTest,
   ADMIN_AUTH_KEY,
   VerifierTwo,
   confirmConfig,
   Relayer,
   Action,
+  TestRelayer
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -44,7 +34,7 @@ import { assert, expect } from "chai";
 import { BN } from "@project-serum/anchor";
 import { it } from "mocha";
 const token = require("@solana/spl-token");
-var POSEIDON, LOOK_UP_TABLE, KEYPAIR, relayerRecipient: PublicKey;
+var POSEIDON, LOOK_UP_TABLE, KEYPAIR,RELAYER, relayerRecipient: PublicKey;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -66,10 +56,20 @@ describe("Mock verifier functional", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
     await setUpMerkleTree(provider);
-    relayerRecipient = SolanaKeypair.generate().publicKey;
     LOOK_UP_TABLE = await initLookUpTableFromFile(
       provider,
       "lookUpTable.txt" /*Array.from([relayerRecipient])*/,
+    );
+
+    relayerRecipient = SolanaKeypair.generate().publicKey;
+
+    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+
+    RELAYER = await TestRelayer.init(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      LOOK_UP_TABLE,
+      relayerRecipient,
+      new BN(100000),
     );
   });
 
@@ -77,7 +77,7 @@ describe("Mock verifier functional", () => {
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
+    let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER);
 
     outputUtxo = new Utxo({
       poseidon,
@@ -97,7 +97,7 @@ describe("Mock verifier functional", () => {
       lookUpTable: LOOK_UP_TABLE,
       verifier: new VerifierTwo(),
       poseidon,
-      action: Action.SHIELD
+      action: Action.SHIELD,
     });
 
     const appParams = {
@@ -108,7 +108,7 @@ describe("Mock verifier functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams
+      appParams,
     });
 
     await tx.compile();
@@ -116,13 +116,13 @@ describe("Mock verifier functional", () => {
       await tx.provider.provider.connection.requestAirdrop(
         tx.params.accounts.authority,
         1_000_000_000,
-      )
+      ),
     );
     await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
     await tx.checkBalances();
-    await updateMerkleTreeForTest(provider.connection);
+    await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
 
   it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
@@ -160,7 +160,7 @@ describe("Mock verifier functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams
+      appParams,
     });
 
     await tx.compile();
