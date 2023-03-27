@@ -108,7 +108,8 @@ export class Provider {
     if (relayer) {
       this.relayer = relayer;
     } else {
-      this.relayer = Relayer.init(
+      console.log("calling the relayer here with all the");
+      this.relayer = new Relayer(
         this.wallet!.publicKey,
         this.lookUpTable!,
         SolanaKeypair.generate().publicKey,
@@ -213,13 +214,19 @@ export class Provider {
    * @param connection get from useConnection() hook
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  static async init(
-    wallet: Wallet | SolanaKeypair | Keypair,
-    connection?: Connection,
-    confirmConfig?: ConfirmOptions,
-    url?: string,
-    relayer?: Relayer,
-  ): Promise<Provider> {
+  static async init({
+    wallet,
+    connection,
+    confirmConfig,
+    url,
+    relayer,
+  }: {
+    wallet: Wallet | SolanaKeypair | Keypair;
+    connection?: Connection;
+    confirmConfig?: ConfirmOptions;
+    url?: string;
+    relayer?: Relayer;
+  }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
     }

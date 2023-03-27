@@ -65,7 +65,7 @@ describe("Mock verifier functional", () => {
 
     await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
-    RELAYER = await TestRelayer.init(
+    RELAYER = await new TestRelayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
       relayerRecipient,
@@ -77,7 +77,10 @@ describe("Mock verifier functional", () => {
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER);
+    let lightProvider = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER
+    }); // userKeypair
 
     outputUtxo = new Utxo({
       poseidon,
@@ -128,7 +131,9 @@ describe("Mock verifier functional", () => {
   it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
-    let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
+    let lightProvider = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+    }); // userKeypair
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,

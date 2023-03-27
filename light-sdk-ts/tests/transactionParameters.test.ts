@@ -65,7 +65,7 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.relayerFee),
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
       account: keypair,
@@ -93,7 +93,7 @@ describe("Transaction Parameters Functional", () => {
           .sub(FIELD_SIZE)
           .mul(new anchor.BN(-1))
           .toString(),
-        relayer.relayerFee.toString(),
+        relayer.getRelayerFee().toString(),
       );
       assert.equal(
         params.assetPubkeys[0].toBase58(),
@@ -593,7 +593,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.relayerFee),
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
       account: keypair,
@@ -635,7 +635,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.relayerFee),
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(0),
       ],
       account: keypair,
@@ -1161,7 +1161,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [
-        new anchor.BN(depositFeeAmount).sub(relayer.relayerFee),
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
       account: keypair,

@@ -132,7 +132,11 @@ export class VerifierOne implements Verifier {
         transaction.transactionInputs.publicInputs.leaves[0],
         transaction.transactionInputs.publicInputs.feeAmount,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
-        new anchor.BN(transaction.params.relayer.relayerFee.toString()),
+        new anchor.BN(
+          transaction.params.relayer
+            .getRelayerFee(transaction.params.ataCreationFee)
+            .toString(),
+        ),
         Buffer.from(transaction.params.encryptedUtxos),
       )
       .accounts({
