@@ -36,16 +36,16 @@ import {
   SolMerkleTree,
   checkNfInserted,
   newAccountWithTokens,
-  updateMerkleTreeForTest,
   VerifierTwo,
   Action,
   useWallet,
+  TestRelayer
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 import { MockVerifier } from "../sdk/src";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
+var LOOK_UP_TABLE, POSEIDON, KEYPAIR,RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
 
@@ -99,9 +99,18 @@ describe("Verifier Two test", () => {
         [USER_TOKEN_ACCOUNT],
       );
 
-      let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR);
+      const relayerRecipient = SolanaKeypair.generate().publicKey;
 
+      await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
+      RELAYER = await TestRelayer.init(
+        ADMIN_AUTH_KEYPAIR.publicKey,
+        LOOK_UP_TABLE,
+        relayerRecipient,
+        new BN(100000),
+      );
+
+      let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER);
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -121,10 +130,8 @@ describe("Verifier Two test", () => {
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
-        lookUpTable: LOOK_UP_TABLE
+        lookUpTable: LOOK_UP_TABLE,
       });
-
-
 
       const appParams0 = {
         verifier: new MockVerifier(),
@@ -133,7 +140,7 @@ describe("Verifier Two test", () => {
       var transaction = new Transaction({
         provider: lightProvider,
         appParams: appParams0,
-        params: txParams
+        params: txParams,
       });
 
       await transaction.compileAndProve();
@@ -145,7 +152,7 @@ describe("Verifier Two test", () => {
       );
       // does one successful transaction
       await transaction.sendAndConfirmTransaction();
-      await updateMerkleTreeForTest(provider.connection);
+      await lightProvider.relayer.updateMerkleTree(lightProvider);
 
       // // Deposit
       var deposit_utxo2 = new Utxo({
@@ -166,7 +173,7 @@ describe("Verifier Two test", () => {
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
-        lookUpTable: LOOK_UP_TABLE
+        lookUpTable: LOOK_UP_TABLE,
       });
       const appParams = {
         verifier: new MockVerifier(),
@@ -175,7 +182,7 @@ describe("Verifier Two test", () => {
       var transaction1 = new Transaction({
         provider: lightProvider,
         params: txParams1,
-        appParams
+        appParams,
       });
       await transaction1.compileAndProve();
       transactions.push(transaction1);
@@ -184,20 +191,12 @@ describe("Verifier Two test", () => {
       var tokenRecipient = recipientTokenAccount;
 
       let lightProviderWithdrawal = await LightProvider.init(
-        ADMIN_AUTH_KEYPAIR,
+        ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER
       );
-      const relayerRecipient = SolanaKeypair.generate().publicKey;
+
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(relayerRecipient, 10000000),
       );
-      let relayer = new Relayer(
-        ADMIN_AUTH_KEYPAIR.publicKey,
-        lightProvider.lookUpTable,
-        relayerRecipient,
-        new BN(100000),
-      );
-
-
 
       let txParams2 = new TransactionParameters({
         inputUtxos: [deposit_utxo1],
@@ -205,21 +204,21 @@ describe("Verifier Two test", () => {
         recipient: tokenRecipient,
         recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
-        relayer,
+        relayer : lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
-        action: Action.UNSHIELD
+        action: Action.UNSHIELD,
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,
         params: txParams2,
-        appParams
+        appParams,
       });
 
       await tx.compileAndProve();
       // await tx.getRootIndex();
       // await tx.getPdaAddresses();
       transactions.push(tx);
-      console.log(transactions[0].remainingAccounts)
+      console.log(transactions[0].remainingAccounts);
     }
   });
 
@@ -360,7 +359,9 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       for (var i in tmp_tx.transactionInputs.publicInputs.nullifiers) {
-        tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(32).fill(2);
+        tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(
+          32,
+        ).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }
@@ -370,7 +371,9 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
-        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(2);
+        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
+          2,
+        );
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }
@@ -441,7 +444,11 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       // await tmp_tx.getPdaAddresses();
-      for (var i = 0; i < tmp_tx.remainingAccounts.nullifierPdaPubkeys.length; i++) {
+      for (
+        var i = 0;
+        i < tmp_tx.remainingAccounts.nullifierPdaPubkeys.length;
+        i++
+      ) {
         tmp_tx.remainingAccounts.nullifierPdaPubkeys[i] =
           tmp_tx.remainingAccounts.nullifierPdaPubkeys[
             (i + 1) % tmp_tx.remainingAccounts.nullifierPdaPubkeys.length
@@ -460,7 +467,11 @@ describe("Verifier Two test", () => {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       await tmp_tx.getPdaAddresses();
       if (tmp_tx.remainingAccounts.leavesPdaPubkeys.length > 1) {
-        for (var i = 0; i < tmp_tx.remainingAccounts.leavesPdaPubkeys.length; i++) {
+        for (
+          var i = 0;
+          i < tmp_tx.remainingAccounts.leavesPdaPubkeys.length;
+          i++
+        ) {
           tmp_tx.remainingAccounts.leavesPdaPubkeys[i] =
             tmp_tx.remainingAccounts.leavesPdaPubkeys[
               (i + 1) % tmp_tx.remainingAccounts.leavesPdaPubkeys.length
