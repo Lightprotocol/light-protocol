@@ -1157,7 +1157,7 @@ export class Transaction {
 
     let inIndices: string[][][] = [];
     utxos.map((utxo) => {
-      let tmpInIndices = [];
+      let tmpInIndices: string[][] = [];
       for (var a = 0; a < utxo.assets.length; a++) {
         let tmpInIndices1: string[] = [];
 

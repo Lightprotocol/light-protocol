@@ -26,7 +26,6 @@ export async function updateMerkleTreeForTest(
       MERKLE_TREE_KEY,
       provider && provider,
     );
-
     // let poseidon = await circomlibjs.buildPoseidonOpt();
 
     await executeUpdateMerkleTreeTransactions({
@@ -36,6 +35,7 @@ export async function updateMerkleTreeForTest(
       leavesPdas,
       merkle_tree_pubkey: MERKLE_TREE_KEY,
     });
+
     console.log("updateMerkleTreeForTest done");
   } catch (err) {
     console.error("failed at updateMerkleTreeForTest", err);
