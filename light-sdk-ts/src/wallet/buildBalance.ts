@@ -19,7 +19,7 @@ export async function getUnspentUtxo(
   merkleTree: MerkleTree,
   index: number,
 ) {
-  let decryptedUtxos = [];
+  let decryptedUtxos: Utxo[] = [];
   for (var i = 0; i < leavesPdas.length; i++) {
     try {
       // decrypt first leaves account and build utxo

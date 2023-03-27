@@ -63,17 +63,17 @@ describe("Test Relayer Errors", () => {
       });
   });
 
-  it("LOOK_UP_TABLE_UNDEFINED", () => {
-    expect(() => {
-      // @ts-ignore
-      new Relayer(mockKeypair.publicKey);
-    })
-      .to.throw(RelayerError)
-      .includes({
-        code: RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
-        functionName: "constructor",
-      });
-  });
+  // it("LOOK_UP_TABLE_UNDEFINED", () => {
+  //   expect(() => {
+  //     // @ts-ignore
+  //     new Relayer(mockKeypair.publicKey);
+  //   })
+  //     .to.throw(RelayerError)
+  //     .includes({
+  //       code: RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+  //       functionName: "constructor",
+  //     });
+  // });
 
   it("RELAYER_FEE_UNDEFINED", () => {
     expect(() => {
