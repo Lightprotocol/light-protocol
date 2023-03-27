@@ -241,6 +241,7 @@ export class User {
     // for transfer
     shieldedRecipients,
     relayer,
+    ataCreationFee,
   }: {
     tokenCtx: TokenContext;
     publicAmountSpl?: BN;
@@ -251,6 +252,7 @@ export class User {
     shieldedRecipients?: Recipient[];
     action: Action;
     relayer?: Relayer;
+    ataCreationFee?: boolean;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
@@ -262,7 +264,7 @@ export class User {
         "Recipient not provided for transfer",
       );
 
-    if (action !== Action.SHIELD && !relayer?.relayerFee) {
+    if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
       // TODO: could make easier to read by adding separate if/cases
       throw new UserError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
@@ -287,7 +289,7 @@ export class User {
       publicAmountSol,
       recipients: shieldedRecipients,
       utxos: this.utxos,
-      relayerFee: relayer?.relayerFee,
+      relayerFee: relayer?.getRelayerFee(ataCreationFee),
       action,
     });
 
@@ -297,7 +299,7 @@ export class User {
       inUtxos: inputUtxos,
       publicAmountSol, // TODO: add support for extra sol for unshield & transfer
       poseidon: this.provider.poseidon,
-      relayerFee: relayer?.relayerFee,
+      relayerFee: relayer?.getRelayerFee(ataCreationFee),
       changeUtxoAccount: this.account,
       recipients: shieldedRecipients,
       action,
@@ -317,6 +319,7 @@ export class User {
       action,
       lookUpTable: this.provider.lookUpTable!,
       relayer,
+      ataCreationFee,
     });
 
     return txParams;
@@ -568,10 +571,6 @@ export class User {
       ? this.provider.minimumLamports
       : new BN(0);
 
-    if (ataCreationFee) {
-      this.provider.relayer.relayerFee = new anchor.BN(500000);
-    }
-
     const relayer = this.provider.relayer;
 
     const txParams = await this.getTxParams({
@@ -582,6 +581,7 @@ export class User {
       recipientFee: recipientSol ? recipientSol : AUTHORITY,
       recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
       relayer,
+      ataCreationFee,
     });
 
     let tx = new Transaction({

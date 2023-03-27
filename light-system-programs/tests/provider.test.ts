@@ -33,7 +33,7 @@ import {
   confirmConfig,
   DEFAULT_ZERO,
   MERKLE_TREE_KEY,
-  TestRelayer
+  TestRelayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -74,7 +74,7 @@ describe("verifier_program", () => {
 
     await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
-    RELAYER = await TestRelayer.init(
+    RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
       relayerRecipient,
@@ -92,7 +92,7 @@ describe("verifier_program", () => {
       "confirmed",
     );
     const mockKeypair = SolanaKeypair.generate();
-    const lightProviderMock = await LightProvider.init(mockKeypair);
+    const lightProviderMock = await LightProvider.init({ wallet: mockKeypair });
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(
       lightProviderMock.wallet?.publicKey.toBase58(),
@@ -117,13 +117,10 @@ describe("verifier_program", () => {
   });
 
   it("Fetch latestMerkleTree", async () => {
-    const lightProvider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const lightProvider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
 
     let depositFeeAmount = 10000;
     let depositAmount = 0;

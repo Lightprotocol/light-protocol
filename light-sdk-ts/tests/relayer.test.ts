@@ -48,6 +48,13 @@ describe("Test Relayer Functional", () => {
       relayerRecipient.toBase58(),
     );
   });
+
+  it("Relayer ataCreationFee", () => {
+    let relayer = new Relayer(mockKeypair.publicKey, mockKeypair1.publicKey);
+    assert.equal(relayer.relayerFee.toString(), "0");
+    assert.equal(new anchor.BN(500000).toNumber(), relayer.getRelayerFee(true).toNumber());
+    assert.equal(new anchor.BN(0).toNumber(), relayer.getRelayerFee(false).toNumber());
+  });
 });
 
 describe("Test Relayer Errors", () => {
@@ -62,18 +69,6 @@ describe("Test Relayer Errors", () => {
         functionName: "constructor",
       });
   });
-
-  // it("LOOK_UP_TABLE_UNDEFINED", () => {
-  //   expect(() => {
-  //     // @ts-ignore
-  //     new Relayer(mockKeypair.publicKey);
-  //   })
-  //     .to.throw(RelayerError)
-  //     .includes({
-  //       code: RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
-  //       functionName: "constructor",
-  //     });
-  // });
 
   it("RELAYER_FEE_UNDEFINED", () => {
     expect(() => {

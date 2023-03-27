@@ -103,14 +103,17 @@ describe("Verifier Two test", () => {
 
       await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
-      RELAYER = await TestRelayer.init(
+      RELAYER = await new TestRelayer(
         ADMIN_AUTH_KEYPAIR.publicKey,
         LOOK_UP_TABLE,
         relayerRecipient,
         new BN(100000),
       );
 
-      let lightProvider = await LightProvider.init(ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER);
+      let lightProvider = await LightProvider.init({
+        wallet: ADMIN_AUTH_KEYPAIR,
+        relayer: RELAYER
+      }); // userKeypair
 
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -190,9 +193,10 @@ describe("Verifier Two test", () => {
       // Withdrawal
       var tokenRecipient = recipientTokenAccount;
 
-      let lightProviderWithdrawal = await LightProvider.init(
-        ADMIN_AUTH_KEYPAIR,undefined,undefined,undefined,RELAYER
-      );
+      let lightProviderWithdrawal = await LightProvider.init({
+        wallet: ADMIN_AUTH_KEYPAIR,
+        relayer: RELAYER
+      }); // userKeypair
 
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(relayerRecipient, 10000000),

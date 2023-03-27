@@ -35,13 +35,13 @@ import {
   checkNfInserted,
   newAccountWithTokens,
   Action,
-  useWallet
+  useWallet,
   TestRelayer
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1, RELAYER;
+var LOOK_UP_TABLE, POSEIDON, KEYPAIR,RELAYER, deposit_utxo1 ;
 
 var transactions: Transaction[] = [];
 console.log = () => {};
@@ -78,7 +78,7 @@ describe("Verifier Zero and One Tests", () => {
 
     await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
-    RELAYER = await TestRelayer.init(
+    RELAYER = await new TestRelayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
       relayerRecipient,
@@ -106,13 +106,10 @@ describe("Verifier Zero and One Tests", () => {
        [USER_TOKEN_ACCOUNT]
      );
 
-     let lightProvider = await LightProvider.init(
-      ADMIN_AUTH_KEYPAIR,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+     let lightProvider = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    }); // userKeypair
 
      deposit_utxo1 = new Utxo({
        poseidon: POSEIDON,
@@ -186,9 +183,10 @@ describe("Verifier Zero and One Tests", () => {
      // Withdrawal
      var tokenRecipient = recipientTokenAccount;
 
-     let lightProviderWithdrawal = await LightProvider.init(
-       ADMIN_AUTH_KEYPAIR
-     );
+     let lightProviderWithdrawal = await LightProvider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+    }); // userKeypair
+
      const relayerRecipient = SolanaKeypair.generate().publicKey;
      await provider.connection.confirmTransaction(
        await provider.connection.requestAirdrop(relayerRecipient, 10000000)

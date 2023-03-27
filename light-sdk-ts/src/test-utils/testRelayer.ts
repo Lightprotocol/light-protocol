@@ -10,8 +10,15 @@ export class TestRelayer extends Relayer {
     lookUpTable: PublicKey,
     relayerRecipient?: PublicKey,
     relayerFee: BN = new BN(0),
+    highRelayerFee?: BN,
   ) {
-    super(relayerPubkey, lookUpTable, relayerRecipient, relayerFee);
+    super(
+      relayerPubkey,
+      lookUpTable,
+      relayerRecipient,
+      relayerFee,
+      highRelayerFee,
+    );
   }
 
   async updateMerkleTree(provider: Provider): Promise<any> {
@@ -24,20 +31,5 @@ export class TestRelayer extends Relayer {
       console.log(e);
       throw e;
     }
-  }
-
-  static init(
-    relayerPubkey: PublicKey,
-    lookUpTable: PublicKey,
-    relayerRecipient: PublicKey,
-    relayerFee: BN,
-  ): TestRelayer {
-    let testRelayer = new TestRelayer(
-      relayerPubkey,
-      lookUpTable,
-      relayerRecipient,
-      relayerFee,
-    );
-    return testRelayer;
   }
 }

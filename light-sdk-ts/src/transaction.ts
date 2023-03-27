@@ -113,6 +113,7 @@ export class TransactionParameters implements transactionParameters {
   assetPubkeys: PublicKey[];
   assetPubkeysCircuit: string[];
   action: Action;
+  ataCreationFee?: boolean;
 
   constructor({
     merkleTreePubkey,
@@ -128,6 +129,7 @@ export class TransactionParameters implements transactionParameters {
     poseidon,
     action,
     lookUpTable,
+    ataCreationFee,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -143,6 +145,7 @@ export class TransactionParameters implements transactionParameters {
     action: Action;
     lookUpTable?: PublicKey;
     provider?: Provider;
+    ataCreationFee?: boolean;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -184,6 +187,7 @@ export class TransactionParameters implements transactionParameters {
 
     this.verifier = verifier;
     this.poseidon = poseidon;
+    this.ataCreationFee = ataCreationFee;
     this.encryptedUtxos = encryptedUtxos;
     this.action = action;
     this.inputUtxos = this.addEmptyUtxos(inputUtxos, this.verifier.config.in);
@@ -421,13 +425,20 @@ export class TransactionParameters implements transactionParameters {
         );
 
       const tmpSol = this.publicAmountSol;
-      if (!tmpSol.sub(FIELD_SIZE).mul(new BN(-1)).eq(relayer.relayerFee))
+      if (
+        !tmpSol
+          .sub(FIELD_SIZE)
+          .mul(new BN(-1))
+          .eq(relayer.getRelayerFee(ataCreationFee))
+      )
         throw new TransactioParametersError(
           TransactionParametersErrorCode.PUBLIC_AMOUNT_SOL_NOT_ZERO,
           "constructor",
-          `public amount ${tmpSol.sub(FIELD_SIZE).mul(new BN(-1))}  should be ${
-            relayer.relayerFee
-          }`,
+          `public amount ${tmpSol
+            .sub(FIELD_SIZE)
+            .mul(new BN(-1))}  should be ${relayer.getRelayerFee(
+            ataCreationFee,
+          )}`,
         );
 
       if (recipient) {
@@ -556,7 +567,7 @@ export class TransactionParameters implements transactionParameters {
           !this.publicAmountSol
             ?.sub(FIELD_SIZE)
             .mul(new BN(-1))
-            .sub(new BN(this.relayer.relayerFee))
+            .sub(new BN(this.relayer.getRelayerFee(this.ataCreationFee)))
             .eq(new BN(0))
         ) {
           throw new TransactioParametersError(
@@ -1270,7 +1281,7 @@ export class Transaction {
         "getTxIntegrityHash",
         "",
       );
-    if (!this.params.relayer.relayerFee)
+    if (!this.params.relayer.getRelayerFee(this.params.ataCreationFee))
       throw new TransactionError(
         TransactionErrorCode.RELAYER_FEE_UNDEFINED,
         "getTxIntegrityHash",
@@ -1300,7 +1311,9 @@ export class Transaction {
           ...this.params.accounts.recipient?.toBytes(),
           ...this.params.accounts.recipientFee.toBytes(),
           ...this.params.relayer.accounts.relayerPubkey.toBytes(),
-          ...this.params.relayer.relayerFee.toArray("le", 8),
+          ...this.params.relayer
+            .getRelayerFee(this.params.ataCreationFee)
+            .toArray("le", 8),
           ...this.params.encryptedUtxos,
         ]);
 
@@ -2191,22 +2204,26 @@ export class Transaction {
           "confirmed",
         );
 
-      // console.log("relayerAccount ", relayerAccount);
-      // console.log("this.params.relayer.relayerFee: ", this.params.relayer.relayerFee);
       console.log(
         "testValues.relayerRecipientAccountBalancePriorLastTx ",
         this.testValues.relayerRecipientAccountBalancePriorLastTx,
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
-          .sub(this.params.relayer.relayerFee)
+          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
           .toString()} == ${new anchor.BN(
           this.testValues.relayerRecipientAccountBalancePriorLastTx,
         )}`,
       );
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
-          .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
+          .add(
+            new anchor.BN(
+              this.params.relayer
+                .getRelayerFee(this.params.ataCreationFee)
+                .toString(),
+            ),
+          )
           .toString()}  == ${new anchor.BN(
           this.testValues.recipientFeeBalancePriorTx,
         )
@@ -2216,7 +2233,13 @@ export class Transaction {
 
       assert.equal(
         new anchor.BN(recipientFeeAccount)
-          .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
+          .add(
+            new anchor.BN(
+              this.params.relayer
+                .getRelayerFee(this.params.ataCreationFee)
+                .toString(),
+            ),
+          )
           .toString(),
         new anchor.BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
@@ -2225,7 +2248,7 @@ export class Transaction {
       // console.log(`this.params.relayer.relayerFee ${this.params.relayer.relayerFee} new anchor.BN(relayerAccount) ${new anchor.BN(relayerAccount)}`);
       assert.equal(
         new anchor.BN(relayerAccount)
-          .sub(this.params.relayer.relayerFee)
+          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),
       );
@@ -2281,14 +2304,14 @@ export class Transaction {
         );
 
       // console.log("relayerAccount ", relayerAccount);
-      // console.log("this.params.relayer.relayerFee: ", this.params.relayer.relayerFee);
+      // console.log("this.params.relayer.relayerFee: ", this.params.relayer.getRelayerFee);
       console.log(
         "testValues.relayerRecipientAccountBalancePriorLastTx ",
         this.testValues.relayerRecipientAccountBalancePriorLastTx,
       );
       console.log(
         `relayerFeeAccount ${new anchor.BN(relayerAccount)
-          .sub(this.params.relayer.relayerFee)
+          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
           .toString()} == ${new anchor.BN(
           this.testValues.relayerRecipientAccountBalancePriorLastTx,
         )}`,
@@ -2296,7 +2319,13 @@ export class Transaction {
 
       console.log(
         `recipientFeeAccount ${new anchor.BN(recipientFeeAccount)
-          .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
+          .add(
+            new anchor.BN(
+              this.params.relayer
+                .getRelayerFee(this.params.ataCreationFee)
+                .toString(),
+            ),
+          )
           .toString()}  == ${new anchor.BN(
           this.testValues.recipientFeeBalancePriorTx,
         )
@@ -2306,7 +2335,13 @@ export class Transaction {
 
       assert.equal(
         new anchor.BN(recipientFeeAccount)
-          .add(new anchor.BN(this.params.relayer.relayerFee.toString()))
+          .add(
+            new anchor.BN(
+              this.params.relayer
+                .getRelayerFee(this.params.ataCreationFee)
+                .toString(),
+            ),
+          )
           .toString(),
         new anchor.BN(this.testValues.recipientFeeBalancePriorTx)
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
@@ -2315,7 +2350,7 @@ export class Transaction {
 
       assert.equal(
         new anchor.BN(relayerAccount)
-          .sub(this.params.relayer.relayerFee)
+          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
           // .add(new anchor.BN("5000"))
           .toString(),
         this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString(),

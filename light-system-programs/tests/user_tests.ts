@@ -35,7 +35,7 @@ import {
   UserErrorCode,
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
-  TestRelayer
+  TestRelayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -73,7 +73,7 @@ describe("Test User", () => {
 
     await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
 
-    RELAYER = await TestRelayer.init(
+    RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
       relayerRecipient,
@@ -85,13 +85,10 @@ describe("Test User", () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -165,13 +162,10 @@ describe("Test User", () => {
   it("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL";
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
@@ -227,13 +221,10 @@ describe("Test User", () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -299,7 +290,7 @@ describe("Test User", () => {
     const postTokenBalance =
       await provider.provider.connection.getTokenAccountBalance(
         recipientSplBalance,
-        "confirmed"
+        "confirmed",
       );
     assert.equal(
       postTokenBalance.value.uiAmount,
@@ -331,13 +322,10 @@ describe("Test User", () => {
   it("(user class) transfer SPL", async () => {
     let amountSpl = 1;
     const token = "USDC";
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
@@ -391,8 +379,7 @@ describe("Test User", () => {
     const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount.toNumber(),
-      // this is changed to 500000 as in transfer we have relaterFee = new anchor.BN(500000)
-      solBalancePre.amount.toNumber() - 500000, // FIXME: no fees being charged here apparently
+      solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
     );
   });
@@ -407,13 +394,10 @@ describe("Test User", () => {
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -453,13 +437,10 @@ describe("Test User", () => {
       "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
     );
 
-    const provider = await Provider.init(
-      userKeypair,
-      undefined,
-      undefined,
-      undefined,
-      RELAYER,
-    ); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
 
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
@@ -492,7 +473,10 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.init(userKeypair); // userKeypair
+    provider = await await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,

@@ -12,6 +12,7 @@ export class Relayer {
     lookUpTable: PublicKey;
   };
   relayerFee: BN;
+  highRelayerFee: BN;
 
   /**
    *
@@ -25,6 +26,7 @@ export class Relayer {
     lookUpTable: PublicKey,
     relayerRecipient?: PublicKey,
     relayerFee: BN = new BN(0),
+    highRelayerFee: BN = new BN(500000),
   ) {
     if (!relayerPubkey) {
       throw new RelayerError(
@@ -32,7 +34,6 @@ export class Relayer {
         "constructor",
       );
     }
-    // FIXME:
     // if (!lookUpTable) {
     //   throw new RelayerError(
     //     RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
@@ -64,6 +65,7 @@ export class Relayer {
         relayerRecipient: relayerPubkey,
       };
     }
+    this.highRelayerFee = highRelayerFee;
     this.relayerFee = relayerFee;
   }
 
@@ -79,18 +81,7 @@ export class Relayer {
     }
   }
 
-  static init(
-    relayerPubkey: PublicKey,
-    lookUpTable: PublicKey,
-    relayerRecipient: PublicKey,
-    relayerFee: BN,
-  ): Relayer {
-    let relayer = new Relayer(
-      relayerPubkey,
-      lookUpTable,
-      relayerRecipient,
-      relayerFee,
-    );
-    return relayer;
+  getRelayerFee(ataCreationFee?: boolean) {
+    return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
 }
