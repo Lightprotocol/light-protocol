@@ -108,7 +108,6 @@ export class Provider {
     if (relayer) {
       this.relayer = relayer;
     } else {
-      console.log("calling the relayer here with all the");
       this.relayer = new Relayer(
         this.wallet!.publicKey,
         this.lookUpTable!,
