@@ -1,6 +1,9 @@
-import { Keypair, PublicKey } from "@solana/web3.js";
+import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { RelayerError, RelayerErrorCode } from "./errors";
+import { updateMerkleTreeForTest } from "./test-utils";
+import { Provider } from "./wallet";
+import axios from "axios";
 
 export class Relayer {
   accounts: {
@@ -9,6 +12,7 @@ export class Relayer {
     lookUpTable: PublicKey;
   };
   relayerFee: BN;
+  highRelayerFee: BN;
 
   /**
    *
@@ -22,6 +26,7 @@ export class Relayer {
     lookUpTable: PublicKey,
     relayerRecipient?: PublicKey,
     relayerFee: BN = new BN(0),
+    highRelayerFee: BN = new BN(500000),
   ) {
     if (!relayerPubkey) {
       throw new RelayerError(
@@ -29,12 +34,12 @@ export class Relayer {
         "constructor",
       );
     }
-    if (!lookUpTable) {
-      throw new RelayerError(
-        RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
-        "constructor",
-      );
-    }
+    // if (!lookUpTable) {
+    //   throw new RelayerError(
+    //     RelayerErrorCode.LOOK_UP_TABLE_UNDEFINED,
+    //     "constructor",
+    //   );
+    // }
     if (relayerRecipient && relayerFee.toString() === "0") {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
@@ -60,6 +65,23 @@ export class Relayer {
         relayerRecipient: relayerPubkey,
       };
     }
+    this.highRelayerFee = highRelayerFee;
     this.relayerFee = relayerFee;
+  }
+
+  async updateMerkleTree(provider: Provider) {
+    try {
+      const response = await axios.post(
+        "http://localhost:3331/updatemerkletree",
+      );
+      return response;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
+  getRelayerFee(ataCreationFee?: boolean) {
+    return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
 }

@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import {Keypair as SolanaKeypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import {
+  Keypair as SolanaKeypair,
+  PublicKey,
+  SystemProgram,
+} from "@solana/web3.js";
 import _ from "lodash";
 import { assert } from "chai";
 const chai = require("chai");
@@ -25,13 +29,13 @@ import {
   User,
   strToArr,
   TOKEN_REGISTRY,
-  updateMerkleTreeForTest,
   createOutUtxos,
   Account,
   CreateUtxoErrorCode,
   UserErrorCode,
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
+  TestRelayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -39,6 +43,7 @@ import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
+var RELAYER;
 
 // TODO: remove deprecated function calls
 describe("Test User", () => {
@@ -63,13 +68,27 @@ describe("Test User", () => {
     await setUpMerkleTree(provider);
     // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
+
+    const relayerRecipient = SolanaKeypair.generate().publicKey;
+
+    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+
+    RELAYER = await new TestRelayer(
+      userKeypair.publicKey,
+      LOOK_UP_TABLE,
+      relayerRecipient,
+      new BN(100000),
+    );
   });
 
   it("(user class) shield SPL", async () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
-    const provider = await Provider.init(userKeypair); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -90,17 +109,6 @@ describe("Test User", () => {
 
     await user.shield({ publicAmountSpl: amount, token });
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
     let balance;
@@ -119,7 +127,8 @@ describe("Test User", () => {
     // assert that the user's shielded balance has increased by the amount shielded
     assert.equal(
       tokenBalanceAfter.amount,
-      tokenBalancePre.amount.toNumber() + amount * tokenCtx?.decimals.toNumber(),
+      tokenBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
       `shielded balance after ${tokenBalanceAfter.amount} != shield amount ${
         amount * tokenCtx?.decimals.toNumber()
       }`,
@@ -152,8 +161,11 @@ describe("Test User", () => {
 
   it("(user class) shield SOL", async () => {
     let amount = 15;
-    let token = "SOL"
-    const provider = await Provider.init(userKeypair);
+    let token = "SOL";
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
@@ -167,21 +179,6 @@ describe("Test User", () => {
     );
 
     await user.shield({ publicAmountSol: amount, token });
-    // TODO: add random amount and amount checks
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
@@ -206,7 +203,8 @@ describe("Test User", () => {
     // assert that the user's shielded balance has increased by the amount shielded
     assert.equal(
       solShieldedBalanceAfter.amount.toNumber(),
-      solShieldedBalancePre.amount.toNumber() + amount * tokenCtx?.decimals.toNumber(),
+      solShieldedBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
       `shielded balance after ${
         solShieldedBalanceAfter.amount
       } != shield amount ${amount * tokenCtx?.decimals.toNumber()}`,
@@ -223,7 +221,10 @@ describe("Test User", () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
-    const provider = await Provider.init(userKeypair); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -259,19 +260,12 @@ describe("Test User", () => {
     const user: User = await User.load(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
 
-    await user.unshield({ publicAmountSpl: amount, token, recipientSpl: solRecipient.publicKey });
+    await user.unshield({
+      publicAmountSpl: amount,
+      token,
+      recipientSpl: solRecipient.publicKey,
+    });
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
@@ -285,7 +279,8 @@ describe("Test User", () => {
     // assert that the user's shielded balance has decreased by the amount unshielded
     assert.equal(
       tokenBalanceAfter.amount.toNumber(),
-      tokenBalancePre.amount.toNumber() - amount * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
+      tokenBalancePre.amount.toNumber() -
+        amount * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
       `shielded balance after ${tokenBalanceAfter.amount} != unshield amount ${
         amount * tokenCtx?.decimals.toNumber()
       }`,
@@ -295,6 +290,7 @@ describe("Test User", () => {
     const postTokenBalance =
       await provider.provider.connection.getTokenAccountBalance(
         recipientSplBalance,
+        "confirmed",
       );
     assert.equal(
       postTokenBalance.value.uiAmount,
@@ -310,11 +306,15 @@ describe("Test User", () => {
       (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
     );
     const minimumBalance = 150000;
-    const tokenAccountFee = 500_000
+    const tokenAccountFee = 500_000;
     assert.equal(
       solBalanceAfter.amount.toNumber(),
       solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee, // FIXME: no fees being charged here apparently
-      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount ${solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee}`,
+      `shielded sol balance after ${
+        solBalanceAfter.amount
+      } != unshield amount ${
+        solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee
+      }`,
     );
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
@@ -322,12 +322,14 @@ describe("Test User", () => {
   it("(user class) transfer SPL", async () => {
     let amountSpl = 1;
     const token = "USDC";
-    const provider = await Provider.init(userKeypair); // userKeypair
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     const shieldedRecipient =
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
       "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
 
     const recipientAccount = Account.fromPubkey(
       strToArr(shieldedRecipient),
@@ -349,17 +351,6 @@ describe("Test User", () => {
       recipient: recipientAccount,
     });
 
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(provider.provider?.connection!);
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
@@ -372,7 +363,8 @@ describe("Test User", () => {
     // assert that the user's shielded balance has decreased by the amount transferred
     assert.equal(
       tokenBalanceAfter.amount.toNumber(),
-      tokenBalancePre.amount.toNumber() - amountSpl * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
+      tokenBalancePre.amount.toNumber() -
+        amountSpl * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
       `shielded balance after ${tokenBalanceAfter.amount} != unshield amount ${
         amountSpl * tokenCtx?.decimals.toNumber()
       }`,
@@ -387,7 +379,7 @@ describe("Test User", () => {
     const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount.toNumber(),
-      solBalancePre.amount.toNumber() - 100000, // FIXME: no fees being charged here apparently
+      solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
     );
   });
@@ -399,11 +391,13 @@ describe("Test User", () => {
       "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
     const encryptionPublicKey =
       "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
     const recipient = new anchor.BN(shieldedRecipient, "hex");
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
-    const provider = await Provider.init(userKeypair);
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -416,20 +410,7 @@ describe("Test User", () => {
       recipient,
       recipientEncryptionPublicKey, // TODO: do shielded address
     });
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
+
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
@@ -455,27 +436,17 @@ describe("Test User", () => {
     let recipient = new PublicKey(
       "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
     );
-    const provider = await Provider.init(userKeypair);
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
+
     const user = await User.load(provider);
     await user.unshield({ amount, token, recipient });
-    try {
-      console.log("updating merkle tree...");
-      let initLog = console.log;
-      console.log = () => {};
-      await updateMerkleTreeForTest(
-        provider.provider?.connection!,
-        // provider.provider,
-      );
-      console.log = initLog;
-      console.log("✔️updated merkle tree!");
-    } catch (e) {
-      console.log(e);
-      throw new Error("Failed to update merkle tree!");
-    }
     // TODO: add random amount and amount checks
   });
 });
-
 
 describe("Test User Errors", () => {
   // Configure the client to use the local cluster.
@@ -493,7 +464,7 @@ describe("Test User Errors", () => {
 
   let amount, token, provider, user;
   before("init test setup Merkle tree lookup table etc ", async () => {
-    if((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
+    if ((await providerAnchor.connection.getBalance(ADMIN_AUTH_KEY)) === 0) {
       await createTestAccounts(providerAnchor.connection);
       LOOK_UP_TABLE = await initLookUpTableFromFile(providerAnchor);
     }
@@ -502,7 +473,10 @@ describe("Test User Errors", () => {
     amount = 20;
     token = "USDC";
 
-    provider = await Provider.init(userKeypair); // userKeypair
+    provider = await await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
@@ -513,140 +487,136 @@ describe("Test User Errors", () => {
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
       user.shield({ token }),
-      CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED
-    )
+      CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+    );
   });
 
   it("TOKEN_UNDEFINED shield", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.shield({ publicAmountSpl: amount }),
-      UserErrorCode.TOKEN_UNDEFINED
-    )
+      UserErrorCode.TOKEN_UNDEFINED,
+    );
   });
 
   it("INVALID_TOKEN shield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSpl: amount , token: "SOL"}),
-      UserErrorCode.INVALID_TOKEN
-    )
+      user.shield({ publicAmountSpl: amount, token: "SOL" }),
+      UserErrorCode.INVALID_TOKEN,
+    );
   });
 
   it("TOKEN_ACCOUNT_DEFINED shield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSol: amount , token: "SOL", senderTokenAccount: SolanaKeypair.generate().publicKey}),
-      UserErrorCode.TOKEN_ACCOUNT_DEFINED
-    )
+      user.shield({
+        publicAmountSol: amount,
+        token: "SOL",
+        senderTokenAccount: SolanaKeypair.generate().publicKey,
+      }),
+      UserErrorCode.TOKEN_ACCOUNT_DEFINED,
+    );
   });
 
   it("TOKEN_NOT_FOUND shield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSol: amount , token: "SPL"}),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.shield({ publicAmountSol: amount, token: "SPL" }),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("TOKEN_NOT_FOUND unshield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ amountSol: amount , token: "SPL"}),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.unshield({ amountSol: amount, token: "SPL" }),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("TOKEN_NOT_FOUND transfer", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ amountSol: amount , token: "SPL"}),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.unshield({ amountSol: amount, token: "SPL" }),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED unshield", async () => {
-    
     await chai.assert.isRejected(
       user.unshield({ token }),
-      CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED
-    )
+      CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
+    );
   });
 
   it("TOKEN_NOT_FOUND unshield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ }),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.unshield({}),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("SOL_RECIPIENT_UNDEFINED unshield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token: "SOL", publicAmountSol: new BN(1)}),
-      TransactionErrorCode.SOL_RECIPIENT_UNDEFINED
-    )
+      user.unshield({ token: "SOL", publicAmountSol: new BN(1) }),
+      TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+    );
 
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token, publicAmountSol: new BN(1), publicAmountSpl: new BN(1), recipientSpl: SolanaKeypair.generate().publicKey}),
-      TransactionErrorCode.SOL_RECIPIENT_UNDEFINED
-    )
+      user.unshield({
+        token,
+        publicAmountSol: new BN(1),
+        publicAmountSpl: new BN(1),
+        recipientSpl: SolanaKeypair.generate().publicKey,
+      }),
+      TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+    );
   });
 
   it("SPL_RECIPIENT_UNDEFINED unshield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.unshield({ token, publicAmountSpl: new BN(1)}),
-      TransactionErrorCode.SPL_RECIPIENT_UNDEFINED
-    )
+      user.unshield({ token, publicAmountSpl: new BN(1) }),
+      TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+    );
   });
 
   it("TOKEN_NOT_FOUND shield", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.shield({ publicAmountSol: SolanaKeypair.generate().publicKey}),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.shield({ publicAmountSol: SolanaKeypair.generate().publicKey }),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("TOKEN_NOT_FOUND transfer", async () => {
-    
     await chai.assert.isRejected(
       // @ts-ignore
-      user.transfer({recipient: new Account({poseidon: POSEIDON}), amountSol: new BN(1) }),
-      UserErrorCode.TOKEN_NOT_FOUND
-    )
+      user.transfer({
+        recipient: new Account({ poseidon: POSEIDON }),
+        amountSol: new BN(1),
+      }),
+      UserErrorCode.TOKEN_NOT_FOUND,
+    );
   });
 
   it("SHIELDED_RECIPIENT_UNDEFINED transfer", async () => {
-  
     await chai.assert.isRejected(
       // @ts-ignore
-      user.transfer({ }),
-      UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED
-    )
+      user.transfer({}),
+      UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+    );
   });
 
   it("NO_AMOUNTS_PROVIDED transfer", async () => {
-
     await chai.assert.isRejected(
       // @ts-ignore
-      user.transfer({recipient: new Account({poseidon: POSEIDON}) }),
-      UserErrorCode.NO_AMOUNTS_PROVIDED
-    )
+      user.transfer({ recipient: new Account({ poseidon: POSEIDON }) }),
+      UserErrorCode.NO_AMOUNTS_PROVIDED,
+    );
   });
-
-
-
-})
+});

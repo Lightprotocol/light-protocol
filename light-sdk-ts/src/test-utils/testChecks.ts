@@ -56,6 +56,7 @@ export async function checkMerkleTreeUpdateStateCreated({
   const merkleTreeUpdateStateData =
     await merkleTreeProgram.account.merkleTreeUpdateState.fetch(
       merkleTreeUpdateState,
+      "confirmed",
     );
   // merkleTreeProgram.account.preInsertedLeavesIndex._coder.accounts.decode(
   //   "MerkleTreeUpdateState",
@@ -64,6 +65,7 @@ export async function checkMerkleTreeUpdateStateCreated({
 
   var MerkleTreeAccountInfo = await merkleTreeProgram.account.merkleTree.fetch(
     MerkleTree,
+    "confirmed",
   );
 
   // console.log("merkleTreeUpdateStateData.leaves ", merkleTreeUpdateStateData.leaves);
