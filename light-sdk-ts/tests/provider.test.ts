@@ -66,7 +66,7 @@ describe("Test Provider Functional", () => {
 
   it("Mock Provider", async () => {
     const lightProviderMock = await LightProvider.loadMock();
-    assert.equal(lightProviderMock.wallet.isNodeWallet,true);
+    assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(
       lightProviderMock.wallet?.publicKey.toBase58(),
       ADMIN_AUTH_KEYPAIR.publicKey.toBase58(),
@@ -88,7 +88,7 @@ describe("Test Provider Functional", () => {
   it("KEYPAIR_UNDEFINED Provider", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.init(),
+      LightProvider.init({}),
       ProviderErrorCode.KEYPAIR_UNDEFINED,
     );
   });
@@ -129,30 +129,14 @@ describe("Test Provider Functional", () => {
       });
   });
 
-  it("KEYPAIR_UNDEFINED browser", async () => {
-    await chai.assert.isRejected(
-      // @ts-ignore
-      LightProvider.init(),
-      ProviderErrorCode.KEYPAIR_UNDEFINED,
-    );
-  });
-
-  it("KEYPAIR_UNDEFINED browser", async () => {
-    await chai.assert.isRejected(
-      // @ts-ignore
-      LightProvider.init(),
-      ProviderErrorCode.KEYPAIR_UNDEFINED,
-    );
-  });
-
   it("CONNECTION_UNDEFINED browser", async () => {
     const mockKeypair = SolanaKeypair.generate();
 
-    const wallet = useWallet(mockKeypair)
+    const wallet = useWallet(mockKeypair);
 
     await chai.assert.isRejected(
       // @ts-ignore
-      LightProvider.init(wallet),
+      LightProvider.init({ wallet }),
       ProviderErrorCode.CONNECTION_UNDEFINED,
     );
   });

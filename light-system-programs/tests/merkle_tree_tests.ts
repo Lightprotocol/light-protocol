@@ -1,5 +1,9 @@
 import * as anchor from "@coral-xyz/anchor";
-import { SystemProgram, Keypair as SolanaKeypair, Keypair } from "@solana/web3.js";
+import {
+  SystemProgram,
+  Keypair as SolanaKeypair,
+  Keypair,
+} from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
 import { assert, expect } from "chai";
@@ -111,8 +115,8 @@ describe("Merkle Tree Tests", () => {
       new anchor.BN(
         newTree.roots[newTree.currentRootIndex.toNumber()],
         32,
-        "le"
-      ).toString()
+        "le",
+      ).toString(),
     );
   });
 
@@ -579,7 +583,7 @@ describe("Merkle Tree Tests", () => {
       [USER_TOKEN_ACCOUNT],
     );
 
-    let lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
+    let lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
 
     deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,
@@ -596,11 +600,11 @@ describe("Merkle Tree Tests", () => {
       verifier: new VerifierZero(),
       action: Action.SHIELD,
       lookUpTable: LOOK_UP_TABLE,
-      poseidon: POSEIDON
+      poseidon: POSEIDON,
     });
     var transaction = new Transaction({
       provider: lightProvider,
-      params: txParams
+      params: txParams,
     });
     await transaction.compileAndProve();
     console.log(transaction.params.accounts);

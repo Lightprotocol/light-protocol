@@ -41,7 +41,6 @@ import {
   Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
-  updateMerkleTreeForTest,
   IDL_MERKLE_TREE_PROGRAM,
   verifierStorageProgramId,
   User,
@@ -50,6 +49,7 @@ import {
   RECIPIENT_TOKEN_ACCOUNT,
   TOKEN_REGISTRY,
   Action,
+  TestRelayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -57,7 +57,7 @@ import { Account } from "light-sdk/lib/account";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
-var RELAYER_RECIPIENT;
+var RELAYER;
 var KEYPAIR;
 var deposit_utxo1;
 
@@ -105,11 +105,17 @@ describe("verifier_program", () => {
       poseidon: POSEIDON,
       seed: KEYPAIR_PRIVKEY.toString(),
     });
-    RELAYER_RECIPIENT = new anchor.web3.Account().publicKey;
-    // userSplAccount = token.getAssociatedTokenAddressSync(
-    //   tokenCtx!.tokenAccount,
-    //   this.provider!.wallet!.publicKey,
-    // );
+
+    const relayerRecipient = SolanaKeypair.generate().publicKey;
+
+    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+
+    RELAYER = await new TestRelayer(
+      userKeypair.publicKey,
+      LOOK_UP_TABLE,
+      relayerRecipient,
+      new BN(100000),
+    );
   });
 
   it.skip("build compressed merkle tree", async () => {
@@ -259,7 +265,9 @@ describe("verifier_program", () => {
         depositAmount * 2,
         [USER_TOKEN_ACCOUNT],
       );
-      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
+      const lightProvider = await Provider.init({
+        wallet: ADMIN_AUTH_KEYPAIR,
+      });
 
       let deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
@@ -295,7 +303,6 @@ describe("verifier_program", () => {
       }
       await tx.checkBalances(KEYPAIR);
       // uncomment below if not running the "deposit" test
-      // await updateMerkleTreeForTest(provider);
     }
   });
 
@@ -323,11 +330,13 @@ describe("verifier_program", () => {
       console.log(error);
     }
 
+    const lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
+
     for (var i = 0; i < 1; i++) {
       console.log("Deposit ", i);
-
-      const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
-
       deposit_utxo1 = new Utxo({
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
@@ -363,7 +372,7 @@ describe("verifier_program", () => {
       }
       await tx.checkBalances(KEYPAIR);
     }
-    await updateMerkleTreeForTest(provider.connection);
+    await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
 
   it("Withdraw", async () => {
@@ -388,7 +397,7 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
 
     let relayer = new Relayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
@@ -405,14 +414,14 @@ describe("verifier_program", () => {
       verifier: new VerifierZero(),
       relayer,
       action: Action.UNSHIELD,
-      poseidon
+      poseidon,
     });
     let tx = new Transaction({
       provider: lightProvider,
       // relayer,
       // payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
-      params: txParams
+      params: txParams,
     });
 
     await tx.compileAndProve();
@@ -460,12 +469,12 @@ describe("verifier_program", () => {
       0,
     );
 
-    let inputUtxos = [];
+    let inputUtxos: Utxo[] = [];
     inputUtxos.push(decryptedUtxo1);
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
-    const lightProvider = await Provider.init(ADMIN_AUTH_KEYPAIR);
+    const lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
 
     await lightProvider.provider.connection.confirmTransaction(
       await lightProvider.provider.connection.requestAirdrop(

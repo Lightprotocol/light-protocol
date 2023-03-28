@@ -330,16 +330,6 @@ export async function createTestAccounts(
   }
   console.log("userSplAccount ", userSplAccount?.toBase58());
 
-  // console.log(
-  //   "funded account",
-  //   await getAccount(
-  //     connection,
-  //     userSplAccount!, //userTokenAccount,
-  //     "confirmed",
-  //     TOKEN_PROGRAM_ID,
-  //   ),
-  // );
-
   try {
     if (balanceUserToken == null) {
       // create associated token account

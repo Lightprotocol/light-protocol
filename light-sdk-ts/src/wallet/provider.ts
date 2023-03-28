@@ -17,6 +17,7 @@ import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
 import { MerkleTree } from "../merkleTree/merkleTree";
 import { ProviderError, ProviderErrorCode } from "../errors";
 import { useWallet } from "./useWallet";
+import { Relayer } from "../relayer";
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 
@@ -45,6 +46,7 @@ export class Provider {
   provider?: AnchorProvider | { connection: Connection }; // temp -?
   url?: string;
   minimumLamports: BN;
+  relayer: Relayer;
 
   /**
    * Initialize with Wallet or SolanaKeypair. Feepayer is the provided wallet
@@ -56,12 +58,14 @@ export class Provider {
     connection,
     url = "http://127.0.0.1:8899",
     minimumLamports = new BN(5000 * 30),
+    relayer,
   }: {
     wallet: Wallet | SolanaKeypair;
     confirmConfig?: ConfirmOptions;
     connection?: Connection;
     url?: string;
     minimumLamports?: BN;
+    relayer?: Relayer;
   }) {
     if (!wallet)
       throw new ProviderError(
@@ -100,6 +104,17 @@ export class Provider {
       this.provider = { connection: connection! };
       this.wallet = wallet as Wallet;
     }
+
+    if (relayer) {
+      this.relayer = relayer;
+    } else {
+      this.relayer = new Relayer(
+        this.wallet!.publicKey,
+        this.lookUpTable!,
+        SolanaKeypair.generate().publicKey,
+        new BN(100000),
+      );
+    }
   }
 
   static async loadMock() {
@@ -107,6 +122,7 @@ export class Provider {
       wallet: ADMIN_AUTH_KEYPAIR,
       url: "mock",
     });
+
     await mockProvider.loadPoseidon();
     mockProvider.lookUpTable = SolanaKeypair.generate().publicKey;
     mockProvider.solMerkleTree = new SolMerkleTree({
@@ -121,12 +137,16 @@ export class Provider {
     try {
       if (!this.wallet.isNodeWallet) {
         const response = await axios.get("http://localhost:3331/lookuptable");
-        this.lookUpTable = new PublicKey(response.data.data);
+        const lookUpTable = new PublicKey(response.data.data);
+        this.lookUpTable = lookUpTable;
+        this.relayer.accounts.lookUpTable = lookUpTable;
         return;
       }
       if (!this.provider) throw new Error("No provider set.");
       // TODO: remove this should not exist
-      this.lookUpTable = await initLookUpTableFromFile(this.provider);
+      const lookUpTable = await initLookUpTableFromFile(this.provider);
+      this.lookUpTable = lookUpTable;
+      this.relayer.accounts.lookUpTable = lookUpTable;
     } catch (err) {
       console.error(err);
       throw err;
@@ -193,12 +213,19 @@ export class Provider {
    * @param connection get from useConnection() hook
    * @param url full-node rpc endpoint to instantiate a Connection
    */
-  static async init(
-    wallet: Wallet | SolanaKeypair | Keypair,
-    connection?: Connection,
-    confirmConfig?: ConfirmOptions,
-    url?: string,
-  ): Promise<Provider> {
+  static async init({
+    wallet,
+    connection,
+    confirmConfig,
+    url,
+    relayer,
+  }: {
+    wallet: Wallet | SolanaKeypair | Keypair;
+    connection?: Connection;
+    confirmConfig?: ConfirmOptions;
+    url?: string;
+    relayer?: Relayer;
+  }): Promise<Provider> {
     if (!wallet) {
       throw new ProviderError(ProviderErrorCode.KEYPAIR_UNDEFINED, "browser");
     }
@@ -207,6 +234,7 @@ export class Provider {
       confirmConfig,
       connection,
       url,
+      relayer,
     });
     await provider.loadPoseidon();
     await provider.fetchLookupTable();
