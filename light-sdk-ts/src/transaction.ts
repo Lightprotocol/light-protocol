@@ -1520,16 +1520,21 @@ export class Transaction {
     }
   }
 
-  async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
-    if (false) {
+  async sendTransaction(
+    ix: any,
+    action: Action,
+  ): Promise<TransactionSignature | undefined> {
+    if (action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
       // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
       // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
-      let txJson = await this.getInstructionsJson();
-      // request to relayer
-      throw new Error("withdrawal with relayer is not implemented");
+      const res = await this.provider.relayer.sendTransaction(
+        ix,
+        this.provider,
+      );
+      return res;
     } else {
       if (!this.provider.provider)
         throw new TransactionError(
@@ -1665,7 +1670,10 @@ export class Transaction {
     if (instructions) {
       let tx = "Something went wrong";
       for (var ix in instructions) {
-        let txTmp = await this.sendTransaction(instructions[ix]);
+        let txTmp = await this.sendTransaction(
+          instructions[ix],
+          this.params.action,
+        );
         if (txTmp) {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(

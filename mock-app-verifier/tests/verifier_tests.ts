@@ -32,7 +32,6 @@ import {
   confirmConfig,
   TransactionParameters,
   Provider as LightProvider,
-  Relayer,
   SolMerkleTree,
   checkNfInserted,
   newAccountWithTokens,
@@ -239,6 +238,7 @@ describe("Verifier Two test", () => {
   const sendTestTx = async (
     tx: Transaction,
     type: string,
+    action: Action,
     account?: string,
   ) => {
     var instructions = await tx.appParams.verifier.getInstructions(tx);
@@ -260,12 +260,12 @@ describe("Verifier Two test", () => {
     for (var ix = 0; ix < instructions.length; ix++) {
       console.log("ix ", ix);
       if (ix != instructions.length - 1) {
-        e = await tx.sendTransaction(instructions[ix]);
+        e = await tx.sendTransaction(instructions[ix],action);
 
         // // confirm throws socket hangup error thus waiting a second instead
         await new Promise((resolve) => setTimeout(resolve, 700));
       } else {
-        e = await tx.sendTransaction(instructions[ix]);
+        e = await tx.sendTransaction(instructions[ix],action);
       }
     }
     console.log(e);
@@ -306,7 +306,7 @@ describe("Verifier Two test", () => {
       ]);
       console.log("before sendTestTxs");
 
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -318,7 +318,7 @@ describe("Verifier Two test", () => {
         ...new Array(29).fill(0),
         ...wrongFeeAmount,
       ]);
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -339,7 +339,7 @@ describe("Verifier Two test", () => {
         userAccount: relayer,
         amount: new BN(0),
       });
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -347,7 +347,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       tmp_tx.params.encryptedUtxos = new Uint8Array(174).fill(2);
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -355,7 +355,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -366,7 +366,7 @@ describe("Verifier Two test", () => {
         tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(
           32,
         ).fill(2);
-        await sendTestTx(tmp_tx, "ProofVerificationFails");
+        await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
       }
     }
   });
@@ -378,7 +378,7 @@ describe("Verifier Two test", () => {
         tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
           2,
         );
-        await sendTestTx(tmp_tx, "ProofVerificationFails");
+        await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
       }
     }
   });
@@ -397,7 +397,7 @@ describe("Verifier Two test", () => {
       );
       tmp_tx.provider.wallet = useWallet(wrongSinger);
       tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -405,7 +405,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       tmp_tx.params.accounts.recipientFee = SolanaKeypair.generate().publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -413,7 +413,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       tmp_tx.params.accounts.recipient = SolanaKeypair.generate().publicKey;
-      await sendTestTx(tmp_tx, "ProofVerificationFails");
+      await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
     }
   });
 
@@ -429,7 +429,7 @@ describe("Verifier Two test", () => {
         tmp_tx.params.accounts.registeredVerifierPda =
           REGISTERED_VERIFIER_ONE_PDA;
       }
-      await sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
+      await sendTestTx(tmp_tx, "Account",tmp_tx.params.action, "registered_verifier_pda",);
     }
   });
 
@@ -440,7 +440,7 @@ describe("Verifier Two test", () => {
         merkleTreeProgramId,
         SolanaKeypair.generate().publicKey,
       );
-      await sendTestTx(tmp_tx, "Account", "authority");
+      await sendTestTx(tmp_tx, "Account",tmp_tx.params.action, "authority");
     }
   });
 
@@ -460,6 +460,7 @@ describe("Verifier Two test", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
+          tmp_tx.params.action,
           "Program log: Passed-in pda pubkey != on-chain derived pda pubkey.",
         );
       }
@@ -483,6 +484,7 @@ describe("Verifier Two test", () => {
           await sendTestTx(
             tmp_tx,
             "Includes",
+            tmp_tx.params.action,
             "Program log: Instruction: InsertTwoLeaves",
           );
         }
@@ -495,6 +497,7 @@ describe("Verifier Two test", () => {
         await sendTestTx(
           tmp_tx,
           "Includes",
+          tmp_tx.params.action,
           "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated.",
         );
       }

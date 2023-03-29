@@ -81,6 +81,18 @@ export class Relayer {
     }
   }
 
+  async sendTransaction(instructions: any, provider: Provider): Promise<any> {
+    try {
+      const response = axios.post("http://localhost:3331/relay", {
+        instructions,
+      });
+      return response;
+    } catch (err) {
+      console.error({ err });
+      throw err;
+    }
+  }
+
   getRelayerFee(ataCreationFee?: boolean) {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
