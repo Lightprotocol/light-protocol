@@ -27,6 +27,7 @@ export async function functionalCircuitTest(
   let eddsa = await circomlibjs.buildEddsa();
 
   let keypair = new Account({ poseidon: poseidon, seed: seed32, eddsa });
+  await keypair.getEddsaPublicKey();
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let deposit_utxo1 = new Utxo({
@@ -57,7 +58,7 @@ export async function functionalCircuitTest(
     tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123" },
+      appParams: { mock: "123", verifier },
     });
   } else {
     tx = new Transaction({

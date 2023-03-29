@@ -30,6 +30,7 @@ import {
   initLookUpTable,
   TransactionParametersErrorCode,
   Provider,
+  AccountErrorCode,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 const snarkjs = require("snarkjs");
@@ -39,6 +40,7 @@ const { unstringifyBigInts, stringifyBigInts, leInt2Buff, leBuff2int } =
   ffjavascript.utils;
 const { keccak_256 } = require("@noble/hashes/sha3");
 var assert = require("assert");
+// @ts-ignore
 import { Scalar } from "ffjavascript";
 
 export const createEncryptionKeypair = () => nacl.box.keyPair();
@@ -129,6 +131,7 @@ export class TransactionParameters implements transactionParameters {
     action,
     lookUpTable,
     senderShieldedAccount,
+    eddsa,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -145,6 +148,7 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable?: PublicKey;
     provider?: Provider;
     senderShieldedAccount?: Account;
+    eddsa?: any;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -221,7 +225,22 @@ export class TransactionParameters implements transactionParameters {
         );
       }
     }
-    this.senderShieldedAccount = senderShieldedAccount;
+    if (!senderShieldedAccount) {
+      if (!eddsa)
+        throw new TransactioParametersError(
+          TransactionParametersErrorCode.EDDSA_UNDEFINED,
+          "constructor",
+        );
+      if (action !== Action.SHIELD)
+        throw new TransactioParametersError(
+          TransactionParametersErrorCode.SHIELDED_SENDER_ACCOUNT_UNDEFINED,
+          "constructor",
+          "senderShieldedAccount(signer) not provided and action is not shield this account is the signer of your transaction and is essential for shielded transfers and unshields.",
+        );
+      this.senderShieldedAccount = new Account({ poseidon, eddsa });
+    } else {
+      this.senderShieldedAccount = senderShieldedAccount;
+    }
 
     const pubkeys = TransactionParameters.getAssetPubkeys(
       this.inputUtxos,
@@ -767,7 +786,7 @@ export class Transaction {
   };
 
   proofInput: any;
-  proofInputSystem: any;
+  public proofInputSystem: any;
 
   // Tests
   testValues?: {
@@ -879,7 +898,7 @@ export class Transaction {
   }
 
   async compileAndProve() {
-    this.compile();
+    await this.compile();
     await this.getProof();
     if (this.appParams) {
       console.log("app proof commented");
@@ -896,12 +915,12 @@ export class Transaction {
   async compile() {
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
-    for (var i in this.params.inputUtxos) {
-      await this.params.inputUtxos[i].initEddsa();
-    }
-    for (var i in this.params.outputUtxos) {
-      await this.params.outputUtxos[i].initEddsa();
-    }
+    // for (var i in this.params.inputUtxos) {
+    //   await this.params.inputUtxos[i].initEddsa();
+    // }
+    // for (var i in this.params.outputUtxos) {
+    //   await this.params.outputUtxos[i].initEddsa();
+    // }
 
     if (!this.provider.solMerkleTree)
       throw new TransactionError(
@@ -909,81 +928,47 @@ export class Transaction {
         "getProofInput",
         "",
       );
-    0;
+
     const extDataHash = this.getTxIntegrityHash().toString();
     const connectingHash = Transaction.getConnectingHash(
       this.params,
       this.provider.poseidon,
       extDataHash,
     );
-    await this.params.senderShieldedAccount.getEddsaPublicKey();
-    const hash = this.params.poseidon([
-      new Uint8Array(31).fill(2),
-      new Uint8Array(31).fill(2),
-      new Uint8Array(31).fill(2),
-    ]);
+
+    // await this.params.senderShieldedAccount.getEddsaPublicKey();
+
+    console.time("signature generation");
     const signature = await this.params.senderShieldedAccount.signEddsa(
       this.params.poseidon.F.e(Scalar.e(connectingHash)),
     );
-
-    // const signature = await this.params.senderShieldedAccount.signEddsa(hash);
+    console.timeEnd("signature generation");
+    if (
+      !this.params.senderShieldedAccount.eddsa.verifyPoseidon(
+        connectingHash,
+        this.params.senderShieldedAccount.eddsa.unpackSignature(signature),
+        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey,
+      )
+    )
+      throw new TransactionError(
+        TransactionErrorCode.INVALID_SIGNATURE,
+        "compile",
+        "generated an invalid signature, keypairs private and public key might be inconsistent.",
+      );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
       Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
 
-    this.params.outputUtxos?.map((x: Utxo) =>
-      console.log(
-        "poseidonEddsaKeypair[0] out utxo ",
-        new BN(x.account.poseidonEddsaKeypair?.publicKey[0], 32, "le"),
-      ),
-    );
-    this.params.outputUtxos?.map((x: Utxo) =>
-      console.log(
-        "poseidonEddsaKeypair[0] out utxo ",
-        new BN(x.account.poseidonEddsaKeypair?.publicKey[1], 32, "le"),
-      ),
-    );
-    console.log(
-      "pubkeysx ",
-      this.params.poseidon.F.toObject(
-        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[0],
-      ).toString(),
-    );
-    console.log(
-      "pubkeysy ",
-      this.params.poseidon.F.toObject(
-        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey[1],
-      ).toString(),
-    );
-    console.log(
-      "signatures ",
-      this.params.senderShieldedAccount.eddsa.unpackSignature(signature).S,
-    );
-
-    console.log(
-      "R8x ",
-      this.params.poseidon.F.toObject(
-        this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
-          .R8[0],
-      ),
-    );
-    console.log(
-      "R8x ",
-      this.params.poseidon.F.toObject(
-        this.params.senderShieldedAccount.eddsa.unpackSignature(signature)
-          .R8[1],
-      ),
-    );
-    console.log("connectingHash ", connectingHash);
-
-    assert(
-      this.params.senderShieldedAccount.eddsa.verifyPoseidon(
-        connectingHash,
-        this.params.senderShieldedAccount.eddsa.unpackSignature(signature),
-        this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey,
-      ),
-    );
-    // assert(this.params.senderShieldedAccount.eddsa.verifyPoseidon(hash, this.params.senderShieldedAccount.eddsa.unpackSignature(signature), this.params.senderShieldedAccount.poseidonEddsaKeypair?.publicKey));
+    if (!this.params.senderShieldedAccount.poseidonEddsaKeypair)
+      throw new TransactionError(
+        AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
+        "compile",
+      );
+    if (!this.params.senderShieldedAccount.poseidonEddsaKeypair.publicKey)
+      throw new TransactionError(
+        AccountErrorCode.POSEIDON_EDDSA_GET_PUBKEY_FAILED,
+        "compile",
+      );
 
     this.proofInputSystem = {
       connectingHash,
@@ -1017,19 +1002,22 @@ export class Transaction {
       root: this.provider.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
       // TODO: move public and fee amounts into tx preparation
-      publicAmount: this.params.publicAmountSpl.toString(),
-      feeAmount: this.params.publicAmountSol.toString(),
-      mintPubkey: this.getMint(),
+      publicAmountSpl: this.params.publicAmountSpl.toString(),
+      publicAmountSol: this.params.publicAmountSol.toString(),
+      publicMintPubkey: this.getMint(),
       inNullifierPrivateKey: this.params.inputUtxos?.map(
         (x) => x.account.nullifierPrivateKey,
       ),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
     };
+
     this.proofInput = {
-      // TODO: make this.params.inputUtxos?.map((x) => x.isNonZeroUtxo),
-      inPublicKeyEnabled: [0, 0, 0, 0],
-      extDataHash,
+      // TODO: make pubkeyIndices flexible for two or more signatures, for this we need an array of signers
+      // on which we select the instantiation of the circuit which has the right number
+      pubkeyIndicesX: this.params.inputUtxos?.map((x) => x.isNonZeroUtxo),
+      pubkeyIndicesY: this.params.inputUtxos?.map((x) => x.isNonZeroUtxo),
+      txIntergrityHash: extDataHash,
       outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
       // inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
@@ -1038,12 +1026,18 @@ export class Transaction {
       outBlinding: this.params.outputUtxos?.map((x) => x.blinding),
       outSignerPubkeysX: this.params.outputUtxos?.map((x: Utxo) =>
         x.isNonZeroUtxo
-          ? new BN(x.account.poseidonEddsaKeypair?.publicKey[0], 32, "le")
+          ? // @ts-ignore
+            this.params.poseidon.F.toObject(
+              x.account.poseidonEddsaKeypair?.publicKey[0],
+            )
           : "0",
       ),
       outSignerPubkeysY: this.params.outputUtxos?.map((x: Utxo) =>
         x.isNonZeroUtxo
-          ? new BN(x.account.poseidonEddsaKeypair?.publicKey[1], 32, "le")
+          ? // @ts-ignore
+            this.params.poseidon.F.toObject(
+              x.account.poseidonEddsaKeypair?.publicKey[1],
+            )
           : "0",
       ),
       // outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
@@ -1061,10 +1055,15 @@ export class Transaction {
       outVerifierPubkey: this.params.outputUtxos?.map(
         (x) => x.verifierAddressCircuit,
       ),
+      publicAppVerifier: this.appParams?.verifier?.pubkey
+        ? this.appParams.verifier.pubkey
+        : "0",
+      publicPoolType: 0,
+      isAppUtxo: this.params.inputUtxos.map((utxo) =>
+        utxo.instructionType.toString() !== "0" ? "1" : "0",
+      ),
     };
-    if (this.appParams) {
-      this.proofInput.verifier = this.params.verifier?.pubkey;
-    }
+    console.log("this.proofInput ", this.proofInput);
   }
 
   getMint() {
@@ -1102,9 +1101,9 @@ export class Transaction {
       {
         ...this.appParams.inputs,
         ...this.proofInput,
-        inPublicKey: this.params?.inputUtxos?.map(
-          (utxo) => utxo.account.pubkey,
-        ),
+        // inPublicKey: this.params?.inputUtxos?.map(
+        //   (utxo) => utxo.account.pubkey,
+        // ),
       },
       firstPath,
     );
@@ -1134,6 +1133,8 @@ export class Transaction {
   }
 
   async getProofInternal(verifier: Verifier, inputs: any, firstPath: string) {
+    // console.log(this.proofInput);
+
     if (!this.proofInput)
       throw new TransactionError(
         TransactionErrorCode.PROOF_INPUT_UNDEFINED,
@@ -1142,14 +1143,25 @@ export class Transaction {
 
     const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
     const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-    console.time("Proof generation");
+    console.time("Proof generation 1");
+    console.log("starting proof gen");
+    var proof, publicSignals;
+    try {
+      let res = await snarkjs.groth16.fullProve(
+        stringifyBigInts(inputs),
+        completePathWtns,
+        completePathZkey,
+      );
+      proof = res.proof;
+      publicSignals = res.publicSignals;
+    } catch (error) {
+      throw new TransactionError(
+        TransactionErrorCode.PROOF_GENERATION_FAILED,
+        "getProofInternal",
+      );
+    }
 
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-      stringifyBigInts(inputs),
-      completePathWtns,
-      completePathZkey,
-    );
-    console.timeEnd("Proof generation");
+    console.timeEnd("Proof generation 1");
 
     const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
     const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);

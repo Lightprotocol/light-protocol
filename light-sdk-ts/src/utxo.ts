@@ -18,7 +18,7 @@ const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 import { BN } from "@coral-xyz/anchor";
 import { CONSTANT_SECRET_AUTHKEY } from "./constants";
 import { assert } from "chai";
-import { UtxoError, UtxoErrorCode } from "./errors";
+import { UtxoError, UtxoErrorCode, AccountErrorCode } from "./errors";
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;
@@ -399,22 +399,28 @@ export class Utxo {
         this.poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
       // console.log("this.assetsCircuit ", this.assetsCircuit);
-      console.log("amounts ", this.amounts);
-      console.log("isNonZeroUtxo ", this.isNonZeroUtxo);
+      if (this.isNonZeroUtxo && !this.account.poseidonEddsaKeypair)
+        throw new UtxoError(
+          AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
+          "getCommitment",
+        );
+      if (this.isNonZeroUtxo && !this.account.poseidonEddsaKeypair!.publicKey)
+        throw new UtxoError(
+          AccountErrorCode.POSEIDON_EDDSA_GET_PUBKEY_FAILED,
+          "getCommitment",
+        );
 
       const eddsaX = this.isNonZeroUtxo
-        ? new BN(
+        ? this.poseidon.F.toObject(
+            // @ts-ignore
             this.account.poseidonEddsaKeypair?.publicKey[0],
-            32,
-            "le",
-          ).toString()
+          )
         : 0;
       const eddsaY = this.isNonZeroUtxo
-        ? new BN(
+        ? this.poseidon.F.toObject(
+            // @ts-ignore
             this.account.poseidonEddsaKeypair?.publicKey[1],
-            32,
-            "le",
-          ).toString()
+          )
         : 0;
 
       console.log("amountHash ", amountHash.toString());
