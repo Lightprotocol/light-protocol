@@ -39,6 +39,21 @@ template CheckIndices(n, nInAssets, nAssets) {
   }
 }
 
+template CheckIndicesTwoDim(nrSwaps, n) {
+    signal input indices[nrSwaps][n];    
+
+    for (var i = 0; i < nrSwaps;i++) {
+        var varSumIndices = 0;
+        for (var j = 0; j < n; j++) {
+            varSumIndices += indices[i][j];
+            // all indices are 0 or 1
+            indices[i][j] * (1 - indices[i][j]) === 0;
+        }
+        // only one index for one asset is 1
+        varSumIndices * (1 - varSumIndices)=== 0;
+    }
+}
+
 // TODO: rename connectingHash to transactionHash
 // Universal multi asset JoinSplit transaction with
 // nIns s
@@ -47,7 +62,7 @@ template CheckIndices(n, nInAssets, nAssets) {
 // one feeAsset at indexFeeAsset in assetPubkeys[nAssets]
 // the asset in position 1 can be withdrawn
 // all other assets can only be used in internal txs
-template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
+template TransactionAccount(isAppVerifier, isPoolEnabledVerifier, levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets, nrMaxSignatures) {
 
     // Range Check to prevent an overflow of wrong circuit instantiation
     assert( nIns * nAssets < 49);
@@ -55,29 +70,31 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     assert( nOutAssets <= nAssets);
 
     signal input root;
-    // extAmount = external amount used for deposits and withdrawals
-    // correct extAmount range is enforced on the smart contract
-    // publicAmount = extAmount - fee
-    signal input publicAmount;
-    signal input extDataHash;
-    signal input feeAmount;
-    signal input mintPubkey;
+    signal input txIntergrityHash;
+    signal input publicMintPubkey;
+    signal input publicAmountSpl;
+    signal input publicAmountSol;
+    signal input inputNullifier[nIns];
+    signal input outputCommitment[nOuts];
+    signal input publicPoolType;
+    signal  input publicAppVerifier;
+    signal  input connectingHash;
 
-    var nrMaxSignatures = 1;
+
     signal input signerPubkeysX[nrMaxSignatures];
     signal input signerPubkeysY[nrMaxSignatures];
     signal input signatures[nrMaxSignatures];
     signal input R8x[nrMaxSignatures];
     signal input R8y[nrMaxSignatures];
-    // enables account abstraction and random filling utxos
-    signal input inPublicKeyEnabled[nIns];
+    signal input pubkeyIndicesX[nIns][nrMaxSignatures];
+    signal input pubkeyIndicesY[nIns][nrMaxSignatures];
 
-    signal input  inputNullifier[nIns];
     signal input  inAmount[nIns][nInAssets];
     signal input  inNullifierPrivateKey[nIns];
     signal input  inInstructionType[nIns];
-    signal  input inPoolType[nIns];
-    signal  input inVerifierPubkey[nIns];
+    signal input inPoolType[nIns];
+    signal input inVerifierPubkey[nIns];
+    signal input isAppUtxo[nIns];
 
     signal  input inPathIndices[nIns];
     signal  input inPathElements[nIns][levels];
@@ -85,9 +102,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal  input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
-    signal  input outputCommitment[nOuts];
     signal  input outAmount[nOuts][nOutAssets];
-    // signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
     signal  input outInstructionType[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
@@ -98,19 +113,18 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     signal  input assetPubkeys[nAssets];
 
-    signal  input verifier;
-    signal  input connectingHash;
+
 
     // feeAsset is asset indexFeeAsset
     assetPubkeys[indexFeeAsset] === feeAsset;
 
-    // If public amount is != 0 then check that assetPubkeys[indexPublicAsset] == mintPubkey
+    // If public amount is != 0 then check that assetPubkeys[indexPublicAsset] == publicMintPubkey
 
     component checkMintPubkey = ForceEqualIfEnabled();
     checkMintPubkey.in[0] <== assetPubkeys[indexPublicAsset];
-    checkMintPubkey.in[1] <== mintPubkey;
+    checkMintPubkey.in[1] <== publicMintPubkey;
 
-    checkMintPubkey.enabled <== publicAmount;
+    checkMintPubkey.enabled <== publicAmountSpl;
 
     component assetCheck[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -121,12 +135,14 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     component blindingHasher[nIns];
     component inKeypair[nIns];
     component inGetAsset[nIns][nInAssets][nAssets];
+    component inGetPubkeyX[nIns][nrMaxSignatures];
+    component inGetPubkeyY[nIns][nrMaxSignatures];
+
 
     component inCommitmentHasher[nIns];
     component inAmountsHasher[nIns];
     component inAssetsHasher[nIns];
 
-    // component inSignature[nIns];
     component inputNullifierHasher[nIns];
     component inTree[nIns];
     component inCheckRoot[nIns];
@@ -138,8 +154,19 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     // enforce pooltypes of 0
     // add public input to distinguish between pool types
-    inPoolType[0] === 0;
+    inPoolType[0] === inPoolType[0] * isPoolEnabledVerifier;
     inPoolType[0] === outPoolType[0];
+
+    // check publicPoolType type if there is a non zero public amount
+    component checkPoolType = ForceEqualIfEnabled();
+    checkPoolType.in[0] <== inPoolType[0];
+    checkPoolType.in[1] <== publicPoolType;
+
+    component isPublicAmount = OR();
+    isPublicAmount.a <== publicAmountSpl;
+    isPublicAmount.b <== publicAmountSol;
+
+    checkPoolType.enabled <== isPublicAmount.out;
 
     var sumIns[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -150,19 +177,23 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     // checks that there is exactly one asset defined for every utxo
     component checkInIndices;
     checkInIndices = CheckIndices(nIns, nInAssets, nAssets);
-    for (var i = 0; i < nIns; i++) {
-        for (var j = 0; j < nInAssets; j++) {
-            checkInIndices.amounts[i][j] <== inAmount[i][j];
-            for(var z = 0; z < nAssets ; z++) {
-                checkInIndices.indices[i][j][z] <== inIndices[i][j][z];
-            }
-        }
-    }
+    checkInIndices.amounts <== inAmount;
+    checkInIndices.indices <== inIndices;
 
+    component checkInPubkeyIndicesX = CheckIndicesTwoDim(nIns, nrMaxSignatures);
+    component checkInPubkeyIndicesY = CheckIndicesTwoDim(nIns, nrMaxSignatures);
+    checkInPubkeyIndicesX.indices <== pubkeyIndicesX;
+    checkInPubkeyIndicesY.indices <== pubkeyIndicesY;
     // verify correctness of transaction s
     for (var tx = 0; tx < nIns; tx++) {
         // ensure that all pool types are the same
         inPoolType[0] === inPoolType[tx];
+        log(publicAppVerifier);
+        log(inVerifierPubkey[tx]);
+
+        // isAppUtxo[tx] is zero or one
+        0 === (1 - isAppUtxo[tx]) * isAppUtxo[tx];
+        publicAppVerifier * isAppUtxo[tx] === inVerifierPubkey[tx] * isAppVerifier;
 
         inKeypair[tx] = Keypair();
         inKeypair[tx].privateKey <== inNullifierPrivateKey[tx];
@@ -204,11 +235,26 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             sumInAmount += inAmount[tx][a];
         }
 
+        var pubkeyXselected = 0;
+        var pubkeyYselected = 0;
+        for (var i = 0; i < nrMaxSignatures; i++) {
+            inGetPubkeyX[tx][i] = AND();
+            inGetPubkeyX[tx][i].a <== signerPubkeysX[i];
+            inGetPubkeyX[tx][i].b <== pubkeyIndicesX[tx][i];
+
+            inGetPubkeyY[tx][i] = AND();
+            inGetPubkeyY[tx][i].a <== signerPubkeysY[i];
+            inGetPubkeyY[tx][i].b <== pubkeyIndicesY[tx][i];
+
+            pubkeyXselected += inGetPubkeyX[tx][i].out;
+            pubkeyYselected += inGetPubkeyY[tx][i].out;
+        }
+
         inCommitmentHasher[tx] = Poseidon(8);
         inCommitmentHasher[tx].inputs[0] <== 0; // transaction version
         inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[2] <== signerPubkeysX[0] * inPublicKeyEnabled[tx];
-        inCommitmentHasher[tx].inputs[3] <== signerPubkeysY[0] * inPublicKeyEnabled[tx];
+        inCommitmentHasher[tx].inputs[2] <== pubkeyXselected;
+        inCommitmentHasher[tx].inputs[3] <== pubkeyYselected;
         inCommitmentHasher[tx].inputs[4] <== blindingHasher[tx].out;
         inCommitmentHasher[tx].inputs[5] <== inAssetsHasher[tx].out;
         inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
@@ -224,10 +270,6 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         log(inCommitmentHasher[tx].inputs[6]);
         log(inCommitmentHasher[tx].inputs[7]);
 
-        // inSignature[tx] = Signature();
-        // inSignature[tx].privateKey <== inNullifierPrivateKey[tx];
-        // inSignature[tx].commitment <== inCommitmentHasher[tx].out;
-        // inSignature[tx].merklePath <== inPathIndices[tx];
 
         inputNullifierHasher[tx] = Poseidon(3);
         inputNullifierHasher[tx].inputs[0] <== inCommitmentHasher[tx].out;
@@ -280,16 +322,11 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     }
 
     component checkOutIndices = CheckIndices(nOuts,nOutAssets, nAssets);
-    for (var i = 0; i < nOuts; i++) {
-        for (var j = 0; j < nOutAssets; j++) {
-          checkOutIndices.amounts[i][j] <== outAmount[i][j];
+    checkOutIndices.amounts <== outAmount;
+    checkOutIndices.indices <== outIndices;
 
-          for(var z = 0; z < nAssets; z++) {
-            checkOutIndices.indices[i][j][z] <== outIndices[i][j][z];
-          }
-        }
-    }
-
+    // put in utxo specific stuff in a template and use the following stuff in that template
+    // put this in a template
     // verify correctness of transaction outputs
     for (var tx = 0; tx < nOuts; tx++) {
 
@@ -320,15 +357,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         for (var i = 0; i < nOutAssets; i++) {
             outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
         }
-        /*
-        outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
-        outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
-        outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
-        outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
-        outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
-        outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
-        outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
-        */
+
         outCommitmentHasher[tx] = Poseidon(8);
         outCommitmentHasher[tx].inputs[0] <== 0; // transaction version
         outCommitmentHasher[tx].inputs[1] <== outAmountHasher[tx].out;
@@ -367,6 +396,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         }
     }
 
+    // no performance impact
     // check that there are no same nullifiers among all s
     component sameNullifiers[nIns * (nIns - 1) / 2];
     var index = 0;
@@ -381,15 +411,15 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     }
 
     // verify amount invariant
-    sumIns[0] + feeAmount === sumOuts[0];
-    sumIns[1] + publicAmount === sumOuts[1];
+    sumIns[0] + publicAmountSol === sumOuts[0];
+    sumIns[1] + publicAmountSpl === sumOuts[1];
 
     for (var a = 2; a < nAssets; a++) {
       sumIns[a] === sumOuts[a];
     }
 
-    // optional safety constraint to make sure extDataHash cannot be changed
-    signal extDataSquare <== extDataHash * extDataHash;
+    // optional safety constraint to make sure txIntergrityHash cannot be changed
+    signal extDataSquare <== txIntergrityHash * txIntergrityHash;
     
     // generating input hash
     
@@ -408,7 +438,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     connectingHasher.inputs[0] <== inputHasher.out;
     connectingHasher.inputs[1] <== outputHasher.out;
-    connectingHasher.inputs[2] <== extDataHash;
+    connectingHasher.inputs[2] <== txIntergrityHash;
 
     connectingHash === connectingHasher.out;
 
@@ -436,7 +466,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
 /** 
 * adding
-* - ecdsa poseidon signatures
+* - eddsa poseidon signatures
 * - nullifier based on blinding
 * - blinding based on nullifierKey
 * - transaction version

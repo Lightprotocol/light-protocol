@@ -308,14 +308,18 @@ describe("Transaction Functional Tests", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
+    await keypair.getEddsaPublicKey()
+    console.log(keypair.poseidonEddsaKeypair.publicKey);
+    console.log(keypair.poseidonEddsaKeypair.privateKey);
+
     lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
-      blinding: new anchor.BN(new Array(31).fill(1)),
     });
+
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       merkleTreePubkey: mockPubkey2,
@@ -325,6 +329,7 @@ describe("Transaction Functional Tests", () => {
       sender: mockPubkey,
       senderFee: lightProvider.nodeWallet?.publicKey,
       action: Action.SHIELD,
+      senderShieldedAccount: keypair
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(),
@@ -345,10 +350,19 @@ describe("Transaction Functional Tests", () => {
       recipientFee: lightProvider.nodeWallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
+      senderShieldedAccount: keypair
     });
   });
 
-  it("Functional ", async () => {
+  it("Functional Unshield", async () => {
+    let tx = new Transaction({
+      provider: lightProvider,
+      params: paramsWithdrawal,
+    });
+    await tx.compileAndProve();
+  });
+
+  it("Functional Shield ", async () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: paramsDeposit,
@@ -573,7 +587,7 @@ describe("Transaction Functional Tests", () => {
         poseidon,
         txIntegrityHash,
       ).toString(),
-      "6809628031093277232613009546245848979877080284202582086386744590121571206361",
+      "5921442418958944809540326157761487810302793127591181543698888203820349877345",
     );
   });
 
