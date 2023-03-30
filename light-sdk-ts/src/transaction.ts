@@ -32,6 +32,7 @@ import {
   TransactionParametersErrorCode,
   Provider,
   ADMIN_AUTH_KEYPAIR,
+  sendVersionedTransaction,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 const snarkjs = require("snarkjs");
@@ -1521,15 +1522,17 @@ export class Transaction {
   }
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
-    if (false) {
+    if (this.params.action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
       // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
       // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
-      let txJson = await this.getInstructionsJson();
-      // request to relayer
-      throw new Error("withdrawal with relayer is not implemented");
+      const res = await this.provider.relayer.sendTransaction(
+        ix,
+        this.provider,
+      );
+      return res;
     } else {
       if (!this.provider.provider)
         throw new TransactionError(
@@ -1566,63 +1569,8 @@ export class Transaction {
         );
       }
 
-      const recentBlockhash = (
-        await this.provider.provider.connection.getRecentBlockhash("confirmed")
-      ).blockhash;
-      const txMsg = new TransactionMessage({
-        payerKey: this.params.relayer.accounts.relayerPubkey,
-        instructions: [
-          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-          ix,
-        ],
-        recentBlockhash: recentBlockhash,
-      });
-
-      const lookupTableAccount =
-        await this.provider.provider.connection.getAccountInfo(
-          this.params.relayer.accounts.lookUpTable,
-          "confirmed",
-        );
-
-      const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-        lookupTableAccount!.data,
-      );
-
-      const compiledTx = txMsg.compileToV0Message([
-        {
-          state: unpackedLookupTableAccount,
-          key: this.params.relayer.accounts.lookUpTable,
-          isActive: () => {
-            return true;
-          },
-        },
-      ]);
-
-      compiledTx.addressTableLookups[0].accountKey =
-        this.params.relayer.accounts.lookUpTable;
-
-      var tx = new VersionedTransaction(compiledTx);
-      let retries = 3;
-      let res;
-      while (retries > 0) {
-        tx = await this.provider.wallet.signTransaction(tx);
-        try {
-          let serializedTx = tx.serialize();
-
-          res = await this.provider.provider.connection.sendRawTransaction(
-            serializedTx,
-            confirmConfig,
-          );
-          retries = 0;
-        } catch (e: any) {
-          retries--;
-          if (retries == 0 || e.logs !== undefined) {
-            console.log(e);
-            return e;
-          }
-        }
-      }
-      return res;
+      const response = await sendVersionedTransaction(ix, this.provider);
+      return response;
     }
   }
 

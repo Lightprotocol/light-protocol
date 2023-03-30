@@ -18,7 +18,6 @@ import {
   ADMIN_AUTH_KEY,
   VerifierTwo,
   confirmConfig,
-  Relayer,
   Action,
   TestRelayer
 } from "light-sdk";
@@ -133,14 +132,9 @@ describe("Mock verifier functional", () => {
 
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER
     }); // userKeypair
-
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
-      relayerRecipient,
-      new BN(100000),
-    );
+    
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(relayerRecipient, 10000000),
     );
@@ -154,7 +148,7 @@ describe("Mock verifier functional", () => {
       verifier: new VerifierTwo(),
       action: Action.UNSHIELD,
       poseidon,
-      relayer,
+      relayer: RELAYER,
     });
 
     const appParams = {

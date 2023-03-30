@@ -32,7 +32,6 @@ import {
   confirmConfig,
   TransactionParameters,
   Provider as LightProvider,
-  Relayer,
   SolMerkleTree,
   checkNfInserted,
   newAccountWithTokens,

@@ -5,7 +5,6 @@ import {
   PublicKey,
 } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
-import _ from "lodash";
 import { assert } from "chai";
 
 const token = require("@solana/spl-token");
@@ -38,7 +37,6 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  Relayer,
   verifierProgramOneProgramId,
   SolMerkleTree,
   IDL_MERKLE_TREE_PROGRAM,
@@ -267,6 +265,7 @@ describe("verifier_program", () => {
       );
       const lightProvider = await Provider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
+        relayer: RELAYER,
       });
 
       let deposit_utxo1 = new Utxo({
@@ -397,14 +396,10 @@ describe("verifier_program", () => {
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
 
-    const lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
-
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
-      SolanaKeypair.generate().publicKey,
-      new BN(100000),
-    );
+    const lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
 
     let txParams = new TransactionParameters({
       inputUtxos: [decryptedUtxo1],
@@ -412,7 +407,7 @@ describe("verifier_program", () => {
       recipient: tokenRecipient,
       recipientFee: origin.publicKey,
       verifier: new VerifierZero(),
-      relayer,
+      relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon,
     });
@@ -430,7 +425,7 @@ describe("verifier_program", () => {
     // add enough funds such that rent exemption is ensured
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
-        relayer.accounts.relayerRecipient,
+        RELAYER.accounts.relayerRecipient,
         1_000_000,
       ),
       "confirmed",
@@ -474,26 +469,22 @@ describe("verifier_program", () => {
 
     const relayerRecipient = SolanaKeypair.generate().publicKey;
     const recipientFee = SolanaKeypair.generate().publicKey;
-    const lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
+    const lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
 
-    await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(
+    await lightProvider.provider!.connection.confirmTransaction(
+      await lightProvider.provider!.connection.requestAirdrop(
         relayerRecipient,
         1_000_000,
       ),
     );
-    await lightProvider.provider.connection.confirmTransaction(
-      await lightProvider.provider.connection.requestAirdrop(
+    await lightProvider.provider!.connection.confirmTransaction(
+      await lightProvider.provider!.connection.requestAirdrop(
         recipientFee,
         1_000_000,
       ),
-    );
-
-    let relayer = new Relayer(
-      ADMIN_AUTH_KEYPAIR.publicKey,
-      lightProvider.lookUpTable,
-      relayerRecipient,
-      new BN(100000),
     );
 
     let txParams = new TransactionParameters({
@@ -511,7 +502,7 @@ describe("verifier_program", () => {
       recipient: recipientTokenAccount,
       recipientFee,
       verifier: new VerifierOne(),
-      relayer,
+      relayer: RELAYER,
       poseidon: POSEIDON,
       action: Action.UNSHIELD,
     });
