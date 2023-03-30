@@ -160,6 +160,7 @@ describe("Test User", () => {
       solBalancePre.amount.toNumber() + 150000, //+ 2 * 1e9, this MINIMZM
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
+    assert.equal(user.spentUtxos.length, 0);
   });
 
   it("(user class) shield SOL", async () => {
@@ -218,6 +219,15 @@ describe("Test User", () => {
       preSolBalance - amount * tokenCtx.decimals.toNumber() + tempAccountCost,
       `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
     );
+
+    let commitmentIndex = user.spentUtxos.findIndex(
+      (utxo) => utxo._commitment === user.utxos[0]._commitment,
+    );
+
+    assert.equal(user.spentUtxos.length, 1);
+    assert.equal(user.spentUtxos[0].amounts[0].toNumber(), 150000);
+    assert.equal(user.utxos.length, 1);
+    assert.equal(commitmentIndex, -1);
   });
 
   it("(user class) unshield SPL", async () => {
@@ -319,6 +329,15 @@ describe("Test User", () => {
         solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee
       }`,
     );
+
+    let commitmentIndex = user.spentUtxos.findIndex(
+      (utxo) => utxo._commitment === user.utxos[0]._commitment,
+    );
+
+    assert.equal(user.spentUtxos.length, 2);
+    assert.equal(user.utxos.length, 1);
+    assert.equal(commitmentIndex, -1);
+
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
 
@@ -385,6 +404,14 @@ describe("Test User", () => {
       solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
     );
+
+    let commitmentIndex = user.spentUtxos.findIndex(
+      (utxo) => utxo._commitment === user.utxos[0]._commitment,
+    );
+
+    assert.equal(user.spentUtxos.length, 3);
+    assert.equal(user.utxos.length, 1);
+    assert.equal(commitmentIndex, -1);
   });
 
   it.skip("(user class) transfer SOL", async () => {

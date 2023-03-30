@@ -13,7 +13,7 @@ import {
   UserErrorCode,
   CachedUserState,
   Provider,
-  getUnspentUtxos,
+  getAccountUtxos,
   SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
@@ -53,14 +53,17 @@ export class User {
   provider: Provider;
   account?: Account;
   utxos?: Utxo[];
+  spentUtxos?: Utxo[];
   private seed?: string;
   constructor({
     provider,
     utxos = [],
+    spentUtxos = [],
     account = undefined,
   }: {
     provider: Provider;
     utxos?: Utxo[];
+    spentUtxos?: Utxo[];
     account?: Account;
   }) {
     if (!provider.wallet)
@@ -79,6 +82,7 @@ export class User {
 
     this.provider = provider;
     this.utxos = utxos;
+    this.spentUtxos = spentUtxos;
     this.account = account;
   }
 
@@ -139,10 +143,12 @@ export class User {
         poseidon: this.provider.poseidon,
         merkleTreeProgram: merkleTreeProgramId,
       };
-      const utxos = await getUnspentUtxos(params);
+      const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
 
-      this.utxos = utxos;
+      this.utxos = decryptedUtxos;
+      this.spentUtxos = spentUtxos;
       console.log("✔️ updated utxos", this.utxos.length);
+      console.log("✔️ spent updated utxos", this.spentUtxos.length);
     } else {
       console.log("✔️ read utxos from cache", this.utxos.length);
     }
@@ -352,6 +358,17 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    txParams.inputUtxos.forEach((utxo) => {
+      const amountsValid =
+        utxo.amounts[1].toString() !== "0" ||
+        utxo.amounts[0].toString() !== "0";
+
+      if (amountsValid) {
+        this.spentUtxos?.push(utxo);
+      }
+    });
+
     return { txHash, response };
   }
 
@@ -475,6 +492,17 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    txParams.inputUtxos.forEach((utxo) => {
+      const amountsValid =
+        utxo.amounts[1].toString() !== "0" ||
+        utxo.amounts[0].toString() !== "0";
+
+      if (amountsValid) {
+        this.spentUtxos?.push(utxo);
+      }
+    });
+
     return { txHash, response };
   }
 
@@ -565,6 +593,17 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    txParams.inputUtxos.forEach((utxo) => {
+      const amountsValid =
+        utxo.amounts[1].toString() !== "0" ||
+        utxo.amounts[0].toString() !== "0";
+
+      if (amountsValid) {
+        this.spentUtxos?.push(utxo);
+      }
+    });
+
     return { txHash, response };
   }
 
@@ -643,8 +682,9 @@ export class User {
       merkleTreeProgram: merkleTreeProgramId,
       merkleTree: this.provider.solMerkleTree!.merkleTree!,
     };
-    const utxos = await getUnspentUtxos(params);
-    this.utxos = utxos;
+    const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
+    this.utxos = decryptedUtxos;
+    this.spentUtxos = spentUtxos;
   }
 
   // TODO: we need a non-anchor version of "provider" - (bundle functionality exposed by the wallet adapter into own provider-like class)

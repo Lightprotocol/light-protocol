@@ -391,7 +391,6 @@ describe("verifier_program", () => {
       provider,
       KEYPAIR,
       POSEIDON,
-      merkleTreeProgram,
       merkleTree.merkleTree,
       0,
     );
@@ -462,7 +461,6 @@ describe("verifier_program", () => {
       provider,
       KEYPAIR,
       POSEIDON,
-      merkleTreeProgram,
       merkleTree.merkleTree,
       0,
     );
