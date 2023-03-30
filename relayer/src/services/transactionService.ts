@@ -5,12 +5,12 @@ import {
   AddressLookupTableAccount,
   VersionedTransaction,
 } from "@solana/web3.js";
-import { confirmConfig, Provider, useWallet } from "light-sdk";
+import { ADMIN_AUTH_KEYPAIR, confirmConfig, Provider } from "light-sdk";
 
 export async function sendTransaction(
   ix: any,
-  provider: Provider
 ): Promise<TransactionSignature | undefined> {
+  const provider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
   if (!provider.provider) throw new Error("no provider set");
 
   const recentBlockhash = (
@@ -27,11 +27,11 @@ export async function sendTransaction(
 
   const lookupTableAccount = await provider.provider.connection.getAccountInfo(
     provider.lookUpTable!,
-    "confirmed"
+    "confirmed",
   );
 
   const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-    lookupTableAccount!.data
+    lookupTableAccount!.data,
   );
 
   const compiledTx = txMsg.compileToV0Message([
@@ -57,7 +57,7 @@ export async function sendTransaction(
 
       res = await provider.provider.connection.sendRawTransaction(
         serializedTx,
-        confirmConfig
+        confirmConfig,
       );
       retries = 0;
       // console.log(res);
