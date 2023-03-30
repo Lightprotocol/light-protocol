@@ -32,6 +32,7 @@ import {
   TransactionParametersErrorCode,
   Provider,
   ADMIN_AUTH_KEYPAIR,
+  sendVersionedTransaction,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
 const snarkjs = require("snarkjs");
@@ -1520,11 +1521,8 @@ export class Transaction {
     }
   }
 
-  async sendTransaction(
-    ix: any,
-    action: Action,
-  ): Promise<TransactionSignature | undefined> {
-    if (action !== Action.SHIELD) {
+  async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
+    if (this.params.action !== Action.SHIELD) {
       // TODO: replace this with (this.provider.wallet.pubkey != new relayer... this.relayer
       // then we know that an actual relayer was passed in and that it's supposed to be sent to one.
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
@@ -1574,6 +1572,7 @@ export class Transaction {
       const recentBlockhash = (
         await this.provider.provider.connection.getRecentBlockhash("confirmed")
       ).blockhash;
+
       const txMsg = new TransactionMessage({
         payerKey: this.params.relayer.accounts.relayerPubkey,
         instructions: [
@@ -1606,28 +1605,11 @@ export class Transaction {
       compiledTx.addressTableLookups[0].accountKey =
         this.params.relayer.accounts.lookUpTable;
 
-      var tx = new VersionedTransaction(compiledTx);
-      let retries = 3;
-      let res;
-      while (retries > 0) {
-        tx = await this.provider.wallet.signTransaction(tx);
-        try {
-          let serializedTx = tx.serialize();
-
-          res = await this.provider.provider.connection.sendRawTransaction(
-            serializedTx,
-            confirmConfig,
-          );
-          retries = 0;
-        } catch (e: any) {
-          retries--;
-          if (retries == 0 || e.logs !== undefined) {
-            console.log(e);
-            return e;
-          }
-        }
-      }
-      return res;
+      const response = await sendVersionedTransaction(
+        compiledTx,
+        this.provider,
+      );
+      return response;
     }
   }
 
@@ -1670,10 +1652,7 @@ export class Transaction {
     if (instructions) {
       let tx = "Something went wrong";
       for (var ix in instructions) {
-        let txTmp = await this.sendTransaction(
-          instructions[ix],
-          this.params.action,
-        );
+        let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
