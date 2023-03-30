@@ -31,8 +31,6 @@ import {
   confirmConfig,
   TransactionParameters,
   Provider as LightProvider,
-  Relayer,
-  checkNfInserted,
   newAccountWithTokens,
   Action,
   useWallet,
@@ -185,19 +183,13 @@ describe("Verifier Zero and One Tests", () => {
 
      let lightProviderWithdrawal = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER
     }); // userKeypair
 
      const relayerRecipient = SolanaKeypair.generate().publicKey;
      await provider.connection.confirmTransaction(
        await provider.connection.requestAirdrop(relayerRecipient, 10000000)
      );
-     let relayer = new Relayer(
-       ADMIN_AUTH_KEYPAIR.publicKey,
-       lightProvider.lookUpTable,
-       relayerRecipient,
-       new BN(100000)
-     );
-
 
      let txParams2 = new TransactionParameters({
        inputUtxos: [deposit_utxo1],
@@ -205,7 +197,7 @@ describe("Verifier Zero and One Tests", () => {
        recipient: tokenRecipient,
        recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
        verifier: verifiers[verifier],
-       relayer,
+       relayer: RELAYER,
        poseidon: POSEIDON,
        action: Action.UNSHIELD
      });
@@ -421,7 +413,7 @@ describe("Verifier Zero and One Tests", () => {
        tmp_tx.params.accounts.registeredVerifierPda =
          REGISTERED_VERIFIER_ONE_PDA;
      }
-     await sendTestTx(tmp_tx, "Account", "registered_verifier_pda");
+     await sendTestTx(tmp_tx, "Account","registered_verifier_pda",);
    }
  });
 
@@ -432,7 +424,7 @@ describe("Verifier Zero and One Tests", () => {
        merkleTreeProgramId,
        SolanaKeypair.generate().publicKey
      );
-     await sendTestTx(tmp_tx, "Account", "authority");
+     await sendTestTx(tmp_tx, "Account","authority");
    }
  });
 
