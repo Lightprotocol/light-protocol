@@ -4,8 +4,18 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
+<<<<<<<< HEAD:light-sdk-ts/src/transaction/sendVersionedTransaction.ts
 import { Provider } from "wallet";
 import { confirmConfig } from "../constants";
+========
+import { ADMIN_AUTH_KEYPAIR, confirmConfig, Provider } from "light-sdk";
+
+export async function sendTransaction(
+  ix: any,
+): Promise<TransactionSignature | undefined> {
+  const provider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
+  if (!provider.provider) throw new Error("no provider set");
+>>>>>>>> a1dc3a0b (refactor the relayer):relayer/src/services/transactionService.ts
 
 export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
   const recentBlockhash = (
@@ -21,8 +31,13 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
     recentBlockhash: recentBlockhash,
   });
 
+<<<<<<<< HEAD:light-sdk-ts/src/transaction/sendVersionedTransaction.ts
   const lookupTableAccount = await provider.provider!.connection.getAccountInfo(
     provider.relayer.accounts.lookUpTable,
+========
+  const lookupTableAccount = await provider.provider.connection.getAccountInfo(
+    provider.lookUpTable!,
+>>>>>>>> a1dc3a0b (refactor the relayer):relayer/src/services/transactionService.ts
     "confirmed",
   );
 
