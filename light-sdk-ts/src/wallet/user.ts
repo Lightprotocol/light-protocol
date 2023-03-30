@@ -1,41 +1,22 @@
-import {
-  Keypair as SolanaKeypair,
-  PublicKey,
-  SystemProgram,
-  Transaction as SolanaTransaction,
-} from "@solana/web3.js";
+import { PublicKey, Transaction as SolanaTransaction } from "@solana/web3.js";
 import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Action, Transaction, TransactionParameters } from "../transaction";
-import { sign } from "tweetnacl";
+import { Action, Transaction } from "../transaction";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
 
 import {
-  FEE_ASSET,
-  UTXO_MERGE_MAXIMUM,
-  UTXO_FEE_ASSET_MINIMUM,
-  UTXO_MERGE_THRESHOLD,
   SIGN_MESSAGE,
   AUTHORITY,
   MERKLE_TREE_KEY,
   TOKEN_REGISTRY,
   merkleTreeProgramId,
-  MINIMUM_LAMPORTS,
 } from "../constants";
 import { SolMerkleTree } from "../merkleTree/index";
-import { VerifierZero } from "../verifiers/index";
-import { Relayer } from "../relayer";
 import { getUnspentUtxos } from "./buildBalance";
 import { Provider } from "./provider";
-import { getAccount, TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { assert } from "chai";
-import axios from "axios";
-import { selectInUtxos } from "./selectInUtxos";
-import { createOutUtxos, Recipient } from "./createOutUtxos";
-import { strToArr } from "../utils";
 import {
   CreateUtxoErrorCode,
   ProviderErrorCode,
@@ -45,6 +26,9 @@ import {
   UserError,
   UserErrorCode,
 } from "../errors";
+import { CachedUserState } from "types/user";
+import { convertAndComputeDecimals } from "utils";
+
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 type Balance = {
@@ -53,26 +37,6 @@ type Balance = {
   tokenAccount: PublicKey;
   decimals: BN;
 };
-
-type TokenContext = {
-  symbol: string;
-  decimals: BN;
-  tokenAccount: PublicKey;
-  isNft: boolean;
-  isSol: boolean;
-};
-
-export type CachedUserState = {
-  utxos: Utxo[];
-  seed: string;
-};
-export const convertAndComputeDecimals = (
-  amount: BN | string | number,
-  decimals: BN,
-) => {
-  return new BN(amount.toString()).mul(decimals);
-};
-var initLog = console.log;
 
 // TODO: Utxos should be assigned to a merkle tree
 // TODO: evaluate optimization to store keypairs separately or store utxos in a map<Keypair, Utxo> to not store Keypairs repeatedly
@@ -229,101 +193,6 @@ export class User {
   }
 
   // TODO: in UI, support wallet switching, "prefill option with button"
-  async getTxParams({
-    tokenCtx,
-    publicAmountSpl,
-    publicAmountSol,
-    action,
-    userSplAccount = AUTHORITY,
-    // for unshield
-    recipientFee,
-    recipientSPLAddress,
-    // for transfer
-    shieldedRecipients,
-    relayer,
-    ataCreationFee,
-  }: {
-    tokenCtx: TokenContext;
-    publicAmountSpl?: BN;
-    publicAmountSol?: BN;
-    userSplAccount?: PublicKey;
-    recipientFee?: PublicKey;
-    recipientSPLAddress?: PublicKey;
-    shieldedRecipients?: Recipient[];
-    action: Action;
-    relayer?: Relayer;
-    ataCreationFee?: boolean;
-  }): Promise<TransactionParameters> {
-    publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
-    publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
-
-    if (action === Action.TRANSFER && !shieldedRecipients)
-      throw new UserError(
-        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
-        "getTxParams",
-        "Recipient not provided for transfer",
-      );
-
-    if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
-      // TODO: could make easier to read by adding separate if/cases
-      throw new UserError(
-        RelayerErrorCode.RELAYER_FEE_UNDEFINED,
-        "getTxParams",
-        `No relayerFee provided for ${action.toLowerCase()}}`,
-      );
-    }
-    if (!this.account) {
-      throw new UserError(
-        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-        "getTxParams",
-        "Account not defined",
-      );
-    }
-
-    var inputUtxos: Utxo[] = [];
-    var outputUtxos: Utxo[] = [];
-
-    inputUtxos = selectInUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      publicAmountSol,
-      recipients: shieldedRecipients,
-      utxos: this.utxos,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
-      action,
-    });
-
-    outputUtxos = createOutUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      inUtxos: inputUtxos,
-      publicAmountSol, // TODO: add support for extra sol for unshield & transfer
-      poseidon: this.provider.poseidon,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
-      changeUtxoAccount: this.account,
-      recipients: shieldedRecipients,
-      action,
-    });
-
-    let txParams = new TransactionParameters({
-      outputUtxos,
-      inputUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: action === Action.SHIELD ? userSplAccount : undefined,
-      senderFee:
-        action === Action.SHIELD ? this.provider.wallet!.publicKey : undefined,
-      recipient: recipientSPLAddress,
-      recipientFee,
-      verifier: new VerifierZero(), // TODO: add support for 10in here -> verifier1
-      poseidon: this.provider.poseidon,
-      action,
-      lookUpTable: this.provider.lookUpTable!,
-      relayer,
-      ataCreationFee,
-    });
-
-    return txParams;
-  }
 
   /**
    *
@@ -443,9 +312,7 @@ export class User {
           ),
         );
 
-        const response = await this.provider.wallet!.sendAndConfirmTransaction(
-          transaction,
-        );
+        await this.provider.wallet!.sendAndConfirmTransaction(transaction);
       } catch (e) {
         throw new UserError(
           UserErrorCode.APPROVE_ERROR,
@@ -455,12 +322,15 @@ export class User {
       }
     }
 
-    const txParams = await this.getTxParams({
+    const txParams = await Transaction.getTxParams({
       tokenCtx,
       action: Action.SHIELD,
+      account: this.account,
+      utxos: this.utxos,
       publicAmountSol,
       publicAmountSpl,
       userSplAccount,
+      provider: this.provider,
     });
 
     let tx = new Transaction({
@@ -571,16 +441,16 @@ export class User {
       ? this.provider.minimumLamports
       : new BN(0);
 
-    const relayer = this.provider.relayer;
-
-    const txParams = await this.getTxParams({
+    const txParams = await Transaction.getTxParams({
       tokenCtx,
       publicAmountSpl: _publicSplAmount,
       action: Action.UNSHIELD,
+      account: this.account,
+      utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
       recipientFee: recipientSol ? recipientSol : AUTHORITY,
       recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
-      relayer,
+      provider: this.provider,
       ataCreationFee,
     });
 
@@ -658,11 +528,11 @@ export class User {
       ? convertAndComputeDecimals(amountSol, new BN(1e9))
       : new BN(0);
 
-    const relayer = this.provider.relayer;
-
-    const txParams = await this.getTxParams({
+    const txParams = await Transaction.getTxParams({
       tokenCtx,
       action: Action.TRANSFER,
+      account: this.account,
+      utxos: this.utxos,
       shieldedRecipients: [
         {
           mint: tokenCtx.tokenAccount,
@@ -671,7 +541,7 @@ export class User {
           splAmount: parsedSplAmount,
         },
       ],
-      relayer,
+      provider: this.provider,
     });
     let tx = new Transaction({
       provider: this.provider,
@@ -718,7 +588,7 @@ export class User {
    * untested for browser wallet!
    */
 
-  async load(cachedUser?: CachedUserState, provider?: Provider) {
+  async init(cachedUser?: CachedUserState, provider?: Provider) {
     if (cachedUser) {
       this.seed = cachedUser.seed;
       this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
@@ -782,13 +652,13 @@ export class User {
    * @param cachedUser - Optional user state to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
    */
 
-  static async load(
+  static async init(
     provider: Provider,
     cachedUser?: CachedUserState,
   ): Promise<any> {
     try {
       const user = new User({ provider });
-      await user.load(cachedUser, provider);
+      await user.init(cachedUser, provider);
       return user;
     } catch (e) {
       throw new UserError(

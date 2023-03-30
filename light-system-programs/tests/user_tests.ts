@@ -8,7 +8,7 @@ import _ from "lodash";
 import { assert } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
-// Load chai-as-promised support
+// init chai-as-promised support
 chai.use(chaiAsPromised);
 
 let circomlibjs = require("circomlibjs");
@@ -104,7 +104,7 @@ describe("Test User", () => {
       await provider.provider.connection.getTokenAccountBalance(userSplAccount);
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user: User = await User.load(provider);
+    const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.shield({ publicAmountSpl: amount, token });
@@ -171,7 +171,7 @@ describe("Test User", () => {
       4_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user: User = await User.load(provider);
+    const user: User = await User.init(provider);
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     const preShieldedBalance = await user.getBalance({ latest: true });
     const preSolBalance = await provider.provider.connection.getBalance(
@@ -257,7 +257,7 @@ describe("Test User", () => {
       );
     }
 
-    const user: User = await User.load(provider);
+    const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.unshield({
@@ -342,7 +342,7 @@ describe("Test User", () => {
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
 
-    const user: User = await User.load(provider);
+    const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -401,7 +401,7 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user = await User.load(provider);
+    const user = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -442,7 +442,7 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
 
-    const user = await User.load(provider);
+    const user = await User.init(provider);
     await user.unshield({ amount, token, recipient });
     // TODO: add random amount and amount checks
   });
@@ -482,7 +482,7 @@ describe("Test User Errors", () => {
       2_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    user = await User.load(provider);
+    user = await User.init(provider);
   });
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(

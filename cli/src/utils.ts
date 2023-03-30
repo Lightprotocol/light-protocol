@@ -124,7 +124,7 @@ export const readUserFromFile = async () => {
     };
 
     console.log("loading user...");
-    const user = await User.load(provider, state);
+    const user = await User.init(provider, state);
     //@ts-ignore
     console.log("✔️ User built from state!");
     return user;
