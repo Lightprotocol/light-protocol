@@ -413,7 +413,7 @@ describe("Verifier Zero and One Tests", () => {
        tmp_tx.params.accounts.registeredVerifierPda =
          REGISTERED_VERIFIER_ONE_PDA;
      }
-     await sendTestTx(tmp_tx, "Account",, "registered_verifier_pda",);
+     await sendTestTx(tmp_tx, "Account","registered_verifier_pda",);
    }
  });
 
@@ -424,7 +424,7 @@ describe("Verifier Zero and One Tests", () => {
        merkleTreeProgramId,
        SolanaKeypair.generate().publicKey
      );
-     await sendTestTx(tmp_tx, "Account",, "authority");
+     await sendTestTx(tmp_tx, "Account","authority");
    }
  });
 
