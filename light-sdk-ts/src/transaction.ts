@@ -1569,46 +1569,7 @@ export class Transaction {
         );
       }
 
-      const recentBlockhash = (
-        await this.provider.provider.connection.getRecentBlockhash("confirmed")
-      ).blockhash;
-
-      const txMsg = new TransactionMessage({
-        payerKey: this.params.relayer.accounts.relayerPubkey,
-        instructions: [
-          ComputeBudgetProgram.setComputeUnitLimit({ units: 1_400_000 }),
-          ix,
-        ],
-        recentBlockhash: recentBlockhash,
-      });
-
-      const lookupTableAccount =
-        await this.provider.provider.connection.getAccountInfo(
-          this.params.relayer.accounts.lookUpTable,
-          "confirmed",
-        );
-
-      const unpackedLookupTableAccount = AddressLookupTableAccount.deserialize(
-        lookupTableAccount!.data,
-      );
-
-      const compiledTx = txMsg.compileToV0Message([
-        {
-          state: unpackedLookupTableAccount,
-          key: this.params.relayer.accounts.lookUpTable,
-          isActive: () => {
-            return true;
-          },
-        },
-      ]);
-
-      compiledTx.addressTableLookups[0].accountKey =
-        this.params.relayer.accounts.lookUpTable;
-
-      const response = await sendVersionedTransaction(
-        compiledTx,
-        this.provider,
-      );
+      const response = await sendVersionedTransaction(ix, this.provider);
       return response;
     }
   }
