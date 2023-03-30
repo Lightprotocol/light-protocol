@@ -227,7 +227,6 @@ describe("Verifier Zero and One Tests", () => {
  const sendTestTx = async (
    tx: Transaction,
    type: string,
-   action: Action,
    account?: string
  ) => {
    var instructions = await tx.params.verifier.getInstructions(tx);
@@ -249,12 +248,12 @@ describe("Verifier Zero and One Tests", () => {
    for (var ix = 0; ix < instructions.length; ix++) {
      console.log("ix ", ix);
      if (ix != instructions.length - 1) {
-       e = await tx.sendTransaction(instructions[ix],action);
+       e = await tx.sendTransaction(instructions[ix]);
 
        // // confirm throws socket hangup error thus waiting a second instead
        await new Promise((resolve) => setTimeout(resolve, 700));
      } else {
-       e = await tx.sendTransaction(instructions[ix],action);
+       e = await tx.sendTransaction(instructions[ix]);
      }
    }
    console.log(e);
@@ -295,7 +294,7 @@ describe("Verifier Zero and One Tests", () => {
      ]);
      console.log("before sendTestTxs");
 
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -307,7 +306,7 @@ describe("Verifier Zero and One Tests", () => {
        ...new Array(29).fill(0),
        ...wrongFeeAmount,
      ]);
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -328,7 +327,7 @@ describe("Verifier Zero and One Tests", () => {
        userAccount: relayer,
        amount: new BN(0),
      });
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -336,7 +335,7 @@ describe("Verifier Zero and One Tests", () => {
    for (var tx in transactions) {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      tmp_tx.params.encryptedUtxos = new Uint8Array(174).fill(2);
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -344,7 +343,7 @@ describe("Verifier Zero and One Tests", () => {
    for (var tx in transactions) {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      tmp_tx.params.relayer.relayerFee = new anchor.BN("9000");
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -353,7 +352,7 @@ describe("Verifier Zero and One Tests", () => {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      for (var i in tmp_tx.transactionInputs.publicInputs.nullifiers) {
        tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(32).fill(2);
-       await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+       await sendTestTx(tmp_tx, "ProofVerificationFails");
      }
    }
  });
@@ -363,7 +362,7 @@ describe("Verifier Zero and One Tests", () => {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(2);
-       await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+       await sendTestTx(tmp_tx, "ProofVerificationFails");
      }
    }
  });
@@ -382,7 +381,7 @@ describe("Verifier Zero and One Tests", () => {
      );
      tmp_tx.provider.wallet = useWallet(wrongSinger);
      tmp_tx.params.relayer.accounts.relayerPubkey = wrongSinger.publicKey;
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -390,7 +389,7 @@ describe("Verifier Zero and One Tests", () => {
    for (var tx in transactions) {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      tmp_tx.params.accounts.recipientFee = SolanaKeypair.generate().publicKey;
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -398,7 +397,7 @@ describe("Verifier Zero and One Tests", () => {
    for (var tx in transactions) {
      var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
      tmp_tx.params.accounts.recipient = SolanaKeypair.generate().publicKey;
-     await sendTestTx(tmp_tx, "ProofVerificationFails",tmp_tx.params.action);
+     await sendTestTx(tmp_tx, "ProofVerificationFails");
    }
  });
 
@@ -441,7 +440,6 @@ describe("Verifier Zero and One Tests", () => {
        await sendTestTx(
          tmp_tx,
          "Includes",
-         tmp_tx.params.action,
          "Program log: Passed-in pda pubkey != on-chain derived pda pubkey."
        );
      }
@@ -461,7 +459,6 @@ describe("Verifier Zero and One Tests", () => {
          await sendTestTx(
            tmp_tx,
            "Includes",
-           tmp_tx.params.action,
            "Program log: Instruction: InsertTwoLeaves"
          );
        }
@@ -474,7 +471,6 @@ describe("Verifier Zero and One Tests", () => {
        await sendTestTx(
          tmp_tx,
          "Includes",
-         tmp_tx.params.action,
          "Program log: AnchorError caused by account: two_leaves_pda. Error Code: ConstraintSeeds. Error Number: 2006. Error Message: A seeds constraint was violated."
        );
      }
