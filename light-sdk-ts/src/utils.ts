@@ -64,6 +64,13 @@ export const arrToStr = (uint8arr: Uint8Array) =>
 export const strToArr = (str: string) =>
   new Uint8Array(Buffer.from(str.slice(3), "hex"));
 
+export const convertAndComputeDecimals = (
+  amount: BN | string | number,
+  decimals: BN,
+) => {
+  return new BN(amount.toString()).mul(decimals);
+};
+
 // export var logger = (function () {
 //   var oldConsoleLog: any = null;
 //   var pub = {};
