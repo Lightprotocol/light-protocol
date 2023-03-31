@@ -4,21 +4,10 @@ const chaiAsPromised = require("chai-as-promised");
 const should = chai.should();
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
 
-import { Account } from "../src/account";
-import { Utxo } from "../src/utxo";
 import {
-  FEE_ASSET,
-  hashAndTruncateToCircuit,
-  Provider as LightProvider,
-  MINT,
-  Relayer,
-  UtxoError,
-  UtxoErrorCode,
   functionalCircuitTest,
   VerifierZero,
   VerifierTwo,
@@ -26,14 +15,7 @@ import {
   VerifierError,
   VerifierErrorCode,
   TransactionErrorCode,
-  TransactionError,
-  TransactioParametersError,
-  TransactionParametersErrorCode,
-  Transaction,
-  TransactionParameters,
-  Action,
 } from "../src";
-import { MerkleTree } from "../src/merkleTree/merkleTree";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 

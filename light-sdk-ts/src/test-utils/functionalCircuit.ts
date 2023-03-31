@@ -10,12 +10,12 @@ import {
   Verifier,
   Provider,
   Transaction,
+  Action,
   TransactionParameters,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
-import { Action } from "enums";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
@@ -36,6 +36,7 @@ export async function functionalCircuitTest(
   let mockPubkey = SolanaKeypair.generate().publicKey;
 
   let lightProvider = await LightProvider.loadMock();
+
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,

@@ -1,21 +1,8 @@
 import { PublicKey, Transaction as SolanaTransaction } from "@solana/web3.js";
-import { Account } from "../account";
-import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
-
-import {
-  SIGN_MESSAGE,
-  AUTHORITY,
-  MERKLE_TREE_KEY,
-  TOKEN_REGISTRY,
-  merkleTreeProgramId,
-} from "../constants";
-import { SolMerkleTree } from "../merkleTree/index";
-import { getUnspentUtxos } from "./buildBalance";
-import { Provider } from "./provider";
 import {
   CreateUtxoErrorCode,
   ProviderErrorCode,
@@ -24,12 +11,22 @@ import {
   TransactionParametersErrorCode,
   UserError,
   UserErrorCode,
-  Action,
+  CachedUserState,
+  Provider,
+  getUnspentUtxos,
+  SolMerkleTree,
+  SIGN_MESSAGE,
+  AUTHORITY,
+  MERKLE_TREE_KEY,
+  TOKEN_REGISTRY,
+  merkleTreeProgramId,
+  Account,
+  Utxo,
+  convertAndComputeDecimals,
   Transaction,
   TransactionParameters,
-  CachedUserState,
+  Action,
 } from "../index";
-import { convertAndComputeDecimals } from "../utils";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 

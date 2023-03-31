@@ -1,15 +1,15 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import { Utxo } from "../utxo";
-import { Account } from "../account";
 import { BN } from "@coral-xyz/anchor";
 import {
   CreateUtxoError,
   CreateUtxoErrorCode,
   TransactionErrorCode,
   TransactionParametersErrorCode,
-} from "../errors";
-import { Action } from "enums/action";
-import { TransactionParameters } from "transaction";
+  Action,
+  Account,
+  Utxo,
+  TransactionParameters,
+} from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
 

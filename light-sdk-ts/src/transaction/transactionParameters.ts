@@ -24,12 +24,12 @@ import {
   CreateUtxoErrorCode,
   selectInUtxos,
   createOutUtxos,
-  Action,
   Transaction,
+  Action,
+  TokenContext,
+  transactionParameters,
+  lightAccounts,
 } from "../index";
-import { TokenContext } from "types";
-import { transactionParameters } from "types/transaction";
-import { lightAccounts } from "types/accounts";
 
 export class TransactionParameters implements transactionParameters {
   inputUtxos: Array<Utxo>;

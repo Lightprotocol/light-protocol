@@ -4,7 +4,7 @@ import {
   AccountError,
   AccountErrorCode,
   TransactionParametersErrorCode,
-} from "./errors";
+} from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
