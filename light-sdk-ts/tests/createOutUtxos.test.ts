@@ -14,8 +14,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
 import { Scalar } from "ffjavascript";
-
-import { Account } from "../src/account";
 import {
   Action,
   TransactionParametersErrorCode,
@@ -27,6 +25,7 @@ import {
   Utxo,
   CreateUtxoError,
   CreateUtxoErrorCode,
+  Account
 } from "../src";
 import { access } from "fs";
 

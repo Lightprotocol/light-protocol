@@ -4,7 +4,6 @@ import {
   BN,
   setProvider,
 } from "@coral-xyz/anchor";
-import { SolMerkleTree } from "../merkleTree";
 import {
   PublicKey,
   Keypair as SolanaKeypair,
@@ -12,12 +11,19 @@ import {
   ConfirmOptions,
   Keypair,
 } from "@solana/web3.js";
-import { ADMIN_AUTH_KEYPAIR, initLookUpTableFromFile } from "../test-utils";
-import { MERKLE_TREE_HEIGHT, MERKLE_TREE_KEY } from "../constants";
-import { MerkleTree } from "../merkleTree/merkleTree";
-import { ProviderError, ProviderErrorCode } from "../errors";
-import { useWallet } from "./useWallet";
-import { Relayer } from "../relayer";
+import {
+  ProviderError,
+  ProviderErrorCode,
+  MerkleTree,
+  useWallet,
+  Relayer,
+  MERKLE_TREE_HEIGHT,
+  MERKLE_TREE_KEY,
+  ADMIN_AUTH_KEYPAIR,
+  initLookUpTableFromFile,
+  SolMerkleTree,
+} from "../index";
+
 const axios = require("axios");
 const circomlibjs = require("circomlibjs");
 

@@ -1,20 +1,13 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-} from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt } from "circomlibjs";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { Account } from "../src/account";
-import { Utxo } from "../src/utxo";
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -25,19 +18,17 @@ import {
   VerifierZero,
   TransactionErrorCode,
   Action,
-  TransactioParametersError,
-  TransactionParametersErrorCode,
   Relayer,
-  FIELD_SIZE,
-  merkleTreeProgramId,
   VerifierTwo,
   VerifierOne,
   AUTHORITY,
   TransactionError,
   ProviderErrorCode,
   SolMerkleTreeErrorCode,
+  Utxo,
+  Account,
+  MerkleTree
 } from "../src";
-import { MerkleTree } from "../src/merkleTree/merkleTree";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

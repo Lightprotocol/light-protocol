@@ -1,9 +1,7 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
-import { RelayerError, RelayerErrorCode } from "./errors";
-import { updateMerkleTreeForTest } from "./test-utils";
-import { Provider } from "./wallet";
 import axios from "axios";
+import { RelayerError, RelayerErrorCode, Provider } from "./index";
 
 export class Relayer {
   accounts: {

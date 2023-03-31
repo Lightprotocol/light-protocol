@@ -22,6 +22,7 @@ import {
   Provider,
   sendVersionedTransaction,
   TransactionParameters,
+  Action,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "types/accounts";
@@ -300,7 +301,7 @@ export class Transaction {
     );
     const path = require("path");
     // TODO: find a better more flexible solution, pass in path with app params
-    const firstPath = path.resolve(__dirname, "../../../sdk/build-circuit/");
+    const firstPath = path.resolve(__dirname, "../../../../sdk/build-circuit/");
     let { proofBytes, publicInputs } = await this.getProofInternal(
       this.appParams.verifier,
       {
@@ -319,7 +320,7 @@ export class Transaction {
 
   async getProof() {
     const path = require("path");
-    const firstPath = path.resolve(__dirname, "../build-circuits/");
+    const firstPath = path.resolve(__dirname, "../../build-circuits/");
 
     if (!this.params.verifier)
       throw new TransactionError(
