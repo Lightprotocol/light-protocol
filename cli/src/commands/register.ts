@@ -42,7 +42,7 @@ export const handler = async (argv: Arguments<Options>): Promise<void> => {
   // same as login. would here optionally also register account on-chain (not strictly necessary)
   const lightInstance = await getLightInstance();
   const user = new User({ payer: wallet, lightInstance });
-  await user.load();
+  await user.init();
   saveUserToFile({ user });
   console.log("User registered!");
   process.exit(0);
