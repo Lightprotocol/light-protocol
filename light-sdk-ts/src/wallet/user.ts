@@ -2,7 +2,7 @@ import { PublicKey, Transaction as SolanaTransaction } from "@solana/web3.js";
 import { Account } from "../account";
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Action, Transaction } from "../transaction";
+import { Action, Transaction, TransactionParameters } from "../transaction";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
 const circomlibjs = require("circomlibjs");
@@ -27,7 +27,7 @@ import {
   UserErrorCode,
 } from "../errors";
 import { CachedUserState } from "types/user";
-import { convertAndComputeDecimals } from "utils";
+import { convertAndComputeDecimals } from "../utils";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
@@ -322,7 +322,7 @@ export class User {
       }
     }
 
-    const txParams = await Transaction.getTxParams({
+    const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.SHIELD,
       account: this.account,
@@ -441,7 +441,7 @@ export class User {
       ? this.provider.minimumLamports
       : new BN(0);
 
-    const txParams = await Transaction.getTxParams({
+    const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       publicAmountSpl: _publicSplAmount,
       action: Action.UNSHIELD,
@@ -451,6 +451,7 @@ export class User {
       recipientFee: recipientSol ? recipientSol : AUTHORITY,
       recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
       provider: this.provider,
+      relayer: this.provider.relayer,
       ataCreationFee,
     });
 
@@ -528,7 +529,7 @@ export class User {
       ? convertAndComputeDecimals(amountSol, new BN(1e9))
       : new BN(0);
 
-    const txParams = await Transaction.getTxParams({
+    const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.TRANSFER,
       account: this.account,
@@ -542,6 +543,7 @@ export class User {
         },
       ],
       provider: this.provider,
+      relayer: this.provider.relayer,
     });
     let tx = new Transaction({
       provider: this.provider,
