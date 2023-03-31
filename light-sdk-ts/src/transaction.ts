@@ -514,6 +514,108 @@ export class TransactionParameters implements transactionParameters {
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
   }
 
+  static async getTxParams({
+    tokenCtx,
+    publicAmountSpl,
+    publicAmountSol,
+    action,
+    userSplAccount = AUTHORITY,
+    account,
+    utxos,
+    // for unshield
+    recipientFee,
+    recipientSPLAddress,
+    // for transfer
+    shieldedRecipients,
+    relayer,
+    provider,
+    ataCreationFee,
+  }: {
+    tokenCtx: TokenContext;
+    publicAmountSpl?: BN;
+    publicAmountSol?: BN;
+    userSplAccount?: PublicKey;
+    account?: Account;
+    utxos?: Utxo[];
+    recipientFee?: PublicKey;
+    recipientSPLAddress?: PublicKey;
+    shieldedRecipients?: Recipient[];
+    action: Action;
+    provider: Provider;
+    relayer?: Relayer;
+    ataCreationFee?: boolean;
+  }): Promise<TransactionParameters> {
+    publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
+    publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
+
+    if (action === Action.TRANSFER && !shieldedRecipients)
+      throw new UserError(
+        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        "getTxParams",
+        "Recipient not provided for transfer",
+      );
+
+    if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
+      // TODO: could make easier to read by adding separate if/cases
+      throw new UserError(
+        RelayerErrorCode.RELAYER_FEE_UNDEFINED,
+        "getTxParams",
+        `No relayerFee provided for ${action.toLowerCase()}}`,
+      );
+    }
+    if (!account) {
+      throw new UserError(
+        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+        "getTxParams",
+        "Account not defined",
+      );
+    }
+
+    var inputUtxos: Utxo[] = [];
+    var outputUtxos: Utxo[] = [];
+
+    inputUtxos = selectInUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicAmountSpl,
+      publicAmountSol,
+      recipients: shieldedRecipients,
+      utxos,
+      relayerFee: relayer?.getRelayerFee(ataCreationFee),
+      action,
+    });
+
+    outputUtxos = createOutUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicAmountSpl,
+      inUtxos: inputUtxos,
+      publicAmountSol, // TODO: add support for extra sol for unshield & transfer
+      poseidon: provider.poseidon,
+      relayerFee: relayer?.getRelayerFee(ataCreationFee),
+      changeUtxoAccount: account,
+      recipients: shieldedRecipients,
+      action,
+    });
+
+    let txParams = new TransactionParameters({
+      outputUtxos,
+      inputUtxos,
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      sender: action === Action.SHIELD ? userSplAccount : undefined,
+      senderFee:
+        action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
+      recipient: recipientSPLAddress,
+      recipientFee,
+      verifier: new VerifierZero(provider), // TODO: add support for 10in here -> verifier1
+      poseidon: provider.poseidon,
+      action,
+      lookUpTable: provider.lookUpTable!,
+      relayer: relayer,
+      ataCreationFee,
+    });
+
+    return txParams;
+  }
+
   /**
    * @description Constructs transaction parameters based on the provided inputs and action type.
    * @note This function is used to build the necessary parameters for various actions (e.g., shield, unshield, transfer).
@@ -1016,109 +1118,6 @@ export class Transaction {
   async proveAndCreateInstructionsJson(): Promise<string[]> {
     await this.compileAndProve();
     return await this.getInstructionsJson();
-  }
-
-  static async getTxParams({
-    tokenCtx,
-    publicAmountSpl,
-    publicAmountSol,
-    action,
-    userSplAccount = AUTHORITY,
-    account,
-    utxos,
-    // for unshield
-    recipientFee,
-    recipientSPLAddress,
-    // for transfer
-    shieldedRecipients,
-    provider,
-    ataCreationFee,
-  }: {
-    tokenCtx: TokenContext;
-    publicAmountSpl?: BN;
-    publicAmountSol?: BN;
-    userSplAccount?: PublicKey;
-    account?: Account;
-    utxos?: Utxo[];
-    recipientFee?: PublicKey;
-    recipientSPLAddress?: PublicKey;
-    shieldedRecipients?: Recipient[];
-    action: Action;
-    provider: Provider;
-    ataCreationFee?: boolean;
-  }): Promise<TransactionParameters> {
-    publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
-    publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
-
-    if (action === Action.TRANSFER && !shieldedRecipients)
-      throw new UserError(
-        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
-        "getTxParams",
-        "Recipient not provided for transfer",
-      );
-
-    if (
-      action !== Action.SHIELD &&
-      !provider.relayer?.getRelayerFee(ataCreationFee)
-    ) {
-      // TODO: could make easier to read by adding separate if/cases
-      throw new UserError(
-        RelayerErrorCode.RELAYER_FEE_UNDEFINED,
-        "getTxParams",
-        `No relayerFee provided for ${action.toLowerCase()}}`,
-      );
-    }
-    if (!account) {
-      throw new UserError(
-        CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
-        "getTxParams",
-        "Account not defined",
-      );
-    }
-
-    var inputUtxos: Utxo[] = [];
-    var outputUtxos: Utxo[] = [];
-
-    inputUtxos = selectInUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      publicAmountSol,
-      recipients: shieldedRecipients,
-      utxos,
-      relayerFee: provider.relayer?.getRelayerFee(ataCreationFee),
-      action,
-    });
-
-    outputUtxos = createOutUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      inUtxos: inputUtxos,
-      publicAmountSol, // TODO: add support for extra sol for unshield & transfer
-      poseidon: provider.poseidon,
-      relayerFee: provider.relayer?.getRelayerFee(ataCreationFee),
-      changeUtxoAccount: account,
-      recipients: shieldedRecipients,
-      action,
-    });
-
-    let txParams = new TransactionParameters({
-      outputUtxos,
-      inputUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: action === Action.SHIELD ? userSplAccount : undefined,
-      senderFee:
-        action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
-      recipient: recipientSPLAddress,
-      recipientFee,
-      verifier: new VerifierZero(provider), // TODO: add support for 10in here -> verifier1
-      poseidon: provider.poseidon,
-      action,
-      lookUpTable: provider.lookUpTable!,
-      relayer: provider.relayer,
-      ataCreationFee,
-    });
-
-    return txParams;
   }
 
   async proveAndCreateInstructions(): Promise<TransactionInstruction[]> {
