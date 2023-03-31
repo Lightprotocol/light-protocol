@@ -13,14 +13,14 @@ import {
   getUtxoArrayAmount,
   Recipient,
 } from "./createOutUtxos";
-import { Action } from "../transaction";
 import {
   CreateUtxoErrorCode,
   RelayerErrorCode,
   SelectInUtxosError,
   SelectInUtxosErrorCode,
   TransactionErrorCode,
-} from "../errors";
+  Action
+} from "../index";
 
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {

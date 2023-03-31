@@ -5,17 +5,17 @@ import {
   Account,
   Provider as LightProvider,
   MINT,
-  Transaction,
-  TransactionParameters,
   Utxo,
   VerifierZero,
-  Action,
   Verifier,
   Provider,
+  Transaction,
+  TransactionParameters,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Action } from "enums";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(

@@ -5,8 +5,6 @@ import {
   Account,
   Provider as LightProvider,
   MINT,
-  Transaction,
-  TransactionParameters,
   Utxo,
   VerifierZero,
   SolMerkleTree,

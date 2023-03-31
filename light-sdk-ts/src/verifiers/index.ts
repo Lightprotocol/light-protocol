@@ -3,7 +3,7 @@ export * from "./verifierZero";
 export * from "./verifierTwo";
 
 import { Program, web3, BN } from "@coral-xyz/anchor";
-import { Transaction } from "../transaction";
+import { Transaction } from "transaction";
 
 export type PublicInputs = {
   root: Array<number>;
