@@ -35,7 +35,7 @@ export class Utxo {
    * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
    * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
    * @param {BN} verifierAddressCircuit hashAndTruncateToCircuit(verifierAddress) to fit into 254 bit field size of bn254.
-   * @param {BN} instructionType is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
+   * @param {BN} appDataHash is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
    * @param {BN} poolType is the pool type domain of the utxo default is [0;32].
    * @param {any} poseidon poseidon hasher instance.
    * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
@@ -51,12 +51,13 @@ export class Utxo {
   appData: Array<any>;
   verifierAddress: PublicKey;
   verifierAddressCircuit: BN;
-  instructionType: BN;
+  appDataHash: BN;
   poolType: BN;
   _commitment?: string;
   _nullifier?: string;
   poseidon: any;
   includeAppData: boolean;
+  transactionVersion: string;
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -68,7 +69,7 @@ export class Utxo {
    * @param {index} index? the index of the utxo's commitment hash in the Merkle tree.
    * @param {Array<any>} appData application data of app utxos not provided for normal utxos.
    * @param {PublicKey} verifierAddress the solana address of the verifier, SystemProgramId/BN(0) for system verifiers.
-   * @param {BN} instructionType is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
+   * @param {BN} appDataHash is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
    * @param {any} poseidon poseidon hasher instance.
    * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
    * @param {function} appDataFromBytesFn function to deserialize appData from bytes.
@@ -87,7 +88,7 @@ export class Utxo {
     appDataFromBytesFn,
     index,
     includeAppData = false,
-    instructionType,
+    appDataHash,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -100,7 +101,7 @@ export class Utxo {
     appDataFromBytesFn?: Function;
     index?: number;
     includeAppData?: boolean;
-    instructionType?: BN;
+    appDataHash?: BN;
   }) {
     // check that blinding is 31 bytes
     try {
@@ -180,6 +181,7 @@ export class Utxo {
     this.appData = appData;
     this.poolType = poolType;
     this.includeAppData = includeAppData;
+    this.transactionVersion = "0";
 
     // TODO: make variable length
     if (assets[1].toBase58() != SystemProgram.programId.toBase58()) {
@@ -206,7 +208,7 @@ export class Utxo {
       );
     }
     if (appData.length > 0) {
-      if (appDataFromBytesFn && !instructionType) {
+      if (appDataFromBytesFn && !appDataHash) {
         // console.log(
         //   "appDataFromBytesFn(appData) ",
         //   appDataFromBytesFn(appData).map((x) => x.toString()),
@@ -214,7 +216,7 @@ export class Utxo {
         // console.log("poseidon.F.toString ", poseidon.F.toString(
         //   poseidon(appDataFromBytesFn(appData))));
 
-        this.instructionType = new BN(
+        this.appDataHash = new BN(
           leInt2Buff(
             unstringifyBigInts(
               poseidon.F.toString(poseidon(appDataFromBytesFn(appData))),
@@ -224,8 +226,8 @@ export class Utxo {
           undefined,
           "le",
         );
-      } else if (instructionType) {
-        this.instructionType = instructionType;
+      } else if (appDataHash) {
+        this.appDataHash = appDataHash;
       } else {
         throw new UtxoError(
           UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
@@ -234,7 +236,7 @@ export class Utxo {
         );
       }
     } else {
-      this.instructionType = new BN("0");
+      this.appDataHash = new BN("0");
     }
   }
 
@@ -267,7 +269,7 @@ export class Utxo {
       ...this.amounts[0].toArray("be", 8),
       ...this.amounts[1].toArray("be", 8),
       ...assetIndex.toArray("be", 8),
-      ...this.instructionType.toArray("be", 32),
+      ...this.appDataHash.toArray("be", 32),
       ...this.poolType.toArray("be", 8),
       ...this.verifierAddress.toBytes(),
       ...new Array(1),
@@ -328,7 +330,7 @@ export class Utxo {
     // TODO: add identifier that utxo is app utxo
     // TODO: add option to use account abstraction standard pubkey new BN(0)
     else {
-      const instructionType = new BN(bytes.slice(55, 87), 32, "be");
+      const appDataHash = new BN(bytes.slice(55, 87), 32, "be");
 
       const poolType = new BN(bytes.slice(87, 95), 8, "be");
       const verifierAddress = new PublicKey(bytes.slice(95, 127));
@@ -344,7 +346,7 @@ export class Utxo {
         amounts,
         account: burnerAccount,
         blinding,
-        instructionType,
+        appDataHash,
         appData: Array.from([...appData]),
         appDataFromBytesFn,
         verifierAddress,
@@ -356,7 +358,7 @@ export class Utxo {
 
   /**
    * @description Returns commitment for this utxo
-   * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, instructionType, poolType, verifierAddressCircuit)
+   * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
    * @returns {string}
    */
   getCommitment(): string {
@@ -371,15 +373,16 @@ export class Utxo {
       // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());
       // console.log("this.blinding ", this.blinding.toString());
       // console.log("assetHash ", assetHash.toString());
-      // console.log("this.instructionType ", this.instructionType.toString());
+      // console.log("this.appDataHash ", this.appDataHash.toString());
       // console.log("this.poolType ", this.poolType.toString());
       let commitment: string = this.poseidon.F.toString(
         this.poseidon([
+          this.transactionVersion,
           amountHash,
           this.account.pubkey.toString(),
           this.blinding.toString(),
           assetHash.toString(),
-          this.instructionType.toString(),
+          this.appDataHash.toString(),
           this.poolType,
           this.verifierAddressCircuit,
         ]),
@@ -526,10 +529,7 @@ export class Utxo {
       utxo0.assetsCircuit[1].toString(),
       utxo1.assetsCircuit[1].toString(),
     );
-    assert.equal(
-      utxo0.instructionType.toString(),
-      utxo1.instructionType.toString(),
-    );
+    assert.equal(utxo0.appDataHash.toString(), utxo1.appDataHash.toString());
     assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
     assert.equal(
       utxo0.verifierAddress.toString(),
