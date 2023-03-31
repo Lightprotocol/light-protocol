@@ -40,9 +40,10 @@ import {
   CreateUtxoErrorCode,
   selectInUtxos,
   createOutUtxos,
+  TokenContext,
 } from "./index";
 import { IDL_MERKLE_TREE_PROGRAM } from "./idls/index";
-import { TokenContext } from "types";
+
 const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
 var ffjavascript = require("ffjavascript");
@@ -513,6 +514,24 @@ export class TransactionParameters implements transactionParameters {
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
   }
 
+  /**
+   * @description Constructs transaction parameters based on the provided inputs and action type.
+   * @note This function is used to build the necessary parameters for various actions (e.g., shield, unshield, transfer).
+   * @param tokenCtx - Token context containing relevant information about the token.
+   * @param publicAmountSpl - Optional public token amount involved in the transaction.
+   * @param publicAmountSol - Optional public native currency amount involved in the transaction.
+   * @param userSplAccount - Optional user token account public key.
+   * @param account - Optional account object for the user.
+   * @param utxos - Optional array of UTXOs.
+   * @param recipientFee - Optional public key of the recipient fee account for unshield action.
+   * @param recipientSPLAddress - Optional public key of the recipient SPL address for unshield action.
+   * @param shieldedRecipients - Optional array of shielded recipients for transfer action.
+   * @param action - The action type to perform (e.g., shield, unshield, transfer).
+   * @param provider - The provider instance to use for the transaction.
+   * @param relayer - Optional relayer object for handling the transaction.
+   * @param ataCreationFee - Optional flag for considering ATA creation fee in the transaction.
+   * @returns Promise that resolves to the constructed transaction parameters.
+   */
   static async getTxParams({
     tokenCtx,
     publicAmountSpl,
@@ -1723,9 +1742,7 @@ export class Transaction {
     if (instructions) {
       let tx = "Something went wrong";
       for (var ix in instructions) {
-        let txTmp = await this.sendTransaction(
-          instructions[ix],
-        );
+        let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
           console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(

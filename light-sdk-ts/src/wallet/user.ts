@@ -26,8 +26,9 @@ import {
   UserError,
   UserErrorCode,
 } from "../errors";
-import { CachedUserState } from "types/user";
+
 import { convertAndComputeDecimals } from "../utils";
+import { CachedUserState } from "types";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 

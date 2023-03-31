@@ -10,3 +10,4 @@ export * from "./idls";
 export * from "./relayer";
 export * from "./merkleTree";
 export * from "./errors";
+export * from "./types";
