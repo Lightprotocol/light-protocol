@@ -196,15 +196,20 @@ describe("Transaction Error Tests", () => {
   });
 
   it("getProof VERIFIER_UNDEFINED", async () => {
-    let tx = new Transaction({
-      provider: lightProvider,
-      // @ts-ignore
-      params: {},
-    });
-    await chai.assert.isRejected(
-      tx.getProof(),
-      TransactionErrorCode.VERIFIER_UNDEFINED,
-    );
+
+    expect(() => {
+      new Transaction({
+        provider: lightProvider,
+        // @ts-ignore
+        params: {},
+      });
+  
+    })
+      .throw(TransactionError)
+      .includes({
+        code: TransactionErrorCode.VERIFIER_UNDEFINED,
+        functionName: "constructor",
+      });
   });
 
   it("getProofInternal PROOF_INPUT_UNDEFINED", async () => {
@@ -221,8 +226,7 @@ describe("Transaction Error Tests", () => {
   it("getAppProof APP_PARAMETERS_UNDEFINED", async () => {
     let tx = new Transaction({
       provider: lightProvider,
-      // @ts-ignore
-      params: {},
+      params,
     });
     await chai.assert.isRejected(
       tx.getAppProof(),
@@ -568,12 +572,12 @@ describe("Transaction Functional Tests", () => {
       "10565179045304799599615498933777028333590859286329750962414982763930145076928",
     );
     assert.equal(
-      Transaction.getConnectingHash(
+      Transaction.getTransactionHash(
         paramsStaticEncryptedUtxos,
         poseidon,
         txIntegrityHash,
       ).toString(),
-      "6809628031093277232613009546245848979877080284202582086386744590121571206361",
+      "14857171448275195680095284652077216904745885328355740301134929101899924476752",
     );
   });
 
@@ -692,5 +696,54 @@ describe("Transaction Functional Tests", () => {
       tx.params.accounts.verifierState!.toBase58(),
       "5XAf8s2hi4fx3QK8fm6dgkfXLE23Hy9k1Qo3ew6QqdGP",
     );
+  });
+
+  it("APP_PARAMETERS_UNDEFINED", async () => {
+    const params = new TransactionParameters({
+      outputUtxos: [deposit_utxo1],
+      merkleTreePubkey: mockPubkey,
+      sender: mockPubkey,
+      senderFee: mockPubkey,
+      verifier: new VerifierTwo(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.SHIELD,
+    });
+    expect(() => {
+      let tx = new Transaction({
+        provider: lightProvider,
+        params,
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  it("INVALID_VERIFIER_SELECTED", async () => {
+    const params = new TransactionParameters({
+      outputUtxos: [deposit_utxo1],
+      merkleTreePubkey: mockPubkey,
+      sender: mockPubkey,
+      senderFee: mockPubkey,
+      verifier: new VerifierZero(),
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.SHIELD,
+    });
+    expect(() => {
+      let tx = new Transaction({
+        provider: lightProvider,
+        params,
+        appParams: { mock: "1231" },
+      });
+    })
+      .to.throw(TransactionError)
+      .to.include({
+        code: TransactionErrorCode.INVALID_VERIFIER_SELECTED,
+        functionName: "constructor",
+      });
   });
 });
