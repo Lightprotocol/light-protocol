@@ -30,7 +30,10 @@ import {
   TransactioParametersError,
   TransactionParametersErrorCode,
   Transaction,
+  TransactionParameters,
+  Action,
 } from "../src";
+import { MerkleTree } from "../src/merkleTree/merkleTree";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 

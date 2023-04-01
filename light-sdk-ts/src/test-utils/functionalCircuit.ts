@@ -76,6 +76,6 @@ export async function functionalCircuitTest(
     x = false;
   } catch (error) {
     // assert.isTrue(error.toString().includes("CheckIndices_3 line:"));
-    assert.isTrue(x);
   }
+  assert.isTrue(x);
 }

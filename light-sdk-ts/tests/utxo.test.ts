@@ -38,7 +38,7 @@ describe("Utxo Functional", () => {
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock(mockPubkey3);
+    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -116,7 +116,7 @@ describe("Utxo Functional", () => {
       utxo0.assetsCircuit[1].toString(),
       hashAndTruncateToCircuit(assetPubkey.toBytes()).toString(),
     );
-    assert.equal(utxo0.instructionType.toString(), "0");
+    assert.equal(utxo0.appDataHash.toString(), "0");
     assert.equal(utxo0.poolType.toString(), "0");
     assert.equal(
       utxo0.verifierAddress.toString(),
@@ -125,12 +125,12 @@ describe("Utxo Functional", () => {
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
       utxo0.getCommitment()?.toString(),
-      "652669139698397343583748072204170820200438709928429876748650598683161543212",
+      "8989324955018347745620195382288710751873914589499358508918782406019233094196",
     );
 
     assert.equal(
       utxo0.getNullifier()?.toString(),
-      "21628460042151823012568567445627492316110015914090115121984057579010072862243",
+      "16754375772623288827522514885252653352689437303609900913797444969754165213445",
     );
 
     // toBytes

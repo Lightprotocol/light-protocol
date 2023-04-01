@@ -14,7 +14,7 @@ Utxo structure:
     blinding, // random number
 }
 
-commitment = hash(amountHash, pubKey, blinding, assetHash, instructionType)
+commitment = hash(amountHash, pubKey, blinding, assetHash, appDataHash)
 nullifier = hash(commitment, merklePath, sign(privKey, commitment, merklePath))
 */
 
@@ -27,11 +27,11 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     assert( nInAssets <= nAssets);
     assert( nOutAssets <= nAssets);
     
-    signal input extDataHash;
+    signal input txIntegrityHash;
     signal input  inAmount[nIns][nInAssets];
     signal input  inPublicKey[nIns];
     signal input  inBlinding[nIns];
-    signal input  inInstructionType[nIns];
+    signal input  inAppDataHash[nIns];
     signal  input inPoolType[nIns];
     signal  input inVerifierPubkey[nIns];
     signal  input inIndices[nIns][nInAssets][nAssets];
@@ -41,12 +41,13 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     signal  input outAmount[nOuts][nOutAssets];
     signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
-    signal  input outInstructionType[nOuts];
+    signal  input outAppDataHash[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
     signal  input outPoolType[nOuts];
     signal  input outVerifierPubkey[nOuts];
 
     signal  input assetPubkeys[nAssets];
+    signal input transactionVersion;
 
     component inGetAsset[nIns][nInAssets][nAssets];
 
@@ -104,14 +105,15 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
             sumInAmount += inAmount[tx][a];
         }
 
-        inCommitmentHasher[tx] = Poseidon(7);
-        inCommitmentHasher[tx].inputs[0] <== inAmountsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[1] <== inPublicKey[tx];
-        inCommitmentHasher[tx].inputs[2] <== inBlinding[tx];
-        inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
-        inCommitmentHasher[tx].inputs[5] <== inPoolType[tx];
-        inCommitmentHasher[tx].inputs[6] <== inVerifierPubkey[tx];
+        inCommitmentHasher[tx] = Poseidon(8);
+        inCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+        inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[2] <== inPublicKey[tx];
+        inCommitmentHasher[tx].inputs[3] <== inBlinding[tx];
+        inCommitmentHasher[tx].inputs[4] <== inAssetsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
+        inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
+        inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
 
 
 
@@ -130,8 +132,8 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     component outCommitmentHasher[nOuts];
     component outAmountCheck[nOuts][nOutAssets];
     component sumOut[nOuts][nOutAssets][nAssets];
-    component outAmountHasher[nOuts];
-    component outAssetHasher[nOuts];
+    component outAmountsHasher[nOuts];
+    component outAssetsHasher[nOuts];
 
     var sumOuts[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -151,7 +153,7 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
         // for every asset for every tx only one index is 1 others are 0
         // select the asset corresponding to the index
         // and add it to the assetHasher
-        outAssetHasher[tx] = Poseidon(nOutAssets);
+        outAssetsHasher[tx] = Poseidon(nOutAssets);
 
         for (var a = 0; a < nOutAssets; a++) {
             var asset = 0;
@@ -162,7 +164,7 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
                 asset += outGetAsset[tx][a][i].out;
             }
             assetsOuts[tx][a] = asset;
-            outAssetHasher[tx].inputs[a] <== asset;
+            outAssetsHasher[tx].inputs[a] <== asset;
         }
 
         for (var i = 0; i < nOutAssets; i++) {
@@ -171,19 +173,20 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
             outAmountCheck[tx][i].in <== outAmount[tx][i];
         }
 
-        outAmountHasher[tx] = Poseidon(nOutAssets);
+        outAmountsHasher[tx] = Poseidon(nOutAssets);
         for (var i = 0; i < nOutAssets; i++) {
-            outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
+            outAmountsHasher[tx].inputs[i] <== outAmount[tx][i];
         }
 
-        outCommitmentHasher[tx] = Poseidon(7);
-        outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
-        outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
-        outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
-        outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
-        outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
-        outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
-        outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
+        outCommitmentHasher[tx] = Poseidon(8);
+        outCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+        outCommitmentHasher[tx].inputs[1] <== outAmountsHasher[tx].out;
+        outCommitmentHasher[tx].inputs[2] <== outPubkey[tx];
+        outCommitmentHasher[tx].inputs[3] <== outBlinding[tx];
+        outCommitmentHasher[tx].inputs[4] <== outAssetsHasher[tx].out;
+        outCommitmentHasher[tx].inputs[5] <== outAppDataHash[tx];
+        outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
+        outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
         outCommitmentHasher[tx].out === outputCommitment[tx];
 
         // ensure that all pool types are the same
@@ -191,8 +194,8 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     }
 
     // public inputs
-    signal input verifier;
-    signal  input connectingHash;
+    signal input publicAppVerifier;
+    signal  input transactionHash;
 
     // generating input hash
     // hash commitment 
@@ -206,14 +209,14 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
         outputHasher.inputs[i] <== outCommitmentHasher[i].out;
     }
 
-    component connectingHasher = Poseidon(3);
+    component transactionHasher = Poseidon(3);
 
-    connectingHasher.inputs[0] <== inputHasher.out;
-    connectingHasher.inputs[1] <== outputHasher.out;
-    connectingHasher.inputs[2] <== extDataHash;
+    transactionHasher.inputs[0] <== inputHasher.out;
+    transactionHasher.inputs[1] <== outputHasher.out;
+    transactionHasher.inputs[2] <== txIntegrityHash;
 
 
-    connectingHash === connectingHasher.out;
+    transactionHash === transactionHasher.out;
 
 
 /**

@@ -13,7 +13,7 @@ Utxo structure:
     blinding, // random number
 }
 
-commitment = hash(amountHash, pubKey, blinding, assetHash, instructionType)
+commitment = hash(amountHash, pubKey, blinding, assetHash, appDataHash)
 nullifier = hash(commitment, merklePath, sign(privKey, commitment, merklePath))
 */
 
@@ -56,50 +56,50 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     signal input root;
     // extAmount = external amount used for deposits and withdrawals
     // correct extAmount range is enforced on the smart contract
-    // publicAmount = extAmount - fee
-    signal input publicAmount;
-    signal input extDataHash;
-    signal input feeAmount;
-    signal input mintPubkey;
+    // publicAmountSpl = extAmount - fee
+    signal input publicAmountSpl;
+    signal input txIntegrityHash;
+    signal input publicAmountSol;
+    signal input publicMintPubkey;
 
     signal input  inputNullifier[nIns];
     signal input  inAmount[nIns][nInAssets];
     signal input  inPrivateKey[nIns];
     signal input  inBlinding[nIns];
-    signal input  inInstructionType[nIns];
-    signal  input inPoolType[nIns];
-    signal  input inVerifierPubkey[nIns];
+    signal input  inAppDataHash[nIns];
+    signal input inPoolType[nIns];
+    signal input inVerifierPubkey[nIns];
+    signal input inPathIndices[nIns];
+    signal input inPathElements[nIns][levels];
 
-    signal  input inPathIndices[nIns];
-    signal  input inPathElements[nIns][levels];
-
-    signal  input inIndices[nIns][nInAssets][nAssets];
+    signal input inIndices[nIns][nInAssets][nAssets];
 
     // data for transaction outputsAccount
     signal  input outputCommitment[nOuts];
     signal  input outAmount[nOuts][nOutAssets];
     signal  input outPubkey[nOuts];
     signal  input outBlinding[nOuts];
-    signal  input outInstructionType[nOuts];
+    signal  input outAppDataHash[nOuts];
     signal  input outIndices[nOuts][nOutAssets][nAssets];
     signal  input outPoolType[nOuts];
     signal  input outVerifierPubkey[nOuts];
 
     signal  input assetPubkeys[nAssets];
 
-    signal  input verifier;
-    signal  input connectingHash;
+    signal  input publicAppVerifier;
+    signal  input transactionHash;
+    signal input transactionVersion;
 
     // feeAsset is asset indexFeeAsset
     assetPubkeys[indexFeeAsset] === feeAsset;
 
-    // If public amount is != 0 then check that assetPubkeys[indexPublicAsset] == mintPubkey
+    // If public amount is != 0 then check that assetPubkeys[indexPublicAsset] == publicMintPubkey
 
     component checkMintPubkey = ForceEqualIfEnabled();
     checkMintPubkey.in[0] <== assetPubkeys[indexPublicAsset];
-    checkMintPubkey.in[1] <== mintPubkey;
+    checkMintPubkey.in[1] <== publicMintPubkey;
 
-    checkMintPubkey.enabled <== publicAmount;
+    checkMintPubkey.enabled <== publicAmountSpl;
 
     component assetCheck[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -123,6 +123,8 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     component inCheckMint[nIns];
     component selectorCheckMint[nIns];
+    component inVerifierCheck[nIns];
+
 
     // enforce pooltypes of 0
     // add public input to distinguish between pool types
@@ -149,6 +151,11 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     // verify correctness of transaction s
     for (var tx = 0; tx < nIns; tx++) {
+        // if inAppDataHash is not 0 check publicAppVerifierPubkey === inVerifierPubkey[tx]
+        inVerifierCheck[tx] = ForceEqualIfEnabled();
+        inVerifierCheck[tx].in[0] <== publicAppVerifier;
+        inVerifierCheck[tx].in[1] <== inVerifierPubkey[tx];
+        inVerifierCheck[tx].enabled <== inAppDataHash[tx];
 
         inKeypair[tx] = Keypair();
         inKeypair[tx].privateKey <== inPrivateKey[tx];
@@ -180,14 +187,15 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             sumInAmount += inAmount[tx][a];
         }
 
-        inCommitmentHasher[tx] = Poseidon(7);
-        inCommitmentHasher[tx].inputs[0] <== inAmountsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[1] <== inKeypair[tx].publicKey;
-        inCommitmentHasher[tx].inputs[2] <== inBlinding[tx];
-        inCommitmentHasher[tx].inputs[3] <== inAssetsHasher[tx].out;
-        inCommitmentHasher[tx].inputs[4] <== inInstructionType[tx];
-        inCommitmentHasher[tx].inputs[5] <== inPoolType[tx];
-        inCommitmentHasher[tx].inputs[6] <== inVerifierPubkey[tx];
+        inCommitmentHasher[tx] = Poseidon(8);
+        inCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+        inCommitmentHasher[tx].inputs[1] <== inAmountsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[2] <== inKeypair[tx].publicKey;
+        inCommitmentHasher[tx].inputs[3] <== inBlinding[tx];
+        inCommitmentHasher[tx].inputs[4] <== inAssetsHasher[tx].out;
+        inCommitmentHasher[tx].inputs[5] <== inAppDataHash[tx];
+        inCommitmentHasher[tx].inputs[6] <== inPoolType[tx];
+        inCommitmentHasher[tx].inputs[7] <== inVerifierPubkey[tx];
 
         // ensure that all pool types are the same
         inPoolType[0] === inPoolType[tx];
@@ -232,8 +240,8 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     component outCommitmentHasher[nOuts];
     component outAmountCheck[nOuts][nOutAssets];
     component sumOut[nOuts][nOutAssets][nAssets];
-    component outAmountHasher[nOuts];
-    component outAssetHasher[nOuts];
+    component outAmountsHasher[nOuts];
+    component outAssetsHasher[nOuts];
 
     var sumOuts[nAssets];
     for (var i = 0; i < nAssets; i++) {
@@ -257,7 +265,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
         // for every asset for every tx only one index is 1 others are 0
         // select the asset corresponding to the index
         // and add it to the assetHasher
-        outAssetHasher[tx] = Poseidon(nOutAssets);
+        outAssetsHasher[tx] = Poseidon(nOutAssets);
 
         for (var a = 0; a < nOutAssets; a++) {
             var assetPubkey = 0;
@@ -268,7 +276,7 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
                 outGetAsset[tx][a][i].b <== outIndices[tx][a][i];
                 assetPubkey += outGetAsset[tx][a][i].out;
             }
-            outAssetHasher[tx].inputs[a] <== assetPubkey;
+            outAssetsHasher[tx].inputs[a] <== assetPubkey;
         }
 
         for (var i = 0; i < nOutAssets; i++) {
@@ -277,21 +285,22 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
             outAmountCheck[tx][i].in <== outAmount[tx][i];
         }
 
-        outAmountHasher[tx] = Poseidon(nOutAssets);
+        outAmountsHasher[tx] = Poseidon(nOutAssets);
         for (var i = 0; i < nOutAssets; i++) {
-            outAmountHasher[tx].inputs[i] <== outAmount[tx][i];
+            outAmountsHasher[tx].inputs[i] <== outAmount[tx][i];
         }
 
-        outCommitmentHasher[tx] = Poseidon(7);
-        outCommitmentHasher[tx].inputs[0] <== outAmountHasher[tx].out;
-        outCommitmentHasher[tx].inputs[1] <== outPubkey[tx];
-        outCommitmentHasher[tx].inputs[2] <== outBlinding[tx];
-        outCommitmentHasher[tx].inputs[3] <== outAssetHasher[tx].out;
-        outCommitmentHasher[tx].inputs[4] <== outInstructionType[tx];
-        outCommitmentHasher[tx].inputs[5] <== outPoolType[tx];
-        outCommitmentHasher[tx].inputs[6] <== outVerifierPubkey[tx];
-        outCommitmentHasher[tx].out === outputCommitment[tx];
-
+        outCommitmentHasher[tx] = Poseidon(8);
+        outCommitmentHasher[tx].inputs[0] <== transactionVersion; // transaction version
+        outCommitmentHasher[tx].inputs[1] <== outAmountsHasher[tx].out;
+        outCommitmentHasher[tx].inputs[2] <== outPubkey[tx];
+        outCommitmentHasher[tx].inputs[3] <== outBlinding[tx];
+        outCommitmentHasher[tx].inputs[4] <== outAssetsHasher[tx].out;
+        outCommitmentHasher[tx].inputs[5] <== outAppDataHash[tx];
+        outCommitmentHasher[tx].inputs[6] <== outPoolType[tx];
+        outCommitmentHasher[tx].inputs[7] <== outVerifierPubkey[tx];
+        outputCommitment[tx] === outCommitmentHasher[tx].out;
+        
         // ensure that all pool types are the same
         outPoolType[0] === outPoolType[tx];
 
@@ -320,15 +329,17 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
     }
 
     // verify amount invariant
-    sumIns[0] + feeAmount === sumOuts[0];
-    sumIns[1] + publicAmount === sumOuts[1];
+    sumIns[0] + publicAmountSol === sumOuts[0];
+    sumIns[1] + publicAmountSpl === sumOuts[1];
 
     for (var a = 2; a < nAssets; a++) {
       sumIns[a] === sumOuts[a];
     }
+    
+    signal input internalTxIntegrityHash;
+    // optional safety constraint to make sure txIntegrityHash cannot be changed
+    internalTxIntegrityHash === txIntegrityHash;
 
-    // optional safety constraint to make sure extDataHash cannot be changed
-    signal extDataSquare <== extDataHash * extDataHash;
     
     // generating input hash
     
@@ -347,8 +358,8 @@ template TransactionAccount(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexP
 
     connectingHasher.inputs[0] <== inputHasher.out;
     connectingHasher.inputs[1] <== outputHasher.out;
-    connectingHasher.inputs[2] <== extDataHash;
+    connectingHasher.inputs[2] <== txIntegrityHash;
 
-    connectingHash === connectingHasher.out;
+    transactionHash === connectingHasher.out;
 
 }

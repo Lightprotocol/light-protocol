@@ -218,7 +218,7 @@ export class Account {
       return this.eddsa.packSignature(
         this.eddsa.signPoseidon(
           this.poseidonEddsaKeypair.privateKey,
-          this.poseidon.F.e(ffjavascript.Scalar.e(msg)),
+          this.eddsa.F.e(ffjavascript.Scalar.e(msg)),
         ),
       );
     } else {

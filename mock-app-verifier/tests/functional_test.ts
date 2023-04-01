@@ -120,7 +120,7 @@ describe("Mock verifier functional", () => {
         1_000_000_000,
       ),
     );
-    await tx.getProof();
+    await tx.getProof();    
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
     await tx.checkBalances();

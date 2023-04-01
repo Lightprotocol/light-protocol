@@ -963,6 +963,26 @@ export class Transaction {
         "constructor",
       );
     }
+    if (!params.verifier)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_UNDEFINED,
+        "constructor",
+        "",
+      );
+
+    if (params.verifier.config.in.toString() === "4" && !appParams)
+      throw new TransactionError(
+        TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
+        "constructor",
+        "For application transactions application parameters need to be specified.",
+      );
+
+    if (appParams && params.verifier.config.in.toString() !== "4")
+      throw new TransactionError(
+        TransactionErrorCode.INVALID_VERIFIER_SELECTED,
+        "constructor",
+        "For application transactions the verifier needs to be application enabled such as verifier two.",
+      );
     this.provider = provider;
 
     this.shuffleEnabled = shuffleEnabled;
@@ -1044,15 +1064,17 @@ export class Transaction {
       root: this.provider.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
       // TODO: move public and fee amounts into tx preparation
-      publicAmount: this.params.publicAmountSpl.toString(),
-      feeAmount: this.params.publicAmountSol.toString(),
-      mintPubkey: this.getMint(),
+      publicAmountSpl: this.params.publicAmountSpl.toString(),
+      publicAmountSol: this.params.publicAmountSol.toString(),
+      publicMintPubkey: this.getMint(),
       inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
+      internalTxIntegrityHash: this.getTxIntegrityHash().toString(),
     };
     this.proofInput = {
-      extDataHash: this.getTxIntegrityHash().toString(),
+      transactionVersion: "0",
+      txIntegrityHash: this.getTxIntegrityHash().toString(),
       outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
       inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
@@ -1062,10 +1084,8 @@ export class Transaction {
       outPubkey: this.params.outputUtxos?.map((x) => x.account.pubkey),
       inIndices: this.getIndices(this.params.inputUtxos),
       outIndices: this.getIndices(this.params.outputUtxos),
-      inInstructionType: this.params.inputUtxos?.map((x) => x.instructionType),
-      outInstructionType: this.params.outputUtxos?.map(
-        (x) => x.instructionType,
-      ),
+      inAppDataHash: this.params.inputUtxos?.map((x) => x.appDataHash),
+      outAppDataHash: this.params.outputUtxos?.map((x) => x.appDataHash),
       inPoolType: this.params.inputUtxos?.map((x) => x.poolType),
       outPoolType: this.params.outputUtxos?.map((x) => x.poolType),
       inVerifierPubkey: this.params.inputUtxos?.map(
@@ -1076,12 +1096,12 @@ export class Transaction {
       ),
     };
     if (this.appParams) {
-      this.proofInput.connectingHash = Transaction.getConnectingHash(
+      this.proofInput.transactionHash = Transaction.getTransactionHash(
         this.params,
         this.provider.poseidon,
-        this.proofInput.extDataHash,
+        this.proofInput.txIntegrityHash,
       );
-      this.proofInput.verifier = this.params.verifier?.pubkey;
+      this.proofInput.publicAppVerifier = this.params.verifier?.pubkey;
     }
   }
 
@@ -1107,7 +1127,7 @@ export class Transaction {
         "",
       );
 
-    this.appParams.inputs.connectingHash = Transaction.getConnectingHash(
+    this.appParams.inputs.transactionHash = Transaction.getTransactionHash(
       this.params,
       this.provider.poseidon,
       this.getTxIntegrityHash().toString(),
@@ -1162,11 +1182,23 @@ export class Transaction {
     const completePathZkey = firstPath + "/" + verifier.zkeyPath;
     console.time("Proof generation");
 
-    const { proof, publicSignals } = await snarkjs.groth16.fullProve(
-      stringifyBigInts(inputs),
-      completePathWtns,
-      completePathZkey,
-    );
+    var proof, publicSignals;
+    try {
+      let res = await snarkjs.groth16.fullProve(
+        stringifyBigInts(inputs),
+        completePathWtns,
+        completePathZkey,
+      );
+      proof = res.proof;
+      publicSignals = res.publicSignals;
+    } catch (error) {
+      throw new TransactionError(
+        TransactionErrorCode.PROOF_GENERATION_FAILED,
+        "getProofInternal",
+        error,
+      );
+    }
+
     console.timeEnd("Proof generation");
 
     const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
@@ -1202,7 +1234,7 @@ export class Transaction {
     }
   }
 
-  static getConnectingHash(
+  static getTransactionHash(
     params: TransactionParameters,
     poseidon: any,
     txIntegrityHash: any,
@@ -1213,10 +1245,10 @@ export class Transaction {
     const outputHasher = poseidon.F.toString(
       poseidon(params?.outputUtxos?.map((utxo) => utxo.getCommitment())),
     );
-    const connectingHash = poseidon.F.toString(
+    const transactionHash = poseidon.F.toString(
       poseidon([inputHasher, outputHasher, txIntegrityHash.toString()]),
     );
-    return connectingHash;
+    return transactionHash;
   }
 
   // TODO: add index to merkle tree and check correctness at setup
@@ -1328,6 +1360,7 @@ export class Transaction {
     // console.log(inIndices);
     return inIndices;
   }
+
   /**
    * @description Gets the merkle proofs for every input utxo with amounts > 0.
    * @description For input utxos with amounts == 0 it returns merkle paths with all elements = 0.
@@ -2089,8 +2122,8 @@ export class Transaction {
             utxo1.assetsCircuit[1].toString(),
           );
           assert.equal(
-            utxo0.instructionType.toString(),
-            utxo1.instructionType.toString(),
+            utxo0.appDataHash.toString(),
+            utxo1.appDataHash.toString(),
           );
           assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
           assert.equal(
