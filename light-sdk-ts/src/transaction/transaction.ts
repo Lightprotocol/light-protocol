@@ -22,7 +22,6 @@ import {
   Provider,
   sendVersionedTransaction,
   TransactionParameters,
-  Action,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "types/accounts";
@@ -47,7 +46,6 @@ export enum Action {
   TRANSFER = "TRANSFER",
   UNSHIELD = "UNSHIELD",
 }
-
 
 export class Transaction {
   merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;

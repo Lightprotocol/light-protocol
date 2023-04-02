@@ -73,7 +73,7 @@ describe("Mock verifier functional", () => {
   });
 
   var outputUtxo;
-  it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
+  it.only("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
     let lightProvider = await LightProvider.init({
