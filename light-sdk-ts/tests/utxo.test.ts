@@ -4,8 +4,6 @@ import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
 
-import { Account } from "../src/account";
-import { Utxo } from "../src/utxo";
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -14,6 +12,8 @@ import {
   Relayer,
   UtxoError,
   UtxoErrorCode,
+  Utxo,
+  Account,
 } from "../src";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

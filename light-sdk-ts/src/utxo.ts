@@ -1,24 +1,26 @@
-import { Account } from "./account";
 import nacl, { box } from "tweetnacl";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
+
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
-import {
-  fetchAssetByIdLookUp,
-  getAssetIndex,
-  hashAndTruncateToCircuit,
-} from "./utils";
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 import { BN } from "@coral-xyz/anchor";
-import { CONSTANT_SECRET_AUTHKEY } from "./constants";
 import { assert } from "chai";
-import { UtxoError, UtxoErrorCode } from "./errors";
+import {
+  UtxoError,
+  UtxoErrorCode,
+  CONSTANT_SECRET_AUTHKEY,
+  fetchAssetByIdLookUp,
+  getAssetIndex,
+  hashAndTruncateToCircuit,
+  Account,
+} from "./index";
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;

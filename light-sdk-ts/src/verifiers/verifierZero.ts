@@ -8,7 +8,7 @@ import {
   VerifierErrorCode,
   verifierProgramZeroProgramId,
 } from "../index";
-import { Transaction } from "../transaction";
+import { Transaction } from "transaction";
 import { Verifier, PublicInputs } from ".";
 import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 

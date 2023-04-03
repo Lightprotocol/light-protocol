@@ -6,7 +6,7 @@ import {
   VerifierErrorCode,
   verifierProgramTwoProgramId,
 } from "../index";
-import { Transaction } from "../transaction";
+import { Transaction } from "transaction";
 import { Verifier, PublicInputs, VerifierConfig } from ".";
 import { BN } from "@coral-xyz/anchor";
 import { PublicKey } from "@solana/web3.js";

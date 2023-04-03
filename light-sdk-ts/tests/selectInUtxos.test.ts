@@ -13,30 +13,10 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
-import { Scalar } from "ffjavascript";
 
-import { Account } from "../src/account";
 import {
-  FEE_ASSET,
-  functionalCircuitTest,
-  hashAndTruncateToCircuit,
-  Provider as LightProvider,
-  MINT,
-  Transaction,
-  UtxoError,
-  UtxoErrorCode,
-  TransactionError,
   TransactionErrorCode,
-  ProviderErrorCode,
-  Provider,
-  TransactionParameters,
-  VerifierZero,
   Action,
-  Relayer,
-  AccountError,
-  AccountErrorCode,
-  TransactionParametersErrorCode,
-  createOutUtxos,
   strToArr,
   ADMIN_AUTH_KEYPAIR,
   TOKEN_REGISTRY,
@@ -48,6 +28,7 @@ import {
   SelectInUtxosError,
   RelayerErrorCode,
   SelectInUtxosErrorCode,
+  Account
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";

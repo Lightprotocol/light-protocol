@@ -4,7 +4,6 @@ import {
   TransactionMessage,
   VersionedTransaction,
 } from "@solana/web3.js";
-import * as anchor from "@coral-xyz/anchor";
 import { Provider } from "wallet";
 import { confirmConfig } from "../constants";
 

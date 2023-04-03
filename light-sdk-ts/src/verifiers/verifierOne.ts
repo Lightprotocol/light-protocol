@@ -9,7 +9,7 @@ import {
   VerifierErrorCode,
   verifierProgramOneProgramId,
 } from "../index";
-import { Transaction } from "../transaction";
+import { Transaction } from "transaction";
 import { Verifier, PublicInputs, VerifierConfig } from ".";
 
 export class VerifierOne implements Verifier {
