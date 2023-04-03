@@ -4,7 +4,6 @@ import {
   Utxo,
   Transaction,
   ADMIN_AUTH_KEYPAIR,
-  REGISTERED_POOL_PDA_SPL_TOKEN,
   initLookUpTableFromFile,
   setUpMerkleTree,
   createTestAccounts,
@@ -12,7 +11,6 @@ import {
   Account,
   MERKLE_TREE_KEY,
   TransactionParameters,
-  SolMerkleTree,
   Provider as LightProvider,
   userTokenAccount,
   ADMIN_AUTH_KEY,
@@ -29,11 +27,10 @@ import {
 import { MockVerifier } from "../sdk/src/index";
 
 import { buildPoseidonOpt } from "circomlibjs";
-import { assert, expect } from "chai";
 import { BN } from "@project-serum/anchor";
 import { it } from "mocha";
-const token = require("@solana/spl-token");
-var POSEIDON, LOOK_UP_TABLE, KEYPAIR,RELAYER, relayerRecipient: PublicKey;
+
+var POSEIDON, LOOK_UP_TABLE,RELAYER,KEYPAIR, relayerRecipient: PublicKey;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -47,7 +44,6 @@ describe("Mock verifier functional", () => {
   anchor.setProvider(provider);
   before(async () => {
     console.log("Initing accounts");
-
     await createTestAccounts(provider.connection, userTokenAccount);
     POSEIDON = await buildPoseidonOpt();
     KEYPAIR = new Account({

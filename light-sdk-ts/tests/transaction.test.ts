@@ -322,12 +322,12 @@ describe("Transaction Functional Tests", () => {
       action: Action.SHIELD,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      deposit_utxo1.getCommitment(),
+      deposit_utxo1.getCommitment(poseidon),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(),
+        deposit_utxo1.getCommitment(poseidon),
       ),
       0,
     );

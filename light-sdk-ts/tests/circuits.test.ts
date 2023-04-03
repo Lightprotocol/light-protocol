@@ -94,14 +94,14 @@ describe("Masp circuit tests", () => {
       poseidon,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
-      deposit_utxo1.getCommitment(),
+      deposit_utxo1.getCommitment(poseidon),
       // random invalid other commitment
       poseidon.F.toString(poseidon(["123124"])),
     ]);
 
     assert.equal(
       lightProvider.solMerkleTree?.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(),
+        deposit_utxo1.getCommitment(poseidon),
       ),
       0,
     );

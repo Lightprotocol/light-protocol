@@ -3,7 +3,7 @@ import { BN } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider } from "../wallet";
-import { sendVersionedTransaction } from "../transaction";
+import { sendVersionedTransaction } from "../index";
 export class TestRelayer extends Relayer {
   constructor(
     relayerPubkey: PublicKey,

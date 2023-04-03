@@ -129,6 +129,7 @@ export function selectInUtxos({
   publicMint,
   publicAmountSpl,
   publicAmountSol,
+  poseidon,
   relayerFee,
   recipients = [],
   action,
@@ -136,6 +137,7 @@ export function selectInUtxos({
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
   publicAmountSol?: BN;
+  poseidon: any;
   relayerFee?: BN;
   utxos?: Utxo[];
   recipients?: Recipient[];
@@ -258,7 +260,8 @@ export function selectInUtxos({
         // exclude the utxo which is already selected and utxos which hold other assets than only sol
         let reFilteredUtxos = utxos.filter(
           (utxo) =>
-            utxo.getCommitment() != selectedUtxosR[0].getCommitment() &&
+            utxo.getCommitment(poseidon) !=
+              selectedUtxosR[0].getCommitment(poseidon) &&
             utxo.assets[1].toBase58() === SystemProgram.programId.toBase58(),
         );
 
