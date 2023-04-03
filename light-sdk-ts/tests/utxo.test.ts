@@ -124,12 +124,12 @@ describe("Utxo Functional", () => {
     );
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
-      utxo0.getCommitment()?.toString(),
+      utxo0.getCommitment(poseidon)?.toString(),
       "8989324955018347745620195382288710751873914589499358508918782406019233094196",
     );
 
     assert.equal(
-      utxo0.getNullifier()?.toString(),
+      utxo0.getNullifier(poseidon)?.toString(),
       "16754375772623288827522514885252653352689437303609900913797444969754165213445",
     );
 
@@ -196,7 +196,7 @@ describe("Utxo Errors", () => {
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier();
+      pubkeyUtxo.getNullifier(poseidon);
     })
       .throw(UtxoError)
       .include({
@@ -218,7 +218,7 @@ describe("Utxo Errors", () => {
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier();
+      pubkeyUtxo.getNullifier(poseidon);
     })
       .throw(UtxoError)
       .include({

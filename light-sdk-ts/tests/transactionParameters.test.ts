@@ -155,15 +155,15 @@ describe("Transaction Parameters Functional", () => {
 
       for (var i in inputUtxos) {
         assert.equal(
-          params.inputUtxos[i].getCommitment(),
+          params.inputUtxos[i].getCommitment(poseidon),
           inputUtxos[i].getCommitment(),
         );
       }
 
       for (var i in outputUtxos) {
         assert.equal(
-          params.outputUtxos[i].getCommitment(),
-          outputUtxos[i].getCommitment(),
+          params.outputUtxos[i].getCommitment(poseidon),
+          outputUtxos[i].getCommitment(poseidon),
         );
       }
     }
@@ -249,7 +249,7 @@ describe("Transaction Parameters Functional", () => {
 
       for (var i in outputUtxos) {
         assert.equal(
-          params.outputUtxos[i].getCommitment(),
+          params.outputUtxos[i].getCommitment(poseidon),
           outputUtxos[i].getCommitment(),
         );
       }
@@ -349,7 +349,7 @@ describe("Transaction Parameters Functional", () => {
 
       for (var i in inputUtxos) {
         assert.equal(
-          params.inputUtxos[i].getCommitment(),
+          params.inputUtxos[i].getCommitment(poseidon),
           inputUtxos[i].getCommitment(),
         );
       }

@@ -12,7 +12,7 @@ import {
 } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
-import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
+import {buildBabyjub, buildEddsa } from "circomlibjs";
 
 import {
   TransactionErrorCode,
@@ -107,10 +107,11 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       relayerFee: new BN(1000),
       publicAmountSpl: new BN(1),
+      poseidon,
       utxos: inUtxos,
       action: Action.UNSHIELD,
     });
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("Unshield select sol", async () => {
@@ -120,11 +121,12 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       relayerFee: new BN(1000),
       publicAmountSol: new BN(1e7),
+      poseidon,
       action: Action.UNSHIELD,
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol);
-    Utxo.equal(selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
   });
 
   it("UNSHIELD select sol & spl", async () => {
@@ -134,13 +136,14 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.UNSHIELD,
       relayerFee: new BN(1000),
+      poseidon,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       publicAmountSpl: new BN(1),
     });
 
-    Utxo.equal(selectedUtxo[1], utxoSol);
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol & spl", async () => {
@@ -150,6 +153,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
+      poseidon,
       recipients: [
         {
           mint: utxo1.assets[1],
@@ -160,8 +164,8 @@ describe("Test selectInUtxos Functional", () => {
       ],
     });
 
-    Utxo.equal(selectedUtxo[1], utxoSol);
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("Transfer select sol", async () => {
@@ -171,6 +175,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
+      poseidon,
       recipients: [
         {
           mint: utxo1.assets[1],
@@ -181,8 +186,8 @@ describe("Test selectInUtxos Functional", () => {
       ],
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol);
-    Utxo.equal(selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
   });
 
   it("Transfer select spl", async () => {
@@ -192,6 +197,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
+      poseidon,
       recipients: [
         {
           mint: utxo1.assets[1],
@@ -213,10 +219,11 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
+      poseidon,
       publicAmountSpl: new BN(1),
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol", async () => {
@@ -225,11 +232,12 @@ describe("Test selectInUtxos Functional", () => {
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.SHIELD,
+      poseidon,
       publicAmountSol: new BN(1e7),
     });
 
-    Utxo.equal(selectedUtxo[0], utxoSol);
-    Utxo.equal(selectedUtxo[1], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
+    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
   });
 
   it("Shield select spl", async () => {
@@ -239,10 +247,11 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.SHIELD,
       publicMint: utxo1.assets[1],
+      poseidon,
       publicAmountSpl: new BN(1),
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("3 utxos spl & sol", async () => {
@@ -252,6 +261,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
+      poseidon,
       recipients: [
         {
           mint: utxo1.assets[1],
@@ -262,8 +272,8 @@ describe("Test selectInUtxos Functional", () => {
       ],
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1);
-    Utxo.equal(selectedUtxo[1], utxo2);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[1], utxo2);
   });
 });
 
@@ -337,6 +347,7 @@ describe("Test selectInUtxos Errors", () => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
+        poseidon,
         recipients: [
           {
             mint: utxo1.assets[1],
@@ -362,6 +373,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.UNSHIELD,
         relayerFee: new BN(1000),
+        poseidon,
         // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
@@ -382,6 +394,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.UNSHIELD,
         relayerFee: new BN(1000),
+        poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         // publicAmountSpl: new BN(1),
@@ -402,6 +415,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.UNSHIELD,
         // relayerFee: new BN(1000),
+        poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
@@ -422,6 +436,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.TRANSFER,
         // relayerFee: new BN(1000),
+        poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
@@ -442,6 +457,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.SHIELD,
         relayerFee: new BN(1000),
+        poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
@@ -462,6 +478,7 @@ describe("Test selectInUtxos Errors", () => {
         // utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
+        poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
@@ -482,6 +499,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
+        poseidon,
         recipients: [
           {
             mint: utxo1.assets[1],
@@ -513,6 +531,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
+        poseidon,
         recipients: [
           {
             mint: utxo1.assets[1],
@@ -538,6 +557,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
+        poseidon,
         recipients: [
           {
             mint: utxo1.assets[1],
@@ -563,6 +583,7 @@ describe("Test selectInUtxos Errors", () => {
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
+        poseidon,
         recipients: [
           {
             mint: utxo1.assets[1],

@@ -37,11 +37,11 @@ export async function getUnspentUtxo(
       }
 
       const mtIndex = merkleTree.indexOf(
-        decryptedUtxo1?.getCommitment()?.toString(),
+        decryptedUtxo1?.getCommitment(POSEIDON)?.toString(),
       );
       assert.equal(mtIndex.toString(), decryptedUtxo1.index!.toString());
 
-      let nullifier = decryptedUtxo1.getNullifier();
+      let nullifier = decryptedUtxo1.getNullifier(POSEIDON);
       if (!nullifier) throw new Error("getNullifier of decryptedUtxo failed");
       let nullifierPubkey = (
         await PublicKey.findProgramAddress(
@@ -119,7 +119,7 @@ export async function getUnspentUtxos({
     for (let decryptedUtxo of decrypted) {
       if (!decryptedUtxo) continue;
 
-      let nullifier = decryptedUtxo.getNullifier();
+      let nullifier = decryptedUtxo.getNullifier(poseidon);
       if (!nullifier) continue;
 
       let nullifierPubkey = PublicKey.findProgramAddressSync(
