@@ -1,17 +1,9 @@
-import {
-  PublicKey,
-  Connection,
-  TransactionMessage,
-  ComputeBudgetProgram,
-  AddressLookupTableAccount,
-  VersionedTransaction,
-} from "@solana/web3.js";
+import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import { Relayer } from "../relayer";
 import { updateMerkleTreeForTest } from "./updateMerkleTree";
 import { Provider } from "../wallet";
-import { confirmConfig } from "../constants";
-import { sendVersionedTransaction } from "./sendVersionedTransaction";
+import { sendVersionedTransaction } from "../transaction";
 export class TestRelayer extends Relayer {
   constructor(
     relayerPubkey: PublicKey,

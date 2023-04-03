@@ -1,26 +1,18 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-import {
-  UTXO_MERGE_THRESHOLD,
-  UTXO_MERGE_MAXIMUM,
-  FEE_ASSET,
-  UTXO_FEE_ASSET_MINIMUM,
-} from "../constants";
-import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
-import {
-  getRecipientsAmount,
-  getUtxoArrayAmount,
-  Recipient,
-} from "./createOutUtxos";
-import { Action } from "../transaction";
 import {
   CreateUtxoErrorCode,
   RelayerErrorCode,
   SelectInUtxosError,
   SelectInUtxosErrorCode,
   TransactionErrorCode,
-} from "../errors";
+  Action,
+  getRecipientsAmount,
+  getUtxoArrayAmount,
+  Recipient,
+  Utxo,
+} from "../index";
 
 // TODO: turn these into static user.class methods
 export const getAmount = (u: Utxo, asset: PublicKey) => {

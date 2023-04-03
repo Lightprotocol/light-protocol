@@ -14,27 +14,8 @@ import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt, buildBabyjub, buildEddsa } from "circomlibjs";
 import { Scalar } from "ffjavascript";
-
-import { Account } from "../src/account";
 import {
-  FEE_ASSET,
-  functionalCircuitTest,
-  hashAndTruncateToCircuit,
-  Provider as LightProvider,
-  MINT,
-  Transaction,
-  UtxoError,
-  UtxoErrorCode,
-  TransactionError,
-  TransactionErrorCode,
-  ProviderErrorCode,
-  Provider,
-  TransactionParameters,
-  VerifierZero,
   Action,
-  Relayer,
-  AccountError,
-  AccountErrorCode,
   TransactionParametersErrorCode,
   createOutUtxos,
   strToArr,
@@ -44,6 +25,7 @@ import {
   Utxo,
   CreateUtxoError,
   CreateUtxoErrorCode,
+  Account
 } from "../src";
 import { access } from "fs";
 

@@ -13,22 +13,6 @@ import { Scalar } from "ffjavascript";
 
 import { Account } from "../src/account";
 import {
-  FEE_ASSET,
-  functionalCircuitTest,
-  hashAndTruncateToCircuit,
-  Provider as LightProvider,
-  MINT,
-  Transaction,
-  UtxoError,
-  UtxoErrorCode,
-  TransactionError,
-  TransactionErrorCode,
-  ProviderErrorCode,
-  Provider,
-  TransactionParameters,
-  VerifierZero,
-  Action,
-  Relayer,
   AccountError,
   AccountErrorCode,
   TransactionParametersErrorCode,
