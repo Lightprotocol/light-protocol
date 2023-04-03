@@ -39,7 +39,6 @@ export class Utxo {
    * @param {BN} verifierAddressCircuit hashAndTruncateToCircuit(verifierAddress) to fit into 254 bit field size of bn254.
    * @param {BN} appDataHash is the poseidon hash of app utxo data. This compresses the app data and ties it to the app utxo.
    * @param {BN} poolType is the pool type domain of the utxo default is [0;32].
-   * @param {any} poseidon poseidon hasher instance.
    * @param {boolean} includeAppData flag whether to include app data when serializing utxo to bytes.
    * @param {string} _commitment cached commitment hash to avoid recomputing.
    * @param {string} _nullifier cached nullifier hash to avoid recomputing.
@@ -57,7 +56,6 @@ export class Utxo {
   poolType: BN;
   _commitment?: string;
   _nullifier?: string;
-  poseidon: any;
   includeAppData: boolean;
   transactionVersion: string;
 
@@ -179,7 +177,6 @@ export class Utxo {
     this.account = account;
     this.index = index;
     this.assets = assets;
-    this.poseidon = poseidon;
     this.appData = appData;
     this.poolType = poolType;
     this.includeAppData = includeAppData;
@@ -363,11 +360,11 @@ export class Utxo {
    * @description PoseidonHash(amountHash, shieldedPubkey, blinding, assetHash, appDataHash, poolType, verifierAddressCircuit)
    * @returns {string}
    */
-  getCommitment(): string {
+  getCommitment(poseidon: any): string {
     if (!this._commitment) {
-      let amountHash = this.poseidon.F.toString(this.poseidon(this.amounts));
-      let assetHash = this.poseidon.F.toString(
-        this.poseidon(this.assetsCircuit.map((x) => x.toString())),
+      let amountHash = poseidon.F.toString(poseidon(this.amounts));
+      let assetHash = poseidon.F.toString(
+        poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
       // console.log("this.assetsCircuit ", this.assetsCircuit);
 
@@ -377,8 +374,8 @@ export class Utxo {
       // console.log("assetHash ", assetHash.toString());
       // console.log("this.appDataHash ", this.appDataHash.toString());
       // console.log("this.poolType ", this.poolType.toString());
-      let commitment: string = this.poseidon.F.toString(
-        this.poseidon([
+      let commitment: string = poseidon.F.toString(
+        poseidon([
           this.transactionVersion,
           amountHash,
           this.account.pubkey.toString(),
@@ -403,7 +400,7 @@ export class Utxo {
    *
    * @returns {string}
    */
-  getNullifier(index?: number | undefined) {
+  getNullifier(poseidon: any, index?: number | undefined) {
     if (this.index === undefined && index) {
       this.index = index;
     }
@@ -435,14 +432,18 @@ export class Utxo {
 
     if (!this._nullifier) {
       const signature = this.account.privkey
-        ? this.account.sign(this.getCommitment(), this.index || 0)
+        ? this.account.sign(
+            poseidon,
+            this.getCommitment(poseidon),
+            this.index || 0,
+          )
         : 0;
       // console.log("this.getCommitment() ", this.getCommitment());
       // console.log("this.index || 0 ", this.index || 0);
       // console.log("signature ", signature);
 
-      this._nullifier = this.poseidon.F.toString(
-        this.poseidon([this.getCommitment(), this.index || 0, signature]),
+      this._nullifier = poseidon.F.toString(
+        poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
       );
     }
     // console.log("this._nullifier ", this._nullifier);
@@ -518,7 +519,7 @@ export class Utxo {
    * @param {Utxo} utxo0
    * @param {Utxo} utxo1
    */
-  static equal(utxo0: Utxo, utxo1: Utxo) {
+  static equal(poseidon: any, utxo0: Utxo, utxo1: Utxo) {
     assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
     assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
     assert.equal(utxo0.assets[0].toBase58(), utxo1.assets[0].toBase58());
@@ -542,12 +543,12 @@ export class Utxo {
       utxo1.verifierAddressCircuit.toString(),
     );
     assert.equal(
-      utxo0.getCommitment()?.toString(),
-      utxo1.getCommitment()?.toString(),
+      utxo0.getCommitment(poseidon)?.toString(),
+      utxo1.getCommitment(poseidon)?.toString(),
     );
     assert.equal(
-      utxo0.getNullifier()?.toString(),
-      utxo1.getNullifier()?.toString(),
+      utxo0.getNullifier(poseidon)?.toString(),
+      utxo1.getNullifier(poseidon)?.toString(),
     );
   }
 }

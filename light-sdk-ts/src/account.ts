@@ -21,7 +21,6 @@ export class Account {
   privkey: BN;
   pubkey: BN;
   encryptionKeypair: nacl.BoxKeyPair;
-  poseidon: any;
   burnerSeed: Uint8Array;
   // keypair for eddsa poseidon signatures
   poseidonEddsaKeypair?: {
@@ -67,7 +66,6 @@ export class Account {
       );
     }
 
-    this.poseidon = poseidon;
     this.burnerSeed = new Uint8Array();
     // creates a burner utxo by using the index for domain separation
     if (burner) {
@@ -91,10 +89,7 @@ export class Account {
       this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
       this.privkey = Account.generateShieldedPrivateKey(seed);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
-        this.poseidon,
-      );
+      this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
@@ -106,10 +101,7 @@ export class Account {
         );
       }
       this.privkey = privateKey;
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
-        this.poseidon,
-      );
+      this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       if (poseidonEddsaPrivateKey) {
         this.poseidonEddsaKeypair = { privateKey: poseidonEddsaPrivateKey };
       }
@@ -139,10 +131,7 @@ export class Account {
       }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
       this.privkey = Account.generateShieldedPrivateKey(seed);
-      this.pubkey = Account.generateShieldedPublicKey(
-        this.privkey,
-        this.poseidon,
-      );
+      this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
     }
     this.eddsa = eddsa;
@@ -235,13 +224,9 @@ export class Account {
    * @param {string|number|BigNumber} merklePath a hex string with merkle path
    * @returns {BigNumber} a hex string with signature
    */
-  sign(commitment: any, merklePath: any) {
-    return this.poseidon.F.toString(
-      this.poseidon([
-        this.privkey.toString(),
-        commitment.toString(),
-        merklePath,
-      ]),
+  sign(poseidon: any, commitment: any, merklePath: any) {
+    return poseidon.F.toString(
+      poseidon([this.privkey.toString(), commitment.toString(), merklePath]),
     );
   }
 

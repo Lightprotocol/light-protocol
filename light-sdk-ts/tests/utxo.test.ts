@@ -60,7 +60,7 @@ describe("Utxo Functional", () => {
       bytes: bytes4,
       index: 0,
     });
-    Utxo.equal(utxo4, utxo40);
+    Utxo.equal(poseidon,utxo4, utxo40);
     // encrypt
     const encBytes4 = utxo4.encrypt();
     const utxo41 = Utxo.decrypt({
@@ -70,7 +70,7 @@ describe("Utxo Functional", () => {
       index: 0,
     });
     if (utxo41) {
-      Utxo.equal(utxo4, utxo41);
+      Utxo.equal(poseidon,utxo4, utxo41);
     } else {
       throw "decrypt failed";
     }
@@ -100,6 +100,7 @@ describe("Utxo Functional", () => {
       blinding: inputs.blinding,
       index: inputs.index,
     });
+
     // functional
     assert.equal(utxo0.amounts[0].toString(), amountFee);
     assert.equal(utxo0.amounts[1].toString(), amountToken);
@@ -124,12 +125,12 @@ describe("Utxo Functional", () => {
     );
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
-      utxo0.getCommitment()?.toString(),
+      utxo0.getCommitment(poseidon)?.toString(),
       "8989324955018347745620195382288710751873914589499358508918782406019233094196",
     );
 
     assert.equal(
-      utxo0.getNullifier()?.toString(),
+      utxo0.getNullifier(poseidon)?.toString(),
       "16754375772623288827522514885252653352689437303609900913797444969754165213445",
     );
 
@@ -142,7 +143,7 @@ describe("Utxo Functional", () => {
       bytes,
       index: inputs.index,
     });
-    Utxo.equal(utxo0, utxo1);
+    Utxo.equal(poseidon,utxo0, utxo1);
     // encrypt
     const encBytes = utxo1.encrypt();
 
@@ -154,7 +155,7 @@ describe("Utxo Functional", () => {
       index: inputs.index,
     });
     if (utxo3) {
-      Utxo.equal(utxo0, utxo3);
+      Utxo.equal(poseidon,utxo0, utxo3);
     } else {
       throw "decrypt failed";
     }
@@ -196,7 +197,7 @@ describe("Utxo Errors", () => {
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier();
+      pubkeyUtxo.getNullifier(poseidon);
     })
       .throw(UtxoError)
       .include({
@@ -218,7 +219,7 @@ describe("Utxo Errors", () => {
     });
 
     expect(() => {
-      pubkeyUtxo.getNullifier();
+      pubkeyUtxo.getNullifier(poseidon);
     })
       .throw(UtxoError)
       .include({

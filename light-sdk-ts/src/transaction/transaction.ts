@@ -227,7 +227,9 @@ export class Transaction {
 
     this.proofInputSystem = {
       root: this.provider.solMerkleTree.merkleTree.root(),
-      inputNullifier: this.params.inputUtxos.map((x) => x.getNullifier()),
+      inputNullifier: this.params.inputUtxos.map((x) =>
+        x.getNullifier(this.provider.poseidon),
+      ),
       // TODO: move public and fee amounts into tx preparation
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
@@ -240,7 +242,9 @@ export class Transaction {
     this.proofInput = {
       transactionVersion: "0",
       txIntegrityHash: this.getTxIntegrityHash().toString(),
-      outputCommitment: this.params.outputUtxos.map((x) => x.getCommitment()),
+      outputCommitment: this.params.outputUtxos.map((x) =>
+        x.getCommitment(this.provider.poseidon),
+      ),
       inAmount: this.params.inputUtxos?.map((x) => x.amounts),
       inBlinding: this.params.inputUtxos?.map((x) => x.blinding),
       assetPubkeys: this.params.assetPubkeysCircuit,
@@ -405,10 +409,12 @@ export class Transaction {
     txIntegrityHash: any,
   ): string {
     const inputHasher = poseidon.F.toString(
-      poseidon(params?.inputUtxos?.map((utxo) => utxo.getCommitment())),
+      poseidon(params?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
     );
     const outputHasher = poseidon.F.toString(
-      poseidon(params?.outputUtxos?.map((utxo) => utxo.getCommitment())),
+      poseidon(
+        params?.outputUtxos?.map((utxo) => utxo.getCommitment(poseidon)),
+      ),
     );
     const transactionHash = poseidon.F.toString(
       poseidon([inputHasher, outputHasher, txIntegrityHash.toString()]),
@@ -559,7 +565,7 @@ export class Transaction {
         inputUtxo.amounts[1] > new BN(0)
       ) {
         inputUtxo.index = provider.solMerkleTree.merkleTree.indexOf(
-          inputUtxo.getCommitment(),
+          inputUtxo.getCommitment(provider.poseidon),
         );
 
         if (inputUtxo.index || inputUtxo.index == 0) {
@@ -567,7 +573,9 @@ export class Transaction {
             throw new TransactionError(
               TransactionErrorCode.INPUT_UTXO_NOT_INSERTED_IN_MERKLE_TREE,
               "getMerkleProofs",
-              `Input commitment ${inputUtxo.getCommitment()} was not found`,
+              `Input commitment ${inputUtxo.getCommitment(
+                provider.poseidon,
+              )} was not found`,
             );
           }
           inputMerklePathIndices.push(inputUtxo.index.toString());

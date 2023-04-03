@@ -500,6 +500,7 @@ export class TransactionParameters implements transactionParameters {
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl,
       publicAmountSol,
+      poseidon: provider.poseidon,
       recipients: shieldedRecipients,
       utxos,
       relayerFee: relayer?.getRelayerFee(ataCreationFee),
