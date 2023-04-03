@@ -18,6 +18,14 @@ export const getKeyPairFromEnv = (KEY: string) => {
   );
 };
 
+let provider: Provider;
+
+const getPubKeyFromEnv = (KEY: string) => {
+  return Keypair.fromSecretKey(
+    new Uint8Array(JSON.parse(process.env[KEY] || "")),
+  ).publicKey;
+};
+
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = `http://127.0.0.1:${rpcPort}`; // runscript starts dedicated validator on this port.
