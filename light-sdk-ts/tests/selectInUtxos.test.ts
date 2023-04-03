@@ -208,7 +208,7 @@ describe("Test selectInUtxos Functional", () => {
       ],
     });
 
-    Utxo.equal(selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
   });
 
   it("Shield select sol & spl", async () => {
