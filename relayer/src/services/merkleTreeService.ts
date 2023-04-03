@@ -5,10 +5,11 @@ import {
   SolMerkleTree,
   updateMerkleTreeForTest,
 } from "light-sdk";
+import { getLightProvider } from "utils/provider";
 
 export const initeMerkleTree = async (req: any, res: any) => {
   try {
-    const provider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
+    const provider = await getLightProvider();
     const merkletreeIsInited =
       await provider.provider!.connection.getAccountInfo(MERKLE_TREE_KEY);
     if (!merkletreeIsInited) {
@@ -29,7 +30,7 @@ export const initeMerkleTree = async (req: any, res: any) => {
 
 export const updateMerkleTree = async (req: any, res: any) => {
   try {
-    const provider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
+    const provider = await getLightProvider();
     console.log({ provider });
     await updateMerkleTreeForTest(provider.provider?.connection!);
     return res.status(200).json({ status: "ok" });

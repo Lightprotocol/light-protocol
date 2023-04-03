@@ -8,34 +8,38 @@ import {
 
 import express from "express";
 import { setAnchorProvider } from "utils/provider";
-import { port } from "config";
+import { port, relayerFeeRecipient } from "config";
+import { addCorsHeaders } from "middleware";
+import { initeMerkleTree, updateMerkleTree } from "services/merkleTreeService";
+import { initLookupTable } from "services/lookupTableService";
 
 const app = express();
 
-// Add CORS headers
+app.use(addCorsHeaders);
 
+app.post("/updatemerkletree", updateMerkleTree);
 
-var relayer;
+app.get("/merkletree", initeMerkleTree);
+
+app.get("/lookuptable",initLookupTable);
 
 (async () => {
-
-  const providerAnchor = await setAnchorProvider()
+  const providerAnchor = await setAnchorProvider();
   // TODO: use updated -- buildscript -> add relayer tests
   await createTestAccounts(providerAnchor.connection);
 
   await initLookUpTableFromFile(providerAnchor);
-    
+
   await setUpMerkleTree(providerAnchor);
   /// *** this is not really necessary at this point *** TODO: remove
- 
+
   await providerAnchor!.connection.confirmTransaction(
     await providerAnchor!.connection.requestAirdrop(
-      relayer.accounts.relayerRecipient,
+      relayerFeeRecipient.publicKey,
       1_000_000,
     ),
     "confirmed",
   );
-  
 })();
 
 app.listen(port, async () => {
