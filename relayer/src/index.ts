@@ -1,48 +1,36 @@
-import {
-  Relayer,
-  confirmConfig,
-  createTestAccounts,
-  initLookUpTableFromFile,
-  setUpMerkleTree,
-} from "light-sdk";
-
 import express from "express";
-import { setAnchorProvider } from "utils/provider";
-import { port, relayerFeeRecipient } from "config";
-import { addCorsHeaders } from "middleware";
-import { initeMerkleTree, updateMerkleTree } from "services/merkleTreeService";
-import { initLookupTable } from "services/lookupTableService";
+import { testSetup } from "./setup";
+import { port } from "./config";
+import { addCorsHeaders } from "./middleware";
+import bodyParser from "body-parser";
+import {
+  initeMerkleTree,
+  initLookupTable,
+  sendTransaction,
+  updateMerkleTree,
+} from "./services";
+require('dotenv').config();
 
 const app = express();
 
 app.use(addCorsHeaders);
+app.use(bodyParser.json());
 
 app.post("/updatemerkletree", updateMerkleTree);
 
 app.get("/merkletree", initeMerkleTree);
 
-app.get("/lookuptable",initLookupTable);
+app.get("/lookuptable", initLookupTable);
 
-(async () => {
-  const providerAnchor = await setAnchorProvider();
-  // TODO: use updated -- buildscript -> add relayer tests
-  await createTestAccounts(providerAnchor.connection);
+app.post("/relayInstruction", sendTransaction);
 
-  await initLookUpTableFromFile(providerAnchor);
-
-  await setUpMerkleTree(providerAnchor);
-  /// *** this is not really necessary at this point *** TODO: remove
-
-  await providerAnchor!.connection.confirmTransaction(
-    await providerAnchor!.connection.requestAirdrop(
-      relayerFeeRecipient.publicKey,
-      1_000_000,
-    ),
-    "confirmed",
-  );
-})();
 
 app.listen(port, async () => {
+
+  if(process.env.TEST_ENVIROMENT) {
+    await testSetup()
+  }
+
   console.log(`Webserver started on port ${port}`);
   console.log("rpc:", process.env.RPC_URL);
 });

@@ -50,10 +50,10 @@ export class TransactionParameters implements transactionParameters {
   constructor({
     merkleTreePubkey,
     verifier,
-    sender,
-    recipient,
-    senderFee,
-    recipientFee,
+    senderSpl,
+    recipientSpl,
+    senderSol,
+    recipientSol,
     inputUtxos,
     outputUtxos,
     relayer,
@@ -65,10 +65,10 @@ export class TransactionParameters implements transactionParameters {
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
-    sender?: PublicKey;
-    recipient?: PublicKey;
-    senderFee?: PublicKey;
-    recipientFee?: PublicKey;
+    senderSpl?: PublicKey;
+    recipientSpl?: PublicKey;
+    senderSol?: PublicKey;
+    recipientSol?: PublicKey;
     inputUtxos?: Utxo[];
     outputUtxos?: Utxo[];
     relayer?: Relayer;
@@ -128,9 +128,9 @@ export class TransactionParameters implements transactionParameters {
       this.verifier.config.out,
     );
 
-    if (action === Action.SHIELD && senderFee && lookUpTable) {
-      this.relayer = new Relayer(senderFee, lookUpTable);
-    } else if (action === Action.SHIELD && !senderFee) {
+    if (action === Action.SHIELD && senderSol && lookUpTable) {
+      this.relayer = new Relayer(senderSol, lookUpTable);
+    } else if (action === Action.SHIELD && !senderSol) {
       throw new TransactioParametersError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "constructor",
@@ -193,8 +193,8 @@ export class TransactionParameters implements transactionParameters {
       /**
        * No relayer
        * public amounts are u64s
-       * sender is the user
-       * recipient is the merkle tree
+       * senderSpl is the user
+       * recipientSpl is the merkle tree
        */
       if (relayer)
         throw new TransactioParametersError(
@@ -221,14 +221,14 @@ export class TransactionParameters implements transactionParameters {
           `Public amount spl ${this.publicAmountSpl} needs to be a u64 at deposit. Check whether you defined input and output utxos correctly, for a deposit the amounts of output utxos need to be bigger than the amounts of input utxos`,
         );
       }
-      if (!this.publicAmountSol.eq(new BN(0)) && recipientFee) {
+      if (!this.publicAmountSol.eq(new BN(0)) && recipientSol) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && recipient) {
+      if (!this.publicAmountSpl.eq(new BN(0)) && recipientSpl) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
@@ -236,14 +236,14 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSol.eq(new BN(0)) && !senderFee) {
+      if (!this.publicAmountSol.eq(new BN(0)) && !senderSol) {
         throw new TransactioParametersError(
           TransactionErrorCode.SOL_SENDER_UNDEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && !sender) {
+      if (!this.publicAmountSpl.eq(new BN(0)) && !senderSpl) {
         throw new TransactioParametersError(
           TransactionErrorCode.SPL_SENDER_UNDEFINED,
           "constructor",
@@ -254,9 +254,9 @@ export class TransactionParameters implements transactionParameters {
       /**
        * relayer is defined
        * public amounts sub FieldSize are negative or 0
-       * for public amounts greater than 0 a recipient needs to be defined
-       * sender is the merkle tree
-       * recipient is the user
+       * for public amounts greater than 0 a recipientSpl needs to be defined
+       * senderSpl is the merkle tree
+       * recipientSpl is the user
        */
       // TODO: should I throw an error when a lookup table is defined?
       if (!relayer)
@@ -305,7 +305,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSol.eq(new BN(0)) && !recipientFee) {
+      if (!this.publicAmountSol.eq(new BN(0)) && !recipientSol) {
         throw new TransactioParametersError(
           TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
           "constructor",
@@ -313,22 +313,22 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (!this.publicAmountSpl.eq(new BN(0)) && !recipient) {
+      if (!this.publicAmountSpl.eq(new BN(0)) && !recipientSpl) {
         throw new TransactioParametersError(
           TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
           "constructor",
           "",
         );
       }
-      // && senderFee.toBase58() != merkle tree token pda
-      if (!this.publicAmountSol.eq(new BN(0)) && senderFee) {
+      // && senderSol.toBase58() != merkle tree token pda
+      if (!this.publicAmountSol.eq(new BN(0)) && senderSol) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
-      if (!this.publicAmountSpl.eq(new BN(0)) && sender) {
+      if (!this.publicAmountSpl.eq(new BN(0)) && senderSpl) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
@@ -340,8 +340,8 @@ export class TransactionParameters implements transactionParameters {
        * relayer is defined
        * public amount spl amount is 0
        * public amount spl amount sub FieldSize is equal to the relayer fee
-       * sender is the merkle tree
-       * recipient does not exists it is an internal transfer just the relayer is paid
+       * senderSpl is the merkle tree
+       * recipientSpl does not exists it is an internal transfer just the relayer is paid
        */
       if (!relayer)
         throw new TransactioParametersError(
@@ -373,7 +373,7 @@ export class TransactionParameters implements transactionParameters {
           )}`,
         );
 
-      if (recipient) {
+      if (recipientSpl) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_RECIPIENT_DEFINED,
           "constructor",
@@ -381,7 +381,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (recipientFee) {
+      if (recipientSol) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SOL_RECIPIENT_DEFINED,
           "constructor",
@@ -389,14 +389,14 @@ export class TransactionParameters implements transactionParameters {
         );
       }
 
-      if (senderFee) {
+      if (senderSol) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SOL_SENDER_DEFINED,
           "constructor",
           "",
         );
       }
-      if (sender) {
+      if (senderSpl) {
         throw new TransactioParametersError(
           TransactionParametersErrorCode.SPL_SENDER_DEFINED,
           "constructor",
@@ -414,7 +414,7 @@ export class TransactionParameters implements transactionParameters {
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
-      merkleTree: merkleTreePubkey,
+      transactionMerkleTree: merkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
         verifier.verifierProgram.programId,
@@ -423,10 +423,10 @@ export class TransactionParameters implements transactionParameters {
         merkleTreeProgramId,
         verifier.verifierProgram.programId,
       ),
-      sender: sender,
-      recipient: recipient,
-      senderFee: senderFee, // TODO: change to senderSol
-      recipientFee: recipientFee, // TODO: change name to recipientSol
+      senderSpl: senderSpl,
+      recipientSpl: recipientSpl,
+      senderSol: senderSol, // TODO: change to senderSol
+      recipientSol: recipientSol, // TODO: change name to recipientSol
       programMerkleTree: merkleTreeProgramId,
       tokenAuthority: Transaction.getTokenAuthority(),
     };
@@ -445,7 +445,7 @@ export class TransactionParameters implements transactionParameters {
     account,
     utxos,
     // for unshield
-    recipientFee,
+    recipientSol,
     recipientSPLAddress,
     // for transfer
     shieldedRecipients,
@@ -459,7 +459,7 @@ export class TransactionParameters implements transactionParameters {
     userSplAccount?: PublicKey;
     account?: Account;
     utxos?: Utxo[];
-    recipientFee?: PublicKey;
+    recipientSol?: PublicKey;
     recipientSPLAddress?: PublicKey;
     shieldedRecipients?: Recipient[];
     action: Action;
@@ -523,11 +523,11 @@ export class TransactionParameters implements transactionParameters {
       outputUtxos,
       inputUtxos,
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: action === Action.SHIELD ? userSplAccount : undefined,
-      senderFee:
+      senderSpl: action === Action.SHIELD ? userSplAccount : undefined,
+      senderSol:
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
-      recipient: recipientSPLAddress,
-      recipientFee,
+      recipientSpl: recipientSPLAddress,
+      recipientSol,
       verifier: new VerifierZero(provider), // TODO: add support for 10in here -> verifier1
       poseidon: provider.poseidon,
       action,
@@ -555,7 +555,7 @@ export class TransactionParameters implements transactionParameters {
   }
 
   /**
-   * @description Assigns spl and sol sender or recipient accounts to transaction parameters based on action.
+   * @description Assigns spl and sol senderSpl or recipientSpl accounts to transaction parameters based on action.
    */
   assignAccounts() {
     if (!this.verifier.verifierProgram)
@@ -575,28 +575,28 @@ export class TransactionParameters implements transactionParameters {
       this.action.toString() === Action.UNSHIELD.toString() ||
       this.action.toString() === Action.TRANSFER.toString()
     ) {
-      this.accounts.sender = MerkleTreeConfig.getSplPoolPdaToken(
+      this.accounts.senderSpl = MerkleTreeConfig.getSplPoolPdaToken(
         this.assetPubkeys[1],
         merkleTreeProgramId,
       );
-      this.accounts.senderFee =
+      this.accounts.senderSol =
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
 
-      if (!this.accounts.recipient) {
+      if (!this.accounts.recipientSpl) {
         // AUTHORITY is used as place holder
-        this.accounts.recipient = AUTHORITY;
+        this.accounts.recipientSpl = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
           throw new TransactionError(
             TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
             "assignAccounts",
-            "Spl recipient is undefined while public spl amount is != 0.",
+            "Spl recipientSpl is undefined while public spl amount is != 0.",
           );
         }
       }
 
-      if (!this.accounts.recipientFee) {
+      if (!this.accounts.recipientSol) {
         // AUTHORITY is used as place holder
-        this.accounts.recipientFee = AUTHORITY;
+        this.accounts.recipientSol = AUTHORITY;
         if (
           !this.publicAmountSol.eq(new BN(0)) &&
           !this.publicAmountSol
@@ -608,7 +608,7 @@ export class TransactionParameters implements transactionParameters {
           throw new TransactioParametersError(
             TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
             "assignAccounts",
-            "Sol recipient is undefined while public spl amount is != 0.",
+            "Sol recipientSpl is undefined while public spl amount is != 0.",
           );
         }
       }
@@ -617,28 +617,28 @@ export class TransactionParameters implements transactionParameters {
         throw new TransactioParametersError(
           TransactionErrorCode.ACTION_IS_NO_DEPOSIT,
           "assignAccounts",
-          "Action is withdrawal but should not be. Spl & sol sender accounts are provided and a relayer which is used to identify transfers and withdrawals. For a deposit do not provide a relayer.",
+          "Action is withdrawal but should not be. Spl & sol senderSpl accounts are provided and a relayer which is used to identify transfers and withdrawals. For a deposit do not provide a relayer.",
         );
       }
 
-      this.accounts.recipient = MerkleTreeConfig.getSplPoolPdaToken(
+      this.accounts.recipientSpl = MerkleTreeConfig.getSplPoolPdaToken(
         this.assetPubkeys[1],
         merkleTreeProgramId,
       );
-      this.accounts.recipientFee =
+      this.accounts.recipientSol =
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
-      if (!this.accounts.sender) {
+      if (!this.accounts.senderSpl) {
         // assigning a placeholder account
-        this.accounts.sender = AUTHORITY;
+        this.accounts.senderSpl = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
           throw new TransactioParametersError(
             TransactionErrorCode.SPL_SENDER_UNDEFINED,
             "assignAccounts",
-            "Spl sender is undefined while public spl amount is != 0.",
+            "Spl senderSpl is undefined while public spl amount is != 0.",
           );
         }
       }
-      this.accounts.senderFee = TransactionParameters.getEscrowPda(
+      this.accounts.senderSol = TransactionParameters.getEscrowPda(
         this.verifier.verifierProgram.programId,
       );
     }
@@ -737,7 +737,7 @@ export class TransactionParameters implements transactionParameters {
    * @returns {BN} the public amount of the asset
    */
   // TODO: write test
-  // TODO: rename to publicAmount
+  // TODO: rename to publicAmountSpl
   static getExternalAmount(
     assetIndex: number,
     // params: TransactionParameters,

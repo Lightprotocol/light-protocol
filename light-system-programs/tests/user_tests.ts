@@ -69,14 +69,17 @@ describe("Test User", () => {
     // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
 
     RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
   });
@@ -145,10 +148,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     // console.log("solBalancePre", solBalancePre);
     // console.log("solBalanceAfter", solBalanceAfter);
@@ -300,10 +303,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     const minimumBalance = 150000;
     const tokenAccountFee = 500_000;
@@ -417,10 +420,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has decreased by fee
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
 
     assert.equal(

@@ -21,8 +21,8 @@ use crate::processor::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
-use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree;
 use merkle_tree_program::program::MerkleTreeProgram;
+use merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use verifier_program_two::{self, program::VerifierProgramTwo};
 
@@ -46,10 +46,10 @@ pub mod mock_verifier {
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount: [u8; 32],
+        public_amount_spl: [u8; 32],
         nullifiers: [[u8; 32]; 4],
         leaves: [[[u8; 32]; 2]; 2],
-        fee_amount: [u8; 32],
+        public_amount_sol: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -65,10 +65,10 @@ pub mod mock_verifier {
             &proof_a,
             &proof_b,
             &proof_c,
-            &public_amount,
+            &public_amount_spl,
             &nullifiers,
             &leaves,
-            &fee_amount,
+            &public_amount_sol,
             &checked_inputs,
             &encrypted_utxos,
             &pool_type,
@@ -88,7 +88,7 @@ pub mod mock_verifier {
         proof_a_verifier: [u8; 64],
         proof_b_verifier: [u8; 128],
         proof_c_verifier: [u8; 64],
-        connecting_hash: Vec<u8>,
+        transaction_hash: Vec<u8>,
     ) -> Result<()> {
         ctx.accounts.verifier_state.checked_public_inputs.insert(
             0,
@@ -101,7 +101,7 @@ pub mod mock_verifier {
         ctx.accounts
             .verifier_state
             .checked_public_inputs
-            .insert(1, connecting_hash);
+            .insert(1, transaction_hash);
         process_transfer_4_ins_4_outs_4_checked_second(
             ctx,
             &proof_a_app,
@@ -143,26 +143,26 @@ pub struct LightInstructionSecond<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program= VerifierProgramTwo::id())]
     pub authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
+    pub sender_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
+    pub recipient_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
+    pub sender_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
+    pub recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
+    pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,

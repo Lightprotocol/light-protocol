@@ -28,7 +28,7 @@ export type VerifierProgramZero = {
           isSigner: false;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -43,27 +43,27 @@ export type VerifierProgramZero = {
           isSigner: false;
         },
         {
-          name: "sender";
+          name: "senderSpl";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "recipient";
+          name: "recipientSpl";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "senderFee";
+          name: "senderSol";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "recipientFee";
+          name: "recipientSol";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "relayerRecipient";
+          name: "relayerRecipientSol";
           isMut: true;
           isSigner: false;
         },
@@ -101,7 +101,7 @@ export type VerifierProgramZero = {
           };
         },
         {
-          name: "amount";
+          name: "publicAmountSpl";
           type: {
             array: ["u8", 32];
           };
@@ -129,7 +129,7 @@ export type VerifierProgramZero = {
           };
         },
         {
-          name: "feeAmount";
+          name: "publicAmountSol";
           type: {
             array: ["u8", 32];
           };
@@ -181,7 +181,7 @@ export const IDL: VerifierProgramZero = {
           isSigner: false,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -196,27 +196,27 @@ export const IDL: VerifierProgramZero = {
           isSigner: false,
         },
         {
-          name: "sender",
+          name: "senderSpl",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "recipient",
+          name: "recipientSpl",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "senderFee",
+          name: "senderSol",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "recipientFee",
+          name: "recipientSol",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "relayerRecipient",
+          name: "relayerRecipientSol",
           isMut: true,
           isSigner: false,
         },
@@ -254,7 +254,7 @@ export const IDL: VerifierProgramZero = {
           },
         },
         {
-          name: "amount",
+          name: "publicAmountSpl",
           type: {
             array: ["u8", 32],
           },
@@ -282,7 +282,7 @@ export const IDL: VerifierProgramZero = {
           },
         },
         {
-          name: "feeAmount",
+          name: "publicAmountSol",
           type: {
             array: ["u8", 32],
           },

@@ -1,12 +1,21 @@
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
-import { relayerFee, relayerFeeRecipient, relayerPayer, rpcPort } from "config";
+import { Keypair, PublicKey } from "@solana/web3.js";
+import { relayerFee, rpcPort } from "../config";
 import {
   ADMIN_AUTH_KEYPAIR,
   confirmConfig,
   Provider,
   Relayer,
 } from "light-sdk";
+require('dotenv').config();
+
+let provider: Provider;
+
+export const getKeyPairFromEnv = (KEY: string) => {
+  return Keypair.fromSecretKey(
+    new Uint8Array(JSON.parse(process.env[KEY] || "")),
+  );
+};
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -22,21 +31,19 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
 };
 
 export const getLightProvider = async () => {
-  const relayer = new Relayer(
-    relayerPayer.publicKey,
-    new PublicKey(""),
-    relayerFeeRecipient.publicKey,
-    relayerFee,
-  );
+  if (!provider) {
+    const relayer = new Relayer(
+      getKeyPairFromEnv("KEY_PAIR").publicKey,
+      new PublicKey(process.env.LOOK_UP_TABLE || ""),
+      getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
+      relayerFee,
+    );
 
-  const provider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR, relayer });
-
-  await provider.provider!.connection.confirmTransaction(
-    await provider.provider!.connection.requestAirdrop(
-      relayer.accounts.relayerRecipient,
-      1_000_000,
-    ),
-    "confirmed",
-  );
+    provider = await Provider.init({
+      wallet: getKeyPairFromEnv("KEY_PAIR"),
+      relayer,
+    });
+    return provider;
+  }
   return provider;
 };

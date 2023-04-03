@@ -455,7 +455,7 @@ export class Transaction {
         ),
       );
       let merkle_tree_account_data =
-        await this.merkleTreeProgram.account.merkleTree.fetch(
+        await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
           this.provider.solMerkleTree.pubkey,
           "confirmed",
         );
@@ -605,13 +605,13 @@ export class Transaction {
         "getTxIntegrityHash",
         "",
       );
-    if (!this.params.accounts.recipient)
+    if (!this.params.accounts.recipientSpl)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxIntegrityHash",
         "",
       );
-    if (!this.params.accounts.recipientFee)
+    if (!this.params.accounts.recipientSol)
       throw new TransactionError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxIntegrityHash",
@@ -644,8 +644,8 @@ export class Transaction {
         !this.testValues.txIntegrityHash
       ) {
         let extDataBytes = new Uint8Array([
-          ...this.params.accounts.recipient?.toBytes(),
-          ...this.params.accounts.recipientFee.toBytes(),
+          ...this.params.accounts.recipientSpl?.toBytes(),
+          ...this.params.accounts.recipientSol.toBytes(),
           ...this.params.relayer.accounts.relayerPubkey.toBytes(),
           ...this.params.relayer
             .getRelayerFee(this.params.ataCreationFee)
@@ -740,19 +740,19 @@ export class Transaction {
         "getTestValues",
         "",
       );
-    if (!this.params.accounts.recipient)
+    if (!this.params.accounts.recipientSpl)
       throw new TransactionError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTestValues",
         "",
       );
-    if (!this.params.accounts.recipientFee)
+    if (!this.params.accounts.recipientSol)
       throw new TransactionError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTestValues",
         "",
       );
-    if (!this.params.accounts.senderFee)
+    if (!this.params.accounts.senderSol)
       throw new TransactionError(
         TransactionErrorCode.SOL_SENDER_UNDEFINED,
         "getTestValues",
@@ -770,7 +770,7 @@ export class Transaction {
         (
           await getAccount(
             this.provider.provider.connection,
-            this.params.accounts.recipient,
+            this.params.accounts.recipientSpl,
           )
         ).amount.toString(),
       );
@@ -779,7 +779,7 @@ export class Transaction {
       try {
         this.testValues.recipientBalancePriorTx = new BN(
           await this.provider.provider.connection.getBalance(
-            this.params.accounts.recipient,
+            this.params.accounts.recipientSpl,
           ),
         );
       } catch (e) {}
@@ -788,13 +788,13 @@ export class Transaction {
     try {
       this.testValues.recipientFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientFee,
+          this.params.accounts.recipientSol,
         ),
       );
     } catch (error) {
       console.log(
         "this.testValues.recipientFeeBalancePriorTx fetch failed ",
-        this.params.accounts.recipientFee,
+        this.params.accounts.recipientSol,
       );
     }
     if (this.params.action === "SHIELD") {
@@ -806,14 +806,14 @@ export class Transaction {
     } else {
       this.testValues.senderFeeBalancePriorTx = new BN(
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderFee,
+          this.params.accounts.senderSol,
         ),
       );
     }
 
     this.testValues.relayerRecipientAccountBalancePriorLastTx = new BN(
       await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipient,
+        this.params.relayer.accounts.relayerRecipientSol,
       ),
     );
   }
@@ -1116,20 +1116,20 @@ export class Transaction {
         "",
       );
 
-    if (!this.params.accounts.senderFee) {
-      throw new Error("params.accounts.senderFee undefined");
+    if (!this.params.accounts.senderSol) {
+      throw new Error("params.accounts.senderSol undefined");
     }
 
-    if (!this.params.accounts.recipientFee) {
-      throw new Error("params.accounts.recipientFee undefined");
+    if (!this.params.accounts.recipientSol) {
+      throw new Error("params.accounts.recipientSol undefined");
     }
 
-    if (!this.params.accounts.recipient) {
-      throw new Error("params.accounts.recipient undefined");
+    if (!this.params.accounts.recipientSpl) {
+      throw new Error("params.accounts.recipientSpl undefined");
     }
 
-    if (!this.params.accounts.recipient) {
-      throw new Error("params.accounts.recipient undefined");
+    if (!this.params.accounts.recipientSpl) {
+      throw new Error("params.accounts.recipientSpl undefined");
     }
     if (!this.testValues) {
       throw new Error("test values undefined");
@@ -1139,11 +1139,11 @@ export class Transaction {
     }
 
     if (!this.params.publicAmountSol) {
-      throw new Error("feeAmount undefined");
+      throw new Error("amountSol undefined");
     }
 
     if (!this.params.publicAmountSol) {
-      throw new Error("feeAmount undefined");
+      throw new Error("amountSol undefined");
     }
 
     if (!this.merkleTreeProgram) {
@@ -1175,8 +1175,8 @@ export class Transaction {
       throw new Error("params.relayer undefined");
     }
 
-    if (!this.params.accounts.sender) {
-      throw new Error("params.accounts.sender undefined");
+    if (!this.params.accounts.senderSpl) {
+      throw new Error("params.accounts.senderSpl undefined");
     }
     if (!this.remainingAccounts) {
       throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
@@ -1205,7 +1205,7 @@ export class Transaction {
       );
     }
     // Checking that nullifiers were inserted
-    if (new BN(this.proofInput.publicAmount).toString() === "0") {
+    if (new BN(this.proofInput.publicAmountSpl).toString() === "0") {
       this.testValues.is_token = false;
     } else {
       this.testValues.is_token = true;
@@ -1324,7 +1324,7 @@ export class Transaction {
 
     try {
       const merkleTreeAfterUpdate =
-        await this.merkleTreeProgram.account.merkleTree.fetch(
+        await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
           MERKLE_TREE_KEY,
           "confirmed",
         );
@@ -1362,9 +1362,9 @@ export class Transaction {
     console.log("nrInstructions ", nrInstructions);
 
     if (this.params.action == "SHIELD" && this.testValues.is_token == false) {
-      var recipientFeeAccountBalance =
+      var recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientFee,
+          this.params.accounts.recipientSol,
           "confirmed",
         );
       console.log(
@@ -1378,7 +1378,7 @@ export class Transaction {
           "confirmed",
         );
       assert(
-        recipientFeeAccountBalance ==
+        recipientSolAccountBalance ==
           Number(this.testValues.recipientFeeBalancePriorTx) +
             Number(this.params.publicAmountSol),
       );
@@ -1402,11 +1402,11 @@ export class Transaction {
 
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipient,
+        this.params.accounts.recipientSpl,
       );
-      var recipientFeeAccountBalance =
+      var recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientFee,
+          this.params.accounts.recipientSol,
         );
 
       // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
@@ -1430,7 +1430,7 @@ export class Transaction {
         "amount not transferred correctly",
       );
       console.log(
-        `Blanace now ${recipientFeeAccountBalance} ${
+        `Blanace now ${recipientSolAccountBalance} ${
           Number(this.testValues.recipientFeeBalancePriorTx) +
           Number(this.params.publicAmountSol)
         }`,
@@ -1439,24 +1439,24 @@ export class Transaction {
       console.log(
         "fee amount from inputs. ",
         new anchor.BN(
-          this.transactionInputs.publicInputs.feeAmount.slice(24, 32),
+          this.transactionInputs.publicInputs.publicAmountSol.slice(24, 32),
         ).toString(),
       );
       console.log(
         "pub amount from inputs. ",
         new anchor.BN(
-          this.transactionInputs.publicInputs.publicAmount.slice(24, 32),
+          this.transactionInputs.publicInputs.publicAmountSpl.slice(24, 32),
         ).toString(),
       );
 
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderFee,
+          this.params.accounts.senderSol,
           "confirmed",
         );
 
       assert(
-        recipientFeeAccountBalance ==
+        recipientSolAccountBalance ==
           Number(this.testValues.recipientFeeBalancePriorTx) +
             Number(this.params.publicAmountSol),
       );
@@ -1477,13 +1477,13 @@ export class Transaction {
       this.testValues.is_token == false
     ) {
       var relayerAccount = await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipient,
+        this.params.relayer.accounts.relayerRecipientSol,
         "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientFee,
+          this.params.accounts.recipientSol,
           "confirmed",
         );
 
@@ -1541,12 +1541,12 @@ export class Transaction {
     ) {
       var senderAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.sender,
+        this.params.accounts.senderSpl,
       );
 
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipient,
+        this.params.accounts.recipientSpl,
       );
 
       // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
@@ -1576,13 +1576,13 @@ export class Transaction {
       );
 
       var relayerAccount = await this.provider.provider.connection.getBalance(
-        this.params.relayer.accounts.relayerRecipient,
+        this.params.relayer.accounts.relayerRecipientSol,
         "confirmed",
       );
 
       var recipientFeeAccount =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.recipientFee,
+          this.params.accounts.recipientSol,
           "confirmed",
         );
 

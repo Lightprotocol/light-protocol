@@ -14,7 +14,7 @@ pub use processor::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::{
-    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
     utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 
@@ -34,10 +34,10 @@ pub mod verifier_program_zero {
         proof_a: [u8; 64],
         proof_b: [u8; 128],
         proof_c: [u8; 64],
-        amount: [u8; 32],
+        public_amount_spl: [u8; 32],
         nullifiers: [[u8; 32]; 2],
         leaves: [[u8; 32]; 2],
-        fee_amount: [u8; 32],
+        public_amount_sol: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -50,10 +50,10 @@ pub mod verifier_program_zero {
             &proof_a,
             &proof_b,
             &proof_c,
-            &amount,
+            &public_amount_spl,
             &nullifiers,
             &[leaves; 1],
-            &fee_amount,
+            &public_amount_sol,
             &enc_utxos,
             root_index,
             relayer_fee,
@@ -71,26 +71,26 @@ pub struct LightInstruction<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
+    pub sender_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
+    pub recipient_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
+    pub sender_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
+    pub recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
+    pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: AccountInfo<'info>,

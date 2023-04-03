@@ -17,7 +17,9 @@ use anchor_spl::token::Token;
 
 use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
-use merkle_tree_program::{poseidon_merkle_tree::state::MerkleTree, RegisteredVerifier};
+use merkle_tree_program::{
+    transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
+};
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
 #[error_code]
 pub enum ErrorCode {
@@ -56,26 +58,26 @@ pub struct LightInstruction<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
+    pub sender_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
+    pub recipient_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
+    pub sender_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
+    pub recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
+    pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,

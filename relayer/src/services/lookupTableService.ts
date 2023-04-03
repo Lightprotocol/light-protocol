@@ -3,7 +3,7 @@ import {
   initLookUpTableFromFile,
   Provider,
 } from "light-sdk";
-import { getLightProvider } from "utils/provider";
+import { getLightProvider } from "../utils/provider";
 
 export const initLookupTable = async (req: any, res: any) => {
   try {
@@ -11,7 +11,6 @@ export const initLookupTable = async (req: any, res: any) => {
     const LOOK_UP_TABLE = await initLookUpTableFromFile(provider.provider!);
     return res.status(200).json({ data: LOOK_UP_TABLE });
   } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
+    return res.status(500).json({ status: "error", message: e.message });
   }
 };

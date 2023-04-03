@@ -367,7 +367,7 @@ export class User {
   async unshield({
     token,
     publicAmountSpl,
-    recipientSpl = new PublicKey(0),
+    recipientSpl = AUTHORITY,
     publicAmountSol,
     recipientSol,
     minimumLamports = true,
@@ -379,6 +379,10 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
+    // publicAmountSol: amount,
+    // token,
+    // recipientSol: recipient,
+
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -399,10 +403,7 @@ export class User {
         "getTxParams",
         "no recipient provided for sol unshield",
       );
-    if (
-      publicAmountSpl &&
-      recipientSpl.toBase58() == new PublicKey(0).toBase58()
-    )
+    if (publicAmountSpl && recipientSpl.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxParams",
@@ -447,8 +448,8 @@ export class User {
       account: this.account,
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
-      recipientFee: recipientSol ? recipientSol : AUTHORITY,
-      recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
+      recipientSol: recipientSol ? recipientSol : AUTHORITY,
+      recipientSPLAddress: AUTHORITY,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,

@@ -22,6 +22,7 @@ import {
   ADMIN_AUTH_KEYPAIR,
   initLookUpTableFromFile,
   SolMerkleTree,
+  RELAYER_RECIPIENT_KEYPAIR,
 } from "../index";
 
 const axios = require("axios");
@@ -117,7 +118,7 @@ export class Provider {
       this.relayer = new Relayer(
         this.wallet!.publicKey,
         this.lookUpTable!,
-        SolanaKeypair.generate().publicKey,
+        RELAYER_RECIPIENT_KEYPAIR.publicKey,
         new BN(100000),
       );
     }

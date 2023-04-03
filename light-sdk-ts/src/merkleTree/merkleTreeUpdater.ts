@@ -25,18 +25,19 @@ export async function executeUpdateMerkleTreeTransactions({
   signer,
   merkleTreeProgram,
   leavesPdas,
-  merkle_tree_pubkey,
+  transactionMerkleTree,
   connection,
 }: {
   signer: Keypair;
   merkleTreeProgram: Program<MerkleTreeProgram>;
   leavesPdas: any;
-  merkle_tree_pubkey: PublicKey;
+  transactionMerkleTree: PublicKey;
   connection: Connection;
 }) {
-  var merkleTreeAccountPrior = await merkleTreeProgram.account.merkleTree.fetch(
-    merkle_tree_pubkey,
-  );
+  var merkleTreeAccountPrior =
+    await merkleTreeProgram.account.transactionMerkleTree.fetch(
+      transactionMerkleTree,
+    );
   let merkleTreeUpdateState = (
     await PublicKey.findProgramAddressSync(
       [
@@ -57,7 +58,7 @@ export async function executeUpdateMerkleTreeTransactions({
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          merkleTree: merkle_tree_pubkey,
+          transactionMerkleTree: transactionMerkleTree,
         })
         .remainingAccounts(leavesPdas)
         .preInstructions([
@@ -80,7 +81,7 @@ export async function executeUpdateMerkleTreeTransactions({
             merkleTreeUpdateState: merkleTreeUpdateState,
             systemProgram: SystemProgram.programId,
             rent: DEFAULT_PROGRAMS.rent,
-            merkleTree: merkle_tree_pubkey,
+            transactionMerkleTree: transactionMerkleTree,
           })
           .remainingAccounts(leavesPdas)
           .preInstructions([
@@ -104,7 +105,7 @@ export async function executeUpdateMerkleTreeTransactions({
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
     merkleTreeUpdateState,
-    MerkleTree: merkle_tree_pubkey,
+    transactionMerkleTree: transactionMerkleTree,
     relayer: signer.publicKey,
     leavesPdas,
     current_instruction_index: 1,
@@ -114,7 +115,7 @@ export async function executeUpdateMerkleTreeTransactions({
   await executeMerkleTreeUpdateTransactions({
     signer,
     merkleTreeProgram,
-    merkle_tree_pubkey,
+    transactionMerkleTree: transactionMerkleTree,
     merkleTreeUpdateState,
     numberOfTransactions: 251,
     connection,
@@ -123,7 +124,7 @@ export async function executeUpdateMerkleTreeTransactions({
   await checkMerkleTreeUpdateStateCreated({
     connection: connection,
     merkleTreeUpdateState,
-    MerkleTree: merkle_tree_pubkey,
+    transactionMerkleTree: transactionMerkleTree,
     relayer: signer.publicKey,
     leavesPdas,
     current_instruction_index: 56,
@@ -137,7 +138,7 @@ export async function executeUpdateMerkleTreeTransactions({
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey,
+          transactionMerkleTree: transactionMerkleTree,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .remainingAccounts(leavesPdas)
@@ -158,7 +159,7 @@ export async function executeUpdateMerkleTreeTransactions({
           .accounts({
             authority: signer.publicKey,
             merkleTreeUpdateState: merkleTreeUpdateState,
-            merkleTree: merkle_tree_pubkey,
+            transactionMerkleTree: transactionMerkleTree,
             logWrapper: SPL_NOOP_ADDRESS,
           })
           .remainingAccounts(leavesPdas)
@@ -184,7 +185,7 @@ export async function executeUpdateMerkleTreeTransactions({
     merkleTreeAccountPrior,
     numberOfLeaves: leavesPdas.length * 2,
     leavesPdas,
-    merkle_tree_pubkey: merkle_tree_pubkey,
+    transactionMerkleTree: transactionMerkleTree,
     merkleTreeProgram,
   });
 }
@@ -192,14 +193,14 @@ export async function executeUpdateMerkleTreeTransactions({
 export async function executeMerkleTreeUpdateTransactions({
   merkleTreeProgram,
   merkleTreeUpdateState,
-  merkle_tree_pubkey,
+  transactionMerkleTree,
   signer,
   numberOfTransactions,
   connection,
 }: {
   merkleTreeProgram: Program<MerkleTreeProgram>;
   merkleTreeUpdateState: PublicKey;
-  merkle_tree_pubkey: PublicKey;
+  transactionMerkleTree: PublicKey;
   signer: Keypair;
   numberOfTransactions: number;
   connection: Connection;
@@ -217,22 +218,22 @@ export async function executeMerkleTreeUpdateTransactions({
     );
     transaction.add(
       await merkleTreeProgram.methods
-        .updateMerkleTree(new anchor.BN(i))
+        .updateTransactionMerkleTree(new anchor.BN(i))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey,
+          transactionMerkleTree: transactionMerkleTree,
         })
         .instruction(),
     );
     i += 1;
     transaction.add(
       await merkleTreeProgram.methods
-        .updateMerkleTree(new anchor.BN(i))
+        .updateTransactionMerkleTree(new anchor.BN(i))
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          merkleTree: merkle_tree_pubkey,
+          transactionMerkleTree: transactionMerkleTree,
         })
         .instruction(),
     );

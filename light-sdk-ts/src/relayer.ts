@@ -6,7 +6,7 @@ import { RelayerError, RelayerErrorCode, Provider } from "./index";
 export class Relayer {
   accounts: {
     relayerPubkey: PublicKey; // signs the transaction
-    relayerRecipient: PublicKey; // receives the fees
+    relayerRecipientSol: PublicKey; // receives the fees
     lookUpTable: PublicKey;
   };
   relayerFee: BN;
@@ -16,13 +16,13 @@ export class Relayer {
    *
    * @param relayerPubkey Signs the transaction
    * @param lookUpTable  The relayer's lookuptable - uniformly used currently
-   * @param relayerRecipient Recipient account for SOL fees
+   * @param relayerRecipientSol Recipient account for SOL fees
    * @param relayerFee Fee amount
    */
   constructor(
     relayerPubkey: PublicKey,
     lookUpTable: PublicKey,
-    relayerRecipient?: PublicKey,
+    relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
     highRelayerFee: BN = new BN(500000),
   ) {
@@ -38,29 +38,29 @@ export class Relayer {
     //     "constructor",
     //   );
     // }
-    if (relayerRecipient && relayerFee.toString() === "0") {
+    if (relayerRecipientSol && relayerFee.toString() === "0") {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "constructor",
       );
     }
-    if (relayerFee.toString() !== "0" && !relayerRecipient) {
+    if (relayerFee.toString() !== "0" && !relayerRecipientSol) {
       throw new RelayerError(
         RelayerErrorCode.RELAYER_RECIPIENT_UNDEFINED,
         "constructor",
       );
     }
-    if (relayerRecipient) {
+    if (relayerRecipientSol) {
       this.accounts = {
         relayerPubkey,
         lookUpTable,
-        relayerRecipient,
+        relayerRecipientSol,
       };
     } else {
       this.accounts = {
         relayerPubkey,
         lookUpTable,
-        relayerRecipient: relayerPubkey,
+        relayerRecipientSol: relayerPubkey,
       };
     }
     this.highRelayerFee = highRelayerFee;
@@ -79,12 +79,15 @@ export class Relayer {
     }
   }
 
-  async sendTransaction(instructions: any, provider: Provider): Promise<any> {
+  async sendTransaction(instruction: any, provider: Provider): Promise<any> {
     try {
-      const response = axios.post("http://localhost:3331/relay", {
-        instructions,
-      });
-      return response;
+      const response = await axios.post(
+        "http://localhost:3331/relayInstruction",
+        {
+          instruction,
+        },
+      );
+      return response.data.data;
     } catch (err) {
       console.error({ err });
       throw err;

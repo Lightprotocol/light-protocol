@@ -61,10 +61,10 @@ export class VerifierZero implements Verifier {
     }
     return {
       root: publicInputsBytes[0],
-      publicAmount: publicInputsBytes[1],
-      extDataHash: publicInputsBytes[2],
-      feeAmount: publicInputsBytes[3],
-      mintPubkey: publicInputsBytes[4],
+      publicAmountSpl: publicInputsBytes[1],
+      txIntegrityHash: publicInputsBytes[2],
+      publicAmountSol: publicInputsBytes[3],
+      publicMintPubkey: publicInputsBytes[4],
       nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
       leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
     };
@@ -133,10 +133,10 @@ export class VerifierZero implements Verifier {
         transaction.transactionInputs.proofBytes.proofA,
         transaction.transactionInputs.proofBytes.proofB,
         transaction.transactionInputs.proofBytes.proofC,
-        transaction.transactionInputs.publicInputs.publicAmount,
+        transaction.transactionInputs.publicInputs.publicAmountSpl,
         transaction.transactionInputs.publicInputs.nullifiers,
         transaction.transactionInputs.publicInputs.leaves[0],
-        transaction.transactionInputs.publicInputs.feeAmount,
+        transaction.transactionInputs.publicInputs.publicAmountSol,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
         new anchor.BN(
           transaction.params.relayer

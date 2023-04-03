@@ -5,7 +5,7 @@ import {
   SolMerkleTree,
   updateMerkleTreeForTest,
 } from "light-sdk";
-import { getLightProvider } from "utils/provider";
+import { getLightProvider } from "../utils/provider";
 
 export const initeMerkleTree = async (req: any, res: any) => {
   try {
@@ -15,27 +15,23 @@ export const initeMerkleTree = async (req: any, res: any) => {
     if (!merkletreeIsInited) {
       throw new Error("merkletree not inited yet.");
     }
-
     const mt = await SolMerkleTree.build({
       pubkey: MERKLE_TREE_KEY,
       poseidon: provider.poseidon,
     });
     provider.solMerkleTree = mt;
-    return res.status("").json({ data: mt });
+    return res.status(200).json({ data: mt });
   } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
+    return res.status(500).json({ status: "error", message: e.message });
   }
 };
 
 export const updateMerkleTree = async (req: any, res: any) => {
   try {
     const provider = await getLightProvider();
-    console.log({ provider });
     await updateMerkleTreeForTest(provider.provider?.connection!);
     return res.status(200).json({ status: "ok" });
   } catch (e) {
-    console.log(e);
-    return res.status(500).json({ status: "error" });
+    return res.status(500).json({ status: "error", message: e.message });
   }
 };

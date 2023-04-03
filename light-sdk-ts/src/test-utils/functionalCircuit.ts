@@ -40,8 +40,8 @@ export async function functionalCircuitTest(
   let txParams = new TransactionParameters({
     outputUtxos: [deposit_utxo1],
     merkleTreePubkey: mockPubkey,
-    sender: mockPubkey,
-    senderFee: lightProvider.wallet!.publicKey,
+    senderSpl: mockPubkey,
+    senderSol: lightProvider.wallet!.publicKey,
     verifier: verifier,
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
