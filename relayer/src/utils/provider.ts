@@ -12,18 +12,10 @@ require('dotenv').config();
 
 let provider: Provider;
 
-export const getKeyPairFromEnv = (KEY: string) => {
+const getKeyPairFromEnv = (KEY: string) => {
   return Keypair.fromSecretKey(
     new Uint8Array(JSON.parse(process.env[KEY] || "")),
   );
-};
-
-let provider: Provider;
-
-const getPubKeyFromEnv = (KEY: string) => {
-  return Keypair.fromSecretKey(
-    new Uint8Array(JSON.parse(process.env[KEY] || "")),
-  ).publicKey;
 };
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
