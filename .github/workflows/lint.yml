@@ -27,10 +27,18 @@ jobs:
           override: true
           components: rustfmt, clippy
 
-      - name: Run cargo fmt
-        working-directory: ./light-system-programs
+      - name: Install Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: "16"
+
+      - name: Install Typescript
         run: |
-          cargo fmt --all -- --check
+          npm i -g typescript
+
+      - name: Run linters
+        run: |
+          ./lint.sh
 
       # TODO(vadorovsky): Enable clippy once we fix the issue in Solana:
       # https://github.com/solana-labs/solana/issues/29971
