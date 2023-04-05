@@ -72,14 +72,17 @@ describe("Verifier Zero and One Tests", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
 
     RELAYER = await new TestRelayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
 
@@ -122,8 +125,8 @@ describe("Verifier Zero and One Tests", () => {
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -161,8 +164,8 @@ describe("Verifier Zero and One Tests", () => {
       let txParams1 = new TransactionParameters({
         outputUtxos: [deposit_utxo2],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -184,16 +187,16 @@ describe("Verifier Zero and One Tests", () => {
         relayer: RELAYER,
       }); // userKeypair
 
-      const relayerRecipient = SolanaKeypair.generate().publicKey;
+      const relayerRecipientSol = SolanaKeypair.generate().publicKey;
       await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(relayerRecipient, 10000000),
+        await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
       );
 
       let txParams2 = new TransactionParameters({
         inputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        recipient: tokenRecipient,
-        recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        recipientSpl: tokenRecipient,
+        recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         relayer: RELAYER,
         poseidon: POSEIDON,
@@ -286,7 +289,7 @@ describe("Verifier Zero and One Tests", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       let wrongAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.publicAmount = Array.from([
+      tmp_tx.transactionInputs.publicInputs.publicAmountSpl = Array.from([
         ...new Array(29).fill(0),
         ...wrongAmount,
       ]);
@@ -296,11 +299,11 @@ describe("Verifier Zero and One Tests", () => {
     }
   });
 
-  it("Wrong feeAmount", async () => {
+  it("Wrong publicAmountSol", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       let wrongFeeAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.feeAmount = Array.from([
+      tmp_tx.transactionInputs.publicInputs.publicAmountSol = Array.from([
         ...new Array(29).fill(0),
         ...wrongFeeAmount,
       ]);
@@ -318,7 +321,7 @@ describe("Verifier Zero and One Tests", () => {
         mintKeypair: newMintKeypair,
         connection: provider.connection,
       });
-      tmp_tx.params.accounts.sender = await newAccountWithTokens({
+      tmp_tx.params.accounts.senderSpl = await newAccountWithTokens({
         connection: provider.connection,
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
@@ -387,18 +390,18 @@ describe("Verifier Zero and One Tests", () => {
     }
   });
 
-  it("Wrong recipientFee", async () => {
+  it("Wrong recipientSol", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipientFee = SolanaKeypair.generate().publicKey;
+      tmp_tx.params.accounts.recipientSol = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
 
-  it("Wrong recipient", async () => {
+  it("Wrong recipientSpl", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipient = SolanaKeypair.generate().publicKey;
+      tmp_tx.params.accounts.recipientSpl = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });

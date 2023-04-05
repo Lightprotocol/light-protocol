@@ -44,27 +44,27 @@ export type VerifierProgramTwo = {
           isSigner: false;
         },
         {
-          name: "sender";
+          name: "senderSpl";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "recipient";
+          name: "recipientSpl";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "senderFee";
+          name: "senderSol";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "recipientFee";
+          name: "recipientSol";
           isMut: true;
           isSigner: false;
         },
         {
-          name: "relayerRecipient";
+          name: "relayerRecipientSol";
           isMut: true;
           isSigner: false;
         },
@@ -165,27 +165,27 @@ export const IDL: VerifierProgramTwo = {
           isSigner: false,
         },
         {
-          name: "sender",
+          name: "senderSpl",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "recipient",
+          name: "recipientSpl",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "senderFee",
+          name: "senderSol",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "recipientFee",
+          name: "recipientSol",
           isMut: true,
           isSigner: false,
         },
         {
-          name: "relayerRecipient",
+          name: "relayerRecipientSol",
           isMut: true,
           isSigner: false,
         },

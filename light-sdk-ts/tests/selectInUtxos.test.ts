@@ -90,11 +90,11 @@ describe("Test selectInUtxos Functional", () => {
     const encryptionPublicKey =
       "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
 
-    const recipient: Uint8Array = strToArr(shieldedRecipient);
+    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
     recipientAccount = Account.fromPubkey(
-      recipient,
+      recipientSpl,
       recipientEncryptionPublicKey,
       poseidon,
     );
@@ -330,11 +330,11 @@ describe("Test selectInUtxos Errors", () => {
     const encryptionPublicKey =
       "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
 
-    const recipient: Uint8Array = strToArr(shieldedRecipient);
+    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
     const recipientEncryptionPublicKey: Uint8Array =
       strToArr(encryptionPublicKey);
     recipientAccount = Account.fromPubkey(
-      recipient,
+      recipientSpl,
       recipientEncryptionPublicKey,
       poseidon,
     );
