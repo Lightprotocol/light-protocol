@@ -11,7 +11,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let mockKeypair = SolanaKeypair.generate();
 let mockKeypair1 = SolanaKeypair.generate();
 let relayerFee = new anchor.BN("123214");
-let relayerRecipient = SolanaKeypair.generate().publicKey;
+let relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
 describe("Test Relayer Functional", () => {
   it("Relayer Deposit", () => {
@@ -31,7 +31,7 @@ describe("Test Relayer Functional", () => {
     let relayer = new Relayer(
       mockKeypair.publicKey,
       mockKeypair1.publicKey,
-      relayerRecipient,
+      relayerRecipientSol,
       relayerFee,
     );
     assert.equal(
@@ -44,8 +44,8 @@ describe("Test Relayer Functional", () => {
     );
     assert.equal(relayer.relayerFee.toString(), relayerFee.toString());
     assert.equal(
-      relayer.accounts.relayerRecipient.toBase58(),
-      relayerRecipient.toBase58(),
+      relayer.accounts.relayerRecipientSol.toBase58(),
+      relayerRecipientSol.toBase58(),
     );
   });
 
@@ -82,7 +82,7 @@ describe("Test Relayer Errors", () => {
       new Relayer(
         mockKeypair.publicKey,
         mockKeypair1.publicKey,
-        relayerRecipient,
+        relayerRecipientSol,
       );
     })
       .to.throw(RelayerError)

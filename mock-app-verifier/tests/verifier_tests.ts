@@ -62,7 +62,7 @@ describe("Verifier Two test", () => {
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
-  var depositAmount, depositFeeAmount;
+  var depositSplAmount, depositSolAmount;
   const verifiers = [new VerifierTwo()];
 
   before(async () => {
@@ -77,9 +77,9 @@ describe("Verifier Two test", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    depositAmount =
+    depositSplAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
-    depositFeeAmount =
+    depositSolAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
     for (var verifier in verifiers) {
@@ -94,18 +94,18 @@ describe("Verifier Two test", () => {
           verifiers[verifier].verifierProgram.programId,
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
-        depositAmount * 10,
+        depositSplAmount * 10,
         [USER_TOKEN_ACCOUNT],
       );
 
-      const relayerRecipient = SolanaKeypair.generate().publicKey;
+      const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-      await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+      await provider.connection.requestAirdrop(relayerRecipientSol, 2_000_000_000);
 
       RELAYER = await new TestRelayer(
         ADMIN_AUTH_KEYPAIR.publicKey,
         LOOK_UP_TABLE,
-        relayerRecipient,
+        relayerRecipientSol,
         new BN(100000),
       );
 
@@ -118,8 +118,8 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
         amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
+          new anchor.BN(depositSolAmount),
+          new anchor.BN(depositSplAmount),
         ],
         account: KEYPAIR,
       });
@@ -127,8 +127,8 @@ describe("Verifier Two test", () => {
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -161,8 +161,8 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         assets: [FEE_ASSET, MINT],
         amounts: [
-          new anchor.BN(depositFeeAmount),
-          new anchor.BN(depositAmount),
+          new anchor.BN(depositSolAmount),
+          new anchor.BN(depositSplAmount),
         ],
         account: KEYPAIR,
       });
@@ -170,8 +170,8 @@ describe("Verifier Two test", () => {
       let txParams1 = new TransactionParameters({
         outputUtxos: [deposit_utxo2],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
@@ -198,14 +198,14 @@ describe("Verifier Two test", () => {
       }); // userKeypair
 
       await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(relayerRecipient, 10000000),
+        await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
       );
 
       let txParams2 = new TransactionParameters({
         inputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        recipient: tokenRecipient,
-        recipientFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        recipientSpl: tokenRecipient,
+        recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
         relayer : lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
@@ -299,7 +299,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       let wrongAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.publicAmount = Array.from([
+      tmp_tx.transactionInputs.publicInputs.publicAmountSpl = Array.from([
         ...new Array(29).fill(0),
         ...wrongAmount,
       ]);
@@ -309,11 +309,11 @@ describe("Verifier Two test", () => {
     }
   });
 
-  it("Wrong feeAmount", async () => {
+  it("Wrong publicAmountSol", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       let wrongFeeAmount = new anchor.BN("123213").toArray();
-      tmp_tx.transactionInputs.publicInputs.feeAmount = Array.from([
+      tmp_tx.transactionInputs.publicInputs.publicAmountSol = Array.from([
         ...new Array(29).fill(0),
         ...wrongFeeAmount,
       ]);
@@ -331,7 +331,7 @@ describe("Verifier Two test", () => {
         mintKeypair: newMintKeypair,
         connection: provider.connection,
       });
-      tmp_tx.params.accounts.sender = await newAccountWithTokens({
+      tmp_tx.params.accounts.senderSpl = await newAccountWithTokens({
         connection: provider.connection,
         MINT: newMintKeypair.publicKey,
         ADMIN_AUTH_KEYPAIR,
@@ -403,7 +403,7 @@ describe("Verifier Two test", () => {
   it("Wrong recipientFee", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipientFee = SolanaKeypair.generate().publicKey;
+      tmp_tx.params.accounts.recipientSol = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });
@@ -411,7 +411,7 @@ describe("Verifier Two test", () => {
   it("Wrong recipient", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      tmp_tx.params.accounts.recipient = SolanaKeypair.generate().publicKey;
+      tmp_tx.params.accounts.recipientSpl = SolanaKeypair.generate().publicKey;
       await sendTestTx(tmp_tx, "ProofVerificationFails");
     }
   });

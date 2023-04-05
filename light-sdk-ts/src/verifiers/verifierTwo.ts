@@ -50,18 +50,18 @@ export class VerifierTwo implements Verifier {
 
     return {
       root: publicInputsBytes[0],
-      publicAmount: publicInputsBytes[1],
-      extDataHash: publicInputsBytes[2],
-      feeAmount: publicInputsBytes[3],
-      mintPubkey: publicInputsBytes[4],
+      publicAmountSpl: publicInputsBytes[1],
+      txIntegrityHash: publicInputsBytes[2],
+      publicAmountSol: publicInputsBytes[3],
+      publicMintPubkey: publicInputsBytes[4],
       nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
       leaves: Array.from([
         publicInputsBytes.slice(9, 11),
         publicInputsBytes.slice(11, 13),
       ]),
       checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
-      connectingHash: Array.from(publicInputsBytes.slice(13, 14)),
-      verifier: Array.from(publicInputsBytes.slice(14, 15)),
+      transactionHash: Array.from(publicInputsBytes.slice(13, 14)),
+      publicAppVerifier: Array.from(publicInputsBytes.slice(14, 15)),
     };
   }
 

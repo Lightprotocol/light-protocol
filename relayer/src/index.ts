@@ -124,7 +124,7 @@ const rpcPort = 8899;
 
   await providerAnchor!.connection.confirmTransaction(
     await providerAnchor!.connection.requestAirdrop(
-      relayer.accounts.relayerRecipient,
+      relayer.accounts.relayerRecipientSol,
       1_000_000,
     ),
     "confirmed",
@@ -132,8 +132,8 @@ const rpcPort = 8899;
   console.log(
     "Relayer initialized",
     relayer.accounts.relayerPubkey.toBase58(),
-    "relayerRecipient: ",
-    relayer.accounts.relayerRecipient.toBase58(),
+    "relayerRecipientSol: ",
+    relayer.accounts.relayerRecipientSol.toBase58(),
   );
 })();
 

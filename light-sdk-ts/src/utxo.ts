@@ -153,7 +153,7 @@ export class Utxo {
       account = new Account({ poseidon });
     }
 
-    // TODO: check that this does not lead to hickups since publicAmount cannot withdraw the fee asset sol
+    // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
       amounts[0] = amounts[0].add(amounts[1]);
       amounts[1] = new BN(0);
