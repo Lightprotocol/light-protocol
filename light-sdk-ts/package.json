@@ -17,8 +17,7 @@
     "test-selectInUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/selectInUtxos.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
-    "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
-    "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
+    "lint": "prettier \"src/**/*{ts,js}\" --check",
     "prepare": "cd .. && husky install ./light-sdk-ts/husky"
   },
   "format-staged": {
