@@ -12,7 +12,7 @@ require('dotenv').config();
 
 let provider: Provider;
 
-const getKeyPairFromEnv = (KEY: string) => {
+export const getKeyPairFromEnv = (KEY: string) => {
   return Keypair.fromSecretKey(
     new Uint8Array(JSON.parse(process.env[KEY] || "")),
   );

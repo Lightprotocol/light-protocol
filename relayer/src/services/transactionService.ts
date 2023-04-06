@@ -8,7 +8,6 @@ import { getLightProvider } from "../utils/provider";
 export async function sendTransaction(req: any, res: any) {
   try {
     if (!req.body.instruction) throw new Error("No instructions provided");
-    console.log(req.body);
     const provider = await getLightProvider();
     if (!provider.provider) throw new Error("no provider set");
 
