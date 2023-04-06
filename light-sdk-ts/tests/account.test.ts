@@ -1,7 +1,8 @@
 import { assert, expect } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
-
+const CryptoJS = require("crypto-js");
+import {box,randomBytes } from "tweetnacl";
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 let circomlibjs = require("circomlibjs");
@@ -15,6 +16,7 @@ import { Account } from "../src/account";
 import {
   AccountError,
   AccountErrorCode,
+  CONSTANT_SECRET_AUTHKEY,
   TransactionParametersErrorCode,
 } from "../src";
 const { blake2b } = require("@noble/hashes/blake2b");
@@ -132,6 +134,83 @@ describe("Test Account Functional", () => {
       assert.notEqual(k0.burnerSeed.toString(), k1.burnerSeed.toString());
     }
   };
+
+  it.only("aes bench",async () => {
+    const { encrypt, decrypt } = require("ethereum-cryptography/aes");
+    const { hexToBytes, utf8ToBytes } = require("ethereum-cryptography/utils");
+    console.log(    hexToBytes("f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff").length);
+    console.log(hexToBytes("2b7e151628aed2a6abf7158809cf4f3c").length);
+    
+    
+    const newNonce = () => randomBytes(box.nonceLength);
+
+    const encryptionPrivateKey = new Uint8Array(32).fill(1);
+    const naclEncryptionKeypair =       box.keyPair.fromSecretKey(encryptionPrivateKey);
+    const message = randomBytes(32);
+
+    var encryptedAESUtxos: any[] = [];
+    var encryptedNACLUtxos: any[] = [];
+    var encryptedAESEthUtxos: any[] = [];
+    
+    for (var i = 0; i < 1000; i++) {
+      var encrypted: any = CryptoJS.AES.encrypt(message.toString(), randomBytes(11).toString());
+      encryptedAESUtxos.push(encrypted)
+      var encNacl: any = box(
+        message,
+        newNonce(),
+        box.keyPair.fromSecretKey(randomBytes(32)).publicKey,
+        CONSTANT_SECRET_AUTHKEY,
+      );
+      encryptedNACLUtxos.push(encNacl)
+      encryptedAESEthUtxos.push(await encrypt(message, randomBytes(16), randomBytes(16), "aes-128-ctr", true))
+    }
+    const nonceAes = randomBytes(16);
+
+    encryptedAESEthUtxos.push(await encrypt(message, encryptionPrivateKey.slice(16), nonceAes, "aes-128-ctr", true))
+
+    var encrypted = CryptoJS.AES.encrypt(message.toString(), encryptionPrivateKey.toString());
+    encryptedAESUtxos.push(encrypted)
+
+    // function encrypt(msg: Uint8Array, key: Uint8Array, iv: Uint8Array, mode = "aes-128-ctr", pkcs7PaddingEnabled = true): Promise<Uint8Array>;
+    // function decrypt(cypherText: Uint8Array, key: Uint8Array, iv: Uint8Array, mode = "aes-128-ctr", pkcs7PaddingEnabled = true): Promise<Uint8Array>;
+
+    const nonce = newNonce();
+      // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+      // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+      // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+      const ciphertext = box(
+        message,
+        nonce,
+        naclEncryptionKeypair.publicKey,
+        CONSTANT_SECRET_AUTHKEY,
+      );
+      encryptedNACLUtxos.push(ciphertext)
+
+    console.time("aes")
+    for (var i = 0; i < 1001; i++) {
+      CryptoJS.AES.decrypt(encryptedAESUtxos[i], encryptionPrivateKey.toString());
+    }
+    console.timeEnd("aes")
+
+    console.time("aesEth")
+    for (var i = 0; i < 1001; i++) {
+      decrypt(encryptedAESEthUtxos[i], encryptionPrivateKey, nonceAes, "aes-128-ctr", true);
+    }
+    console.timeEnd("aesEth")
+
+    console.time("nacl")
+    for (var i = 0; i < 1001; i++) {
+      
+      const cleartext = box.open(
+        encryptedNACLUtxos[i],
+        nonce,
+        box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+        naclEncryptionKeypair.secretKey,
+      );
+    }
+    console.timeEnd("nacl")
+
+  })
 
   it("Functional", async () => {
     // generate the same keypair from seed
