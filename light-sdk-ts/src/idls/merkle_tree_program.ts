@@ -105,7 +105,7 @@ export type MerkleTreeProgram = {
   ];
   instructions: [
     {
-      name: "initializeNewMerkleTree";
+      name: "initializeNewTransactionMerkleTree";
       docs: [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority.",
@@ -117,7 +117,7 @@ export type MerkleTreeProgram = {
           isSigner: true;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -211,7 +211,7 @@ export type MerkleTreeProgram = {
           isSigner: true;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -470,7 +470,7 @@ export type MerkleTreeProgram = {
           isSigner: false;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -488,7 +488,7 @@ export type MerkleTreeProgram = {
       args: [];
     },
     {
-      name: "updateMerkleTree";
+      name: "updateTransactionMerkleTree";
       docs: ["Computes poseidon hashes to update the Merkle tree."];
       accounts: [
         {
@@ -502,7 +502,7 @@ export type MerkleTreeProgram = {
           isSigner: false;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -537,7 +537,7 @@ export type MerkleTreeProgram = {
           ];
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -599,7 +599,7 @@ export type MerkleTreeProgram = {
           isSigner: false;
         },
         {
-          name: "merkleTree";
+          name: "transactionMerkleTree";
           isMut: true;
           isSigner: false;
         },
@@ -863,7 +863,7 @@ export type MerkleTreeProgram = {
       };
     },
     {
-      name: "merkleTree";
+      name: "transactionMerkleTree";
       type: {
         kind: "struct";
         fields: [
@@ -1280,7 +1280,7 @@ export const IDL: MerkleTreeProgram = {
   ],
   instructions: [
     {
-      name: "initializeNewMerkleTree",
+      name: "initializeNewTransactionMerkleTree",
       docs: [
         "Initializes a new Merkle tree from config bytes.",
         "Can only be called from the merkle_tree_authority.",
@@ -1292,7 +1292,7 @@ export const IDL: MerkleTreeProgram = {
           isSigner: true,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -1386,7 +1386,7 @@ export const IDL: MerkleTreeProgram = {
           isSigner: true,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -1645,7 +1645,7 @@ export const IDL: MerkleTreeProgram = {
           isSigner: false,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -1663,7 +1663,7 @@ export const IDL: MerkleTreeProgram = {
       args: [],
     },
     {
-      name: "updateMerkleTree",
+      name: "updateTransactionMerkleTree",
       docs: ["Computes poseidon hashes to update the Merkle tree."],
       accounts: [
         {
@@ -1677,7 +1677,7 @@ export const IDL: MerkleTreeProgram = {
           isSigner: false,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -1712,7 +1712,7 @@ export const IDL: MerkleTreeProgram = {
           ],
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -1774,7 +1774,7 @@ export const IDL: MerkleTreeProgram = {
           isSigner: false,
         },
         {
-          name: "merkleTree",
+          name: "transactionMerkleTree",
           isMut: true,
           isSigner: false,
         },
@@ -2038,7 +2038,7 @@ export const IDL: MerkleTreeProgram = {
       },
     },
     {
-      name: "merkleTree",
+      name: "transactionMerkleTree",
       type: {
         kind: "struct",
         fields: [

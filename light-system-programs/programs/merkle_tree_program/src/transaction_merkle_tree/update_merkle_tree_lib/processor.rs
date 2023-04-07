@@ -1,7 +1,7 @@
-use crate::poseidon_merkle_tree::instructions::*;
-use crate::poseidon_merkle_tree::instructions_poseidon::{poseidon_0, poseidon_1, poseidon_2};
-use crate::poseidon_merkle_tree::state::MerkleTree;
-use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
+use crate::transaction_merkle_tree::instructions::*;
+use crate::transaction_merkle_tree::instructions_poseidon::{poseidon_0, poseidon_1, poseidon_2};
+use crate::transaction_merkle_tree::state::TransactionMerkleTree;
+use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 use crate::utils::config::MERKLE_TREE_HEIGHT;
 use crate::utils::constants::{HASH_0, HASH_1, HASH_2, MERKLE_TREE_UPDATE_START};
 use anchor_lang::prelude::*;
@@ -13,7 +13,7 @@ use std::cell::RefMut;
 pub fn compute_updated_merkle_tree(
     id: u8,
     merkle_tree_update_state_data: &mut MerkleTreeUpdateState,
-    merkle_tree_pda_data: &mut RefMut<'_, MerkleTree>,
+    merkle_tree_pda_data: &mut RefMut<'_, TransactionMerkleTree>,
 ) -> Result<()> {
     msg!("executing instruction {}", id);
     // Hash computation is split into three parts which can be executed in ~2m compute units

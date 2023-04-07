@@ -1,6 +1,5 @@
 use crate::errors::ErrorCode;
-use crate::state::MerkleTree;
-use crate::state::TwoLeavesBytesPda;
+use crate::transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda};
 use crate::utils::config::MERKLE_TREE_TMP_PDA_SIZE;
 use crate::utils::constants::STORAGE_SEED;
 use crate::MerkleTreeUpdateState;
@@ -21,7 +20,7 @@ pub struct InitializeUpdateState<'info> {
     )]
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
 }
@@ -32,7 +31,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
     msg!("InitializeUpdateState");
     let update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_init()?;
     update_state_data.relayer = ctx.accounts.authority.key();
-    update_state_data.merkle_tree_pda_pubkey = ctx.accounts.merkle_tree.key();
+    update_state_data.merkle_tree_pda_pubkey = ctx.accounts.transaction_merkle_tree.key();
 
     update_state_data.current_instruction_index = 1;
 
@@ -45,7 +44,7 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
         return err!(ErrorCode::InvalidNumberOfLeaves);
     }
 
-    let mut merkle_tree_pda_data = ctx.accounts.merkle_tree.load_mut()?;
+    let mut merkle_tree_pda_data = ctx.accounts.transaction_merkle_tree.load_mut()?;
 
     let mut tmp_index = merkle_tree_pda_data.next_index;
     msg!("tmp_index: {}", tmp_index);
@@ -72,11 +71,11 @@ pub fn process_initialize_update_state<'a, 'b, 'c, 'info>(
         }
 
         // Checking that the Merkle tree is the same as in leaves account.
-        if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.merkle_tree.key() {
+        if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.transaction_merkle_tree.key() {
             msg!(
                 "Leaf pda state merkle tree {} is different than passed in merkle tree {:?}",
                 leaves_pda_data.merkle_tree_pubkey,
-                ctx.accounts.merkle_tree.key()
+                ctx.accounts.transaction_merkle_tree.key()
             );
             return err!(ErrorCode::LeavesOfWrongTree);
         }

@@ -443,7 +443,7 @@ describe("verifier_program", () => {
   it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    let mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
+    let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
       MERKLE_TREE_KEY,
     );
 

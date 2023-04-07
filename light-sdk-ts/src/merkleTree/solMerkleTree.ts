@@ -45,10 +45,11 @@ export class SolMerkleTree {
       merkleTreeProgramId,
       provider,
     );
-    const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      merkleTreePubkey,
-      "confirmed",
-    );
+    const mtFetched =
+      await merkleTreeProgram.account.transactionMerkleTree.fetch(
+        merkleTreePubkey,
+        "confirmed",
+      );
     const merkleTreeIndex = mtFetched.nextIndex;
     // ProgramAccount<MerkleTreeProgram["accounts"][7]>
     var leavesAccounts: Array<any> =
@@ -66,10 +67,11 @@ export class SolMerkleTree {
       provider,
     );
 
-    const mtFetched = await merkleTreeProgram.account.merkleTree.fetch(
-      merkleTreePubkey,
-      "confirmed",
-    );
+    const mtFetched =
+      await merkleTreeProgram.account.transactionMerkleTree.fetch(
+        merkleTreePubkey,
+        "confirmed",
+      );
 
     const merkleTreeIndex = mtFetched.nextIndex;
 

@@ -455,7 +455,7 @@ export class Transaction {
         ),
       );
       let merkle_tree_account_data =
-        await this.merkleTreeProgram.account.merkleTree.fetch(
+        await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
           this.provider.solMerkleTree.pubkey,
           "confirmed",
         );
@@ -1324,7 +1324,7 @@ export class Transaction {
 
     try {
       const merkleTreeAfterUpdate =
-        await this.merkleTreeProgram.account.merkleTree.fetch(
+        await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
           MERKLE_TREE_KEY,
           "confirmed",
         );

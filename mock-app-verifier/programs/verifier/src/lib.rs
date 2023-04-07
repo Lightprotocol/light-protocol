@@ -21,8 +21,8 @@ use crate::processor::{
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use light_verifier_sdk::{light_transaction::VERIFIER_STATE_SEED, state::VerifierState10Ins};
-use merkle_tree_program::poseidon_merkle_tree::state::MerkleTree;
 use merkle_tree_program::program::MerkleTreeProgram;
+use merkle_tree_program::transaction_merkle_tree::state::TransactionMerkleTree;
 use merkle_tree_program::utils::constants::TOKEN_AUTHORITY_SEED;
 use verifier_program_two::{self, program::VerifierProgramTwo};
 
@@ -143,7 +143,7 @@ pub struct LightInstructionSecond<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump, seeds::program= VerifierProgramTwo::id())]
     pub authority: UncheckedAccount<'info>,
