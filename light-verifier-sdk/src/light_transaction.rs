@@ -294,7 +294,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Fetches the root according to an index from the passed-in Merkle tree.
     pub fn fetch_root(&mut self) -> Result<()> {
-        let merkle_tree = self.accounts.unwrap().merkle_tree.load()?;
+        let merkle_tree = self.accounts.unwrap().transaction_merkle_tree.load()?;
         self.merkle_root =
             change_endianness(merkle_tree.roots[self.merkle_root_index].to_vec().as_ref())
                 .try_into()
@@ -386,7 +386,11 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 &self.accounts.unwrap().program_merkle_tree.to_account_info(),
                 &self.accounts.unwrap().authority.to_account_info(),
                 &self.accounts.unwrap().remaining_accounts[T::NR_NULLIFIERS + i].to_account_info(),
-                &self.accounts.unwrap().merkle_tree.to_account_info(),
+                &self
+                    .accounts
+                    .unwrap()
+                    .transaction_merkle_tree
+                    .to_account_info(),
                 &self.accounts.unwrap().system_program.to_account_info(),
                 &self
                     .accounts

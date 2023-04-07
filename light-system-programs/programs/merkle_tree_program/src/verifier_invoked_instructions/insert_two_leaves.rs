@@ -1,5 +1,4 @@
-use crate::state::MerkleTree;
-use crate::state::TwoLeavesBytesPda;
+use crate::transaction_merkle_tree::state::{TransactionMerkleTree, TwoLeavesBytesPda};
 use crate::utils::constants::LEAVES_SEED;
 use crate::RegisteredVerifier;
 use anchor_lang::prelude::*;
@@ -17,8 +16,8 @@ pub struct InsertTwoLeaves<'info> {
     // /// CHECK:` Leaves account should be checked by invoking verifier.
     #[account(init, seeds= [&leaf_left, LEAVES_SEED], bump, payer=authority, space= 8 + 3 * 32 + 256 + 8 + 8)]
     pub two_leaves_pda: Account<'info, TwoLeavesBytesPda>,
-    #[account(mut, seeds = [&program_id.to_bytes()[..], merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()], bump)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    #[account(mut, seeds = [&program_id.to_bytes()[..], transaction_merkle_tree.load().unwrap().merkle_tree_nr.to_le_bytes().as_ref()], bump)]
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     pub system_program: Program<'info, System>,
     #[account(seeds=[&registered_verifier_pda.pubkey.to_bytes()],  bump)]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
@@ -33,10 +32,10 @@ pub fn process_insert_two_leaves(
     //save leaves into pda account
     ctx.accounts.two_leaves_pda.node_left = leaf_left;
     ctx.accounts.two_leaves_pda.node_right = leaf_right;
-    let mut merkle_tree = ctx.accounts.merkle_tree.load_mut()?;
+    let mut merkle_tree = ctx.accounts.transaction_merkle_tree.load_mut()?;
     ctx.accounts.two_leaves_pda.left_leaf_index = merkle_tree.next_queued_index;
 
-    ctx.accounts.two_leaves_pda.merkle_tree_pubkey = ctx.accounts.merkle_tree.key();
+    ctx.accounts.two_leaves_pda.merkle_tree_pubkey = ctx.accounts.transaction_merkle_tree.key();
     ctx.accounts.two_leaves_pda.encrypted_utxos = encrypted_utxos;
 
     // Increase next index by 2 because we're inserting 2 leaves at once.

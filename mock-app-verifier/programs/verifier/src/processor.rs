@@ -98,7 +98,11 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
             .to_account_info()
             .clone(),
         program_merkle_tree: ctx.accounts.program_merkle_tree.to_account_info().clone(),
-        merkle_tree: ctx.accounts.merkle_tree.to_account_info().clone(),
+        transaction_merkle_tree: ctx
+            .accounts
+            .transaction_merkle_tree
+            .to_account_info()
+            .clone(),
         token_program: ctx.accounts.token_program.to_account_info().clone(),
         sender: ctx.accounts.sender.to_account_info().clone(),
         recipient: ctx.accounts.recipient.to_account_info().clone(),

@@ -83,7 +83,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     merkle_tree_program_id: &'b AccountInfo<'a>,
     authority: &'b AccountInfo<'a>,
     two_leaves_pda: &'b AccountInfo<'a>,
-    merkle_tree_account: &'b AccountInfo<'a>,
+    transaction_merkle_tree_account: &'b AccountInfo<'a>,
     system_program: &'b AccountInfo<'a>,
     registered_verifier_pda: &'b AccountInfo<'a>,
     leaf_left: [u8; 32],
@@ -98,7 +98,7 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
         authority: authority.clone(),
         two_leaves_pda: two_leaves_pda.clone(),
         system_program: system_program.clone(),
-        merkle_tree: merkle_tree_account.clone(),
+        transaction_merkle_tree: transaction_merkle_tree_account.clone(),
         registered_verifier_pda: registered_verifier_pda.clone(),
     };
 

@@ -1,12 +1,12 @@
 use anchor_lang::solana_program::{msg, program_error::ProgramError};
 
-use crate::poseidon_merkle_tree::state::MerkleTree;
-use crate::poseidon_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
+use crate::transaction_merkle_tree::state::TransactionMerkleTree;
+use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 use crate::utils::config::ZERO_BYTES_MERKLE_TREE_18;
 use std::cell::RefMut;
 
 pub fn insert_0_double(
-    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
+    merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     update_state_data.current_index = (merkle_tree_account.next_index as u64
@@ -60,7 +60,7 @@ pub fn insert_0_double(
 }
 
 pub fn insert_1_inner_loop(
-    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
+    merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut MerkleTreeUpdateState,
 ) -> Result<(), ProgramError> {
     msg!(
@@ -128,7 +128,7 @@ pub fn insert_1_inner_loop(
 }
 
 pub fn insert_last_double(
-    merkle_tree_account: &mut RefMut<'_, MerkleTree>,
+    merkle_tree_account: &mut RefMut<'_, TransactionMerkleTree>,
     update_state_data: &mut RefMut<'_, MerkleTreeUpdateState>,
 ) -> Result<(), ProgramError> {
     merkle_tree_account.current_root_index = (merkle_tree_account.current_root_index + 1)

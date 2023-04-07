@@ -1,9 +1,13 @@
 use crate::utils::config::MERKLE_TREE_HISTORY_SIZE;
 use anchor_lang::prelude::*;
 
+// NOTE(vadorovsky): This implementation of Merkle tree exists only for
+// transactions and handling Poseidon in multiple rounds. Once Poseidon syscall
+// in Solana is implemented, this implementation will be replaced with
+// light-merkle-tree crate.
 #[account(zero_copy)]
 #[derive(Eq, PartialEq, Debug)]
-pub struct MerkleTree {
+pub struct TransactionMerkleTree {
     pub filled_subtrees: [[u8; 32]; 18],
     pub current_root_index: u64,
     pub next_index: u64,

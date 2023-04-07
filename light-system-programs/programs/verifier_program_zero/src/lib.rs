@@ -14,7 +14,7 @@ pub use processor::*;
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
 use merkle_tree_program::{
-    poseidon_merkle_tree::state::MerkleTree, program::MerkleTreeProgram,
+    program::MerkleTreeProgram, transaction_merkle_tree::state::TransactionMerkleTree,
     utils::constants::TOKEN_AUTHORITY_SEED, RegisteredVerifier,
 };
 
@@ -71,7 +71,7 @@ pub struct LightInstruction<'info> {
     pub program_merkle_tree: Program<'info, MerkleTreeProgram>,
     /// CHECK: Is the same as in integrity hash.
     #[account(mut)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK: This is the cpi authority and will be enforced in the Merkle tree program.
     #[account(mut, seeds= [MerkleTreeProgram::id().to_bytes().as_ref()], bump)]
     pub authority: UncheckedAccount<'info>,

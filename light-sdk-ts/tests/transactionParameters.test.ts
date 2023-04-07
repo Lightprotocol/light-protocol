@@ -109,7 +109,7 @@ describe("Transaction Parameters Functional", () => {
         AUTHORITY.toBase58(),
       );
       assert.equal(
-        params.accounts.merkleTree.toBase58(),
+        params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
       assert.equal(params.accounts.verifierState, undefined);
@@ -205,7 +205,7 @@ describe("Transaction Parameters Functional", () => {
         ).toBase58(),
       );
       assert.equal(
-        params.accounts.merkleTree.toBase58(),
+        params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
       assert.equal(params.accounts.verifierState, undefined);
@@ -303,7 +303,7 @@ describe("Transaction Parameters Functional", () => {
         mockPubkey1.toBase58(),
       );
       assert.equal(
-        params.accounts.merkleTree.toBase58(),
+        params.accounts.transactionMerkleTree.toBase58(),
         mockPubkey2.toBase58(),
       );
       assert.equal(params.accounts.verifierState, undefined);

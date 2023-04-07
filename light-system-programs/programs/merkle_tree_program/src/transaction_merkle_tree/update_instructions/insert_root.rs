@@ -1,6 +1,8 @@
 use crate::errors::ErrorCode;
-use crate::poseidon_merkle_tree::{instructions::insert_last_double, state::TwoLeavesBytesPda};
-use crate::state::MerkleTree;
+use crate::transaction_merkle_tree::{
+    instructions::insert_last_double,
+    state::{TransactionMerkleTree, TwoLeavesBytesPda},
+};
 use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 
@@ -25,7 +27,7 @@ pub struct InsertRoot<'info> {
         mut,
         seeds = [authority.key().to_bytes().as_ref(), STORAGE_SEED],
         bump,
-        constraint= merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key() @ErrorCode::ContractStillLocked,
+        constraint= transaction_merkle_tree.load()?.pubkey_locked == merkle_tree_update_state.key() @ErrorCode::ContractStillLocked,
         constraint= IX_ORDER[usize::try_from(merkle_tree_update_state.load()?.current_instruction_index).unwrap()] == ROOT_INSERT @ErrorCode::MerkleTreeUpdateNotInRootInsert,
         close = authority
     )]
@@ -34,7 +36,7 @@ pub struct InsertRoot<'info> {
     pub merkle_tree_update_state: AccountLoader<'info, MerkleTreeUpdateState>,
     /// CHECK:` that the merkle tree is whitelisted and consistent with merkle_tree_update_state.
     #[account(mut, address= merkle_tree_update_state.load()?.merkle_tree_pda_pubkey @ErrorCode::InvalidMerkleTree)]
-    pub merkle_tree: AccountLoader<'info, MerkleTree>,
+    pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK:` checking manually in wrapper function
     pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
     pub system_program: Program<'info, System>,
@@ -78,7 +80,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
     ctx: &mut Context<'a, 'b, 'c, 'info, InsertRoot<'info>>,
 ) -> Result<()> {
     let merkle_tree_update_state_data = &mut ctx.accounts.merkle_tree_update_state.load_mut()?;
-    let merkle_tree_pda_data = &mut ctx.accounts.merkle_tree.load_mut()?;
+    let merkle_tree_pda_data = &mut ctx.accounts.transaction_merkle_tree.load_mut()?;
 
     let id =
         IX_ORDER[usize::try_from(merkle_tree_update_state_data.current_instruction_index).unwrap()];
@@ -130,11 +132,11 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         }
 
         // Checking that the Merkle tree is the same as in leaves account.
-        if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.merkle_tree.key() {
+        if leaves_pda_data.merkle_tree_pubkey != ctx.accounts.transaction_merkle_tree.key() {
             msg!(
                 "Leaf pda state merkle tree {} is different than passed in merkle tree {:?}",
                 leaves_pda_data.merkle_tree_pubkey,
-                ctx.accounts.merkle_tree.key()
+                ctx.accounts.transaction_merkle_tree.key()
             );
             return err!(ErrorCode::LeavesOfWrongTree);
         }
@@ -149,7 +151,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         wrap_event(
             &leaves_pda_data,
             &ctx.accounts.log_wrapper.to_account_info(),
-            &ctx.accounts.merkle_tree.to_account_info(),
+            &ctx.accounts.transaction_merkle_tree.to_account_info(),
         )?;
 
         close_account(account, &ctx.accounts.authority.to_account_info())?;

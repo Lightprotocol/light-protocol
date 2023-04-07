@@ -33,7 +33,7 @@ export async function updateMerkleTreeForTest(
       signer: ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram,
       leavesPdas,
-      merkle_tree_pubkey: MERKLE_TREE_KEY,
+      transactionMerkleTree: MERKLE_TREE_KEY,
     });
 
     console.log("updateMerkleTreeForTest done");
