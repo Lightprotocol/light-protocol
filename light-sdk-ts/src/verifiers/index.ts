@@ -7,16 +7,16 @@ import { Transaction } from "transaction";
 
 export type PublicInputs = {
   root: Array<number>;
-  publicAmount: Array<number>;
-  extDataHash: Array<number>;
-  feeAmount: Array<number>;
-  mintPubkey: Array<number>;
+  publicAmountSpl: Array<number>;
+  txIntegrityHash: Array<number>;
+  publicAmountSol: Array<number>;
+  publicMintPubkey: Array<number>;
   nullifiers: Array<Array<number>>;
   leaves: Array<Array<Array<number>>>;
   // only for app verifiers
-  connectingHash?: Array<number>;
+  transactionHash?: Array<number>;
   checkedParams?: Array<Array<number>>;
-  verifier?: Array<number>;
+  publicAppVerifier?: Array<number>;
 };
 
 export type VerifierConfig = {

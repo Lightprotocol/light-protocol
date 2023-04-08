@@ -70,14 +70,17 @@ describe("verifier_program", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
 
     RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
   });
@@ -136,8 +139,8 @@ describe("verifier_program", () => {
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1, deposit_utxo2],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+      senderSpl: userTokenAccount,
+      senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
       poseidon: POSEIDON,
       lookUpTable: LOOK_UP_TABLE,
@@ -172,13 +175,13 @@ describe("verifier_program", () => {
     }
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(),
+        deposit_utxo1.getCommitment(POSEIDON),
       ),
       -1,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo2.getCommitment(),
+        deposit_utxo2.getCommitment(POSEIDON),
       ),
       -1,
     );
@@ -186,13 +189,13 @@ describe("verifier_program", () => {
     await lightProvider.latestMerkleTree();
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo1.getCommitment(),
+        deposit_utxo1.getCommitment(POSEIDON),
       ),
       0,
     );
     assert.equal(
       lightProvider.solMerkleTree!.merkleTree.indexOf(
-        deposit_utxo2.getCommitment(),
+        deposit_utxo2.getCommitment(POSEIDON),
       ),
       1,
     );

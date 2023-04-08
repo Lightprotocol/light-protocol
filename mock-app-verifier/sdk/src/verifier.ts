@@ -12,6 +12,7 @@ import {
   Utxo,
   hashAndTruncateToCircuit,
   Transaction,
+  PublicInputs,
 } from "light-sdk";
 
 import { marketPlaceVerifierProgramId } from "./constants";
@@ -52,11 +53,11 @@ export class MockVerifier implements Verifier {
     );
   }
 
-  parsePublicInputsFromArray(publicInputsBytes: Uint8Array) {
+  parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs {
     if (publicInputsBytes.length == this.nrPublicInputs) {
       return {
-        connectingHash: publicInputsBytes[1],
-        verifier: publicInputsBytes[0],
+        transactionHash: publicInputsBytes[1],
+        publicAppVerifier: publicInputsBytes[0],
       };
     } else {
       throw new Error(
@@ -88,10 +89,10 @@ export class MockVerifier implements Verifier {
     // console.log("pre ix1");
     // console.log("transaction.publicInputs ", transaction.publicInputs);
 
-    // console.log("new BN(transaction.publicInputs.publicAmount) ", transaction.publicInputs.publicAmount);
+    // console.log("new BN(transaction.publicInputs.publicAmountSpl) ", transaction.publicInputs.publicAmountSpl);
     // console.log("ntransaction.publicInputs.nullifiers ", transaction.publicInputs.nullifiers);
     // console.log("transaction.publicInputs.leaves ", transaction.publicInputs.leaves);
-    // console.log("new BN(transaction.publicInputs.feeAmount) ",Buffer.from(transaction.publicInputs.feeAmount));
+    // console.log("new BN(transaction.publicInputs.publicAmountSol) ",Buffer.from(transaction.publicInputs.publicAmountSol));
     // console.log("new anchor.BN(transaction.rootIndex.toString()) ", new anchor.BN(transaction.rootIndex.toString()));
     // console.log("new anchor.BN(transaction.params.relayer.relayerFee.toString()) ", new anchor.BN(transaction.relayer.relayerFee.toString()));
     // console.log("transaction.encryptedUtxos ", transaction.encryptedUtxos.length);
@@ -100,14 +101,14 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
 
-    var relayerRecipient = transaction.params.relayer.accounts.relayerRecipient;
+    var relayerRecipientSol = transaction.params.relayer.accounts.relayerRecipientSol;
 
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
-        transaction.transactionInputs.publicInputs.publicAmount,
+        transaction.transactionInputs.publicInputs.publicAmountSpl,
         transaction.transactionInputs.publicInputs.nullifiers,
         transaction.transactionInputs.publicInputs.leaves,
-        transaction.transactionInputs.publicInputs.feeAmount,
+        transaction.transactionInputs.publicInputs.publicAmountSol,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),
         Buffer.from(transaction.params.encryptedUtxos.slice(0, 512)),
@@ -127,13 +128,13 @@ export class MockVerifier implements Verifier {
         transaction.transactionInputs.proofBytes.proofA,
         transaction.transactionInputs.proofBytes.proofB,
         transaction.transactionInputs.proofBytes.proofC,
-        Buffer.from(transaction.transactionInputs.publicInputsApp.connectingHash)
+        Buffer.from(transaction.transactionInputs.publicInputsApp.transactionHash)
       )
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
         ...transaction.params.accounts,
         ...transaction.params.relayer.accounts,
-        relayerRecipient: relayerRecipient,
+        relayerRecipientSol: relayerRecipientSol,
       })
       .remainingAccounts([
         ...transaction.remainingAccounts.nullifierPdaPubkeys,

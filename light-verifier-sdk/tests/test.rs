@@ -198,9 +198,9 @@ mod tests {
 
         let mut tx: Transaction<'_, '_, '_, TransactionConfig> = Transaction {
             merkle_root: public_inputs_vec[0].clone(),
-            public_amount: public_inputs_vec[1].clone(),
+            public_amount_spl: public_inputs_vec[1].clone(),
             tx_integrity_hash: public_inputs_vec[2].clone(),
-            fee_amount: public_inputs_vec[3].clone(),
+            public_amount_sol: public_inputs_vec[3].clone(),
             mint_pubkey: public_inputs_vec[4].clone(),
             checked_public_inputs: Vec::<Vec<u8>>::new(),
             nullifiers: public_inputs_vec[5..7].to_vec(),
@@ -248,9 +248,9 @@ mod tests {
 
         let mut tx: Transaction<'_, '_, '_, TransactionConfig> = Transaction {
             merkle_root: public_inputs_vec[0].clone(),
-            public_amount: public_inputs_vec[1].clone(),
+            public_amount_spl: public_inputs_vec[1].clone(),
             tx_integrity_hash: public_inputs_vec[2].clone(),
-            fee_amount: public_inputs_vec[3].clone(),
+            public_amount_sol: public_inputs_vec[3].clone(),
             mint_pubkey: public_inputs_vec[4].clone(),
             checked_public_inputs: Vec::<Vec<u8>>::new(),
             nullifiers: public_inputs_vec[5..7].to_vec(),
@@ -284,7 +284,7 @@ mod tests {
             <BigInteger256 as BigInteger>::to_bytes_le(&new_bn),
             change_endianness(&bytes)
         );
-        tx.public_amount = bytes.clone();
+        tx.public_amount_spl = bytes.clone();
         assert!(tx.is_deposit());
         assert!(tx
             .check_amount(1u64, change_endianness(&bytes).clone().try_into().unwrap())
@@ -302,7 +302,7 @@ mod tests {
         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
         let x: Fp256<FrParameters> = ark_ff::fields::PrimeField::from_be_bytes_mod_order(&bytes);
         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&x.into_repr());
-        tx.public_amount = bytes.clone();
+        tx.public_amount_spl = bytes.clone();
         assert!(!tx.is_deposit());
 
         // fee less or equal than withdrawal amount
@@ -326,7 +326,7 @@ mod tests {
         let mut field = FrParameters::MODULUS;
         field.add_nocarry(&new_bn);
         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
-        tx.public_amount = bytes.clone();
+        tx.public_amount_spl = bytes.clone();
         assert!(!tx.is_deposit());
         assert!(tx
             .check_amount(0u64, change_endianness(&bytes).clone().try_into().unwrap())
@@ -336,7 +336,7 @@ mod tests {
         let mut field = FrParameters::MODULUS;
         field.sub_noborrow(&new_bn);
         let bytes = <BigInteger256 as BigInteger>::to_bytes_be(&field);
-        tx.public_amount = bytes.clone();
+        tx.public_amount_spl = bytes.clone();
         assert!(!tx.is_deposit());
         assert!(tx
             .check_amount(0u64, change_endianness(&bytes).clone().try_into().unwrap())
@@ -358,9 +358,9 @@ mod tests {
 
         let tx: Transaction<'_, '_, '_, TransactionConfig> = Transaction {
             merkle_root: public_inputs_vec[0].clone(),
-            public_amount: vec![1u8; 32], //public_inputs_vec[1].clone(),
+            public_amount_spl: vec![1u8; 32], //public_inputs_vec[1].clone(),
             tx_integrity_hash: public_inputs_vec[2].clone(),
-            fee_amount: vec![1u8; 32], //public_inputs_vec[3].clone(),
+            public_amount_sol: vec![1u8; 32], //public_inputs_vec[3].clone(),
             mint_pubkey: public_inputs_vec[4].clone(),
             checked_public_inputs: Vec::<Vec<u8>>::new(),
             nullifiers: public_inputs_vec[5..7].to_vec(),
@@ -418,7 +418,7 @@ mod tests {
         //         &derived_pubkey,
         //         &*tx.accounts
         //             .unwrap()
-        //             .sender_fee
+        //             .sender_sol
         //             .as_ref()
         //             .unwrap()
         //             .to_account_info()

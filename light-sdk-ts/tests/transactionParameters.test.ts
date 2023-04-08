@@ -103,9 +103,9 @@ describe("Transaction Parameters Functional", () => {
         params.assetPubkeys[2].toBase58(),
         SystemProgram.programId.toBase58(),
       );
-      assert.equal(params.accounts.recipient?.toBase58(), AUTHORITY.toBase58());
+      assert.equal(params.accounts.recipientSpl?.toBase58(), AUTHORITY.toBase58());
       assert.equal(
-        params.accounts.recipientFee?.toBase58(),
+        params.accounts.recipientSol?.toBase58(),
         AUTHORITY.toBase58(),
       );
       assert.equal(
@@ -175,8 +175,8 @@ describe("Transaction Parameters Functional", () => {
       const params = new TransactionParameters({
         outputUtxos,
         merkleTreePubkey: mockPubkey2,
-        sender: mockPubkey,
-        senderFee: mockPubkey1,
+        senderSpl: mockPubkey,
+        senderSol: mockPubkey1,
         verifier: verifiers[j],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
@@ -197,9 +197,9 @@ describe("Transaction Parameters Functional", () => {
         params.assetPubkeys[2].toBase58(),
         SystemProgram.programId.toBase58(),
       );
-      assert.equal(params.accounts.sender?.toBase58(), mockPubkey.toBase58());
+      assert.equal(params.accounts.senderSpl?.toBase58(), mockPubkey.toBase58());
       assert.equal(
-        params.accounts.senderFee?.toBase58(),
+        params.accounts.senderSol?.toBase58(),
         TransactionParameters.getEscrowPda(
           verifiers[j].verifierProgram!.programId,
         ).toBase58(),
@@ -263,8 +263,8 @@ describe("Transaction Parameters Functional", () => {
       const params = new TransactionParameters({
         inputUtxos,
         merkleTreePubkey: mockPubkey2,
-        recipient: mockPubkey,
-        recipientFee: mockPubkey1,
+        recipientSpl: mockPubkey,
+        recipientSol: mockPubkey1,
         verifier: verifiers[j],
         poseidon,
         action: Action.UNSHIELD,
@@ -295,11 +295,11 @@ describe("Transaction Parameters Functional", () => {
         SystemProgram.programId.toBase58(),
       );
       assert.equal(
-        params.accounts.recipient?.toBase58(),
+        params.accounts.recipientSpl?.toBase58(),
         mockPubkey.toBase58(),
       );
       assert.equal(
-        params.accounts.recipientFee?.toBase58(),
+        params.accounts.recipientSol?.toBase58(),
         mockPubkey1.toBase58(),
       );
       assert.equal(
@@ -407,13 +407,13 @@ describe("Test TransactionParameters Methods", () => {
     let { assetPubkeysCircuit, assetPubkeys } =
       TransactionParameters.getAssetPubkeys(inputUtxos, outputUtxos);
 
-    let publicAmount = TransactionParameters.getExternalAmount(
+    let publicAmountSol = TransactionParameters.getExternalAmount(
       0,
       inputUtxos,
       outputUtxos,
       assetPubkeysCircuit,
     );
-    assert.equal(publicAmount.toString(), "2");
+    assert.equal(publicAmountSol.toString(), "2");
     let publicAmountSpl = TransactionParameters.getExternalAmount(
       1,
       inputUtxos,
@@ -481,8 +481,8 @@ describe("Test General TransactionParameters Errors", () => {
       expect(() => {
         new TransactionParameters({
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -504,8 +504,8 @@ describe("Test General TransactionParameters Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           action: Action.SHIELD,
@@ -526,8 +526,8 @@ describe("Test General TransactionParameters Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -547,8 +547,8 @@ describe("Test General TransactionParameters Errors", () => {
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: mockPubkey,
-        sender: mockPubkey,
-        senderFee: mockPubkey,
+        senderSpl: mockPubkey,
+        senderSol: mockPubkey,
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
@@ -696,7 +696,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
-          recipient: mockPubkey,
+          recipientSpl: mockPubkey,
           relayer,
         });
       })
@@ -718,7 +718,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
-          recipientFee: mockPubkey,
+          recipientSol: mockPubkey,
           relayer,
         });
       })
@@ -740,7 +740,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
-          senderFee: mockPubkey,
+          senderSol: mockPubkey,
           relayer,
         });
       })
@@ -762,7 +762,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
-          sender: mockPubkey,
+          senderSpl: mockPubkey,
           relayer,
         });
       })
@@ -805,8 +805,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
       outputUtxos: [deposit_utxo1],
       merkleTreePubkey: mockPubkey,
       verifier: new VerifierZero(),
-      sender: mockPubkey,
-      senderFee: mockPubkey,
+      senderSpl: mockPubkey,
+      senderSol: mockPubkey,
       lookUpTable: mockPubkey,
       poseidon,
       action: Action.SHIELD,
@@ -819,7 +819,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
+          senderSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -840,7 +840,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          senderFee: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -861,8 +861,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.SHIELD,
@@ -882,8 +882,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -920,8 +920,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -956,8 +956,8 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -978,9 +978,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1001,9 +1001,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
-          recipient: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1024,7 +1024,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
+          senderSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1045,7 +1045,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          senderFee: mockPubkey,
+          senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1060,7 +1060,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
     }
   });
 
-  it("No sender spl needed without spl amount", () => {
+  it("No senderSpl spl needed without spl amount", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -1068,12 +1068,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
       account: keypair,
     });
     for (var verifier in verifiers) {
-      // sender fee always needs to be defined because we use it as the signer
+      // senderSpl fee always needs to be defined because we use it as the signer
       // should work since no spl amount
       new TransactionParameters({
         outputUtxos: [utxo_sol_amount_no_u642],
         merkleTreePubkey: mockPubkey,
-        senderFee: mockPubkey,
+        senderSol: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
@@ -1088,9 +1088,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
-          recipient: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1111,9 +1111,9 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          senderFee: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSpl: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1171,8 +1171,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       merkleTreePubkey: mockPubkey,
       verifier: new VerifierZero(),
       poseidon,
-      recipient: mockPubkey,
-      recipientFee: mockPubkey,
+      recipientSpl: mockPubkey,
+      recipientSol: mockPubkey,
       action: Action.UNSHIELD,
       relayer,
     });
@@ -1184,8 +1184,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          recipient: mockPubkey,
-          // senderFee: mockPubkey,
+          recipientSpl: mockPubkey,
+          // senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1207,8 +1207,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.UNSHIELD,
@@ -1244,8 +1244,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
           merkleTreePubkey: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.UNSHIELD,
@@ -1279,8 +1279,8 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
           merkleTreePubkey: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1302,9 +1302,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          senderFee: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1326,9 +1326,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSpl: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1344,7 +1344,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     }
   });
 
-  it("no recipient spl should work since no spl amount", () => {
+  it("no recipientSpl spl should work since no spl amount", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -1357,7 +1357,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
         merkleTreePubkey: mockPubkey,
-        recipientFee: mockPubkey,
+        recipientSol: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
@@ -1367,7 +1367,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
     }
   });
 
-  it("no recipient sol should work since no sol amount", () => {
+  it("no recipientSpl sol should work since no sol amount", () => {
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
@@ -1380,7 +1380,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
         merkleTreePubkey: mockPubkey,
-        recipient: mockPubkey,
+        recipientSpl: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
@@ -1396,9 +1396,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          senderFee: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSol: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
@@ -1420,9 +1420,9 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           merkleTreePubkey: mockPubkey,
-          sender: mockPubkey,
-          recipient: mockPubkey,
-          recipientFee: mockPubkey,
+          senderSpl: mockPubkey,
+          recipientSpl: mockPubkey,
+          recipientSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
