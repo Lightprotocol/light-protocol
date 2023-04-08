@@ -595,8 +595,8 @@ describe("Merkle Tree Tests", () => {
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount,
-      senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+      senderSpl: userTokenAccount,
+      senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
       action: Action.SHIELD,
       lookUpTable: LOOK_UP_TABLE,

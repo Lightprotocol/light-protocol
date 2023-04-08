@@ -447,7 +447,7 @@ export class User {
       account: this.account,
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
-      recipientFee: recipientSol ? recipientSol : AUTHORITY,
+      recipientSol: recipientSol ? recipientSol : AUTHORITY,
       recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
       provider: this.provider,
       relayer: this.provider.relayer,

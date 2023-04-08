@@ -30,7 +30,7 @@ import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@project-serum/anchor";
 import { it } from "mocha";
 
-var POSEIDON, LOOK_UP_TABLE,RELAYER,KEYPAIR, relayerRecipient: PublicKey;
+var POSEIDON, LOOK_UP_TABLE,RELAYER,KEYPAIR, relayerRecipientSol: PublicKey;
 
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
@@ -53,17 +53,17 @@ describe("Mock verifier functional", () => {
     await setUpMerkleTree(provider);
     LOOK_UP_TABLE = await initLookUpTableFromFile(
       provider,
-      "lookUpTable.txt" /*Array.from([relayerRecipient])*/,
+      "lookUpTable.txt" /*Array.from([relayerRecipientSol])*/,
     );
 
-    relayerRecipient = SolanaKeypair.generate().publicKey;
+    relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(relayerRecipientSol, 2_000_000_000);
 
     RELAYER = await new TestRelayer(
       ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
   });
@@ -90,8 +90,8 @@ describe("Mock verifier functional", () => {
     const txParams = new TransactionParameters({
       outputUtxos: [outputUtxo],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      sender: userTokenAccount, // just any token account
-      senderFee: ADMIN_AUTH_KEY, //
+      senderSpl: userTokenAccount, // just any token account
+      senderSol: ADMIN_AUTH_KEY, //
       lookUpTable: LOOK_UP_TABLE,
       verifier: new VerifierTwo(),
       poseidon,
@@ -132,15 +132,15 @@ describe("Mock verifier functional", () => {
     }); // userKeypair
     
     await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(relayerRecipient, 10000000),
+      await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
     );
 
     // TODO: add check that recipients are defined if withdrawal
     const txParams = new TransactionParameters({
       inputUtxos: [outputUtxo],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: userTokenAccount, // just any token account
-      recipientFee: SolanaKeypair.generate().publicKey, //
+      recipientSpl: userTokenAccount, // just any token account
+      recipientSol: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),
       action: Action.UNSHIELD,
       poseidon,

@@ -1,10 +1,10 @@
 import { PublicKey } from "@solana/web3.js";
 
 export type lightAccounts = {
-  sender?: PublicKey;
-  recipient?: PublicKey;
-  senderFee?: PublicKey;
-  recipientFee?: PublicKey;
+  senderSpl?: PublicKey;
+  recipientSpl?: PublicKey;
+  senderSol?: PublicKey;
+  recipientSol?: PublicKey;
   verifierState?: PublicKey;
   tokenAuthority?: PublicKey;
   systemProgramId: PublicKey;

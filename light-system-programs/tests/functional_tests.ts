@@ -104,14 +104,17 @@ describe("verifier_program", () => {
       seed: KEYPAIR_PRIVKEY.toString(),
     });
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
 
     RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
   });
@@ -281,8 +284,8 @@ describe("verifier_program", () => {
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierOne(),
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
@@ -349,8 +352,8 @@ describe("verifier_program", () => {
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
         merkleTreePubkey: MERKLE_TREE_KEY,
-        sender: userTokenAccount,
-        senderFee: ADMIN_AUTH_KEYPAIR.publicKey,
+        senderSpl: userTokenAccount,
+        senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: new VerifierZero(),
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
@@ -404,8 +407,8 @@ describe("verifier_program", () => {
     let txParams = new TransactionParameters({
       inputUtxos: [decryptedUtxo1],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: tokenRecipient,
-      recipientFee: origin.publicKey,
+      recipientSpl: tokenRecipient,
+      recipientSol: origin.publicKey,
       verifier: new VerifierZero(),
       relayer: RELAYER,
       action: Action.UNSHIELD,
@@ -425,7 +428,7 @@ describe("verifier_program", () => {
     // add enough funds such that rent exemption is ensured
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(
-        RELAYER.accounts.relayerRecipient,
+        RELAYER.accounts.relayerRecipientSol,
         1_000_000,
       ),
       "confirmed",
@@ -467,8 +470,8 @@ describe("verifier_program", () => {
     let inputUtxos: Utxo[] = [];
     inputUtxos.push(decryptedUtxo1);
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
-    const recipientFee = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+    const recipientSol = SolanaKeypair.generate().publicKey;
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
@@ -476,13 +479,13 @@ describe("verifier_program", () => {
 
     await lightProvider.provider!.connection.confirmTransaction(
       await lightProvider.provider!.connection.requestAirdrop(
-        relayerRecipient,
+        relayerRecipientSol,
         1_000_000,
       ),
     );
     await lightProvider.provider!.connection.confirmTransaction(
       await lightProvider.provider!.connection.requestAirdrop(
-        recipientFee,
+        recipientSol,
         1_000_000,
       ),
     );
@@ -499,8 +502,8 @@ describe("verifier_program", () => {
 
       // outputUtxos: [new Utxo({poseidon: POSEIDON, assets: inputUtxos[0].assets, amounts: [inputUtxos[0].amounts[0], new BN(0)]})],
       merkleTreePubkey: MERKLE_TREE_KEY,
-      recipient: recipientTokenAccount,
-      recipientFee,
+      recipientSpl: recipientTokenAccount,
+      recipientSol,
       verifier: new VerifierOne(),
       relayer: RELAYER,
       poseidon: POSEIDON,

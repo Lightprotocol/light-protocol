@@ -34,10 +34,10 @@ pub mod verifier_program_one {
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount: [u8; 32],
+        public_amount_spl: [u8; 32],
         nullifiers: [[u8; 32]; 10],
         leaves: [[u8; 32]; 2],
-        fee_amount: [u8; 32],
+        public_amount_sol: [u8; 32],
         root_index: u64,
         relayer_fee: u64,
         encrypted_utxos: Vec<u8>,
@@ -54,10 +54,10 @@ pub mod verifier_program_one {
             &proof_a,
             &proof_b,
             &proof_c,
-            &public_amount,
+            &public_amount_spl,
             &nullifiers,
             &[[leaves[0], leaves[1]]; 1],
-            &fee_amount,
+            &public_amount_sol,
             &encrypted_utxos,
             &root_index,
             &relayer_fee,
@@ -113,19 +113,19 @@ pub struct LightInstructionSecond<'info> {
     pub token_program: Program<'info, Token>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender: UncheckedAccount<'info>,
+    pub sender_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient: UncheckedAccount<'info>,
+    pub recipient_spl: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub sender_fee: UncheckedAccount<'info>,
+    pub sender_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked depending on deposit or withdrawal.
     #[account(mut)]
-    pub recipient_fee: UncheckedAccount<'info>,
+    pub recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is not checked the relayer has complete freedom.
     #[account(mut)]
-    pub relayer_recipient: UncheckedAccount<'info>,
+    pub relayer_recipient_sol: UncheckedAccount<'info>,
     /// CHECK:` Is checked when it is used during spl withdrawals.
     #[account(mut, seeds=[TOKEN_AUTHORITY_SEED], bump, seeds::program= MerkleTreeProgram::id())]
     pub token_authority: UncheckedAccount<'info>,

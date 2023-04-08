@@ -69,14 +69,17 @@ describe("Test User", () => {
     // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    const relayerRecipient = SolanaKeypair.generate().publicKey;
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(relayerRecipient, 2_000_000_000);
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
 
     RELAYER = await new TestRelayer(
       userKeypair.publicKey,
       LOOK_UP_TABLE,
-      relayerRecipient,
+      relayerRecipientSol,
       new BN(100000),
     );
   });

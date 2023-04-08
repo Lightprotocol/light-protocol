@@ -50,9 +50,9 @@ pub trait Config {
 pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
 {
     pub merkle_root: [u8; 32],
-    pub public_amount: &'a [u8; 32],
+    pub public_amount_spl: &'a [u8; 32],
     pub tx_integrity_hash: [u8; 32],
-    pub fee_amount: &'a [u8; 32],
+    pub public_amount_sol: &'a [u8; 32],
     pub mint_pubkey: [u8; 32],
     pub checked_public_inputs: &'a Vec<Vec<u8>>,
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
@@ -84,8 +84,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         proof_a: &'a [u8; 64],
         proof_b: &'a [u8; 128],
         proof_c: &'a [u8; 64],
-        public_amount: &'a [u8; 32],
-        fee_amount: &'a [u8; 32],
+        public_amount_spl: &'a [u8; 32],
+        public_amount_sol: &'a [u8; 32],
         checked_public_inputs: &'a Vec<Vec<u8>>,
         nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
         leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
@@ -108,9 +108,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         let proof_a_neg = change_endianness(&proof_a_neg[..64]).try_into().unwrap();
         Transaction {
             merkle_root: [0u8; 32],
-            public_amount,
+            public_amount_spl,
             tx_integrity_hash: [0u8; 32],
-            fee_amount,
+            public_amount_sol,
             mint_pubkey: [0u8; 32],
             checked_public_inputs,
             nullifiers,
@@ -165,9 +165,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
         let mut public_inputs = vec![
             self.merkle_root.as_slice(),
-            self.public_amount.as_slice(),
+            self.public_amount_spl.as_slice(),
             self.tx_integrity_hash.as_slice(),
-            self.fee_amount.as_slice(),
+            self.public_amount_sol.as_slice(),
             self.mint_pubkey.as_slice(),
         ];
 
@@ -202,9 +202,9 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             Err(e) => {
                 msg!("Public Inputs:");
                 msg!("merkle tree root {:?}", self.merkle_root);
-                msg!("public_amount {:?}", self.public_amount);
+                msg!("public_amount_spl {:?}", self.public_amount_spl);
                 msg!("tx_integrity_hash {:?}", self.tx_integrity_hash);
-                msg!("fee_amount {:?}", self.fee_amount);
+                msg!("public_amount_sol {:?}", self.public_amount_sol);
                 msg!("mint_pubkey {:?}", self.mint_pubkey);
                 msg!("nullifiers {:?}", self.nullifiers);
                 msg!("leaves {:?}", self.leaves);
@@ -217,12 +217,12 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
-    /// H(recipient||recipient_fee||signer||relayer_fee||encrypted_utxos).
+    /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
         let input = [
             self.accounts
                 .unwrap()
-                .recipient
+                .recipient_spl
                 .as_ref()
                 .unwrap()
                 .key()
@@ -230,7 +230,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 .to_vec(),
             self.accounts
                 .unwrap()
-                .recipient_fee
+                .recipient_sol
                 .as_ref()
                 .unwrap()
                 .key()
@@ -247,10 +247,10 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         ]
         .concat();
         // msg!(
-        //     "recipient: {:?}",
+        //     "recipient_spl: {:?}",
         //     self.accounts
         //         .unwrap()
-        //         .recipient
+        //         .recipient_spl
         //         .as_ref()
         //         .unwrap()
         //         .key()
@@ -258,10 +258,10 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         //         .to_vec()
         // );
         // msg!(
-        //     "recipient_fee: {:?}",
+        //     "recipient_sol: {:?}",
         //     self.accounts
         //         .unwrap()
-        //         .recipient_fee
+        //         .recipient_sol
         //         .as_ref()
         //         .unwrap()
         //         .key()
@@ -303,14 +303,14 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         Ok(())
     }
 
-    /// Fetches the token mint from passed in sender account. If the sender account is not a
+    /// Fetches the token mint from passed in sender_spl account. If the sender_spl account is not a
     /// token account, native mint is assumed.
     pub fn fetch_mint(&mut self) -> Result<()> {
         match spl_token::state::Account::unpack(
             &self
                 .accounts
                 .unwrap()
-                .sender
+                .sender_spl
                 .as_ref()
                 .unwrap()
                 .data
@@ -322,7 +322,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 //     "{:?}",
                 //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
                 // );
-                if self.public_amount[24..32] == vec![0u8; 8] {
+                if self.public_amount_spl[24..32] == vec![0u8; 8] {
                     self.mint_pubkey = [0u8; 32];
                 } else {
                     self.mint_pubkey = [
@@ -467,18 +467,18 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // check mintPubkey
         let (pub_amount_checked, _) = self.check_amount(
             0,
-            change_endianness(self.public_amount.as_slice())
+            change_endianness(self.public_amount_spl.as_slice())
                 .try_into()
                 .unwrap(),
         )?;
 
-        // Only transfer if pub amount is greater than zero otherwise recipient and sender accounts are not checked
+        // Only transfer if pub amount is greater than zero otherwise recipient_spl and sender_spl accounts are not checked
         if pub_amount_checked > 0 {
             let recipient_mint = spl_token::state::Account::unpack(
                 &self
                     .accounts
                     .unwrap()
-                    .recipient
+                    .recipient_spl
                     .as_ref()
                     .unwrap()
                     .data
@@ -488,7 +488,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 &self
                     .accounts
                     .unwrap()
-                    .sender
+                    .sender_spl
                     .as_ref()
                     .unwrap()
                     .data
@@ -498,7 +498,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             // check mint
             if self.mint_pubkey[1..] != hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
-                    "*self.mint_pubkey[..31] {:?}, {:?}, recipient mint",
+                    "*self.mint_pubkey[..31] {:?}, {:?}, recipient_spl mint",
                     self.mint_pubkey[1..].to_vec(),
                     hash(&recipient_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
@@ -506,7 +506,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             }
             if self.mint_pubkey[1..] != hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..] {
                 msg!(
-                    "*self.mint_pubkey[..31] {:?}, {:?}, sender mint",
+                    "*self.mint_pubkey[..31] {:?}, {:?}, sender_spl mint",
                     self.mint_pubkey[1..].to_vec(),
                     hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec()
                 );
@@ -516,7 +516,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             // is a token deposit or withdrawal
             if self.is_deposit() {
                 self.check_spl_pool_account_derivation(
-                    &self.accounts.unwrap().recipient.as_ref().unwrap().key(),
+                    &self.accounts.unwrap().recipient_spl.as_ref().unwrap().key(),
                     &recipient_mint.mint,
                 )?;
 
@@ -532,7 +532,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     from: self
                         .accounts
                         .unwrap()
-                        .sender
+                        .sender_spl
                         .as_ref()
                         .unwrap()
                         .to_account_info()
@@ -540,7 +540,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     to: self
                         .accounts
                         .unwrap()
-                        .recipient
+                        .recipient_spl
                         .as_ref()
                         .unwrap()
                         .to_account_info()
@@ -561,7 +561,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 anchor_spl::token::transfer(cpi_ctx, pub_amount_checked)?;
             } else {
                 self.check_spl_pool_account_derivation(
-                    &self.accounts.unwrap().sender.as_ref().unwrap().key(),
+                    &self.accounts.unwrap().sender_spl.as_ref().unwrap().key(),
                     &sender_mint.mint,
                 )?;
 
@@ -573,14 +573,14 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     &self
                         .accounts
                         .unwrap()
-                        .sender
+                        .sender_spl
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .accounts
                         .unwrap()
-                        .recipient
+                        .recipient_spl
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -623,7 +623,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         // check that it is the native token pool
         let (fee_amount_checked, relayer_fee) = self.check_amount(
             self.relayer_fee,
-            change_endianness(self.fee_amount.as_slice())
+            change_endianness(self.public_amount_sol.as_slice())
                 .try_into()
                 .unwrap(),
         )?;
@@ -636,7 +636,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     &self
                         .accounts
                         .unwrap()
-                        .recipient_fee
+                        .recipient_sol
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -645,11 +645,11 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 msg!("is withdrawal");
 
                 self.check_sol_pool_account_derivation(
-                    &self.accounts.unwrap().sender_fee.as_ref().unwrap().key(),
+                    &self.accounts.unwrap().sender_sol.as_ref().unwrap().key(),
                     &*self
                         .accounts
                         .unwrap()
-                        .sender_fee
+                        .sender_sol
                         .as_ref()
                         .unwrap()
                         .to_account_info()
@@ -665,14 +665,14 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                     &self
                         .accounts
                         .unwrap()
-                        .sender_fee
+                        .sender_sol
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
                     &self
                         .accounts
                         .unwrap()
-                        .recipient_fee
+                        .recipient_sol
                         .as_ref()
                         .unwrap()
                         .to_account_info(),
@@ -695,7 +695,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
                 &self
                     .accounts
                     .unwrap()
-                    .sender_fee
+                    .sender_sol
                     .as_ref()
                     .unwrap()
                     .to_account_info(),
@@ -719,12 +719,12 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     }
 
     /// Creates and closes an account such that deposited sol is part of the transaction fees.
-    fn deposit_sol(&self, amount_checked: u64, recipient: &AccountInfo) -> Result<()> {
+    fn deposit_sol(&self, amount_checked: u64, recipient_spl: &AccountInfo) -> Result<()> {
         self.check_sol_pool_account_derivation(
-            &recipient.key(),
-            &*recipient.data.try_borrow().unwrap(),
+            &recipient_spl.key(),
+            &*recipient_spl.data.try_borrow().unwrap(),
         )?;
-        // TODO: add check that recipient account is initialized
+        // TODO: add check that recipient_spl account is initialized
 
         msg!("is deposit");
         let rent = <Rent as sysvar::Sysvar>::get()?;
@@ -735,7 +735,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             &self
                 .accounts
                 .unwrap()
-                .sender_fee
+                .sender_sol
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
@@ -751,17 +751,17 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             &self
                 .accounts
                 .unwrap()
-                .sender_fee
+                .sender_sol
                 .as_ref()
                 .unwrap()
                 .to_account_info(),
-            recipient,
+            recipient_spl,
         )
     }
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit(&self) -> bool {
-        if self.public_amount[24..] != [0u8; 8] && self.public_amount[..24] == [0u8; 24] {
+        if self.public_amount_spl[24..] != [0u8; 8] && self.public_amount_spl[..24] == [0u8; 24] {
             return true;
         }
         false
@@ -769,7 +769,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 
     /// Checks whether a transaction is a deposit by inspecting the public amount.
     pub fn is_deposit_fee(&self) -> bool {
-        if self.fee_amount[24..] != [0u8; 8] && self.fee_amount[..24] == [0u8; 24] {
+        if self.public_amount_sol[24..] != [0u8; 8] && self.public_amount_sol[..24] == [0u8; 24] {
             return true;
         }
         false

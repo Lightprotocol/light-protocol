@@ -8,14 +8,14 @@ export class TestRelayer extends Relayer {
   constructor(
     relayerPubkey: PublicKey,
     lookUpTable: PublicKey,
-    relayerRecipient?: PublicKey,
+    relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
     highRelayerFee?: BN,
   ) {
     super(
       relayerPubkey,
       lookUpTable,
-      relayerRecipient,
+      relayerRecipientSol,
       relayerFee,
       highRelayerFee,
     );
