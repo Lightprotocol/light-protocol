@@ -121,7 +121,7 @@ describe("Utxo Functional", () => {
     assert.equal(utxo0.poolType.toString(), "0");
     assert.equal(
       utxo0.verifierAddress.toString(),
-      "11111111111111111111111111111111",
+      SystemProgram.programId.toString(),
     );
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(

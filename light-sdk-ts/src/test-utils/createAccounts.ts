@@ -263,6 +263,7 @@ export async function createTestAccounts(
         lamports: 3_000_000_000,
       }),
     );
+
     await sendAndConfirmTransaction(
       connection,
       txTransfer1,

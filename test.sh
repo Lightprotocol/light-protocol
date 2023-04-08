@@ -24,6 +24,10 @@ yarn test
 yarn run test-verifiers
 popd
 
+pushd relayer
+yarn test
+popd
+
 pushd light-circuits
 yarn run test
 popd

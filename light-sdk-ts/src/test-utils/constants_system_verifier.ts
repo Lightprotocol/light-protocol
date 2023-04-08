@@ -53,6 +53,13 @@ export const PRIVATE_KEY = [
   176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
 ];
 
+export const PRIVATE_KEY_RELAYER = [
+  79, 149, 114, 205, 153, 39, 179, 25, 52, 107, 164, 75, 124, 102, 73, 91, 112,
+  61, 152, 70, 250, 208, 134, 24, 159, 176, 52, 177, 183, 99, 151, 146, 140,
+  232, 23, 147, 47, 68, 206, 56, 135, 249, 23, 34, 252, 245, 228, 51, 240, 38,
+  154, 200, 137, 2, 166, 173, 64, 131, 141, 14, 150, 134, 80, 13,
+];
+
 export const MERKLE_TREE_INIT_AUTHORITY = [
   2, 99, 226, 251, 88, 66, 92, 33, 25, 216, 211, 185, 112, 203, 212, 238, 105,
   144, 72, 121, 176, 253, 106, 168, 115, 158, 154, 188, 62, 255, 166, 81,
@@ -64,6 +71,10 @@ export const ADMIN_AUTH_KEY: PublicKey = new PublicKey(
 
 export const ADMIN_AUTH_KEYPAIR: Keypair = Keypair.fromSecretKey(
   new Uint8Array(PRIVATE_KEY),
+);
+
+export const RELAYER_RECIPIENT_KEYPAIR: Keypair = Keypair.fromSecretKey(
+  new Uint8Array(PRIVATE_KEY_RELAYER),
 );
 
 export const userTokenAccount = new PublicKey(
