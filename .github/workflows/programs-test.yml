@@ -50,6 +50,16 @@ jobs:
           docker cp solana-install:/usr/local/cargo/bin/anchor /usr/local/bin
           docker rm -f solana-install
           solana-keygen new --no-bip39-passphrase
+          
+      - name: Create env file
+        working-directory: light-protocol-onchain
+        run: |
+          cd relayer
+          touch .env
+          echo KEY_PAIR=${{ secrets.KEY_PAIR }} > .env
+          echo RELAYER_RECIPIENT=${{ secrets.RELAYER_RECIPIENT }} >> .env
+          echo LOOK_UP_TABLE=${{ secrets.LOOK_UP_TABLE }} >> .env
+          echo TEST_ENVIROMENT=${{ secrets.TEST_ENVIROMENT }} >> .env
 
       - name: Run tests
         working-directory: light-protocol-onchain

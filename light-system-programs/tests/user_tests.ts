@@ -148,10 +148,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     // console.log("solBalancePre", solBalancePre);
     // console.log("solBalanceAfter", solBalanceAfter);
@@ -303,10 +303,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     const minimumBalance = 150000;
     const tokenAccountFee = 500_000;
@@ -420,10 +420,10 @@ describe("Test User", () => {
 
     // assert that the user's sol shielded balance has decreased by fee
     let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
     let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === "11111111111111111111111111111111",
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
     );
 
     assert.equal(

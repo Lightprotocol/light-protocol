@@ -1,0 +1,313 @@
+import { BN } from "@coral-xyz/anchor";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
+import chai, { assert, use } from "chai";
+import chaiHttp from "chai-http";
+import express from "express";
+import {
+  Account,
+  DEFAULT_ZERO,
+  FEE_ASSET,
+  MerkleTree,
+  MERKLE_TREE_HEIGHT,
+  MERKLE_TREE_KEY,
+  MINT,
+  Provider,
+  SolMerkleTree,
+  TOKEN_REGISTRY,
+  Utxo,
+  VerifierZero,
+} from "light-sdk";
+import { User } from "light-sdk/lib/wallet/user";
+import sinon from "sinon";
+let circomlibjs = require("circomlibjs");
+import {
+  initeMerkleTree,
+  initLookupTable,
+  sendTransaction,
+  updateMerkleTree,
+} from "../src/services";
+import { testSetup } from "../src/setup";
+import { getKeyPairFromEnv } from "../src/utils/provider";
+
+chai.use(chaiHttp);
+const expect = chai.expect;
+const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: false }));
+
+// Use sinon to create a stub for the middleware
+const addCorsHeadersStub = sinon
+  .stub()
+  .callsFake((req: any, res: any, next: any) => next());
+app.use(addCorsHeadersStub);
+
+app.post("/updatemerkletree", updateMerkleTree);
+app.get("/merkletree", initeMerkleTree);
+app.get("/lookuptable", initLookupTable);
+app.post("/relayInstruction", sendTransaction);
+
+describe("API tests", () => {
+  let poseidon;
+  let depositAmount = 20_000;
+  let depositFeeAmount = 10_000;
+  let seed32 = new Uint8Array(32).fill(1).toString();
+  let previousMerkleRoot =
+    "15800883723037093133305280672853871715176051618981698111580373208012928757479";
+
+  before(async () => {
+    console.log("Initing accounts");
+    poseidon = await circomlibjs.buildPoseidonOpt();
+    await testSetup();
+  });
+
+  it("Should return Merkle tree data", (done) => {
+    chai
+      .request(app)
+      .get("/merkletree")
+      .end((err, res) => {
+        expect(res).to.have.status(200);
+
+        const fetchedMerkleTree: MerkleTree = res.body.data.merkleTree;
+
+        const pubkey = new PublicKey(res.body.data.pubkey);
+
+        const merkleTree = new MerkleTree(
+          MERKLE_TREE_HEIGHT,
+          poseidon,
+          fetchedMerkleTree._layers[0],
+        );
+
+        const deposit_utxo1 = new Utxo({
+          poseidon: poseidon,
+          assets: [FEE_ASSET, MINT],
+          amounts: [new BN(depositFeeAmount), new BN(depositAmount)],
+          account: new Account({ poseidon: poseidon, seed: seed32 }),
+          blinding: new BN(new Array(31).fill(1)),
+        });
+
+        expect(res.body.data.merkleTree).to.exist;
+        expect(res.body.data).to.exist;
+        assert.equal(merkleTree.levels, MERKLE_TREE_HEIGHT);
+        assert.equal(pubkey.toBase58(), MERKLE_TREE_KEY.toBase58());
+        assert.equal(merkleTree.root().toString(), previousMerkleRoot);
+        assert.equal(merkleTree._layers[0].length, 0);
+        assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);
+        assert.equal(
+          merkleTree.indexOf(deposit_utxo1.getCommitment(poseidon)),
+          -1,
+        );
+
+        done();
+      });
+  });
+
+  it("Should fail Merkle tree data with post request", (done) => {
+    chai
+      .request(app)
+      .post("/merkletree")
+      .end((err, res) => {
+        assert.isTrue(
+          res.error.message.includes("cannot POST /merkletree (404)"),
+        );
+        expect(res).to.have.status(404);
+        done();
+      });
+  });
+
+  it("Should fail to update Merkle tree with InvalidNumberOfLeaves", (done) => {
+    chai
+      .request(app)
+      .post("/updatemerkletree")
+      .end((err, res) => {
+        expect(res).to.have.status(500);
+        console.log(res.body);
+        assert.isTrue(
+          res.body.message.includes("Error Message: InvalidNumberOfLeaves."),
+        );
+        expect(res.body.status).to.be.equal("error");
+        done();
+      });
+  });
+
+  it("should shield and update merkle tree", async () => {
+    let amount = 15;
+    let token = "SOL";
+
+    console.log(getKeyPairFromEnv("KEY_PAIR").publicKey.toString());
+
+    const provider = await Provider.init({
+      wallet: getKeyPairFromEnv("KEY_PAIR"),
+    }); // userKeypair
+
+    let res = await provider.provider!.connection.requestAirdrop(
+      getKeyPairFromEnv("KEY_PAIR").publicKey,
+      1_000_000_000_000,
+    );
+
+    await provider.provider!.connection.requestAirdrop(
+      provider.relayer.accounts.relayerRecipientSol,
+      1_000_000_000_000,
+    );
+
+    await provider.provider!.connection.confirmTransaction(res, "confirmed");
+
+    const user: User = await User.init(provider);
+
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+
+    const preShieldedBalance = await user.getBalance({ latest: true });
+
+    await user.shield({ publicAmountSol: amount, token });
+
+    await user.provider.latestMerkleTree();
+
+    let balance = await user.getBalance({ latest: true });
+    let solShieldedBalanceAfter = balance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+    let solShieldedBalancePre = preShieldedBalance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+
+    assert.equal(
+      solShieldedBalanceAfter!.amount.toNumber(),
+      solShieldedBalancePre!.amount.toNumber() +
+        amount * tokenCtx!.decimals.toNumber(),
+      `shielded balance after ${
+        solShieldedBalanceAfter!.amount
+      } != shield amount ${amount * tokenCtx!.decimals.toNumber()}`,
+    );
+
+    assert.notEqual(
+      provider.solMerkleTree!.merkleTree.root().toString(),
+      previousMerkleRoot,
+    );
+
+
+    previousMerkleRoot = provider.solMerkleTree!.merkleTree.root().toString();
+
+    assert.equal(provider.solMerkleTree!.merkleTree._layers[0].length, 2);
+
+    assert.equal(user.utxos?.length, 1);
+
+    assert.equal(
+      provider.solMerkleTree!.merkleTree.indexOf(
+        user.utxos![0].getCommitment(poseidon),
+      ),
+      0,
+    );
+  });
+
+  it("Should fail to update Merkle tree", (done) => {
+    chai
+      .request(app)
+      .get("/updatemerkletree")
+      .end((err, res) => {
+        assert.isTrue(
+          res.error.message.includes("cannot GET /updatemerkletree (404)"),
+        );
+        expect(res).to.have.status(404);
+        done();
+      });
+  });
+
+  it("Should return lookup table data", (done) => {
+    chai
+      .request(app)
+      .get("/lookuptable")
+      .end(async (err, res) => {
+        const provider = await Provider.init({
+          wallet: getKeyPairFromEnv("KEY_PAIR"),
+        }); // userKeypair
+
+        let lookUpTableInfo =
+          await provider.provider!.connection.getAccountInfo(
+            new PublicKey(res.body.data),
+          );
+
+        assert.notEqual(lookUpTableInfo, null);
+        expect(new PublicKey(res.body.data).toString()).to.exist;
+        expect(res.body.data).to.exist;
+        expect(res).to.have.status(200);
+        done();
+      });
+  });
+
+  it("Should fail to return lookup table data", (done) => {
+    chai
+      .request(app)
+      .post("/lookuptable")
+      .end((err, res) => {
+        assert.isTrue(
+          res.error.message.includes("cannot POST /lookuptable (404)"),
+        );
+        expect(res).to.have.status(404);
+        done();
+      });
+  });
+
+  it("(user class) unshield SOL", async () => {
+    let amount = 1;
+    let token = "SOL";
+    let recipient = Keypair.generate().publicKey;
+    const provider = await Provider.init({
+      wallet: getKeyPairFromEnv("KEY_PAIR"),
+    }); // userKeypair
+    // get token from registry
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+
+    const user: User = await User.init(provider);
+    const preShieldedBalance = await user.getBalance({ latest: true });
+
+    await user.unshield({
+      publicAmountSol: amount,
+      token,
+      recipientSol: recipient,
+    });
+
+    await user.provider.latestMerkleTree();
+
+    let balance = await user.getBalance({ latest: true });
+
+    // assert that the user's sol shielded balance has decreased by fee
+    let solBalanceAfter = balance.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+    let solBalancePre = preShieldedBalance.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+
+    assert.equal(
+      solBalanceAfter!.amount,
+      solBalancePre.amount - 100000 - amount * tokenCtx.decimals.toNumber(),
+      `shielded sol balance after ${solBalanceAfter!.amount} != ${
+        solBalancePre!.amount
+      } ...unshield amount -fee`,
+    );
+
+    assert.notEqual(
+      provider.solMerkleTree!.merkleTree.root().toString(),
+      previousMerkleRoot,
+    );
+
+    assert.equal(user.utxos?.length, 1);
+  });
+
+  it("Should fail transaction with empty instruction", (done) => {
+    const instruction = {}; // Replace with a valid instruction object
+    chai
+      .request(app)
+      .post("/relayInstruction")
+      .send({ instruction })
+      .end((err, res) => {
+        expect(res).to.have.status(500);
+        assert.isTrue(
+          res.body.message.includes(
+            "Cannot read properties of undefined (reading 'map')",
+          ),
+        );
+        done();
+      });
+  });
+});
+

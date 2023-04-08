@@ -367,9 +367,9 @@ export class User {
   async unshield({
     token,
     publicAmountSpl,
-    recipientSpl = new PublicKey(0),
+    recipientSpl = AUTHORITY,
     publicAmountSol,
-    recipientSol,
+    recipientSol = AUTHORITY,
     minimumLamports = true,
   }: {
     token: string;
@@ -379,6 +379,10 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
+    // publicAmountSol: amount,
+    // token,
+    // recipientSol: recipient,
+
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -393,16 +397,13 @@ export class User {
         "unshield",
         "Need to provide at least one amount for an unshield",
       );
-    if (publicAmountSol && !recipientSol)
+    if (publicAmountSol && recipientSol.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxParams",
         "no recipient provided for sol unshield",
       );
-    if (
-      publicAmountSpl &&
-      recipientSpl.toBase58() == new PublicKey(0).toBase58()
-    )
+    if (publicAmountSpl && recipientSpl.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
         "getTxParams",
@@ -447,8 +448,8 @@ export class User {
       account: this.account,
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
-      recipientSol: recipientSol ? recipientSol : AUTHORITY,
-      recipientSPLAddress: recipientSpl ? recipientSpl : undefined,
+      recipientSol: recipientSol,
+      recipientSPLAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,

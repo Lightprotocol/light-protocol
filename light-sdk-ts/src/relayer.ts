@@ -79,12 +79,15 @@ export class Relayer {
     }
   }
 
-  async sendTransaction(instructions: any, provider: Provider): Promise<any> {
+  async sendTransaction(instruction: any, provider: Provider): Promise<any> {
     try {
-      const response = axios.post("http://localhost:3331/relay", {
-        instructions,
-      });
-      return response;
+      const response = await axios.post(
+        "http://localhost:3331/relayInstruction",
+        {
+          instruction,
+        },
+      );
+      return response.data.data;
     } catch (err) {
       console.error({ err });
       throw err;
