@@ -145,7 +145,7 @@ describe("API tests", () => {
     );
 
     await provider.provider!.connection.requestAirdrop(
-      provider.relayer.accounts.relayerRecipient,
+      provider.relayer.accounts.relayerRecipientSol,
       1_000_000_000_000,
     );
 
