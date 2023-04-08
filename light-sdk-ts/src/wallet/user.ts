@@ -369,7 +369,7 @@ export class User {
     publicAmountSpl,
     recipientSpl = AUTHORITY,
     publicAmountSol,
-    recipientSol,
+    recipientSol = AUTHORITY,
     minimumLamports = true,
   }: {
     token: string;
@@ -448,8 +448,8 @@ export class User {
       account: this.account,
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
-      recipientSol: recipientSol ? recipientSol : AUTHORITY,
-      recipientSPLAddress: AUTHORITY,
+      recipientSol: recipientSol,
+      recipientSPLAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
