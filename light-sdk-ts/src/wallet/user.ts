@@ -397,7 +397,7 @@ export class User {
         "unshield",
         "Need to provide at least one amount for an unshield",
       );
-    if (publicAmountSol && !recipientSol)
+    if (publicAmountSol && recipientSol.toBase58() == AUTHORITY.toBase58())
       throw new UserError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
         "getTxParams",
