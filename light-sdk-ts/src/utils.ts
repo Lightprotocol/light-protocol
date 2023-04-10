@@ -5,6 +5,7 @@ import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
+import { Utxo } from "utxo";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
@@ -69,6 +70,24 @@ export const convertAndComputeDecimals = (
   decimals: BN,
 ) => {
   return new BN(amount.toString()).mul(decimals);
+};
+
+export const getUpdatedSpentUtxos = (
+  inputUtxos: Utxo[],
+  spentUtxos: Utxo[] = [],
+) => {
+  const updatedSpentUtxos: Utxo[] = [...spentUtxos];
+
+  inputUtxos.forEach((utxo) => {
+    const amountsValid =
+      utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
+
+    if (amountsValid) {
+      updatedSpentUtxos?.push(utxo);
+    }
+  });
+
+  return updatedSpentUtxos;
 };
 
 // export var logger = (function () {

@@ -181,6 +181,7 @@ describe("Test User", () => {
     const preSolBalance = await provider.provider.connection.getBalance(
       userKeypair.publicKey,
     );
+    const previousUtxos = user.utxos;
 
     await user.shield({ publicAmountSol: amount, token });
     // TODO: add random amount and amount checks
@@ -224,10 +225,20 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
 
+    let commitmentSpent = user.utxos.findIndex(
+      (utxo) => utxo._commitment === previousUtxos[0]._commitment,
+    );
+
+    let shiftedToSpent = user.spentUtxos.findIndex(
+      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
+    );
+
     assert.equal(user.spentUtxos.length, 1);
     assert.equal(user.spentUtxos[0].amounts[0].toNumber(), 150000);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
+    assert.equal(commitmentSpent, -1);
+    assert.notEqual(shiftedToSpent, -1);
   });
 
   it("(user class) unshield SPL", async () => {
@@ -272,6 +283,7 @@ describe("Test User", () => {
 
     const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
+    const previousUtxos = user.utxos;
 
     await user.unshield({
       publicAmountSpl: amount,
@@ -305,6 +317,7 @@ describe("Test User", () => {
         recipientSplBalance,
         "confirmed",
       );
+
     assert.equal(
       postTokenBalance.value.uiAmount,
       preTokenBalance.value.uiAmount + amount,
@@ -334,9 +347,19 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
 
+    let commitmentSpent = user.utxos.findIndex(
+      (utxo) => utxo._commitment === previousUtxos[0]._commitment,
+    );
+
+    let shiftedToSpent = user.spentUtxos.findIndex(
+      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
+    );
+
     assert.equal(user.spentUtxos.length, 2);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
+    assert.equal(commitmentSpent, -1);
+    assert.notEqual(shiftedToSpent, -1);
 
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
@@ -366,6 +389,7 @@ describe("Test User", () => {
 
     const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
+    const previousUtxos = user.utxos;
 
     await user.transfer({
       amountSpl,
@@ -409,9 +433,19 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
 
+    let commitmentSpent = user.utxos.findIndex(
+      (utxo) => utxo._commitment === previousUtxos[0]._commitment,
+    );
+
+    let shiftedToSpent = user.spentUtxos.findIndex(
+      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
+    );
+
     assert.equal(user.spentUtxos.length, 3);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
+    assert.equal(commitmentSpent, -1);
+    assert.notEqual(shiftedToSpent, -1);
   });
 
   it.skip("(user class) transfer SOL", async () => {

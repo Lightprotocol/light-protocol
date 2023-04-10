@@ -26,6 +26,7 @@ import {
   Transaction,
   TransactionParameters,
   Action,
+  getUpdatedSpentUtxos,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -359,15 +360,10 @@ export class User {
       this.provider,
     );
 
-    txParams.inputUtxos.forEach((utxo) => {
-      const amountsValid =
-        utxo.amounts[1].toString() !== "0" ||
-        utxo.amounts[0].toString() !== "0";
-
-      if (amountsValid) {
-        this.spentUtxos?.push(utxo);
-      }
-    });
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
 
     return { txHash, response };
   }
@@ -493,15 +489,10 @@ export class User {
       this.provider,
     );
 
-    txParams.inputUtxos.forEach((utxo) => {
-      const amountsValid =
-        utxo.amounts[1].toString() !== "0" ||
-        utxo.amounts[0].toString() !== "0";
-
-      if (amountsValid) {
-        this.spentUtxos?.push(utxo);
-      }
-    });
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
 
     return { txHash, response };
   }
@@ -594,15 +585,10 @@ export class User {
       this.provider,
     );
 
-    txParams.inputUtxos.forEach((utxo) => {
-      const amountsValid =
-        utxo.amounts[1].toString() !== "0" ||
-        utxo.amounts[0].toString() !== "0";
-
-      if (amountsValid) {
-        this.spentUtxos?.push(utxo);
-      }
-    });
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
 
     return { txHash, response };
   }
