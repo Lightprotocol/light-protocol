@@ -35,15 +35,14 @@ import {
   confirmConfig,
   AUTHORITY_ONE,
   TOKEN_REGISTRY,
+  sleep,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
 let circomlibjs = require("circomlibjs");
 
 // TODO: check whether we need all of these functions
-const sleep = (ms: number) => {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-};
+
 export const newAccountWithLamports = async (
   connection: Connection,
   account = Keypair.generate(),

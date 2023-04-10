@@ -260,6 +260,7 @@ describe("Test User", () => {
     );
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+
     const recipientSplBalance = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
       solRecipient.publicKey,
@@ -273,7 +274,7 @@ describe("Test User", () => {
       MINT,
       ADMIN_AUTH_KEYPAIR: userKeypair,
       userAccount: solRecipient,
-      amount: new anchor.BN(0),
+      amount: new anchor.BN(0)
     });
     try {
       preTokenBalance =
