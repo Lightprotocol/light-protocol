@@ -87,6 +87,31 @@ export class User {
     this.account = account;
   }
 
+  async getUtxos(): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+      MERKLE_TREE_KEY,
+      this.provider.provider,
+    );
+
+    //TODO: add: "pending" to balances
+    //TODO: add init by cached (subset of leavesPdas)
+    const params = {
+      leavesPdas,
+      provider: this.provider.provider!,
+      account: this.account!,
+      poseidon: this.provider.poseidon,
+      merkleTreeProgram: merkleTreeProgramId,
+      merkleTree: this.provider.solMerkleTree!.merkleTree!,
+    };
+    const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
+
+    this.utxos = decryptedUtxos;
+    this.spentUtxos = spentUtxos;
+    console.log("✔️ updated utxos", this.utxos.length);
+    console.log("✔️ spent updated utxos", this.spentUtxos.length);
+    return { decryptedUtxos, spentUtxos };
+  }
+
   async getBalance({
     latest = true,
   }: {
@@ -129,27 +154,7 @@ export class User {
       );
 
     if (latest) {
-      let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-        MERKLE_TREE_KEY,
-        this.provider.provider,
-      );
-
-      //TODO: add: "pending" to balances
-      //TODO: add init by cached (subset of leavesPdas)
-      const params = {
-        leavesPdas,
-        merkleTree: this.provider.solMerkleTree.merkleTree!,
-        provider: this.provider.provider!,
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        merkleTreeProgram: merkleTreeProgramId,
-      };
-      const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
-
-      this.utxos = decryptedUtxos;
-      this.spentUtxos = spentUtxos;
-      console.log("✔️ updated utxos", this.utxos.length);
-      console.log("✔️ spent updated utxos", this.spentUtxos.length);
+      await this.getUtxos();
     } else {
       console.log("✔️ read utxos from cache", this.utxos.length);
     }
@@ -654,23 +659,7 @@ export class User {
     }
 
     // TODO: optimize: fetch once, then filter
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-      MERKLE_TREE_KEY,
-      // @ts-ignore
-      this.provider.provider,
-    );
-
-    const params = {
-      leavesPdas,
-      provider: this.provider.provider!,
-      account: this.account,
-      poseidon: this.provider.poseidon,
-      merkleTreeProgram: merkleTreeProgramId,
-      merkleTree: this.provider.solMerkleTree!.merkleTree!,
-    };
-    const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
-    this.utxos = decryptedUtxos;
-    this.spentUtxos = spentUtxos;
+    await this.getUtxos();
   }
 
   // TODO: we need a non-anchor version of "provider" - (bundle functionality exposed by the wallet adapter into own provider-like class)
