@@ -9,6 +9,7 @@ import {
 } from "light-sdk";
 require('dotenv').config();
 
+
 let provider: Provider;
 
 export const getKeyPairFromEnv = (KEY: string) => {

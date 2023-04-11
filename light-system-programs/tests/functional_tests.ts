@@ -17,7 +17,6 @@ import {
   VerifierZero,
   VerifierOne,
   Utxo,
-  getUnspentUtxo,
   setUpMerkleTree,
   initLookUpTableFromFile,
   MerkleTreeProgram,
@@ -48,6 +47,7 @@ import {
   TOKEN_REGISTRY,
   Action,
   TestRelayer,
+  getAccountUtxos,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -386,15 +386,12 @@ describe("verifier_program", () => {
 
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
-    let decryptedUtxo1 = await getUnspentUtxo(
+    let { decryptedUtxos } = await getAccountUtxos({
       leavesPdas,
       provider,
-      KEYPAIR,
-      POSEIDON,
-      merkleTreeProgram,
-      merkleTree.merkleTree,
-      0,
-    );
+      account: KEYPAIR,
+      poseidon: POSEIDON,
+    });
 
     const origin = new anchor.web3.Account();
     var tokenRecipient = recipientTokenAccount;
@@ -405,7 +402,7 @@ describe("verifier_program", () => {
     });
 
     let txParams = new TransactionParameters({
-      inputUtxos: [decryptedUtxo1],
+      inputUtxos: [decryptedUtxos[0]],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipientSpl: tokenRecipient,
       recipientSol: origin.publicKey,
@@ -457,18 +454,15 @@ describe("verifier_program", () => {
 
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
 
-    let decryptedUtxo1 = await getUnspentUtxo(
+    let { decryptedUtxos } = await getAccountUtxos({
       leavesPdas,
       provider,
-      KEYPAIR,
-      POSEIDON,
-      merkleTreeProgram,
-      merkleTree.merkleTree,
-      0,
-    );
+      account: KEYPAIR,
+      poseidon: POSEIDON,
+    });
 
     let inputUtxos: Utxo[] = [];
-    inputUtxos.push(decryptedUtxo1);
+    inputUtxos.push(decryptedUtxos[0]);
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     const recipientSol = SolanaKeypair.generate().publicKey;

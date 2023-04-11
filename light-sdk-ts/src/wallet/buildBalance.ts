@@ -1,87 +1,60 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
-import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
-import { MerkleTree } from "merkleTree/merkleTree";
-import { QueuedLeavesPda } from "merkleTree/solMerkleTree";
-
-import { merkleTreeProgramId } from "../constants";
+import { Connection } from "@solana/web3.js";
 import { Account } from "../account";
-import { assert } from "chai";
+import { fetchNullifierAccountInfo } from "../utils";
 
-/**deprecated */
-export async function getUnspentUtxo(
-  leavesPdas: { account: QueuedLeavesPda }[],
-  provider: anchor.Provider,
-  account: Account,
-  POSEIDON: any,
-  merkleTreeProgram: anchor.Program<MerkleTreeProgram>,
-  merkleTree: MerkleTree,
-  index: number,
-) {
-  let decryptedUtxos: Utxo[] = [];
-  for (var i = 0; i < leavesPdas.length; i++) {
-    try {
-      // decrypt first leaves account and build utxo
+const processDecryptedUtxos = async ({
+  decryptedUtxo,
+  poseidon,
+  checkMerkleTreeIndex = false,
+  merkleTree,
+  connection,
+  decryptedUtxos,
+  spentUtxos = [],
+}: {
+  decryptedUtxo?: Utxo;
+  checkMerkleTreeIndex?: boolean;
+  merkleTree?: any;
+  poseidon: any;
+  connection: Connection;
+  decryptedUtxos: Utxo[];
+  spentUtxos?: Utxo[];
+}) => {
+  if (!decryptedUtxo) return;
+  const nullifier = decryptedUtxo.getNullifier(poseidon);
+  if (!nullifier) return;
+  const accountInfo = await fetchNullifierAccountInfo(nullifier, connection);
+  const amountsValid =
+    decryptedUtxo.amounts[1].toString() !== "0" ||
+    decryptedUtxo.amounts[0].toString() !== "0";
 
-      var decryptedUtxo1 = Utxo.decrypt({
-        poseidon: POSEIDON,
-        encBytes: new Uint8Array(
-          Array.from(leavesPdas[i].account.encryptedUtxos),
-        ),
-        account: account,
-        index: leavesPdas[i].account.leftLeafIndex.toNumber(),
-      });
-      if (!decryptedUtxo1) {
-        continue;
-      }
-
-      const mtIndex = merkleTree.indexOf(
-        decryptedUtxo1?.getCommitment(POSEIDON)?.toString(),
-      );
-      assert.equal(mtIndex.toString(), decryptedUtxo1.index!.toString());
-
-      let nullifier = decryptedUtxo1.getNullifier(POSEIDON);
-      if (!nullifier) throw new Error("getNullifier of decryptedUtxo failed");
-      let nullifierPubkey = (
-        await PublicKey.findProgramAddress(
-          [
-            new anchor.BN(nullifier.toString()).toBuffer(),
-            anchor.utils.bytes.utf8.encode("nf"),
-          ],
-          merkleTreeProgram.programId,
-        )
-      )[0];
-      let accountInfo = await provider.connection.getAccountInfo(
-        nullifierPubkey,
-        "confirmed",
-      );
-      if (
-        accountInfo == null &&
-        decryptedUtxo1.amounts[1].toString() != "0" &&
-        decryptedUtxo1.amounts[0].toString() != "0" &&
-        mtIndex.toString() != "-1"
-      ) {
-        console.log("found unspent leaf");
-
-        decryptedUtxos.push(decryptedUtxo1);
-      } else if (i == leavesPdas.length - 1) {
-        throw "no unspent leaf found";
-      }
-    } catch (error) {
-      console.log(error);
-    }
+  let mtIndexValid = true;
+  if (checkMerkleTreeIndex) {
+    const mtIndex = merkleTree.indexOf(
+      decryptedUtxo.getCommitment(poseidon)?.toString(),
+    );
+    mtIndexValid = mtIndex.toString() !== "-1";
   }
 
-  return decryptedUtxos[index];
-}
+  if (!accountInfo && amountsValid && mtIndexValid) {
+    decryptedUtxos.push(decryptedUtxo);
+  } else if (accountInfo && amountsValid) {
+    spentUtxos.push(decryptedUtxo);
+  }
+};
 
-//TODO: getSpentUtxos - wrapper over same thing.
 /**
- * @params d
- * returns a list of all unspent utxos
+ *  Fetches the decrypted and spent UTXOs for an account from the provided leavesPDAs.
+ * @param {Array} leavesPdas - An array of leaf PDAs containing the UTXO data.
+ * @param {anchor.Provider} provider - The Anchor provider to interact with the Solana network.
+ * @param {Account} account - The user account for which to fetch the UTXOs.
+ * @param {Object} poseidon - The Poseidon object used for cryptographic operations.
+ * @returns {Promise<{ decryptedUtxos: Utxo[], spentUtxos: Utxo[] }>} A Promise that resolves to an object containing two arrays:
+ * - decryptedUtxos: The decrypted UTXOs that have not been spent.
+ * - spentUtxos: The decrypted UTXOs that have been spent.
  */
-export async function getUnspentUtxos({
+export async function getAccountUtxos({
   leavesPdas,
   provider,
   account,
@@ -91,20 +64,19 @@ export async function getUnspentUtxos({
   provider: anchor.Provider;
   account: Account;
   poseidon: any;
-}): Promise<Utxo[]> {
+}): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
   let decryptedUtxos: Utxo[] = [];
-  // TODO: check performance vs a proper async map and check against fetching nullifiers separately (indexed)
-  // TODO: categorize "pending" utxos sent by others
-  for (let i = 0; i < leavesPdas.length; i++) {
-    const leafPda = leavesPdas[i];
-    let decrypted = [
+  let spentUtxos: Utxo[] = [];
+
+  const tasks = leavesPdas.flatMap((leafPda: any) => {
+    const decrypted = [
       Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
           Array.from(leafPda.account.encryptedUtxos.slice(0, 95)),
         ),
         account,
-        index: leavesPdas[i].account.leftLeafIndex.toNumber(),
+        index: leafPda.account.leftLeafIndex.toNumber(),
       }),
       Utxo.decrypt({
         poseidon: poseidon,
@@ -112,43 +84,22 @@ export async function getUnspentUtxos({
           Array.from(leafPda.account.encryptedUtxos.slice(95)),
         ),
         account,
-        index: leavesPdas[i].account.leftLeafIndex.toNumber() + 1,
+        index: leafPda.account.leftLeafIndex.toNumber() + 1,
       }),
     ];
 
-    for (let decryptedUtxo of decrypted) {
-      if (!decryptedUtxo) continue;
+    return decrypted.map((decryptedUtxo) =>
+      processDecryptedUtxos({
+        decryptedUtxo: decryptedUtxo!,
+        poseidon,
+        connection: provider.connection,
+        decryptedUtxos,
+        spentUtxos,
+      }),
+    );
+  });
 
-      let nullifier = decryptedUtxo.getNullifier(poseidon);
-      if (!nullifier) continue;
+  await Promise.all(tasks);
 
-      let nullifierPubkey = PublicKey.findProgramAddressSync(
-        [
-          Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
-          anchor.utils.bytes.utf8.encode("nf"),
-        ],
-        merkleTreeProgramId, // Merkle...
-      )[0];
-      let accountInfo = await provider.connection.getAccountInfo(
-        nullifierPubkey,
-        "confirmed",
-      );
-      // console.log(
-      //   "inserted -- spent?",
-      //   accountInfo ? "yes" : "no ",
-      //   nullifierPubkey.toBase58(),
-      //   "amount:",
-      //   decryptedUtxo.amounts[0].toNumber(),
-      // );
-      if (
-        !accountInfo &&
-        (decryptedUtxo.amounts[1].toString() !== "0" ||
-          decryptedUtxo.amounts[0].toString() !== "0")
-      ) {
-        decryptedUtxos.push(decryptedUtxo);
-      }
-    }
-  }
-
-  return decryptedUtxos;
+  return { decryptedUtxos, spentUtxos };
 }
