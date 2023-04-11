@@ -4,3 +4,4 @@ lookUpTable.txt
 lib
 .env
 /.env
+.DS_Store

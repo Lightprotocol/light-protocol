@@ -13,7 +13,7 @@ import {
   UserErrorCode,
   CachedUserState,
   Provider,
-  getUnspentUtxos,
+  getAccountUtxos,
   SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
@@ -26,6 +26,7 @@ import {
   Transaction,
   TransactionParameters,
   Action,
+  getUpdatedSpentUtxos,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -53,14 +54,17 @@ export class User {
   provider: Provider;
   account?: Account;
   utxos?: Utxo[];
+  spentUtxos?: Utxo[];
   private seed?: string;
   constructor({
     provider,
     utxos = [],
+    spentUtxos = [],
     account = undefined,
   }: {
     provider: Provider;
     utxos?: Utxo[];
+    spentUtxos?: Utxo[];
     account?: Account;
   }) {
     if (!provider.wallet)
@@ -79,7 +83,33 @@ export class User {
 
     this.provider = provider;
     this.utxos = utxos;
+    this.spentUtxos = spentUtxos;
     this.account = account;
+  }
+
+  async getUtxos(): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
+    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
+      MERKLE_TREE_KEY,
+      this.provider.provider,
+    );
+
+    //TODO: add: "pending" to balances
+    //TODO: add init by cached (subset of leavesPdas)
+    const params = {
+      leavesPdas,
+      provider: this.provider.provider!,
+      account: this.account!,
+      poseidon: this.provider.poseidon,
+      merkleTreeProgram: merkleTreeProgramId,
+      merkleTree: this.provider.solMerkleTree!.merkleTree!,
+    };
+    const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
+
+    this.utxos = decryptedUtxos;
+    this.spentUtxos = spentUtxos;
+    console.log("✔️ updated utxos", this.utxos.length);
+    console.log("✔️ spent updated utxos", this.spentUtxos.length);
+    return { decryptedUtxos, spentUtxos };
   }
 
   async getBalance({
@@ -124,25 +154,7 @@ export class User {
       );
 
     if (latest) {
-      let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-        MERKLE_TREE_KEY,
-        this.provider.provider,
-      );
-
-      //TODO: add: "pending" to balances
-      //TODO: add init by cached (subset of leavesPdas)
-      const params = {
-        leavesPdas,
-        merkleTree: this.provider.solMerkleTree.merkleTree!,
-        provider: this.provider.provider!,
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        merkleTreeProgram: merkleTreeProgramId,
-      };
-      const utxos = await getUnspentUtxos(params);
-
-      this.utxos = utxos;
-      console.log("✔️ updated utxos", this.utxos.length);
+      await this.getUtxos();
     } else {
       console.log("✔️ read utxos from cache", this.utxos.length);
     }
@@ -352,6 +364,12 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
+
     return { txHash, response };
   }
 
@@ -475,6 +493,12 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
+
     return { txHash, response };
   }
 
@@ -565,6 +589,12 @@ export class User {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
+
+    this.spentUtxos = getUpdatedSpentUtxos(
+      txParams.inputUtxos,
+      this.spentUtxos,
+    );
+
     return { txHash, response };
   }
 
@@ -629,22 +659,7 @@ export class User {
     }
 
     // TODO: optimize: fetch once, then filter
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-      MERKLE_TREE_KEY,
-      // @ts-ignore
-      this.provider.provider,
-    );
-
-    const params = {
-      leavesPdas,
-      provider: this.provider.provider!,
-      account: this.account,
-      poseidon: this.provider.poseidon,
-      merkleTreeProgram: merkleTreeProgramId,
-      merkleTree: this.provider.solMerkleTree!.merkleTree!,
-    };
-    const utxos = await getUnspentUtxos(params);
-    this.utxos = utxos;
+    await this.getUtxos();
   }
 
   // TODO: we need a non-anchor version of "provider" - (bundle functionality exposed by the wallet adapter into own provider-like class)

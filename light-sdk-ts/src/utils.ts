@@ -1,10 +1,16 @@
 import { BN } from "@coral-xyz/anchor";
-import { confirmConfig, merkleTreeProgram, MERKLE_TREE_KEY } from "./constants";
+import {
+  confirmConfig,
+  merkleTreeProgram,
+  merkleTreeProgramId,
+  MERKLE_TREE_KEY,
+} from "./constants";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
+import { Utxo } from "utxo";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
@@ -69,6 +75,38 @@ export const convertAndComputeDecimals = (
   decimals: BN,
 ) => {
   return new BN(amount.toString()).mul(decimals);
+};
+
+export const getUpdatedSpentUtxos = (
+  inputUtxos: Utxo[],
+  spentUtxos: Utxo[] = [],
+) => {
+  const updatedSpentUtxos: Utxo[] = [...spentUtxos];
+
+  inputUtxos.forEach((utxo) => {
+    const amountsValid =
+      utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
+
+    if (amountsValid) {
+      updatedSpentUtxos?.push(utxo);
+    }
+  });
+
+  return updatedSpentUtxos;
+};
+
+export const fetchNullifierAccountInfo = async (
+  nullifier: string,
+  connection: Connection,
+) => {
+  const nullifierPubkey = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
+      anchor.utils.bytes.utf8.encode("nf"),
+    ],
+    merkleTreeProgramId,
+  )[0];
+  return connection.getAccountInfo(nullifierPubkey, "confirmed");
 };
 
 // export var logger = (function () {
