@@ -36,6 +36,7 @@ import {
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
   TestRelayer,
+  fetchNullifierAccountInfo
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -161,6 +162,12 @@ describe("Test User", () => {
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
     assert.equal(user.spentUtxos.length, 0);
+
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
+    );
+    
   });
 
   it("(user class) shield SOL", async () => {
@@ -229,16 +236,15 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === previousUtxos[0]._commitment,
     );
 
-    let shiftedToSpent = user.spentUtxos.findIndex(
-      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
     );
-
     assert.equal(user.spentUtxos.length, 1);
     assert.equal(user.spentUtxos[0].amounts[0].toNumber(), 150000);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
-    assert.notEqual(shiftedToSpent, -1);
   });
 
   it("(user class) unshield SPL", async () => {
@@ -343,6 +349,11 @@ describe("Test User", () => {
       }`,
     );
 
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
+    );
+
     let commitmentIndex = user.spentUtxos.findIndex(
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
@@ -351,15 +362,10 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === previousUtxos[0]._commitment,
     );
 
-    let shiftedToSpent = user.spentUtxos.findIndex(
-      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
-    );
-
     assert.equal(user.spentUtxos.length, 2);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
-    assert.notEqual(shiftedToSpent, -1);
 
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
   });
@@ -429,6 +435,12 @@ describe("Test User", () => {
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
     );
 
+
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
+    );
+    
     let commitmentIndex = user.spentUtxos.findIndex(
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
@@ -437,15 +449,10 @@ describe("Test User", () => {
       (utxo) => utxo._commitment === previousUtxos[0]._commitment,
     );
 
-    let shiftedToSpent = user.spentUtxos.findIndex(
-      (utxo) => utxo._nullifier === previousUtxos[0]._nullifier,
-    );
-
     assert.equal(user.spentUtxos.length, 3);
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
-    assert.notEqual(shiftedToSpent, -1);
   });
 
   it.skip("(user class) transfer SOL", async () => {

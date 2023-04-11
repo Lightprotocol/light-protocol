@@ -1,23 +1,8 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Connection, PublicKey } from "@solana/web3.js";
-import { MerkleTreeProgram } from "../idls/index";
-import { MerkleTree } from "merkleTree/merkleTree";
-import { QueuedLeavesPda } from "merkleTree/solMerkleTree";
-
-import { merkleTreeProgramId } from "../constants";
+import { Connection } from "@solana/web3.js";
 import { Account } from "../account";
-
-const fetchAccountInfo = async (nullifier: string, connection: Connection) => {
-  const nullifierPubkey = PublicKey.findProgramAddressSync(
-    [
-      Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
-      anchor.utils.bytes.utf8.encode("nf"),
-    ],
-    merkleTreeProgramId,
-  )[0];
-  return connection.getAccountInfo(nullifierPubkey, "confirmed");
-};
+import { fetchNullifierAccountInfo } from "../utils";
 
 const processDecryptedUtxos = async ({
   decryptedUtxo,
@@ -39,7 +24,7 @@ const processDecryptedUtxos = async ({
   if (!decryptedUtxo) return;
   const nullifier = decryptedUtxo.getNullifier(poseidon);
   if (!nullifier) return;
-  const accountInfo = await fetchAccountInfo(nullifier, connection);
+  const accountInfo = await fetchNullifierAccountInfo(nullifier, connection);
   const amountsValid =
     decryptedUtxo.amounts[1].toString() !== "0" ||
     decryptedUtxo.amounts[0].toString() !== "0";
@@ -58,52 +43,6 @@ const processDecryptedUtxos = async ({
     spentUtxos.push(decryptedUtxo);
   }
 };
-
-/**
- * @description Retrieves the unspent UTXO at a specified index for a given account.
- * @param leavesPdas An array of QueuedLeavesPda objects containing the encrypted UTXOs.
- * @param provider An instance of the anchor.Provider to interact with the Solana network.
- * @param account The account for which to retrieve the unspent UTXO.
- * @param poseidon A Poseidon hash function instance.
- * @param merkleTree A MerkleTree instance for validating the UTXO.
- * @param index The index at which to retrieve the unspent UTXO.
- * @returns The unspent UTXO at the specified index if it exists, otherwise throws an error.
- */
-export async function getUnspentUtxo(
-  leavesPdas: { account: QueuedLeavesPda }[],
-  provider: anchor.Provider,
-  account: Account,
-  poseidon: any,
-  merkleTree: MerkleTree,
-  index: number,
-) {
-  let decryptedUtxos: Utxo[] = [];
-
-  const tasks = leavesPdas.map((leafPda) => {
-    const decryptedUtxo = Utxo.decrypt({
-      poseidon: poseidon,
-      encBytes: new Uint8Array(Array.from(leafPda.account.encryptedUtxos)),
-      account: account,
-      index: leafPda.account.leftLeafIndex.toNumber(),
-    });
-
-    return processDecryptedUtxos({
-      decryptedUtxo: decryptedUtxo!,
-      poseidon,
-      connection: provider.connection,
-      merkleTree,
-      checkMerkleTreeIndex: true,
-      decryptedUtxos,
-    });
-  });
-
-  await Promise.all(tasks);
-
-  if (decryptedUtxos.length > index) {
-    return decryptedUtxos[index];
-  }
-  throw "no unspent leaf found";
-}
 
 /**
  *  Fetches the decrypted and spent UTXOs for an account from the provided leavesPDAs.

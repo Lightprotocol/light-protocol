@@ -1,5 +1,10 @@
 import { BN } from "@coral-xyz/anchor";
-import { confirmConfig, merkleTreeProgram, MERKLE_TREE_KEY } from "./constants";
+import {
+  confirmConfig,
+  merkleTreeProgram,
+  merkleTreeProgramId,
+  MERKLE_TREE_KEY,
+} from "./constants";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
@@ -88,6 +93,20 @@ export const getUpdatedSpentUtxos = (
   });
 
   return updatedSpentUtxos;
+};
+
+export const fetchNullifierAccountInfo = async (
+  nullifier: string,
+  connection: Connection,
+) => {
+  const nullifierPubkey = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from(new anchor.BN(nullifier.toString()).toArray()),
+      anchor.utils.bytes.utf8.encode("nf"),
+    ],
+    merkleTreeProgramId,
+  )[0];
+  return connection.getAccountInfo(nullifierPubkey, "confirmed");
 };
 
 // export var logger = (function () {
