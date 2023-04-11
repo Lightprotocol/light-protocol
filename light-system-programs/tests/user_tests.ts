@@ -36,7 +36,7 @@ import {
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
   TestRelayer,
-  fetchNullifierAccountInfo
+  fetchNullifierAccountInfo,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -167,7 +167,6 @@ describe("Test User", () => {
       fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
       null,
     );
-    
   });
 
   it("(user class) shield SOL", async () => {
@@ -435,12 +434,11 @@ describe("Test User", () => {
       `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
     );
 
-
     assert.notEqual(
       fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
       null,
     );
-    
+
     let commitmentIndex = user.spentUtxos.findIndex(
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
     );
