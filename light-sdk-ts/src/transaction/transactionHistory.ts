@@ -8,7 +8,7 @@ import {
   FIELD_SIZE,
   REGISTERED_POOL_PDA_SOL,
 } from "../constants";
-import { sleep } from "../utils";
+// import { sleep } from "../utils";
 import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
 
@@ -48,20 +48,17 @@ async function processTransaction(
     return itemStr === tokenPool.toBase58();
   });
 
-  const amount = tx.meta.postBalances[i] - tx.meta.preBalances[i];
-  let from: PublicKey;
-  let to: PublicKey = accountKeys[2].pubkey;
-  let type: string;
+  let amount: number | BN = tx.meta.postBalances[i] - tx.meta.preBalances[i];
 
   const coder = new BorshCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-  if (amount < 0 && !tx.meta.err) {
-    from = new PublicKey(REGISTERED_POOL_PDA_SOL);
-    type =
-      tx.transaction.message.accountKeys.length <= 16 && i === 10
-        ? "transfer"
-        : "unshield";
+  let from: PublicKey;
+  let to: PublicKey = accountKeys[2].pubkey;
+  let type: string;
+  let amountSpl;
+  let amountSol;
 
+  if (!tx.meta.err) {
     const instructions = tx.transaction.message.instructions;
     for (const instruction of instructions) {
       // @ts-ignore
@@ -72,96 +69,74 @@ async function processTransaction(
       ) as DecodedData | null;
 
       if (data) {
-        const amountSpl =
-          parseInt(
-            new BN(data.data["publicAmountSpl"])
-              .sub(FIELD_SIZE)
-              .mod(FIELD_SIZE)
-              .toString(),
-          ) * -1;
-
-        const amountSol =
-          parseInt(
-            new BN(data.data["publicAmountSol"])
-              .sub(FIELD_SIZE)
-              .mod(FIELD_SIZE)
-              .toString(),
-          ) * -1;
-
-        const relayerFee = data.data["relayerFee"].toString();
+        const relayerFee = data.data["relayerFee"];
         const commitment = new BN(data.data["leaves"][0]).toString();
+        const encryptedUtxos = data.data["encryptedUtxos"];
+        const leaves = data.data["leaves"];
+        const nullifiers = data.data["nullifiers"];
 
-        const toIndex = tx.meta.postBalances.findIndex(
-          (el: any, index: any) => {
-            return (
-              tx.meta!.postBalances[index] - tx.meta!.preBalances[index] ===
-              amount * -1 - parseInt(relayerFee)
-            );
-          },
-        );
+        if (amount < 0) {
+          amountSpl = new BN(data.data["publicAmountSpl"])
+            .sub(FIELD_SIZE)
+            .mod(FIELD_SIZE)
+            .abs();
 
-        if (toIndex > 0) {
-          to = accountKeys[toIndex].pubkey;
+          amountSol = new BN(data.data["publicAmountSol"])
+            .sub(FIELD_SIZE)
+            .mod(FIELD_SIZE)
+            .abs();
+
+          from = new PublicKey(REGISTERED_POOL_PDA_SOL);
+
+          amount = new BN(amount).abs().sub(relayerFee);
+
+          type =
+            tx.transaction.message.accountKeys.length <= 16 &&
+            i === 10 &&
+            amountSpl.toString() === "0" &&
+            amount.toString() === "0"
+              ? "transfer"
+              : "unshield";
+
+          const toIndex = tx.meta.postBalances.findIndex(
+            (el: any, index: any) => {
+              return (
+                tx.meta!.postBalances[index] - tx.meta!.preBalances[index] ===
+                parseInt(amount.toString())
+              );
+            },
+          );
+
+          if (toIndex > 0) {
+            to = accountKeys[toIndex].pubkey;
+          }
+        } else if (amount > 0 && (i === 10 || i === 11)) {
+          amountSpl = new BN(data.data["publicAmountSpl"].slice(24, 32));
+          amountSol = new BN(data.data["publicAmountSol"].slice(24, 32));
+          from = accountKeys[0].pubkey;
+          to = new PublicKey(REGISTERED_POOL_PDA_SOL);
+          type = "shield";
+
+          amount = new BN(amount);
+        } else {
+          continue;
         }
-
         transactions.push({
           blockTime: tx.blockTime! * 1000,
           signer: accountKeys[0].pubkey,
           signature,
           accounts: accountKeys,
           to,
-          from: from.toBase58(),
-          type,
-          amount: amount * -1 - parseInt(relayerFee),
-          amountSol,
-          amountSpl,
-          commitment,
-          encryptedUtxos: data.data["encryptedUtxos"],
-          leaves: data.data["leaves"],
-          nullifiers: data.data["nullifiers"],
-          relayerFee,
-        });
-      }
-    }
-  } else if ((amount > 0 && !tx.meta.err && i === 10) || i === 11) {
-    from = accountKeys[0].pubkey;
-    to = new PublicKey(REGISTERED_POOL_PDA_SOL);
-    type = "shield";
-
-    const instructions = tx.transaction.message.instructions;
-    for (const instruction of instructions) {
-      // @ts-ignore
-      const rawData = instruction.data;
-      const data = coder.instruction.decode(
-        rawData,
-        "base58",
-      ) as DecodedData | null;
-
-      if (data) {
-        const amountSpl = new BN(
-          data.data["publicAmountSpl"].slice(24, 32),
-        ).toString();
-        const amountSol = new BN(
-          data.data["publicAmountSol"].slice(24, 32),
-        ).toString();
-        const commitment = new BN(data.data["leaves"][0]).toString();
-
-        transactions.push({
-          blockTime: tx.blockTime! * 1000,
-          signer: accountKeys[0].pubkey,
-          signature,
-          accounts: accountKeys,
-          to: to.toBase58(),
-          from: from.toBase58(),
+          from: from,
           type,
           amount,
           amountSol,
           amountSpl,
           commitment,
-          encryptedUtxos: data.data["encryptedUtxos"],
-          leaves: data.data["leaves"],
-          nullifiers: data.data["nullifiers"],
-          relayerFee: data.data["relayerFee"].toString(),
+          encryptedUtxos,
+          leaves,
+          nullifiers,
+          relayerFee,
         });
       }
     }
@@ -211,7 +186,7 @@ const getTransactionsBatch = async ({
       }
     } catch (e) {
       console.log("retry");
-      await sleep(2000);
+      //   await sleep(2000);
     }
   }
 
@@ -255,7 +230,7 @@ export const getRecentTransactions = async ({
     });
 
     batchBefore = lastSignature.signature;
-    await sleep(1000);
+    // await sleep(1000);
   }
 
   // Optionally deduplicate transactions

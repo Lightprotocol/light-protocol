@@ -35,7 +35,7 @@ import {
   confirmConfig,
   AUTHORITY_ONE,
   TOKEN_REGISTRY,
-  sleep,
+  // sleep,
 } from "../index";
 import { assert } from "chai";
 import { Program } from "@coral-xyz/anchor";
@@ -64,7 +64,7 @@ export const newAddressWithLamports = async (
   let retries = 30;
   await connection.requestAirdrop(address, lamports);
   for (;;) {
-    await sleep(500);
+    // await sleep(500);
     // eslint-disable-next-line eqeqeq
     if (lamports == (await connection.getBalance(address))) {
       console.log(`Airdropped ${lamports} to ${address.toBase58()}`);

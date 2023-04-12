@@ -274,7 +274,7 @@ describe("Test User", () => {
       MINT,
       ADMIN_AUTH_KEYPAIR: userKeypair,
       userAccount: solRecipient,
-      amount: new anchor.BN(0)
+      amount: new anchor.BN(0),
     });
     try {
       preTokenBalance =
