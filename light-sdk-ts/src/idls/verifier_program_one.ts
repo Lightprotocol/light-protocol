@@ -67,7 +67,9 @@ export type VerifierProgramOne = {
         },
         {
           name: "rootIndex";
-          type: "u64";
+          type: {
+            defined: "usize";
+          };
         },
         {
           name: "relayerFee";
@@ -273,7 +275,9 @@ export const IDL: VerifierProgramOne = {
         },
         {
           name: "rootIndex",
-          type: "u64",
+          type: {
+            defined: "usize",
+          },
         },
         {
           name: "relayerFee",

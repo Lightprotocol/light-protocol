@@ -30,7 +30,7 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     proof_c: &'a [u8; 64],
     connecting_hash: &[u8; 32],
 ) -> Result<()> {
-    let verifier_state = VerifierState10Ins::<TransactionConfig>::deserialize(
+    let verifier_state = VerifierState10Ins::<TransactionConfig, 1>::deserialize(
         &mut &*ctx.accounts.verifier_state.to_account_info().data.take(),
     )?;
 
@@ -84,7 +84,7 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         verifier_state.relayer_fee,
         verifier_state.merkle_root_index.try_into().unwrap(),
         &pool_type, //verifier_state.pool_type,
-        Some(&accounts),
+        &accounts,
         &VERIFYINGKEY,
     );
 

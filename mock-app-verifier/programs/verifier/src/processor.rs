@@ -4,10 +4,7 @@ use crate::LightInstructionSecond;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
-use light_verifier_sdk::{
-    light_app_transaction::AppTransaction,
-    light_transaction::{Config, Transaction},
-};
+use light_verifier_sdk::{light_app_transaction::AppTransaction, light_transaction::Config};
 
 #[derive(Clone)]
 pub struct TransactionsConfig;
@@ -33,28 +30,24 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     public_amount_sol: &'a [u8; 32],
     checked_public_inputs: &'a Vec<Vec<u8>>,
     encrypted_utxos: &'a Vec<u8>,
-    pool_type: &'a [u8; 32],
-    root_index: &'a u64,
+    _pool_type: &'a [u8; 32],
+    merkle_root_index: &'a usize,
     relayer_fee: &'a u64,
 ) -> Result<()> {
-    let tx = Transaction::<2, 4, TransactionsConfig>::new(
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
-        checked_public_inputs,
-        nullifiers,
+    ctx.accounts.verifier_state.init(
+        *ctx.accounts.signing_address.key,
+        nullifiers.to_vec(),
         leaves,
-        encrypted_utxos,
-        *relayer_fee,
-        (*root_index).try_into().unwrap(),
-        pool_type, //pool_type
-        None,
-        &VERIFYINGKEY,
+        public_amount_spl.to_owned(),
+        public_amount_sol.to_owned(),
+        relayer_fee.to_owned(),
+        encrypted_utxos.to_owned(),
+        merkle_root_index.to_owned(),
+        checked_public_inputs.to_owned(),
+        proof_a.to_owned(),
+        proof_b.to_owned(),
+        proof_c.to_owned(),
     );
-    ctx.accounts.verifier_state.set_inner(tx.into());
-    ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
 }
 

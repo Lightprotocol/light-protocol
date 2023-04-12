@@ -30,29 +30,24 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
     leaves: &'a [[[u8; 32]; 2]; 1],
     public_amount_sol: &'a [u8; 32],
     encrypted_utxos: &'a Vec<u8>,
-    root_index: &'a u64,
+    merkle_root_index: &'a usize,
     relayer_fee: &'a u64,
 ) -> Result<()> {
     let checked_public_inputs = Vec::<Vec<u8>>::new();
-    let pool_type = [0u8; 32];
-    let tx = Transaction::<1, 10, TransactionConfig>::new(
-        proof_a,
-        proof_b,
-        proof_c,
-        public_amount_spl,
-        public_amount_sol,
-        &checked_public_inputs, // checked_public_inputs
-        nullifiers,
+    ctx.accounts.verifier_state.init(
+        *ctx.accounts.signing_address.key,
+        nullifiers.to_vec(),
         leaves,
-        &encrypted_utxos,
-        *relayer_fee,
-        (*root_index).try_into().unwrap(),
-        &pool_type, //pool_type
-        None,
-        &VERIFYINGKEY,
+        public_amount_spl.to_owned(),
+        public_amount_sol.to_owned(),
+        relayer_fee.to_owned(),
+        encrypted_utxos.to_owned(),
+        merkle_root_index.to_owned(),
+        checked_public_inputs,
+        proof_a.to_owned(),
+        proof_b.to_owned(),
+        proof_c.to_owned(),
     );
-    ctx.accounts.verifier_state.set_inner(tx.into());
-    ctx.accounts.verifier_state.signer = *ctx.accounts.signing_address.key;
     Ok(())
 }
 
@@ -111,7 +106,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
             .try_into()
             .unwrap(),
         &pool_type,
-        Some(&accounts),
+        &accounts,
         &VERIFYINGKEY,
     );
     tx.transact()

@@ -65,7 +65,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         relayer_fee,
         merkle_tree_index.try_into().unwrap(),
         pool_type,
-        Some(&accounts),
+        &accounts,
         &VERIFYINGKEY,
     );
 
