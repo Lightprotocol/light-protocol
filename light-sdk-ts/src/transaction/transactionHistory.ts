@@ -1,5 +1,6 @@
 import {
   Connection,
+  ParsedMessageAccount,
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
@@ -8,39 +9,27 @@ import {
   FIELD_SIZE,
   REGISTERED_POOL_PDA_SOL,
 } from "../constants";
+
+import { Action } from "./transaction";
+
 // import { sleep } from "../utils";
 import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
+import { DecodedData, historyTransaction } from "../types";
 
 // TODO: to and from in the all transaction
-// TODO: Manage functions to fetch all transactions
-// TODO: refactor
-// TODO: file structure and put inside the testRelayer
 // TODO: test-cases for transaction
-
-interface Data {
-  publicAmountSpl: Uint8Array;
-  publicAmountSol: Uint8Array;
-  leaves: BN[];
-  encryptedUtxos: any[];
-  nullifiers: any[];
-  relayerFee: BN;
-}
-
-interface DecodedData {
-  data: Data;
-}
 
 async function processTransaction(
   tx: ParsedTransactionWithMeta,
-  transactions: any[],
-): Promise<void> {
+  transactions: historyTransaction[],
+) {
   if (!tx || !tx.meta || tx.meta.err) return;
 
   const signature = tx.transaction.signatures[0];
   const tokenPool = new PublicKey(REGISTERED_POOL_PDA_SOL);
   const accountKeys = tx.transaction.message.accountKeys;
-  const i = accountKeys.findIndex((item: any) => {
+  const i = accountKeys.findIndex((item: ParsedMessageAccount) => {
     const itemStr =
       typeof item === "string" || item instanceof String
         ? item
@@ -54,7 +43,7 @@ async function processTransaction(
 
   let from: PublicKey;
   let to: PublicKey = accountKeys[2].pubkey;
-  let type: string;
+  let type: Action;
   let amountSpl;
   let amountSol;
 
@@ -95,8 +84,8 @@ async function processTransaction(
             i === 10 &&
             amountSpl.toString() === "0" &&
             amount.toString() === "0"
-              ? "transfer"
-              : "unshield";
+              ? Action.TRANSFER
+              : Action.UNSHIELD;
 
           const toIndex = tx.meta.postBalances.findIndex(
             (el: any, index: any) => {
@@ -115,7 +104,7 @@ async function processTransaction(
           amountSol = new BN(data.data["publicAmountSol"].slice(24, 32));
           from = accountKeys[0].pubkey;
           to = new PublicKey(REGISTERED_POOL_PDA_SOL);
-          type = "shield";
+          type = Action.SHIELD;
 
           amount = new BN(amount);
         } else {
@@ -138,6 +127,7 @@ async function processTransaction(
           nullifiers,
           relayerFee,
         });
+        break;
       }
     }
   }
@@ -212,7 +202,7 @@ export const getRecentTransactions = async ({
 }) => {
   const batchSize = 1000;
   const rounds = Math.ceil(limit / batchSize);
-  const transactions: any[] = [];
+  const transactions: historyTransaction[] = [];
 
   let batchBefore = before;
 
@@ -228,6 +218,10 @@ export const getRecentTransactions = async ({
       },
       transactions,
     });
+
+    if (!lastSignature) {
+      break;
+    }
 
     batchBefore = lastSignature.signature;
     // await sleep(1000);
