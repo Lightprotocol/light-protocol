@@ -12,7 +12,7 @@ import {
 
 import { Action } from "./transaction";
 
-// import { sleep } from "../utils";
+import { sleep } from "../utils";
 import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
 import { DecodedData, historyTransaction } from "../types";
@@ -176,7 +176,7 @@ const getTransactionsBatch = async ({
       }
     } catch (e) {
       console.log("retry");
-      //   await sleep(2000);
+      await sleep(2000);
     }
   }
 
@@ -224,7 +224,7 @@ export const getRecentTransactions = async ({
     }
 
     batchBefore = lastSignature.signature;
-    // await sleep(1000);
+    await sleep(500);
   }
 
   // Optionally deduplicate transactions
