@@ -1,7 +1,12 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
-import { RelayerError, RelayerErrorCode, Provider } from "./index";
+import {
+  RelayerError,
+  RelayerErrorCode,
+  Provider,
+  historyTransaction,
+} from "./index";
 
 export class Relayer {
   accounts: {
@@ -96,5 +101,11 @@ export class Relayer {
 
   getRelayerFee(ataCreationFee?: boolean) {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;
+  }
+
+  async getTransactionHistory(
+    connection: Connection,
+  ): Promise<historyTransaction[]> {
+    return [] as historyTransaction[];
   }
 }

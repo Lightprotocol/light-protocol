@@ -20,6 +20,15 @@ import { DecodedData, historyTransaction } from "../types";
 // TODO: to and from in the all transaction
 // TODO: test-cases for transaction
 
+/**
+ * @async
+ * @function processTransaction
+ * @param {ParsedTransactionWithMeta} tx - The transaction object to process.
+ * @param {historyTransaction[]} transactions - An array to which the processed transaction data will be pushed.
+ * @returns {Promise<void>}
+ * This functions takes the transactionMeta and extracts relevant data from it,
+ * including the signature, instruction parsed data, account keys, and transaction type.
+ */
 async function processTransaction(
   tx: ParsedTransactionWithMeta,
   transactions: historyTransaction[],
@@ -139,6 +148,16 @@ type BatchOptions = {
   until: any;
 };
 
+/**
+ * Fetches transactions for the specified merkleTreeProgramId in batches.
+ * This function will handle retries and sleep to prevent rate-limiting issues.
+ *
+ * @param {Connection} connection - The Connection object to interact with the Solana network.
+ * @param {PublicKey} merkleTreeProgramId - The PublicKey of the Merkle tree program.
+ * @param {BatchOptions} batchOptions - The options to use when fetching transaction batches.
+ * @param {any[]} transactions - The array where the fetched transactions will be stored.
+ * @returns {Promise<string>} - The signature of the last fetched transaction.
+ */
 const getTransactionsBatch = async ({
   connection,
   merkleTreeProgramId,
@@ -187,6 +206,18 @@ const getTransactionsBatch = async ({
   return lastSignature;
 };
 
+/**
+ * Fetches recent transactions for the specified merkleTreeProgramId.
+ * This function will call getTransactionsBatch multiple times to fetch transactions in batches.
+ *
+ * @param {Connection} connection - The Connection object to interact with the Solana network.
+ * @param {number} limit - The maximum number of transactions to fetch.
+ * @param {boolean} dedupe=false - Whether to deduplicate transactions or not.
+ * @param {any} after=null - Fetch transactions after this value (optional).
+ * @param {any} before=null - fetch transactions before this value (optional )
+ * @returns {Promise<historyTransaction[]>} Array of historyTransactions
+ */
+
 export const getRecentTransactions = async ({
   connection,
   limit = 1,
@@ -199,7 +230,7 @@ export const getRecentTransactions = async ({
   dedupe?: boolean;
   after?: any;
   before?: any;
-}) => {
+}): Promise<historyTransaction[]> => {
   const batchSize = 1000;
   const rounds = Math.ceil(limit / batchSize);
   const transactions: historyTransaction[] = [];
@@ -226,9 +257,5 @@ export const getRecentTransactions = async ({
     batchBefore = lastSignature.signature;
     await sleep(500);
   }
-
-  // Optionally deduplicate transactions
-  // ...
-
   return transactions.sort((a, b) => b.blockTime - a.blockTime);
 };

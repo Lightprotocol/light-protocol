@@ -37,6 +37,7 @@ import {
   ADMIN_AUTH_KEY,
   TestRelayer,
   fetchNullifierAccountInfo,
+  Action,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -85,7 +86,7 @@ describe("Test User", () => {
     );
   });
 
-  it("(user class) shield SPL", async () => {
+  it.only("(user class) shield SPL", async () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
@@ -161,15 +162,38 @@ describe("Test User", () => {
       solBalancePre.amount.toNumber() + 150000, //+ 2 * 1e9, this MINIMZM
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
+
     assert.equal(user.spentUtxos.length, 0);
 
     assert.notEqual(
       fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
       null,
     );
+
+    const transactionHistory = await provider.relayer.getTransactionHistory(
+      provider.provider.connection,
+    );
+
+    assert.equal(transactionHistory.length, 1);
+
+    // TODO: make this work
+    const recentTransaction = transactionHistory[0];
+    // assert.equal(recentTransaction.amountSpl.toString(), amount);
+    console.log(
+      "asset one should be spl amount equal to we did",
+      recentTransaction.amountSpl.toString(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
   });
 
-  it("(user class) shield SOL", async () => {
+  it.only("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL";
     const provider = await Provider.init({
@@ -244,9 +268,33 @@ describe("Test User", () => {
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
+
+    const transactionHistory = await provider.relayer.getTransactionHistory(
+      provider.provider.connection,
+    );
+
+    assert.equal(transactionHistory.length, 2);
+
+    // TODO: make this work
+    const recentTransaction = transactionHistory[0];
+    // assert.equal(recentTransaction.amountSpl.toString(), amount);
+    console.log(
+      "asset one should be spl amount equal to we did",
+      recentTransaction.amountSpl.toString(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    // assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
+
+    // TODO: can add the nullifier check here also
   });
 
-  it("(user class) unshield SPL", async () => {
+  it.only("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
@@ -368,6 +416,43 @@ describe("Test User", () => {
     assert.equal(commitmentSpent, -1);
 
     // TODO: add checks for relayer fee recipient (log all balance changes too...)
+
+    const transactionHistory = await provider.relayer.getTransactionHistory(
+      provider.provider.connection,
+    );
+
+    assert.equal(transactionHistory.length, 3);
+
+    console.log(
+      "length of transactionHistory ==========>",
+      transactionHistory.length,
+    );
+
+    // TODO: make this work
+    const recentTransaction = transactionHistory[0];
+
+    console.log(
+      { recentTransaction },
+      recentTransaction.accounts,
+      "========================>",
+      solRecipient.publicKey,
+    );
+
+    // assert.equal(recentTransaction.amountSpl.toString(), amount);
+    console.log(
+      "asset one should be spl amount equal to we did",
+      recentTransaction.amountSpl.toString(),
+      amount,
+    );
+    // assert.equal(
+    //   recentTransaction.from.toBase58(),
+    //   provider.relayer.accounts.relayerPubkey.toBase58(),
+    // );
+
+    console.log(provider.relayer.accounts.relayerPubkey.toBase58());
+    // assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.UNSHIELD);
+    // assert.equal(recentTransaction.relayerFee.toString(), "0");
   });
 
   it("(user class) transfer SPL", async () => {

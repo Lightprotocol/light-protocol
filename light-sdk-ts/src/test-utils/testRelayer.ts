@@ -62,21 +62,26 @@ export class TestRelayer extends Relayer {
 
       this.transactionHistory = olderTransactions;
 
-      return olderTransactions;
+      return this.transactionHistory;
     } else {
       if (this.transactionHistory.length === 0) return [];
       let mostRecentTransaction = this.transactionHistory.reduce((a, b) =>
         // @ts-ignore
         a.blockTime > b.blockTime ? a : b,
       );
+
       let newerTransactions = await getRecentTransactions({
         connection,
-        limit: 30,
+        limit: 500,
         dedupe: false,
         // @ts-ignore
         after: mostRecentTransaction.signature,
       });
-      return [...newerTransactions, ...this.transactionHistory];
+      this.transactionHistory = [
+        ...newerTransactions,
+        ...this.transactionHistory,
+      ];
+      return this.transactionHistory;
     }
   }
 }
