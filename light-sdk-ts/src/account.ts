@@ -28,6 +28,7 @@ export class Account {
     privateKey: Uint8Array;
   };
   eddsa: any;
+  aesSecret: Uint8Array;
 
   /**
    *
@@ -48,6 +49,7 @@ export class Account {
     eddsa,
     encryptionPublicKey,
     encryptionPrivateKey,
+    aesSecret,
   }: {
     poseidon?: any;
     seed?: string;
@@ -58,6 +60,7 @@ export class Account {
     eddsa?: any;
     encryptionPublicKey?: Uint8Array;
     encryptionPrivateKey?: Uint8Array;
+    aesSecret?: Uint8Array;
   }) {
     if (!poseidon) {
       throw new AccountError(
@@ -67,6 +70,7 @@ export class Account {
     }
 
     this.burnerSeed = new Uint8Array();
+    this.aesSecret = new Uint8Array();
     // creates a burner utxo by using the index for domain separation
     if (burner) {
       if (!seed) {
@@ -93,6 +97,7 @@ export class Account {
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
         this.burnerSeed.toString(),
       );
+      this.aesSecret = Account.generateAesSecret(this.burnerSeed.toString());
     } else if (privateKey) {
       if (!encryptionPrivateKey) {
         throw new AccountError(
@@ -100,6 +105,16 @@ export class Account {
           "constructor",
         );
       }
+
+      if (!aesSecret) {
+        throw new AccountError(
+          AccountErrorCode.AES_SECRET_UNDEFINED,
+          "constructor",
+        );
+      }
+
+      this.aesSecret = aesSecret;
+
       this.privkey = privateKey;
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       if (poseidonEddsaPrivateKey) {
@@ -133,6 +148,7 @@ export class Account {
       this.privkey = Account.generateShieldedPrivateKey(seed);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
+      this.aesSecret = Account.generateAesSecret(seed);
     }
     this.eddsa = eddsa;
   }
@@ -256,9 +272,15 @@ export class Account {
     poseidon: any,
     privateKey: Uint8Array,
     encryptionPrivateKey: Uint8Array,
+    aesSecret: Uint8Array,
   ): Account {
     const privkey = new BN(privateKey);
-    return new Account({ poseidon, privateKey: privkey, encryptionPrivateKey });
+    return new Account({
+      poseidon,
+      privateKey: privkey,
+      encryptionPrivateKey,
+      aesSecret,
+    });
   }
 
   static fromPubkey(
@@ -289,6 +311,13 @@ export class Account {
       blake2b.create(b2params).update(privkeySeed).digest(),
     );
     return privateKey;
+  }
+
+  static generateAesSecret(seed: String): Uint8Array {
+    const privkeySeed = seed + "aes";
+    return Uint8Array.from(
+      blake2b.create(b2params).update(privkeySeed).digest(),
+    );
   }
 
   static generateShieldedPublicKey(privateKey: BN, poseidon: any): BN {
