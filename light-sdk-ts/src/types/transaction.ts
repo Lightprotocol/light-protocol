@@ -39,6 +39,7 @@ export type historyTransaction = {
   accounts: ParsedMessageAccount[];
   to: PublicKey;
   from: PublicKey;
+  relayerRecipientSol: PublicKey;
   type: Action;
   amount: BN;
   amountSol: BN;

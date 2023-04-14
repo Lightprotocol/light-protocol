@@ -86,7 +86,7 @@ describe("Test User", () => {
     );
   });
 
-  it.only("(user class) shield SPL", async () => {
+  it("(user class) shield SPL", async () => {
     let amount = 20;
     let token = "USDC";
     console.log("test user wallet: ", userKeypair.publicKey.toBase58());
@@ -174,14 +174,10 @@ describe("Test User", () => {
       provider.provider.connection,
     );
 
-    assert.equal(transactionHistory.length, 1);
-
-    // TODO: make this work
     const recentTransaction = transactionHistory[0];
-    // assert.equal(recentTransaction.amountSpl.toString(), amount);
-    console.log(
-      "asset one should be spl amount equal to we did",
-      recentTransaction.amountSpl.toString(),
+    assert.equal(transactionHistory.length, 1);
+    assert.equal(
+      recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
       amount,
     );
     assert.equal(
@@ -191,9 +187,13 @@ describe("Test User", () => {
     assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
     assert.equal(recentTransaction.type, Action.SHIELD);
     assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
+    );
   });
 
-  it.only("(user class) shield SOL", async () => {
+  it("(user class) shield SOL", async () => {
     let amount = 15;
     let token = "SOL";
     const provider = await Provider.init({
@@ -272,29 +272,26 @@ describe("Test User", () => {
     const transactionHistory = await provider.relayer.getTransactionHistory(
       provider.provider.connection,
     );
-
-    assert.equal(transactionHistory.length, 2);
-
-    // TODO: make this work
     const recentTransaction = transactionHistory[0];
-    // assert.equal(recentTransaction.amountSpl.toString(), amount);
-    console.log(
-      "asset one should be spl amount equal to we did",
-      recentTransaction.amountSpl.toString(),
+    assert.equal(transactionHistory.length, 2);
+    assert.equal(
+      recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
       amount,
     );
     assert.equal(
       recentTransaction.from.toBase58(),
       provider.wallet.publicKey.toBase58(),
     );
-    // assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
     assert.equal(recentTransaction.type, Action.SHIELD);
     assert.equal(recentTransaction.relayerFee.toString(), "0");
-
-    // TODO: can add the nullifier check here also
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
+    );
   });
 
-  it.only("(user class) unshield SPL", async () => {
+  it("(user class) unshield SPL", async () => {
     let amount = 1;
     let token = "USDC";
     let solRecipient = SolanaKeypair.generate();
@@ -415,44 +412,26 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    // TODO: add checks for relayer fee recipient (log all balance changes too...)
-
     const transactionHistory = await provider.relayer.getTransactionHistory(
       provider.provider.connection,
     );
 
-    assert.equal(transactionHistory.length, 3);
-
-    console.log(
-      "length of transactionHistory ==========>",
-      transactionHistory.length,
-    );
-
-    // TODO: make this work
     const recentTransaction = transactionHistory[0];
-
-    console.log(
-      { recentTransaction },
-      recentTransaction.accounts,
-      "========================>",
-      solRecipient.publicKey,
-    );
-
-    // assert.equal(recentTransaction.amountSpl.toString(), amount);
-    console.log(
-      "asset one should be spl amount equal to we did",
-      recentTransaction.amountSpl.toString(),
+    assert.equal(transactionHistory.length, 3);
+    assert.equal(
+      recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
       amount,
     );
-    // assert.equal(
-    //   recentTransaction.from.toBase58(),
-    //   provider.relayer.accounts.relayerPubkey.toBase58(),
-    // );
-
-    console.log(provider.relayer.accounts.relayerPubkey.toBase58());
-    // assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(
+      recentTransaction.to.toBase58(),
+      recipientSplBalance.toBase58(),
+    );
     assert.equal(recentTransaction.type, Action.UNSHIELD);
-    // assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(recentTransaction.relayerFee.toString(), "500000");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      provider.relayer.accounts.relayerRecipientSol.toBase58(),
+    );
   });
 
   it("(user class) transfer SPL", async () => {
@@ -513,7 +492,6 @@ describe("Test User", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
-    const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount.toNumber(),
       solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
@@ -537,6 +515,25 @@ describe("Test User", () => {
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
+
+    const transactionHistory = await provider.relayer.getTransactionHistory(
+      provider.provider.connection,
+    );
+    const recentTransaction = transactionHistory[0];
+    assert.equal(transactionHistory.length, 4);
+    assert.equal(recentTransaction.to.toBase58(), PublicKey.default.toBase58());
+    assert.equal(recentTransaction.amountSol.toNumber(), 0);
+    assert.equal(recentTransaction.amountSpl.toNumber(), 0);
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      PublicKey.default.toBase58(),
+    );
+    assert.equal(recentTransaction.type, Action.TRANSFER);
+    assert.equal(recentTransaction.relayerFee.toString(), "100000");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      provider.relayer.accounts.relayerRecipientSol.toBase58(),
+    );
   });
 
   it.skip("(user class) transfer SOL", async () => {

@@ -1,4 +1,5 @@
 import {
+  ConfirmedSignaturesForAddress2Options,
   Connection,
   ParsedMessageAccount,
   ParsedTransactionWithMeta,
@@ -17,9 +18,6 @@ import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
 import { DecodedData, historyTransaction } from "../types";
 
-// TODO: to and from in the all transaction
-// TODO: test-cases for transaction
-
 /**
  * @async
  * @function processTransaction
@@ -33,25 +31,37 @@ async function processTransaction(
   tx: ParsedTransactionWithMeta,
   transactions: historyTransaction[],
 ) {
+  // check if transaction contains the meta data or not , else return without processing transaction
   if (!tx || !tx.meta || tx.meta.err) return;
 
   const signature = tx.transaction.signatures[0];
-  const tokenPool = new PublicKey(REGISTERED_POOL_PDA_SOL);
+
+  const solTokenPool = REGISTERED_POOL_PDA_SOL;
+
   const accountKeys = tx.transaction.message.accountKeys;
-  const i = accountKeys.findIndex((item: ParsedMessageAccount) => {
-    const itemStr =
-      typeof item === "string" || item instanceof String
-        ? item
-        : item.pubkey.toBase58();
-    return itemStr === tokenPool.toBase58();
-  });
 
-  let amount: number | BN = tx.meta.postBalances[i] - tx.meta.preBalances[i];
+  // gets the index of REGISTERED_POOL_PDA_SOL in the accountKeys array
+  const solTokenPoolIndex = accountKeys.findIndex(
+    (item: ParsedMessageAccount) => {
+      const itemStr =
+        typeof item === "string" || item instanceof String
+          ? item
+          : item.pubkey.toBase58();
+      return itemStr === solTokenPool.toBase58();
+    },
+  );
 
+  let amount = new BN(
+    tx.meta.postBalances[solTokenPoolIndex] -
+      tx.meta.preBalances[solTokenPoolIndex],
+  );
+
+  // coder for decoding the incoming instructions of transaction
   const coder = new BorshCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-  let from: PublicKey;
-  let to: PublicKey = accountKeys[2].pubkey;
+  let from = PublicKey.default;
+  let to = PublicKey.default;
+  let relayerRecipientSol = PublicKey.default;
   let type: Action;
   let amountSpl;
   let amountSol;
@@ -66,6 +76,7 @@ async function processTransaction(
         "base58",
       ) as DecodedData | null;
 
+      // check if the decodedData from the transaction instruction is not null
       if (data) {
         const relayerFee = data.data["relayerFee"];
         const commitment = new BN(data.data["leaves"][0]).toString();
@@ -73,49 +84,54 @@ async function processTransaction(
         const leaves = data.data["leaves"];
         const nullifiers = data.data["nullifiers"];
 
-        if (amount < 0) {
-          amountSpl = new BN(data.data["publicAmountSpl"])
+        amountSpl = new BN(data.data["publicAmountSpl"]);
+        amountSol = new BN(data.data["publicAmountSol"]);
+        amount = new BN(amount);
+
+        // UNSHIEDL | TRANSFER
+        if (amount.toNumber() < 0) {
+          amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
+
+          amountSol = amountSol
             .sub(FIELD_SIZE)
             .mod(FIELD_SIZE)
-            .abs();
-
-          amountSol = new BN(data.data["publicAmountSol"])
-            .sub(FIELD_SIZE)
-            .mod(FIELD_SIZE)
-            .abs();
-
-          from = new PublicKey(REGISTERED_POOL_PDA_SOL);
+            .abs()
+            .sub(relayerFee);
 
           amount = new BN(amount).abs().sub(relayerFee);
 
           type =
-            tx.transaction.message.accountKeys.length <= 16 &&
-            i === 10 &&
-            amountSpl.toString() === "0" &&
-            amount.toString() === "0"
-              ? Action.TRANSFER
-              : Action.UNSHIELD;
+            amountSpl.toString() === "0" && amountSol.toString() === "0"
+              ? // TRANSFER
+                Action.TRANSFER
+              : // UNSHIELD
+                Action.UNSHIELD;
 
-          const toIndex = tx.meta.postBalances.findIndex(
-            (el: any, index: any) => {
-              return (
-                tx.meta!.postBalances[index] - tx.meta!.preBalances[index] ===
-                parseInt(amount.toString())
-              );
-            },
-          );
+          if (type === Action.UNSHIELD) {
+            to = accountKeys[1].pubkey;
 
-          if (toIndex > 0) {
-            to = accountKeys[toIndex].pubkey;
+            from =
+              amountSpl.toNumber() > 0
+                ? // SPL
+                  accountKeys[10].pubkey
+                : // SOL
+                  accountKeys[9].pubkey;
           }
-        } else if (amount > 0 && (i === 10 || i === 11)) {
-          amountSpl = new BN(data.data["publicAmountSpl"].slice(24, 32));
-          amountSol = new BN(data.data["publicAmountSol"].slice(24, 32));
-          from = accountKeys[0].pubkey;
-          to = new PublicKey(REGISTERED_POOL_PDA_SOL);
-          type = Action.SHIELD;
 
-          amount = new BN(amount);
+          tx.meta.postBalances.forEach((el: any, index: any) => {
+            if (
+              tx.meta!.postBalances[index] - tx.meta!.preBalances[index] ===
+              relayerFee.toNumber()
+            ) {
+              relayerRecipientSol = accountKeys[index].pubkey;
+            }
+          });
+        }
+        // SHIELD
+        else if (amount.toNumber() > 0 || amountSpl.toNumber() > 0) {
+          from = accountKeys[0].pubkey;
+          to = accountKeys[10].pubkey;
+          type = Action.SHIELD;
         } else {
           continue;
         }
@@ -126,6 +142,7 @@ async function processTransaction(
           accounts: accountKeys,
           to,
           from: from,
+          relayerRecipientSol,
           type,
           amount,
           amountSol,
@@ -142,19 +159,19 @@ async function processTransaction(
   }
 }
 
-type BatchOptions = {
-  limit: number;
-  before: any;
-  until: any;
-};
-
 /**
  * Fetches transactions for the specified merkleTreeProgramId in batches.
  * This function will handle retries and sleep to prevent rate-limiting issues.
  *
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {PublicKey} merkleTreeProgramId - The PublicKey of the Merkle tree program.
- * @param {BatchOptions} batchOptions - The options to use when fetching transaction batches.
+ * @param {ConfirmedSignaturesForAddress2Options} batchOptions - The options to use when fetching transaction batches.
+ *       {
+ *     @param before -  Start searching backwards from this transaction signature.
+ *     @param until - Search until this transaction signature is reached, if found before `limit`.
+ *     @param limit - Maximum transaction signatures to return
+ *
+ * }
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
@@ -166,7 +183,7 @@ const getTransactionsBatch = async ({
 }: {
   connection: Connection;
   merkleTreeProgramId: PublicKey;
-  batchOptions: BatchOptions;
+  batchOptions: ConfirmedSignaturesForAddress2Options;
   transactions: any;
 }) => {
   const signatures = await connection.getConfirmedSignaturesForAddress2(
@@ -213,8 +230,8 @@ const getTransactionsBatch = async ({
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {number} limit - The maximum number of transactions to fetch.
  * @param {boolean} dedupe=false - Whether to deduplicate transactions or not.
- * @param {any} after=null - Fetch transactions after this value (optional).
- * @param {any} before=null - fetch transactions before this value (optional )
+ * @param {string} after=undefined - Fetch transactions after this value (optional).
+ * @param {string} before=undefined - fetch transactions before this value (optional )
  * @returns {Promise<historyTransaction[]>} Array of historyTransactions
  */
 
@@ -222,14 +239,14 @@ export const getRecentTransactions = async ({
   connection,
   limit = 1,
   dedupe = false,
-  after = null,
-  before = null,
+  after = undefined,
+  before = undefined,
 }: {
   connection: Connection;
   limit: number;
   dedupe?: boolean;
-  after?: any;
-  before?: any;
+  after?: string;
+  before?: string;
 }): Promise<historyTransaction[]> => {
   const batchSize = 1000;
   const rounds = Math.ceil(limit / batchSize);
