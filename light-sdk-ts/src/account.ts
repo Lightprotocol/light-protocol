@@ -161,13 +161,7 @@ export class Account {
         "poseidonEddsaKeypair.privateKey undefined",
       );
     }
-    if (!this.poseidonEddsaKeypair.privateKey) {
-      throw new AccountError(
-        AccountErrorCode.POSEIDON_EDDSA_KEYPAIR_UNDEFINED,
-        "getEddsaPublicKey",
-        "poseidonEddsaKeypair.privateKey undefined",
-      );
-    }
+
     if (!this.eddsa) {
       if (eddsa) {
         this.eddsa = eddsa;
@@ -177,7 +171,7 @@ export class Account {
     }
 
     this.poseidonEddsaKeypair.publicKey = this.eddsa.prv2pub(
-      this.poseidonEddsaKeypair.privateKey,
+      this.poseidonEddsaKeypair?.privateKey,
     );
     if (!this.poseidonEddsaKeypair.publicKey) {
       throw new AccountError(
