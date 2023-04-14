@@ -109,6 +109,7 @@ describe("Test Account Functional", () => {
     assert.equal(k0.privkey.toString(), k1.privkey.toString());
     assert.equal(k0.pubkey.toString(), k1.pubkey.toString());
     assert.equal(k0.burnerSeed.toString(), k1.burnerSeed.toString());
+    assert.equal(k0.aesSecret.toString(), k1.aesSecret.toString());
     if (!fromPrivkey) {
       assert.equal(
         k0.encryptionKeypair.publicKey.toString(),
@@ -228,6 +229,7 @@ describe("Test Account Functional", () => {
       poseidon,
       k0.privkey.toBuffer("be", 32),
       k0.encryptionKeypair.secretKey,
+      k0.aesSecret,
     );
     compareKeypairsEqual(k0Privkey, k0, true);
   });
@@ -296,6 +298,22 @@ describe("Test Account Errors", () => {
       .to.throw(AccountError)
       .includes({
         code: AccountErrorCode.ENCRYPTION_PRIVATE_KEY_UNDEFINED,
+        functionName: "constructor",
+      });
+  });
+
+  it("AES_SECRET_UNDEFINED", () => {
+    expect(() => {
+      // @ts-ignore
+      Account.fromPrivkey(
+        poseidon,
+        k0.privkey.toBuffer("be", 32),
+        k0.encryptionKeypair.secretKey,
+      );
+    })
+      .to.throw(AccountError)
+      .includes({
+        code: AccountErrorCode.AES_SECRET_UNDEFINED,
         functionName: "constructor",
       });
   });
