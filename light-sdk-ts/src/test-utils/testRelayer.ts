@@ -7,9 +7,9 @@ import {
   getRecentTransactions,
   sendVersionedTransaction,
 } from "../transaction";
-import { historyTransaction } from "types";
+import { indexedTransaction } from "types";
 export class TestRelayer extends Relayer {
-  transactionHistory: historyTransaction[] = [];
+  transactionHistory: indexedTransaction[] = [];
 
   constructor(
     relayerPubkey: PublicKey,
@@ -50,13 +50,15 @@ export class TestRelayer extends Relayer {
     }
   }
 
-  async getTransactionHistory(
+  async getIndexedTransactions(
     connection: Connection,
-  ): Promise<historyTransaction[]> {
+  ): Promise<indexedTransaction[]> {
     if (this.transactionHistory.length === 0) {
       let olderTransactions = await getRecentTransactions({
         connection,
-        limit: 5000,
+        batchOptions: {
+          limit: 5000,
+        },
         dedupe: false,
       });
 
@@ -66,16 +68,16 @@ export class TestRelayer extends Relayer {
     } else {
       if (this.transactionHistory.length === 0) return [];
       let mostRecentTransaction = this.transactionHistory.reduce((a, b) =>
-        // @ts-ignore
         a.blockTime > b.blockTime ? a : b,
       );
 
       let newerTransactions = await getRecentTransactions({
         connection,
-        limit: 500,
+        batchOptions: {
+          limit: 5000,
+          until: mostRecentTransaction.signature,
+        },
         dedupe: false,
-        // @ts-ignore
-        after: mostRecentTransaction.signature,
       });
       this.transactionHistory = [
         ...newerTransactions,

@@ -30,4 +30,3 @@ ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit
 docker rm -f solana-validator
 
 kill $relayer_pid
-

@@ -16,20 +16,20 @@ import { Action } from "./transaction";
 import { sleep } from "../utils";
 import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
-import { DecodedData, historyTransaction } from "../types";
+import { DecodedData, indexedTransaction } from "../types";
 
 /**
  * @async
  * @function processTransaction
  * @param {ParsedTransactionWithMeta} tx - The transaction object to process.
- * @param {historyTransaction[]} transactions - An array to which the processed transaction data will be pushed.
+ * @param {indexedTransaction[]} transactions - An array to which the processed transaction data will be pushed.
  * @returns {Promise<void>}
  * This functions takes the transactionMeta and extracts relevant data from it,
  * including the signature, instruction parsed data, account keys, and transaction type.
  */
 async function processTransaction(
   tx: ParsedTransactionWithMeta,
-  transactions: historyTransaction[],
+  transactions: indexedTransaction[],
 ) {
   // check if transaction contains the meta data or not , else return without processing transaction
   if (!tx || !tx.meta || tx.meta.err) return;
@@ -89,7 +89,7 @@ async function processTransaction(
         amount = new BN(amount);
 
         // UNSHIEDL | TRANSFER
-        if (amount.toNumber() < 0) {
+        if (amount.lt(new BN(0))) {
           amountSpl = amountSpl.sub(FIELD_SIZE).mod(FIELD_SIZE).abs();
 
           amountSol = amountSol
@@ -110,25 +110,25 @@ async function processTransaction(
           if (type === Action.UNSHIELD) {
             to = accountKeys[1].pubkey;
 
-            from =
-              amountSpl.toNumber() > 0
-                ? // SPL
-                  accountKeys[10].pubkey
-                : // SOL
-                  accountKeys[9].pubkey;
+            from = amountSpl.gt(new BN(0))
+              ? // SPL
+                accountKeys[10].pubkey
+              : // SOL
+                accountKeys[9].pubkey;
           }
 
           tx.meta.postBalances.forEach((el: any, index: any) => {
             if (
-              tx.meta!.postBalances[index] - tx.meta!.preBalances[index] ===
-              relayerFee.toNumber()
+              new BN(tx.meta!.postBalances[index])
+                .sub(new BN(tx.meta!.preBalances[index]))
+                .eq(relayerFee)
             ) {
               relayerRecipientSol = accountKeys[index].pubkey;
             }
           });
         }
         // SHIELD
-        else if (amount.toNumber() > 0 || amountSpl.toNumber() > 0) {
+        else if (amount.gt(new BN(0)) || amountSpl.gt(new BN(0))) {
           from = accountKeys[0].pubkey;
           to = accountKeys[10].pubkey;
           type = Action.SHIELD;
@@ -165,13 +165,8 @@ async function processTransaction(
  *
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {PublicKey} merkleTreeProgramId - The PublicKey of the Merkle tree program.
- * @param {ConfirmedSignaturesForAddress2Options} batchOptions - The options to use when fetching transaction batches.
- *       {
- *     @param before -  Start searching backwards from this transaction signature.
- *     @param until - Search until this transaction signature is reached, if found before `limit`.
- *     @param limit - Maximum transaction signatures to return
- *
- * }
+ * @param {ConfirmedSignaturesForAddress2Options} batchOptions - Options for fetching transaction batches,
+ * including starting transaction signature (after), ending transaction signature (before), and batch size (limit).
  * @param {any[]} transactions - The array where the fetched transactions will be stored.
  * @returns {Promise<string>} - The signature of the last fetched transaction.
  */
@@ -228,41 +223,41 @@ const getTransactionsBatch = async ({
  * This function will call getTransactionsBatch multiple times to fetch transactions in batches.
  *
  * @param {Connection} connection - The Connection object to interact with the Solana network.
- * @param {number} limit - The maximum number of transactions to fetch.
+ * @param {ConfirmedSignaturesForAddress2Options} batchOptions - Options for fetching transaction batches,
+ * including starting transaction signature (after), ending transaction signature (before), and batch size (limit).
  * @param {boolean} dedupe=false - Whether to deduplicate transactions or not.
- * @param {string} after=undefined - Fetch transactions after this value (optional).
- * @param {string} before=undefined - fetch transactions before this value (optional )
- * @returns {Promise<historyTransaction[]>} Array of historyTransactions
+ * @returns {Promise<indexedTransaction[]>} Array of indexedTransactions
  */
 
 export const getRecentTransactions = async ({
   connection,
-  limit = 1,
+  batchOptions = {
+    limit: 1,
+    before: undefined,
+    until: undefined,
+  },
   dedupe = false,
-  after = undefined,
-  before = undefined,
 }: {
   connection: Connection;
-  limit: number;
+  batchOptions: ConfirmedSignaturesForAddress2Options;
   dedupe?: boolean;
-  after?: string;
-  before?: string;
-}): Promise<historyTransaction[]> => {
+}): Promise<indexedTransaction[]> => {
   const batchSize = 1000;
-  const rounds = Math.ceil(limit / batchSize);
-  const transactions: historyTransaction[] = [];
+  const rounds = Math.ceil(batchOptions.limit! / batchSize);
+  const transactions: indexedTransaction[] = [];
 
-  let batchBefore = before;
+  let batchBefore = batchOptions.before;
 
   for (let i = 0; i < rounds; i++) {
-    const batchLimit = i === rounds - 1 ? limit - i * batchSize : batchSize;
+    const batchLimit =
+      i === rounds - 1 ? batchOptions.limit! - i * batchSize : batchSize;
     const lastSignature = await getTransactionsBatch({
       connection,
       merkleTreeProgramId,
       batchOptions: {
         limit: batchLimit,
         before: batchBefore,
-        until: after,
+        until: batchOptions.until,
       },
       transactions,
     });

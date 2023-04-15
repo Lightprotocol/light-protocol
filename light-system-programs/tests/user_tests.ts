@@ -170,7 +170,7 @@ describe("Test User", () => {
       null,
     );
 
-    const transactionHistory = await provider.relayer.getTransactionHistory(
+    const transactionHistory = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
 
@@ -269,7 +269,7 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getTransactionHistory(
+    const transactionHistory = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
     const recentTransaction = transactionHistory[0];
@@ -412,7 +412,7 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getTransactionHistory(
+    const transactionHistory = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
 
@@ -516,7 +516,7 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getTransactionHistory(
+    const transactionHistory = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
     const recentTransaction = transactionHistory[0];

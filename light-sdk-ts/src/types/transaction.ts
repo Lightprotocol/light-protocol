@@ -32,7 +32,7 @@ export type transactionParameters = {
   }[];
 };
 
-export type historyTransaction = {
+export type indexedTransaction = {
   blockTime: number;
   signer: PublicKey;
   signature: string;

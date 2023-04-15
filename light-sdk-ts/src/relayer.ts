@@ -5,7 +5,7 @@ import {
   RelayerError,
   RelayerErrorCode,
   Provider,
-  historyTransaction,
+  indexedTransaction,
 } from "./index";
 
 export class Relayer {
@@ -103,9 +103,9 @@ export class Relayer {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
 
-  async getTransactionHistory(
+  async getIndexedTransactions(
     connection: Connection,
-  ): Promise<historyTransaction[]> {
-    return [] as historyTransaction[];
+  ): Promise<indexedTransaction[]> {
+    throw new Error("not implemented yet");
   }
 }
