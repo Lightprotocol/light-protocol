@@ -1,7 +1,12 @@
 import { Connection, Keypair, PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 import axios from "axios";
-import { RelayerError, RelayerErrorCode, Provider } from "./index";
+import {
+  RelayerError,
+  RelayerErrorCode,
+  Provider,
+  indexedTransaction,
+} from "./index";
 
 export class Relayer {
   accounts: {
@@ -96,5 +101,11 @@ export class Relayer {
 
   getRelayerFee(ataCreationFee?: boolean) {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;
+  }
+
+  async getIndexedTransactions(
+    connection: Connection,
+  ): Promise<indexedTransaction[]> {
+    throw new Error("not implemented yet");
   }
 }

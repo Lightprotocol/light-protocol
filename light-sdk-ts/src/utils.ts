@@ -109,6 +109,10 @@ export const fetchNullifierAccountInfo = async (
   return connection.getAccountInfo(nullifierPubkey, "confirmed");
 };
 
+export const sleep = (ms: number) => {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+};
+
 // export var logger = (function () {
 //   var oldConsoleLog: any = null;
 //   var pub = {};

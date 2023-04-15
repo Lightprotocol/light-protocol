@@ -37,6 +37,7 @@ import {
   ADMIN_AUTH_KEY,
   TestRelayer,
   fetchNullifierAccountInfo,
+  Action,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -161,11 +162,34 @@ describe("Test User", () => {
       solBalancePre.amount.toNumber() + 150000, //+ 2 * 1e9, this MINIMZM
       `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
     );
+
     assert.equal(user.spentUtxos.length, 0);
 
     assert.notEqual(
       fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
       null,
+    );
+
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 1);
+    assert.equal(
+      recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
     );
   });
 
@@ -244,6 +268,27 @@ describe("Test User", () => {
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
+
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 2);
+    assert.equal(
+      recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
+    );
   });
 
   it("(user class) unshield SPL", async () => {
@@ -260,6 +305,7 @@ describe("Test User", () => {
     );
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+
     const recipientSplBalance = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
       solRecipient.publicKey,
@@ -366,7 +412,26 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    // TODO: add checks for relayer fee recipient (log all balance changes too...)
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 3);
+    assert.equal(
+      recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.to.toBase58(),
+      recipientSplBalance.toBase58(),
+    );
+    assert.equal(recentTransaction.type, Action.UNSHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "500000");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      provider.relayer.accounts.relayerRecipientSol.toBase58(),
+    );
   });
 
   it("(user class) transfer SPL", async () => {
@@ -427,7 +492,6 @@ describe("Test User", () => {
     let solBalancePre = preShieldedBalance.find(
       (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
     );
-    const minimumChangeUtxoAmounts = 50000 * 3;
     assert.equal(
       solBalanceAfter.amount.toNumber(),
       solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
@@ -451,6 +515,25 @@ describe("Test User", () => {
     assert.equal(user.utxos.length, 1);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
+
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 4);
+    assert.equal(recentTransaction.to.toBase58(), PublicKey.default.toBase58());
+    assert.equal(recentTransaction.amountSol.toNumber(), 0);
+    assert.equal(recentTransaction.amountSpl.toNumber(), 0);
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      PublicKey.default.toBase58(),
+    );
+    assert.equal(recentTransaction.type, Action.TRANSFER);
+    assert.equal(recentTransaction.relayerFee.toString(), "100000");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      provider.relayer.accounts.relayerRecipientSol.toBase58(),
+    );
   });
 
   it.skip("(user class) transfer SOL", async () => {
