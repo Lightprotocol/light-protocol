@@ -5,6 +5,7 @@ import {
   ParsedTransactionWithMeta,
   PublicKey,
 } from "@solana/web3.js";
+
 import {
   merkleTreeProgramId,
   FIELD_SIZE,
@@ -16,18 +17,18 @@ import { Action } from "./transaction";
 import { sleep } from "../utils";
 import { IDL_VERIFIER_PROGRAM_ZERO } from "../idls";
 import { BorshCoder, BN } from "@coral-xyz/anchor";
-import { DecodedData, indexedTransaction } from "../types";
+import { IndexedTransactionDecodedData, indexedTransaction } from "../types";
 
 /**
  * @async
- * @function processTransaction
+ * @description This functions takes the transactionMeta and extracts relevant data from it,
+ * including the signature, instruction parsed data, account keys, and transaction type.
+ * @function processIndexTransaction
  * @param {ParsedTransactionWithMeta} tx - The transaction object to process.
  * @param {indexedTransaction[]} transactions - An array to which the processed transaction data will be pushed.
  * @returns {Promise<void>}
- * This functions takes the transactionMeta and extracts relevant data from it,
- * including the signature, instruction parsed data, account keys, and transaction type.
  */
-async function processTransaction(
+async function processIndexTransaction(
   tx: ParsedTransactionWithMeta,
   transactions: indexedTransaction[],
 ) {
@@ -74,7 +75,7 @@ async function processTransaction(
       const data = coder.instruction.decode(
         rawData,
         "base58",
-      ) as DecodedData | null;
+      ) as IndexedTransactionDecodedData | null;
 
       // check if the decodedData from the transaction instruction is not null
       if (data) {
@@ -101,7 +102,7 @@ async function processTransaction(
           amount = new BN(amount).abs().sub(relayerFee);
 
           type =
-            amountSpl.toString() === "0" && amountSol.toString() === "0"
+            amountSpl.eq(new BN(0)) && amountSol.eq(new BN(0))
               ? // TRANSFER
                 Action.TRANSFER
               : // UNSHIELD
@@ -160,9 +161,9 @@ async function processTransaction(
 }
 
 /**
- * Fetches transactions for the specified merkleTreeProgramId in batches.
+ * @description Fetches transactions for the specified merkleTreeProgramId in batches
+ * and process the incoming transaction using the processIndexTransaction.
  * This function will handle retries and sleep to prevent rate-limiting issues.
- *
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {PublicKey} merkleTreeProgramId - The PublicKey of the Merkle tree program.
  * @param {ConfirmedSignaturesForAddress2Options} batchOptions - Options for fetching transaction batches,
@@ -212,16 +213,15 @@ const getTransactionsBatch = async ({
   }
 
   txs.forEach((tx) => {
-    processTransaction(tx!, transactions);
+    processIndexTransaction(tx!, transactions);
   });
 
   return lastSignature;
 };
 
 /**
- * Fetches recent transactions for the specified merkleTreeProgramId.
+ * @description Fetches recent transactions for the specified merkleTreeProgramId.
  * This function will call getTransactionsBatch multiple times to fetch transactions in batches.
- *
  * @param {Connection} connection - The Connection object to interact with the Solana network.
  * @param {ConfirmedSignaturesForAddress2Options} batchOptions - Options for fetching transaction batches,
  * including starting transaction signature (after), ending transaction signature (before), and batch size (limit).
@@ -229,7 +229,7 @@ const getTransactionsBatch = async ({
  * @returns {Promise<indexedTransaction[]>} Array of indexedTransactions
  */
 
-export const getRecentTransactions = async ({
+export const indexRecentTransactions = async ({
   connection,
   batchOptions = {
     limit: 1,

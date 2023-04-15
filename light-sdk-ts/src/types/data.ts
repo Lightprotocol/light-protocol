@@ -1,6 +1,6 @@
-import BN from "bn.js";
+import { BN } from "@coral-xyz/anchor";
 
-export type Data = {
+export type IndexedTransactionData = {
   publicAmountSpl: Uint8Array;
   publicAmountSol: Uint8Array;
   leaves: BN[];
@@ -9,6 +9,6 @@ export type Data = {
   relayerFee: BN;
 };
 
-export type DecodedData = {
-  data: Data;
+export type IndexedTransactionDecodedData = {
+  data: IndexedTransactionData;
 };

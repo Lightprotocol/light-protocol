@@ -170,12 +170,12 @@ describe("Test User", () => {
       null,
     );
 
-    const transactionHistory = await provider.relayer.getIndexedTransactions(
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
 
-    const recentTransaction = transactionHistory[0];
-    assert.equal(transactionHistory.length, 1);
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 1);
     assert.equal(
       recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
       amount,
@@ -269,11 +269,11 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getIndexedTransactions(
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
-    const recentTransaction = transactionHistory[0];
-    assert.equal(transactionHistory.length, 2);
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 2);
     assert.equal(
       recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
       amount,
@@ -412,12 +412,12 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getIndexedTransactions(
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
 
-    const recentTransaction = transactionHistory[0];
-    assert.equal(transactionHistory.length, 3);
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 3);
     assert.equal(
       recentTransaction.amountSpl.div(tokenCtx.decimals).toNumber(),
       amount,
@@ -516,11 +516,11 @@ describe("Test User", () => {
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
 
-    const transactionHistory = await provider.relayer.getIndexedTransactions(
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
-    const recentTransaction = transactionHistory[0];
-    assert.equal(transactionHistory.length, 4);
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 4);
     assert.equal(recentTransaction.to.toBase58(), PublicKey.default.toBase58());
     assert.equal(recentTransaction.amountSol.toNumber(), 0);
     assert.equal(recentTransaction.amountSpl.toNumber(), 0);

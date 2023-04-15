@@ -1,4 +1,4 @@
 export * from "./transaction";
 export * from "./transactionParameters";
 export * from "./sendVersionedTransaction";
-export * from "./transactionHistory";
+export * from "./indexRecentTransactions";
