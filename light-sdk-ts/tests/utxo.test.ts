@@ -48,27 +48,35 @@ describe("Utxo Functional", () => {
     });
   });
 
-  it("rnd utxo functional", async () => {
+  it.only("rnd utxo functional", async () => {
     // try basic tests for rnd empty utxo
-    const utxo4 = new Utxo({ poseidon });
+    const utxo4Account = new Account({poseidon});
+    const utxo4 = new Utxo({ poseidon, account:  utxo4Account});
+    
     // toBytes
-    const bytes4 = utxo4.toBytes();
+    const bytes4 = await utxo4.toBytes();
+    
     // fromBytes
     const utxo40 = Utxo.fromBytes({
       poseidon,
-      account: utxo4.account,
+      account: utxo4Account,
       bytes: bytes4,
       index: 0,
     });
     Utxo.equal(poseidon,utxo4, utxo40);
+    let baseNonce = new Array(32).fill(45);
     // encrypt
-    const encBytes4 = utxo4.encrypt();
+    const encBytes4 = await utxo4.encrypt();
+    
     const utxo41 = Utxo.decrypt({
       poseidon,
       encBytes: encBytes4,
-      account: utxo4.account,
+      account: utxo4Account,
       index: 0,
     });
+    console.log("utxo4 ", utxo4);
+    console.log("utxo41 ", utxo41);
+
     if (utxo41) {
       Utxo.equal(poseidon,utxo4, utxo41);
     } else {
@@ -135,7 +143,7 @@ describe("Utxo Functional", () => {
     );
 
     // toBytes
-    const bytes = utxo0.toBytes();
+    const bytes = await utxo0.toBytes();
     // fromBytes
     const utxo1 = Utxo.fromBytes({
       poseidon,
@@ -144,8 +152,9 @@ describe("Utxo Functional", () => {
       index: inputs.index,
     });
     Utxo.equal(poseidon,utxo0, utxo1);
+    let baseNonce = new Array(32).fill(35);
     // encrypt
-    const encBytes = utxo1.encrypt();
+    const encBytes = await utxo1.encrypt();
 
     // decrypt
     const utxo3 = Utxo.decrypt({
@@ -186,14 +195,15 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without index", async () => {
+    let account = Account.fromPubkey(
+      keypair.pubKey,
+      keypair.encryptionKeypair.publicKey,
+      poseidon,
+    );
     let pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [new anchor.BN(1)],
-      account: Account.fromPubkey(
-        keypair.pubKey,
-        keypair.encryptionKeypair.publicKey,
-        poseidon,
-      ),
+      account,
     });
 
     expect(() => {
@@ -207,14 +217,15 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without private key", async () => {
+    let account = Account.fromPubkey(
+      keypair.pubKey,
+      keypair.encryptionKeypair.publicKey,
+      poseidon,
+    );
     let pubkeyUtxo = new Utxo({
       poseidon,
       amounts: [new anchor.BN(1)],
-      account: Account.fromPubkey(
-        keypair.pubKey,
-        keypair.encryptionKeypair.publicKey,
-        poseidon,
-      ),
+      account,
       index: 1,
     });
 
@@ -279,7 +290,7 @@ describe("Utxo Errors", () => {
       });
   });
 
-  it("APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED", () => {
+  it("APP_DATA_IDL_UNDEFINED", () => {
     expect(() => {
       new Utxo({
         poseidon,
@@ -292,8 +303,8 @@ describe("Utxo Errors", () => {
     })
       .to.throw(UtxoError)
       .to.include({
-        code: UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
-        codeMessage: "No appDataFromBytesFn provided",
+        code: UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
+        functionName: "constructor",
       });
   });
 

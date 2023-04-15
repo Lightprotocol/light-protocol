@@ -323,6 +323,7 @@ export function createOutUtxos({
     let splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
+
     let changeUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, splAsset],

@@ -517,7 +517,7 @@ describe("Transaction Functional Tests", () => {
       provider: lightProvider,
       params: paramsStaticEncryptedUtxos,
     });
-    let txIntegrityHash = tx.getTxIntegrityHash();
+    let txIntegrityHash = await tx.getTxIntegrityHash();
     assert.equal(
       txIntegrityHash.toString(),
       tx.testValues!.txIntegrityHash?.toString(),
@@ -552,7 +552,7 @@ describe("Transaction Functional Tests", () => {
       provider: lightProvider,
       params: paramsStaticEncryptedUtxos,
     });
-    let txIntegrityHash = tx.getTxIntegrityHash();
+    let txIntegrityHash = await tx.getTxIntegrityHash();
     assert.equal(
       txIntegrityHash.toString(),
       tx.testValues!.txIntegrityHash?.toString(),

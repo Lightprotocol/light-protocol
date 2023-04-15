@@ -25,7 +25,8 @@ import {
   Utxo,
   CreateUtxoError,
   CreateUtxoErrorCode,
-  Account
+  Account,
+  MINT
 } from "../src";
 import { access } from "fs";
 
@@ -510,6 +511,15 @@ describe("Test createOutUtxos Errors", () => {
       recipientEncryptionPublicKey,
       poseidon,
     );
+    createOutUtxos({
+      publicMint: tokenCtx.tokenAccount,
+      publicAmountSpl: splAmount,
+      inUtxos: [utxo1, utxoSol],
+      publicAmountSol: new BN(0),
+      changeUtxoAccount: k0,
+      action: Action.UNSHIELD,
+      poseidon
+    });
   });
 
   it("NO_POSEIDON_HASHER_PROVIDED", async () => {
@@ -729,7 +739,7 @@ describe("Test createOutUtxos Errors", () => {
             account: recipientAccount,
             solAmount: new BN(0),
             splAmount: new BN(1e1),
-            mint: utxo1.assets[1],
+            mint: MINT,
           },
         ],
       });

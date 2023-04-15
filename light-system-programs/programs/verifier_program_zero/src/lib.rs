@@ -98,3 +98,14 @@ pub struct LightInstruction<'info> {
     #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
 }
+// helper struct to game anchor into creating an idl with u256 types
+#[account]
+pub struct u256 {
+    x: u64,
+}
+#[account]
+pub struct Utxo {
+    amounts: [u64; 2],
+    spl_asset_index: u64,
+    blinding: u256,
+}

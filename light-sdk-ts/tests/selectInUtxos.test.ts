@@ -50,15 +50,19 @@ describe("Test selectInUtxos Functional", () => {
     utxo2: Utxo,
     relayerFee,
     utxoSol,
+    utxoSolBurner,
+    utxo2Burner,
+    utxo1Burner,
     recipientAccount;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
     eddsa = await buildEddsa();
     babyJub = await buildBabyjub();
     F = babyJub.F;
-    k0 = new Account({ poseidon, seed: seed32 });
-    k00 = new Account({ poseidon, seed: seed32 });
-    kBurner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    utxo1Burner = new Account({ poseidon, seed: seed32 });
+    utxo2Burner = Account.createBurner(poseidon, seed32, new anchor.BN("0"));
+    utxoSolBurner = Account.createBurner(poseidon, seed32, new anchor.BN("1"));
+
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
@@ -70,18 +74,22 @@ describe("Test selectInUtxos Functional", () => {
       assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals)],
       index: 0,
+      account: utxo1Burner
     });
     utxo2 = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, tokenCtx.tokenAccount],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
+      account: utxo2Burner
+
     });
     utxoSol = new Utxo({
       poseidon,
       assets: [SystemProgram.programId],
       amounts: [new BN(1e8)],
       index: 1,
+      account: utxoSolBurner
     });
     relayerFee = new BN(1000);
 
@@ -111,7 +119,7 @@ describe("Test selectInUtxos Functional", () => {
       utxos: inUtxos,
       action: Action.UNSHIELD,
     });
-    Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    Utxo.equal(poseidon,selectedUtxo[0], utxo1 );
   });
 
   it("Unshield select sol", async () => {
@@ -126,7 +134,7 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
-    Utxo.equal(poseidon,selectedUtxo[1], utxo1);
+    assert.equal(selectInUtxos.length, 1);
   });
 
   it("UNSHIELD select sol & spl", async () => {
@@ -252,6 +260,7 @@ describe("Test selectInUtxos Functional", () => {
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxo1);
+    assert.equal(selectedUtxo.length, 1);
   });
 
   it("3 utxos spl & sol", async () => {

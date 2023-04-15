@@ -59,13 +59,13 @@ describe("Masp circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: keypair,
+      shieldedPublicKey: keypair.pubkey,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
-      account: keypair,
+      shieldedPublicKey: keypair.pubkey,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -638,13 +638,13 @@ describe("App system circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      account: keypair,
+      shieldedPublicKey: keypair.pubkey,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
-      account: keypair,
+      shieldedPublicKey: keypair.pubkey,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;

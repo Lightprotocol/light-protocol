@@ -179,3 +179,26 @@ pub struct CloseVerifierState<'info> {
     #[account(mut, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, close=signing_address )]
     pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
 }
+
+// helper struct to game anchor into creating an idl with u256 types
+#[account]
+pub struct u256 {
+    x: [u8; 32],
+}
+
+#[account]
+pub struct Utxo {
+    amounts: [u64; 2],
+    spl_asset_index: u64,
+    blinding: u256,
+    verifier_address: Pubkey,
+    // // app data hash does not need to be saved because we can recalculate it from subsequent information
+    test_input1: u256,
+    test_input2: u256,
+}
+
+#[account]
+pub struct UtxoAppData {
+    test_input1: u256,
+    test_input2: u256,
+}

@@ -143,7 +143,7 @@ export class VerifierZero implements Verifier {
             .getRelayerFee(transaction.params.ataCreationFee)
             .toString(),
         ),
-        Buffer.from(transaction.params.encryptedUtxos.slice(0, 190)), // remaining bytes can be used once tx sizes increase
+        Buffer.from(transaction.params.encryptedUtxos),
       )
       .accounts({
         ...transaction.params.accounts,
