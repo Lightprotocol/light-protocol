@@ -47,6 +47,121 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER;
 
+class BalanceChecker {
+  private preShieldedBalances;
+  private preTokenBalance;
+  private preRecipientTokenBalance;
+  private preSolBalance;
+  public provider: Provider;
+
+  async fetchAndSaveBalances({
+    user,
+    provider,
+    userSplAccount,
+    recipientSplAccount,
+  }: {
+    user: User;
+    provider: Provider;
+    userSplAccount?: PublicKey;
+    recipientSplAccount?: PublicKey;
+  }) {
+    this.preShieldedBalances = await user.getBalance({ latest: true });
+    if (userSplAccount) {
+      this.preTokenBalance =
+        await provider.provider.connection.getTokenAccountBalance(
+          userSplAccount,
+        );
+    }
+    if (recipientSplAccount) {
+      this.preRecipientTokenBalance =
+        await provider.provider.connection.getTokenAccountBalance(
+          recipientSplAccount,
+        );
+    }
+    this.preSolBalance = await provider.provider.connection.getBalance(
+      provider.wallet.publicKey,
+    );
+    this.provider = provider;
+  }
+
+  async assertShieldedTokenBalance(user: User, tokenCtx, amount) {
+    const postShieldedBalances = await user.getBalance({ latest: true });
+
+    let tokenBalanceAfter = postShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+    let tokenBalancePre = this.preShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+
+    assert.equal(
+      tokenBalanceAfter.amount,
+      tokenBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
+      `shielded balance after ${tokenBalanceAfter.amount} != shield amount ${
+        amount * tokenCtx?.decimals.toNumber()
+      }`,
+    );
+  }
+
+  async assertTokenBalance(userSplAccount, amount) {
+    const postTokenBalance =
+      await this.provider.provider.connection.getTokenAccountBalance(
+        userSplAccount,
+      );
+
+    assert.equal(
+      postTokenBalance.value.uiAmount,
+      this.preTokenBalance.value.uiAmount + amount,
+      `user token balance after ${postTokenBalance.value.uiAmount} != user token balance before ${this.preTokenBalance.value.uiAmount} - shield amount ${amount}`,
+    );
+  }
+
+  async assertSolBalance(amount, tokenCtx, tempAccountCost) {
+    const postSolBalance = await this.provider.provider.connection.getBalance(
+      this.provider.wallet.publicKey,
+    );
+
+    assert.equal(
+      postSolBalance,
+      this.preSolBalance -
+        amount * tokenCtx.decimals.toNumber() +
+        tempAccountCost,
+      `user token balance after ${postSolBalance} != user token balance before ${this.preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
+    );
+  }
+
+  async assertRecipientTokenBalance(recipientSplAccount, amount) {
+    const postRecipientTokenBalance =
+      await this.provider.provider.connection.getTokenAccountBalance(
+        recipientSplAccount,
+      );
+
+    assert.equal(
+      postRecipientTokenBalance.value.uiAmount,
+      this.preRecipientTokenBalance.value.uiAmount + amount,
+      `user token balance after ${postRecipientTokenBalance.value.uiAmount} != user token balance before ${this.preRecipientTokenBalance.value.uiAmount} - shield amount ${amount}`,
+    );
+  }
+
+  async assertShieledSolBalance(user, amount) {
+    const postShieldedBalances = await user.getBalance({ latest: true });
+
+    let solBalanceAfter = postShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+    let solBalancePre = this.preShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+
+    assert.equal(
+      solBalanceAfter.amount,
+      solBalancePre.amount.toNumber() + amount, //+ 2 * 1e9, this MINIMZM
+      `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
+    );
+  }
+}
+
 // TODO: remove deprecated function calls
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -105,63 +220,32 @@ describe("Test User", () => {
       tokenCtx!.tokenAccount,
       ADMIN_AUTH_KEYPAIR.publicKey,
     );
-    const preTokenBalance =
-      await provider.provider.connection.getTokenAccountBalance(userSplAccount);
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user: User = await User.init(provider);
-    const preShieldedBalance = await user.getBalance({ latest: true });
 
+    const user: User = await User.init(provider);
+
+    const balanceChecker = new BalanceChecker();
+
+    await balanceChecker.fetchAndSaveBalances({
+      user,
+      provider,
+      userSplAccount,
+    });
     await user.shield({ publicAmountSpl: amount, token });
 
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
-    let balance;
-    try {
-      balance = await user.getBalance({ latest: true });
-    } catch (e) {
-      throw new Error(`ayayay ${e}`);
-    }
-    let tokenBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let tokenBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
 
     // assert that the user's shielded balance has increased by the amount shielded
-    assert.equal(
-      tokenBalanceAfter.amount,
-      tokenBalancePre.amount.toNumber() +
-        amount * tokenCtx?.decimals.toNumber(),
-      `shielded balance after ${tokenBalanceAfter.amount} != shield amount ${
-        amount * tokenCtx?.decimals.toNumber()
-      }`,
-    );
+    await balanceChecker.assertShieldedTokenBalance(user, tokenCtx, amount);
 
     // assert that the user's token balance has decreased by the amount shielded
-    const postTokenBalance =
-      await provider.provider.connection.getTokenAccountBalance(userSplAccount);
-    assert.equal(
-      postTokenBalance.value.uiAmount,
-      preTokenBalance.value.uiAmount - amount,
-      `user token balance after ${postTokenBalance.value.uiAmount} != user token balance before ${preTokenBalance.value.uiAmount} - shield amount ${amount}`,
-    );
+    await balanceChecker.assertTokenBalance(userSplAccount, -amount);
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
-    let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
-    let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
-    // console.log("solBalancePre", solBalancePre);
-    // console.log("solBalanceAfter", solBalanceAfter);
-    assert.equal(
-      solBalanceAfter.amount,
-      solBalancePre.amount.toNumber() + 150000, //+ 2 * 1e9, this MINIMZM
-      `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
-    );
+    await balanceChecker.assertShieledSolBalance(user, 150000);
+
     assert.equal(user.spentUtxos.length, 0);
 
     assert.notEqual(
@@ -206,49 +290,27 @@ describe("Test User", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const user: User = await User.init(provider);
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const preShieldedBalance = await user.getBalance({ latest: true });
-    const preSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
+
+    const balanceChecker = new BalanceChecker();
+
+    await balanceChecker.fetchAndSaveBalances({ user, provider });
+
     const previousUtxos = user.utxos;
 
     await user.shield({ publicAmountSol: amount, token });
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
-    let balance = await user.getBalance({ latest: true });
-    let solShieldedBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let solShieldedBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
+    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
 
-    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
-    // console.log("solShieldedBalancePre", solShieldedBalancePre);
+    // assert that the user's shielded balance has increased by the amount shielded
+    await balanceChecker.assertShieledSolBalance(
+      user,
+      amount * tokenCtx?.decimals.toNumber(),
+    );
 
     // assert that the user's token balance has decreased by the amount shielded
-    const postSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
-    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-    // console.log("postSolBalance", postSolBalance);
-    // console.log("preSolBalance", preSolBalance);
-    // assert that the user's shielded balance has increased by the amount shielded
-    assert.equal(
-      solShieldedBalanceAfter.amount.toNumber(),
-      solShieldedBalancePre.amount.toNumber() +
-        amount * tokenCtx?.decimals.toNumber(),
-      `shielded balance after ${
-        solShieldedBalanceAfter.amount
-      } != shield amount ${amount * tokenCtx?.decimals.toNumber()}`,
-    );
-
-    assert.equal(
-      postSolBalance,
-      preSolBalance - amount * tokenCtx.decimals.toNumber() + tempAccountCost,
-      `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
-    );
+    await balanceChecker.assertSolBalance(amount, tokenCtx, tempAccountCost);
 
     let commitmentIndex = user.spentUtxos.findIndex(
       (utxo) => utxo._commitment === user.utxos[0]._commitment,
@@ -304,13 +366,13 @@ describe("Test User", () => {
     );
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const recipientSplBalance = getAssociatedTokenAddressSync(
+    const recipientSplAccount = getAssociatedTokenAddressSync(
       tokenCtx!.tokenAccount,
       solRecipient.publicKey,
     );
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    let preTokenBalance = { value: { uiAmount: 0 } };
+
     // TODO: add test case for if recipient doesnt have account yet -> relayer must create it
     await newAccountWithTokens({
       connection: provider.provider.connection,
@@ -319,20 +381,15 @@ describe("Test User", () => {
       userAccount: solRecipient,
       amount: new anchor.BN(0),
     });
-    try {
-      preTokenBalance =
-        await provider.provider.connection.getTokenAccountBalance(
-          recipientSplBalance,
-        );
-    } catch (e) {
-      console.log(
-        "recipient account does not exist yet (creating as part of user class)",
-      );
-    }
 
     const user: User = await User.init(provider);
-    const preShieldedBalance = await user.getBalance({ latest: true });
     const previousUtxos = user.utxos;
+    const balanceChecker = new BalanceChecker();
+    await balanceChecker.fetchAndSaveBalances({
+      user,
+      provider,
+      recipientSplAccount,
+    });
 
     await user.unshield({
       publicAmountSpl: amount,
@@ -342,54 +399,21 @@ describe("Test User", () => {
 
     await user.provider.latestMerkleTree();
 
-    let balance = await user.getBalance({ latest: true });
-    let tokenBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let tokenBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
+    // assert that the user's shielded token balance has decreased by the amount unshielded
+    await balanceChecker.assertShieldedTokenBalance(user, tokenCtx, -amount);
 
-    // assert that the user's shielded balance has decreased by the amount unshielded
-    assert.equal(
-      tokenBalanceAfter.amount.toNumber(),
-      tokenBalancePre.amount.toNumber() -
-        amount * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
-      `shielded balance after ${tokenBalanceAfter.amount} != unshield amount ${
-        amount * tokenCtx?.decimals.toNumber()
-      }`,
-    );
-
-    // assert that the user's token balance has decreased by the amount shielded
-    const postTokenBalance =
-      await provider.provider.connection.getTokenAccountBalance(
-        recipientSplBalance,
-        "confirmed",
-      );
-
-    assert.equal(
-      postTokenBalance.value.uiAmount,
-      preTokenBalance.value.uiAmount + amount,
-      `user token balance after ${postTokenBalance.value.uiAmount} != user token balance before ${preTokenBalance.value.uiAmount} + unshield amount ${amount}`,
+    // assert that the recipient token balance has increased by the amount shielded
+    await balanceChecker.assertRecipientTokenBalance(
+      recipientSplAccount,
+      amount,
     );
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
-    let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
-    let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
     const minimumBalance = 150000;
     const tokenAccountFee = 500_000;
-    assert.equal(
-      solBalanceAfter.amount.toNumber(),
-      solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee, // FIXME: no fees being charged here apparently
-      `shielded sol balance after ${
-        solBalanceAfter.amount
-      } != unshield amount ${
-        solBalancePre.amount.toNumber() - minimumBalance - tokenAccountFee
-      }`,
+    await balanceChecker.assertShieledSolBalance(
+      user,
+      -minimumBalance - tokenAccountFee,
     );
 
     assert.notEqual(
@@ -455,13 +479,17 @@ describe("Test User", () => {
     );
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
 
     const user: User = await User.init(provider);
-    const preShieldedBalance = await user.getBalance({ latest: true });
+
     const previousUtxos = user.utxos;
+
+    const balanceChecker = new BalanceChecker();
+
+    await balanceChecker.fetchAndSaveBalances({
+      user,
+      provider,
+    });
 
     await user.transfer({
       amountSpl,
@@ -471,34 +499,13 @@ describe("Test User", () => {
 
     await user.provider.latestMerkleTree();
 
-    let balance = await user.getBalance({ latest: true });
-    let tokenBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let tokenBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
     // assert that the user's shielded balance has decreased by the amount transferred
-    assert.equal(
-      tokenBalanceAfter.amount.toNumber(),
-      tokenBalancePre.amount.toNumber() -
-        amountSpl * tokenCtx?.decimals.toNumber(), // TODO: check that fees go ?
-      `shielded balance after ${tokenBalanceAfter.amount} != unshield amount ${
-        amountSpl * tokenCtx?.decimals.toNumber()
-      }`,
-    );
+    await balanceChecker.assertShieldedTokenBalance(user, tokenCtx, -amountSpl);
+
     // assert that the user's sol shielded balance has decreased by fee
-    let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
-    );
-    let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toBase58(),
-    );
-    const minimumChangeUtxoAmounts = 50000 * 3;
-    assert.equal(
-      solBalanceAfter.amount.toNumber(),
-      solBalancePre.amount.toNumber() - provider.relayer.relayerFee.toNumber(), // FIXME: no fees being charged here apparently
-      `shielded sol balance after ${solBalanceAfter.amount} != unshield amount -fee -minimumSplUtxoChanges`,
+    await balanceChecker.assertShieledSolBalance(
+      user,
+      -provider.relayer.relayerFee.toNumber(),
     );
 
     assert.notEqual(
