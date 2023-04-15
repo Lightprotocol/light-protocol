@@ -277,7 +277,6 @@ describe("Verifier Two test", () => {
         e = await tx.sendTransaction(instructions[ix]);
       }
     }
-    console.log(e);
 
     if (type === "ProofVerificationFails") {
       assert.isTrue(

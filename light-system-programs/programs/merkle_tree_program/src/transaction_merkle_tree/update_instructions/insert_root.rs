@@ -9,9 +9,7 @@ use crate::MerkleTreeUpdateState;
 use std::ops::DerefMut;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sysvar};
-use light_account_compression::wrap_event;
-
+use anchor_lang::solana_program::{clock::Clock, pubkey::Pubkey, sysvar::Sysvar};
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
     #[account(mut, address=merkle_tree_update_state.load()?.relayer @ErrorCode::InvalidAuthority)]
@@ -123,14 +121,6 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         if leaves_pda_data.left_leaf_index != tmp_index {
             return err!(ErrorCode::FirstLeavesPdaIncorrectIndex);
         }
-        msg!("wrap_event");
-        // Save pair of leaves in compressed account (noop program).
-        wrap_event(
-            &leaves_pda_data.try_to_vec()?,
-            &ctx.accounts.log_wrapper.to_account_info(),
-            &ctx.accounts.transaction_merkle_tree.to_account_info(),
-        )?;
-
         close_account(account, &ctx.accounts.authority.to_account_info())?;
 
         tmp_index += 2;

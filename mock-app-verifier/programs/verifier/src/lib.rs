@@ -170,6 +170,8 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut, seeds= [VerifierProgramTwo::id().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
     pub verifier_program: Program<'info, VerifierProgramTwo>,
+    /// CHECK:` It get checked inside the event_call
+    pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
 }
 
 #[derive(Accounts)]

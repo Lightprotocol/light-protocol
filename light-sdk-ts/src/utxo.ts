@@ -268,7 +268,7 @@ export class Utxo {
         SystemProgram.programId,
       );
       // TODO: perform type check that appData has all the attributes and these have the correct types and not more
-      let hashArray = [];
+      let hashArray: any[] = [];
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);
       }

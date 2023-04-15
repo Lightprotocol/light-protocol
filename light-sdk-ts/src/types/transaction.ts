@@ -1,9 +1,9 @@
 import { BN, Provider } from "@coral-xyz/anchor";
 import { ParsedMessageAccount, PublicKey } from "@solana/web3.js";
-import { Relayer } from "relayer";
+import { Relayer } from "../relayer";
 import { Action } from "../transaction";
-import { Utxo } from "utxo";
-import { Verifier } from "verifiers";
+import { Utxo } from "../utxo";
+import { Verifier } from "../verifiers";
 
 export type AppUtxoConfig = {
   verifierAddress: PublicKey;
@@ -39,21 +39,27 @@ export type transactionParameters = {
   }[];
 };
 
-export type indexedTransaction = {
+export type IndexedTransaction = {
   blockTime: number;
   signer: PublicKey;
   signature: string;
   accounts: ParsedMessageAccount[];
   to: PublicKey;
   from: PublicKey;
+  verifier: PublicKey;
   relayerRecipientSol: PublicKey;
   type: Action;
-  amount: BN;
-  amountSol: BN;
-  amountSpl: BN;
-  commitment: string;
+  changeSolAmount: BN;
+  publicAmountSol: BN;
+  publicAmountSpl: BN;
   encryptedUtxos: Buffer | any[];
-  leaves: BN[];
+  leaves: number[][];
+  firstLeafIndex: BN;
   nullifiers: BN[];
   relayerFee: BN;
+};
+
+export type UserIndexedTransaction = IndexedTransaction & {
+  inSpentUtxos: Utxo[];
+  outSpentUtxos: Utxo[];
 };

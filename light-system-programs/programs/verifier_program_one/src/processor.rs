@@ -80,6 +80,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         Some(ctx.accounts.relayer_recipient_sol.to_account_info()),
         Some(ctx.accounts.token_authority.to_account_info()),
         &ctx.accounts.registered_verifier_pda,
+        ctx.accounts.log_wrapper.to_account_info(),
         ctx.remaining_accounts,
     )?;
     let checked_public_inputs = Vec::<Vec<u8>>::new();

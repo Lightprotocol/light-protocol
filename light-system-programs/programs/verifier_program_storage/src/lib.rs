@@ -92,12 +92,6 @@ pub mod verifier_program_storage {
     ) -> Result<()> {
         let message = &ctx.accounts.verifier_state.msg;
 
-        wrap_event(
-            message,
-            &ctx.accounts.log_wrapper,
-            &ctx.accounts.signing_address,
-        )?;
-
         let message_hash = hash(message).to_bytes();
         // let message_hash = [0u8; 32];
 

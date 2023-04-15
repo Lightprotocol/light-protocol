@@ -160,6 +160,11 @@ export type VerifierProgramOne = {
             "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
           ];
         },
+        {
+          name: "logWrapper";
+          isMut: false;
+          isSigner: false;
+        },
       ];
       args: [
         {
@@ -365,6 +370,11 @@ export const IDL: VerifierProgramOne = {
           docs: [
             "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
           ],
+        },
+        {
+          name: "logWrapper",
+          isMut: false,
+          isSigner: false,
         },
       ],
       args: [

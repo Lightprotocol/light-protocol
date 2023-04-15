@@ -137,8 +137,8 @@ export class MerkleTree {
     if (isNaN(Number(index)) || index < 0 || index >= this._layers[0].length) {
       throw new Error("Index out of bounds: " + index);
     }
-    const pathElements = [];
-    const pathIndices = [];
+    const pathElements: string[] = [];
+    const pathIndices: number[] = [];
     for (let level = 0; level < this.levels; level++) {
       pathIndices[level] = index % 2;
       pathElements[level] =

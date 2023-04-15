@@ -34,4 +34,6 @@ pub enum VerifierSdkError {
     MessageNoMerkleTreeAccount,
     #[msg("Provided message Merkle tree account has invalid hash function (not SHA256")]
     MessageMerkleTreeInvalidHashFunction,
+    #[msg("Invalid noop progam key")]
+    InvalidNoopPubkey,
 }

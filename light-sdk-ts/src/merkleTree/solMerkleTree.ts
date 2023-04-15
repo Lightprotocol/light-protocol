@@ -4,12 +4,12 @@ import {
   merkleTreeProgram,
   merkleTreeProgramId,
   MERKLE_TREE_HEIGHT,
+  IndexedTransaction,
+  indexRecentTransactions,
+  Relayer,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
-// import { MerkleTreeProgram } from "../idls/merkle_tree_program";
 import { MerkleTree } from "./merkleTree";
-import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const anchor = require("@coral-xyz/anchor");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
@@ -57,10 +57,17 @@ export class SolMerkleTree {
     return { leavesAccounts, merkleTreeIndex, mtFetched };
   }
 
-  static async getCompressedLeaves(
-    merkleTreePubkey: PublicKey,
-    provider?: Provider,
-  ) {
+  static async build({
+    pubkey,
+    poseidon,
+    indexedTransactions,
+    provider,
+  }: {
+    pubkey: PublicKey; // pubkey to bytes
+    poseidon: any;
+    indexedTransactions: IndexedTransaction[];
+    provider?: Provider;
+  }) {
     const merkleTreeProgram: Program<MerkleTreeProgram> = new Program(
       IDL_MERKLE_TREE_PROGRAM,
       merkleTreeProgramId,
@@ -69,117 +76,22 @@ export class SolMerkleTree {
 
     const mtFetched =
       await merkleTreeProgram.account.transactionMerkleTree.fetch(
-        merkleTreePubkey,
+        pubkey,
         "confirmed",
       );
 
     const merkleTreeIndex = mtFetched.nextIndex;
 
-    merkleTreeProgram.account.twoLeavesBytesPda.all();
-
-    let leavesAccounts: Array<{
-      account: QueuedLeavesPda;
-    }> = new Array();
-    let signatures = Array.from(
-      await merkleTreeProgram.provider.connection.getSignaturesForAddress(
-        merkleTreeProgram.programId,
-        {},
-        "confirmed",
-      ),
-      (x) => x.signature,
-    );
-
-    let config: GetVersionedTransactionConfig = {
-      commitment: "confirmed",
-      maxSupportedTransactionVersion: 0,
-    };
-    // cannot request an unlimited amount of transactions from signatures
-    for (var i = 0; i < signatures.length; i += 60) {
-      var sigLen = 60;
-      if (signatures.length < i + sigLen) {
-        sigLen = signatures.length - i;
-      }
-      let transactions =
-        await merkleTreeProgram.provider.connection.getTransactions(
-          signatures.slice(i, i + sigLen),
-          config,
-        );
-
-      let filteredTx = transactions.filter((tx) => {
-        try {
-          const tmp = tx?.transaction.message.accountKeys.map((key) =>
-            key.toBase58(),
-          );
-          return tmp?.includes(SPL_NOOP_ADDRESS);
-        } catch {}
-      });
-
-      filteredTx.map((tx) => {
-        tx?.meta?.innerInstructions?.map((ix) => {
-          ix.instructions.map((ixInner) => {
-            const data = bs58.decode(ixInner.data);
-            let leftLeafIndex = new BN(
-              data.subarray(96 + 256, 96 + 256 + 8),
-              undefined,
-              "le",
-            );
-            leavesAccounts.push({
-              account: {
-                leftLeafIndex,
-                encryptedUtxos: Array.from(data.subarray(96, 96 + 256)),
-                nodeLeft: Array.from(data.subarray(0, 32)),
-                nodeRight: Array.from(data.subarray(32, 64)),
-                merkleTreePubkey: new PublicKey(
-                  Array.from(data.subarray(64, 96)),
-                ),
-              },
-            });
-          });
-        });
-      });
-    }
-
-    return { leavesAccounts, merkleTreeIndex, mtFetched };
-  }
-
-  static async build({
-    pubkey,
-    poseidon,
-    provider,
-  }: {
-    pubkey: PublicKey; // pubkey to bytes
-    poseidon: any;
-    provider?: Provider;
-  }) {
-    const { leavesAccounts, merkleTreeIndex, mtFetched } =
-      await SolMerkleTree.getCompressedLeaves(pubkey, provider);
-
-    leavesAccounts.sort(
-      (a, b) =>
-        a.account.leftLeafIndex.toNumber() - b.account.leftLeafIndex.toNumber(),
-    );
-
     const leaves: string[] = [];
-    if (leavesAccounts.length > 0) {
-      for (let i: number = 0; i < leavesAccounts.length; i++) {
+    if (indexedTransactions.length > 0) {
+      for (let i: number = 0; i < indexedTransactions.length; i++) {
         if (
-          leavesAccounts[i].account.leftLeafIndex.toNumber() <
+          indexedTransactions[i].firstLeafIndex.toNumber() <
           merkleTreeIndex.toNumber()
         ) {
-          leaves.push(
-            new anchor.BN(
-              leavesAccounts[i].account.nodeLeft,
-              undefined,
-              "le",
-            ).toString(),
-          );
-          leaves.push(
-            new anchor.BN(
-              leavesAccounts[i].account.nodeRight,
-              undefined,
-              "le",
-            ).toString(),
-          );
+          for (const iterator of indexedTransactions[i].leaves) {
+            leaves.push(new anchor.BN(iterator, undefined, "le").toString());
+          }
         }
       }
     }
@@ -250,27 +162,5 @@ export class SolMerkleTree {
     ).map((pda) => {
       return { isSigner: false, isWritable: true, pubkey: pda.publicKey };
     });
-  }
-
-  static async getInsertedLeaves(
-    merkleTreePubkey: PublicKey,
-    provider?: Provider,
-  ): Promise<any> {
-    const { leavesAccounts, merkleTreeIndex } =
-      await SolMerkleTree.getCompressedLeaves(merkleTreePubkey, provider);
-
-    let filteredLeaves = leavesAccounts
-      .filter((pda) => {
-        return (
-          pda.account.leftLeafIndex.toNumber() < merkleTreeIndex.toNumber()
-        );
-      })
-      .sort(
-        (a, b) =>
-          a.account.leftLeafIndex.toNumber() -
-          b.account.leftLeafIndex.toNumber(),
-      );
-
-    return filteredLeaves;
   }
 }

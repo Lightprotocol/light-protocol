@@ -39,6 +39,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@coral-xyz/anchor": "0.27.0",
+    "@coral-xyz/borsh": "^0.27.0",
     "@noble/hashes": "^1.1.5",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
@@ -49,9 +50,9 @@
     "ethereum-cryptography": "^2.0.0",
     "ffjavascript": "^0.2.54",
     "fs": "^0.0.1-security",
+    "lodash": "^4.17.21",
     "snarkjs": "^0.5.0",
-    "tweetnacl": "^1.0.3",
-    "lodash": "^4.17.21"
+    "tweetnacl": "^1.0.3"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",

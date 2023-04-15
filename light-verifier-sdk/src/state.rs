@@ -93,3 +93,14 @@ impl<const NR_LEAVES: usize, const NR_NULLIFIERS: usize, T: Config>
         }
     }
 }
+
+#[derive(AnchorDeserialize, AnchorSerialize, Clone, Debug)]
+pub struct TransactionIndexerEvent {
+    pub leaves: Vec<[u8; 32]>,
+    pub public_amount_spl: [u8; 32],
+    pub public_amount_sol: [u8; 32],
+    pub relayer_fee: u64,
+    pub encrypted_utxos: Vec<u8>,
+    pub nullifiers: Vec<[u8; 32]>,
+    pub first_leaf_index: u64,
+}

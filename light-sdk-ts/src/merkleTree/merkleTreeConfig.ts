@@ -183,7 +183,7 @@ export class MerkleTreeConfig {
     }
     if (!this.payer) throw new Error("Payer undefined");
 
-    let merkleTreeAuthorityPrior = null;
+    let merkleTreeAuthorityPrior: any = null;
     if (test != true) {
       merkleTreeAuthorityPrior =
         await this.merkleTreeProgram.account.merkleTreeAuthority.fetch(

@@ -85,4 +85,6 @@ pub struct LightInstruction<'info> {
     /// CHECK: Is the same as in integrity hash.
     #[account(mut, seeds= [program_id.key().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+    /// CHECK:` It get checked inside the event_call
+    pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
 }

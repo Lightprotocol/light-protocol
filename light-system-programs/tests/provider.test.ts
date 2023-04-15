@@ -12,6 +12,7 @@ import {
   Action,
   KEYPAIR_PRIVKEY,
   Provider as LightProvider,
+  Relayer,
   Transaction,
   TransactionParameters,
   userTokenAccount,
@@ -95,7 +96,10 @@ describe("verifier_program", () => {
       "confirmed",
     );
     const mockKeypair = SolanaKeypair.generate();
-    const lightProviderMock = await LightProvider.init({ wallet: mockKeypair });
+    const lightProviderMock = await LightProvider.init({
+      wallet: mockKeypair,
+      relayer: RELAYER,
+    });
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(
       lightProviderMock.wallet?.publicKey.toBase58(),

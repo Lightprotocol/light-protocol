@@ -22,7 +22,8 @@ import { User } from "light-sdk/lib/wallet/user";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {
-  initeMerkleTree,
+  indexedTransactions,
+  initMerkleTree,
   initLookupTable,
   sendTransaction,
   updateMerkleTree,
@@ -44,9 +45,10 @@ const addCorsHeadersStub = sinon
 app.use(addCorsHeadersStub);
 
 app.post("/updatemerkletree", updateMerkleTree);
-app.get("/merkletree", initeMerkleTree);
+app.get("/merkletree", initMerkleTree);
 app.get("/lookuptable", initLookupTable);
 app.post("/relayInstruction", sendTransaction);
+app.get("/indexedTransactions", indexedTransactions);
 
 describe("API tests", () => {
   let poseidon;
@@ -71,6 +73,7 @@ describe("API tests", () => {
         const fetchedMerkleTree: MerkleTree = res.body.data.merkleTree;
 
         const pubkey = new PublicKey(res.body.data.pubkey);
+
 
         const merkleTree = new MerkleTree(
           MERKLE_TREE_HEIGHT,
@@ -177,7 +180,6 @@ describe("API tests", () => {
       provider.solMerkleTree!.merkleTree.root().toString(),
       previousMerkleRoot,
     );
-
 
     previousMerkleRoot = provider.solMerkleTree!.merkleTree.root().toString();
 

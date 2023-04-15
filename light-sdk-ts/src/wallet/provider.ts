@@ -189,11 +189,17 @@ export class Provider {
         );
       }
 
+      const indexedTransactions = await this.relayer.getIndexedTransactions(
+        this.provider!.connection,
+      );
+
       const mt = await SolMerkleTree.build({
         pubkey: merkleTreePubkey,
         poseidon: this.poseidon,
+        indexedTransactions,
         provider: this.provider,
       });
+
       this.solMerkleTree = mt;
     } catch (err) {
       console.error(err);
