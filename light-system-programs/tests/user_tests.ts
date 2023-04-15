@@ -47,6 +47,121 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER: TestRelayer, provider: Provider;
 
+class BalanceChecker {
+  private preShieldedBalances;
+  private preTokenBalance;
+  private preRecipientTokenBalance;
+  private preSolBalance;
+  public provider: Provider;
+
+  async fetchAndSaveBalances({
+    user,
+    provider,
+    userSplAccount,
+    recipientSplAccount,
+  }: {
+    user: User;
+    provider: Provider;
+    userSplAccount?: PublicKey;
+    recipientSplAccount?: PublicKey;
+  }) {
+    this.preShieldedBalances = await user.getBalance({ latest: true });
+    if (userSplAccount) {
+      this.preTokenBalance =
+        await provider.provider.connection.getTokenAccountBalance(
+          userSplAccount,
+        );
+    }
+    if (recipientSplAccount) {
+      this.preRecipientTokenBalance =
+        await provider.provider.connection.getTokenAccountBalance(
+          recipientSplAccount,
+        );
+    }
+    this.preSolBalance = await provider.provider.connection.getBalance(
+      provider.wallet.publicKey,
+    );
+    this.provider = provider;
+  }
+
+  async assertShieldedTokenBalance(user: User, tokenCtx, amount) {
+    const postShieldedBalances = await user.getBalance({ latest: true });
+
+    let tokenBalanceAfter = postShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+    let tokenBalancePre = this.preShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+
+    assert.equal(
+      tokenBalanceAfter.amount,
+      tokenBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
+      `shielded balance after ${tokenBalanceAfter.amount} != shield amount ${
+        amount * tokenCtx?.decimals.toNumber()
+      }`,
+    );
+  }
+
+  async assertTokenBalance(userSplAccount, amount) {
+    const postTokenBalance =
+      await this.provider.provider.connection.getTokenAccountBalance(
+        userSplAccount,
+      );
+
+    assert.equal(
+      postTokenBalance.value.uiAmount,
+      this.preTokenBalance.value.uiAmount + amount,
+      `user token balance after ${postTokenBalance.value.uiAmount} != user token balance before ${this.preTokenBalance.value.uiAmount} - shield amount ${amount}`,
+    );
+  }
+
+  async assertSolBalance(amount, tokenCtx, tempAccountCost) {
+    const postSolBalance = await this.provider.provider.connection.getBalance(
+      this.provider.wallet.publicKey,
+    );
+
+    assert.equal(
+      postSolBalance,
+      this.preSolBalance -
+        amount * tokenCtx.decimals.toNumber() +
+        tempAccountCost,
+      `user token balance after ${postSolBalance} != user token balance before ${this.preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
+    );
+  }
+
+  async assertRecipientTokenBalance(recipientSplAccount, amount) {
+    const postRecipientTokenBalance =
+      await this.provider.provider.connection.getTokenAccountBalance(
+        recipientSplAccount,
+      );
+
+    assert.equal(
+      postRecipientTokenBalance.value.uiAmount,
+      this.preRecipientTokenBalance.value.uiAmount + amount,
+      `user token balance after ${postRecipientTokenBalance.value.uiAmount} != user token balance before ${this.preRecipientTokenBalance.value.uiAmount} - shield amount ${amount}`,
+    );
+  }
+
+  async assertShieledSolBalance(user, amount) {
+    const postShieldedBalances = await user.getBalance({ latest: true });
+
+    let solBalanceAfter = postShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+    let solBalancePre = this.preShieldedBalances.find(
+      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
+    );
+
+    assert.equal(
+      solBalanceAfter.amount,
+      solBalancePre.amount.toNumber() + amount, //+ 2 * 1e9, this MINIMZM
+      `shielded sol balance after ${solBalanceAfter.amount} != shield amount 0//2 aka min sol amount (50k)`,
+    );
+  }
+}
+
 // TODO: remove deprecated function calls
 describe("Test User", () => {
   // Configure the client to use the local cluster.
@@ -314,6 +429,13 @@ describe("Test User", () => {
     });
 
     await testStateValidator.fetchAndSaveState();
+
+    const balanceChecker = new BalanceChecker();
+
+    await balanceChecker.fetchAndSaveBalances({
+      user,
+      provider,
+    });
 
     await user.transfer({
       amountSpl: testInputs.amountSpl,
