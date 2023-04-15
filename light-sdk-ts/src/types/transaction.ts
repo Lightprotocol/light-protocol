@@ -1,6 +1,7 @@
-import { Provider } from "@coral-xyz/anchor";
-import { PublicKey } from "@solana/web3.js";
+import { BN, Provider } from "@coral-xyz/anchor";
+import { ParsedMessageAccount, PublicKey } from "@solana/web3.js";
 import { Relayer } from "relayer";
+import { Action } from "../transaction";
 import { Utxo } from "utxo";
 import { Verifier } from "verifiers";
 
@@ -29,4 +30,23 @@ export type transactionParameters = {
     isWritable: boolean;
     pubkey: PublicKey;
   }[];
+};
+
+export type indexedTransaction = {
+  blockTime: number;
+  signer: PublicKey;
+  signature: string;
+  accounts: ParsedMessageAccount[];
+  to: PublicKey;
+  from: PublicKey;
+  relayerRecipientSol: PublicKey;
+  type: Action;
+  amount: BN;
+  amountSol: BN;
+  amountSpl: BN;
+  commitment: string;
+  encryptedUtxos: Buffer | any[];
+  leaves: BN[];
+  nullifiers: BN[];
+  relayerFee: BN;
 };
