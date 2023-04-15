@@ -48,7 +48,7 @@ describe("Utxo Functional", () => {
     });
   });
 
-  it.only("rnd utxo functional", async () => {
+  it("rnd utxo functional", async () => {
     // try basic tests for rnd empty utxo
     const utxo4Account = new Account({poseidon});
     const utxo4 = new Utxo({ poseidon, account:  utxo4Account});
@@ -64,7 +64,7 @@ describe("Utxo Functional", () => {
       index: 0,
     });
     Utxo.equal(poseidon,utxo4, utxo40);
-    let baseNonce = new Array(32).fill(45);
+
     // encrypt
     const encBytes4 = await utxo4.encrypt();
     
@@ -74,8 +74,6 @@ describe("Utxo Functional", () => {
       account: utxo4Account,
       index: 0,
     });
-    console.log("utxo4 ", utxo4);
-    console.log("utxo41 ", utxo41);
 
     if (utxo41) {
       Utxo.equal(poseidon,utxo4, utxo41);

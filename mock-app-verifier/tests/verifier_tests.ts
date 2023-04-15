@@ -137,7 +137,7 @@ describe("Verifier Two test", () => {
 
       const appParams0 = {
         verifier: new MockVerifier(),
-        inputs: {},
+        inputs: {testInput1: new BN(1), testInput2: new BN(1)},
       };
       var transaction = new Transaction({
         provider: lightProvider,
@@ -179,7 +179,7 @@ describe("Verifier Two test", () => {
       });
       const appParams = {
         verifier: new MockVerifier(),
-        inputs: {},
+        inputs: {testInput1: new BN(1), testInput2: new BN(1)},
       };
       var transaction1 = new Transaction({
         provider: lightProvider,

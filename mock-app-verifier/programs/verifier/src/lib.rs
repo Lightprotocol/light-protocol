@@ -180,6 +180,7 @@ pub struct CloseVerifierState<'info> {
     pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
 }
 
+#[allow(non_camel_case_types)]
 // helper struct to game anchor into creating an idl with u256 types
 #[account]
 pub struct u256 {

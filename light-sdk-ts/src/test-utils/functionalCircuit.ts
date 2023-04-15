@@ -55,7 +55,7 @@ export async function functionalCircuitTest(
     tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123" },
+      appParams: { mock: "123", verifier: { pubkey: new anchor.BN(1) } },
     });
   } else {
     tx = new Transaction({

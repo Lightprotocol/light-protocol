@@ -677,6 +677,12 @@ export class Transaction {
       encryptedOutputs = Array.from(encryptedUtxos);
     } else if (this.params && this.params.outputUtxos) {
       for (var utxo in this.params.outputUtxos) {
+        if (this.params.outputUtxos[utxo].appDataHash.toString() !== "0")
+          throw new TransactionError(
+            TransactionErrorCode.UNIMPLEMENTED,
+            "encryptUtxos",
+            "Automatic encryption for utxos with application data is not implemented.",
+          );
         encryptedOutputs.push(await this.params.outputUtxos[utxo].encrypt());
       }
       if (

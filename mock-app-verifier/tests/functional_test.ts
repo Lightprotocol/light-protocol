@@ -126,6 +126,7 @@ describe("Mock verifier functional", () => {
       verifier: new VerifierTwo(),
       poseidon,
       action: Action.SHIELD,
+      encryptedUtxos: new Uint8Array(256).fill(1)
     });
 
     const appParams = {

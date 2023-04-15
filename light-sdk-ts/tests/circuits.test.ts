@@ -44,6 +44,7 @@ let keypair: Account,
   txParams: TransactionParameters,
   txParamsSol: TransactionParameters,
   paramsWithdrawal: TransactionParameters,
+  appData,
   relayer: Relayer;
 let seed32 = new Uint8Array(32).fill(1).toString();
 
@@ -59,13 +60,13 @@ describe("Masp circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -121,15 +122,13 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       relayer,
     });
-    const appDataFromBytesFn = (bytes) => {
-      return [new anchor.BN(bytes)];
-    };
+    appData = {testInput1: new anchor.BN(1), testInput2: new anchor.BN(1)};
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,
@@ -167,8 +166,8 @@ describe("Masp circuit tests", () => {
       outputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,
@@ -178,6 +177,8 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
+      // automatic encryption for app utxos is not implemented
+      encryptedUtxos: new Uint8Array(256).fill(1)
     });
   });
 
@@ -625,7 +626,7 @@ describe("Masp circuit tests", () => {
     );
   });
 });
-
+import { IDL } from "./testData/mock_verifier";
 // TODO: check more specific errors in tests
 describe("App system circuit tests", () => {
   before(async () => {
@@ -638,13 +639,13 @@ describe("App system circuit tests", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let deposit_utxoSol = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     mockPubkey = SolanaKeypair.generate().publicKey;
     let mockPubkey2 = SolanaKeypair.generate().publicKey;
@@ -661,9 +662,7 @@ describe("App system circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
     });
-    const appDataFromBytesFn = (bytes) => {
-      return [new anchor.BN(bytes)];
-    };
+
     relayer = new Relayer(
       mockPubkey3,
       mockPubkey,
@@ -674,8 +673,8 @@ describe("App system circuit tests", () => {
       inputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,
