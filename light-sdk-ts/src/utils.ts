@@ -11,7 +11,7 @@ import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 import { Utxo } from "utxo";
-import { MetaError, UtilsError, UtilsErrorCode } from "errors";
+import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
