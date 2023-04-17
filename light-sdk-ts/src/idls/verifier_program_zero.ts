@@ -1,6 +1,13 @@
 export type VerifierProgramZero = {
   version: "0.1.0";
   name: "verifier_program_zero";
+  constants: [
+    {
+      name: "programId";
+      type: "string";
+      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"';
+    },
+  ];
   instructions: [
     {
       name: "shieldedTransferInputs";
@@ -193,6 +200,10 @@ export type VerifierProgramZero = {
               array: ["u8", 32];
             };
           },
+          {
+            name: "verifierAddress";
+            type: "publicKey";
+          },
         ];
       };
     },
@@ -242,6 +253,13 @@ export type VerifierProgramZero = {
 export const IDL: VerifierProgramZero = {
   version: "0.1.0",
   name: "verifier_program_zero",
+  constants: [
+    {
+      name: "programId",
+      type: "string",
+      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"',
+    },
+  ],
   instructions: [
     {
       name: "shieldedTransferInputs",
@@ -433,6 +451,10 @@ export const IDL: VerifierProgramZero = {
             type: {
               array: ["u8", 32],
             },
+          },
+          {
+            name: "verifierAddress",
+            type: "publicKey",
           },
         ],
       },

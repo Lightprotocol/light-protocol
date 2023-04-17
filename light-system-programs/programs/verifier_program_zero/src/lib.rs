@@ -112,11 +112,11 @@ pub struct Utxo {
     blinding: u256,
     account_shielded_public_key: u256,
     account_encryption_public_key: [u8; 32],
+    verifier_address: Pubkey,
 }
 
 #[account]
 pub struct TransactionParameters {
-    // utxo length [224; 4]
     input_utxos_bytes: Vec<Vec<u8>>,
     // outputUtxos should be checked
     // TODO: write function which checks and displays how much multisig funds are spent, to whom, etc
@@ -129,3 +129,7 @@ pub struct TransactionParameters {
     // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
     transaction_index: u64,
 }
+
+#[allow(non_camel_case_types)]
+#[constant]
+pub const programId: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";

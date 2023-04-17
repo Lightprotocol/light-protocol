@@ -344,7 +344,7 @@ export class Utxo {
     bytes: Buffer;
     account?: Account;
     includeAppData?: boolean;
-    index: number;
+    index?: number;
     appDataIdl?: Idl;
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding

@@ -77,7 +77,7 @@ describe("Utxo Functional", () => {
     const utxo40Compressed = Utxo.fromBytes({
       poseidon,
       account: utxo4Account,
-      bytes: bytes4,
+      bytes: bytes4Compressed,
       index: 0,
     });    
     Utxo.equal(poseidon,utxo4, utxo40Compressed);
