@@ -184,6 +184,46 @@ export type VerifierProgramZero = {
         ];
       };
     },
+    {
+      name: "transactionParameters";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "inputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "outputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "recipientSpl";
+            type: "publicKey";
+          },
+          {
+            name: "recipientSol";
+            type: "publicKey";
+          },
+          {
+            name: "relayerPubkey";
+            type: "publicKey";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "transactionIndex";
+            type: "u64";
+          },
+        ];
+      };
+    },
   ];
 };
 
@@ -369,6 +409,46 @@ export const IDL: VerifierProgramZero = {
           {
             name: "blinding",
             type: "u256",
+          },
+        ],
+      },
+    },
+    {
+      name: "transactionParameters",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "inputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "outputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "recipientSpl",
+            type: "publicKey",
+          },
+          {
+            name: "recipientSol",
+            type: "publicKey",
+          },
+          {
+            name: "relayerPubkey",
+            type: "publicKey",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "transactionIndex",
+            type: "u64",
           },
         ],
       },

@@ -59,6 +59,126 @@ describe("Transaction Parameters Functional", () => {
     });
   });
 
+  it.only("Serialization Transfer Functional", async () => {
+    var outputUtxo = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new anchor.BN(depositAmount),
+      ],
+      account: keypair,
+    });
+
+    for (var j in verifiers) {
+      const inputUtxos = [deposit_utxo1];
+      const outputUtxos = [outputUtxo];
+
+      const paramsOriginal = new TransactionParameters({
+        inputUtxos,
+        outputUtxos,
+        merkleTreePubkey: mockPubkey2,
+        verifier: verifiers[j],
+        lookUpTable: lightProvider.lookUpTable,
+        poseidon,
+        action: Action.TRANSFER,
+        relayer,
+        transactionIndex: 0
+      });
+
+      let bytes = paramsOriginal.toBytes();
+
+      let param = TransactionParameters.fromBytes({
+        poseidon,
+        verifier,
+        lookUpTable: lightProvider.lookUpTable,
+        action: Action.TRANSFER,
+      })
+
+      assert.equal(params.action.toString(), Action.TRANSFER.toString());
+      assert.equal(params.publicAmountSpl.toString(), "0");
+      assert.equal(
+        params.publicAmountSol
+          .sub(FIELD_SIZE)
+          .mul(new anchor.BN(-1))
+          .toString(),
+        relayer.getRelayerFee().toString(),
+      );
+      assert.equal(
+        params.assetPubkeys[0].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.assetPubkeys[1].toBase58(), MINT.toBase58());
+      assert.equal(
+        params.assetPubkeys[2].toBase58(),
+        SystemProgram.programId.toBase58(),
+      );
+      assert.equal(params.accounts.recipientSpl?.toBase58(), AUTHORITY.toBase58());
+      assert.equal(
+        params.accounts.recipientSol?.toBase58(),
+        AUTHORITY.toBase58(),
+      );
+      assert.equal(
+        params.accounts.transactionMerkleTree.toBase58(),
+        mockPubkey2.toBase58(),
+      );
+      assert.equal(params.accounts.verifierState, undefined);
+      assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
+      assert.equal(
+        params.accounts.signingAddress,
+        relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.signingAddress,
+        params.relayer.accounts.relayerPubkey,
+      );
+      assert.equal(
+        params.accounts.authority.toBase58(),
+        Transaction.getSignerAuthorityPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(
+        params.accounts.registeredVerifierPda.toBase58(),
+        Transaction.getRegisteredVerifierPda(
+          merkleTreeProgramId,
+          verifiers[j].verifierProgram!.programId,
+        ).toBase58(),
+      );
+      assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
+      assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
+      assert.equal(
+        params.accounts.tokenAuthority?.toBase58(),
+        Transaction.getTokenAuthority().toBase58(),
+      );
+      assert.equal(
+        params.verifier.config.in.toString(),
+        verifiers[j].config.in.toString(),
+      );
+      assert.equal(
+        params.relayer.accounts.lookUpTable.toBase58(),
+        relayer.accounts.lookUpTable?.toBase58(),
+      );
+      assert.equal(params.inputUtxos.length, params.verifier.config.in);
+      assert.equal(params.outputUtxos.length, params.verifier.config.out);
+
+      for (var i in inputUtxos) {
+        assert.equal(
+          params.inputUtxos[i].getCommitment(poseidon),
+          inputUtxos[i].getCommitment(),
+        );
+      }
+
+      for (var i in outputUtxos) {
+        assert.equal(
+          params.outputUtxos[i].getCommitment(poseidon),
+          outputUtxos[i].getCommitment(poseidon),
+        );
+      }
+    }
+  });
+
   it("Transfer Functional", async () => {
     var outputUtxo = new Utxo({
       poseidon: poseidon,

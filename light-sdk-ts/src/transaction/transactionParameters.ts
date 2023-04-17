@@ -1,7 +1,7 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { AUTHORITY, MERKLE_TREE_KEY } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
 import { Verifier, VerifierZero } from "../verifiers";
@@ -47,6 +47,7 @@ export class TransactionParameters implements transactionParameters {
   action: Action;
   ataCreationFee?: boolean;
   transactionIndex: number;
+  verifierIdl?: anchor.Idl;
 
   constructor({
     merkleTreePubkey,
@@ -64,7 +65,7 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable,
     ataCreationFee,
     transactionIndex,
-    nonces,
+    verifierIdl,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -82,7 +83,7 @@ export class TransactionParameters implements transactionParameters {
     provider?: Provider;
     ataCreationFee?: boolean;
     transactionIndex: number;
-    nonces?: Array<Uint8Array>;
+    verifierIdl?: anchor.Idl;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -133,6 +134,7 @@ export class TransactionParameters implements transactionParameters {
       outputUtxos,
       this.verifier.config.out,
     );
+    this.verifierIdl = verifierIdl;
 
     if (action === Action.SHIELD && senderSol && lookUpTable) {
       this.relayer = new Relayer(senderSol, lookUpTable);
@@ -440,6 +442,60 @@ export class TransactionParameters implements transactionParameters {
     this.assignAccounts();
     // @ts-ignore:
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
+  }
+
+  async toBytes(): Promise<Buffer> {
+    if (!this.verifierIdl)
+      throw new TransactioParametersError(
+        TransactionParametersErrorCode.VERIFIER_IDL_UNDEFINED,
+        "toBytes",
+      );
+    let coder = new BorshAccountsCoder(this.verifierIdl);
+    let inputUtxosBytes = [];
+    for (var utxo of this.inputUtxos) {
+      inputUtxosBytes.push(await utxo.toBytes());
+    }
+    let outputUtxosBytes = [];
+    for (var utxo of this.outputUtxos) {
+      outputUtxosBytes.push(await utxo.toBytes());
+    }
+    let preparedObject = {
+      transactionIndex: this.transactionIndex,
+      outputUtxosBytes,
+      inputUtxosBytes,
+      recipientSpl: this.relayer.accounts.relayerPubkey,
+    };
+    return await coder.encode("transactionParameters", preparedObject);
+  }
+
+  static async fromBytes({
+    poseidon,
+    verifierIdl,
+    bytes,
+  }: {
+    poseidon: any;
+    verifierIdl: anchor.Idl;
+    bytes: Buffer;
+  }): Promise<TransactionParameters> {
+    let coder = new BorshAccountsCoder(verifierIdl);
+    let decoded = await coder.decode("transactionParameters", bytes);
+    let inputUtxos: Utxo[] = [];
+    for (var utxoBytes of decoded.inputUtxosBytes) {
+      inputUtxos.push(
+        Utxo.fromBytes({
+          poseidon,
+        }),
+      );
+    }
+
+    for (var utxoBytes of decoded.oututUtxosBytes) {
+    }
+
+    return new TransactionParameters({
+      poseidon,
+      inputUtxos,
+      outputUtxos,
+    });
   }
 
   static async getTxParams({
