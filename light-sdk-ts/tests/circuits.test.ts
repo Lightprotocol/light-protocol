@@ -24,6 +24,8 @@ import {
   Action,
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
+import { IDL } from "./testData/mock_verifier";
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -626,7 +628,7 @@ describe("Masp circuit tests", () => {
     );
   });
 });
-import { IDL } from "./testData/mock_verifier";
+
 // TODO: check more specific errors in tests
 describe("App system circuit tests", () => {
   before(async () => {

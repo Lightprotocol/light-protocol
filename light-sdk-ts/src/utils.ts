@@ -11,6 +11,7 @@ import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 import { Utxo } from "utxo";
+import { MetaError, UtilsError, UtilsErrorCode } from "errors";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
@@ -136,31 +137,43 @@ export const sleep = (ms: number) => {
 export type KeyValue = {
   [key: string]: any;
 };
-export function pickFields<T extends KeyValue>(
+/**
+ * @description Creates an object of a type defined in accounts[accountName],
+ * @description all properties need to be part of obj, if a property is missing an error is thrown.
+ * @description The accounts array is part of an anchor idl.
+ * @param obj Object properties are picked from.
+ * @param accounts Idl accounts array from which accountName is selected.
+ * @param accountName Defines which account in accounts to use as type for the output object.
+ * @returns
+ */
+export function createAccountObject<T extends KeyValue>(
   obj: T,
   accounts: any[],
   accountName: string,
 ): Partial<KeyValue> {
-  const utxoAppData = accounts.find((account) => account.name === accountName);
+  const account = accounts.find((account) => account.name === accountName);
 
-  if (!utxoAppData) {
-    throw new Error("utxoAppData does not exist in idl");
+  if (!account) {
+    throw new UtilsError(
+      UtilsErrorCode.ACCOUNT_NAME_UNDEFINED_IN_IDL,
+      "pickFieldsFromObject",
+      `${accountName} does not exist in idl`,
+    );
   }
 
-  const fieldNames = utxoAppData.type.fields.map(
+  const fieldNames = account.type.fields.map(
     (field: { name: string }) => field.name,
   );
-  const appDataKeys: (keyof T)[] = [];
 
-  fieldNames.forEach((fieldName: string) => {
-    appDataKeys.push(fieldName);
+  let accountObject: Partial<T> = {};
+  fieldNames.forEach((fieldName: keyof T) => {
+    accountObject[fieldName] = obj[fieldName];
+    if (!accountObject[fieldName])
+      throw new UtilsError(
+        UtilsErrorCode.PROPERY_UNDEFINED,
+        "pickFieldsFromObject",
+        `Property ${fieldName.toString()} undefined`,
+      );
   });
-
-  let appData: Partial<T> = {};
-
-  appDataKeys.forEach((key) => {
-    appData[key] = obj[key];
-    if (!appData[key]) throw new Error(`Property ${key.toString()} undefined`);
-  });
-  return appData;
+  return accountObject;
 }

@@ -155,6 +155,11 @@ export enum TransactionErrorCode {
   UNIMPLEMENTED = "UNIMPLEMENTED",
 }
 
+export enum UtilsErrorCode {
+  ACCOUNT_NAME_UNDEFINED_IN_IDL = "ACCOUNT_NAME_UNDEFINED_IN_IDL",
+  PROPERY_UNDEFINED = "PROPERY_UNDEFINED",
+}
+
 export class MetaError extends Error {
   code: string;
   codeMessage?: string;
@@ -194,3 +199,5 @@ export class ProviderError extends MetaError {}
 export class SelectInUtxosError extends MetaError {}
 
 export class UserError extends MetaError {}
+
+export class UtilsError extends MetaError {}

@@ -22,7 +22,7 @@ import {
   Account,
   IDL_VERIFIER_PROGRAM_ZERO,
   CreateUtxoErrorCode,
-  pickFields,
+  createAccountObject,
 } from "./index";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
@@ -286,11 +286,6 @@ export class Utxo {
     if (!this.appDataIdl || !this.includeAppData) {
       let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-      let object = {
-        ...this,
-        blinding: this.blinding,
-      };
-
       return coder.encode("utxo", this);
     } else if (this.appDataIdl) {
       let coder = new BorshAccountsCoder(this.appDataIdl);
@@ -353,7 +348,11 @@ export class Utxo {
 
       let coder = new BorshAccountsCoder(appDataIdl);
       decodedUtxoData = coder.decode("utxo", bytes);
-      appData = pickFields(decodedUtxoData, appDataIdl.accounts, "utxoAppData");
+      appData = createAccountObject(
+        decodedUtxoData,
+        appDataIdl.accounts,
+        "utxoAppData",
+      );
     }
     assets = [
       SystemProgram.programId,
