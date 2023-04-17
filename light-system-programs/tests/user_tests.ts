@@ -172,7 +172,7 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.UNSHIELD,
-      recipient: solRecipient.publicKey,
+      recipientSpl: solRecipient.publicKey,
     };
 
     const provider = await Provider.init({
@@ -209,7 +209,7 @@ describe("Test User", () => {
     await user.unshield({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
-      recipientSpl: testInputs.recipient,
+      recipientSpl: testInputs.recipientSpl,
     });
 
     await user.provider.latestMerkleTree();
