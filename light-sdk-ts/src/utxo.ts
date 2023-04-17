@@ -10,7 +10,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
-import { BN } from "@coral-xyz/anchor";
+import { AccountClient, BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   UtxoError,
@@ -20,12 +20,17 @@ import {
   getAssetIndex,
   hashAndTruncateToCircuit,
   Account,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  CreateUtxoErrorCode,
+  createAccountObject,
 } from "./index";
+
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
 
+// TODO: Idl support for U256
 // TODO: add static createSolUtxo()
 // TODO: remove account as attribute and from constructor, replace with shieldedPublicKey
 export class Utxo {
@@ -50,7 +55,7 @@ export class Utxo {
   blinding: BN;
   account: Account;
   index?: number;
-  appData: Array<any>;
+  appData: any;
   verifierAddress: PublicKey;
   verifierAddressCircuit: BN;
   appDataHash: BN;
@@ -59,6 +64,8 @@ export class Utxo {
   _nullifier?: string;
   includeAppData: boolean;
   transactionVersion: string;
+  splAssetIndex?: BN;
+  appDataIdl?: Idl;
 
   /**
    * @description Initialize a new utxo - unspent transaction output or input. Note, a full TX consists of 2 inputs and 2 outputs
@@ -85,11 +92,11 @@ export class Utxo {
     blinding = new BN(randomBN(), 31, "be"),
     poolType = new BN("0"),
     verifierAddress = SystemProgram.programId,
-    appData = [],
-    appDataFromBytesFn,
     index,
-    includeAppData = false,
     appDataHash,
+    appData,
+    appDataIdl,
+    includeAppData = true,
   }: {
     poseidon: any;
     assets?: PublicKey[];
@@ -98,9 +105,9 @@ export class Utxo {
     blinding?: BN;
     poolType?: BN;
     verifierAddress?: PublicKey;
-    appData?: Array<any>;
-    appDataFromBytesFn?: Function;
     index?: number;
+    appData?: any;
+    appDataIdl?: Idl;
     includeAppData?: boolean;
     appDataHash?: BN;
   }) {
@@ -150,9 +157,6 @@ export class Utxo {
     while (amounts.length < N_ASSETS) {
       amounts.push(new BN(0));
     }
-    if (!account) {
-      account = new Account({ poseidon });
-    }
 
     // TODO: check that this does not lead to hickups since publicAmountSpl cannot withdraw the fee asset sol
     if (assets[1].toBase58() == SystemProgram.programId.toBase58()) {
@@ -173,9 +177,13 @@ export class Utxo {
       }
       return new BN(x.toString());
     });
+    if (!account) {
+      this.account = new Account({ poseidon });
+    } else {
+      this.account = account;
+    }
 
     this.blinding = blinding;
-    this.account = account;
     this.index = index;
     this.assets = assets;
     this.appData = appData;
@@ -207,34 +215,55 @@ export class Utxo {
         verifierAddress.toBytes(),
       );
     }
-    if (appData.length > 0) {
-      if (appDataFromBytesFn && !appDataHash) {
-        // console.log(
-        //   "appDataFromBytesFn(appData) ",
-        //   appDataFromBytesFn(appData).map((x) => x.toString()),
-        // );
-        // console.log("poseidon.F.toString ", poseidon.F.toString(
-        //   poseidon(appDataFromBytesFn(appData))));
 
-        this.appDataHash = new BN(
-          leInt2Buff(
-            unstringifyBigInts(
-              poseidon.F.toString(poseidon(appDataFromBytesFn(appData))),
-            ),
-            32,
-          ),
-          undefined,
-          "le",
-        );
-      } else if (appDataHash) {
-        this.appDataHash = appDataHash;
-      } else {
+    if (appDataHash && appData)
+      throw new UtxoError(
+        UtxoErrorCode.APP_DATA_DEFINED,
+        "constructor",
+        "Cannot provide both app data and appDataHash",
+      );
+
+    // if appDataBytes parse appData from bytes
+    if (appData && !appDataHash) {
+      if (!appDataIdl)
         throw new UtxoError(
-          UtxoErrorCode.APP_DATA_FROM_BYTES_FUNCTION_UNDEFINED,
+          UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
           "constructor",
-          "No appDataFromBytesFn provided",
+          "",
         );
+      if (!appDataIdl.accounts)
+        throw new UtxoError(
+          UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
+          "APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS",
+        );
+      let i = appDataIdl.accounts.findIndex((acc) => {
+        return acc.name === "utxo";
+      });
+      if (i === -1)
+        throw new UtxoError(
+          UtxoErrorCode.UTXO_APP_DATA_NOT_FOUND_IN_IDL,
+          "constructor",
+        );
+      let accountClient = new AccountClient(
+        appDataIdl,
+        appDataIdl.accounts[i],
+        SystemProgram.programId,
+      );
+      // TODO: perform type check that appData has all the attributes and these have the correct types and not more
+      let hashArray = [];
+      for (var attribute in appData) {
+        hashArray.push(appData[attribute]);
       }
+      this.appDataHash = new BN(
+        leInt2Buff(
+          unstringifyBigInts(poseidon.F.toString(poseidon(hashArray))),
+          32,
+        ),
+        undefined,
+        "le",
+      );
+      this.appData = appData;
+      this.appDataIdl = appDataIdl;
     } else {
       this.appDataHash = new BN("0");
     }
@@ -245,36 +274,34 @@ export class Utxo {
    * @returns {Uint8Array}
    */
   toBytes() {
-    const assetIndex = getAssetIndex(this.assets[1]);
-    if (assetIndex.toString() == "-1") {
+    this.splAssetIndex = getAssetIndex(this.assets[1]);
+
+    if (this.splAssetIndex.toString() == "-1") {
       throw new UtxoError(
         UtxoErrorCode.ASSET_NOT_FOUND,
         "toBytes",
         "Asset not found in lookup table",
       );
     }
+    if (!this.appDataIdl || !this.includeAppData) {
+      let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-    // case no or excluding appData
-    if (!this.includeAppData) {
-      return new Uint8Array([
-        ...this.blinding.toArray("be", 31),
-        ...this.amounts[0].toArray("be", 8),
-        ...this.amounts[1].toArray("be", 8),
-        ...new BN(assetIndex).toArray("be", 8),
-      ]);
+      return coder.encode("utxo", this);
+    } else if (this.appDataIdl) {
+      let coder = new BorshAccountsCoder(this.appDataIdl);
+      let object = {
+        ...this,
+        blinding: this.blinding,
+        ...this.appData,
+      };
+      return coder.encode("utxo", object);
+    } else {
+      throw new UtxoError(
+        UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
+        "constructor",
+        "Should include app data but no appDataIdl provided",
+      );
     }
-
-    return new Uint8Array([
-      ...this.blinding.toArray("be", 31),
-      ...this.amounts[0].toArray("be", 8),
-      ...this.amounts[1].toArray("be", 8),
-      ...assetIndex.toArray("be", 8),
-      ...this.appDataHash.toArray("be", 32),
-      ...this.poolType.toArray("be", 8),
-      ...this.verifierAddress.toBytes(),
-      ...new Array(1),
-      ...this.appData,
-    ]);
   }
 
   /**
@@ -290,70 +317,58 @@ export class Utxo {
   // TODO: find a better solution to get the private key in
   // TODO: check length to rule out parsing app utxo
   // TODO: validate account
-  // TODO: add generic utxo type which builds from idl
   static fromBytes({
     poseidon,
     bytes,
     account,
-    appDataFromBytesFn,
-    includeAppData = false,
+    includeAppData = true,
     index,
+    appDataIdl,
   }: {
     poseidon: any;
-    bytes: Uint8Array;
+    bytes: Buffer;
     account?: Account;
-    appDataFromBytesFn?: Function;
     includeAppData?: boolean;
     index: number;
+    appDataIdl?: Idl;
   }): Utxo {
-    const blinding = new BN(bytes.slice(0, 31), undefined, "be");
-    const amounts = [
-      new BN(bytes.slice(31, 39), undefined, "be"),
-      new BN(bytes.slice(39, 47), undefined, "be"),
-    ];
-    const assets = [
-      SystemProgram.programId,
-      fetchAssetByIdLookUp(new BN(bytes.slice(47, 55), undefined, "be")),
-    ];
+    let decodedUtxoData: any;
+    let assets: Array<PublicKey>;
+    let appData: any = undefined;
+    // TODO: should I check whether an account is passed or not?
+    if (!appDataIdl) {
+      let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+      decodedUtxoData = coder.decode("utxo", bytes);
+    } else {
+      if (!appDataIdl.accounts)
+        throw new UtxoError(
+          UtxoErrorCode.APP_DATA_IDL_DOES_NOT_HAVE_ACCOUNTS,
+          "fromBytes",
+        );
 
-    if (account) {
-      return new Utxo({
-        poseidon,
-        assets,
-        amounts,
-        account,
-        blinding,
-        includeAppData,
-        index,
-      });
-    }
-    // TODO: add identifier that utxo is app utxo
-    // TODO: add option to use account abstraction standard pubkey new BN(0)
-    else {
-      const appDataHash = new BN(bytes.slice(55, 87), 32, "be");
-
-      const poolType = new BN(bytes.slice(87, 95), 8, "be");
-      const verifierAddress = new PublicKey(bytes.slice(95, 127));
-      // ...new Array(1), separator is otherwise 0
-      const appData = bytes.slice(128, bytes.length);
-      const burnerAccount = Account.fromBurnerSeed(
-        poseidon,
-        appData.slice(72, 104),
+      let coder = new BorshAccountsCoder(appDataIdl);
+      decodedUtxoData = coder.decode("utxo", bytes);
+      appData = createAccountObject(
+        decodedUtxoData,
+        appDataIdl.accounts,
+        "utxoAppData",
       );
-      return new Utxo({
-        poseidon,
-        assets,
-        amounts,
-        account: burnerAccount,
-        blinding,
-        appDataHash,
-        appData: Array.from([...appData]),
-        appDataFromBytesFn,
-        verifierAddress,
-        includeAppData,
-        index,
-      });
     }
+    assets = [
+      SystemProgram.programId,
+      fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
+    ];
+
+    return new Utxo({
+      assets,
+      account,
+      index,
+      poseidon,
+      appDataIdl,
+      includeAppData,
+      ...decodedUtxoData,
+      appData,
+    });
   }
 
   /**
@@ -367,6 +382,16 @@ export class Utxo {
       let assetHash = poseidon.F.toString(
         poseidon(this.assetsCircuit.map((x) => x.toString())),
       );
+      let publicKey: BN;
+      if (this.account) {
+        publicKey = this.account.pubkey;
+      } else {
+        throw new UtxoError(
+          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+          "getCommitment",
+          "Neither Account nor shieldedPublicKey was provided",
+        );
+      }
       // console.log("this.assetsCircuit ", this.assetsCircuit);
 
       // console.log("amountHash ", amountHash.toString());
@@ -379,7 +404,7 @@ export class Utxo {
         poseidon([
           this.transactionVersion,
           amountHash,
-          this.account.pubkey.toString(),
+          publicKey.toString(),
           this.blinding.toString(),
           assetHash.toString(),
           this.appDataHash.toString(),
@@ -457,11 +482,12 @@ export class Utxo {
    *
    * @returns {Uint8Array} with the last 24 bytes being the nonce
    */
-  // TODO: add fill option to 128 bytes to be filled with 0s
-  // TODO: add encrypt custom (app utxos with idl)
-  encrypt() {
-    const bytes_message = this.toBytes();
+  // TODO: add padding option with 0s to 128 bytes length
+  async encrypt(): Promise<Uint8Array> {
+    const bytes_message = await this.toBytes();
+
     const nonce = newNonce();
+
     // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
     // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
     // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
@@ -471,11 +497,9 @@ export class Utxo {
       this.account.encryptionKeypair.publicKey,
       CONSTANT_SECRET_AUTHKEY,
     );
-
-    return new Uint8Array([...ciphertext, ...nonce]);
+    return Uint8Array.from([...nonce, ...ciphertext]);
   }
 
-  // TODO: add decrypt custom (app utxos with idl)
   /**
    * @description Decrypts a utxo from an array of bytes, the last 24 bytes are the nonce.
    * @param {any} poseidon
@@ -495,8 +519,8 @@ export class Utxo {
     account: Account;
     index: number;
   }): Utxo | null {
-    const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(0, 71)));
-    const nonce = new Uint8Array(Array.from(encBytes.slice(71, 71 + 24)));
+    const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(24, 104)));
+    const nonce = new Uint8Array(Array.from(encBytes.slice(0, 24)));
 
     if (account.encryptionKeypair.secretKey) {
       const cleartext = box.open(
@@ -505,11 +529,17 @@ export class Utxo {
         nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
         account.encryptionKeypair.secretKey,
       );
+
       if (!cleartext) {
         return null;
       }
       const bytes = Buffer.from(cleartext);
-      return Utxo.fromBytes({ poseidon, bytes, account, index });
+      return Utxo.fromBytes({
+        poseidon,
+        bytes,
+        account,
+        index,
+      });
     } else {
       return null;
     }
@@ -521,36 +551,66 @@ export class Utxo {
    * @param {Utxo} utxo1
    */
   static equal(poseidon: any, utxo0: Utxo, utxo1: Utxo) {
-    assert.equal(utxo0.amounts[0].toString(), utxo1.amounts[0].toString());
-    assert.equal(utxo0.amounts[1].toString(), utxo1.amounts[1].toString());
-    assert.equal(utxo0.assets[0].toBase58(), utxo1.assets[0].toBase58());
-    assert.equal(utxo0.assets[1].toBase58(), utxo1.assets[1].toBase58());
+    assert.equal(
+      utxo0.amounts[0].toString(),
+      utxo1.amounts[0].toString(),
+      "solAmount",
+    );
+    assert.equal(
+      utxo0.amounts[1].toString(),
+      utxo1.amounts[1].toString(),
+      "splAmount",
+    );
+    assert.equal(
+      utxo0.assets[0].toBase58(),
+      utxo1.assets[0].toBase58(),
+      "solAsset",
+    );
+    assert.equal(utxo0.assets[1].toBase58(), utxo1.assets[1].toBase58()),
+      "splAsset";
     assert.equal(
       utxo0.assetsCircuit[0].toString(),
       utxo1.assetsCircuit[0].toString(),
+      "solAsset circuit",
     );
     assert.equal(
       utxo0.assetsCircuit[1].toString(),
       utxo1.assetsCircuit[1].toString(),
+      "splAsset circuit",
     );
-    assert.equal(utxo0.appDataHash.toString(), utxo1.appDataHash.toString());
-    assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
+    assert.equal(
+      utxo0.appDataHash.toString(),
+      utxo1.appDataHash.toString(),
+      "appDataHash",
+    );
+    assert.equal(
+      utxo0.poolType.toString(),
+      utxo1.poolType.toString(),
+      "poolType",
+    );
     assert.equal(
       utxo0.verifierAddress.toString(),
       utxo1.verifierAddress.toString(),
+      "verifierAddress",
     );
     assert.equal(
       utxo0.verifierAddressCircuit.toString(),
       utxo1.verifierAddressCircuit.toString(),
+      "verifierAddressCircuit",
     );
     assert.equal(
       utxo0.getCommitment(poseidon)?.toString(),
       utxo1.getCommitment(poseidon)?.toString(),
+      "commitment",
     );
-    assert.equal(
-      utxo0.getNullifier(poseidon)?.toString(),
-      utxo1.getNullifier(poseidon)?.toString(),
-    );
+
+    if (utxo0.index || utxo1.index) {
+      assert.equal(
+        utxo0.getNullifier(poseidon)?.toString(),
+        utxo1.getNullifier(poseidon)?.toString(),
+        "nullifier",
+      );
+    }
   }
 }
 

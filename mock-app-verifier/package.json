@@ -5,7 +5,8 @@
     "build-circuit": "sh ./scripts/buildCircuit.sh",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
-    "test": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'"
+    "test": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'",
+    "test-app-utxo": "ts-mocha -p ./tsconfig.json -t 1000000 tests/appUtxo.test.ts --exit"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.26.0",

@@ -12,6 +12,7 @@ import {
   getUtxoArrayAmount,
   Recipient,
   Utxo,
+  Account,
 } from "../index";
 
 // TODO: turn these into static user.class methods

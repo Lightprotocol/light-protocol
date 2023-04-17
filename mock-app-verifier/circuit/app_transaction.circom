@@ -219,7 +219,10 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
     transactionHash === transactionHasher.out;
 
 
-/**
-* -------------------------- Application starts here --------------------------
-*/
+    /**
+    * -------------------------- Application starts here --------------------------
+    */
+    signal input testInput1;
+    signal input testInput2;
+    testInput1 === testInput2;
 }
