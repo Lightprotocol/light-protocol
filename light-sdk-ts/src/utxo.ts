@@ -351,6 +351,12 @@ export class Utxo {
     if (bytes.length === 64) {
       let tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
       bytes = Buffer.from([...tmp, ...new Uint8Array(64).fill(0)]);
+      if (!account)
+        throw new UtxoError(
+          CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
+          "fromBytes",
+          "For deserializing a compressed utxo an account is required.",
+        );
     }
 
     let decodedUtxoData: any;
@@ -379,6 +385,13 @@ export class Utxo {
       SystemProgram.programId,
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
     ];
+    if (!account) {
+      account = Account.fromPubkey(
+        decodedUtxoData.accountShieldedPublicKey.toBuffer(),
+        decodedUtxoData.accountEncryptionPublicKey,
+        poseidon,
+      );
+    }
 
     return new Utxo({
       assets,
