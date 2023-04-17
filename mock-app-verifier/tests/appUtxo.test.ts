@@ -73,7 +73,7 @@ describe("Mock verifier functional", () => {
       index: 0
     });
     let bytes = await outputUtxo.toBytes();
-    
+
     let utxo1 = Utxo.fromBytes({poseidon, bytes,index: 0, account, appDataIdl: IDL});
     Utxo.equal(poseidon, outputUtxo, utxo1);
   })

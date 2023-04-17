@@ -46,6 +46,7 @@ export class TransactionParameters implements transactionParameters {
   assetPubkeysCircuit: string[];
   action: Action;
   ataCreationFee?: boolean;
+  transactionIndex: number;
 
   constructor({
     merkleTreePubkey,
@@ -62,6 +63,8 @@ export class TransactionParameters implements transactionParameters {
     action,
     lookUpTable,
     ataCreationFee,
+    transactionIndex,
+    nonces,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -78,6 +81,8 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable?: PublicKey;
     provider?: Provider;
     ataCreationFee?: boolean;
+    transactionIndex: number;
+    nonces?: Array<Uint8Array>;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -117,6 +122,7 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
+    this.transactionIndex = transactionIndex;
     this.verifier = verifier;
     this.poseidon = poseidon;
     this.ataCreationFee = ataCreationFee;
@@ -452,6 +458,7 @@ export class TransactionParameters implements transactionParameters {
     relayer,
     provider,
     ataCreationFee,
+    transactionIndex,
   }: {
     tokenCtx: TokenContext;
     publicAmountSpl?: BN;
@@ -466,6 +473,7 @@ export class TransactionParameters implements transactionParameters {
     provider: Provider;
     relayer?: Relayer;
     ataCreationFee?: boolean;
+    transactionIndex: number;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
@@ -534,6 +542,7 @@ export class TransactionParameters implements transactionParameters {
       lookUpTable: provider.lookUpTable!,
       relayer: relayer,
       ataCreationFee,
+      transactionIndex,
     });
 
     return txParams;

@@ -1,8 +1,9 @@
-import nacl, { box } from "tweetnacl";
+import nacl, { box, randomBytes } from "tweetnacl";
 
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
+const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
@@ -26,6 +27,7 @@ import {
 } from "./index";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
+
 // TODO: move to constants
 export const N_ASSETS = 2;
 export const N_ASSET_PUBKEYS = 3;
@@ -395,7 +397,7 @@ export class Utxo {
       // console.log("this.assetsCircuit ", this.assetsCircuit);
 
       // console.log("amountHash ", amountHash.toString());
-      // console.log("this.keypair.pubkey ", this.keypair.pubkey.toString());
+      // console.log("this.keypair.pubkey ", this.account.pubkey.toString());
       // console.log("this.blinding ", this.blinding.toString());
       // console.log("assetHash ", assetHash.toString());
       // console.log("this.appDataHash ", this.appDataHash.toString());
@@ -480,24 +482,67 @@ export class Utxo {
   /**
    * @description Encrypts the utxo to the utxo's accounts public key with nacl.box.
    *
-   * @returns {Uint8Array} with the last 24 bytes being the nonce
+   * @returns {Uint8Array} with the first 24 bytes being the nonce
    */
-  // TODO: add padding option with 0s to 128 bytes length
-  async encrypt(): Promise<Uint8Array> {
+  async encrypt(
+    poseidon: any,
+    merkleTreePdaPublicKey?: PublicKey,
+    transactionIndex?: number,
+  ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes();
 
-    const nonce = newNonce();
+    var nonce = new BN(this.getCommitment(poseidon))
+      .toBuffer("le", 32)
+      .subarray(0, 24);
 
-    // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
-    // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
-    // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
-    const ciphertext = box(
-      bytes_message,
-      nonce,
-      this.account.encryptionKeypair.publicKey,
-      CONSTANT_SECRET_AUTHKEY,
-    );
-    return Uint8Array.from([...nonce, ...ciphertext]);
+    if (!this.account.aesSecret) {
+      // CONSTANT_SECRET_AUTHKEY is used to minimize the number of bytes sent to the blockchain.
+      // This results in poly135 being useless since the CONSTANT_SECRET_AUTHKEY is public.
+      // However, ciphertext integrity is guaranteed since a hash of the ciphertext is included in a zero-knowledge proof.
+      const ciphertext = box(
+        bytes_message,
+        nonce,
+        this.account.encryptionKeypair.publicKey,
+        CONSTANT_SECRET_AUTHKEY,
+      );
+
+      return Uint8Array.from([
+        ...ciphertext,
+        ...new Array(128 - ciphertext.length).fill(0),
+      ]);
+    } else {
+      if (!merkleTreePdaPublicKey)
+        throw new UtxoError(
+          UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
+          "encrypt",
+          "For aes encryption the merkle tree pda publickey is necessary to derive the viewingkey",
+        );
+      if (transactionIndex === undefined)
+        throw new UtxoError(
+          UtxoErrorCode.TRANSACTION_INDEX_UNDEFINED,
+          "encrypt",
+          "For aes encryption the transaction index is necessary to derive the viewingkey",
+        );
+
+      const nonce16 = nonce.subarray(0, 16);
+
+      const ciphertext = await encrypt(
+        bytes_message,
+        this.account.getAesUtxoViewingKey(
+          merkleTreePdaPublicKey,
+          transactionIndex,
+        ),
+        nonce16,
+        "aes-256-cbc",
+        true,
+      );
+
+      // adding the 8 unused nonce bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts
+      return Uint8Array.from([
+        ...ciphertext,
+        ...new Array(128 - ciphertext.length).fill(0),
+      ]);
+    }
   }
 
   /**
@@ -508,40 +553,91 @@ export class Utxo {
    * @param {number} index
    * @returns {Utxo | null}
    */
-  static decrypt({
+  static async decrypt({
     poseidon,
     encBytes,
     account,
     index,
+    merkleTreePdaPublicKey,
+    transactionIndex,
+    aes = true,
+    commitment,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
     account: Account;
     index: number;
-  }): Utxo | null {
-    const encryptedUtxo = new Uint8Array(Array.from(encBytes.slice(24, 104)));
-    const nonce = new Uint8Array(Array.from(encBytes.slice(0, 24)));
+    merkleTreePdaPublicKey?: PublicKey;
+    transactionIndex?: number;
+    aes?: boolean;
+    commitment: Uint8Array;
+  }): Promise<Utxo | null> {
+    if (aes) {
+      if (!account.aesSecret) {
+        throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
+      }
+      if (!merkleTreePdaPublicKey)
+        throw new UtxoError(
+          UtxoErrorCode.MERKLE_TREE_PDA_PUBLICKEY_UNDEFINED,
+          "encrypt",
+          "For aes decryption the merkle tree pda publickey is necessary to derive the viewingkey",
+        );
+      if (transactionIndex === undefined)
+        throw new UtxoError(
+          UtxoErrorCode.TRANSACTION_INDEX_UNDEFINED,
+          "encrypt",
+          "For aes decryption the transaction index is necessary to derive the viewingkey",
+        );
 
-    if (account.encryptionKeypair.secretKey) {
-      const cleartext = box.open(
-        encryptedUtxo,
-        nonce,
-        nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
-        account.encryptionKeypair.secretKey,
-      );
+      const encryptedUtxo = encBytes.subarray(0, 80);
+      const iv = commitment.subarray(0, 16);
 
-      if (!cleartext) {
+      try {
+        const cleartext = await decrypt(
+          encryptedUtxo,
+          account.getAesUtxoViewingKey(
+            merkleTreePdaPublicKey,
+            transactionIndex,
+          ),
+          iv,
+          "aes-256-cbc",
+          true,
+        );
+        const bytes = Buffer.from(cleartext);
+        return Utxo.fromBytes({
+          poseidon,
+          bytes,
+          account,
+          index,
+        });
+      } catch (_) {
         return null;
       }
-      const bytes = Buffer.from(cleartext);
-      return Utxo.fromBytes({
-        poseidon,
-        bytes,
-        account,
-        index,
-      });
     } else {
-      return null;
+      const encryptedUtxo = encBytes.subarray(0, 80);
+      const nonce = commitment.subarray(0, 24);
+
+      if (account.encryptionKeypair.secretKey) {
+        const cleartext = box.open(
+          encryptedUtxo,
+          nonce,
+          nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
+          account.encryptionKeypair.secretKey,
+        );
+
+        if (!cleartext) {
+          return null;
+        }
+        const bytes = Buffer.from(cleartext);
+        return Utxo.fromBytes({
+          poseidon,
+          bytes,
+          account,
+          index,
+        });
+      } else {
+        return null;
+      }
     }
   }
 
@@ -550,7 +646,12 @@ export class Utxo {
    * @param {Utxo} utxo0
    * @param {Utxo} utxo1
    */
-  static equal(poseidon: any, utxo0: Utxo, utxo1: Utxo) {
+  static equal(
+    poseidon: any,
+    utxo0: Utxo,
+    utxo1: Utxo,
+    skipNullifier: boolean = false,
+  ) {
     assert.equal(
       utxo0.amounts[0].toString(),
       utxo1.amounts[0].toString(),
@@ -598,18 +699,22 @@ export class Utxo {
       utxo1.verifierAddressCircuit.toString(),
       "verifierAddressCircuit",
     );
+
     assert.equal(
       utxo0.getCommitment(poseidon)?.toString(),
       utxo1.getCommitment(poseidon)?.toString(),
       "commitment",
     );
-
-    if (utxo0.index || utxo1.index) {
-      assert.equal(
-        utxo0.getNullifier(poseidon)?.toString(),
-        utxo1.getNullifier(poseidon)?.toString(),
-        "nullifier",
-      );
+    if (!skipNullifier) {
+      if (utxo0.index || utxo1.index) {
+        if (utxo0.account.privkey || utxo1.account.privkey) {
+          assert.equal(
+            utxo0.getNullifier(poseidon)?.toString(),
+            utxo1.getNullifier(poseidon)?.toString(),
+            "nullifier",
+          );
+        }
+      }
     }
   }
 }

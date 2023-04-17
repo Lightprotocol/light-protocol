@@ -120,6 +120,8 @@ describe("Test User", () => {
     try {
       balance = await user.getBalance({ latest: true });
     } catch (e) {
+      console.log(e);
+
       throw new Error(`ayayay ${e}`);
     }
     let tokenBalanceAfter = balance.find(
@@ -441,21 +443,22 @@ describe("Test User", () => {
       wallet: userKeypair,
       relayer: RELAYER,
     }); // userKeypair
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    // const shieldedRecipient =
+    //   "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+    // const encryptionPublicKey =
+    //   "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    const recipientAccount = new Account({
+      poseidon: POSEIDON,
+      seed: new Uint8Array(32).fill(9).toString(),
+    });
 
-    const recipientAccount = Account.fromPubkey(
-      strToArr(shieldedRecipient),
-      strToArr(encryptionPublicKey),
+    const recipientAccountFromPubkey = Account.fromPubkey(
+      recipientAccount.pubkey.toBuffer(),
+      recipientAccount.encryptionKeypair.publicKey,
       POSEIDON,
     );
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
 
     const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
@@ -464,7 +467,7 @@ describe("Test User", () => {
     await user.transfer({
       amountSpl,
       token,
-      recipient: recipientAccount,
+      recipient: recipientAccountFromPubkey,
     });
 
     await user.provider.latestMerkleTree();
@@ -534,6 +537,15 @@ describe("Test User", () => {
       recentTransaction.relayerRecipientSol.toBase58(),
       provider.relayer.accounts.relayerRecipientSol.toBase58(),
     );
+
+    // assert recipient utxo
+    const userRecipient: User = await User.init(
+      provider,
+      new Uint8Array(32).fill(9).toString(),
+    );
+    let { decryptedUtxos } = await userRecipient.getUtxos(false);
+    assert.equal(decryptedUtxos.length, 1);
+    assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
   });
 
   it.skip("(user class) transfer SOL", async () => {
