@@ -157,7 +157,9 @@ export type VerifierProgramZero = {
         fields: [
           {
             name: "x";
-            type: "u64";
+            type: {
+              array: ["u8", 32];
+            };
           },
         ];
       };
@@ -180,6 +182,16 @@ export type VerifierProgramZero = {
           {
             name: "blinding";
             type: "u256";
+          },
+          {
+            name: "accountShieldedPublicKey";
+            type: "u256";
+          },
+          {
+            name: "accountEncryptionPublicKey";
+            type: {
+              array: ["u8", 32];
+            };
           },
         ];
       };
@@ -386,7 +398,9 @@ export const IDL: VerifierProgramZero = {
         fields: [
           {
             name: "x",
-            type: "u64",
+            type: {
+              array: ["u8", 32],
+            },
           },
         ],
       },
@@ -409,6 +423,16 @@ export const IDL: VerifierProgramZero = {
           {
             name: "blinding",
             type: "u256",
+          },
+          {
+            name: "accountShieldedPublicKey",
+            type: "u256",
+          },
+          {
+            name: "accountEncryptionPublicKey",
+            type: {
+              array: ["u8", 32],
+            },
           },
         ],
       },

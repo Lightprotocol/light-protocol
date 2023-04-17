@@ -3,7 +3,11 @@ import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
+const chai = require("chai");
+const chaiAsPromised = require("chai-as-promised");
 
+// Load chai-as-promised support
+chai.use(chaiAsPromised);
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -343,20 +347,17 @@ describe("Utxo Errors", () => {
       });
   });
 
-  it("INVALID_ASSET_OR_AMOUNTS_LENGTH", () => {
-    expect(() => {
+  it("ASSET_NOT_FOUND", async () => {
+    await chai.assert.isRejected(
       new Utxo({
         poseidon,
         assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
         amounts: inputs.amounts,
         account: inputs.keypair,
         blinding: inputs.blinding,
-      }).toBytes();
-    })
-      .to.throw(UtxoError)
-      .to.include({
-        code: UtxoErrorCode.ASSET_NOT_FOUND,
-        functionName: "toBytes",
-      });
+      }).toBytes()      
+    ,
+    UtxoErrorCode.ASSET_NOT_FOUND
+    )
   });
 });

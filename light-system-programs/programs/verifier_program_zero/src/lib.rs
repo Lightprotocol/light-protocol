@@ -104,19 +104,12 @@ pub struct LightInstruction<'info> {
 pub struct u256 {
     x: [u8; 32],
 }
-#[account]
-pub struct UtxoCompressed {
-    amounts: [u64; 2],
-    spl_asset_index: u64,
-    blinding: u256,
-}
 
 #[account]
-pub struct UtxoUncompressed {
+pub struct Utxo {
     amounts: [u64; 2],
     spl_asset_index: u64,
     blinding: u256,
-    account: seed,
     account_shielded_public_key: u256,
     account_encryption_public_key: [u8; 32],
 }

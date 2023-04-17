@@ -275,34 +275,47 @@ export class Utxo {
    * @description Parses a utxo to bytes.
    * @returns {Uint8Array}
    */
-  async toBytes() {
+  async toBytes(compressed: boolean = false) {
     this.splAssetIndex = getAssetIndex(this.assets[1]);
 
-    if (this.splAssetIndex.toString() == "-1") {
+    if (this.splAssetIndex.eq(new BN("-1"))) {
       throw new UtxoError(
         UtxoErrorCode.ASSET_NOT_FOUND,
         "toBytes",
         "Asset not found in lookup table",
       );
     }
+
+    let serializeObject = {
+      ...this,
+      accountShieldedPublicKey: this.account.pubkey,
+      accountEncryptionPublicKey: this.account.encryptionKeypair.publicKey,
+    };
+    let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
       let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-      return await coder.encode("utxo", this);
+      serializedData = await coder.encode("utxo", serializeObject);
     } else if (this.appDataIdl) {
       let coder = new BorshAccountsCoder(this.appDataIdl);
-      let object = {
-        ...this,
-        blinding: this.blinding,
+      serializeObject = {
+        ...serializeObject,
         ...this.appData,
       };
-      return await coder.encode("utxo", object);
+      serializedData = await coder.encode("utxo", serializeObject);
     } else {
       throw new UtxoError(
         UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
         "constructor",
         "Should include app data but no appDataIdl provided",
       );
+    }
+    // Compressed serialization does not store the account since for an encrypted utxo
+    // we assume that the user who is able to decrypt the utxo knows the corresponding account.
+    if (compressed) {
+      return serializedData.subarray(0, 64);
+    } else {
+      return serializedData;
     }
   }
 
@@ -334,6 +347,12 @@ export class Utxo {
     index: number;
     appDataIdl?: Idl;
   }): Utxo {
+    // assumes it is compressed and adds 64 0 bytes padding
+    if (bytes.length === 64) {
+      let tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
+      bytes = Buffer.from([...tmp, ...new Uint8Array(64).fill(0)]);
+    }
+
     let decodedUtxoData: any;
     let assets: Array<PublicKey>;
     let appData: any = undefined;
@@ -489,7 +508,7 @@ export class Utxo {
     merkleTreePdaPublicKey?: PublicKey,
     transactionIndex?: number,
   ): Promise<Uint8Array> {
-    const bytes_message = await this.toBytes();
+    const bytes_message = await this.toBytes(true);
 
     var nonce = new BN(this.getCommitment(poseidon))
       .toBuffer("le", 32)
@@ -524,7 +543,7 @@ export class Utxo {
           "For aes encryption the transaction index is necessary to derive the viewingkey",
         );
 
-      const nonce16 = nonce.subarray(0, 16);
+      const iv16 = nonce.subarray(0, 16);
 
       const ciphertext = await encrypt(
         bytes_message,
@@ -532,7 +551,7 @@ export class Utxo {
           merkleTreePdaPublicKey,
           transactionIndex,
         ),
-        nonce16,
+        iv16,
         "aes-256-cbc",
         true,
       );
@@ -591,7 +610,6 @@ export class Utxo {
 
       const encryptedUtxo = encBytes.subarray(0, 80);
       const iv = commitment.subarray(0, 16);
-
       try {
         const cleartext = await decrypt(
           encryptedUtxo,
@@ -603,6 +621,7 @@ export class Utxo {
           "aes-256-cbc",
           true,
         );
+
         const bytes = Buffer.from(cleartext);
         return Utxo.fromBytes({
           poseidon,
