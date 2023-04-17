@@ -130,6 +130,6 @@ pub struct TransactionParameters {
     transaction_index: u64,
 }
 
-#[allow(non_camel_case_types)]
+#[allow(non_camel_case_types, non_upper_case_globals)]
 #[constant]
 pub const programId: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
