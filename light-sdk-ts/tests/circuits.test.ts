@@ -24,6 +24,8 @@ import {
   Action,
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
+import { IDL } from "./testData/mock_verifier";
+
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
@@ -44,6 +46,7 @@ let keypair: Account,
   txParams: TransactionParameters,
   txParamsSol: TransactionParameters,
   paramsWithdrawal: TransactionParameters,
+  appData,
   relayer: Relayer;
 let seed32 = new Uint8Array(32).fill(1).toString();
 
@@ -121,15 +124,13 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       relayer,
     });
-    const appDataFromBytesFn = (bytes) => {
-      return [new anchor.BN(bytes)];
-    };
+    appData = {testInput1: new anchor.BN(1), testInput2: new anchor.BN(1)};
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,
@@ -167,8 +168,8 @@ describe("Masp circuit tests", () => {
       outputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,
@@ -178,6 +179,8 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
+      // automatic encryption for app utxos is not implemented
+      encryptedUtxos: new Uint8Array(256).fill(1)
     });
   });
 
@@ -661,9 +664,7 @@ describe("App system circuit tests", () => {
       action: Action.SHIELD,
       poseidon,
     });
-    const appDataFromBytesFn = (bytes) => {
-      return [new anchor.BN(bytes)];
-    };
+
     relayer = new Relayer(
       mockPubkey3,
       mockPubkey,
@@ -674,8 +675,8 @@ describe("App system circuit tests", () => {
       inputUtxos: [
         new Utxo({
           poseidon,
-          appData: new Array(32).fill(1),
-          appDataFromBytesFn,
+          appData,
+          appDataIdl: IDL,
         }),
       ],
       merkleTreePubkey: mockPubkey,

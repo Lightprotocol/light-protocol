@@ -1,5 +1,5 @@
-import * as anchor from "@project-serum/anchor";
-import { Program } from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
+import { Program } from "@coral-xyz/anchor";
 import {
   Transaction as SolanaTransaction,
   PublicKey,
@@ -23,7 +23,7 @@ import {
 } from "../../target/types/mock_verifier";
 
 export class MockVerifier implements Verifier {
-  verifierProgram: Program<MockVerifierType>;
+  verifierProgram?: Program<MockVerifierType>;
   verifierProgramIdCircuit: BN;
   wtnsGenPath: String;
   zkeyPath: String;

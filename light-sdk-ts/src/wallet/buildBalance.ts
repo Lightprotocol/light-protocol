@@ -3,6 +3,7 @@ import * as anchor from "@coral-xyz/anchor";
 import { Connection } from "@solana/web3.js";
 import { Account } from "../account";
 import { fetchNullifierAccountInfo } from "../utils";
+import { QueuedLeavesPda } from "merkleTree";
 
 const processDecryptedUtxos = async ({
   decryptedUtxo,
@@ -73,7 +74,7 @@ export async function getAccountUtxos({
       Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(0, 95)),
+          Array.from(leafPda.account.encryptedUtxos.slice(0, 104)),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber(),
@@ -81,7 +82,7 @@ export async function getAccountUtxos({
       Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(95)),
+          Array.from(leafPda.account.encryptedUtxos.slice(104)),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber() + 1,

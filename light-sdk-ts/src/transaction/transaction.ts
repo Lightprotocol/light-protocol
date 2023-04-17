@@ -199,7 +199,7 @@ export class Transaction {
   }
 
   async compileAndProve() {
-    this.compile();
+    await this.compile();
     await this.getProof();
     if (this.appParams) {
       await this.getAppProof();
@@ -211,7 +211,7 @@ export class Transaction {
   /**
    * @description Prepares proof inputs.
    */
-  compile() {
+  async compile() {
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
 
@@ -237,11 +237,11 @@ export class Transaction {
       inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
-      internalTxIntegrityHash: this.getTxIntegrityHash().toString(),
+      internalTxIntegrityHash: (await this.getTxIntegrityHash()).toString(),
     };
     this.proofInput = {
       transactionVersion: "0",
-      txIntegrityHash: this.getTxIntegrityHash().toString(),
+      txIntegrityHash: (await this.getTxIntegrityHash()).toString(),
       outputCommitment: this.params.outputUtxos.map((x) =>
         x.getCommitment(this.provider.poseidon),
       ),
@@ -264,13 +264,14 @@ export class Transaction {
         (x) => x.verifierAddressCircuit,
       ),
     };
+
     if (this.appParams) {
       this.proofInput.transactionHash = Transaction.getTransactionHash(
         this.params,
         this.provider.poseidon,
         this.proofInput.txIntegrityHash,
       );
-      this.proofInput.publicAppVerifier = this.params.verifier?.pubkey;
+      this.proofInput.publicAppVerifier = this.appParams.verifier?.pubkey;
     }
   }
 
@@ -299,7 +300,7 @@ export class Transaction {
     this.appParams.inputs.transactionHash = Transaction.getTransactionHash(
       this.params,
       this.provider.poseidon,
-      this.getTxIntegrityHash().toString(),
+      (await this.getTxIntegrityHash()).toString(),
     );
     const path = require("path");
     // TODO: find a better more flexible solution, pass in path with app params
@@ -598,7 +599,7 @@ export class Transaction {
    * @description
    * @returns
    */
-  getTxIntegrityHash(): BN {
+  async getTxIntegrityHash(): Promise<BN> {
     if (!this.params.relayer)
       throw new TransactionError(
         TransactionErrorCode.RELAYER_UNDEFINED,
@@ -629,7 +630,7 @@ export class Transaction {
       return this.testValues.txIntegrityHash;
     } else {
       if (!this.params.encryptedUtxos) {
-        this.params.encryptedUtxos = this.encryptOutUtxos();
+        this.params.encryptedUtxos = await this.encryptOutUtxos();
       }
 
       if (
@@ -670,20 +671,30 @@ export class Transaction {
     }
   }
 
-  encryptOutUtxos(encryptedUtxos?: Uint8Array) {
+  async encryptOutUtxos(encryptedUtxos?: Uint8Array) {
     let encryptedOutputs = new Array<any>();
     if (encryptedUtxos) {
       encryptedOutputs = Array.from(encryptedUtxos);
     } else if (this.params && this.params.outputUtxos) {
-      this.params.outputUtxos.map((utxo) =>
-        encryptedOutputs.push(utxo.encrypt()),
-      );
-
-      if (this.params.verifier.config.out == 2) {
+      for (var utxo in this.params.outputUtxos) {
+        if (this.params.outputUtxos[utxo].appDataHash.toString() !== "0")
+          throw new TransactionError(
+            TransactionErrorCode.UNIMPLEMENTED,
+            "encryptUtxos",
+            "Automatic encryption for utxos with application data is not implemented.",
+          );
+        encryptedOutputs.push(await this.params.outputUtxos[utxo].encrypt());
+      }
+      if (
+        this.params.verifier.config.out == 2 &&
+        encryptedOutputs[0].length + encryptedOutputs[1].length < 256
+      ) {
         return new Uint8Array([
           ...encryptedOutputs[0],
           ...encryptedOutputs[1],
-          ...new Array(256 - 190).fill(0),
+          ...new Array(
+            256 - encryptedOutputs[0].length - encryptedOutputs[1].length,
+          ).fill(0),
           // this is ok because these bytes are not sent and just added for the integrity hash
           // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
         ]);

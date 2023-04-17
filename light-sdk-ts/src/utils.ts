@@ -11,6 +11,7 @@ import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
 import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 import { Utxo } from "utxo";
+import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
 const { keccak_256 } = require("@noble/hashes/sha3");
 const circomlibjs = require("circomlibjs");
 
@@ -132,3 +133,47 @@ export const sleep = (ms: number) => {
 
 //   return pub;
 // })();
+
+export type KeyValue = {
+  [key: string]: any;
+};
+/**
+ * @description Creates an object of a type defined in accounts[accountName],
+ * @description all properties need to be part of obj, if a property is missing an error is thrown.
+ * @description The accounts array is part of an anchor idl.
+ * @param obj Object properties are picked from.
+ * @param accounts Idl accounts array from which accountName is selected.
+ * @param accountName Defines which account in accounts to use as type for the output object.
+ * @returns
+ */
+export function createAccountObject<T extends KeyValue>(
+  obj: T,
+  accounts: any[],
+  accountName: string,
+): Partial<KeyValue> {
+  const account = accounts.find((account) => account.name === accountName);
+
+  if (!account) {
+    throw new UtilsError(
+      UtilsErrorCode.ACCOUNT_NAME_UNDEFINED_IN_IDL,
+      "pickFieldsFromObject",
+      `${accountName} does not exist in idl`,
+    );
+  }
+
+  const fieldNames = account.type.fields.map(
+    (field: { name: string }) => field.name,
+  );
+
+  let accountObject: Partial<T> = {};
+  fieldNames.forEach((fieldName: keyof T) => {
+    accountObject[fieldName] = obj[fieldName];
+    if (!accountObject[fieldName])
+      throw new UtilsError(
+        UtilsErrorCode.PROPERY_UNDEFINED,
+        "pickFieldsFromObject",
+        `Property ${fieldName.toString()} undefined`,
+      );
+  });
+  return accountObject;
+}

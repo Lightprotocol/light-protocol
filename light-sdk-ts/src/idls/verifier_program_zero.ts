@@ -149,6 +149,42 @@ export type VerifierProgramZero = {
       ];
     },
   ];
+  accounts: [
+    {
+      name: "u256";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "x";
+            type: "u64";
+          },
+        ];
+      };
+    },
+    {
+      name: "utxo";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "amounts";
+            type: {
+              array: ["u64", 2];
+            };
+          },
+          {
+            name: "splAssetIndex";
+            type: "u64";
+          },
+          {
+            name: "blinding";
+            type: "u256";
+          },
+        ];
+      };
+    },
+  ];
 };
 
 export const IDL: VerifierProgramZero = {
@@ -300,6 +336,42 @@ export const IDL: VerifierProgramZero = {
           type: "bytes",
         },
       ],
+    },
+  ],
+  accounts: [
+    {
+      name: "u256",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "x",
+            type: "u64",
+          },
+        ],
+      },
+    },
+    {
+      name: "utxo",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "amounts",
+            type: {
+              array: ["u64", 2],
+            },
+          },
+          {
+            name: "splAssetIndex",
+            type: "u64",
+          },
+          {
+            name: "blinding",
+            type: "u256",
+          },
+        ],
+      },
     },
   ],
 };
