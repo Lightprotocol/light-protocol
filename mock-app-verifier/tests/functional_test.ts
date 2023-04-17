@@ -19,7 +19,7 @@ import {
   Action,
   TestRelayer,
   hashAndTruncateToCircuit,
-  pickFields
+  createAccountObject
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -98,14 +98,14 @@ describe("Mock verifier functional", () => {
   })
 
   it("Pick app data from utxo data", ()=> {
-    let data = pickFields({testInput1: 1, testInput2: 2, rndOtherStuff: {s:2342}, o: [2,2,new BN(2)]},IDL.accounts,  "utxoAppData");
+    let data = createAccountObject({testInput1: 1, testInput2: 2, rndOtherStuff: {s:2342}, o: [2,2,new BN(2)]},IDL.accounts,  "utxoAppData");
     assert.equal(data.testInput1, 1);
     assert.equal(data.testInput2, 2);
     assert.equal(data.rndOtherStuff, undefined);
     assert.equal(data.o, undefined);
 
     expect(()=>{
-        pickFields({testInput1: 1, rndOtherStuff: {s:2342}, o: [2,2,new BN(2)]},IDL.accounts, "utxoAppData")
+        createAccountObject({testInput1: 1, rndOtherStuff: {s:2342}, o: [2,2,new BN(2)]},IDL.accounts, "utxoAppData")
     }).to.throw(Error)
   })
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
