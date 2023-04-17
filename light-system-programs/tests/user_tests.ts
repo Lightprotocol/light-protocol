@@ -33,13 +33,11 @@ import {
   TransactionErrorCode,
   ADMIN_AUTH_KEY,
   TestRelayer,
-  fetchNullifierAccountInfo,
   Action,
   TestStateValidator,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
-import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -59,7 +57,6 @@ describe("Test User", () => {
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-  const testStateValidator = new TestStateValidator();
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
@@ -86,129 +83,106 @@ describe("Test User", () => {
   });
 
   it("(user class) shield SPL", async () => {
-    let amount = 20;
-    let token = "USDC";
-    console.log("test user wallet: ", userKeypair.publicKey.toBase58());
+    let testInputs = {
+      amountSpl: 20,
+      amountSol: 0,
+      token: "USDC",
+      type: Action.SHIELD,
+    };
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
-    }); // userKeypair
+    });
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
-    );
-    // get token
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-
-    const userSplAccount = getAssociatedTokenAddressSync(
-      tokenCtx!.tokenAccount,
-      ADMIN_AUTH_KEYPAIR.publicKey,
     );
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
     const user: User = await User.init(provider);
 
-    await testStateValidator.fetchAndSaveState({
+    const testStateValidator = new TestStateValidator({
       user,
       provider,
-      userSplAccount,
+      testInputs,
     });
-    await user.shield({ publicAmountSpl: amount, token });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+    });
 
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
-    // assert that the user's shielded balance has increased by the amount shielded
-    await testStateValidator.assertShieldedTokenBalance(user, tokenCtx, amount);
-
-    // assert that the user's token balance has decreased by the amount shielded
-    await testStateValidator.assertTokenBalance(userSplAccount, -amount);
-
-    // assert that the user's sol shielded balance has increased by the additional sol amount
-    await testStateValidator.assertShieledSolBalance(user, 150000);
-
-    assert.equal(user.spentUtxos.length, 0);
-
-    assert.notEqual(
-      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
-      null,
-    );
-
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await testStateValidator.assertRecentIndexedTransaction({
-      amountSpl: amount,
-      tokenCtx,
-      user,
-      type: Action.SHIELD,
-    });
+    await testStateValidator.checkTokenShielded();
   });
 
   it("(user class) shield SOL", async () => {
-    let amount = 15;
-    let token = "SOL";
+    let testInputs = {
+      amountSpl: 0,
+      amountSol: 15,
+      token: "SOL",
+      type: Action.SHIELD,
+    };
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
     }); // userKeypair
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       4_000_000_000,
     );
+
     await provider.provider.connection.confirmTransaction(res, "confirmed");
+
     const user: User = await User.init(provider);
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    await testStateValidator.fetchAndSaveState({ user, provider });
+    const testStateValidator = new TestStateValidator({
+      user,
+      provider,
+      testInputs,
+    });
 
-    await user.shield({ publicAmountSol: amount, token });
+    await testStateValidator.fetchAndSaveState();
+
+    await user.shield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+    });
+
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
-    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-
-    // assert that the user's shielded balance has increased by the amount shielded
-    await testStateValidator.assertShieledSolBalance(
-      user,
-      amount * tokenCtx?.decimals.toNumber(),
-    );
-
-    // assert that the user's token balance has decreased by the amount shielded
-    await testStateValidator.assertSolBalance(
-      amount,
-      tokenCtx,
-      tempAccountCost,
-    );
-
-    // assert that user utxos are spent and updated correctly
-    await testStateValidator.assertUserUtxos(user);
-
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await testStateValidator.assertRecentIndexedTransaction({
-      amountSol: amount,
-      tokenCtx,
-      user,
-      type: Action.SHIELD,
-    });
+    await testStateValidator.checkSolShielded();
   });
 
   it("(user class) unshield SPL", async () => {
-    let amount = 1;
-    let token = "USDC";
-    let solRecipient = SolanaKeypair.generate();
+    const solRecipient = SolanaKeypair.generate();
+
+    const testInputs = {
+      amountSpl: 1,
+      amountSol: 0,
+      token: "USDC",
+      type: Action.UNSHIELD,
+      recipient: solRecipient.publicKey,
+    };
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
     }); // userKeypair
+
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
       2_000_000_000,
-    );
-
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const recipientSplAccount = getAssociatedTokenAddressSync(
-      tokenCtx!.tokenAccount,
-      solRecipient.publicKey,
     );
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
@@ -223,117 +197,70 @@ describe("Test User", () => {
     });
 
     const user: User = await User.init(provider);
-    await testStateValidator.fetchAndSaveState({
+
+    const testStateValidator = new TestStateValidator({
       user,
       provider,
-      recipientSplAccount,
+      testInputs,
     });
 
+    await testStateValidator.fetchAndSaveState();
+
     await user.unshield({
-      publicAmountSpl: amount,
-      token,
-      recipientSpl: solRecipient.publicKey,
+      publicAmountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+      recipientSpl: testInputs.recipient,
     });
 
     await user.provider.latestMerkleTree();
 
-    // assert that the user's shielded token balance has decreased by the amount unshielded
-    await testStateValidator.assertShieldedTokenBalance(
-      user,
-      tokenCtx,
-      -amount,
-    );
-
-    // assert that the recipient token balance has increased by the amount shielded
-    await testStateValidator.assertRecipientTokenBalance(
-      recipientSplAccount,
-      amount,
-    );
-
-    // assert that the user's sol shielded balance has increased by the additional sol amount
-    const minimumBalance = 150000;
-    const tokenAccountFee = 500_000;
-    await testStateValidator.assertShieledSolBalance(
-      user,
-      -minimumBalance - tokenAccountFee,
-    );
-
-    // assert that user utxos are spent and updated correctly
-    await testStateValidator.assertUserUtxos(user);
-
-    // assert that recentIndexedTransaction is of type UNSHIELD and have right values
-    await testStateValidator.assertRecentIndexedTransaction({
-      amountSpl: amount,
-      user,
-      type: Action.UNSHIELD,
-      tokenCtx,
-      recipientSplAccount,
-    });
+    await testStateValidator.checkTokenUnshielded();
   });
 
   it("(user class) transfer SPL", async () => {
-    let amountSpl = 1;
-    const token = "USDC";
+    const testInputs = {
+      amountSpl: 1,
+      amountSol: 0,
+      token: "USDC",
+      type: Action.TRANSFER,
+    };
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
     }); // userKeypair
-    // const shieldedRecipient =
-    //   "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    // const encryptionPublicKey =
-    //   "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-    const recipientAccount = new Account({
-      poseidon: POSEIDON,
-      seed: new Uint8Array(32).fill(9).toString(),
-    });
+
+    const shieldedRecipient =
+      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+
+    const encryptionPublicKey =
+      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
 
     const recipientAccountFromPubkey = Account.fromPubkey(
       recipientAccount.pubkey.toBuffer(),
       recipientAccount.encryptionKeypair.publicKey,
       POSEIDON,
     );
-    // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
     const user: User = await User.init(provider);
 
-    await testStateValidator.fetchAndSaveState({
+    const testStateValidator = new TestStateValidator({
       user,
       provider,
+      testInputs,
     });
 
+    await testStateValidator.fetchAndSaveState();
+
     await user.transfer({
-      amountSpl,
-      token,
-      recipient: recipientAccountFromPubkey,
+      amountSpl: testInputs.amountSpl,
+      token: testInputs.token,
+      recipient: recipientAccount,
     });
 
     await user.provider.latestMerkleTree();
 
-    // assert that the user's shielded balance has decreased by the amount transferred
-    await testStateValidator.assertShieldedTokenBalance(
-      user,
-      tokenCtx,
-      -amountSpl,
-    );
-
-    // assert that the user's sol shielded balance has decreased by fee
-    await testStateValidator.assertShieledSolBalance(
-      user,
-      -provider.relayer.relayerFee.toNumber(),
-    );
-
-    // assert that user utxos are spent and updated correctly
-    await testStateValidator.assertUserUtxos(user);
-
-    // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await testStateValidator.assertRecentIndexedTransaction({
-      user,
-      tokenCtx,
-      amountSol: 0,
-      amountSpl: 0,
-      type: Action.TRANSFER,
-    });
+    await testStateValidator.checkTokenTransferred();
   });
 
   it.skip("(user class) transfer SOL", async () => {
