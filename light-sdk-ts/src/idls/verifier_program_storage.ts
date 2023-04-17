@@ -24,7 +24,7 @@ export type VerifierProgramStorage = {
       ];
       args: [
         {
-          name: "msg";
+          name: "message";
           type: "bytes";
         },
       ];
@@ -72,12 +72,112 @@ export type VerifierProgramStorage = {
           isSigner: false;
         },
         {
+          name: "programMerkleTree";
+          isMut: false;
+          isSigner: false;
+        },
+        {
           name: "logWrapper";
           isMut: false;
           isSigner: false;
         },
+        {
+          name: "messageMerkleTree";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "transactionMerkleTree";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "authority";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "senderSol";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "recipientSol";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "relayerRecipientSol";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "registeredVerifierPda";
+          isMut: true;
+          isSigner: false;
+          docs: ["Verifier config pda which needs to exist."];
+        },
       ];
-      args: [];
+      args: [
+        {
+          name: "proofA";
+          type: {
+            array: ["u8", 64];
+          };
+        },
+        {
+          name: "proofB";
+          type: {
+            array: ["u8", 128];
+          };
+        },
+        {
+          name: "proofC";
+          type: {
+            array: ["u8", 64];
+          };
+        },
+        {
+          name: "nullifiers";
+          type: {
+            array: [
+              {
+                array: ["u8", 32];
+              },
+              2,
+            ];
+          };
+        },
+        {
+          name: "leaves";
+          type: {
+            array: [
+              {
+                array: ["u8", 32];
+              },
+              2,
+            ];
+          };
+        },
+        {
+          name: "publicAmountSol";
+          type: {
+            array: ["u8", 32];
+          };
+        },
+        {
+          name: "rootIndex";
+          type: "u64";
+        },
+        {
+          name: "relayerFee";
+          type: "u64";
+        },
+        {
+          name: "encryptedUtxos";
+          type: "bytes";
+        },
+      ];
     },
   ];
   accounts: [
@@ -102,7 +202,7 @@ export type VerifierProgramStorage = {
     },
     {
       code: 6001;
-      name: "MsgTooLarge";
+      name: "MessageTooLarge";
       msg: "Message too large, the limit per one method call is 1024 bytes.";
     },
     {
@@ -139,7 +239,7 @@ export const IDL: VerifierProgramStorage = {
       ],
       args: [
         {
-          name: "msg",
+          name: "message",
           type: "bytes",
         },
       ],
@@ -187,12 +287,112 @@ export const IDL: VerifierProgramStorage = {
           isSigner: false,
         },
         {
+          name: "programMerkleTree",
+          isMut: false,
+          isSigner: false,
+        },
+        {
           name: "logWrapper",
           isMut: false,
           isSigner: false,
         },
+        {
+          name: "messageMerkleTree",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "transactionMerkleTree",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "authority",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "senderSol",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "recipientSol",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "relayerRecipientSol",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "registeredVerifierPda",
+          isMut: true,
+          isSigner: false,
+          docs: ["Verifier config pda which needs to exist."],
+        },
       ],
-      args: [],
+      args: [
+        {
+          name: "proofA",
+          type: {
+            array: ["u8", 64],
+          },
+        },
+        {
+          name: "proofB",
+          type: {
+            array: ["u8", 128],
+          },
+        },
+        {
+          name: "proofC",
+          type: {
+            array: ["u8", 64],
+          },
+        },
+        {
+          name: "nullifiers",
+          type: {
+            array: [
+              {
+                array: ["u8", 32],
+              },
+              2,
+            ],
+          },
+        },
+        {
+          name: "leaves",
+          type: {
+            array: [
+              {
+                array: ["u8", 32],
+              },
+              2,
+            ],
+          },
+        },
+        {
+          name: "publicAmountSol",
+          type: {
+            array: ["u8", 32],
+          },
+        },
+        {
+          name: "rootIndex",
+          type: "u64",
+        },
+        {
+          name: "relayerFee",
+          type: "u64",
+        },
+        {
+          name: "encryptedUtxos",
+          type: "bytes",
+        },
+      ],
     },
   ],
   accounts: [
@@ -217,7 +417,7 @@ export const IDL: VerifierProgramStorage = {
     },
     {
       code: 6001,
-      name: "MsgTooLarge",
+      name: "MessageTooLarge",
       msg: "Message too large, the limit per one method call is 1024 bytes.",
     },
     {

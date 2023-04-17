@@ -3,7 +3,8 @@ import {
   confirmConfig,
   merkleTreeProgram,
   merkleTreeProgramId,
-  MERKLE_TREE_KEY,
+  MESSAGE_MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
 } from "./constants";
 import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
@@ -39,7 +40,8 @@ export async function getAssetLookUpId({
   let poolType = new Array(32).fill(0);
   let mtConf = new MerkleTreeConfig({
     connection,
-    merkleTreePubkey: MERKLE_TREE_KEY,
+    messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+    transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
   });
   let pubkey = await mtConf.getSplPoolPda(asset, poolType);
 

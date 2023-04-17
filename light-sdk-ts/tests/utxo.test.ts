@@ -21,7 +21,7 @@ import {
   Utxo,
   Account,
   newNonce,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramTwoProgramId,
   verifierLookupTable,
 } from "../src";
@@ -62,8 +62,8 @@ describe("Utxo Functional", () => {
   it("rnd utxo functional loop 100", async () => {
     for (var i = 0; i < 100; i++) {
       // try basic tests for rnd empty utxo
-      const utxo4Account = new Account({poseidon});
-      const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
+      const utxo4Account = new Account({ poseidon });
+      const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account: utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()), includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
 
       // toBytes
       const bytes4 = await utxo4.toBytes();
@@ -74,7 +74,7 @@ describe("Utxo Functional", () => {
         bytes: bytes4,
         index: 0,
       });
-      Utxo.equal(poseidon,utxo4, utxo40);
+      Utxo.equal(poseidon, utxo4, utxo40);
 
       // toBytes
       const bytes4Compressed = await utxo4.toBytes(true);
@@ -86,25 +86,25 @@ describe("Utxo Functional", () => {
         bytes: bytes4Compressed,
         index: 0,
       });
-      Utxo.equal(poseidon,utxo4, utxo40Compressed);
+      Utxo.equal(poseidon, utxo4, utxo40Compressed);
 
 
       // encrypt
-      const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
-      const encBytes41 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+      const encBytes4 = await utxo4.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY, 0);
+      const encBytes41 = await utxo4.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY, 0);
       assert.equal(encBytes4.toString(), encBytes41.toString());
       const utxo41 = await Utxo.decrypt({
         poseidon,
         encBytes: encBytes4,
         account: utxo4Account,
         index: 0,
-        merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+        merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
         commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
         transactionNonce: 0
       });
 
       if (utxo41) {
-        Utxo.equal(poseidon,utxo4, utxo41);
+        Utxo.equal(poseidon, utxo4, utxo41);
       } else {
         throw new Error("decrypt failed");
       }
@@ -268,10 +268,10 @@ describe("Utxo Functional", () => {
       bytes,
       index: inputs.index,
     });
-    Utxo.equal(poseidon,utxo0, utxo1);
+    Utxo.equal(poseidon, utxo0, utxo1);
 
     // encrypt
-    const encBytes = await utxo1.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+    const encBytes = await utxo1.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY, 0);
 
     // decrypt
     const utxo3 = await Utxo.decrypt({
@@ -279,12 +279,12 @@ describe("Utxo Functional", () => {
       encBytes,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+      merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
       transactionNonce: 0,
       commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer("le", 32),
     });
     if (utxo3) {
-      Utxo.equal(poseidon,utxo0, utxo3);
+      Utxo.equal(poseidon, utxo0, utxo3);
     } else {
       throw new Error("decrypt failed");
     }
@@ -299,7 +299,7 @@ describe("Utxo Functional", () => {
       index: inputs.index,
     });
     // encrypt
-    const encBytesNacl = await receivingUtxo.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+    const encBytesNacl = await receivingUtxo.encrypt(poseidon, TRANSACTION_MERKLE_TREE_KEY, 0);
 
     // decrypt
     const receivingUtxo1 = await Utxo.decrypt({
@@ -307,13 +307,13 @@ describe("Utxo Functional", () => {
       encBytes: encBytesNacl,
       account: inputs.keypair,
       index: inputs.index,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+      merkleTreePdaPublicKey: TRANSACTION_MERKLE_TREE_KEY,
       transactionNonce: 0,
       aes: false,
       commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer("le", 32),
     });
     if (receivingUtxo1) {
-      Utxo.equal(poseidon,receivingUtxo, receivingUtxo1, true);
+      Utxo.equal(poseidon, receivingUtxo, receivingUtxo1, true);
     } else {
       throw new Error("decrypt failed");
     }
@@ -467,8 +467,8 @@ describe("Utxo Errors", () => {
         account: inputs.keypair,
         blinding: inputs.blinding,
       }).toBytes()
-    ,
-    UtxoErrorCode.ASSET_NOT_FOUND
+      ,
+      UtxoErrorCode.ASSET_NOT_FOUND
     )
   });
 });

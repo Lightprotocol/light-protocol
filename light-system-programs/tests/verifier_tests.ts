@@ -17,7 +17,7 @@ import {
   MerkleTreeProgram,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -124,7 +124,7 @@ describe("Verifier Zero and One Tests", () => {
 
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
@@ -164,7 +164,7 @@ describe("Verifier Zero and One Tests", () => {
 
       let txParams1 = new TransactionParameters({
         outputUtxos: [deposit_utxo2],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
@@ -196,7 +196,7 @@ describe("Verifier Zero and One Tests", () => {
 
       let txParams2 = new TransactionParameters({
         inputUtxos: [deposit_utxo1],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],

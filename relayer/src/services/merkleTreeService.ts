@@ -1,6 +1,6 @@
 import {
   ADMIN_AUTH_KEYPAIR,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   Provider,
   SolMerkleTree,
   updateMerkleTreeForTest,
@@ -11,12 +11,12 @@ export const initeMerkleTree = async (req: any, res: any) => {
   try {
     const provider = await getLightProvider();
     const merkletreeIsInited =
-      await provider.provider!.connection.getAccountInfo(MERKLE_TREE_KEY);
+      await provider.provider!.connection.getAccountInfo(TRANSACTION_MERKLE_TREE_KEY);
     if (!merkletreeIsInited) {
       throw new Error("merkletree not inited yet.");
     }
     const mt = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
+      pubkey: TRANSACTION_MERKLE_TREE_KEY,
       poseidon: provider.poseidon,
     });
     provider.solMerkleTree = mt;

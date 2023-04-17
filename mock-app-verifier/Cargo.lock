@@ -1333,6 +1333,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "light-account-compression"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
+]
+
+[[package]]
 name = "light-macros"
 version = "0.1.0"
 dependencies = [
@@ -1340,6 +1347,13 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn",
+]
+
+[[package]]
+name = "light-merkle-tree"
+version = "0.1.0"
+dependencies = [
+ "anchor-lang",
 ]
 
 [[package]]
@@ -1354,6 +1368,7 @@ dependencies = [
  "ark-std",
  "borsh",
  "groth16-solana",
+ "light-merkle-tree",
  "merkle_tree_program",
  "spl-token",
 ]
@@ -1429,6 +1444,9 @@ dependencies = [
  "borsh",
  "byteorder",
  "getrandom 0.2.8",
+ "light-account-compression",
+ "light-macros",
+ "light-merkle-tree",
  "solana-security-txt 1.1.0",
  "spl-token",
 ]

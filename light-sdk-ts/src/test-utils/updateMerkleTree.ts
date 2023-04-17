@@ -3,7 +3,7 @@ import {
   executeUpdateMerkleTreeTransactions,
   SolMerkleTree,
 } from "../merkleTree/index";
-import { merkleTreeProgramId, MERKLE_TREE_KEY } from "../constants";
+import { merkleTreeProgramId, TRANSACTION_MERKLE_TREE_KEY } from "../constants";
 import { IDL_MERKLE_TREE_PROGRAM, MerkleTreeProgram } from "../idls/index";
 const circomlibjs = require("circomlibjs");
 import { ADMIN_AUTH_KEYPAIR } from "./constants_system_verifier";
@@ -23,7 +23,7 @@ export async function updateMerkleTreeForTest(
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
       provider && provider,
     );
     // let poseidon = await circomlibjs.buildPoseidonOpt();
@@ -33,7 +33,7 @@ export async function updateMerkleTreeForTest(
       signer: ADMIN_AUTH_KEYPAIR,
       merkleTreeProgram,
       leavesPdas,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
     });
   } catch (err) {
     console.error("failed at updateMerkleTreeForTest", err);
