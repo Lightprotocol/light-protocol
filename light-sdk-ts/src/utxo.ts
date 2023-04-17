@@ -275,7 +275,7 @@ export class Utxo {
    * @description Parses a utxo to bytes.
    * @returns {Uint8Array}
    */
-  toBytes() {
+  async toBytes() {
     this.splAssetIndex = getAssetIndex(this.assets[1]);
 
     if (this.splAssetIndex.toString() == "-1") {
@@ -288,7 +288,7 @@ export class Utxo {
     if (!this.appDataIdl || !this.includeAppData) {
       let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
 
-      return coder.encode("utxo", this);
+      return await coder.encode("utxo", this);
     } else if (this.appDataIdl) {
       let coder = new BorshAccountsCoder(this.appDataIdl);
       let object = {
@@ -296,7 +296,7 @@ export class Utxo {
         blinding: this.blinding,
         ...this.appData,
       };
-      return coder.encode("utxo", object);
+      return await coder.encode("utxo", object);
     } else {
       throw new UtxoError(
         UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
