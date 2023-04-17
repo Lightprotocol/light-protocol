@@ -347,34 +347,34 @@ export class Account {
 
   async encryptAes(
     message: Uint8Array,
-    nonce: Uint8Array,
+    iv: Uint8Array,
     domain: string = "default",
   ) {
-    if (nonce.length != 16)
+    if (iv.length != 16)
       throw new AccountError(
         UtxoErrorCode.INVALID_NONCE_LENGHT,
         "encryptAes",
-        `Required nonce length 24, provided ${nonce.length}`,
+        `Required iv length 16, provided ${iv.length}`,
       );
     const secretKey = this.getDomainSeparatedAesSecretKey(domain);
     const ciphertext = await encrypt(
       message,
       secretKey,
-      nonce,
+      iv,
       "aes-256-cbc",
       true,
     );
-    return new Uint8Array([...nonce, ...ciphertext]);
+    return new Uint8Array([...iv, ...ciphertext]);
   }
 
   async decryptAes(encryptedBytes: Uint8Array, domain: string = "default") {
-    const nonce = encryptedBytes.subarray(0, 16);
+    const iv = encryptedBytes.subarray(0, 16);
     const encryptedMessageBytes = encryptedBytes.subarray(16);
     const secretKey = this.getDomainSeparatedAesSecretKey(domain);
     const cleartext = await decrypt(
       encryptedMessageBytes,
       secretKey,
-      nonce,
+      iv,
       "aes-256-cbc",
       true,
     );

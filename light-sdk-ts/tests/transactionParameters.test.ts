@@ -55,7 +55,7 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
   });
 
@@ -67,7 +67,7 @@ describe("Transaction Parameters Functional", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var j in verifiers) {
@@ -475,7 +475,7 @@ describe("Test General TransactionParameters Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
   });
 
@@ -589,7 +589,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     outputUtxo = new Utxo({
@@ -599,7 +599,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     const params = new TransactionParameters({
@@ -643,7 +643,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(0),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -671,7 +671,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -810,7 +810,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     const params = new TransactionParameters({
@@ -924,13 +924,13 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new anchor.BN("18446744073709551615"),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -959,14 +959,14 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1088,7 +1088,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       // senderSpl fee always needs to be defined because we use it as the signer
@@ -1179,7 +1179,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     outputUtxo = new Utxo({
@@ -1189,7 +1189,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
   });
 
@@ -1247,13 +1247,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN("18446744073709551615"),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1283,14 +1283,14 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -1370,7 +1370,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1394,7 +1394,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {

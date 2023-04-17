@@ -683,7 +683,13 @@ export class Transaction {
             "encryptUtxos",
             "Automatic encryption for utxos with application data is not implemented.",
           );
-        encryptedOutputs.push(await this.params.outputUtxos[utxo].encrypt());
+        encryptedOutputs.push(
+          await this.params.outputUtxos[utxo].encrypt(
+            this.provider.poseidon,
+            this.params.accounts.transactionMerkleTree,
+            this.params.transactionIndex,
+          ),
+        );
       }
       if (
         this.params.verifier.config.out == 2 &&
