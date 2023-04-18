@@ -634,7 +634,6 @@ export class Utxo {
           "aes-256-cbc",
           true,
         );
-
         const bytes = Buffer.from(cleartext);
         return Utxo.fromBytes({
           poseidon,

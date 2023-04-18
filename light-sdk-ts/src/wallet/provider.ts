@@ -149,7 +149,6 @@ export class Provider {
         return;
       }
       if (!this.provider) throw new Error("No provider set.");
-
       // TODO: remove this should not exist
       const lookUpTable = await initLookUpTableFromFile(this.provider);
       this.lookUpTable = lookUpTable;
