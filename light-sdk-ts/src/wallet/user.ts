@@ -30,7 +30,7 @@ import {
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
-export type Balance = {
+type Balance = {
   symbol: string;
   amount: BN;
   tokenAccount: PublicKey;
