@@ -88,8 +88,8 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
-      utxos: 1,
-      spentUtxos: 0,
+      expectedUtxoHistoryLength: 1,
+      expectedSpentUtxosLength: 0,
     };
 
     const provider = await Provider.init({
@@ -131,7 +131,7 @@ describe("Test User", () => {
       amountSol: 15,
       token: "SOL",
       type: Action.SHIELD,
-      utxos: 1,
+      expectedUtxoHistoryLength: 1,
     };
 
     const provider = await Provider.init({
@@ -176,7 +176,7 @@ describe("Test User", () => {
       token: "USDC",
       type: Action.UNSHIELD,
       recipientSpl: solRecipient.publicKey,
-      utxos: 1,
+      expectedUtxoHistoryLength: 1,
     };
 
     const provider = await Provider.init({
@@ -227,7 +227,7 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.TRANSFER,
-      utxos: 1,
+      expectedUtxoHistoryLength: 1,
     };
 
     const provider = await Provider.init({

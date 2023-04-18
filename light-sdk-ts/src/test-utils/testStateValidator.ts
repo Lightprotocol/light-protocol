@@ -18,8 +18,8 @@ type TestInputs = {
   token: string;
   type: Action;
   recipientSpl?: PublicKey;
-  utxos: number;
-  spentUtxos?: number;
+  expectedUtxoHistoryLength: number;
+  expectedSpentUtxosLength?: number;
 };
 
 export class TestStateValidator {
@@ -190,7 +190,10 @@ export class TestStateValidator {
 
     this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
 
-    assert.equal(this.user.utxos!.length, this.testInputs.utxos);
+    assert.equal(
+      this.user.utxos!.length,
+      this.testInputs.expectedUtxoHistoryLength,
+    );
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
   }
@@ -297,7 +300,10 @@ export class TestStateValidator {
     // assert that the user's sol shielded balance has increased by the additional sol amount
     await this.assertShieldedSolBalance(150000);
 
-    assert.equal(this.user.spentUtxos!.length, this.testInputs.spentUtxos);
+    assert.equal(
+      this.user.spentUtxos!.length,
+      this.testInputs.expectedSpentUtxosLength,
+    );
 
     await this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
 
