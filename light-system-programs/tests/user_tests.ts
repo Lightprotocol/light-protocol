@@ -88,8 +88,6 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
     };
 
     const provider = await Provider.init({
@@ -131,7 +129,6 @@ describe("Test User", () => {
       amountSol: 15,
       token: "SOL",
       type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
     };
 
     const provider = await Provider.init({
@@ -175,8 +172,7 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.UNSHIELD,
-      recipientSpl: solRecipient.publicKey,
-      expectedUtxoHistoryLength: 1,
+      recipient: solRecipient.publicKey,
     };
 
     const provider = await Provider.init({
@@ -213,7 +209,7 @@ describe("Test User", () => {
     await user.unshield({
       publicAmountSpl: testInputs.amountSpl,
       token: testInputs.token,
-      recipientSpl: testInputs.recipientSpl,
+      recipientSpl: testInputs.recipient,
     });
 
     await user.provider.latestMerkleTree();
@@ -227,19 +223,20 @@ describe("Test User", () => {
       amountSol: 0,
       token: "USDC",
       type: Action.TRANSFER,
-      expectedUtxoHistoryLength: 1,
     };
 
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
     }); // userKeypair
-
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    // const shieldedRecipient =
+    //   "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
+    // const encryptionPublicKey =
+    //   "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    const recipientAccount = new Account({
+      poseidon: POSEIDON,
+      seed: new Uint8Array(32).fill(9).toString(),
+    });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
       recipientAccount.pubkey.toBuffer(),
