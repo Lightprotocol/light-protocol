@@ -9,7 +9,7 @@
   dependencies:
     regenerator-runtime "^0.13.11"
 
-"@coral-xyz/anchor@^0.27.0":
+"@coral-xyz/anchor@0.27.0":
   version "0.27.0"
   resolved "https://registry.yarnpkg.com/@coral-xyz/anchor/-/anchor-0.27.0.tgz#621e5ef123d05811b97e49973b4ed7ede27c705c"
   integrity sha512-+P/vPdORawvg3A9Wj02iquxb4T0C5m4P6aZBVYysKl4Amk+r6aMPZkUhilBkD6E4Nuxnoajv3CFykUfkGE0n5g==
@@ -498,7 +498,7 @@
     "@solana/buffer-layout-utils" "^0.2.0"
     buffer "^6.0.3"
 
-"@solana/web3.js@^1.32.0", "@solana/web3.js@^1.56.2", "@solana/web3.js@^1.68.0", "@solana/web3.js@^1.73.2":
+"@solana/web3.js@1.73.3", "@solana/web3.js@^1.32.0", "@solana/web3.js@^1.56.2", "@solana/web3.js@^1.68.0":
   version "1.73.3"
   resolved "https://registry.yarnpkg.com/@solana/web3.js/-/web3.js-1.73.3.tgz#60e6bd68f6f364d4be360b1e0a03a0a68468a029"
   integrity sha512-vHRMo589XEIpoujpE2sZZ1aMZvfA1ImKfNxobzEFyMb+H5j6mRRUXfdgWD0qJ0sm11e5BcBC7HPeRXJB+7f3Lg==
