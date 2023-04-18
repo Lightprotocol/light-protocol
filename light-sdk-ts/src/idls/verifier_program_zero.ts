@@ -157,7 +157,9 @@ export type VerifierProgramZero = {
         fields: [
           {
             name: "x";
-            type: "u64";
+            type: {
+              array: ["u8", 32];
+            };
           },
         ];
       };
@@ -346,7 +348,9 @@ export const IDL: VerifierProgramZero = {
         fields: [
           {
             name: "x",
-            type: "u64",
+            type: {
+              array: ["u8", 32],
+            },
           },
         ],
       },

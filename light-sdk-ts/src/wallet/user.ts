@@ -11,7 +11,6 @@ import {
   TransactionParametersErrorCode,
   UserError,
   UserErrorCode,
-  CachedUserState,
   Provider,
   getAccountUtxos,
   SolMerkleTree,
