@@ -11,7 +11,6 @@ import {
   TransactionParametersErrorCode,
   UserError,
   UserErrorCode,
-  CachedUserState,
   Provider,
   getAccountUtxos,
   SolMerkleTree,
@@ -56,16 +55,20 @@ export class User {
   utxos?: Utxo[];
   spentUtxos?: Utxo[];
   private seed?: string;
+  transactionIndex: number;
+
   constructor({
     provider,
     utxos = [],
     spentUtxos = [],
     account = undefined,
+    transactionIndex,
   }: {
     provider: Provider;
     utxos?: Utxo[];
     spentUtxos?: Utxo[];
     account?: Account;
+    transactionIndex?: number;
   }) {
     if (!provider.wallet)
       throw new UserError(
@@ -85,9 +88,12 @@ export class User {
     this.utxos = utxos;
     this.spentUtxos = spentUtxos;
     this.account = account;
+    this.transactionIndex = transactionIndex ? transactionIndex : 0;
   }
 
-  async getUtxos(): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
+  async getUtxos(
+    aes: boolean = true,
+  ): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(
       MERKLE_TREE_KEY,
       this.provider.provider,
@@ -102,9 +108,15 @@ export class User {
       poseidon: this.provider.poseidon,
       merkleTreeProgram: merkleTreeProgramId,
       merkleTree: this.provider.solMerkleTree!.merkleTree!,
+      transactionIndex: 0,
+      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+      aes,
     };
-    const { decryptedUtxos, spentUtxos } = await getAccountUtxos(params);
+    // does only aes encrypted change utxos, nacl encrypted utxos from
+    const { decryptedUtxos, spentUtxos, transactionIndex } =
+      await getAccountUtxos(params);
 
+    this.transactionIndex = transactionIndex;
     this.utxos = decryptedUtxos;
     this.spentUtxos = spentUtxos;
     console.log("✔️ updated utxos", this.utxos.length);
@@ -342,6 +354,7 @@ export class User {
       publicAmountSpl,
       userSplAccount,
       provider: this.provider,
+      transactionIndex: this.transactionIndex,
     });
 
     let tx = new Transaction({
@@ -360,6 +373,7 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
+    this.transactionIndex += 1;
 
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
@@ -471,6 +485,7 @@ export class User {
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
+      transactionIndex: this.transactionIndex,
     });
 
     let tx = new Transaction({
@@ -489,6 +504,7 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
+    this.transactionIndex += 1;
 
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
@@ -568,6 +584,7 @@ export class User {
       ],
       provider: this.provider,
       relayer: this.provider.relayer,
+      transactionIndex: this.transactionIndex,
     });
     let tx = new Transaction({
       provider: this.provider,
@@ -586,6 +603,8 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
+    this.transactionIndex += 1;
+
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
@@ -620,10 +639,10 @@ export class User {
    * untested for browser wallet!
    */
 
-  async init(cachedUser?: CachedUserState, provider?: Provider) {
-    if (cachedUser) {
-      this.seed = cachedUser.seed;
-      this.utxos = cachedUser.utxos; // TODO: potentially add encr/decryption
+  async init(provider: Provider, seed?: string, utxos?: Utxo[]) {
+    if (seed) {
+      this.seed = seed;
+      this.utxos = utxos; // TODO: potentially add encr/decryption
       if (!provider)
         throw new UserError(
           ProviderErrorCode.PROVIDER_UNDEFINED,
@@ -666,16 +685,18 @@ export class User {
   /**
    *
    * @param provider - Light provider
-   * @param cachedUser - Optional user state to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
+   * @param seed - Optional user seed to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
+   * @param utxos - Optional user utxos to instantiate from
    */
 
   static async init(
     provider: Provider,
-    cachedUser?: CachedUserState,
+    seed?: string,
+    utxos?: Utxo[],
   ): Promise<any> {
     try {
       const user = new User({ provider });
-      await user.init(cachedUser, provider);
+      await user.init(provider, seed, utxos);
       return user;
     } catch (e) {
       throw new UserError(

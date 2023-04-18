@@ -290,6 +290,7 @@ describe("verifier_program", () => {
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
+        transactionIndex: 0,
       });
       let tx = new Transaction({
         provider: lightProvider,
@@ -358,6 +359,7 @@ describe("verifier_program", () => {
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
         poseidon: POSEIDON,
+        transactionIndex: 1,
       });
       let tx = new Transaction({
         provider: lightProvider,
@@ -391,6 +393,9 @@ describe("verifier_program", () => {
       provider,
       account: KEYPAIR,
       poseidon: POSEIDON,
+      transactionIndex: 0,
+      aes: true,
+      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
     });
 
     const origin = new anchor.web3.Account();
@@ -410,6 +415,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon,
+      transactionIndex: 2,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -459,6 +465,9 @@ describe("verifier_program", () => {
       provider,
       account: KEYPAIR,
       poseidon: POSEIDON,
+      transactionIndex: 0,
+      aes: true,
+      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
     });
 
     let inputUtxos: Utxo[] = [];
@@ -502,6 +511,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       poseidon: POSEIDON,
       action: Action.UNSHIELD,
+      transactionIndex: 3,
     });
     let tx = new Transaction({
       provider: lightProvider,

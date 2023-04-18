@@ -1,15 +1,19 @@
 const nacl = require("tweetnacl");
+const { encrypt, decrypt } = require("ethereum-cryptography/aes");
+
 import { BN } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
   TransactionParametersErrorCode,
+  UtxoErrorCode,
 } from "./index";
 const { blake2b } = require("@noble/hashes/blake2b");
 const b2params = { dkLen: 32 };
 const ffjavascript = require("ffjavascript");
 // @ts-ignore:
 import { buildEddsa } from "circomlibjs";
+import { PublicKey } from "@solana/web3.js";
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -28,7 +32,7 @@ export class Account {
     privateKey: Uint8Array;
   };
   eddsa: any;
-  aesSecret: Uint8Array;
+  aesSecret?: Uint8Array;
 
   /**
    *
@@ -70,7 +74,6 @@ export class Account {
     }
 
     this.burnerSeed = new Uint8Array();
-    this.aesSecret = new Uint8Array();
     // creates a burner utxo by using the index for domain separation
     if (burner) {
       if (!seed) {
@@ -240,6 +243,30 @@ export class Account {
     );
   }
 
+  /**
+   * @description gets domain separated aes secret to execlude the possibility of nonce reuse
+   * @note we derive an aes key for every utxo of every merkle tree
+   *
+   * @param {PublicKey} merkleTreePdaPublicKey
+   * @param {number} index the xth transaction for the respective merkle tree
+   * @returns {Uint8Array} the blake2b hash of the aesSecret + merkleTreePdaPublicKey.toBase58() + index.toString()
+   */
+  getAesUtxoViewingKey(
+    merkleTreePdaPublicKey: PublicKey,
+    index: number,
+  ): Uint8Array {
+    return this.getDomainSeparatedAesSecretKey(
+      merkleTreePdaPublicKey.toBase58() + index.toString(),
+    );
+  }
+
+  getDomainSeparatedAesSecretKey(domain: string): Uint8Array {
+    return blake2b
+      .create(b2params)
+      .update(this.aesSecret + domain)
+      .digest();
+  }
+
   static createBurner(poseidon: any, seed: String, index: BN): Account {
     if (seed.length < 32) {
       throw new AccountError(
@@ -307,7 +334,7 @@ export class Account {
     return privateKey;
   }
 
-  static generateAesSecret(seed: String): Uint8Array {
+  static generateAesSecret(seed: String, domain?: string): Uint8Array {
     const privkeySeed = seed + "aes";
     return Uint8Array.from(
       blake2b.create(b2params).update(privkeySeed).digest(),
@@ -317,4 +344,44 @@ export class Account {
   static generateShieldedPublicKey(privateKey: BN, poseidon: any): BN {
     return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
+
+  async encryptAes(
+    message: Uint8Array,
+    iv: Uint8Array,
+    domain: string = "default",
+  ) {
+    if (iv.length != 16)
+      throw new AccountError(
+        UtxoErrorCode.INVALID_NONCE_LENGHT,
+        "encryptAes",
+        `Required iv length 16, provided ${iv.length}`,
+      );
+    const secretKey = this.getDomainSeparatedAesSecretKey(domain);
+    const ciphertext = await encrypt(
+      message,
+      secretKey,
+      iv,
+      "aes-256-cbc",
+      true,
+    );
+    return new Uint8Array([...iv, ...ciphertext]);
+  }
+
+  async decryptAes(encryptedBytes: Uint8Array, domain: string = "default") {
+    const iv = encryptedBytes.subarray(0, 16);
+    const encryptedMessageBytes = encryptedBytes.subarray(16);
+    const secretKey = this.getDomainSeparatedAesSecretKey(domain);
+    const cleartext = await decrypt(
+      encryptedMessageBytes,
+      secretKey,
+      iv,
+      "aes-256-cbc",
+      true,
+    );
+    return cleartext;
+  }
+
+  // TODO: add static encryptTo function to account
+  // static encryptNacl()
+  // decryptNacl()
 }

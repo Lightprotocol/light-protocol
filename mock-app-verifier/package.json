@@ -18,6 +18,7 @@
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
     "dotenv": "^16.0.1",
+    "ethereum-cryptography": "^2.0.0",
     "ffjavascript": "^0.2.57",
     "fs": "^0.0.1-security",
     "light-sdk": "file:../light-sdk-ts",

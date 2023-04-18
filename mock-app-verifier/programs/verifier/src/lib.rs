@@ -181,7 +181,7 @@ pub struct CloseVerifierState<'info> {
 }
 
 #[allow(non_camel_case_types)]
-// helper struct to game anchor into creating an idl with u256 types
+// helper struct to create anchor idl with u256 type
 #[account]
 pub struct u256 {
     x: [u8; 32],
