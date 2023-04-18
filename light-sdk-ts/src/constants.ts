@@ -92,6 +92,8 @@ export const DEFAULT_PROGRAMS = {
 // needs to be more than 100k to be rentexempt
 export const MINIMUM_LAMPORTS = 150_000;
 
+export const TOKEN_ACCOUNT_FEE = 500_000;
+
 // TODO: make account object with important accounts
 export const MERKLE_TREE_KEY = new PublicKey(
   "DCxUdYgqjE6AR9m13VvqpkxJqGJYnk8jn8NEeD3QY3BU",
