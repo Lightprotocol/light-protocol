@@ -6,14 +6,20 @@ import { Action } from "../transaction";
 import { indexedTransaction } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
-import { TOKEN_REGISTRY } from "../constants";
+import {
+  MINIMUM_LAMPORTS,
+  TOKEN_ACCOUNT_FEE,
+  TOKEN_REGISTRY,
+} from "../constants";
 
 type TestInputs = {
   amountSpl: number;
   amountSol: number;
   token: string;
   type: Action;
-  recipient?: PublicKey;
+  recipientSpl?: PublicKey;
+  utxos: number;
+  spentUtxos?: number;
 };
 
 export class TestStateValidator {
@@ -61,10 +67,10 @@ export class TestStateValidator {
             )
           : undefined;
 
-      if (this.testInputs.recipient) {
+      if (this.testInputs.recipientSpl) {
         this.recipientSplAccount = getAssociatedTokenAddressSync(
           tokenCtx!.tokenAccount,
-          this.testInputs.recipient,
+          this.testInputs.recipientSpl,
         );
 
         this.preRecipientTokenBalance =
@@ -182,15 +188,9 @@ export class TestStateValidator {
       (utxo) => utxo._commitment === this.preUtxos![0]._commitment,
     );
 
-    assert.notEqual(
-      fetchNullifierAccountInfo(
-        this.user.utxos![0]._nullifier!,
-        this.provider.provider!.connection,
-      ),
-      null,
-    );
+    this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
 
-    assert.equal(this.user.utxos!.length, 1);
+    assert.equal(this.user.utxos!.length, this.testInputs.utxos);
     assert.equal(commitmentIndex, -1);
     assert.equal(commitmentSpent, -1);
   }
@@ -278,6 +278,13 @@ export class TestStateValidator {
     );
   }
 
+  async assertNullifierAccountExists(nullifier: string) {
+    assert.notEqual(
+      fetchNullifierAccountInfo(nullifier, this.provider.connection!),
+      null,
+    );
+  }
+
   async checkTokenShielded() {
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedTokenBalance(this.testInputs.amountSpl);
@@ -290,16 +297,9 @@ export class TestStateValidator {
     // assert that the user's sol shielded balance has increased by the additional sol amount
     await this.assertShieldedSolBalance(150000);
 
-    // TODO: active this assert after getUserTransactionHistory
-    // assert.equal(this.user.spentUtxos!.length, 0);
+    assert.equal(this.user.spentUtxos!.length, this.testInputs.spentUtxos);
 
-    assert.notEqual(
-      fetchNullifierAccountInfo(
-        this.user.utxos![0]._nullifier!,
-        this.provider.connection!,
-      ),
-      null,
-    );
+    await this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentIndexedTransaction();
@@ -335,10 +335,7 @@ export class TestStateValidator {
     // // assert that the recipient token balance has increased by the amount shielded
     await this.assertRecipientTokenBalance(this.testInputs.amountSpl);
 
-    const minimumBalance = 150000;
-    const tokenAccountFee = 500_000;
-
-    const solDecreasedAmount = (minimumBalance + tokenAccountFee) * -1;
+    const solDecreasedAmount = (MINIMUM_LAMPORTS + TOKEN_ACCOUNT_FEE) * -1;
 
     // assert that the user's sol shielded balance has decreased by fee
     await this.assertShieldedSolBalance(solDecreasedAmount);

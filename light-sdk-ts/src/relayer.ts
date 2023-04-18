@@ -6,6 +6,7 @@ import {
   RelayerErrorCode,
   Provider,
   indexedTransaction,
+  TOKEN_ACCOUNT_FEE,
 } from "./index";
 
 export class Relayer {
@@ -29,7 +30,7 @@ export class Relayer {
     lookUpTable: PublicKey,
     relayerRecipientSol?: PublicKey,
     relayerFee: BN = new BN(0),
-    highRelayerFee: BN = new BN(500000),
+    highRelayerFee: BN = new BN(TOKEN_ACCOUNT_FEE),
   ) {
     if (!relayerPubkey) {
       throw new RelayerError(
