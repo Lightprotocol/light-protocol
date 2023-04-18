@@ -14,7 +14,7 @@
   "keywords": [],
   "dependencies": {
     "@coral-xyz/anchor": "^0.26.0",
-    "@solana/web3.js": "^1.73.2",
+    "@solana/web3.js": "1.73.3",
     "body-parser": "^1.20.2",
     "dotenv": "^16.0.3",
     "ethereum-cryptography": "^2.0.0",
