@@ -50,7 +50,7 @@ export class Provider {
   poseidon: any;
   lookUpTable?: PublicKey;
   solMerkleTree?: SolMerkleTree;
-  provider?: AnchorProvider | { connection: Connection }; // temp -?
+  provider?: AnchorProvider;
   url?: string;
   minimumLamports: BN;
   relayer: Relayer;
@@ -108,7 +108,6 @@ export class Provider {
       }
     } else {
       this.connection = connection;
-      this.provider = { connection: connection! };
       this.wallet = wallet as Wallet;
     }
 
@@ -150,6 +149,7 @@ export class Provider {
         return;
       }
       if (!this.provider) throw new Error("No provider set.");
+
       // TODO: remove this should not exist
       const lookUpTable = await initLookUpTableFromFile(this.provider);
       this.lookUpTable = lookUpTable;

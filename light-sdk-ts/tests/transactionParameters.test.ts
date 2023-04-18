@@ -23,7 +23,9 @@ import {
   VerifierOne,
   AUTHORITY,
   Utxo,
-  Account
+  Account,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  MERKLE_TREE_KEY
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
@@ -42,21 +44,143 @@ describe("Transaction Parameters Functional", () => {
   let poseidon, lightProvider, deposit_utxo1, outputUtxo, relayer, keypair;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
+    lightProvider = await LightProvider.loadMock();
+
     // TODO: make fee mandatory
     relayer = new Relayer(
       mockPubkey3,
-      mockPubkey,
+      lightProvider.lookUpTable,
       mockPubkey,
       new anchor.BN(5000),
     );
     keypair = new Account({ poseidon: poseidon, seed: seed32 });
-    lightProvider = await LightProvider.loadMock();
     deposit_utxo1 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
       account: keypair,
     });
+  });
+
+  it("Serialization Transfer Functional", async () => {
+    var outputUtxo = new Utxo({
+      poseidon: poseidon,
+      assets: [FEE_ASSET, MINT],
+      amounts: [
+        new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
+        new anchor.BN(depositAmount),
+      ],
+      account: keypair,
+    });
+
+    let verifiers = [new VerifierZero()];
+    let j = 0;
+    const inputUtxos = [deposit_utxo1];
+    const outputUtxos = [outputUtxo];
+
+    const paramsOriginal = new TransactionParameters({
+      inputUtxos,
+      outputUtxos,
+      merkleTreePubkey: MERKLE_TREE_KEY,
+      verifier: verifiers[j],
+      lookUpTable: lightProvider.lookUpTable,
+      poseidon,
+      action: Action.TRANSFER,
+      relayer,
+      transactionIndex: 0
+    });
+
+    let bytes = await paramsOriginal.toBytes();
+
+    let params = await TransactionParameters.fromBytes({
+      poseidon,
+      utxoIdls: [IDL_VERIFIER_PROGRAM_ZERO],
+      verifier: verifiers[j],
+      relayer,
+      bytes,
+    })
+    assert.equal(params.action.toString(), Action.TRANSFER.toString());
+    assert.equal(params.publicAmountSpl.toString(), "0");
+    assert.equal(
+      params.publicAmountSol
+        .sub(FIELD_SIZE)
+        .mul(new anchor.BN(-1))
+        .toString(),
+      relayer.getRelayerFee().toString(),
+    );
+    assert.equal(
+      params.assetPubkeys[0].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(params.assetPubkeys[1].toBase58(), MINT.toBase58());
+    assert.equal(
+      params.assetPubkeys[2].toBase58(),
+      SystemProgram.programId.toBase58(),
+    );
+    assert.equal(params.accounts.recipientSpl?.toBase58(), AUTHORITY.toBase58());
+    assert.equal(
+      params.accounts.recipientSol?.toBase58(),
+      AUTHORITY.toBase58(),
+    );
+    assert.equal(
+      params.accounts.transactionMerkleTree.toBase58(),
+      MERKLE_TREE_KEY.toBase58(),
+    );
+    assert.equal(params.accounts.verifierState, undefined);
+    assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
+    assert.equal(
+      params.accounts.signingAddress?.toBase58(),
+      relayer.accounts.relayerPubkey.toBase58(),
+    );
+    assert.equal(
+      params.accounts.signingAddress?.toBase58(),
+      params.relayer.accounts.relayerPubkey.toBase58(),
+    );
+    assert.equal(
+      params.accounts.authority.toBase58(),
+      Transaction.getSignerAuthorityPda(
+        merkleTreeProgramId,
+        verifiers[j].verifierProgram!.programId,
+      ).toBase58(),
+    );
+    assert.equal(
+      params.accounts.registeredVerifierPda.toBase58(),
+      Transaction.getRegisteredVerifierPda(
+        merkleTreeProgramId,
+        verifiers[j].verifierProgram!.programId,
+      ).toBase58(),
+    );
+    assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
+    assert.equal(params.accounts.tokenProgram, TOKEN_PROGRAM_ID);
+    assert.equal(
+      params.accounts.tokenAuthority?.toBase58(),
+      Transaction.getTokenAuthority().toBase58(),
+    );
+    assert.equal(
+      params.verifier.config.in.toString(),
+      verifiers[j].config.in.toString(),
+    );
+    assert.equal(
+      params.relayer.accounts.lookUpTable.toBase58(),
+      relayer.accounts.lookUpTable?.toBase58(),
+    );
+    assert.equal(params.inputUtxos.length, params.verifier.config.in);
+    assert.equal(params.outputUtxos.length, params.verifier.config.out);
+
+    for (var i in inputUtxos) {
+      assert.equal(
+        params.inputUtxos[i].getCommitment(poseidon),
+        inputUtxos[i].getCommitment(poseidon),
+      );
+    }
+
+    for (var i in outputUtxos) {
+      assert.equal(
+        params.outputUtxos[i].getCommitment(poseidon),
+        outputUtxos[i].getCommitment(poseidon),
+      );
+    }
+
   });
 
   it("Transfer Functional", async () => {

@@ -276,6 +276,12 @@ describe("Test User", () => {
       provider,
       new Uint8Array(32).fill(9).toString(),
     );
+
+    // assert recipient utxo
+    const userRecipient: User = await User.init(
+      provider,
+      new Uint8Array(32).fill(9).toString(),
+    );
     let { decryptedUtxos } = await userRecipient.getUtxos(false);
     assert.equal(decryptedUtxos.length, 1);
     assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");

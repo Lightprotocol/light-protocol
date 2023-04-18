@@ -36,7 +36,7 @@ import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
 export async function initLookUpTableFromFile(
-  provider: anchor.Provider,
+  provider: anchor.AnchorProvider,
   path: PathOrFileDescriptor = `lookUpTable.txt`,
   extraAccounts?: Array<PublicKey>,
 ) /*: Promise<PublicKey>*/ {

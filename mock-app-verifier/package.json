@@ -9,7 +9,7 @@
     "test-app-utxo": "ts-mocha -p ./tsconfig.json -t 1000000 tests/appUtxo.test.ts --exit"
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.26.0",
+    "@coral-xyz/anchor": "^0.27.0",
     "@project-serum/anchor": "^0.24.1",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",

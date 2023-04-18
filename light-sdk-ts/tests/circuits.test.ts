@@ -635,7 +635,7 @@ describe("Masp circuit tests", () => {
     );
   });
 });
-
+import { IDL } from "./testData/mock_verifier";
 // TODO: check more specific errors in tests
 describe("App system circuit tests", () => {
   before(async () => {

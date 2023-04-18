@@ -5,9 +5,9 @@ import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
+
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -65,11 +65,23 @@ describe("Utxo Functional", () => {
     // fromBytes
     const utxo40 = Utxo.fromBytes({
       poseidon,
-      account: utxo4Account,
       bytes: bytes4,
       index: 0,
     });
     Utxo.equal(poseidon,utxo4, utxo40);
+
+    // toBytes
+    const bytes4Compressed = await utxo4.toBytes(true);
+
+    // fromBytes
+    const utxo40Compressed = Utxo.fromBytes({
+      poseidon,
+      account: utxo4Account,
+      bytes: bytes4Compressed,
+      index: 0,
+    });
+    Utxo.equal(poseidon,utxo4, utxo40Compressed);
+
 
     // encrypt
     const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
@@ -355,7 +367,7 @@ describe("Utxo Errors", () => {
         amounts: inputs.amounts,
         account: inputs.keypair,
         blinding: inputs.blinding,
-      }).toBytes()      
+      }).toBytes()
     ,
     UtxoErrorCode.ASSET_NOT_FOUND
     )
