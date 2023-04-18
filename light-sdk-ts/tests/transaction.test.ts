@@ -76,6 +76,7 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
   });
 
@@ -148,6 +149,7 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
     expect(() => {
       new Transaction({
@@ -172,6 +174,7 @@ describe("Transaction Error Tests", () => {
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
     expect(() => {
       // @ts-ignore:
@@ -320,6 +323,7 @@ describe("Transaction Functional Tests", () => {
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -340,6 +344,7 @@ describe("Transaction Functional Tests", () => {
       recipientSol: lightProvider.wallet?.publicKey,
       action: Action.UNSHIELD,
       relayer,
+      transactionIndex: 0,
     });
   });
 
@@ -402,6 +407,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.UNSHIELD,
       relayer,
+      transactionIndex: 0,
     });
 
     let tx = new Transaction({
@@ -512,6 +518,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
+      transactionIndex: 0,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -547,6 +554,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
+      transactionIndex: 0,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -648,6 +656,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
+      transactionIndex: 0,
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -699,6 +708,7 @@ describe("Transaction Functional Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
     expect(() => {
       let tx = new Transaction({
@@ -723,6 +733,7 @@ describe("Transaction Functional Tests", () => {
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.SHIELD,
+      transactionIndex: 0,
     });
     expect(() => {
       let tx = new Transaction({

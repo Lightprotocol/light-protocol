@@ -1,6 +1,6 @@
 import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
-import { Connection } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { Account } from "../account";
 import { fetchNullifierAccountInfo } from "../utils";
 import { QueuedLeavesPda } from "merkleTree";
@@ -60,47 +60,85 @@ export async function getAccountUtxos({
   provider,
   account,
   poseidon,
+  aes,
+  merkleTreePdaPublicKey,
+  transactionIndex,
 }: {
   leavesPdas: any;
   provider: anchor.Provider;
   account: Account;
+  merkleTreePdaPublicKey: PublicKey;
   poseidon: any;
-}): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
+  aes: boolean;
+  transactionIndex: number;
+}): Promise<{
+  decryptedUtxos: Utxo[];
+  spentUtxos: Utxo[];
+  transactionIndex: number;
+}> {
   let decryptedUtxos: Utxo[] = [];
   let spentUtxos: Utxo[] = [];
 
-  const tasks = leavesPdas.flatMap((leafPda: any) => {
+  for (var leafPda of leavesPdas) {
     const decrypted = [
-      Utxo.decrypt({
+      await Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(0, 104)),
+          Array.from(leafPda.account.encryptedUtxos.slice(0, 80)),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber(),
+        commitment: Uint8Array.from([...leafPda.account.nodeLeft]),
+        aes,
+        merkleTreePdaPublicKey,
+        transactionIndex,
       }),
-      Utxo.decrypt({
+      await Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(104)),
+          Array.from(leafPda.account.encryptedUtxos.slice(128)),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber() + 1,
+        commitment: Uint8Array.from([...leafPda.account.nodeRight]),
+        aes,
+        merkleTreePdaPublicKey,
+        transactionIndex,
       }),
     ];
-
-    return decrypted.map((decryptedUtxo) =>
-      processDecryptedUtxos({
-        decryptedUtxo: decryptedUtxo!,
+    if (decrypted[0]) {
+      await processDecryptedUtxos({
+        decryptedUtxo: decrypted[0],
         poseidon,
         connection: provider.connection,
         decryptedUtxos,
         spentUtxos,
-      }),
-    );
-  });
+      });
+      transactionIndex += 1;
+    }
+    if (decrypted[1]) {
+      await processDecryptedUtxos({
+        decryptedUtxo: decrypted[1],
+        poseidon,
+        connection: provider.connection,
+        decryptedUtxos,
+        spentUtxos,
+      });
+      transactionIndex += 1;
+    }
+  }
 
-  await Promise.all(tasks);
+  // const tasks = decryptedUtxos.map((decryptedUtxo: any) => {
+  //   return processDecryptedUtxos({
+  //       decryptedUtxo: decryptedUtxo!,
+  //       poseidon,
+  //       connection: provider.connection,
+  //       decryptedUtxos,
+  //       spentUtxos,
+  //     });
+  // });
 
-  return { decryptedUtxos, spentUtxos };
+  // await Promise.all(tasks);
+
+  return { decryptedUtxos, spentUtxos, transactionIndex };
 }

@@ -92,7 +92,7 @@ describe("Mock verifier functional", () => {
       index: 0
     });
     let bytes = await outputUtxo.toBytes();
-    
+
     let utxo1 = Utxo.fromBytes({poseidon, bytes,index: 0, account, appDataIdl: IDL});
     Utxo.equal(poseidon, outputUtxo, utxo1);
   })
@@ -115,7 +115,7 @@ describe("Mock verifier functional", () => {
       relayer: RELAYER
     }); // userKeypair
 
-    
+
 
     const txParams = new TransactionParameters({
       outputUtxos: [outputUtxo],
@@ -126,7 +126,8 @@ describe("Mock verifier functional", () => {
       verifier: new VerifierTwo(),
       poseidon,
       action: Action.SHIELD,
-      encryptedUtxos: new Uint8Array(256).fill(1)
+      encryptedUtxos: new Uint8Array(256).fill(1),
+      transactionIndex: 0
     });
 
     const appParams = {
@@ -147,7 +148,7 @@ describe("Mock verifier functional", () => {
         1_000_000_000,
       ),
     );
-    await tx.getProof();    
+    await tx.getProof();
     await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
     await tx.checkBalances();
@@ -161,7 +162,7 @@ describe("Mock verifier functional", () => {
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER
     }); // userKeypair
-    
+
     await provider.connection.confirmTransaction(
       await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
     );
@@ -176,6 +177,7 @@ describe("Mock verifier functional", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer: RELAYER,
+      transactionIndex: 1
     });
 
     const appParams = {

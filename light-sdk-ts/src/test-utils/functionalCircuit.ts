@@ -1,21 +1,17 @@
 import {
-  ADMIN_AUTH_KEYPAIR,
-  confirmConfig,
   FEE_ASSET,
   Account,
   Provider as LightProvider,
   MINT,
   Utxo,
-  VerifierZero,
   Verifier,
-  Provider,
   Transaction,
   Action,
   TransactionParameters,
 } from "../index";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
-import { Connection, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
@@ -46,6 +42,7 @@ export async function functionalCircuitTest(
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,
+    transactionIndex: 0,
   });
 
   let tx;

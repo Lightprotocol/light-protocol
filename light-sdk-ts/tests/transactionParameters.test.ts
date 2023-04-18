@@ -55,7 +55,7 @@ describe("Transaction Parameters Functional", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
   });
 
@@ -67,7 +67,7 @@ describe("Transaction Parameters Functional", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var j in verifiers) {
@@ -83,6 +83,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.TRANSFER,
         relayer,
+        transactionIndex: 0
       });
 
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
@@ -181,6 +182,7 @@ describe("Transaction Parameters Functional", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
+        transactionIndex: 0
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -269,6 +271,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
+        transactionIndex: 0
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
@@ -472,7 +475,7 @@ describe("Test General TransactionParameters Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
   });
 
@@ -487,6 +490,7 @@ describe("Test General TransactionParameters Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -585,7 +589,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     outputUtxo = new Utxo({
@@ -595,7 +599,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     const params = new TransactionParameters({
@@ -606,6 +610,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
+      transactionIndex: 0
     });
   });
 
@@ -619,6 +624,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -637,7 +643,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(0),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -649,6 +655,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -664,7 +671,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -676,6 +683,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -698,6 +706,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSpl: mockPubkey,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -720,6 +729,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSol: mockPubkey,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -742,6 +752,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSol: mockPubkey,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -764,6 +775,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSpl: mockPubkey,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -798,7 +810,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     const params = new TransactionParameters({
@@ -810,6 +822,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       lookUpTable: mockPubkey,
       poseidon,
       action: Action.SHIELD,
+      transactionIndex: 0
     });
   });
 
@@ -824,6 +837,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -845,6 +859,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -866,6 +881,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -889,6 +905,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -907,13 +924,13 @@ describe("Test TransactionParameters Deposit Errors", () => {
         new anchor.BN("18446744073709551615"),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -926,6 +943,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -941,14 +959,14 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -962,6 +980,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -985,6 +1004,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1008,6 +1028,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1029,6 +1050,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1050,6 +1072,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1065,7 +1088,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       // senderSpl fee always needs to be defined because we use it as the signer
@@ -1078,6 +1101,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
+        transactionIndex: 0
       });
     }
   });
@@ -1095,6 +1119,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1118,6 +1143,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1153,7 +1179,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(depositFeeAmount), new anchor.BN(depositAmount)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     outputUtxo = new Utxo({
@@ -1163,18 +1189,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN(depositFeeAmount).sub(relayer.getRelayerFee()),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
-    });
-
-    const params = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
-      verifier: new VerifierZero(),
-      poseidon,
-      recipientSpl: mockPubkey,
-      recipientSol: mockPubkey,
-      action: Action.UNSHIELD,
-      relayer,
+      account: keypair,
     });
   });
 
@@ -1191,6 +1206,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1212,6 +1228,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.UNSHIELD,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1230,13 +1247,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         new anchor.BN("18446744073709551615"),
         new anchor.BN(depositAmount),
       ],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     let utxo_sol_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1250,6 +1267,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1265,14 +1283,14 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     let utxo_spl_amount_no_u642 = new Utxo({
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("1")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
     for (var verifier in verifiers) {
       expect(() => {
@@ -1286,6 +1304,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1310,6 +1329,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1334,6 +1354,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1349,7 +1370,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1363,6 +1384,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
+        transactionIndex: 0
       });
     }
   });
@@ -1372,7 +1394,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       poseidon: poseidon,
       assets: [FEE_ASSET, MINT],
       amounts: [new anchor.BN(0), new anchor.BN("18446744073709551615")],
-      shieldedPublicKey: keypair.pubkey,
+      account: keypair,
     });
 
     for (var verifier in verifiers) {
@@ -1386,6 +1408,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
+        transactionIndex: 0
       });
     }
   });
@@ -1404,6 +1427,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1428,6 +1452,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
+          transactionIndex: 0
         });
       })
         .to.throw(TransactioParametersError)

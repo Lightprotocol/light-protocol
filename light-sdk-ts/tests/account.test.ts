@@ -15,6 +15,7 @@ import { Account } from "../src/account";
 import {
   AccountError,
   AccountErrorCode,
+  newNonce,
   TransactionParametersErrorCode,
 } from "../src";
 const { blake2b } = require("@noble/hashes/blake2b");
@@ -109,7 +110,7 @@ describe("Test Account Functional", () => {
     assert.equal(k0.privkey.toString(), k1.privkey.toString());
     assert.equal(k0.pubkey.toString(), k1.pubkey.toString());
     assert.equal(k0.burnerSeed.toString(), k1.burnerSeed.toString());
-    assert.equal(k0.aesSecret.toString(), k1.aesSecret.toString());
+    assert.equal(k0.aesSecret?.toString(), k1.aesSecret?.toString());
     if (!fromPrivkey) {
       assert.equal(
         k0.encryptionKeypair.publicKey.toString(),
@@ -225,6 +226,8 @@ describe("Test Account Functional", () => {
   });
 
   it("fromPrivkey", () => {
+    if(!k0.aesSecret)
+      throw new Error("Aes key is undefined");
     let k0Privkey = Account.fromPrivkey(
       poseidon,
       k0.privkey.toBuffer("be", 32),
@@ -242,6 +245,21 @@ describe("Test Account Functional", () => {
     );
     assert.equal(k0Pubkey.pubkey.toString(), k0.pubkey.toString());
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
+  });
+
+  it("aes encryption domain separation", async () => {
+    let message = new Uint8Array(32).fill(1);
+    // never reuse nonces this is only for testing
+    let nonce = newNonce().subarray(0,16)
+
+    let cipherText1 = await k0.encryptAes(message, nonce);
+    let cipherText2 = await k0.encryptAes(message, nonce, "newDomain");
+    let cleartext1 = await k0.decryptAes(cipherText1);
+    let cleartext2 = await k0.decryptAes(cipherText2, "newDomain");
+
+    assert.notEqual(cipherText1.toString(), cipherText2.toString());
+    assert.equal(cleartext1.toString(), cleartext2.toString());    
+    assert.equal(cleartext1.toString(), message.toString());
   });
 });
 

@@ -683,7 +683,13 @@ export class Transaction {
             "encryptUtxos",
             "Automatic encryption for utxos with application data is not implemented.",
           );
-        encryptedOutputs.push(await this.params.outputUtxos[utxo].encrypt());
+        encryptedOutputs.push(
+          await this.params.outputUtxos[utxo].encrypt(
+            this.provider.poseidon,
+            this.params.accounts.transactionMerkleTree,
+            this.params.transactionIndex,
+          ),
+        );
       }
       if (
         this.params.verifier.config.out == 2 &&
@@ -1280,11 +1286,16 @@ export class Transaction {
 
         // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
         // TODO: add for both utxos of leafpda
-        let decryptedUtxo1 = Utxo.decrypt({
+        let decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
           encBytes: this.params!.encryptedUtxos!,
           account: account ? account : this.params!.outputUtxos![0].account,
           index: 0, // this is just a placeholder
+          transactionIndex: this.params!.transactionIndex,
+          merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
+          commitment: new BN(
+            this.params!.outputUtxos![0].getCommitment(this.provider.poseidon),
+          ).toBuffer(),
         });
         const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
           assert.equal(
