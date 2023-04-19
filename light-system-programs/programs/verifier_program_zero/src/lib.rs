@@ -104,9 +104,32 @@ pub struct LightInstruction<'info> {
 pub struct u256 {
     x: [u8; 32],
 }
+
 #[account]
 pub struct Utxo {
     amounts: [u64; 2],
     spl_asset_index: u64,
     blinding: u256,
+    account_shielded_public_key: u256,
+    account_encryption_public_key: [u8; 32],
+    verifier_address: Pubkey,
 }
+
+#[account]
+pub struct TransactionParameters {
+    input_utxos_bytes: Vec<Vec<u8>>,
+    // outputUtxos should be checked
+    // TODO: write function which checks and displays how much multisig funds are spent, to whom, etc
+    output_utxos_bytes: Vec<Vec<u8>>,
+    // integrityHashInputs
+    recipient_spl: Pubkey,
+    recipient_sol: Pubkey,
+    relayer_pubkey: Pubkey,
+    relayer_fee: u64,
+    // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
+    transaction_index: u64,
+}
+
+#[allow(non_camel_case_types, non_upper_case_globals)]
+#[constant]
+pub const programId: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";

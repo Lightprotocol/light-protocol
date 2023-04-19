@@ -1,6 +1,13 @@
 export type VerifierProgramZero = {
   version: "0.1.0";
   name: "verifier_program_zero";
+  constants: [
+    {
+      name: "programId";
+      type: "string";
+      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"';
+    },
+  ];
   instructions: [
     {
       name: "shieldedTransferInputs";
@@ -183,6 +190,60 @@ export type VerifierProgramZero = {
             name: "blinding";
             type: "u256";
           },
+          {
+            name: "accountShieldedPublicKey";
+            type: "u256";
+          },
+          {
+            name: "accountEncryptionPublicKey";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "verifierAddress";
+            type: "publicKey";
+          },
+        ];
+      };
+    },
+    {
+      name: "transactionParameters";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "inputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "outputUtxosBytes";
+            type: {
+              vec: "bytes";
+            };
+          },
+          {
+            name: "recipientSpl";
+            type: "publicKey";
+          },
+          {
+            name: "recipientSol";
+            type: "publicKey";
+          },
+          {
+            name: "relayerPubkey";
+            type: "publicKey";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "transactionIndex";
+            type: "u64";
+          },
         ];
       };
     },
@@ -192,6 +253,13 @@ export type VerifierProgramZero = {
 export const IDL: VerifierProgramZero = {
   version: "0.1.0",
   name: "verifier_program_zero",
+  constants: [
+    {
+      name: "programId",
+      type: "string",
+      value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"',
+    },
+  ],
   instructions: [
     {
       name: "shieldedTransferInputs",
@@ -373,6 +441,60 @@ export const IDL: VerifierProgramZero = {
           {
             name: "blinding",
             type: "u256",
+          },
+          {
+            name: "accountShieldedPublicKey",
+            type: "u256",
+          },
+          {
+            name: "accountEncryptionPublicKey",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "verifierAddress",
+            type: "publicKey",
+          },
+        ],
+      },
+    },
+    {
+      name: "transactionParameters",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "inputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "outputUtxosBytes",
+            type: {
+              vec: "bytes",
+            },
+          },
+          {
+            name: "recipientSpl",
+            type: "publicKey",
+          },
+          {
+            name: "recipientSol",
+            type: "publicKey",
+          },
+          {
+            name: "relayerPubkey",
+            type: "publicKey",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "transactionIndex",
+            type: "u64",
           },
         ],
       },

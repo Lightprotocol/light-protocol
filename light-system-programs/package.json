@@ -9,7 +9,7 @@
     "format": "prettier --write \"tests/**/*.{ts,js}\""
   },
   "dependencies": {
-    "@coral-xyz/anchor": "^0.26.0",
+    "@coral-xyz/anchor": "^0.27.0",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
     "@solana/web3.js": "1.73.2",

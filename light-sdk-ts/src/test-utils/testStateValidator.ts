@@ -20,6 +20,8 @@ type TestInputs = {
   recipientSpl?: PublicKey;
   expectedUtxoHistoryLength: number;
   expectedSpentUtxosLength?: number;
+  recipientSeed?: string;
+  expectedRecipientUtxoLength?: number;
 };
 
 export class TestStateValidator {
@@ -288,6 +290,20 @@ export class TestStateValidator {
     );
   }
 
+  async checkShieldedTransferReceived() {
+    // assert recipient utxo
+    const userRecipient: User = await User.init(
+      this.provider,
+      this.testInputs.recipientSeed,
+    );
+    let { decryptedUtxos } = await userRecipient.getUtxos(false);
+    assert.equal(
+      decryptedUtxos.length,
+      this.testInputs.expectedRecipientUtxoLength,
+    );
+    assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
+  }
+
   async checkTokenShielded() {
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedTokenBalance(this.testInputs.amountSpl);
@@ -370,5 +386,7 @@ export class TestStateValidator {
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentIndexedTransaction();
+
+    await this.checkShieldedTransferReceived();
   }
 }

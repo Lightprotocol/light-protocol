@@ -26,7 +26,7 @@ import {
 } from "../index";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 
-export async function setUpMerkleTree(provider: anchor.Provider) {
+export async function setUpMerkleTree(provider: anchor.AnchorProvider) {
   const verifierProgramZero: anchor.Program<VerifierProgramZero> =
     new anchor.Program(IDL_VERIFIER_PROGRAM_ZERO, verifierProgramZeroProgramId);
   const verifierProgramOne: anchor.Program<VerifierProgramOne> =
