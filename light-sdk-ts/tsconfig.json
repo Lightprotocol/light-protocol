@@ -10,7 +10,8 @@
     "moduleResolution": "node",
     "rootDirs": ["src", "generated"],
     "baseUrl": "src",
-    "useUnknownInCatchVariables": false
+    "useUnknownInCatchVariables": false,
+    "sourceMap": true
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],

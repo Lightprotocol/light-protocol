@@ -228,6 +228,8 @@ describe("Test User", () => {
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
+      recipientSeed: new Uint8Array(32).fill(9).toString(),
+      expectedRecipientUtxoLength: 1,
     };
 
     const provider = await Provider.init({
@@ -235,14 +237,9 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
 
-    // const shieldedRecipient =
-    //   "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    // const encryptionPublicKey =
-    //   "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
     const recipientAccount = new Account({
       poseidon: POSEIDON,
-      seed: new Uint8Array(32).fill(9).toString(),
+      seed: testInputs.recipientSeed,
     });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
@@ -270,15 +267,6 @@ describe("Test User", () => {
     await user.provider.latestMerkleTree();
 
     await testStateValidator.checkTokenTransferred();
-
-    // assert recipient utxo
-    const userRecipient: User = await User.init(
-      provider,
-      new Uint8Array(32).fill(9).toString(),
-    );
-    let { decryptedUtxos } = await userRecipient.getUtxos(false);
-    assert.equal(decryptedUtxos.length, 1);
-    assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
   });
 
   it.skip("(user class) transfer SOL", async () => {

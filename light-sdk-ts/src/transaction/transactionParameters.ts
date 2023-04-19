@@ -1,8 +1,12 @@
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN } from "@coral-xyz/anchor";
-import { AUTHORITY, MERKLE_TREE_KEY } from "../constants";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
+import {
+  AUTHORITY,
+  MERKLE_TREE_KEY,
+  verifierProgramZeroProgramId,
+} from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
 import { Verifier, VerifierZero } from "../verifiers";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
@@ -29,6 +33,7 @@ import {
   TokenContext,
   transactionParameters,
   lightAccounts,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "../index";
 
 export class TransactionParameters implements transactionParameters {
@@ -64,7 +69,6 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable,
     ataCreationFee,
     transactionIndex,
-    nonces,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -82,7 +86,6 @@ export class TransactionParameters implements transactionParameters {
     provider?: Provider;
     ataCreationFee?: boolean;
     transactionIndex: number;
-    nonces?: Array<Uint8Array>;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -440,6 +443,142 @@ export class TransactionParameters implements transactionParameters {
     this.assignAccounts();
     // @ts-ignore:
     this.accounts.signingAddress = this.relayer.accounts.relayerPubkey;
+  }
+
+  async toBytes(): Promise<Buffer> {
+    let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    let inputUtxosBytes = [];
+    for (var utxo of this.inputUtxos) {
+      inputUtxosBytes.push(await utxo.toBytes());
+    }
+    let outputUtxosBytes = [];
+    for (var utxo of this.outputUtxos) {
+      outputUtxosBytes.push(await utxo.toBytes());
+    }
+    let preparedObject = {
+      outputUtxosBytes,
+      inputUtxosBytes,
+      relayerPubkey: this.relayer.accounts.relayerPubkey,
+      relayerFee: this.relayer.relayerFee,
+      ...this,
+      ...this.accounts,
+      transactionIndex: new BN(this.transactionIndex),
+    };
+    return await coder.encode("transactionParameters", preparedObject);
+  }
+
+  static findIdlIndex(programId: string, idlObjects: anchor.Idl[]): number {
+    for (let i = 0; i < idlObjects.length; i++) {
+      const constants = idlObjects[i].constants;
+      if (!constants)
+        throw new Error(`Idl in index ${i} does not have any constants`);
+
+      for (const constant of constants) {
+        if (
+          constant.name === "programId" &&
+          constant.type === "string" &&
+          constant.value === `"${programId}"`
+        ) {
+          return i;
+        }
+      }
+    }
+
+    return -1; // Return -1 if the programId is not found in any IDL object
+  }
+
+  static async fromBytes({
+    poseidon,
+    utxoIdls,
+    bytes,
+    verifier,
+    relayer,
+  }: {
+    poseidon: any;
+    utxoIdls?: anchor.Idl[];
+    bytes: Buffer;
+    verifier: Verifier;
+    relayer: Relayer;
+  }): Promise<TransactionParameters> {
+    let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
+    let decoded = coder.decodeUnchecked("transactionParameters", bytes);
+
+    const getUtxos = (
+      utxoBytesArray: Array<Buffer>,
+      utxoIdls?: anchor.Idl[],
+    ) => {
+      let utxos: Utxo[] = [];
+      for (var [_, utxoBytes] of utxoBytesArray.entries()) {
+        let appDataIdl = undefined;
+        if (
+          utxoBytes.subarray(128, 160).toString() !==
+          Buffer.alloc(32).fill(0).toString()
+        ) {
+          if (!utxoIdls) {
+            throw new TransactioParametersError(
+              TransactionParametersErrorCode.UTXO_IDLS_UNDEFINED,
+              "fromBytes",
+            );
+          }
+          let idlIndex = TransactionParameters.findIdlIndex(
+            new PublicKey(utxoBytes.subarray(128, 160)).toBase58(),
+            utxoIdls,
+          );
+          // could add option to fetch idl from chain if not found
+          appDataIdl = utxoIdls[idlIndex];
+        }
+        utxos.push(
+          Utxo.fromBytes({
+            poseidon,
+            bytes: utxoBytes,
+            appDataIdl,
+          }),
+        );
+      }
+      return utxos;
+    };
+
+    const inputUtxos = getUtxos(decoded.inputUtxosBytes, utxoIdls);
+    const outputUtxos = getUtxos(decoded.outputUtxosBytes, utxoIdls);
+
+    if (
+      relayer &&
+      relayer.accounts.relayerPubkey.toBase58() != decoded.relayerPubkey
+    ) {
+      // TODO: add functionality to look up relayer or fetch info, looking up is better
+      throw new TransactioParametersError(
+        TransactionParametersErrorCode.RELAYER_INVALID,
+        "fromBytes",
+        "The provided relayer has a different public key as the relayer publickey decoded from bytes",
+      );
+    }
+    if (!relayer) {
+      throw new TransactioParametersError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "fromBytes",
+      );
+    }
+
+    let action = Action.TRANSFER;
+    if (
+      decoded.recipientSol.toBase58() !== AUTHORITY.toBase58() ||
+      decoded.recipientSpl.toBase58() !== AUTHORITY.toBase58()
+    ) {
+      action = Action.UNSHIELD;
+    } else {
+      decoded.recipientSol = undefined;
+      decoded.recipientSpl = undefined;
+    }
+    return new TransactionParameters({
+      poseidon,
+      inputUtxos,
+      outputUtxos,
+      verifier,
+      relayer,
+      ...decoded,
+      action,
+      merkleTreePubkey: MERKLE_TREE_KEY,
+    });
   }
 
   static async getTxParams({
