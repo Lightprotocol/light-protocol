@@ -302,9 +302,7 @@ export class Transaction {
       this.provider.poseidon,
       (await this.getTxIntegrityHash()).toString(),
     );
-    const path = require("path");
-    // TODO: find a better more flexible solution, pass in path with app params
-    const firstPath = path.resolve(__dirname, "../../../../sdk/build-circuit/");
+
     let { proofBytes, publicInputs } = await this.getProofInternal(
       this.appParams.verifier,
       {
@@ -314,7 +312,7 @@ export class Transaction {
           (utxo) => utxo.account.pubkey,
         ),
       },
-      firstPath,
+      this.appParams.path,
     );
 
     this.transactionInputs.proofBytesApp = proofBytes;
@@ -677,7 +675,10 @@ export class Transaction {
       encryptedOutputs = Array.from(encryptedUtxos);
     } else if (this.params && this.params.outputUtxos) {
       for (var utxo in this.params.outputUtxos) {
-        if (this.params.outputUtxos[utxo].appDataHash.toString() !== "0")
+        if (
+          this.params.outputUtxos[utxo].appDataHash.toString() !== "0" &&
+          this.params.outputUtxos[utxo].includeAppData
+        )
           throw new TransactionError(
             TransactionErrorCode.UNIMPLEMENTED,
             "encryptUtxos",
@@ -880,10 +881,7 @@ export class Transaction {
       // we cant do that tho as we'd want to add the default relayer to the provider itself.
       // so just pass in a flag here "shield, unshield, transfer" -> so devs don't have to know that it goes to a relayer.
       // send tx to relayer
-      const res = await this.provider.relayer.sendTransaction(
-        ix,
-        this.provider,
-      );
+      const res = await this.params.relayer.sendTransaction(ix, this.provider);
       return res;
     } else {
       if (!this.provider.provider)

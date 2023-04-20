@@ -357,35 +357,7 @@ export class User {
       provider: this.provider,
       transactionIndex: this.transactionIndex,
     });
-
-    let tx = new Transaction({
-      provider: this.provider,
-      params: txParams,
-    });
-
-    await tx.compileAndProve();
-    let txHash;
-    try {
-      txHash = await tx.sendAndConfirmTransaction();
-    } catch (e) {
-      throw new UserError(
-        TransactionErrorCode.SEND_TRANSACTION_FAILED,
-        "shield",
-        `Error in tx.sendAndConfirmTransaction! ${e}`,
-      );
-    }
-    this.transactionIndex += 1;
-
-    const response = await this.provider.relayer.updateMerkleTree(
-      this.provider,
-    );
-
-    this.spentUtxos = getUpdatedSpentUtxos(
-      txParams.inputUtxos,
-      this.spentUtxos,
-    );
-
-    return { txHash, response };
+    return await this.transact({ txParams });
   }
 
   // TODO: add unshieldSol and unshieldSpl
@@ -489,34 +461,7 @@ export class User {
       transactionIndex: this.transactionIndex,
     });
 
-    let tx = new Transaction({
-      provider: this.provider,
-      params: txParams,
-    });
-
-    await tx.compileAndProve();
-    let txHash;
-    try {
-      txHash = await tx.sendAndConfirmTransaction();
-    } catch (e) {
-      throw new UserError(
-        TransactionErrorCode.SEND_TRANSACTION_FAILED,
-        "shield",
-        `Error in tx.sendAndConfirmTransaction! ${e}`,
-      );
-    }
-    this.transactionIndex += 1;
-
-    const response = await this.provider.relayer.updateMerkleTree(
-      this.provider,
-    );
-
-    this.spentUtxos = getUpdatedSpentUtxos(
-      txParams.inputUtxos,
-      this.spentUtxos,
-    );
-
-    return { txHash, response };
+    return await this.transact({ txParams });
   }
 
   // TODO: add separate lookup function for users.
@@ -587,9 +532,20 @@ export class User {
       relayer: this.provider.relayer,
       transactionIndex: this.transactionIndex,
     });
+    return await this.transact({ txParams });
+  }
+
+  async transact({
+    txParams,
+    appParams,
+  }: {
+    txParams: TransactionParameters;
+    appParams?: any;
+  }) {
     let tx = new Transaction({
       provider: this.provider,
       params: txParams,
+      appParams,
     });
 
     await tx.compileAndProve();
@@ -604,7 +560,16 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
-    this.transactionIndex += 1;
+
+    // TODO: this needs to be revisited because other parts of the sdk still
+    // assume that either every transaction just has one key
+    // and that one transaction just contains one aes utxo
+    // increases transactionIndex for every of my own utxos
+    txParams.outputUtxos.map((utxo) => {
+      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
+        this.transactionIndex += 1;
+      }
+    });
 
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
@@ -618,20 +583,6 @@ export class User {
     return { txHash, response };
   }
 
-  appInteraction() {
-    throw new Error("not implemented yet");
-  }
-  /*
-    *
-    *return {
-        inputUtxos,
-        outputUtxos,
-        txConfig: { in: number; out: number },
-        verifier, can be verifier object
-    }
-    *
-    */
-
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
   // TODO: evaluate whether we could use an offline instance of user, for example to generate a proof offline, also could use this to move error test to sdk
   /**
@@ -639,7 +590,6 @@ export class User {
    * @param cachedUser - optional cached user object
    * untested for browser wallet!
    */
-
   async init(provider: Provider, seed?: string, utxos?: Utxo[]) {
     if (seed) {
       this.seed = seed;

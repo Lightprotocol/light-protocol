@@ -255,6 +255,7 @@ export class Utxo {
       let hashArray = [];
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);
+        console.log("hash array: ", appData[attribute].toString());
       }
       this.appDataHash = new BN(
         leInt2Buff(
@@ -266,6 +267,8 @@ export class Utxo {
       );
       this.appData = appData;
       this.appDataIdl = appDataIdl;
+    } else if (appDataHash) {
+      this.appDataHash = appDataHash;
     } else {
       this.appDataHash = new BN("0");
     }
