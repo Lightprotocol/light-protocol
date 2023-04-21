@@ -26,7 +26,10 @@ import {
   CreateUtxoError,
   CreateUtxoErrorCode,
   Account,
-  MINT
+  MINT,
+  validateUtxoAmounts,
+  Recipient,
+  createRecipientUtxos
 } from "../src";
 import { access } from "fs";
 
@@ -456,6 +459,99 @@ describe("Test createOutUtxos Functional", () => {
         utxo1.amounts[1].toNumber() - splAmount.toNumber()
       }`,
     );
+  });
+});
+
+// ... existing imports and code ...
+
+describe("createRecipientUtxos", () => {
+  it("should create output UTXOs for each recipient", async () => {
+    const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    const mint = new PublicKey(1);
+    const account1 = new Account({ poseidon, seed: seed32 });
+    const account2 = new Account({ poseidon, seed: (new Uint8Array(32).fill(4)).toString() });
+
+    const recipients: Recipient[] = [
+      {
+        account: account1,
+        solAmount: new BN(5),
+        splAmount: new BN(10),
+        mint,
+      },
+      {
+        account: account2,
+        solAmount: new BN(3),
+        splAmount: new BN(7),
+        mint,
+      },
+    ];
+
+    const outputUtxos = createRecipientUtxos({ recipients, poseidon });
+
+    expect(outputUtxos.length).to.equal(recipients.length);
+    expect(outputUtxos[0].account).to.equal(account1);
+    expect(outputUtxos[0].amounts[0].toString()).to.equal("5");
+    expect(outputUtxos[0].amounts[1].toString()).to.equal("10");
+    expect(outputUtxos[0].assets[0].equals(SystemProgram.programId)).to.be.true;
+    expect(outputUtxos[0].assets[1].equals(mint)).to.be.true;
+
+    expect(outputUtxos[1].account).to.equal(account2);
+    expect(outputUtxos[1].amounts[0].toString()).to.equal("3");
+    expect(outputUtxos[1].amounts[1].toString()).to.equal("7");
+    expect(outputUtxos[1].assets[0].equals(SystemProgram.programId)).to.be.true;
+    expect(outputUtxos[1].assets[1].equals(mint)).to.be.true;
+  });
+});
+
+
+describe("validateUtxoAmounts", () => {
+  let poseidon;
+  before(async () => {
+    poseidon = await circomlibjs.buildPoseidonOpt();
+  })
+  // Helper function to create a UTXO with specific amounts and assets
+  function createUtxo(poseidon: any, amounts: BN[], assets: PublicKey[]): Utxo {
+    return new Utxo({
+      poseidon,
+      amounts,
+      assets,
+      blinding: new BN(0),
+      account: new Account({poseidon}),
+    });
+  }
+
+  it("should not throw an error if input UTXOs sum is equal to output UTXOs sum", () => {
+    const assetPubkey = new PublicKey(0);
+    const inUtxos = [
+      createUtxo(poseidon, [new BN(5)], [assetPubkey]),
+      createUtxo(poseidon, [new BN(3)], [assetPubkey]),
+    ];
+    const outUtxos = [createUtxo(poseidon,[new BN(8)], [assetPubkey])];
+
+    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).not.to.throw();
+  });
+
+  it("should not throw an error if input UTXOs sum is greater than output UTXOs sum", () => {
+    const assetPubkey = new PublicKey(0);
+    const inUtxos = [
+      createUtxo(poseidon,[new BN(5)], [assetPubkey]),
+      createUtxo(poseidon,[new BN(3)], [assetPubkey]),
+    ];
+    const outUtxos = [createUtxo(poseidon,[new BN(7)], [assetPubkey])];
+
+    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).not.to.throw();
+  });
+
+  it("should throw an error if input UTXOs sum is less than output UTXOs sum", () => {
+    const assetPubkey = new PublicKey(0);
+    const inUtxos = [
+      createUtxo(poseidon,[new BN(5)], [assetPubkey]),
+      createUtxo(poseidon,[new BN(3)], [assetPubkey]),
+    ];
+    const outUtxos = [createUtxo(poseidon,[new BN(9)], [assetPubkey])];
+
+    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).to.throw(CreateUtxoError);
   });
 });
 
