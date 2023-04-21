@@ -9,6 +9,7 @@ import {
   Account,
   Utxo,
   TransactionParameters,
+  AppUtxoConfig,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -18,6 +19,7 @@ export type Recipient = {
   solAmount: BN;
   splAmount: BN;
   mint: PublicKey;
+  appUtxo?: AppUtxoConfig;
 };
 // mint: PublicKey, expectedAmount: BN,
 export const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
@@ -87,6 +89,7 @@ export function createOutUtxos({
   changeUtxoAccount,
   recipients = [],
   action,
+  appUtxo,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
@@ -97,6 +100,7 @@ export function createOutUtxos({
   changeUtxoAccount: Account;
   recipients?: Recipient[];
   action: Action;
+  appUtxo?: AppUtxoConfig;
 }) {
   if (!poseidon)
     throw new CreateUtxoError(
@@ -128,7 +132,6 @@ export function createOutUtxos({
     );
   let assets: Asset[] = [];
 
-  // TODO: make flexible with different verifiers
   // TODO: enable perfect manual amounts of amounts to recipients
   // check nr recipients is leq to nrOuts of verifier
   if (recipients.length > 1) {
@@ -287,7 +290,12 @@ export function createOutUtxos({
       assets: [SystemProgram.programId, splMint],
       amounts: [solAmount, splAmount],
       account: recipients[j].account,
+      appData: recipients[j].appUtxo?.appData,
+      includeAppData: recipients[j].appUtxo?.includeAppData,
+      appDataHash: recipients[j].appUtxo?.appDataHash,
+      verifierAddress: recipients[j].appUtxo?.verifierAddress,
     });
+
     outputUtxos.push(recipientUtxo);
     let publicSplAssetIndex = assets.findIndex(
       (x) => x.asset.toBase58() === publicMint?.toBase58(),
@@ -329,9 +337,14 @@ export function createOutUtxos({
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       account: changeUtxoAccount,
+      appData: appUtxo?.appData,
+      appDataHash: appUtxo?.appDataHash,
+      includeAppData: appUtxo?.includeAppData,
+      verifierAddress: appUtxo?.verifierAddress,
     });
     outputUtxos.push(changeUtxo);
   }
+
   // TODO: adapt to verifier
   if (outputUtxos.length > 2) {
     throw new CreateUtxoError(
@@ -340,6 +353,5 @@ export function createOutUtxos({
       `Probably too many input assets possibly in combination with an incompatible number of shielded recipients ${outputUtxos}`,
     );
   }
-
   return outputUtxos;
 }

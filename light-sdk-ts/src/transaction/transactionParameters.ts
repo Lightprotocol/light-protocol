@@ -34,6 +34,7 @@ import {
   transactionParameters,
   lightAccounts,
   IDL_VERIFIER_PROGRAM_ZERO,
+  AppUtxoConfig,
 } from "../index";
 
 export class TransactionParameters implements transactionParameters {
@@ -598,6 +599,7 @@ export class TransactionParameters implements transactionParameters {
     provider,
     ataCreationFee,
     transactionIndex,
+    appUtxo,
   }: {
     tokenCtx: TokenContext;
     publicAmountSpl?: BN;
@@ -613,6 +615,7 @@ export class TransactionParameters implements transactionParameters {
     relayer?: Relayer;
     ataCreationFee?: boolean;
     transactionIndex: number;
+    appUtxo?: AppUtxoConfig;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
@@ -643,16 +646,18 @@ export class TransactionParameters implements transactionParameters {
     var inputUtxos: Utxo[] = [];
     var outputUtxos: Utxo[] = [];
 
-    inputUtxos = selectInUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      publicAmountSol,
-      poseidon: provider.poseidon,
-      recipients: shieldedRecipients,
-      utxos,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
-      action,
-    });
+    if (appUtxo) {
+      inputUtxos = selectInUtxos({
+        publicMint: tokenCtx.tokenAccount,
+        publicAmountSpl,
+        publicAmountSol,
+        poseidon: provider.poseidon,
+        recipients: shieldedRecipients,
+        utxos,
+        relayerFee: relayer?.getRelayerFee(ataCreationFee),
+        action,
+      });
+    }
 
     outputUtxos = createOutUtxos({
       publicMint: tokenCtx.tokenAccount,
@@ -664,6 +669,7 @@ export class TransactionParameters implements transactionParameters {
       changeUtxoAccount: account,
       recipients: shieldedRecipients,
       action,
+      appUtxo,
     });
 
     let txParams = new TransactionParameters({

@@ -27,6 +27,7 @@ import {
   TransactionParameters,
   Action,
   getUpdatedSpentUtxos,
+  AppUtxoConfig,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -233,6 +234,7 @@ export class User {
     publicAmountSol,
     senderTokenAccount,
     minimumLamports = true,
+    appUtxo,
   }: {
     token: string;
     recipient?: Account;
@@ -240,7 +242,9 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
+    appUtxo?: AppUtxoConfig;
   }) {
+    // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
       throw new UserError(
         UserErrorCode.INVALID_TOKEN,
@@ -356,6 +360,7 @@ export class User {
       userSplAccount,
       provider: this.provider,
       transactionIndex: this.transactionIndex,
+      appUtxo,
     });
     return await this.transact({ txParams });
   }
@@ -467,7 +472,7 @@ export class User {
   // TODO: add separate lookup function for users.
   // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
   /**
-   *
+   * @description transfers to one recipient utxo and creates a change utxo with remainders of the input
    * @param token mint
    * @param amount
    * @param recipient shieldedAddress (BN)
@@ -480,11 +485,13 @@ export class User {
     recipient,
     amountSpl,
     amountSol,
+    appUtxo,
   }: {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
     recipient: Account;
+    appUtxo: AppUtxoConfig;
   }) {
     if (!recipient)
       throw new UserError(
@@ -526,6 +533,7 @@ export class User {
           account: recipient,
           solAmount: parsedSolAmount,
           splAmount: parsedSplAmount,
+          appUtxo,
         },
       ],
       provider: this.provider,

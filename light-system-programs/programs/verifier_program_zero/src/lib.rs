@@ -109,10 +109,11 @@ pub struct u256 {
 pub struct Utxo {
     amounts: [u64; 2],
     spl_asset_index: u64,
+    verifier_address_index: u64,
     blinding: u256,
+    app_data_hash: u256,
     account_shielded_public_key: u256,
     account_encryption_public_key: [u8; 32],
-    verifier_address: Pubkey,
 }
 
 #[account]

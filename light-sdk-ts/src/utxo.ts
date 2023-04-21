@@ -11,7 +11,13 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
-import { AccountClient, BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import {
+  AccountClient,
+  ACCOUNT_DISCRIMINATOR_SIZE,
+  BN,
+  BorshAccountsCoder,
+  Idl,
+} from "@coral-xyz/anchor";
 import { assert } from "chai";
 import {
   UtxoError,
@@ -24,6 +30,9 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   CreateUtxoErrorCode,
   createAccountObject,
+  COMPRESSED_UTXO_BYTES_LENGTH,
+  UNCOMPRESSED_UTXO_BYTES_LENGTH,
+  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
 } from "./index";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
@@ -293,6 +302,10 @@ export class Utxo {
       ...this,
       accountShieldedPublicKey: this.account.pubkey,
       accountEncryptionPublicKey: this.account.encryptionKeypair.publicKey,
+      verifierAddressIndex:
+        this.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
+          ? new BN("0")
+          : new BN("1"),
     };
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
@@ -304,6 +317,10 @@ export class Utxo {
       serializeObject = {
         ...serializeObject,
         ...this.appData,
+        verifierAddressIndex:
+          this.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
+            ? new BN("0")
+            : new BN("1"),
       };
       serializedData = await coder.encode("utxo", serializeObject);
     } else {
@@ -316,7 +333,7 @@ export class Utxo {
     // Compressed serialization does not store the account since for an encrypted utxo
     // we assume that the user who is able to decrypt the utxo knows the corresponding account.
     if (compressed) {
-      return serializedData.subarray(0, 64);
+      return serializedData.subarray(0, COMPRESSED_UTXO_BYTES_LENGTH);
     } else {
       return serializedData;
     }
@@ -333,8 +350,7 @@ export class Utxo {
    */
   // TODO: make robust and versatile for any combination of filled in fields or not
   // TODO: find a better solution to get the private key in
-  // TODO: check length to rule out parsing app utxo
-  // TODO: validate account
+  // TODO: take array of idls as input and select the idl with the correct verifierIndex
   static fromBytes({
     poseidon,
     bytes,
@@ -342,6 +358,7 @@ export class Utxo {
     includeAppData = true,
     index,
     appDataIdl,
+    verifierAddress,
   }: {
     poseidon: any;
     bytes: Buffer;
@@ -349,11 +366,18 @@ export class Utxo {
     includeAppData?: boolean;
     index?: number;
     appDataIdl?: Idl;
+    verifierAddress?: PublicKey;
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
-    if (bytes.length === 64) {
+    if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
       let tmp: Uint8Array = Uint8Array.from([...Array.from(bytes)]);
-      bytes = Buffer.from([...tmp, ...new Uint8Array(64).fill(0)]);
+      bytes = Buffer.from([
+        ...tmp,
+        ...new Uint8Array(
+          UNCOMPRESSED_UTXO_BYTES_LENGTH - COMPRESSED_UTXO_BYTES_LENGTH,
+        ).fill(0),
+      ]);
+      includeAppData = false;
       if (!account)
         throw new UtxoError(
           CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
@@ -388,6 +412,12 @@ export class Utxo {
       SystemProgram.programId,
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
     ];
+
+    // TODO: make lookup function and or tie to idl
+    verifierAddress =
+      decodedUtxoData.verifierAddressIndex.toString() !== "0"
+        ? new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+        : SystemProgram.programId;
     if (!account) {
       account = Account.fromPubkey(
         decodedUtxoData.accountShieldedPublicKey.toBuffer(),
@@ -403,8 +433,9 @@ export class Utxo {
       poseidon,
       appDataIdl,
       includeAppData,
-      ...decodedUtxoData,
       appData,
+      verifierAddress,
+      ...decodedUtxoData,
     });
   }
 
@@ -607,6 +638,11 @@ export class Utxo {
     aes?: boolean;
     commitment: Uint8Array;
   }): Promise<Utxo | null> {
+    const encryptedUtxo = encBytes.subarray(
+      0,
+      ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+    );
+
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -624,7 +660,6 @@ export class Utxo {
           "For aes decryption the transaction index is necessary to derive the viewingkey",
         );
 
-      const encryptedUtxo = encBytes.subarray(0, 80);
       const iv = commitment.subarray(0, 16);
       try {
         const cleartext = await decrypt(
@@ -649,7 +684,6 @@ export class Utxo {
         return null;
       }
     } else {
-      const encryptedUtxo = encBytes.subarray(0, 80);
       const nonce = commitment.subarray(0, 24);
 
       if (account.encryptionKeypair.secretKey) {

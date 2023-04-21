@@ -4,6 +4,7 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { Account } from "../account";
 import { fetchNullifierAccountInfo } from "../utils";
 import { QueuedLeavesPda } from "merkleTree";
+import { ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH } from "../index";
 
 const processDecryptedUtxos = async ({
   decryptedUtxo,
@@ -45,6 +46,7 @@ const processDecryptedUtxos = async ({
   }
 };
 
+// TODO: rename to decryptUtxoPair or decryptLeavesPairUtxos
 /**
  *  Fetches the decrypted and spent UTXOs for an account from the provided leavesPDAs.
  * @param {Array} leavesPdas - An array of leaf PDAs containing the UTXO data.
@@ -84,7 +86,12 @@ export async function getAccountUtxos({
       await Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(0, 80)),
+          Array.from(
+            leafPda.account.encryptedUtxos.slice(
+              0,
+              ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            ),
+          ),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber(),
@@ -96,7 +103,12 @@ export async function getAccountUtxos({
       await Utxo.decrypt({
         poseidon: poseidon,
         encBytes: new Uint8Array(
-          Array.from(leafPda.account.encryptedUtxos.slice(128)),
+          Array.from(
+            leafPda.account.encryptedUtxos.slice(
+              128,
+              128 + ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            ),
+          ),
         ),
         account,
         index: leafPda.account.leftLeafIndex.toNumber() + 1,

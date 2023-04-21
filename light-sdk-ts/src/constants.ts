@@ -1,6 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 
-import { Program } from "@coral-xyz/anchor";
+import { ACCOUNT_DISCRIMINATOR_SIZE, Program } from "@coral-xyz/anchor";
 import {
   ASSOCIATED_TOKEN_PROGRAM_ID,
   TOKEN_PROGRAM_ID,
@@ -20,6 +20,7 @@ import {
   SYSVAR_CLOCK_PUBKEY,
   SYSVAR_RENT_PUBKEY,
 } from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
   155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,
@@ -75,6 +76,16 @@ export const confirmConfig: ConfirmOptions = {
 //     constants[item.name] = JSON.parse(item.value)
 //   }
 // });
+
+export const COMPRESSED_UTXO_BYTES_LENGTH = 96 + ACCOUNT_DISCRIMINATOR_SIZE;
+export const ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH = 112;
+export const UNCOMPRESSED_UTXO_BYTES_LENGTH =
+  COMPRESSED_UTXO_BYTES_LENGTH + 2 * 32;
+export const ENCRYPTED_UNCOMPRESSED_UTXO_BYTES_LENGTH =
+  UNCOMPRESSED_UTXO_BYTES_LENGTH + 16;
+
+export const DEFAULT_PRIVATE_KEY = bs58.encode(new Uint8Array(32).fill(0));
+
 export const DEFAULT_ZERO =
   "14522046728041339886521211779101644712859239303505368468566383402165481390632";
 
