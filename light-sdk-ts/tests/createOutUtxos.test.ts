@@ -17,7 +17,7 @@ import { Scalar } from "ffjavascript";
 import {
   Action,
   TransactionParametersErrorCode,
-  createOutUtxos,
+  createMissingOutUtxos,
   strToArr,
   ADMIN_AUTH_KEYPAIR,
   TOKEN_REGISTRY,
@@ -37,7 +37,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = new Uint8Array(32).fill(1).toString();
 
-describe("Test createOutUtxos Functional", () => {
+describe("Test createMissingOutUtxos Functional", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
   const mockPublicKey = SolanaKeypair.generate().publicKey;
@@ -92,7 +92,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(0),
       publicAmountSol: solAmount,
@@ -116,7 +116,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield spl", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(10),
       publicAmountSol: new BN(0),
@@ -140,7 +140,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol with input utxo", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(0),
@@ -165,7 +165,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol & spl with input utxo", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(10),
@@ -190,7 +190,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("shield sol & spl", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(10),
       publicAmountSol: solAmount,
@@ -214,7 +214,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield SPL - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
@@ -240,7 +240,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield SPL - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
@@ -266,7 +266,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield sol - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(0),
@@ -292,7 +292,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield sol - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(0),
@@ -318,7 +318,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield spl & sol - no relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
@@ -344,7 +344,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield spl & sol - with relayer fee", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       inUtxos: [utxo1],
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
@@ -370,7 +370,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield in:1SOL + 1SPL should merge 2-1", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
@@ -396,7 +396,7 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("unshield in:1SPL + 1SPL should merge 2-1", async () => {
-    let outUtxos = createOutUtxos({
+    let outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxo1],
@@ -422,24 +422,28 @@ describe("Test createOutUtxos Functional", () => {
   });
 
   it("transfer in:1 SPL ", async () => {
-    let outUtxos = createOutUtxos({
+    let recipients = [
+      {
+        account: recipientAccount,
+        mint: utxo1.assets[1],
+        solAmount: new BN(0),
+        splAmount: new BN(1),
+      },
+    ];
+    let outUtxos = createRecipientUtxos({recipients, poseidon})
+
+    outUtxos = createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: new BN(0),
       inUtxos: [utxo1],
-      recipients: [
-        {
-          account: recipientAccount,
-          mint: utxo1.assets[1],
-          solAmount: new BN(0),
-          splAmount: new BN(1),
-        },
-      ],
+      outUtxos,
       relayerFee,
       publicAmountSol: new BN(0),
       poseidon,
       changeUtxoAccount: k0,
       action: Action.TRANSFER,
     });
+    
     assert.equal(
       outUtxos[1].amounts[0].toNumber(),
       utxo1.amounts[0].toNumber() -
@@ -529,7 +533,7 @@ describe("validateUtxoAmounts", () => {
     ];
     const outUtxos = [createUtxo(poseidon,[new BN(8)], [assetPubkey])];
 
-    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).not.to.throw();
+    expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).not.to.throw();
   });
 
   it("should not throw an error if input UTXOs sum is greater than output UTXOs sum", () => {
@@ -540,7 +544,7 @@ describe("validateUtxoAmounts", () => {
     ];
     const outUtxos = [createUtxo(poseidon,[new BN(7)], [assetPubkey])];
 
-    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).not.to.throw();
+    expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).not.to.throw();
   });
 
   it("should throw an error if input UTXOs sum is less than output UTXOs sum", () => {
@@ -551,11 +555,11 @@ describe("validateUtxoAmounts", () => {
     ];
     const outUtxos = [createUtxo(poseidon,[new BN(9)], [assetPubkey])];
 
-    expect(() => validateUtxoAmounts([assetPubkey], inUtxos, outUtxos)).to.throw(CreateUtxoError);
+    expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).to.throw(CreateUtxoError);
   });
 });
 
-describe("Test createOutUtxos Errors", () => {
+describe("Test createMissingOutUtxos Errors", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
   const mockPublicKey = SolanaKeypair.generate().publicKey;
@@ -607,7 +611,7 @@ describe("Test createOutUtxos Errors", () => {
       recipientEncryptionPublicKey,
       poseidon,
     );
-    createOutUtxos({
+    createMissingOutUtxos({
       publicMint: tokenCtx.tokenAccount,
       publicAmountSpl: splAmount,
       inUtxos: [utxo1, utxoSol],
@@ -621,7 +625,7 @@ describe("Test createOutUtxos Errors", () => {
   it("NO_POSEIDON_HASHER_PROVIDED", async () => {
     expect(() => {
       // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -634,14 +638,13 @@ describe("Test createOutUtxos Errors", () => {
       .to.throw(CreateUtxoError)
       .includes({
         code: TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 
   it("INVALID_NUMER_OF_RECIPIENTS", async () => {
     expect(() => {
-      // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -649,21 +652,20 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        // @ts-ignore
-        recipients: [{}, {}],
+        outUtxos: [new Utxo({poseidon}), new Utxo({poseidon})],
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 
   it("INVALID_RECIPIENT_MINT", async () => {
     expect(() => {
       // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -671,21 +673,20 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        // @ts-ignore
-        recipients: [{ mint: SolanaKeypair.generate().publicKey }],
+        outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey], amounts: [new BN(0), new BN(1)]})],
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 
   it("RECIPIENTS_SUM_AMOUNT_MISSMATCH", async () => {
     expect(() => {
       // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -693,27 +694,21 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        recipients: [
-          {
-            account: recipientAccount,
-            mint: utxo1.assets[1],
-            solAmount: new BN(0),
-            splAmount: new BN(1e12),
-          },
-        ],
+        outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, utxo1.assets[1]], amounts: [new BN(0), new BN(1e12)]})],
+
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
-        functionName: "createOutUtxos",
+        functionName: "validateUtxoAmounts",
       });
   });
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED", async () => {
     expect(() => {
       // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         // publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -721,27 +716,19 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        recipients: [
-          {
-            account: recipientAccount,
-            mint: utxo1.assets[1],
-            solAmount: new BN(0),
-            splAmount: new BN(1e1),
-          },
-        ],
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 
   it("NO_PUBLIC_MINT_PROVIDED", async () => {
     expect(() => {
       // @ts-ignore
-      createOutUtxos({
+      createMissingOutUtxos({
         // publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol],
@@ -750,55 +737,19 @@ describe("Test createOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         relayerFee: new BN(1),
-        recipients: [
-          {
-            account: recipientAccount,
-            mint: utxo1.assets[1],
-            solAmount: new BN(0),
-            splAmount: new BN(1e1),
-          },
-        ],
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
-        functionName: "createOutUtxos",
-      });
-  });
-
-  it("INVALID_RECIPIENT_MINT", async () => {
-    expect(() => {
-      // @ts-ignore
-      createOutUtxos({
-        publicMint: tokenCtx.tokenAccount,
-        publicAmountSpl: splAmount,
-        inUtxos: [utxo1, utxoSol],
-        publicAmountSol: new BN(0),
-        poseidon,
-        changeUtxoAccount: k0,
-        action: Action.UNSHIELD,
-        recipients: [
-          // @ts-ignore
-          {
-            account: recipientAccount,
-            solAmount: new BN(0),
-            splAmount: new BN(1e1),
-          },
-        ],
-      });
-    })
-      .to.throw(CreateUtxoError)
-      .includes({
-        code: CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 
   // it("SPL_AMOUNT_UNDEFINED",async () => {
   //     expect(()=>{
   //         // @ts-ignore
-  //         createOutUtxos({
+  //         createMissingOutUtxos({
   //             publicMint: tokenCtx.tokenAccount,
   //             publicAmountSpl: splAmount,
   //             inUtxos: [utxo1, utxoSol],
@@ -811,7 +762,7 @@ describe("Test createOutUtxos Errors", () => {
   //         });
   //     }).to.throw(CreateUtxoError).includes({
   //         code: CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
-  //         functionName: "createOutUtxos"
+  //         functionName: "createMissingOutUtxos"
   //     })
   // })
 
@@ -822,7 +773,7 @@ describe("Test createOutUtxos Errors", () => {
       amounts: [new BN(1e6), new BN(1e6)],
     });
     expect(() => {
-      createOutUtxos({
+      createMissingOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl: splAmount,
         inUtxos: [utxo1, utxoSol0],
@@ -830,20 +781,13 @@ describe("Test createOutUtxos Errors", () => {
         poseidon,
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
-        recipients: [
-          {
-            account: recipientAccount,
-            solAmount: new BN(0),
-            splAmount: new BN(1e1),
-            mint: MINT,
-          },
-        ],
+        outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, utxo1.assets[1]], amounts: [new BN(0), new BN(1e1)]})],
       });
     })
       .to.throw(CreateUtxoError)
       .includes({
         code: CreateUtxoErrorCode.INVALID_OUTPUT_UTXO_LENGTH,
-        functionName: "createOutUtxos",
+        functionName: "createMissingOutUtxos",
       });
   });
 });
