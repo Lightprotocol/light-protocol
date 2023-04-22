@@ -360,7 +360,7 @@ export class Account {
     aesSecret: Uint8Array,
     message: Uint8Array,
     iv: Uint8Array,
-    domain?: string,
+    // domain?: string,
   ) {
     if (iv.length != 16)
       throw new AccountError(
@@ -385,7 +385,7 @@ export class Account {
   static async decryptAes(
     aesSecret: Uint8Array,
     encryptedBytes: Uint8Array,
-    domain?: string,
+    // domain?: string,
   ) {
     const iv = encryptedBytes.slice(0, 16);
     const encryptedMessageBytes = encryptedBytes.slice(16);

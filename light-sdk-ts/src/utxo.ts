@@ -7,7 +7,9 @@ const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
-import { PublicKey, SystemProgram } from "@solana/web3.js";
+import { web3 } from "@coral-xyz/anchor";
+const { PublicKey, SystemProgram } = web3;
+
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
@@ -33,6 +35,7 @@ import {
   COMPRESSED_UTXO_BYTES_LENGTH,
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
 } from "./index";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
@@ -61,13 +64,13 @@ export class Utxo {
    * @param {string} _nullifier cached nullifier hash to avoid recomputing.
    */
   amounts: BN[];
-  assets: PublicKey[];
+  assets: web3.PublicKey[];
   assetsCircuit: BN[];
   blinding: BN;
   account: Account;
   index?: number;
   appData: any;
-  verifierAddress: PublicKey;
+  verifierAddress: web3.PublicKey;
   verifierAddressCircuit: BN;
   appDataHash: BN;
   poolType: BN;
@@ -110,12 +113,12 @@ export class Utxo {
     includeAppData = true,
   }: {
     poseidon: any;
-    assets?: PublicKey[];
+    assets?: web3.PublicKey[];
     amounts?: BN[];
     account?: Account;
     blinding?: BN;
     poolType?: BN;
-    verifierAddress?: PublicKey;
+    verifierAddress?: web3.PublicKey;
     index?: number;
     appData?: any;
     appDataIdl?: Idl;
@@ -264,7 +267,6 @@ export class Utxo {
       let hashArray = [];
       for (var attribute in appData) {
         hashArray.push(appData[attribute]);
-        console.log("hash array: ", appData[attribute].toString());
       }
       this.appDataHash = new BN(
         leInt2Buff(
@@ -366,7 +368,7 @@ export class Utxo {
     includeAppData?: boolean;
     index?: number;
     appDataIdl?: Idl;
-    verifierAddress?: PublicKey;
+    verifierAddress?: web3.PublicKey;
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -387,7 +389,7 @@ export class Utxo {
     }
 
     let decodedUtxoData: any;
-    let assets: Array<PublicKey>;
+    let assets: Array<web3.PublicKey>;
     let appData: any = undefined;
     // TODO: should I check whether an account is passed or not?
     if (!appDataIdl) {
@@ -416,7 +418,7 @@ export class Utxo {
     // TODO: make lookup function and or tie to idl
     verifierAddress =
       decodedUtxoData.verifierAddressIndex.toString() !== "0"
-        ? new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+        ? new web3.PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
         : SystemProgram.programId;
     if (!account) {
       account = Account.fromPubkey(
@@ -552,7 +554,7 @@ export class Utxo {
    */
   async encrypt(
     poseidon: any,
-    merkleTreePdaPublicKey?: PublicKey,
+    merkleTreePdaPublicKey?: web3.PublicKey,
     transactionIndex?: number,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(true);
@@ -633,16 +635,11 @@ export class Utxo {
     encBytes: Uint8Array;
     account: Account;
     index: number;
-    merkleTreePdaPublicKey?: PublicKey;
+    merkleTreePdaPublicKey?: web3.PublicKey;
     transactionIndex?: number;
     aes?: boolean;
     commitment: Uint8Array;
   }): Promise<Utxo | null> {
-    const encryptedUtxo = encBytes.subarray(
-      0,
-      ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-    );
-
     if (aes) {
       if (!account.aesSecret) {
         throw new UtxoError(UtxoErrorCode.AES_SECRET_UNDEFINED, "decrypt");
@@ -659,6 +656,10 @@ export class Utxo {
           "encrypt",
           "For aes decryption the transaction index is necessary to derive the viewingkey",
         );
+      const encryptedUtxo = encBytes.subarray(
+        0,
+        ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+      );
 
       const iv = commitment.subarray(0, 16);
       try {
@@ -685,7 +686,10 @@ export class Utxo {
       }
     } else {
       const nonce = commitment.subarray(0, 24);
-
+      const encryptedUtxo = encBytes.subarray(
+        0,
+        NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+      );
       if (account.encryptionKeypair.secretKey) {
         const cleartext = box.open(
           encryptedUtxo,

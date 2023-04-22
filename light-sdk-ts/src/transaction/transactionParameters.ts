@@ -173,13 +173,14 @@ export class TransactionParameters implements transactionParameters {
       this.inputUtxos,
       this.outputUtxos,
     );
-    if (validateUtxos) {
-      validateUtxoAmounts({
-        assetPubkeys: pubkeys.assetPubkeys,
-        inUtxos: this.inputUtxos,
-        outUtxos: this.outputUtxos,
-      });
-    }
+    // TODO: annotate to account for public amount and check whether it is redundant
+    // if (validateUtxos) {
+    //   validateUtxoAmounts({
+    //     assetPubkeys: pubkeys.assetPubkeys,
+    //     inUtxos: this.inputUtxos,
+    //     outUtxos: this.outputUtxos,
+    //   });
+    // }
 
     this.assetPubkeys = pubkeys.assetPubkeys;
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
