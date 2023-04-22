@@ -229,13 +229,16 @@ export function selectInUtxos({
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
 
   if (mint) {
-    filteredUtxos = utxos.filter((utxo) => utxo.assets.includes(mint!));
+    filteredUtxos = utxos.filter((utxo) =>
+      utxo.assets.find((asset) => asset.toBase58() === mint?.toBase58()),
+    );
     sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
     sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
     sumOutSpl = getUtxoArrayAmount(mint, outUtxos);
   } else {
     filteredUtxos = utxos;
   }
+
   // TODO: make work with input utxo
   // if (utxos.length == 1) return [...utxos];
   var selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
@@ -252,6 +255,12 @@ export function selectInUtxos({
       numberMaxInUtxos - selectedUtxosR.length,
       mint,
     );
+    if (selectedUtxos.length === 0)
+      throw new SelectInUtxosError(
+        SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+        "selectInUtxos",
+        `Failed to find any utxo of this token${utxos}`,
+      );
     selectedUtxosR = selectedUtxos;
 
     // if sol amount not satisfied
@@ -348,6 +357,7 @@ export function selectInUtxos({
     );
 
   if (selectedUtxosR.length > 0) return selectedUtxosR;
+  else if (action === Action.SHIELD) return [];
   else
     throw new SelectInUtxosError(
       SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,

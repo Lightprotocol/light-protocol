@@ -7,8 +7,8 @@ const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
-import { web3 } from "@coral-xyz/anchor";
-const { PublicKey, SystemProgram } = web3;
+
+import { PublicKey, SystemProgram } from "@solana/web3.js";
 
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
@@ -64,13 +64,13 @@ export class Utxo {
    * @param {string} _nullifier cached nullifier hash to avoid recomputing.
    */
   amounts: BN[];
-  assets: web3.PublicKey[];
+  assets: PublicKey[];
   assetsCircuit: BN[];
   blinding: BN;
   account: Account;
   index?: number;
   appData: any;
-  verifierAddress: web3.PublicKey;
+  verifierAddress: PublicKey;
   verifierAddressCircuit: BN;
   appDataHash: BN;
   poolType: BN;
@@ -113,12 +113,12 @@ export class Utxo {
     includeAppData = true,
   }: {
     poseidon: any;
-    assets?: web3.PublicKey[];
+    assets?: PublicKey[];
     amounts?: BN[];
     account?: Account;
     blinding?: BN;
     poolType?: BN;
-    verifierAddress?: web3.PublicKey;
+    verifierAddress?: PublicKey;
     index?: number;
     appData?: any;
     appDataIdl?: Idl;
@@ -368,7 +368,7 @@ export class Utxo {
     includeAppData?: boolean;
     index?: number;
     appDataIdl?: Idl;
-    verifierAddress?: web3.PublicKey;
+    verifierAddress?: PublicKey;
   }): Utxo {
     // assumes it is compressed and adds 64 0 bytes padding
     if (bytes.length === COMPRESSED_UTXO_BYTES_LENGTH) {
@@ -389,7 +389,7 @@ export class Utxo {
     }
 
     let decodedUtxoData: any;
-    let assets: Array<web3.PublicKey>;
+    let assets: Array<PublicKey>;
     let appData: any = undefined;
     // TODO: should I check whether an account is passed or not?
     if (!appDataIdl) {
@@ -418,7 +418,7 @@ export class Utxo {
     // TODO: make lookup function and or tie to idl
     verifierAddress =
       decodedUtxoData.verifierAddressIndex.toString() !== "0"
-        ? new web3.PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
+        ? new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
         : SystemProgram.programId;
     if (!account) {
       account = Account.fromPubkey(
@@ -554,7 +554,7 @@ export class Utxo {
    */
   async encrypt(
     poseidon: any,
-    merkleTreePdaPublicKey?: web3.PublicKey,
+    merkleTreePdaPublicKey?: PublicKey,
     transactionIndex?: number,
   ): Promise<Uint8Array> {
     const bytes_message = await this.toBytes(true);
@@ -635,7 +635,7 @@ export class Utxo {
     encBytes: Uint8Array;
     account: Account;
     index: number;
-    merkleTreePdaPublicKey?: web3.PublicKey;
+    merkleTreePdaPublicKey?: PublicKey;
     transactionIndex?: number;
     aes?: boolean;
     commitment: Uint8Array;
@@ -690,6 +690,7 @@ export class Utxo {
         0,
         NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
       );
+
       if (account.encryptionKeypair.secretKey) {
         const cleartext = box.open(
           encryptedUtxo,

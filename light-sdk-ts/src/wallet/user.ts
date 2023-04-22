@@ -495,7 +495,7 @@ export class User {
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
     recipient: Account;
-    appUtxo: AppUtxoConfig;
+    appUtxo?: AppUtxoConfig;
   }) {
     if (!recipient)
       throw new UserError(

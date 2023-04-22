@@ -4,7 +4,10 @@ import { Connection, PublicKey } from "@solana/web3.js";
 import { Account } from "../account";
 import { fetchNullifierAccountInfo } from "../utils";
 import { QueuedLeavesPda } from "merkleTree";
-import { ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH } from "../index";
+import {
+  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+} from "../index";
 
 const processDecryptedUtxos = async ({
   decryptedUtxo,
@@ -89,7 +92,7 @@ export async function getAccountUtxos({
           Array.from(
             leafPda.account.encryptedUtxos.slice(
               0,
-              ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
             ),
           ),
         ),
@@ -106,7 +109,7 @@ export async function getAccountUtxos({
           Array.from(
             leafPda.account.encryptedUtxos.slice(
               128,
-              128 + ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+              128 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
             ),
           ),
         ),

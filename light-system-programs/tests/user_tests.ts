@@ -29,7 +29,6 @@ import {
   User,
   strToArr,
   TOKEN_REGISTRY,
-  createOutUtxos,
   Account,
   CreateUtxoErrorCode,
   UserErrorCode,
@@ -254,11 +253,11 @@ describe("Test User", () => {
     );
 
     let commitmentIndex = user.spentUtxos.findIndex(
-      (utxo) => utxo._commitment === user.utxos[0]._commitment,
+      (utxo) => utxo.getCommitment(POSEIDON) === user.utxos[0].getCommitment(POSEIDON),
     );
-
+    
     let commitmentSpent = user.utxos.findIndex(
-      (utxo) => utxo._commitment === previousUtxos[0]._commitment,
+      (utxo) => utxo.getCommitment(POSEIDON) === previousUtxos[0].getCommitment(POSEIDON),
     );
 
     assert.notEqual(
@@ -442,11 +441,8 @@ describe("Test User", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
-    }); // userKeypair
-    // const shieldedRecipient =
-    //   "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    // const encryptionPublicKey =
-    //   "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    }); 
+    
     const recipientAccount = new Account({
       poseidon: POSEIDON,
       seed: new Uint8Array(32).fill(9).toString(),
@@ -463,7 +459,7 @@ describe("Test User", () => {
     const user: User = await User.init(provider);
     const preShieldedBalance = await user.getBalance({ latest: true });
     const previousUtxos = user.utxos;
-
+    
     await user.transfer({
       amountSpl,
       token,
@@ -473,6 +469,7 @@ describe("Test User", () => {
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance({ latest: true });
+
     let tokenBalanceAfter = balance.find(
       (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
     );
@@ -543,6 +540,7 @@ describe("Test User", () => {
       provider,
       new Uint8Array(32).fill(9).toString(),
     );
+    
     let { decryptedUtxos } = await userRecipient.getUtxos(false);
     assert.equal(decryptedUtxos.length, 1);
     assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
