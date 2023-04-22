@@ -31,7 +31,7 @@ import {
   Recipient,
   createRecipientUtxos
 } from "../src";
-import { access } from "fs";
+const numberMaxOutUtxos = 2;
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -99,6 +99,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -123,6 +124,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -148,6 +150,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -173,6 +176,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -197,6 +201,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.SHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -223,6 +228,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -249,6 +255,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -275,6 +282,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -301,6 +309,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -327,6 +336,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee: new BN(0),
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -353,6 +363,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       relayerFee,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
 
     assert.equal(
@@ -378,6 +389,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
     assert.equal(
       outUtxos[0].amounts[0].toNumber(),
@@ -404,6 +416,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
+      numberMaxOutUtxos
     });
     assert.equal(
       outUtxos[0].amounts[0].toString(),
@@ -442,6 +455,7 @@ describe("Test createMissingOutUtxos Functional", () => {
       poseidon,
       changeUtxoAccount: k0,
       action: Action.TRANSFER,
+      numberMaxOutUtxos
     });
     
     assert.equal(
@@ -618,7 +632,8 @@ describe("Test createMissingOutUtxos Errors", () => {
       publicAmountSol: new BN(0),
       changeUtxoAccount: k0,
       action: Action.UNSHIELD,
-      poseidon
+      poseidon,
+      numberMaxOutUtxos
     });
   });
 
@@ -653,6 +668,7 @@ describe("Test createMissingOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [new Utxo({poseidon}), new Utxo({poseidon})],
+        numberMaxOutUtxos
       });
     })
       .to.throw(CreateUtxoError)
@@ -782,6 +798,7 @@ describe("Test createMissingOutUtxos Errors", () => {
         changeUtxoAccount: k0,
         action: Action.UNSHIELD,
         outUtxos: [new Utxo({poseidon, assets: [SystemProgram.programId, utxo1.assets[1]], amounts: [new BN(0), new BN(1e1)]})],
+        numberMaxOutUtxos
       });
     })
       .to.throw(CreateUtxoError)

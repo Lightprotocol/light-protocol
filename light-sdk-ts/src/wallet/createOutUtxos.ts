@@ -78,7 +78,6 @@ export const getRecipientsAmount = (
 // create change utxos with remaining spl balances and sol balance
 // --------------------------------------------------------------------------
 
-// TODO: handle passed in outputUtxo and create change utxo for that
 export function createMissingOutUtxos({
   poseidon,
   inUtxos,
@@ -90,6 +89,7 @@ export function createMissingOutUtxos({
   changeUtxoAccount,
   action,
   appUtxo,
+  numberMaxOutUtxos,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
@@ -101,6 +101,7 @@ export function createMissingOutUtxos({
   outUtxos?: Utxo[];
   action: Action;
   appUtxo?: AppUtxoConfig;
+  numberMaxOutUtxos: number;
 }) {
   if (!poseidon)
     throw new CreateUtxoError(
@@ -339,8 +340,7 @@ export function createMissingOutUtxos({
     outputUtxos.push(changeUtxo);
   }
 
-  // TODO: adapt to verifier
-  if (outputUtxos.length > 2) {
+  if (outputUtxos.length > numberMaxOutUtxos) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_OUTPUT_UTXO_LENGTH,
       "createMissingOutUtxos",

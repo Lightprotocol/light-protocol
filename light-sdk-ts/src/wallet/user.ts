@@ -28,6 +28,8 @@ import {
   Action,
   getUpdatedSpentUtxos,
   AppUtxoConfig,
+  VerifierZero,
+  createRecipientUtxos,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -361,8 +363,9 @@ export class User {
       provider: this.provider,
       transactionIndex: this.transactionIndex,
       appUtxo,
+      verifier: new VerifierZero(),
     });
-    return await this.transact({ txParams });
+    return await this.transactWithParameters({ txParams });
   }
 
   // TODO: add unshieldSol and unshieldSpl
@@ -459,14 +462,15 @@ export class User {
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
       recipientSol: recipientSol,
-      recipientSPLAddress: recipientSpl,
+      recipientSplAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
       transactionIndex: this.transactionIndex,
+      verifier: new VerifierZero(),
     });
 
-    return await this.transact({ txParams });
+    return await this.transactWithParameters({ txParams });
   }
 
   // TODO: add separate lookup function for users.
@@ -522,12 +526,8 @@ export class User {
       ? convertAndComputeDecimals(amountSol, new BN(1e9))
       : new BN(0);
 
-    const txParams = await TransactionParameters.getTxParams({
-      tokenCtx,
-      action: Action.TRANSFER,
-      account: this.account,
-      utxos: this.utxos,
-      shieldedRecipients: [
+    let outUtxos = createRecipientUtxos({
+      recipients: [
         {
           mint: tokenCtx.tokenAccount,
           account: recipient,
@@ -536,14 +536,23 @@ export class User {
           appUtxo,
         },
       ],
+      poseidon: this.provider.poseidon,
+    });
+    const txParams = await TransactionParameters.getTxParams({
+      tokenCtx,
+      action: Action.TRANSFER,
+      account: this.account,
+      utxos: this.utxos,
+      outUtxos,
       provider: this.provider,
       relayer: this.provider.relayer,
       transactionIndex: this.transactionIndex,
+      verifier: new VerifierZero(),
     });
-    return await this.transact({ txParams });
+    return await this.transactWithParameters({ txParams });
   }
 
-  async transact({
+  async transactWithParameters({
     txParams,
     appParams,
   }: {
@@ -590,6 +599,18 @@ export class User {
 
     return { txHash, response };
   }
+
+  async transactWithUtxos({
+    inUtxos,
+    outUtxos,
+    action,
+    inUtxoCommitments,
+  }: {
+    inUtxos: Utxo[];
+    outUtxos: Utxo[];
+    action: Action;
+    inUtxoCommitments: string[];
+  }) {}
 
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
   // TODO: evaluate whether we could use an offline instance of user, for example to generate a proof offline, also could use this to move error test to sdk
