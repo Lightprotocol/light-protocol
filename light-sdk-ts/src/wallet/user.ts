@@ -1,4 +1,8 @@
-import { PublicKey, Transaction as SolanaTransaction } from "@solana/web3.js";
+import {
+  PublicKey,
+  SystemProgram,
+  Transaction as SolanaTransaction,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -273,8 +277,8 @@ export class User {
         "shield",
         "Provider not set!",
       );
-    if (recipient)
-      throw new Error("Shields to other users not implemented yet!");
+    // if (recipient)
+    //   throw new Error("Shields to other users not implemented yet!");
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -351,7 +355,17 @@ export class User {
         );
       }
     }
-
+    let outUtxos: Utxo[] = [];
+    if (recipient) {
+      outUtxos.push(
+        new Utxo({
+          poseidon: this.provider.poseidon,
+          assets: [SystemProgram.programId],
+          amounts: [publicAmountSol],
+          account: recipient,
+        }),
+      );
+    }
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.SHIELD,
@@ -364,6 +378,9 @@ export class User {
       transactionIndex: this.transactionIndex,
       appUtxo,
       verifier: new VerifierZero(),
+      outUtxos,
+      addInUtxos: recipient ? false : true,
+      addOutUtxos: recipient ? false : true,
     });
     return await this.transactWithParameters({ txParams });
   }
