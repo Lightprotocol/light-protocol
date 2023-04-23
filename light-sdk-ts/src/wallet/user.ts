@@ -363,6 +363,10 @@ export class User {
           assets: [SystemProgram.programId],
           amounts: [publicAmountSol],
           account: recipient,
+          appDataHash: appUtxo?.appDataHash,
+          verifierAddress: appUtxo?.verifierAddress,
+          includeAppData: appUtxo?.includeAppData,
+          appData: appUtxo?.appData,
         }),
       );
     }
