@@ -422,11 +422,13 @@ export class Utxo {
         ? new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
         : SystemProgram.programId;
     if (!account) {
-      account = Account.fromPubkey(
-        decodedUtxoData.accountShieldedPublicKey.toBuffer(),
-        decodedUtxoData.accountEncryptionPublicKey,
-        poseidon,
+      let concatPublicKey = bs58.encode(
+        new Uint8Array([
+          ...decodedUtxoData.accountShieldedPublicKey.toBuffer(),
+          ...decodedUtxoData.accountEncryptionPublicKey,
+        ]),
       );
+      account = Account.fromPubkey(concatPublicKey, poseidon);
     }
 
     return new Utxo({

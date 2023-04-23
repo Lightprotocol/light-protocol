@@ -16,6 +16,7 @@ const ffjavascript = require("ffjavascript");
 // @ts-ignore:
 import { buildEddsa } from "circomlibjs";
 import { PublicKey } from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 // TODO: add fromPubkeyString()
 export class Account {
   /**
@@ -47,7 +48,7 @@ export class Account {
    */
   constructor({
     poseidon,
-    seed = new BN(nacl.randomBytes(32)).toString("hex"),
+    seed = bs58.encode(nacl.randomBytes(32)),
     burner = false,
     privateKey,
     publicKey,
@@ -94,7 +95,7 @@ export class Account {
           "seed is required to create a burner account",
         );
       }
-      if (seed.length < 32) {
+      if (bs58.decode(seed).length < 32) {
         throw new AccountError(
           AccountErrorCode.INVALID_SEED_SIZE,
           "constructor",
@@ -104,8 +105,8 @@ export class Account {
       // burnerSeed can be shared since hash cannot be inverted - only share this for app utxos
       // sharing the burnerSeed saves 32 bytes in onchain data if it is require to share both
       // the encryption and private key of a utxo
-      this.burnerSeed = new BN(seed, "hex").toBuffer("be", 32);
-      this.privkey = Account.generateShieldedPrivateKey(seed);
+      this.burnerSeed = new BN(bs58.decode(seed)).toBuffer("be", 32);
+      this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(
@@ -159,7 +160,7 @@ export class Account {
         );
       }
       this.encryptionKeypair = Account.getEncryptionKeyPair(seed);
-      this.privkey = Account.generateShieldedPrivateKey(seed);
+      this.privkey = Account.generateShieldedPrivateKey(seed, poseidon);
       this.pubkey = Account.generateShieldedPublicKey(this.privkey, poseidon);
       this.poseidonEddsaKeypair = Account.getEddsaPrivateKey(seed);
       this.aesSecret = Account.generateAesSecret(seed);
@@ -288,44 +289,92 @@ export class Account {
     }
     const burnerSeed = blake2b
       .create(b2params)
-      .update(seed + "burnerSeed" + index.toString("hex"))
+      .update(seed + "burnerSeed" + index.toString())
       .digest();
-    const burnerSeedString = new BN(burnerSeed).toString("hex");
+    const burnerSeedString = bs58.encode(burnerSeed);
 
     return new Account({ poseidon, seed: burnerSeedString, burner: true });
   }
 
-  static fromBurnerSeed(poseidon: any, burnerSeed: Uint8Array): Account {
-    const burnerSeedString = new BN(burnerSeed).toString("hex");
-    return new Account({ poseidon, seed: burnerSeedString, burner: true });
+  static fromBurnerSeed(poseidon: any, burnerSeed: string): Account {
+    return new Account({ poseidon, seed: burnerSeed, burner: true });
   }
 
   static fromPrivkey(
     poseidon: any,
-    privateKey: Uint8Array,
-    encryptionPrivateKey: Uint8Array,
-    aesSecret: Uint8Array,
+    privateKey: string,
+    encryptionPrivateKey: string,
+    aesSecret: string,
   ): Account {
-    const privkey = new BN(privateKey);
+    if (!privateKey) {
+      throw new AccountError(
+        AccountErrorCode.PRIVATE_KEY_UNDEFINED,
+        "constructor",
+      );
+    }
+    if (!encryptionPrivateKey) {
+      throw new AccountError(
+        AccountErrorCode.ENCRYPTION_PRIVATE_KEY_UNDEFINED,
+        "constructor",
+      );
+    }
+
+    if (!aesSecret) {
+      throw new AccountError(
+        AccountErrorCode.AES_SECRET_UNDEFINED,
+        "constructor",
+      );
+    }
+    const privkey = new BN(bs58.decode(privateKey));
     return new Account({
       poseidon,
       privateKey: privkey,
-      encryptionPrivateKey,
-      aesSecret,
+      encryptionPrivateKey: bs58.decode(encryptionPrivateKey),
+      aesSecret: bs58.decode(aesSecret),
     });
   }
 
-  static fromPubkey(
-    publicKey: Uint8Array,
-    encPubkey: Uint8Array,
-    poseidon: any,
-  ): Account {
-    const pubKey = new BN(publicKey, undefined, "be");
+  getPrivateKeys(): {
+    privateKey: string;
+    encryptionPrivateKey: string;
+    aesSecret: string;
+  } {
+    if (!this.aesSecret) {
+      throw new AccountError(
+        AccountErrorCode.AES_SECRET_UNDEFINED,
+        "getPrivateKeys",
+      );
+    }
+    return {
+      privateKey: bs58.encode(this.privkey.toArray("be", 32)),
+      encryptionPrivateKey: bs58.encode(this.encryptionKeypair.secretKey),
+      aesSecret: bs58.encode(this.aesSecret),
+    };
+  }
+
+  static fromPubkey(publicKey: string, poseidon: any): Account {
+    let decoded = bs58.decode(publicKey);
+    if (decoded.length != 64)
+      throw new AccountError(
+        AccountErrorCode.INVALID_PUBLIC_KEY_SIZE,
+        "fromPubkey",
+        `Expected publickey size 64 bytes as bs58 encoded string, the first 32 bytes are the shielded publickey the second 32 bytes are the encryption publickey provided length ${decoded} string ${publicKey}`,
+      );
+
+    const pubKey = new BN(decoded.subarray(0, 32), undefined, "be");
     return new Account({
       publicKey: pubKey,
-      encryptionPublicKey: encPubkey,
+      encryptionPublicKey: decoded.subarray(32, 64),
       poseidon,
     });
+  }
+
+  getPublicKey(): string {
+    let concatPublicKey = new Uint8Array([
+      ...this.pubkey.toArray("be", 32),
+      ...this.encryptionKeypair.publicKey,
+    ]);
+    return bs58.encode(concatPublicKey);
   }
 
   static getEncryptionKeyPair(seed: String): nacl.BoxKeyPair {
@@ -337,15 +386,19 @@ export class Account {
     return nacl.box.keyPair.fromSecretKey(encryptionPrivateKey);
   }
 
-  static generateShieldedPrivateKey(seed: String): BN {
+  static generateShieldedPrivateKey(seed: String, poseidon: any): BN {
     const privkeySeed = seed + "shielded";
     const privateKey = new BN(
-      blake2b.create(b2params).update(privkeySeed).digest(),
+      poseidon.F.toString(
+        poseidon([
+          new BN(blake2b.create(b2params).update(privkeySeed).digest()),
+        ]),
+      ),
     );
     return privateKey;
   }
 
-  static generateAesSecret(seed: String, domain?: string): Uint8Array {
+  static generateAesSecret(seed: String): Uint8Array {
     const privkeySeed = seed + "aes";
     return Uint8Array.from(
       blake2b.create(b2params).update(privkeySeed).digest(),

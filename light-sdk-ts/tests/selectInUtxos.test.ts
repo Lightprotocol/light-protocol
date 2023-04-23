@@ -31,10 +31,11 @@ import {
   Account,
   createRecipientUtxos
 } from "../src";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let seed32 = new Uint8Array(32).fill(1).toString();
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 const numberMaxInUtxos = 2;
 
 // TODO: add more tests with different numbers of utxos
@@ -95,17 +96,10 @@ describe("Test selectInUtxos Functional", () => {
     });
     relayerFee = new BN(1000);
 
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
 
-    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
     recipientAccount = Account.fromPubkey(
-      recipientSpl,
-      recipientEncryptionPublicKey,
+      recipientAccountRoot.getPublicKey(),
       poseidon,
     );
   });
@@ -348,17 +342,9 @@ describe("Test selectInUtxos Errors", () => {
     });
     relayerFee = new BN(1000);
 
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-
-    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
+    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
     recipientAccount = Account.fromPubkey(
-      recipientSpl,
-      recipientEncryptionPublicKey,
+      recipientAccountRoot.getPublicKey(),
       poseidon,
     );
   });

@@ -25,6 +25,7 @@ import {
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
 import { IDL } from "./testData/mock_verifier";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -48,7 +49,7 @@ let keypair: Account,
   paramsWithdrawal: TransactionParameters,
   appData,
   relayer: Relayer;
-let seed32 = new Uint8Array(32).fill(1).toString();
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 // TODO: check more specific errors in tests
 describe("Masp circuit tests", () => {

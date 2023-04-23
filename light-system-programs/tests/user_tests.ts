@@ -41,6 +41,7 @@ import {
 
 import { BN, AnchorProvider } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -450,8 +451,7 @@ describe("Test User", () => {
     });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
-      recipientAccount.pubkey.toBuffer(),
-      recipientAccount.encryptionKeypair.publicKey,
+      recipientAccount.getPublicKey(),
       POSEIDON,
     );
     // get token from registry
@@ -550,13 +550,8 @@ describe("Test User", () => {
   it.skip("(user class) transfer SOL", async () => {
     let amount = 1;
     let token = "SOL";
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
+    let recipientAccountRoot = new Account({poseidon: POSEIDON, seed: bs58.encode(new Uint8Array(32).fill(3))})
+
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
@@ -564,14 +559,13 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user = await User.init({ provider });
+    const user: User = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
-      amount,
+      amountSpl: amount,
       token,
-      recipient,
-      recipientEncryptionPublicKey, // TODO: do shielded address
+      recipient: Account.fromPubkey(recipientAccountRoot.getPublicKey(), POSEIDON)
     });
 
     await user.provider.latestMerkleTree();
