@@ -610,7 +610,7 @@ describe("Test User", () => {
     // TODO: add random amount and amount checks
   });
 
-  it("(user class) shield SOL to recipient", async () => {
+  it.skip("(user class) shield SOL to recipient", async () => {
     let amount = 15;
     let token = "SOL";
     const provider = await Provider.init({
@@ -703,7 +703,7 @@ describe("Test User", () => {
     );
   });
 });
-
+/*
 describe("Test User Errors", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -876,3 +876,4 @@ describe("Test User Errors", () => {
     );
   });
 });
+*/

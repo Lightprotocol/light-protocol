@@ -233,7 +233,7 @@ export class User {
    * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
-  async createShieldTransactionParameters({
+  async shieldCreateTransactionParameters({
     token,
     publicAmountSpl,
     recipient,
@@ -554,7 +554,7 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
   }) {
-    await this.createShieldTransactionParameters({
+    await this.shieldCreateTransactionParameters({
       token,
       publicAmountSpl,
       recipient,
@@ -569,15 +569,7 @@ export class User {
     const response = await this.updateMerkleTree();
     return { txHash, response };
   }
-  // TODO: add unshieldSol and unshieldSpl
-  // TODO: add optional passs-in token mint
-  // TODO: add pass-in tokenAccount
-  /**
-   * @params token: string
-   * @params amount: number - in base units (e.g. lamports for 'SOL')
-   * @params recipient: PublicKey - Solana address
-   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
-   */
+
   async unshield({
     token,
     publicAmountSpl,
@@ -593,10 +585,45 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
-    // publicAmountSol: amount,
-    // token,
-    // recipientSol: recipient,
+    await this.unshieldCreateTransactionParameters({
+      token,
+      publicAmountSpl,
+      recipientSpl,
+      publicAmountSol,
+      recipientSol,
+      minimumLamports,
+    });
 
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
+  }
+
+  // TODO: add unshieldSol and unshieldSpl
+  // TODO: add optional passs-in token mint
+  // TODO: add pass-in tokenAccount
+  /**
+   * @params token: string
+   * @params amount: number - in base units (e.g. lamports for 'SOL')
+   * @params recipient: PublicKey - Solana address
+   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
+   */
+  async unshieldCreateTransactionParameters({
+    token,
+    publicAmountSpl,
+    recipientSpl = AUTHORITY,
+    publicAmountSol,
+    recipientSol = AUTHORITY,
+    minimumLamports = true,
+  }: {
+    token: string;
+    recipientSpl?: PublicKey;
+    recipientSol?: PublicKey;
+    publicAmountSpl?: number | BN | string;
+    publicAmountSol?: number | BN | string;
+    minimumLamports?: boolean;
+  }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -670,10 +697,36 @@ export class User {
       transactionIndex: this.transactionIndex,
       verifier: new VerifierZero(),
     });
-
-    return await this.transactWithParameters({ txParams });
+    this.recentTransactionParameters = txParams;
+    return txParams; //await this.transactWithParameters({ txParams });
   }
+  async transfer({
+    token,
+    // alternatively we could use the recipient type here as well
+    recipient,
+    amountSpl,
+    amountSol,
+    appUtxo,
+  }: {
+    token: string;
+    amountSpl?: BN | number | string;
+    amountSol?: BN | number | string;
+    recipient: Account;
+    appUtxo?: AppUtxoConfig;
+  }) {
+    await this.transferCreateTransactionParameters({
+      token,
+      recipient,
+      amountSpl,
+      amountSol,
+      appUtxo,
+    });
 
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
+  }
   // TODO: add separate lookup function for users.
   // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
   /**
@@ -684,7 +737,7 @@ export class User {
    * @param recipientEncryptionPublicKey (use strToArr)
    * @returns
    */
-  async transfer({
+  async transferCreateTransactionParameters({
     token,
     // alternatively we could use the recipient type here as well
     recipient,
@@ -750,7 +803,8 @@ export class User {
       transactionIndex: this.transactionIndex,
       verifier: new VerifierZero(),
     });
-    return await this.transactWithParameters({ txParams });
+    this.recentTransactionParameters = txParams;
+    return txParams; //await this.transactWithParameters({ txParams });
   }
 
   async transactWithParameters({
