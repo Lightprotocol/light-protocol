@@ -610,7 +610,7 @@ describe("Test User", () => {
     // TODO: add random amount and amount checks
   });
 
-  it.skip("(user class) shield SOL to recipient", async () => {
+  it("(user class) shield SOL to recipient", async () => {
     let amount = 15;
     let token = "SOL";
     const provider = await Provider.init({
