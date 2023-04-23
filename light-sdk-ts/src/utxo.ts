@@ -37,6 +37,7 @@ import {
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
 } from "./index";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 
@@ -713,6 +714,26 @@ export class Utxo {
         return null;
       }
     }
+  }
+
+  /**
+   * Creates a new Utxo from a given base58 encoded string.
+   * @static
+   * @param {string} string - The base58 encoded string representation of the Utxo.
+   * @returns {Utxo} The newly created Utxo.
+   */
+  static fromString(string: string, poseidon: any): Utxo {
+    return Utxo.fromBytes({ bytes: bs58.decode(string), poseidon });
+  }
+
+  /**
+   * Converts the Utxo instance into a base58 encoded string.
+   * @async
+   * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
+   */
+  async toString(): Promise<string> {
+    const bytes = await this.toBytes();
+    return bs58.encode(bytes);
   }
 
   /**
