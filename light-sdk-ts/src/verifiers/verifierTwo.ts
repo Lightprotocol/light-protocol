@@ -26,7 +26,7 @@ export class VerifierTwo implements Verifier {
     this.wtnsGenPath = "transactionApp4_js/transactionApp4.wasm";
     this.zkeyPath = "transactionApp4.zkey";
     this.calculateWtns = require("../../build-circuits/transactionApp4_js/witness_calculator.js");
-    this.config = { in: 4, out: 4, nrPublicInputs: 15 };
+    this.config = { in: 4, out: 4, nrPublicInputs: 15, isAppVerifier: true };
     this.pubkey = hashAndTruncateToCircuit(
       new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes(),
     );

@@ -29,7 +29,6 @@ const snarkjs = require("snarkjs");
 const nacl = require("tweetnacl");
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
-const { keccak_256 } = require("@noble/hashes/sha3");
 var assert = require("assert");
 // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
 
@@ -221,6 +220,12 @@ export class Transaction {
         "getProofInput",
         "",
       );
+    await this.params.getTxIntegrityHash(this.provider.poseidon);
+    if (!this.params.txIntegrityHash)
+      throw new TransactionError(
+        TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
+        "compile",
+      );
 
     const { inputMerklePathIndices, inputMerklePathElements } =
       Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
@@ -237,11 +242,11 @@ export class Transaction {
       inPrivateKey: this.params.inputUtxos?.map((x) => x.account.privkey),
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
-      internalTxIntegrityHash: (await this.getTxIntegrityHash()).toString(),
+      internalTxIntegrityHash: this.params.txIntegrityHash.toString(),
     };
     this.proofInput = {
       transactionVersion: "0",
-      txIntegrityHash: (await this.getTxIntegrityHash()).toString(),
+      txIntegrityHash: this.params.txIntegrityHash.toString(),
       outputCommitment: this.params.outputUtxos.map((x) =>
         x.getCommitment(this.provider.poseidon),
       ),
@@ -269,7 +274,6 @@ export class Transaction {
       this.proofInput.transactionHash = Transaction.getTransactionHash(
         this.params,
         this.provider.poseidon,
-        this.proofInput.txIntegrityHash,
       );
       this.proofInput.publicAppVerifier = this.appParams.verifier?.pubkey;
     }
@@ -300,7 +304,6 @@ export class Transaction {
     this.appParams.inputs.transactionHash = Transaction.getTransactionHash(
       this.params,
       this.provider.poseidon,
-      (await this.getTxIntegrityHash()).toString(),
     );
 
     let { proofBytes, publicInputs } = await this.getProofInternal(
@@ -405,8 +408,12 @@ export class Transaction {
   static getTransactionHash(
     params: TransactionParameters,
     poseidon: any,
-    txIntegrityHash: any,
   ): string {
+    if (!params.txIntegrityHash)
+      throw new TransactionError(
+        TransactionErrorCode.TX_INTEGRITY_HASH_UNDEFINED,
+        "getTransactionHash",
+      );
     const inputHasher = poseidon.F.toString(
       poseidon(params?.inputUtxos?.map((utxo) => utxo.getCommitment(poseidon))),
     );
@@ -416,7 +423,7 @@ export class Transaction {
       ),
     );
     const transactionHash = poseidon.F.toString(
-      poseidon([inputHasher, outputHasher, txIntegrityHash.toString()]),
+      poseidon([inputHasher, outputHasher, params.txIntegrityHash.toString()]),
     );
     return transactionHash;
   }
@@ -591,142 +598,6 @@ export class Transaction {
       }
     }
     return { inputMerklePathIndices, inputMerklePathElements };
-  }
-
-  /**
-   * @description
-   * @returns
-   */
-  async getTxIntegrityHash(): Promise<BN> {
-    if (!this.params.relayer)
-      throw new TransactionError(
-        TransactionErrorCode.RELAYER_UNDEFINED,
-        "getTxIntegrityHash",
-        "",
-      );
-    if (!this.params.accounts.recipientSpl)
-      throw new TransactionError(
-        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
-        "getTxIntegrityHash",
-        "",
-      );
-    if (!this.params.accounts.recipientSol)
-      throw new TransactionError(
-        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
-        "getTxIntegrityHash",
-        "",
-      );
-    if (!this.params.relayer.getRelayerFee(this.params.ataCreationFee))
-      throw new TransactionError(
-        TransactionErrorCode.RELAYER_FEE_UNDEFINED,
-        "getTxIntegrityHash",
-        "",
-      );
-    // Should not be computed twice because cipher texts of encrypted utxos are random
-    // threfore the hash will not be consistent
-    if (this.testValues && this.testValues.txIntegrityHash) {
-      return this.testValues.txIntegrityHash;
-    } else {
-      if (!this.params.encryptedUtxos) {
-        this.params.encryptedUtxos = await this.encryptOutUtxos();
-      }
-
-      if (
-        this.params.encryptedUtxos &&
-        this.params.encryptedUtxos.length > 512
-      ) {
-        this.params.encryptedUtxos = this.params.encryptedUtxos.slice(0, 512);
-      }
-      if (
-        this.params.encryptedUtxos &&
-        this.testValues &&
-        !this.testValues.txIntegrityHash
-      ) {
-        let extDataBytes = new Uint8Array([
-          ...this.params.accounts.recipientSpl?.toBytes(),
-          ...this.params.accounts.recipientSol.toBytes(),
-          ...this.params.relayer.accounts.relayerPubkey.toBytes(),
-          ...this.params.relayer
-            .getRelayerFee(this.params.ataCreationFee)
-            .toArray("le", 8),
-          ...this.params.encryptedUtxos,
-        ]);
-
-        const hash = keccak_256
-          .create({ dkLen: 32 })
-          .update(Buffer.from(extDataBytes))
-          .digest();
-        const txIntegrityHash: BN = new anchor.BN(hash).mod(FIELD_SIZE);
-        this.testValues.txIntegrityHash = txIntegrityHash;
-        return txIntegrityHash;
-      } else {
-        throw new TransactionError(
-          TransactionErrorCode.ENCRYPTING_UTXOS_FAILED,
-          "getTxIntegrityHash",
-          "",
-        );
-      }
-    }
-  }
-
-  async encryptOutUtxos(encryptedUtxos?: Uint8Array) {
-    let encryptedOutputs = new Array<any>();
-    if (encryptedUtxos) {
-      encryptedOutputs = Array.from(encryptedUtxos);
-    } else if (this.params && this.params.outputUtxos) {
-      for (var utxo in this.params.outputUtxos) {
-        if (
-          this.params.outputUtxos[utxo].appDataHash.toString() !== "0" &&
-          this.params.outputUtxos[utxo].includeAppData
-        )
-          throw new TransactionError(
-            TransactionErrorCode.UNIMPLEMENTED,
-            "encryptUtxos",
-            "Automatic encryption for utxos with application data is not implemented.",
-          );
-        encryptedOutputs.push(
-          await this.params.outputUtxos[utxo].encrypt(
-            this.provider.poseidon,
-            this.params.accounts.transactionMerkleTree,
-            this.params.transactionIndex,
-          ),
-        );
-      }
-      if (
-        this.params.verifier.config.out == 2 &&
-        encryptedOutputs[0].length + encryptedOutputs[1].length < 256
-      ) {
-        return new Uint8Array([
-          ...encryptedOutputs[0],
-          ...encryptedOutputs[1],
-          ...new Array(
-            256 - encryptedOutputs[0].length - encryptedOutputs[1].length,
-          ).fill(0),
-          // this is ok because these bytes are not sent and just added for the integrity hash
-          // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
-        ]);
-      } else {
-        let tmpArray = new Array<any>();
-        for (var i = 0; i < this.params.verifier.config.out; i++) {
-          tmpArray.push(...encryptedOutputs[i]);
-          if (encryptedOutputs[i].length < 128) {
-            // add random bytes for padding
-            tmpArray.push(
-              ...nacl.randomBytes(128 - encryptedOutputs[i].length),
-            );
-          }
-        }
-
-        if (tmpArray.length < 512) {
-          tmpArray.push(
-            ...nacl.randomBytes(
-              this.params.verifier.config.out * 128 - tmpArray.length,
-            ),
-          );
-        }
-        return new Uint8Array([...tmpArray]);
-      }
-    }
   }
 
   // send transaction should be the same for both deposit and withdrawal

@@ -39,7 +39,7 @@ import {
   Action,
 } from "light-sdk";
 
-import { BN } from "@coral-xyz/anchor";
+import { BN, AnchorProvider } from "@coral-xyz/anchor";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 
 var LOOK_UP_TABLE;
@@ -52,10 +52,7 @@ describe("Test User", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const provider = anchor.AnchorProvider.local(
-    "http://127.0.0.1:8899",
-    confirmConfig,
-  );
+  const provider = AnchorProvider.local("http://127.0.0.1:8899", confirmConfig);
   anchor.setProvider(provider);
   console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
@@ -108,7 +105,8 @@ describe("Test User", () => {
       await provider.provider.connection.getTokenAccountBalance(userSplAccount);
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user: User = await User.init(provider);
+
+    const user: User = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.shield({ publicAmountSpl: amount, token });
@@ -206,7 +204,7 @@ describe("Test User", () => {
       4_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     const preShieldedBalance = await user.getBalance({ latest: true });
     const preSolBalance = await provider.provider.connection.getBalance(
@@ -253,11 +251,14 @@ describe("Test User", () => {
     );
 
     let commitmentIndex = user.spentUtxos.findIndex(
-      (utxo) => utxo.getCommitment(POSEIDON) === user.utxos[0].getCommitment(POSEIDON),
+      (utxo) =>
+        utxo.getCommitment(POSEIDON) === user.utxos[0].getCommitment(POSEIDON),
     );
-    
+
     let commitmentSpent = user.utxos.findIndex(
-      (utxo) => utxo.getCommitment(POSEIDON) === previousUtxos[0].getCommitment(POSEIDON),
+      (utxo) =>
+        utxo.getCommitment(POSEIDON) ===
+        previousUtxos[0].getCommitment(POSEIDON),
     );
 
     assert.notEqual(
@@ -291,7 +292,6 @@ describe("Test User", () => {
       PublicKey.default.toBase58(),
     );
   });
-  
 
   it("(user class) unshield SPL", async () => {
     let amount = 1;
@@ -334,7 +334,7 @@ describe("Test User", () => {
       );
     }
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
     const previousUtxos = user.utxos;
 
@@ -442,8 +442,8 @@ describe("Test User", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
-    }); 
-    
+    });
+
     const recipientAccount = new Account({
       poseidon: POSEIDON,
       seed: new Uint8Array(32).fill(9).toString(),
@@ -457,10 +457,10 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
     const previousUtxos = user.utxos;
-    
+
     await user.transfer({
       amountSpl,
       token,
@@ -537,11 +537,11 @@ describe("Test User", () => {
     );
 
     // assert recipient utxo
-    const userRecipient: User = await User.init(
+    const userRecipient: User = await User.init({
       provider,
-      new Uint8Array(32).fill(9).toString(),
-    );
-    
+      seed: new Uint8Array(32).fill(9).toString(),
+    });
+
     let { decryptedUtxos } = await userRecipient.getUtxos(false);
     assert.equal(decryptedUtxos.length, 1);
     assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
@@ -564,7 +564,7 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -605,7 +605,7 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     await user.unshield({ amount, token, recipient });
     // TODO: add random amount and amount checks
   });
@@ -626,9 +626,12 @@ describe("Test User", () => {
       seed: new Uint8Array(32).fill(7).toString(),
     });
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const userSender: User = await User.init(provider);
+    const userSender: User = await User.init({ provider });
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const user: User = await User.init(provider,new Uint8Array(32).fill(7).toString() );
+    const user: User = await User.init({
+      provider,
+      seed: new Uint8Array(32).fill(7).toString(),
+    });
 
     const preShieldedBalance = await user.getBalance({ latest: true });
     const preSolBalance = await provider.provider.connection.getBalance(
@@ -636,7 +639,11 @@ describe("Test User", () => {
     );
     const previousUtxos = user.utxos;
 
-    await userSender.shield({ publicAmountSol: amount, token, recipient: recipientAccount });
+    await userSender.shield({
+      publicAmountSol: amount,
+      token,
+      recipient: recipientAccount,
+    });
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
@@ -681,7 +688,6 @@ describe("Test User", () => {
 
     assert.equal(user.utxos.length, 1);
 
-
     const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
     );
@@ -703,13 +709,13 @@ describe("Test User", () => {
     );
   });
 });
-/*
+
 describe("Test User Errors", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const providerAnchor = anchor.AnchorProvider.local(
+  const providerAnchor = AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
@@ -738,7 +744,7 @@ describe("Test User Errors", () => {
       2_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    user = await User.init(provider);
+    user = await User.init({ provider });
   });
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
@@ -876,4 +882,3 @@ describe("Test User Errors", () => {
     );
   });
 });
-*/
