@@ -48,6 +48,7 @@ import {
   Action,
   TestRelayer,
   getAccountUtxos,
+  TestTransaction,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -292,6 +293,11 @@ describe("verifier_program", () => {
         action: Action.SHIELD,
         transactionIndex: 0,
       });
+      let transactionTester = new TestTransaction({
+        txParams,
+        provider: lightProvider,
+      });
+      await transactionTester.getTestValues();
       let tx = new Transaction({
         provider: lightProvider,
         params: txParams,
@@ -304,8 +310,12 @@ describe("verifier_program", () => {
       } catch (e) {
         console.log(e);
       }
-      await tx.checkBalances(KEYPAIR);
-      // uncomment below if not running the "deposit" test
+      await transactionTester.checkBalances(
+        tx.transactionInputs,
+        tx.remainingAccounts,
+        tx.proofInput,
+        KEYPAIR,
+      );
     }
   });
 
@@ -361,6 +371,11 @@ describe("verifier_program", () => {
         poseidon: POSEIDON,
         transactionIndex: 1,
       });
+      let transactionTester = new TestTransaction({
+        txParams,
+        provider: lightProvider,
+      });
+      await transactionTester.getTestValues();
       let tx = new Transaction({
         provider: lightProvider,
         params: txParams,
@@ -374,7 +389,12 @@ describe("verifier_program", () => {
         console.log("erorr here  ------------------------->", e);
         console.log("AUTHORITY: ", AUTHORITY.toBase58());
       }
-      await tx.checkBalances(KEYPAIR);
+      await transactionTester.checkBalances(
+        tx.transactionInputs,
+        tx.remainingAccounts,
+        tx.proofInput,
+        KEYPAIR,
+      );
     }
     await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
@@ -417,25 +437,20 @@ describe("verifier_program", () => {
       poseidon,
       transactionIndex: 2,
     });
+    let transactionTester = new TestTransaction({
+      txParams,
+      provider: lightProvider,
+    });
+    await transactionTester.getTestValues();
+
     let tx = new Transaction({
       provider: lightProvider,
-      // relayer,
-      // payer: ADMIN_AUTH_KEYPAIR,
       shuffleEnabled: false,
       params: txParams,
     });
 
     await tx.compileAndProve();
 
-    // TODO: add check in client to avoid rent exemption issue
-    // add enough funds such that rent exemption is ensured
-    await provider.connection.confirmTransaction(
-      await provider.connection.requestAirdrop(
-        RELAYER.accounts.relayerRecipientSol,
-        1_000_000,
-      ),
-      "confirmed",
-    );
     try {
       let res = await tx.sendAndConfirmTransaction();
       console.log(res);
@@ -443,7 +458,11 @@ describe("verifier_program", () => {
       console.log(e);
       console.log("AUTHORITY: ", AUTHORITY.toBase58());
     }
-    await tx.checkBalances();
+    await transactionTester.checkBalances(
+      tx.transactionInputs,
+      tx.remainingAccounts,
+      tx.proofInput,
+    );
   });
 
   it("Withdraw 10 utxos", async () => {
@@ -513,6 +532,11 @@ describe("verifier_program", () => {
       action: Action.UNSHIELD,
       transactionIndex: 3,
     });
+    let transactionTester = new TestTransaction({
+      txParams,
+      provider: lightProvider,
+    });
+    await transactionTester.getTestValues();
     let tx = new Transaction({
       provider: lightProvider,
       // relayer,
@@ -527,6 +551,10 @@ describe("verifier_program", () => {
     } catch (e) {
       console.log(e);
     }
-    await tx.checkBalances();
+    await transactionTester.checkBalances(
+      tx.transactionInputs,
+      tx.remainingAccounts,
+      tx.proofInput,
+    );
   });
 });
