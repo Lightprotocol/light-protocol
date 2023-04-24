@@ -581,8 +581,8 @@ describe("Test User", () => {
     );
 
     assert.equal(
-      solBalanceAfter.amount,
-      solBalancePre.amount - 100000 - amount * tokenCtx.decimals.toNumber(),
+      solBalanceAfter.amount.toNumber(),
+      solBalancePre.amount.toNumber() - 100000 - amount * tokenCtx.decimals.toNumber(),
       `shielded sol balance after ${solBalanceAfter.amount} != ${solBalancePre.amount} ...unshield amount -fee`,
     );
   });
