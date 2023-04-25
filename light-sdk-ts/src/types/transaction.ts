@@ -5,6 +5,13 @@ import { Action } from "../transaction";
 import { Utxo } from "utxo";
 import { Verifier } from "verifiers";
 
+export type AppUtxoConfig = {
+  verifierAddress: PublicKey;
+  appData?: any;
+  appDataHash?: BN;
+  includeAppData?: boolean;
+};
+
 export type transactionParameters = {
   provider?: Provider;
   inputUtxos?: Array<Utxo>;
