@@ -291,7 +291,7 @@ describe("verifier_program", () => {
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
-        transactionIndex: 0,
+        transactionNonce: 0,
       });
       let transactionTester = new TestTransaction({
         txParams,
@@ -369,7 +369,7 @@ describe("verifier_program", () => {
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
         poseidon: POSEIDON,
-        transactionIndex: 1,
+        transactionNonce: 1,
       });
       let transactionTester = new TestTransaction({
         txParams,
@@ -413,7 +413,7 @@ describe("verifier_program", () => {
       provider,
       account: KEYPAIR,
       poseidon: POSEIDON,
-      transactionIndex: 0,
+      transactionNonce: 0,
       aes: true,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
     });
@@ -435,7 +435,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon,
-      transactionIndex: 2,
+      transactionNonce: 2,
     });
     let transactionTester = new TestTransaction({
       txParams,
@@ -484,7 +484,7 @@ describe("verifier_program", () => {
       provider,
       account: KEYPAIR,
       poseidon: POSEIDON,
-      transactionIndex: 0,
+      transactionNonce: 0,
       aes: true,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
     });
@@ -530,7 +530,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       poseidon: POSEIDON,
       action: Action.UNSHIELD,
-      transactionIndex: 3,
+      transactionNonce: 3,
     });
     let transactionTester = new TestTransaction({
       txParams,

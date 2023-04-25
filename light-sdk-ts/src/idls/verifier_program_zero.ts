@@ -245,7 +245,7 @@ export type VerifierProgramZero = {
             type: "u64";
           },
           {
-            name: "transactionIndex";
+            name: "transactionNonce";
             type: "u64";
           },
         ];
@@ -501,7 +501,7 @@ export const IDL: VerifierProgramZero = {
             type: "u64",
           },
           {
-            name: "transactionIndex",
+            name: "transactionNonce",
             type: "u64",
           },
         ],

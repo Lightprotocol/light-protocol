@@ -133,7 +133,7 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex: 0
+        transactionNonce: 0
       });
 
       const appParams0 = {
@@ -177,7 +177,7 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex:1
+        transactionNonce:1
       });
       const appParams = {
         verifier: new MockVerifier(),
@@ -212,7 +212,7 @@ describe("Verifier Two test", () => {
         relayer : lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
-        transactionIndex: 2
+        transactionNonce: 2
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,

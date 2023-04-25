@@ -48,6 +48,10 @@ export enum SelectInUtxosErrorCode {
   INVALID_NUMBER_OF_IN_UTXOS = "INVALID_NUMBER_OF_IN_UTXOS",
 }
 
+export enum TokenUtxoBalanceErrorCode {
+  UTXO_UNDEFINED = "UTXO_UNDEFINED",
+}
+
 export enum RelayerErrorCode {
   RELAYER_FEE_UNDEFINED = "RELAYER_FEE_UNDEFINED",
   RELAYER_PUBKEY_UNDEFINED = "RELAYER_PUBKEY_UNDEFINED",
@@ -216,3 +220,5 @@ export class SelectInUtxosError extends MetaError {}
 export class UserError extends MetaError {}
 
 export class UtilsError extends MetaError {}
+
+export class TokenUtxoBalanceError extends MetaError {}

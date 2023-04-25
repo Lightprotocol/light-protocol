@@ -129,7 +129,7 @@ describe("Mock verifier functional", () => {
       poseidon,
       action: Action.SHIELD,
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionIndex: 0
+      transactionNonce: 0
     });
     
     
@@ -181,7 +181,7 @@ describe("Mock verifier functional", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer: RELAYER,
-      transactionIndex: 1
+      transactionNonce: 1
     });
     
     const appParams = {

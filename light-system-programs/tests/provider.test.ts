@@ -145,7 +145,7 @@ describe("verifier_program", () => {
       poseidon: POSEIDON,
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
-      transactionIndex: 0,
+      transactionNonce: 0,
     });
     let tx = new Transaction({
       provider: lightProvider,

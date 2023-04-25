@@ -96,7 +96,7 @@ describe("Utxo Functional", () => {
       index: 0,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
       commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-      transactionIndex: 0
+      transactionNonce: 0
     });
 
     if (utxo41) {
@@ -215,7 +215,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      transactionIndex: 0,
+      transactionNonce: 0,
       commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer("le", 32),
     });
     if (utxo3) {
@@ -243,7 +243,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      transactionIndex: 0,
+      transactionNonce: 0,
       aes: false,
       commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer("le", 32),
     });

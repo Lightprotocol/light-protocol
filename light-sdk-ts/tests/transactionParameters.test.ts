@@ -88,7 +88,7 @@ describe("Transaction Parameters Functional", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
 
     let bytes = await paramsOriginal.toBytes();
@@ -208,7 +208,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.TRANSFER,
         relayer,
-        transactionIndex: 0
+        transactionNonce: 0
       });
 
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
@@ -307,7 +307,7 @@ describe("Transaction Parameters Functional", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionIndex: 0
+        transactionNonce: 0
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -396,7 +396,7 @@ describe("Transaction Parameters Functional", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionIndex: 0
+        transactionNonce: 0
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
@@ -615,7 +615,7 @@ describe("Test General TransactionParameters Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -735,7 +735,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
   });
 
@@ -749,7 +749,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -780,7 +780,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -808,7 +808,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -831,7 +831,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSpl: mockPubkey,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -854,7 +854,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           recipientSol: mockPubkey,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -877,7 +877,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSol: mockPubkey,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -900,7 +900,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
           action: Action.TRANSFER,
           senderSpl: mockPubkey,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -947,7 +947,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       lookUpTable: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      transactionIndex: 0
+      transactionNonce: 0
     });
   });
 
@@ -962,7 +962,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -984,7 +984,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1006,7 +1006,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1030,7 +1030,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           poseidon,
           action: Action.SHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1068,7 +1068,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1105,7 +1105,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1129,7 +1129,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1153,7 +1153,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1175,7 +1175,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1197,7 +1197,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1226,7 +1226,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionIndex: 0
+        transactionNonce: 0
       });
     }
   });
@@ -1244,7 +1244,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1268,7 +1268,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1331,7 +1331,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1353,7 +1353,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           verifier: verifiers[verifier],
           poseidon,
           action: Action.UNSHIELD,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1392,7 +1392,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1429,7 +1429,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1454,7 +1454,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1479,7 +1479,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1509,7 +1509,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionIndex: 0
+        transactionNonce: 0
       });
     }
   });
@@ -1533,7 +1533,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionIndex: 0
+        transactionNonce: 0
       });
     }
   });
@@ -1552,7 +1552,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
@@ -1577,7 +1577,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionIndex: 0
+          transactionNonce: 0
         });
       })
         .to.throw(TransactioParametersError)
