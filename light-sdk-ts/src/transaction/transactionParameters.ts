@@ -27,7 +27,7 @@ import {
   RelayerErrorCode,
   CreateUtxoErrorCode,
   selectInUtxos,
-  createOutUtxos,
+  createMissingOutUtxos,
   Transaction,
   Action,
   TokenContext,

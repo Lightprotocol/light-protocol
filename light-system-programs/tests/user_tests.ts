@@ -233,6 +233,7 @@ describe("Test User", () => {
     await testStateValidator.checkSolShielded();
   });
 
+
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
 
@@ -333,8 +334,35 @@ describe("Test User", () => {
     });
 
     await user.provider.latestMerkleTree();
-
     await testStateValidator.checkTokenTransferred();
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(indexedTransactions.length, 4);
+    assert.equal(recentTransaction.to.toBase58(), PublicKey.default.toBase58());
+    assert.equal(recentTransaction.amountSol.toNumber(), 0);
+    assert.equal(recentTransaction.amountSpl.toNumber(), 0);
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      PublicKey.default.toBase58(),
+    );
+    assert.equal(recentTransaction.type, Action.TRANSFER);
+    assert.equal(recentTransaction.relayerFee.toString(), "100000");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      provider.relayer.accounts.relayerRecipientSol.toBase58(),
+    );
+
+    // assert recipient utxo
+    const userRecipient: User = await User.init(
+      provider,
+      new Uint8Array(32).fill(9).toString(),
+    );
+
+    let { decryptedUtxos } = await userRecipient.getUtxos(false);
+    assert.equal(decryptedUtxos.length, 1);
+    assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
   });
 
   it.skip("(user class) transfer SOL", async () => {
@@ -398,6 +426,99 @@ describe("Test User", () => {
     const user = await User.init(provider);
     await user.unshield({ amount, token, recipient });
     // TODO: add random amount and amount checks
+  });
+
+  it.skip("(user class) shield SOL to recipient", async () => {
+    let amount = 15;
+    let token = "SOL";
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      4_000_000_000,
+    );
+    const recipientAccount = new Account({
+      poseidon: POSEIDON,
+      seed: new Uint8Array(32).fill(7).toString(),
+    });
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const userSender: User = await User.init(provider);
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const user: User = await User.init(provider,new Uint8Array(32).fill(7).toString() );
+
+    const preShieldedBalance = await user.getBalance({ latest: true });
+    const preSolBalance = await provider.provider.connection.getBalance(
+      userKeypair.publicKey,
+    );
+    const previousUtxos = user.utxos;
+
+    await userSender.shield({ publicAmountSol: amount, token, recipient: recipientAccount });
+    // TODO: add random amount and amount checks
+    await user.provider.latestMerkleTree();
+
+    let balance = await user.getBalance({ latest: true });
+    let solShieldedBalanceAfter = balance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+    let solShieldedBalancePre = preShieldedBalance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+
+    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
+    // console.log("solShieldedBalancePre", solShieldedBalancePre);
+
+    // assert that the user's token balance has decreased by the amount shielded
+    const postSolBalance = await provider.provider.connection.getBalance(
+      userKeypair.publicKey,
+    );
+    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
+    // console.log("postSolBalance", postSolBalance);
+    // console.log("preSolBalance", preSolBalance);
+    // assert that the user's shielded balance has increased by the amount shielded
+    assert.equal(
+      solShieldedBalanceAfter.amount.toNumber(),
+      solShieldedBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
+      `shielded balance after ${
+        solShieldedBalanceAfter.amount
+      } != shield amount ${amount * tokenCtx?.decimals.toNumber()}`,
+    );
+
+    assert.equal(
+      postSolBalance,
+      preSolBalance - amount * tokenCtx.decimals.toNumber() + tempAccountCost,
+      `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
+    );
+
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
+    );
+
+    assert.equal(user.utxos.length, 1);
+
+
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(
+      recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
+    );
   });
 });
 
