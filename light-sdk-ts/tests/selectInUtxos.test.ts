@@ -28,12 +28,14 @@ import {
   SelectInUtxosError,
   RelayerErrorCode,
   SelectInUtxosErrorCode,
-  Account
+  Account,
+  createRecipientUtxos
 } from "../src";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 let seed32 = new Uint8Array(32).fill(1).toString();
+const numberMaxInUtxos = 2;
 
 // TODO: add more tests with different numbers of utxos
 // TOOD: add a randomized test
@@ -118,6 +120,7 @@ describe("Test selectInUtxos Functional", () => {
       poseidon,
       utxos: inUtxos,
       action: Action.UNSHIELD,
+      numberMaxInUtxos
     });
     Utxo.equal(poseidon,selectedUtxo[0], utxo1 );
   });
@@ -131,6 +134,7 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSol: new BN(1e7),
       poseidon,
       action: Action.UNSHIELD,
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
@@ -148,6 +152,7 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       publicAmountSol: new BN(1e7),
       publicAmountSpl: new BN(1),
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
@@ -156,20 +161,22 @@ describe("Test selectInUtxos Functional", () => {
 
   it("Transfer select sol & spl", async () => {
     const inUtxos = [utxoSol, utxo1];
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(1e7),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
 
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
       poseidon,
-      recipients: [
-        {
-          mint: utxo1.assets[1],
-          solAmount: new BN(1e7),
-          splAmount: new BN(1),
-          account: new Account({ poseidon }),
-        },
-      ],
+      outUtxos,
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[1], utxoSol);
@@ -178,20 +185,21 @@ describe("Test selectInUtxos Functional", () => {
 
   it("Transfer select sol", async () => {
     const inUtxos = [utxoSol, utxo1];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(1e7),
+        splAmount: new BN(0),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
       poseidon,
-      recipients: [
-        {
-          mint: utxo1.assets[1],
-          solAmount: new BN(1e7),
-          splAmount: new BN(0),
-          account: new Account({ poseidon }),
-        },
-      ],
+      outUtxos,
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
@@ -200,20 +208,22 @@ describe("Test selectInUtxos Functional", () => {
 
   it("Transfer select spl", async () => {
     const inUtxos = [utxoSol, utxo1];
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(0),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
 
     let selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
       poseidon,
-      recipients: [
-        {
-          mint: utxo1.assets[1],
-          solAmount: new BN(0),
-          splAmount: new BN(1),
-          account: new Account({ poseidon }),
-        },
-      ],
+      outUtxos,
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxo1);
@@ -229,6 +239,7 @@ describe("Test selectInUtxos Functional", () => {
       publicAmountSol: new BN(1e7),
       poseidon,
       publicAmountSpl: new BN(1),
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxo1);
@@ -242,6 +253,7 @@ describe("Test selectInUtxos Functional", () => {
       action: Action.SHIELD,
       poseidon,
       publicAmountSol: new BN(1e7),
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxoSol);
@@ -257,6 +269,7 @@ describe("Test selectInUtxos Functional", () => {
       publicMint: utxo1.assets[1],
       poseidon,
       publicAmountSpl: new BN(1),
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxo1);
@@ -265,20 +278,22 @@ describe("Test selectInUtxos Functional", () => {
 
   it("3 utxos spl & sol", async () => {
     const inUtxos = [utxoSol, utxo1, utxo2];
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: utxo2.amounts[0],
+        splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
 
     var selectedUtxo = selectInUtxos({
       utxos: inUtxos,
       action: Action.TRANSFER,
       relayerFee: new BN(1000),
       poseidon,
-      recipients: [
-        {
-          mint: utxo1.assets[1],
-          solAmount: utxo2.amounts[0],
-          splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-          account: new Account({ poseidon }),
-        },
-      ],
+      outUtxos,
+      numberMaxInUtxos
     });
 
     Utxo.equal(poseidon,selectedUtxo[0], utxo1);
@@ -288,8 +303,7 @@ describe("Test selectInUtxos Functional", () => {
 
 describe("Test selectInUtxos Errors", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
-  const mockPublicKey = SolanaKeypair.generate().publicKey;
+
 
   var splAmount,
     solAmount,
@@ -351,20 +365,21 @@ describe("Test selectInUtxos Errors", () => {
 
   it("NO_PUBLIC_AMOUNTS_PROVIDED", async () => {
     const inUtxos = [utxoSol, utxo1];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(1e7),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.UNSHIELD,
         poseidon,
-        recipients: [
-          {
-            mint: utxo1.assets[1],
-            solAmount: new BN(1e7),
-            splAmount: new BN(1),
-            account: new Account({ poseidon }),
-          },
-        ],
+        outUtxos,
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -386,6 +401,7 @@ describe("Test selectInUtxos Errors", () => {
         // publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -406,7 +422,7 @@ describe("Test selectInUtxos Errors", () => {
         poseidon,
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
-        // publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -428,6 +444,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -449,6 +466,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -470,6 +488,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -491,6 +510,7 @@ describe("Test selectInUtxos Errors", () => {
         publicMint: utxo1.assets[1],
         publicAmountSol: new BN(1e7),
         publicAmountSpl: new BN(1),
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -502,27 +522,28 @@ describe("Test selectInUtxos Errors", () => {
 
   it("INVALID_NUMER_OF_RECIPIENTS", async () => {
     const inUtxos = [utxoSol, utxo1];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(1e7),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+      {
+        mint: SolanaKeypair.generate().publicKey,
+        solAmount: new BN(1e7),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
         poseidon,
-        recipients: [
-          {
-            mint: utxo1.assets[1],
-            solAmount: new BN(1e7),
-            splAmount: new BN(1),
-            account: new Account({ poseidon }),
-          },
-          {
-            mint: SolanaKeypair.generate().publicKey,
-            solAmount: new BN(1e7),
-            splAmount: new BN(1),
-            account: new Account({ poseidon }),
-          },
-        ],
+        outUtxos,
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -534,21 +555,22 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION sol", async () => {
     const inUtxos = [utxoSol, utxo1];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(2e10),
+        splAmount: new BN(1),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
         poseidon,
-        recipients: [
-          {
-            mint: utxo1.assets[1],
-            solAmount: new BN(2e10),
-            splAmount: new BN(1),
-            account: new Account({ poseidon }),
-          },
-        ],
+        outUtxos,
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -560,21 +582,22 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl", async () => {
     const inUtxos = [utxoSol, utxo1];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: new BN(0),
+        splAmount: new BN(1e10),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
         poseidon,
-        recipients: [
-          {
-            mint: utxo1.assets[1],
-            solAmount: new BN(0),
-            splAmount: new BN(1e10),
-            account: new Account({ poseidon }),
-          },
-        ],
+        outUtxos,
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)
@@ -586,21 +609,22 @@ describe("Test selectInUtxos Errors", () => {
 
   it("FAILED_TO_FIND_UTXO_COMBINATION spl & sol", async () => {
     const inUtxos = [utxoSol, utxo1, utxo2];
-
+    const outUtxos = createRecipientUtxos({recipients: [
+      {
+        mint: utxo1.assets[1],
+        solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
+        splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
+        account: new Account({ poseidon }),
+      },
+    ], poseidon});
     expect(() => {
       selectInUtxos({
         utxos: inUtxos,
         action: Action.TRANSFER,
         relayerFee: new BN(1000),
         poseidon,
-        recipients: [
-          {
-            mint: utxo1.assets[1],
-            solAmount: utxo2.amounts[0].add(utxo1.amounts[0]),
-            splAmount: utxo2.amounts[1].add(utxo1.amounts[1]),
-            account: new Account({ poseidon }),
-          },
-        ],
+        outUtxos,
+        numberMaxInUtxos
       });
     })
       .to.throw(SelectInUtxosError)

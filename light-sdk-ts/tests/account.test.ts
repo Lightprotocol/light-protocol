@@ -247,19 +247,27 @@ describe("Test Account Functional", () => {
     assert.notEqual(k0Pubkey.privkey, k0.privkey);
   });
 
-  it("aes encryption domain separation", async () => {
+  it("aes encryption", async () => {
     let message = new Uint8Array(32).fill(1);
     // never reuse nonces this is only for testing
     let nonce = newNonce().subarray(0,16)
+    if (!k0.aesSecret)
+      throw  new Error("aes secret undefined")
 
-    let cipherText1 = await k0.encryptAes(message, nonce);
-    let cipherText2 = await k0.encryptAes(message, nonce, "newDomain");
-    let cleartext1 = await k0.decryptAes(cipherText1);
-    let cleartext2 = await k0.decryptAes(cipherText2, "newDomain");
+    // removed domain separation
+    let cipherText1 = await Account.encryptAes(k0.aesSecret, message, nonce);
+    // let cipherText2 = await Account.encryptAes(k0.aesSecret,message, nonce, "newDomain");
+    let cleartext1 = await Account.decryptAes(k0.aesSecret,cipherText1);
+    // let cleartext2 = await Account.decryptAes(k0.aesSecret,cipherText2, "newDomain");
 
-    assert.notEqual(cipherText1.toString(), cipherText2.toString());
-    assert.equal(cleartext1.toString(), cleartext2.toString());    
+    // assert.notEqual(cipherText1.toString(), cipherText2.toString());
+    // assert.equal(cleartext1.toString(), cleartext2.toString());
     assert.equal(cleartext1.toString(), message.toString());
+    // try to decrypt with invalid secret key
+    await chai.assert.isRejected(
+      Account.decryptAes(new Uint8Array(32).fill(1),cipherText1),
+      Error
+    )
   });
 });
 

@@ -27,13 +27,15 @@ import {
   RelayerErrorCode,
   CreateUtxoErrorCode,
   selectInUtxos,
-  createOutUtxos,
+  createMissingOutUtxos,
   Transaction,
   Action,
   TokenContext,
   transactionParameters,
   lightAccounts,
   IDL_VERIFIER_PROGRAM_ZERO,
+  AppUtxoConfig,
+  validateUtxoAmounts,
 } from "../index";
 
 export class TransactionParameters implements transactionParameters {
@@ -69,6 +71,7 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable,
     ataCreationFee,
     transactionIndex,
+    validateUtxos = true,
   }: {
     merkleTreePubkey: PublicKey;
     verifier: Verifier;
@@ -86,6 +89,7 @@ export class TransactionParameters implements transactionParameters {
     provider?: Provider;
     ataCreationFee?: boolean;
     transactionIndex: number;
+    validateUtxos?: boolean;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -169,6 +173,15 @@ export class TransactionParameters implements transactionParameters {
       this.inputUtxos,
       this.outputUtxos,
     );
+    // TODO: annotate to account for public amount and check whether it is redundant
+    // if (validateUtxos) {
+    //   validateUtxoAmounts({
+    //     assetPubkeys: pubkeys.assetPubkeys,
+    //     inUtxos: this.inputUtxos,
+    //     outUtxos: this.outputUtxos,
+    //   });
+    // }
+
     this.assetPubkeys = pubkeys.assetPubkeys;
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
     this.publicAmountSol = TransactionParameters.getExternalAmount(
@@ -589,15 +602,20 @@ export class TransactionParameters implements transactionParameters {
     userSplAccount = AUTHORITY,
     account,
     utxos,
+    inUtxos,
     // for unshield
     recipientSol,
-    recipientSPLAddress,
+    recipientSplAddress,
     // for transfer
-    shieldedRecipients,
+    outUtxos,
     relayer,
     provider,
-    ataCreationFee,
+    ataCreationFee, // associatedTokenAccount = ata
     transactionIndex,
+    appUtxo,
+    addInUtxos = true,
+    addOutUtxos = true,
+    verifier,
   }: {
     tokenCtx: TokenContext;
     publicAmountSpl?: BN;
@@ -606,22 +624,27 @@ export class TransactionParameters implements transactionParameters {
     account?: Account;
     utxos?: Utxo[];
     recipientSol?: PublicKey;
-    recipientSPLAddress?: PublicKey;
-    shieldedRecipients?: Recipient[];
+    recipientSplAddress?: PublicKey;
+    inUtxos?: Utxo[];
+    outUtxos?: Utxo[];
     action: Action;
     provider: Provider;
     relayer?: Relayer;
     ataCreationFee?: boolean;
     transactionIndex: number;
+    appUtxo?: AppUtxoConfig;
+    addInUtxos?: boolean;
+    addOutUtxos?: boolean;
+    verifier: Verifier;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
 
-    if (action === Action.TRANSFER && !shieldedRecipients)
+    if (action === Action.TRANSFER && !outUtxos)
       throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
-        "Recipient not provided for transfer",
+        "Recipient outUtxo not provided for transfer",
       );
 
     if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
@@ -640,31 +663,40 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    var inputUtxos: Utxo[] = [];
-    var outputUtxos: Utxo[] = [];
+    var inputUtxos: Utxo[] = inUtxos ? [...inUtxos] : [];
+    var outputUtxos: Utxo[] = outUtxos ? [...outUtxos] : [];
 
-    inputUtxos = selectInUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      publicAmountSol,
-      poseidon: provider.poseidon,
-      recipients: shieldedRecipients,
-      utxos,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
-      action,
-    });
-
-    outputUtxos = createOutUtxos({
-      publicMint: tokenCtx.tokenAccount,
-      publicAmountSpl,
-      inUtxos: inputUtxos,
-      publicAmountSol, // TODO: add support for extra sol for unshield & transfer
-      poseidon: provider.poseidon,
-      relayerFee: relayer?.getRelayerFee(ataCreationFee),
-      changeUtxoAccount: account,
-      recipients: shieldedRecipients,
-      action,
-    });
+    if (addInUtxos) {
+      inputUtxos = selectInUtxos({
+        publicMint: tokenCtx.tokenAccount,
+        publicAmountSpl,
+        publicAmountSol,
+        poseidon: provider.poseidon,
+        // recipients: shieldedRecipients,
+        inUtxos,
+        outUtxos,
+        utxos,
+        relayerFee: relayer?.getRelayerFee(ataCreationFee),
+        action,
+        numberMaxInUtxos: verifier.config.in,
+      });
+    }
+    if (addOutUtxos) {
+      outputUtxos = createMissingOutUtxos({
+        publicMint: tokenCtx.tokenAccount,
+        publicAmountSpl,
+        inUtxos: inputUtxos,
+        publicAmountSol, // TODO: add support for extra sol for unshield & transfer
+        poseidon: provider.poseidon,
+        relayerFee: relayer?.getRelayerFee(ataCreationFee),
+        changeUtxoAccount: account,
+        // recipients: shieldedRecipients,
+        outUtxos,
+        action,
+        appUtxo,
+        numberMaxOutUtxos: verifier.config.out,
+      });
+    }
 
     let txParams = new TransactionParameters({
       outputUtxos,
@@ -673,9 +705,9 @@ export class TransactionParameters implements transactionParameters {
       senderSpl: action === Action.SHIELD ? userSplAccount : undefined,
       senderSol:
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
-      recipientSpl: recipientSPLAddress,
+      recipientSpl: recipientSplAddress,
       recipientSol,
-      verifier: new VerifierZero(provider), // TODO: add support for 10in here -> verifier1
+      verifier, // TODO: add support for 10in here -> verifier1
       poseidon: provider.poseidon,
       action,
       lookUpTable: provider.lookUpTable!,
