@@ -187,17 +187,29 @@ pub struct u256 {
     x: [u8; 32],
 }
 
+// #[account]
+// pub struct Utxo {
+//     amounts: [u64; 2],
+//     spl_asset_index: u64,
+//     blinding: u256,
+//     verifier_address: Pubkey,
+//     // // app data hash does not need to be saved because we can recalculate it from subsequent information
+//     test_input1: u256,
+//     test_input2: u256,
+// }
 #[account]
 pub struct Utxo {
     amounts: [u64; 2],
     spl_asset_index: u64,
+    verifier_address_index: u64,
     blinding: u256,
-    verifier_address: Pubkey,
+    app_data_hash: u256,
+    account_shielded_public_key: u256,
+    account_encryption_public_key: [u8; 32],
     // // app data hash does not need to be saved because we can recalculate it from subsequent information
     test_input1: u256,
     test_input2: u256,
 }
-
 #[account]
 pub struct UtxoAppData {
     test_input1: u256,

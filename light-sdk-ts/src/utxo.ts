@@ -230,15 +230,8 @@ export class Utxo {
       );
     }
 
-    if (appDataHash && appData)
-      throw new UtxoError(
-        UtxoErrorCode.APP_DATA_DEFINED,
-        "constructor",
-        "Cannot provide both app data and appDataHash",
-      );
-
     // if appDataBytes parse appData from bytes
-    if (appData && !appDataHash) {
+    if (appData) {
       if (!appDataIdl)
         throw new UtxoError(
           UtxoErrorCode.APP_DATA_IDL_UNDEFINED,
@@ -276,6 +269,12 @@ export class Utxo {
         undefined,
         "le",
       );
+      if (appDataHash && appDataHash.toString() !== this.appDataHash.toString())
+        throw new UtxoError(
+          UtxoErrorCode.INVALID_APP_DATA,
+          "constructor",
+          "appDataHash and appData are inconsistent, appData produced a different hash than appDataHash",
+        );
       this.appData = appData;
       this.appDataIdl = appDataIdl;
     } else if (appDataHash) {

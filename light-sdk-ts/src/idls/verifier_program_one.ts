@@ -1,453 +1,411 @@
 export type VerifierProgramOne = {
-  "version": "0.1.0",
-  "name": "verifier_program_one",
-  "instructions": [
+  version: "0.1.0";
+  name: "verifier_program_one";
+  instructions: [
     {
-      "name": "shieldedTransferFirst",
-      "docs": [
+      name: "shieldedTransferFirst";
+      docs: [
         "This instruction is the first step of a shielded transaction with 10 inputs and 2 outputs.",
         "It creates and initializes a verifier state account which stores public inputs and other data",
         "such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and",
-        "protocol logicin the second transaction."
-      ],
-      "accounts": [
+        "protocol logicin the second transaction.",
+      ];
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "First transaction, therefore the signing address is not checked but saved to be checked in future instructions."
-          ]
+          name: "signingAddress";
+          isMut: true;
+          isSigner: true;
+          docs: [
+            "First transaction, therefore the signing address is not checked but saved to be checked in future instructions.",
+          ];
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": [
+          name: "verifierState";
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [
         {
-          "name": "publicAmountSpl",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          name: "publicAmountSpl";
+          type: {
+            array: ["u8", 32];
+          };
         },
         {
-          "name": "nullifiers",
-          "type": {
-            "array": [
+          name: "nullifiers";
+          type: {
+            array: [
               {
-                "array": [
-                  "u8",
-                  32
-                ]
+                array: ["u8", 32];
               },
-              10
-            ]
-          }
+              10,
+            ];
+          };
         },
         {
-          "name": "leaves",
-          "type": {
-            "array": [
+          name: "leaves";
+          type: {
+            array: [
               {
-                "array": [
-                  "u8",
-                  32
-                ]
+                array: ["u8", 32];
               },
-              2
-            ]
-          }
+              2,
+            ];
+          };
         },
         {
-          "name": "publicAmountSol",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          name: "publicAmountSol";
+          type: {
+            array: ["u8", 32];
+          };
         },
         {
-          "name": "rootIndex",
-          "type": "u64"
+          name: "rootIndex";
+          type: "u64";
         },
         {
-          "name": "relayerFee",
-          "type": "u64"
+          name: "relayerFee";
+          type: "u64";
         },
         {
-          "name": "encryptedUtxos",
-          "type": "bytes"
-        }
-      ]
+          name: "encryptedUtxos";
+          type: "bytes";
+        },
+      ];
     },
     {
-      "name": "shieldedTransferSecond",
-      "docs": [
+      name: "shieldedTransferSecond";
+      docs: [
         "This instruction is the second step of a shieled transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
-        "At successful verification protocol logic is executed."
-      ],
-      "accounts": [
+        "At successful verification protocol logic is executed.",
+      ];
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true
+          name: "signingAddress";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
+          name: "verifierState";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "programMerkleTree",
-          "isMut": false,
-          "isSigner": false
+          name: "programMerkleTree";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
+          name: "transactionMerkleTree";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": false
+          name: "authority";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram";
+          isMut: false;
+          isSigner: false;
         },
         {
-          "name": "senderSpl",
-          "isMut": true,
-          "isSigner": false
+          name: "senderSpl";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "recipientSpl",
-          "isMut": true,
-          "isSigner": false
+          name: "recipientSpl";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "senderSol",
-          "isMut": true,
-          "isSigner": false
+          name: "senderSol";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "recipientSol",
-          "isMut": true,
-          "isSigner": false
+          name: "recipientSol";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "relayerRecipientSol",
-          "isMut": true,
-          "isSigner": false
+          name: "relayerRecipientSol";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "tokenAuthority",
-          "isMut": true,
-          "isSigner": false
+          name: "tokenAuthority";
+          isMut: true;
+          isSigner: false;
         },
         {
-          "name": "registeredVerifierPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom."
-          ]
-        }
-      ],
-      "args": [
+          name: "registeredVerifierPda";
+          isMut: true;
+          isSigner: false;
+          docs: [
+            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
+          ];
+        },
+      ];
+      args: [
         {
-          "name": "proofA",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
+          name: "proofA";
+          type: {
+            array: ["u8", 64];
+          };
         },
         {
-          "name": "proofB",
-          "type": {
-            "array": [
-              "u8",
-              128
-            ]
-          }
+          name: "proofB";
+          type: {
+            array: ["u8", 128];
+          };
         },
         {
-          "name": "proofC",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
-        }
-      ]
+          name: "proofC";
+          type: {
+            array: ["u8", 64];
+          };
+        },
+      ];
     },
     {
-      "name": "closeVerifierState",
-      "docs": [
-        "Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify."
-      ],
-      "accounts": [
+      name: "closeVerifierState";
+      docs: [
+        "Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.",
+      ];
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true
+          name: "signingAddress";
+          isMut: true;
+          isSigner: true;
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        }
-      ],
-      "args": []
-    }
-  ]
+          name: "verifierState";
+          isMut: true;
+          isSigner: false;
+        },
+      ];
+      args: [];
+    },
+  ];
 };
 
 export const IDL: VerifierProgramOne = {
-  "version": "0.1.0",
-  "name": "verifier_program_one",
-  "instructions": [
+  version: "0.1.0",
+  name: "verifier_program_one",
+  instructions: [
     {
-      "name": "shieldedTransferFirst",
-      "docs": [
+      name: "shieldedTransferFirst",
+      docs: [
         "This instruction is the first step of a shielded transaction with 10 inputs and 2 outputs.",
         "It creates and initializes a verifier state account which stores public inputs and other data",
         "such as leaves, amounts, recipients, nullifiers, etc. to execute the verification and",
-        "protocol logicin the second transaction."
+        "protocol logicin the second transaction.",
       ],
-      "accounts": [
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true,
-          "docs": [
-            "First transaction, therefore the signing address is not checked but saved to be checked in future instructions."
-          ]
+          name: "signingAddress",
+          isMut: true,
+          isSigner: true,
+          docs: [
+            "First transaction, therefore the signing address is not checked but saved to be checked in future instructions.",
+          ],
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        }
+          name: "verifierState",
+          isMut: true,
+          isSigner: false,
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "publicAmountSpl",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          name: "publicAmountSpl",
+          type: {
+            array: ["u8", 32],
+          },
         },
         {
-          "name": "nullifiers",
-          "type": {
-            "array": [
+          name: "nullifiers",
+          type: {
+            array: [
               {
-                "array": [
-                  "u8",
-                  32
-                ]
+                array: ["u8", 32],
               },
-              10
-            ]
-          }
+              10,
+            ],
+          },
         },
         {
-          "name": "leaves",
-          "type": {
-            "array": [
+          name: "leaves",
+          type: {
+            array: [
               {
-                "array": [
-                  "u8",
-                  32
-                ]
+                array: ["u8", 32],
               },
-              2
-            ]
-          }
+              2,
+            ],
+          },
         },
         {
-          "name": "publicAmountSol",
-          "type": {
-            "array": [
-              "u8",
-              32
-            ]
-          }
+          name: "publicAmountSol",
+          type: {
+            array: ["u8", 32],
+          },
         },
         {
-          "name": "rootIndex",
-          "type": "u64"
+          name: "rootIndex",
+          type: "u64",
         },
         {
-          "name": "relayerFee",
-          "type": "u64"
+          name: "relayerFee",
+          type: "u64",
         },
         {
-          "name": "encryptedUtxos",
-          "type": "bytes"
-        }
-      ]
+          name: "encryptedUtxos",
+          type: "bytes",
+        },
+      ],
     },
     {
-      "name": "shieldedTransferSecond",
-      "docs": [
+      name: "shieldedTransferSecond",
+      docs: [
         "This instruction is the second step of a shieled transaction.",
         "The proof is verified with the parameters saved in the first transaction.",
-        "At successful verification protocol logic is executed."
+        "At successful verification protocol logic is executed.",
       ],
-      "accounts": [
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true
+          name: "signingAddress",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
+          name: "verifierState",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "systemProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "programMerkleTree",
-          "isMut": false,
-          "isSigner": false
+          name: "programMerkleTree",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "transactionMerkleTree",
-          "isMut": true,
-          "isSigner": false
+          name: "transactionMerkleTree",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "authority",
-          "isMut": true,
-          "isSigner": false
+          name: "authority",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "tokenProgram",
-          "isMut": false,
-          "isSigner": false
+          name: "tokenProgram",
+          isMut: false,
+          isSigner: false,
         },
         {
-          "name": "senderSpl",
-          "isMut": true,
-          "isSigner": false
+          name: "senderSpl",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "recipientSpl",
-          "isMut": true,
-          "isSigner": false
+          name: "recipientSpl",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "senderSol",
-          "isMut": true,
-          "isSigner": false
+          name: "senderSol",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "recipientSol",
-          "isMut": true,
-          "isSigner": false
+          name: "recipientSol",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "relayerRecipientSol",
-          "isMut": true,
-          "isSigner": false
+          name: "relayerRecipientSol",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "tokenAuthority",
-          "isMut": true,
-          "isSigner": false
+          name: "tokenAuthority",
+          isMut: true,
+          isSigner: false,
         },
         {
-          "name": "registeredVerifierPda",
-          "isMut": true,
-          "isSigner": false,
-          "docs": [
-            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom."
-          ]
-        }
+          name: "registeredVerifierPda",
+          isMut: true,
+          isSigner: false,
+          docs: [
+            "Verifier config pda which needs ot exist Is not checked the relayer has complete freedom.",
+          ],
+        },
       ],
-      "args": [
+      args: [
         {
-          "name": "proofA",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
+          name: "proofA",
+          type: {
+            array: ["u8", 64],
+          },
         },
         {
-          "name": "proofB",
-          "type": {
-            "array": [
-              "u8",
-              128
-            ]
-          }
+          name: "proofB",
+          type: {
+            array: ["u8", 128],
+          },
         },
         {
-          "name": "proofC",
-          "type": {
-            "array": [
-              "u8",
-              64
-            ]
-          }
-        }
-      ]
+          name: "proofC",
+          type: {
+            array: ["u8", 64],
+          },
+        },
+      ],
     },
     {
-      "name": "closeVerifierState",
-      "docs": [
-        "Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify."
+      name: "closeVerifierState",
+      docs: [
+        "Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.",
       ],
-      "accounts": [
+      accounts: [
         {
-          "name": "signingAddress",
-          "isMut": true,
-          "isSigner": true
+          name: "signingAddress",
+          isMut: true,
+          isSigner: true,
         },
         {
-          "name": "verifierState",
-          "isMut": true,
-          "isSigner": false
-        }
+          name: "verifierState",
+          isMut: true,
+          isSigner: false,
+        },
       ],
-      "args": []
-    }
-  ]
+      args: [],
+    },
+  ],
 };
