@@ -5,9 +5,9 @@ import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
-
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
+
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,

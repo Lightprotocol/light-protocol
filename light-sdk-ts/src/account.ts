@@ -356,11 +356,11 @@ export class Account {
     return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
 
+  // TODO: add option for domain separation
   static async encryptAes(
     aesSecret: Uint8Array,
     message: Uint8Array,
     iv: Uint8Array,
-    // domain?: string,
   ) {
     if (iv.length != 16)
       throw new AccountError(
@@ -369,9 +369,6 @@ export class Account {
         `Required iv length 16, provided ${iv.length}`,
       );
     var secretKey = aesSecret;
-    // if(domain) {
-    //   secretKey = this.getDomainSeparatedAesSecretKey(domain);
-    // }
     const ciphertext = await encrypt(
       message,
       secretKey,
@@ -382,17 +379,10 @@ export class Account {
     return new Uint8Array([...iv, ...ciphertext]);
   }
 
-  static async decryptAes(
-    aesSecret: Uint8Array,
-    encryptedBytes: Uint8Array,
-    // domain?: string,
-  ) {
+  static async decryptAes(aesSecret: Uint8Array, encryptedBytes: Uint8Array) {
     const iv = encryptedBytes.slice(0, 16);
     const encryptedMessageBytes = encryptedBytes.slice(16);
     var secretKey = aesSecret;
-    // if(domain) {
-    //   secretKey = this.getDomainSeparatedAesSecretKey(domain);
-    // }
     const cleartext = await decrypt(
       encryptedMessageBytes,
       secretKey,
@@ -403,9 +393,6 @@ export class Account {
     return cleartext;
   }
 
-  // TODO: add static encryptTo function to account
-  // static encryptNacl()
-  // decryptNacl()
   static encryptNacl(
     publicKey: Uint8Array,
     message: Uint8Array,

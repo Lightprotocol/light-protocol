@@ -279,8 +279,7 @@ export class User {
         "shield",
         "Provider not set!",
       );
-    // if (recipient)
-    //   throw new Error("Shields to other users not implemented yet!");
+
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -385,7 +384,6 @@ export class User {
       let tokenBalance = await splToken.getAccount(
         this.provider.provider?.connection!,
         this.recentTransactionParameters.accounts.senderSpl!,
-        // userSplAccount,
       );
 
       if (!tokenBalance)
@@ -658,7 +656,7 @@ export class User {
       verifier: new VerifierZero(),
     });
     this.recentTransactionParameters = txParams;
-    return txParams; //await this.transactWithParameters({ txParams });
+    return txParams;
   }
   async transfer({
     token,
@@ -764,7 +762,7 @@ export class User {
       verifier: new VerifierZero(),
     });
     this.recentTransactionParameters = txParams;
-    return txParams; //await this.transactWithParameters({ txParams });
+    return txParams;
   }
 
   async transactWithParameters({

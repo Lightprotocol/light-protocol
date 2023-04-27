@@ -7,9 +7,7 @@ const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
-
 import { PublicKey, SystemProgram } from "@solana/web3.js";
-
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
@@ -672,7 +670,6 @@ export class Utxo {
           "aes-256-cbc",
           true,
         );
-
         const bytes = Buffer.from(cleartext);
         return Utxo.fromBytes({
           poseidon,

@@ -173,14 +173,6 @@ export class TransactionParameters implements transactionParameters {
       this.inputUtxos,
       this.outputUtxos,
     );
-    // TODO: annotate to account for public amount and check whether it is redundant
-    // if (validateUtxos) {
-    //   validateUtxoAmounts({
-    //     assetPubkeys: pubkeys.assetPubkeys,
-    //     inUtxos: this.inputUtxos,
-    //     outUtxos: this.outputUtxos,
-    //   });
-    // }
 
     this.assetPubkeys = pubkeys.assetPubkeys;
     this.assetPubkeysCircuit = pubkeys.assetPubkeysCircuit;
@@ -672,7 +664,6 @@ export class TransactionParameters implements transactionParameters {
         publicAmountSpl,
         publicAmountSol,
         poseidon: provider.poseidon,
-        // recipients: shieldedRecipients,
         inUtxos,
         outUtxos,
         utxos,
@@ -690,7 +681,6 @@ export class TransactionParameters implements transactionParameters {
         poseidon: provider.poseidon,
         relayerFee: relayer?.getRelayerFee(ataCreationFee),
         changeUtxoAccount: account,
-        // recipients: shieldedRecipients,
         outUtxos,
         action,
         appUtxo,
@@ -707,7 +697,7 @@ export class TransactionParameters implements transactionParameters {
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
       recipientSpl: recipientSplAddress,
       recipientSol,
-      verifier, // TODO: add support for 10in here -> verifier1
+      verifier,
       poseidon: provider.poseidon,
       action,
       lookUpTable: provider.lookUpTable!,
@@ -916,8 +906,6 @@ export class TransactionParameters implements transactionParameters {
    * @param assetIndex the index of the asset the external amount should be computed for
    * @returns {BN} the public amount of the asset
    */
-  // TODO: write test
-  // TODO: rename to publicAmountSpl
   static getExternalAmount(
     assetIndex: number,
     // params: TransactionParameters,
