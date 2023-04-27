@@ -144,17 +144,6 @@ export function createMissingOutUtxos({
     );
   }
 
-  // recipients.map((recipient) => {
-  //   if (
-  //     !assetPubkeys.find((x) => x.toBase58() === recipient.mint?.toBase58())
-  //   ) {
-  //     throw new CreateUtxoError(
-  //       CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
-  //       "createMissingOutUtxos",
-  //       `Mint ${recipient.mint} does not exist in input utxos mints ${assetPubkeys}`,
-  //     );
-  //   }
-  // });
   outUtxos.map((outUtxo) => {
     if (
       !assetPubkeys.find((x) => x.toBase58() === outUtxo.assets[1]?.toBase58())
@@ -174,29 +163,6 @@ export function createMissingOutUtxos({
     assetPubkeys.push(publicMint);
   }
 
-  // checks sum inAmounts for every asset are less or equal to sum OutAmounts
-  // for (var i in assetPubkeys) {
-  //   const sumIn = inUtxos
-  //     ? getUtxoArrayAmount(assetPubkeys[i], inUtxos)
-  //     : new BN(0);
-  //   const sumOut = getRecipientsAmount(assetPubkeys[i], recipients);
-
-  //   assets.push({
-  //     asset: assetPubkeys[i],
-  //     sumIn,
-  //     sumOut,
-  //   });
-
-  //   if (!sumIn.gte(sumOut)) {
-  //     throw new CreateUtxoError(
-  //       CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
-  //       "createMissingOutUtxos",
-  //       `for asset ${assetPubkeys[
-  //         i
-  //       ].toBase58()} sumOut ${sumOut} greather than sumIN ${sumIn}`,
-  //     );
-  //   }
-  // }
   let assets: Asset[] = validateUtxoAmounts({
     assetPubkeys,
     inUtxos,
