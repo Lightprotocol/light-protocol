@@ -334,6 +334,7 @@ describe("Test User", () => {
     });
 
     await user.provider.latestMerkleTree();
+    
     await testStateValidator.checkTokenTransferred();
     const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
