@@ -63,6 +63,9 @@ export class User {
   spentUtxos?: Utxo[];
   private seed?: string;
   transactionIndex: number;
+  recentTransactionParameters?: TransactionParameters;
+  recentTransaction?: Transaction;
+  approved?: boolean;
 
   constructor({
     provider,
@@ -313,46 +316,6 @@ export class User {
           this.provider!.wallet!.publicKey,
         );
       }
-
-      // let tokenBalance = await splToken.getAccount(
-      //   this.provider.provider?.connection!,
-      //   userSplAccount,
-      // );
-
-      // if (!tokenBalance)
-      //   throw new UserError(
-      //     UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
-      //     "shield",
-      //     "AssociatdTokenAccount doesn't exist!",
-      //   );
-
-      // if (publicAmountSpl.gte(new BN(tokenBalance.amount.toString())))
-      //   throw new UserError(
-      //     UserErrorCode.INSUFFICIENT_BAlANCE,
-      //     "shield",
-      //     `Insufficient token balance! ${publicAmountSpl.toString()} bal: ${tokenBalance!
-      //       .amount!}`,
-      //   );
-
-      // try {
-      //   const transaction = new SolanaTransaction().add(
-      //     splToken.createApproveInstruction(
-      //       userSplAccount,
-      //       AUTHORITY,
-      //       this.provider.wallet!.publicKey,
-      //       publicAmountSpl.toNumber(),
-      //       [this.provider.wallet!.publicKey],
-      //     ),
-      //   );
-
-      //   await this.provider.wallet!.sendAndConfirmTransaction(transaction);
-      // } catch (e) {
-      //   throw new UserError(
-      //     UserErrorCode.APPROVE_ERROR,
-      //     "shield",
-      //     `Error approving token transfer! ${e}`,
-      //   );
-      // }
     }
     let outUtxos: Utxo[] = [];
     if (recipient) {
@@ -369,6 +332,7 @@ export class User {
         }),
       );
     }
+
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.SHIELD,
@@ -387,11 +351,7 @@ export class User {
     });
     this.recentTransactionParameters = txParams;
     return txParams;
-    // return await this.transactWithParameters({ txParams });
   }
-  recentTransactionParameters?: TransactionParameters;
-  recentTransaction?: Transaction;
-  approved?: boolean;
 
   async compileAndProveTransaction(appParams?: any): Promise<Transaction> {
     if (!this.recentTransactionParameters)
