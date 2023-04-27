@@ -333,6 +333,7 @@ describe("Test User", () => {
     });
 
     await user.provider.latestMerkleTree();
+    
     await testStateValidator.checkTokenTransferred();
   });
 
