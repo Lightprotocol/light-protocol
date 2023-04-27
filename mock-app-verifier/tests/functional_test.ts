@@ -183,7 +183,6 @@ describe("Mock verifier functional", () => {
       relayer: RELAYER,
       transactionIndex: 1
     });
-    
     const appParams = {
       verifier: new MockVerifier(),
       inputs: {testInput1: new BN(1), testInput2: new BN(1)},
