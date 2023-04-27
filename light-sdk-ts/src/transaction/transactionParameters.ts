@@ -37,6 +37,8 @@ import {
   AppUtxoConfig,
   validateUtxoAmounts,
 } from "../index";
+import nacl from "tweetnacl";
+const { keccak_256 } = require("@noble/hashes/sha3");
 
 export class TransactionParameters implements transactionParameters {
   inputUtxos: Array<Utxo>;
@@ -54,6 +56,7 @@ export class TransactionParameters implements transactionParameters {
   action: Action;
   ataCreationFee?: boolean;
   transactionIndex: number;
+  txIntegrityHash?: BN;
 
   constructor({
     merkleTreePubkey,
@@ -944,5 +947,129 @@ export class TransactionParameters implements transactionParameters {
       )
       .add(FIELD_SIZE)
       .mod(FIELD_SIZE);
+  }
+
+  /**
+   * @description
+   * @returns
+   */
+  async getTxIntegrityHash(poseidon: any): Promise<BN> {
+    if (!this.relayer)
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.accounts.recipientSpl)
+      throw new TransactionError(
+        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.accounts.recipientSol)
+      throw new TransactionError(
+        TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    if (!this.relayer.getRelayerFee(this.ataCreationFee))
+      throw new TransactionError(
+        TransactionErrorCode.RELAYER_FEE_UNDEFINED,
+        "getTxIntegrityHash",
+        "",
+      );
+    // Should not be computed twice because cipher texts of encrypted utxos are random
+    // threfore the hash will not be consistent
+
+    if (!this.encryptedUtxos) {
+      this.encryptedUtxos = await this.encryptOutUtxos(poseidon);
+    }
+
+    if (this.encryptedUtxos && this.encryptedUtxos.length > 512) {
+      this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
+    }
+    if (this.encryptedUtxos) {
+      let extDataBytes = new Uint8Array([
+        ...this.accounts.recipientSpl?.toBytes(),
+        ...this.accounts.recipientSol.toBytes(),
+        ...this.relayer.accounts.relayerPubkey.toBytes(),
+        ...this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),
+        ...this.encryptedUtxos,
+      ]);
+
+      const hash = keccak_256
+        .create({ dkLen: 32 })
+        .update(Buffer.from(extDataBytes))
+        .digest();
+      this.txIntegrityHash = new anchor.BN(hash).mod(FIELD_SIZE);
+
+      return this.txIntegrityHash;
+    } else {
+      throw new TransactionError(
+        TransactionErrorCode.ENCRYPTING_UTXOS_FAILED,
+        "getTxIntegrityHash",
+        "",
+      );
+    }
+  }
+
+  async encryptOutUtxos(poseidon: any, encryptedUtxos?: Uint8Array) {
+    let encryptedOutputs = new Array<any>();
+    if (encryptedUtxos) {
+      encryptedOutputs = Array.from(encryptedUtxos);
+    } else if (this && this.outputUtxos) {
+      for (var utxo in this.outputUtxos) {
+        if (
+          this.outputUtxos[utxo].appDataHash.toString() !== "0" &&
+          this.outputUtxos[utxo].includeAppData
+        )
+          throw new TransactionError(
+            TransactionErrorCode.UNIMPLEMENTED,
+            "encryptUtxos",
+            "Automatic encryption for utxos with application data is not implemented.",
+          );
+        encryptedOutputs.push(
+          await this.outputUtxos[utxo].encrypt(
+            poseidon,
+            this.accounts.transactionMerkleTree,
+            this.transactionIndex,
+          ),
+        );
+      }
+      if (
+        this.verifier.config.out == 2 &&
+        encryptedOutputs[0].length + encryptedOutputs[1].length < 256
+      ) {
+        return new Uint8Array([
+          ...encryptedOutputs[0],
+          ...encryptedOutputs[1],
+          ...new Array(
+            256 - encryptedOutputs[0].length - encryptedOutputs[1].length,
+          ).fill(0),
+          // this is ok because these bytes are not sent and just added for the integrity hash
+          // to be consistent, if the bytes were sent to the chain use rnd bytes for padding
+        ]);
+      } else {
+        let tmpArray = new Array<any>();
+        for (var i = 0; i < this.verifier.config.out; i++) {
+          tmpArray.push(...encryptedOutputs[i]);
+          if (encryptedOutputs[i].length < 128) {
+            // add random bytes for padding
+            tmpArray.push(
+              ...nacl.randomBytes(128 - encryptedOutputs[i].length),
+            );
+          }
+        }
+
+        if (tmpArray.length < 512) {
+          tmpArray.push(
+            ...nacl.randomBytes(
+              this.verifier.config.out * 128 - tmpArray.length,
+            ),
+          );
+        }
+        return new Uint8Array([...tmpArray]);
+      }
+    }
   }
 }

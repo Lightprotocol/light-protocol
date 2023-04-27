@@ -197,7 +197,7 @@ describe("Transaction Error Tests", () => {
         // @ts-ignore
         params: {},
       });
-  
+
     })
       .throw(TransactionError)
       .includes({
@@ -501,41 +501,6 @@ describe("Transaction Functional Tests", () => {
     assert.equal(indices7[0][1][2], "0");
   });
 
-  it("extDataHash Provider Undefined", async () => {
-    const relayerConst = new Relayer(
-      AUTHORITY,
-      AUTHORITY,
-      AUTHORITY,
-      new anchor.BN(5000),
-    );
-    const paramsStaticEncryptedUtxos = new TransactionParameters({
-      inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
-      verifier: new VerifierZero(),
-      poseidon,
-      recipientSpl: AUTHORITY,
-      recipientSol: lightProvider.wallet?.publicKey,
-      action: Action.UNSHIELD,
-      relayer: relayerConst,
-      encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionIndex: 0,
-    });
-    let tx = new Transaction({
-      provider: lightProvider,
-      params: paramsStaticEncryptedUtxos,
-    });
-    let txIntegrityHash = await tx.getTxIntegrityHash();
-    assert.equal(
-      txIntegrityHash.toString(),
-      tx.testValues!.txIntegrityHash?.toString(),
-    );
-
-    assert.equal(
-      txIntegrityHash.toString(),
-      "10565179045304799599615498933777028333590859286329750962414982763930145076928",
-    );
-  });
-
   it("getConnectingHash", async () => {
     const relayerConst = new Relayer(
       AUTHORITY,
@@ -556,15 +521,9 @@ describe("Transaction Functional Tests", () => {
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionIndex: 0,
     });
-    let tx = new Transaction({
-      provider: lightProvider,
-      params: paramsStaticEncryptedUtxos,
-    });
-    let txIntegrityHash = await tx.getTxIntegrityHash();
-    assert.equal(
-      txIntegrityHash.toString(),
-      tx.testValues!.txIntegrityHash?.toString(),
-    );
+
+
+    let txIntegrityHash = await paramsStaticEncryptedUtxos.getTxIntegrityHash(poseidon);
 
     assert.equal(
       txIntegrityHash.toString(),
@@ -574,7 +533,6 @@ describe("Transaction Functional Tests", () => {
       Transaction.getTransactionHash(
         paramsStaticEncryptedUtxos,
         poseidon,
-        txIntegrityHash,
       ).toString(),
       "14857171448275195680095284652077216904745885328355740301134929101899924476752",
     );
