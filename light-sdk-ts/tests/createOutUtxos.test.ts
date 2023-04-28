@@ -524,9 +524,15 @@ describe("createRecipientUtxos", () => {
 
 
 describe("validateUtxoAmounts", () => {
-  let poseidon;
+  let poseidon, assetPubkey, inUtxos;
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
+    assetPubkey = new PublicKey(0);
+    inUtxos = [
+      createUtxo(poseidon,[new BN(5)], [assetPubkey]),
+      createUtxo(poseidon,[new BN(3)], [assetPubkey]),
+    ];
+  
   })
   // Helper function to create a UTXO with specific amounts and assets
   function createUtxo(poseidon: any, amounts: BN[], assets: PublicKey[]): Utxo {
@@ -540,33 +546,18 @@ describe("validateUtxoAmounts", () => {
   }
 
   it("should not throw an error if input UTXOs sum is equal to output UTXOs sum", () => {
-    const assetPubkey = new PublicKey(0);
-    const inUtxos = [
-      createUtxo(poseidon, [new BN(5)], [assetPubkey]),
-      createUtxo(poseidon, [new BN(3)], [assetPubkey]),
-    ];
     const outUtxos = [createUtxo(poseidon,[new BN(8)], [assetPubkey])];
 
     expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).not.to.throw();
   });
 
   it("should not throw an error if input UTXOs sum is greater than output UTXOs sum", () => {
-    const assetPubkey = new PublicKey(0);
-    const inUtxos = [
-      createUtxo(poseidon,[new BN(5)], [assetPubkey]),
-      createUtxo(poseidon,[new BN(3)], [assetPubkey]),
-    ];
     const outUtxos = [createUtxo(poseidon,[new BN(7)], [assetPubkey])];
 
     expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).not.to.throw();
   });
 
   it("should throw an error if input UTXOs sum is less than output UTXOs sum", () => {
-    const assetPubkey = new PublicKey(0);
-    const inUtxos = [
-      createUtxo(poseidon,[new BN(5)], [assetPubkey]),
-      createUtxo(poseidon,[new BN(3)], [assetPubkey]),
-    ];
     const outUtxos = [createUtxo(poseidon,[new BN(9)], [assetPubkey])];
 
     expect(() => validateUtxoAmounts({assetPubkeys: [assetPubkey], inUtxos, outUtxos})).to.throw(CreateUtxoError);
