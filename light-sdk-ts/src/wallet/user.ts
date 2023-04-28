@@ -235,7 +235,7 @@ export class User {
    * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
-  async shieldCreateTransactionParameters({
+  async createShieldTransactionParameters({
     token,
     publicAmountSpl,
     recipient,
@@ -512,7 +512,7 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
   }) {
-    await this.shieldCreateTransactionParameters({
+    await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,
       recipient,
@@ -543,7 +543,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
-    await this.unshieldCreateTransactionParameters({
+    await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
       recipientSpl,
@@ -567,7 +567,7 @@ export class User {
    * @params recipient: PublicKey - Solana address
    * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
    */
-  async unshieldCreateTransactionParameters({
+  async createUnshieldTransactionParameters({
     token,
     publicAmountSpl,
     recipientSpl = AUTHORITY,
@@ -672,7 +672,7 @@ export class User {
     recipient: Account;
     appUtxo?: AppUtxoConfig;
   }) {
-    await this.transferCreateTransactionParameters({
+    await this.createTransferTransactionParameters({
       token,
       recipient,
       amountSpl,
@@ -695,7 +695,7 @@ export class User {
    * @param recipientEncryptionPublicKey (use strToArr)
    * @returns
    */
-  async transferCreateTransactionParameters({
+  async createTransferTransactionParameters({
     token,
     // alternatively we could use the recipient type here as well
     recipient,
