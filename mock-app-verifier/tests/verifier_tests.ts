@@ -52,7 +52,7 @@ describe("Verifier Two test", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   const path = require("path");
-  const firstPath = path.resolve(__dirname, "../sdk/build-circuit/");
+  const circuitPath = path.resolve(__dirname, "../sdk/build-circuit/");
 
   const provider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
@@ -141,7 +141,7 @@ describe("Verifier Two test", () => {
       const appParams0 = {
         verifier: new MockVerifier(),
         inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-        path: firstPath
+        path: circuitPath
       };
       var transaction = new Transaction({
         provider: lightProvider,
@@ -185,7 +185,7 @@ describe("Verifier Two test", () => {
       const appParams = {
         verifier: new MockVerifier(),
         inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-        path: firstPath
+        path: circuitPath
       };
       var transaction1 = new Transaction({
         provider: lightProvider,

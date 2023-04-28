@@ -45,7 +45,7 @@ describe("Mock verifier functional", () => {
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
   const path = require("path");
-  const firstPath = path.resolve(__dirname, "../sdk/build-circuit/");
+  const circuitPath = path.resolve(__dirname, "../sdk/build-circuit/");
 
   anchor.setProvider(provider);
   var poseidon
@@ -136,7 +136,7 @@ describe("Mock verifier functional", () => {
     const appParams = {
       verifier: new MockVerifier(),
       inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-      path: firstPath
+      path: circuitPath
     };
 
     let tx = new Transaction({
@@ -186,7 +186,7 @@ describe("Mock verifier functional", () => {
     const appParams = {
       verifier: new MockVerifier(),
       inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-      path: firstPath
+      path: circuitPath
     };
 
     let tx = new Transaction({
