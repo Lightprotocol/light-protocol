@@ -21,6 +21,7 @@ import {
   newNonce,
   MERKLE_TREE_KEY,
   verifierProgramTwoProgramId,
+  verifierLookupTable,
 } from "../src";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -58,7 +59,7 @@ describe("Utxo Functional", () => {
   it("rnd utxo functional", async () => {
     // try basic tests for rnd empty utxo
     const utxo4Account = new Account({poseidon});
-    const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS") });
+    const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
 
     // toBytes
     const bytes4 = await utxo4.toBytes();
