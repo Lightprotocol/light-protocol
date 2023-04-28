@@ -78,7 +78,7 @@ export const getRecipientsAmount = (
 // create change utxos with remaining spl balances and sol balance
 // --------------------------------------------------------------------------
 
-export function createMissingOutUtxos({
+export function createOutUtxos({
   poseidon,
   inUtxos,
   outUtxos = [],
@@ -106,7 +106,7 @@ export function createMissingOutUtxos({
   if (!poseidon)
     throw new CreateUtxoError(
       TransactionParametersErrorCode.NO_POSEIDON_HASHER_PROVIDED,
-      "createMissingOutUtxos",
+      "createOutUtxos",
       "Poseidon not initialized",
     );
 
@@ -137,7 +137,7 @@ export function createMissingOutUtxos({
   if (outUtxos.length > 1) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
-      "createMissingOutUtxos",
+      "createOutUtxos",
       `Number of recipients greater than allowed: ${
         outUtxos.length
       } allowed ${1}`,
@@ -150,7 +150,7 @@ export function createMissingOutUtxos({
     ) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         `Mint ${outUtxo.assets[1]} does not exist in input utxos mints ${assetPubkeys}`,
       );
     }
@@ -181,7 +181,7 @@ export function createMissingOutUtxos({
     if (!publicAmountSol && !publicAmountSpl)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_AMOUNTS_PROVIDED,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         "publicAmountSol not initialized for unshield",
       );
     if (!publicAmountSpl) publicAmountSpl = new BN(0);
@@ -194,7 +194,7 @@ export function createMissingOutUtxos({
     if (publicAmountSpl && !publicMint)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.NO_PUBLIC_MINT_PROVIDED,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         "publicMint not initialized for unshield",
       );
 
@@ -211,7 +211,7 @@ export function createMissingOutUtxos({
     if (relayerFee)
       throw new CreateUtxoError(
         CreateUtxoErrorCode.RELAYER_FEE_DEFINED,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         "Shield and relayer fee defined",
       );
     if (!publicAmountSpl) publicAmountSpl = new BN(0);
@@ -247,7 +247,7 @@ export function createMissingOutUtxos({
     if (outUtxos[j].assets[1] && !outUtxos[j].amounts[1]) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         `Mint defined while splAmount is undefinedfor recipient ${outUtxos[j]}`,
       );
     }
@@ -309,7 +309,7 @@ export function createMissingOutUtxos({
   if (outputUtxos.length > numberMaxOutUtxos) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_OUTPUT_UTXO_LENGTH,
-      "createMissingOutUtxos",
+      "createOutUtxos",
       `Probably too many input assets possibly in combination with an incompatible number of shielded recipients ${outputUtxos}`,
     );
   }
@@ -339,7 +339,7 @@ export function createRecipientUtxos({
     if (recipients[j].mint && !recipients[j].splAmount) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
-        "createMissingOutUtxos",
+        "createOutUtxos",
         `Mint defined while splAmount is undefined for recipient ${recipients[j]}`,
       );
     }

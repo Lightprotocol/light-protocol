@@ -27,7 +27,7 @@ import {
   RelayerErrorCode,
   CreateUtxoErrorCode,
   selectInUtxos,
-  createMissingOutUtxos,
+  createOutUtxos,
   Transaction,
   Action,
   TokenContext,
@@ -673,7 +673,7 @@ export class TransactionParameters implements transactionParameters {
       });
     }
     if (addOutUtxos) {
-      outputUtxos = createMissingOutUtxos({
+      outputUtxos = createOutUtxos({
         publicMint: tokenCtx.tokenAccount,
         publicAmountSpl,
         inUtxos: inputUtxos,
