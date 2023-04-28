@@ -1,10 +1,12 @@
 const nacl = require("tweetnacl");
+import { box } from "tweetnacl";
 const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 import { BN } from "@coral-xyz/anchor";
 import {
   AccountError,
   AccountErrorCode,
+  CONSTANT_SECRET_AUTHKEY,
   TransactionParametersErrorCode,
   UtxoErrorCode,
 } from "./index";
@@ -74,8 +76,17 @@ export class Account {
     }
 
     this.burnerSeed = new Uint8Array();
+    if (aesSecret && !privateKey) {
+      this.aesSecret = aesSecret;
+      this.privkey = new BN(0);
+      this.pubkey = new BN(0);
+      this.encryptionKeypair = {
+        publicKey: new Uint8Array(32),
+        secretKey: new Uint8Array(32),
+      };
+    }
     // creates a burner utxo by using the index for domain separation
-    if (burner) {
+    else if (burner) {
       if (!seed) {
         throw new AccountError(
           AccountErrorCode.SEED_UNDEFINED,
@@ -345,10 +356,11 @@ export class Account {
     return new BN(poseidon.F.toString(poseidon([privateKey])));
   }
 
-  async encryptAes(
+  // TODO: add option for domain separation
+  static async encryptAes(
+    aesSecret: Uint8Array,
     message: Uint8Array,
     iv: Uint8Array,
-    domain: string = "default",
   ) {
     if (iv.length != 16)
       throw new AccountError(
@@ -356,7 +368,7 @@ export class Account {
         "encryptAes",
         `Required iv length 16, provided ${iv.length}`,
       );
-    const secretKey = this.getDomainSeparatedAesSecretKey(domain);
+    var secretKey = aesSecret;
     const ciphertext = await encrypt(
       message,
       secretKey,
@@ -367,10 +379,10 @@ export class Account {
     return new Uint8Array([...iv, ...ciphertext]);
   }
 
-  async decryptAes(encryptedBytes: Uint8Array, domain: string = "default") {
-    const iv = encryptedBytes.subarray(0, 16);
-    const encryptedMessageBytes = encryptedBytes.subarray(16);
-    const secretKey = this.getDomainSeparatedAesSecretKey(domain);
+  static async decryptAes(aesSecret: Uint8Array, encryptedBytes: Uint8Array) {
+    const iv = encryptedBytes.slice(0, 16);
+    const encryptedMessageBytes = encryptedBytes.slice(16);
+    var secretKey = aesSecret;
     const cleartext = await decrypt(
       encryptedMessageBytes,
       secretKey,
@@ -381,7 +393,43 @@ export class Account {
     return cleartext;
   }
 
-  // TODO: add static encryptTo function to account
-  // static encryptNacl()
-  // decryptNacl()
+  static encryptNacl(
+    publicKey: Uint8Array,
+    message: Uint8Array,
+    signerSecretKey: Uint8Array,
+    nonce?: Uint8Array,
+    returnWithoutNonce?: boolean,
+  ): Uint8Array {
+    if (!nonce) {
+      nonce = nacl.randomBytes(nacl.nonceLength);
+    }
+    const ciphertext = box(message, nonce!, publicKey, signerSecretKey);
+
+    if (returnWithoutNonce) {
+      return Uint8Array.from([...ciphertext]);
+    }
+    return Uint8Array.from([...nonce!, ...ciphertext]);
+  }
+
+  decryptNacl(
+    ciphertext: Uint8Array,
+    nonce?: Uint8Array,
+    signerpublicKey?: Uint8Array,
+  ): Uint8Array | null {
+    if (!nonce) {
+      nonce = ciphertext.slice(0, 24);
+      ciphertext = ciphertext.slice(24);
+    }
+    if (!signerpublicKey) {
+      signerpublicKey = ciphertext.slice(0, 32);
+      ciphertext = ciphertext.slice(32);
+    }
+
+    return nacl.box.open(
+      ciphertext,
+      nonce,
+      signerpublicKey,
+      this.encryptionKeypair.secretKey,
+    );
+  }
 }

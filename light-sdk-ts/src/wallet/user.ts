@@ -1,4 +1,8 @@
-import { PublicKey, Transaction as SolanaTransaction } from "@solana/web3.js";
+import {
+  PublicKey,
+  SystemProgram,
+  Transaction as SolanaTransaction,
+} from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import * as splToken from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -26,6 +30,9 @@ import {
   TransactionParameters,
   Action,
   getUpdatedSpentUtxos,
+  AppUtxoConfig,
+  VerifierZero,
+  createRecipientUtxos,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -56,6 +63,9 @@ export class User {
   spentUtxos?: Utxo[];
   private seed?: string;
   transactionIndex: number;
+  recentTransactionParameters?: TransactionParameters;
+  recentTransaction?: Transaction;
+  approved?: boolean;
 
   constructor({
     provider,
@@ -225,13 +235,14 @@ export class User {
    * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
    * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
    */
-  async shield({
+  async createShieldTransactionParameters({
     token,
     publicAmountSpl,
     recipient,
     publicAmountSol,
     senderTokenAccount,
     minimumLamports = true,
+    appUtxo,
   }: {
     token: string;
     recipient?: Account;
@@ -239,7 +250,9 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
-  }) {
+    appUtxo?: AppUtxoConfig;
+  }): Promise<TransactionParameters> {
+    // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
       throw new UserError(
         UserErrorCode.INVALID_TOKEN,
@@ -266,8 +279,7 @@ export class User {
         "shield",
         "Provider not set!",
       );
-    if (recipient)
-      throw new Error("Shields to other users not implemented yet!");
+
     let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -303,46 +315,21 @@ export class User {
           this.provider!.wallet!.publicKey,
         );
       }
-
-      let tokenBalance = await splToken.getAccount(
-        this.provider.provider?.connection!,
-        userSplAccount,
+    }
+    let outUtxos: Utxo[] = [];
+    if (recipient) {
+      outUtxos.push(
+        new Utxo({
+          poseidon: this.provider.poseidon,
+          assets: [SystemProgram.programId],
+          amounts: [publicAmountSol],
+          account: recipient,
+          appDataHash: appUtxo?.appDataHash,
+          verifierAddress: appUtxo?.verifierAddress,
+          includeAppData: appUtxo?.includeAppData,
+          appData: appUtxo?.appData,
+        }),
       );
-
-      if (!tokenBalance)
-        throw new UserError(
-          UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
-          "shield",
-          "AssociatdTokenAccount doesn't exist!",
-        );
-
-      if (publicAmountSpl.gte(new BN(tokenBalance.amount.toString())))
-        throw new UserError(
-          UserErrorCode.INSUFFICIENT_BAlANCE,
-          "shield",
-          `Insufficient token balance! ${publicAmountSpl.toString()} bal: ${tokenBalance!
-            .amount!}`,
-        );
-
-      try {
-        const transaction = new SolanaTransaction().add(
-          splToken.createApproveInstruction(
-            userSplAccount,
-            AUTHORITY,
-            this.provider.wallet!.publicKey,
-            publicAmountSpl.toNumber(),
-            [this.provider.wallet!.publicKey],
-          ),
-        );
-
-        await this.provider.wallet!.sendAndConfirmTransaction(transaction);
-      } catch (e) {
-        throw new UserError(
-          UserErrorCode.APPROVE_ERROR,
-          "shield",
-          `Error approving token transfer! ${e}`,
-        );
-      }
     }
 
     const txParams = await TransactionParameters.getTxParams({
@@ -355,17 +342,113 @@ export class User {
       userSplAccount,
       provider: this.provider,
       transactionIndex: this.transactionIndex,
+      appUtxo,
+      verifier: new VerifierZero(),
+      outUtxos,
+      addInUtxos: recipient ? false : true,
+      addOutUtxos: recipient ? false : true,
     });
+    this.recentTransactionParameters = txParams;
+    return txParams;
+  }
 
+  async compileAndProveTransaction(appParams?: any): Promise<Transaction> {
+    if (!this.recentTransactionParameters)
+      throw new UserError(
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "compileAndProveTransaction",
+        "createShieldTransactionParameters need to be executed to create parameters that be compiled and proven",
+      );
     let tx = new Transaction({
       provider: this.provider,
-      params: txParams,
+      params: this.recentTransactionParameters,
+      appParams,
     });
 
     await tx.compileAndProve();
+    this.recentTransaction = tx;
+    return tx;
+  }
+
+  async approve() {
+    if (!this.recentTransactionParameters)
+      throw new UserError(
+        UserErrorCode.TRANSACTION_PARAMTERS_UNDEFINED,
+        "compileAndProveTransaction",
+        "createShieldTransactionParameters need to be executed to approve spl funds prior a shield transaction",
+      );
+    if (
+      this.recentTransactionParameters?.publicAmountSpl.gt(new BN(0)) &&
+      this.recentTransactionParameters?.action === Action.SHIELD
+    ) {
+      let tokenBalance = await splToken.getAccount(
+        this.provider.provider?.connection!,
+        this.recentTransactionParameters.accounts.senderSpl!,
+      );
+
+      if (!tokenBalance)
+        throw new UserError(
+          UserErrorCode.ASSOCIATED_TOKEN_ACCOUNT_DOESNT_EXIST,
+          "shield",
+          "AssociatdTokenAccount doesn't exist!",
+        );
+
+      if (
+        this.recentTransactionParameters?.publicAmountSpl.gte(
+          new BN(tokenBalance.amount.toString()),
+        )
+      )
+        throw new UserError(
+          UserErrorCode.INSUFFICIENT_BAlANCE,
+          "shield",
+          `Insufficient token balance! ${this.recentTransactionParameters?.publicAmountSpl.toString()} bal: ${tokenBalance!
+            .amount!}`,
+        );
+
+      try {
+        const transaction = new SolanaTransaction().add(
+          splToken.createApproveInstruction(
+            this.recentTransactionParameters.accounts.senderSpl!,
+            AUTHORITY,
+            this.provider.wallet!.publicKey,
+            this.recentTransactionParameters?.publicAmountSpl.toNumber(),
+            [this.provider.wallet!.publicKey],
+          ),
+        );
+
+        await this.provider.wallet!.sendAndConfirmTransaction(transaction);
+        this.approved = true;
+      } catch (e) {
+        throw new UserError(
+          UserErrorCode.APPROVE_ERROR,
+          "shield",
+          `Error approving token transfer! ${e}`,
+        );
+      }
+    } else {
+      this.approved = true;
+    }
+  }
+
+  async sendAndConfirm() {
+    if (
+      this.recentTransactionParameters?.action === Action.SHIELD &&
+      !this.approved
+    )
+      throw new UserError(
+        UserErrorCode.SPL_FUNDS_NOT_APPROVED,
+        "sendAndConfirmed",
+        "spl funds need to be approved before a shield with spl tokens can be executed",
+      );
+    if (!this.recentTransaction)
+      throw new UserError(
+        UserErrorCode.TRANSACTION_UNDEFINED,
+        "sendAndConfirmed",
+        "transaction needs to be compiled and a proof generated before send.",
+      );
     let txHash;
     try {
-      txHash = await tx.sendAndConfirmTransaction();
+      txHash = await this.recentTransaction?.sendAndConfirmTransaction();
     } catch (e) {
       throw new UserError(
         TransactionErrorCode.SEND_TRANSACTION_FAILED,
@@ -375,27 +458,76 @@ export class User {
     }
     this.transactionIndex += 1;
 
+    // TODO: this needs to be revisited because other parts of the sdk still
+    // assume that either every transaction just has one key
+    // and that one transaction just contains one aes utxo
+    // increases transactionIndex for every of my own utxos
+    this.recentTransactionParameters?.outputUtxos.map((utxo) => {
+      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
+        this.transactionIndex += 1;
+      }
+    });
+    return txHash;
+  }
+
+  async updateMerkleTree() {
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
     );
 
-    this.spentUtxos = getUpdatedSpentUtxos(
-      txParams.inputUtxos,
-      this.spentUtxos,
-    );
+    if (this.recentTransactionParameters) {
+      this.spentUtxos = getUpdatedSpentUtxos(
+        this.recentTransactionParameters.inputUtxos,
+        this.spentUtxos,
+      );
+    }
+    this.recentTransaction = undefined;
+    this.recentTransactionParameters = undefined;
+    this.approved = undefined;
+    return response;
+  }
 
+  /**
+   *
+   * @param amount e.g. 1 SOL = 1, 2 USDC = 2
+   * @param token "SOL", "USDC", "USDT",
+   * @param recipient optional, if not set, will shield to self
+   * @param extraSolAmount optional, if set, will add extra SOL to the shielded amount
+   * @param senderTokenAccount optional, if set, will use this token account to shield from, else derives ATA
+   */
+  async shield({
+    token,
+    publicAmountSpl,
+    recipient,
+    publicAmountSol,
+    senderTokenAccount,
+    minimumLamports = true,
+    appUtxo,
+  }: {
+    token: string;
+    recipient?: Account;
+    publicAmountSpl?: number | BN | string;
+    publicAmountSol?: number | BN | string;
+    minimumLamports?: boolean;
+    senderTokenAccount?: PublicKey;
+    appUtxo?: AppUtxoConfig;
+  }) {
+    await this.createShieldTransactionParameters({
+      token,
+      publicAmountSpl,
+      recipient,
+      publicAmountSol,
+      senderTokenAccount,
+      minimumLamports,
+      appUtxo,
+    });
+    await this.compileAndProveTransaction();
+    await this.approve();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
     return { txHash, response };
   }
 
-  // TODO: add unshieldSol and unshieldSpl
-  // TODO: add optional passs-in token mint
-  // TODO: add pass-in tokenAccount
-  /**
-   * @params token: string
-   * @params amount: number - in base units (e.g. lamports for 'SOL')
-   * @params recipient: PublicKey - Solana address
-   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
-   */
   async unshield({
     token,
     publicAmountSpl,
@@ -411,10 +543,45 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
-    // publicAmountSol: amount,
-    // token,
-    // recipientSol: recipient,
+    await this.createUnshieldTransactionParameters({
+      token,
+      publicAmountSpl,
+      recipientSpl,
+      publicAmountSol,
+      recipientSol,
+      minimumLamports,
+    });
 
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
+  }
+
+  // TODO: add unshieldSol and unshieldSpl
+  // TODO: add optional passs-in token mint
+  // TODO: add pass-in tokenAccount
+  /**
+   * @params token: string
+   * @params amount: number - in base units (e.g. lamports for 'SOL')
+   * @params recipient: PublicKey - Solana address
+   * @params extraSolAmount: number - optional, if not set, will use MINIMUM_LAMPORTS
+   */
+  async createUnshieldTransactionParameters({
+    token,
+    publicAmountSpl,
+    recipientSpl = AUTHORITY,
+    publicAmountSol,
+    recipientSol = AUTHORITY,
+    minimumLamports = true,
+  }: {
+    token: string;
+    recipientSpl?: PublicKey;
+    recipientSol?: PublicKey;
+    publicAmountSpl?: number | BN | string;
+    publicAmountSol?: number | BN | string;
+    minimumLamports?: boolean;
+  }) {
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
     if (!tokenCtx)
       throw new UserError(
@@ -481,64 +648,66 @@ export class User {
       utxos: this.utxos,
       publicAmountSol: _publicSolAmount,
       recipientSol: recipientSol,
-      recipientSPLAddress: recipientSpl,
+      recipientSplAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
       transactionIndex: this.transactionIndex,
+      verifier: new VerifierZero(),
     });
-
-    let tx = new Transaction({
-      provider: this.provider,
-      params: txParams,
-    });
-
-    await tx.compileAndProve();
-    let txHash;
-    try {
-      txHash = await tx.sendAndConfirmTransaction();
-    } catch (e) {
-      throw new UserError(
-        TransactionErrorCode.SEND_TRANSACTION_FAILED,
-        "shield",
-        `Error in tx.sendAndConfirmTransaction! ${e}`,
-      );
-    }
-    this.transactionIndex += 1;
-
-    const response = await this.provider.relayer.updateMerkleTree(
-      this.provider,
-    );
-
-    this.spentUtxos = getUpdatedSpentUtxos(
-      txParams.inputUtxos,
-      this.spentUtxos,
-    );
-
-    return { txHash, response };
+    this.recentTransactionParameters = txParams;
+    return txParams;
   }
-
-  // TODO: add separate lookup function for users.
-  // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
-  /**
-   *
-   * @param token mint
-   * @param amount
-   * @param recipient shieldedAddress (BN)
-   * @param recipientEncryptionPublicKey (use strToArr)
-   * @returns
-   */
   async transfer({
     token,
     // alternatively we could use the recipient type here as well
     recipient,
     amountSpl,
     amountSol,
+    appUtxo,
   }: {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
     recipient: Account;
+    appUtxo?: AppUtxoConfig;
+  }) {
+    await this.createTransferTransactionParameters({
+      token,
+      recipient,
+      amountSpl,
+      amountSol,
+      appUtxo,
+    });
+
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
+  }
+  // TODO: add separate lookup function for users.
+  // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
+  /**
+   * @description transfers to one recipient utxo and creates a change utxo with remainders of the input
+   * @param token mint
+   * @param amount
+   * @param recipient shieldedAddress (BN)
+   * @param recipientEncryptionPublicKey (use strToArr)
+   * @returns
+   */
+  async createTransferTransactionParameters({
+    token,
+    // alternatively we could use the recipient type here as well
+    recipient,
+    amountSpl,
+    amountSol,
+    appUtxo,
+  }: {
+    token: string;
+    amountSpl?: BN | number | string;
+    amountSol?: BN | number | string;
+    recipient: Account;
+    appUtxo?: AppUtxoConfig;
   }) {
     if (!recipient)
       throw new UserError(
@@ -569,26 +738,44 @@ export class User {
       ? convertAndComputeDecimals(amountSol, new BN(1e9))
       : new BN(0);
 
-    const txParams = await TransactionParameters.getTxParams({
-      tokenCtx,
-      action: Action.TRANSFER,
-      account: this.account,
-      utxos: this.utxos,
-      shieldedRecipients: [
+    let outUtxos = createRecipientUtxos({
+      recipients: [
         {
           mint: tokenCtx.tokenAccount,
           account: recipient,
           solAmount: parsedSolAmount,
           splAmount: parsedSplAmount,
+          appUtxo,
         },
       ],
+      poseidon: this.provider.poseidon,
+    });
+    const txParams = await TransactionParameters.getTxParams({
+      tokenCtx,
+      action: Action.TRANSFER,
+      account: this.account,
+      utxos: this.utxos,
+      outUtxos,
       provider: this.provider,
       relayer: this.provider.relayer,
       transactionIndex: this.transactionIndex,
+      verifier: new VerifierZero(),
     });
+    this.recentTransactionParameters = txParams;
+    return txParams;
+  }
+
+  async transactWithParameters({
+    txParams,
+    appParams,
+  }: {
+    txParams: TransactionParameters;
+    appParams?: any;
+  }) {
     let tx = new Transaction({
       provider: this.provider,
       params: txParams,
+      appParams,
     });
 
     await tx.compileAndProve();
@@ -603,7 +790,16 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
-    this.transactionIndex += 1;
+
+    // TODO: this needs to be revisited because other parts of the sdk still
+    // assume that either every transaction just has one key
+    // and that one transaction just contains one aes utxo
+    // increases transactionIndex for every of my own utxos
+    txParams.outputUtxos.map((utxo) => {
+      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
+        this.transactionIndex += 1;
+      }
+    });
 
     const response = await this.provider.relayer.updateMerkleTree(
       this.provider,
@@ -617,19 +813,17 @@ export class User {
     return { txHash, response };
   }
 
-  appInteraction() {
-    throw new Error("not implemented yet");
-  }
-  /*
-    *
-    *return {
-        inputUtxos,
-        outputUtxos,
-        txConfig: { in: number; out: number },
-        verifier, can be verifier object
-    }
-    *
-    */
+  async transactWithUtxos({
+    inUtxos,
+    outUtxos,
+    action,
+    inUtxoCommitments,
+  }: {
+    inUtxos: Utxo[];
+    outUtxos: Utxo[];
+    action: Action;
+    inUtxoCommitments: string[];
+  }) {}
 
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
   // TODO: evaluate whether we could use an offline instance of user, for example to generate a proof offline, also could use this to move error test to sdk

@@ -1,5 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
+  Keypair,
   Keypair as SolanaKeypair,
   PublicKey,
   SystemProgram,
@@ -35,6 +36,7 @@ import {
   TestRelayer,
   Action,
   TestStateValidator,
+  fetchNullifierAccountInfo,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -107,7 +109,8 @@ describe("Test User", () => {
     const user: User = await User.init(provider);
 
     const testStateValidator = new TestStateValidator({
-      user,
+      userSender: user,
+      userRecipient: user,
       provider,
       testInputs,
     });
@@ -149,7 +152,8 @@ describe("Test User", () => {
     const user: User = await User.init(provider);
 
     const testStateValidator = new TestStateValidator({
-      user,
+      userSender: user,
+      userRecipient: user,
       provider,
       testInputs,
     });
@@ -164,6 +168,68 @@ describe("Test User", () => {
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
+    await testStateValidator.checkSolShielded();
+  });
+  // TODO: add test for recipient to nacl recipient
+  // this only works by itself because it does not merge a utxo
+  // get balance cannot reflect a balance of several utxos apparently
+  // not going to fix getBalance since it is already refactored in
+  // a subsequent pr
+  it.skip("(user class) shield SOL to recipient", async () => {
+    const senderAccountSeed = new Uint8Array(32).fill(7).toString();
+    const senderAccount = new Account({
+      poseidon: POSEIDON,
+      seed: senderAccountSeed,
+    });
+
+    const recipientAccountFromPubkey = Account.fromPubkey(
+      senderAccount.pubkey.toBuffer(),
+      senderAccount.encryptionKeypair.publicKey,
+      POSEIDON,
+    );
+
+    let testInputs = {
+      amountSpl: 0,
+      amountSol: 15,
+      token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      recipientAccount: userKeypair,
+      mergedUtxo: false,
+    };
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
+
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      4_000_000_000,
+    );
+
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+
+    const userSender: User = await User.init(provider, senderAccountSeed);
+    const userRecipient: User = await User.init(provider);
+
+    const testStateValidator = new TestStateValidator({
+      userSender,
+      userRecipient,
+      provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await userSender.shield({
+      publicAmountSol: testInputs.amountSol,
+      token: testInputs.token,
+      recipient: userRecipient.account,
+    });
+
+    // TODO: add random amount and amount checks
+    await userRecipient.provider.latestMerkleTree();
     await testStateValidator.checkSolShielded();
   });
 
@@ -203,7 +269,8 @@ describe("Test User", () => {
     const user: User = await User.init(provider);
 
     const testStateValidator = new TestStateValidator({
-      user,
+      userSender: user,
+      userRecipient: user,
       provider,
       testInputs,
     });
@@ -235,11 +302,11 @@ describe("Test User", () => {
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
-    }); // userKeypair
+    });
 
     const recipientAccount = new Account({
       poseidon: POSEIDON,
-      seed: testInputs.recipientSeed,
+      seed: new Uint8Array(32).fill(9).toString(),
     });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
@@ -251,7 +318,8 @@ describe("Test User", () => {
     const user: User = await User.init(provider);
 
     const testStateValidator = new TestStateValidator({
-      user,
+      userSender: user,
+      userRecipient: user,
       provider,
       testInputs,
     });

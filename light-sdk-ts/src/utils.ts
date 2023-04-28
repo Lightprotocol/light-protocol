@@ -57,12 +57,21 @@ export const assetLookupTable: string[] = [
   MINT.toBase58(),
 ];
 
+export const verifierLookupTable: string[] = [
+  SystemProgram.programId.toBase58(),
+  "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS",
+];
+
 export function getAssetIndex(assetPubkey: PublicKey): BN {
   return new BN(assetLookupTable.indexOf(assetPubkey.toBase58()));
 }
 
 export function fetchAssetByIdLookUp(assetIndex: BN): PublicKey {
   return new PublicKey(assetLookupTable[assetIndex.toNumber()]);
+}
+
+export function fetchVerifierByIdLookUp(index: BN): PublicKey {
+  return new PublicKey(verifierLookupTable[index.toNumber()]);
 }
 
 export const arrToStr = (uint8arr: Uint8Array) =>
