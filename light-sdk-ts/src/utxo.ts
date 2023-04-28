@@ -34,6 +34,8 @@ import {
   UNCOMPRESSED_UTXO_BYTES_LENGTH,
   ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  fetchVerifierByIdLookUp,
+  verifierLookupTable,
 } from "./index";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
@@ -297,14 +299,22 @@ export class Utxo {
       );
     }
 
+    const verifierAddressIndex = verifierLookupTable.findIndex(
+      (verifierAddress: string) => {
+        return verifierAddress === this.verifierAddress.toBase58();
+      },
+    );
+    if (verifierAddressIndex === -1)
+      throw new UtxoError(
+        UtxoErrorCode.VERIFIER_INDEX_NOT_FOUND,
+        "toBytes",
+        `verifier address ${this.verifierAddress}, not found in lookup table`,
+      );
     let serializeObject = {
       ...this,
       accountShieldedPublicKey: this.account.pubkey,
       accountEncryptionPublicKey: this.account.encryptionKeypair.publicKey,
-      verifierAddressIndex:
-        this.verifierAddress.toBase58() === SystemProgram.programId.toBase58()
-          ? new BN("0")
-          : new BN("1"),
+      verifierAddressIndex: new BN(verifierAddressIndex),
     };
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
@@ -413,10 +423,9 @@ export class Utxo {
     ];
 
     // TODO: make lookup function and or tie to idl
-    verifierAddress =
-      decodedUtxoData.verifierAddressIndex.toString() !== "0"
-        ? new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
-        : SystemProgram.programId;
+    verifierAddress = fetchVerifierByIdLookUp(
+      decodedUtxoData.verifierAddressIndex,
+    );
     if (!account) {
       account = Account.fromPubkey(
         decodedUtxoData.accountShieldedPublicKey.toBuffer(),
