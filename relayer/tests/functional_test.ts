@@ -50,7 +50,7 @@ describe("API tests", () => {
   let poseidon;
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let previousMerkleRoot =
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
 
