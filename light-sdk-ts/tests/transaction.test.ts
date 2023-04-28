@@ -197,7 +197,6 @@ describe("Transaction Error Tests", () => {
         // @ts-ignore
         params: {},
       });
-
     })
       .throw(TransactionError)
       .includes({
