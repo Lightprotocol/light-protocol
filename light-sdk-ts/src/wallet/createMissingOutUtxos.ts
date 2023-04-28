@@ -340,7 +340,7 @@ export function createRecipientUtxos({
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
         "createMissingOutUtxos",
-        `Mint defined while splAmount is undefinedfor recipient ${recipients[j]}`,
+        `Mint defined while splAmount is undefined for recipient ${recipients[j]}`,
       );
     }
 
