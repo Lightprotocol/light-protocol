@@ -9,6 +9,7 @@ import {
   Account,
   Utxo,
   TransactionParameters,
+  AppUtxoConfig,
 } from "../index";
 
 type Asset = { sumIn: BN; sumOut: BN; asset: PublicKey };
@@ -18,6 +19,7 @@ export type Recipient = {
   solAmount: BN;
   splAmount: BN;
   mint: PublicKey;
+  appUtxo?: AppUtxoConfig;
 };
 // mint: PublicKey, expectedAmount: BN,
 export const getUtxoArrayAmount = (mint: PublicKey, inUtxos: Utxo[]) => {
@@ -76,17 +78,18 @@ export const getRecipientsAmount = (
 // create change utxos with remaining spl balances and sol balance
 // --------------------------------------------------------------------------
 
-// TODO: handle passed in outputUtxo and create change utxo for that
 export function createOutUtxos({
   poseidon,
   inUtxos,
+  outUtxos = [],
   publicMint,
   publicAmountSpl,
   publicAmountSol,
   relayerFee,
   changeUtxoAccount,
-  recipients = [],
   action,
+  appUtxo,
+  numberMaxOutUtxos,
 }: {
   inUtxos?: Utxo[];
   publicMint?: PublicKey;
@@ -95,8 +98,10 @@ export function createOutUtxos({
   relayerFee?: BN;
   poseidon: any;
   changeUtxoAccount: Account;
-  recipients?: Recipient[];
+  outUtxos?: Utxo[];
   action: Action;
+  appUtxo?: AppUtxoConfig;
+  numberMaxOutUtxos: number;
 }) {
   if (!poseidon)
     throw new CreateUtxoError(
@@ -126,29 +131,27 @@ export function createOutUtxos({
       TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
       "constructor",
     );
-  let assets: Asset[] = [];
 
-  // TODO: make flexible with different verifiers
   // TODO: enable perfect manual amounts of amounts to recipients
-  // check nr recipients is leq to nrOuts of verifier
-  if (recipients.length > 1) {
+  // check nr outUtxos is leq to nrOuts of verifier
+  if (outUtxos.length > 1) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "createOutUtxos",
       `Number of recipients greater than allowed: ${
-        recipients.length
+        outUtxos.length
       } allowed ${1}`,
     );
   }
 
-  recipients.map((recipient) => {
+  outUtxos.map((outUtxo) => {
     if (
-      !assetPubkeys.find((x) => x.toBase58() === recipient.mint?.toBase58())
+      !assetPubkeys.find((x) => x.toBase58() === outUtxo.assets[1]?.toBase58())
     ) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.INVALID_RECIPIENT_MINT,
         "createOutUtxos",
-        `Mint ${recipient.mint} does not exist in input utxos mints ${assetPubkeys}`,
+        `Mint ${outUtxo.assets[1]} does not exist in input utxos mints ${assetPubkeys}`,
       );
     }
   });
@@ -160,29 +163,11 @@ export function createOutUtxos({
     assetPubkeys.push(publicMint);
   }
 
-  // checks sum inAmounts for every asset are less or equal to sum OutAmounts
-  for (var i in assetPubkeys) {
-    const sumIn = inUtxos
-      ? getUtxoArrayAmount(assetPubkeys[i], inUtxos)
-      : new BN(0);
-    const sumOut = getRecipientsAmount(assetPubkeys[i], recipients);
-
-    assets.push({
-      asset: assetPubkeys[i],
-      sumIn,
-      sumOut,
-    });
-
-    if (!sumIn.gte(sumOut)) {
-      throw new CreateUtxoError(
-        CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
-        "createOutUtxos",
-        `for asset ${assetPubkeys[
-          i
-        ].toBase58()} sumOut ${sumOut} greather than sumIN ${sumIn}`,
-      );
-    }
-  }
+  let assets: Asset[] = validateUtxoAmounts({
+    assetPubkeys,
+    inUtxos,
+    outUtxos,
+  });
   let publicSolAssetIndex = assets.findIndex(
     (x) => x.asset.toBase58() === SystemProgram.programId.toBase58(),
   );
@@ -255,42 +240,26 @@ export function createOutUtxos({
       assets[publicSolAssetIndex].sumIn.sub(publicAmountSol);
   }
 
-  var outputUtxos: Utxo[] = [];
+  var outputUtxos: Utxo[] = [...outUtxos];
 
   // create recipient output utxos, one for each defined recipient
-  for (var j in recipients) {
-    if (recipients[j].mint && !recipients[j].splAmount) {
+  for (var j in outUtxos) {
+    if (outUtxos[j].assets[1] && !outUtxos[j].amounts[1]) {
       throw new CreateUtxoError(
         CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
         "createOutUtxos",
-        `Mint defined while splAmount is undefinedfor recipient ${recipients[j]}`,
+        `Mint defined while splAmount is undefinedfor recipient ${outUtxos[j]}`,
       );
     }
-    // throws in reduce already
-    // TODO: throw better error than in reduce
-    // if(!recipients[j].account) {
 
-    //   throw new CreateUtxoError(CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,"createOutUtxos",`Recipients account is undefined ${recipients[j]}`);
-    // }
-    let solAmount = recipients[j].solAmount
-      ? recipients[j].solAmount
-      : new BN(0);
-    let splAmount = recipients[j].splAmount
-      ? recipients[j].splAmount
-      : new BN(0);
-    let splMint = recipients[j].mint
-      ? recipients[j].mint
+    let solAmount = outUtxos[j].amounts[0] ? outUtxos[j].amounts[0] : new BN(0);
+    let splAmount = outUtxos[j].amounts[1] ? outUtxos[j].amounts[1] : new BN(0);
+    let splMint = outUtxos[j].assets[1]
+      ? outUtxos[j].assets[1]
       : SystemProgram.programId;
 
-    let recipientUtxo = new Utxo({
-      poseidon,
-      assets: [SystemProgram.programId, splMint],
-      amounts: [solAmount, splAmount],
-      account: recipients[j].account,
-    });
-    outputUtxos.push(recipientUtxo);
     let publicSplAssetIndex = assets.findIndex(
-      (x) => x.asset.toBase58() === publicMint?.toBase58(),
+      (x) => x.asset.toBase58() === splMint?.toBase58(),
     );
 
     assets[publicSplAssetIndex].sumIn = assets[publicSplAssetIndex].sumIn
@@ -323,22 +292,120 @@ export function createOutUtxos({
     let splAsset = publicSplAssets[x]?.asset
       ? publicSplAssets[x].asset
       : SystemProgram.programId;
+
     let changeUtxo = new Utxo({
       poseidon,
       assets: [SystemProgram.programId, splAsset],
       amounts: [solAmount, splAmount],
       account: changeUtxoAccount,
+      appData: appUtxo?.appData,
+      appDataHash: appUtxo?.appDataHash,
+      includeAppData: appUtxo?.includeAppData,
+      verifierAddress: appUtxo?.verifierAddress,
     });
     outputUtxos.push(changeUtxo);
   }
-  // TODO: adapt to verifier
-  if (outputUtxos.length > 2) {
+
+  if (outputUtxos.length > numberMaxOutUtxos) {
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_OUTPUT_UTXO_LENGTH,
       "createOutUtxos",
       `Probably too many input assets possibly in combination with an incompatible number of shielded recipients ${outputUtxos}`,
     );
   }
-
   return outputUtxos;
+}
+
+/**
+ * @description Creates an array of UTXOs for each recipient based on their specified amounts and assets.
+ *
+ * @param recipients - Array of Recipient objects containing the recipient's account, SOL and SPL amounts, and mint.
+ * @param poseidon - A Poseidon instance for hashing.
+ *
+ * @throws CreateUtxoError if a recipient has a mint defined but the SPL amount is undefined.
+ * @returns An array of Utxos, one for each recipient.
+ */
+export function createRecipientUtxos({
+  recipients,
+  poseidon,
+}: {
+  recipients: Recipient[];
+  poseidon: any;
+}): Utxo[] {
+  var outputUtxos: Utxo[] = [];
+
+  // create recipient output utxos, one for each defined recipient
+  for (var j in recipients) {
+    if (recipients[j].mint && !recipients[j].splAmount) {
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.SPL_AMOUNT_UNDEFINED,
+        "createOutUtxos",
+        `Mint defined while splAmount is undefined for recipient ${recipients[j]}`,
+      );
+    }
+
+    let solAmount = recipients[j].solAmount
+      ? recipients[j].solAmount
+      : new BN(0);
+    let splAmount = recipients[j].splAmount
+      ? recipients[j].splAmount
+      : new BN(0);
+    let splMint = recipients[j].mint
+      ? recipients[j].mint
+      : SystemProgram.programId;
+
+    let recipientUtxo = new Utxo({
+      poseidon,
+      assets: [SystemProgram.programId, splMint],
+      amounts: [solAmount, splAmount],
+      account: recipients[j].account,
+      appData: recipients[j].appUtxo?.appData,
+      includeAppData: recipients[j].appUtxo?.includeAppData,
+      appDataHash: recipients[j].appUtxo?.appDataHash,
+      verifierAddress: recipients[j].appUtxo?.verifierAddress,
+    });
+
+    outputUtxos.push(recipientUtxo);
+  }
+  return outputUtxos;
+}
+
+/**
+ * @description Validates if the sum of input UTXOs for each asset is less than or equal to the sum of output UTXOs.
+ *
+ * @param assetPubkeys - Array of PublicKeys representing the asset public keys to be checked.
+ * @param inUtxos - Array of input UTXOs containing the asset amounts being spent.
+ * @param outUtxos - Array of output UTXOs containing the asset amounts being received.
+ *
+ * @throws Error if the sum of input UTXOs for an asset is less than the sum of output UTXOs.
+ */
+export function validateUtxoAmounts({
+  assetPubkeys,
+  inUtxos,
+  outUtxos,
+}: {
+  assetPubkeys: PublicKey[];
+  inUtxos?: Utxo[];
+  outUtxos: Utxo[];
+}): Asset[] {
+  let assets: Asset[] = [];
+  for (const assetPubkey of assetPubkeys) {
+    const sumIn = inUtxos
+      ? getUtxoArrayAmount(assetPubkey, inUtxos)
+      : new BN(0);
+    const sumOut = getUtxoArrayAmount(assetPubkey, outUtxos);
+    assets.push({
+      asset: assetPubkey,
+      sumIn,
+      sumOut,
+    });
+    if (!sumIn.gte(sumOut)) {
+      throw new CreateUtxoError(
+        CreateUtxoErrorCode.RECIPIENTS_SUM_AMOUNT_MISSMATCH,
+        "validateUtxoAmounts",
+        `for asset ${assetPubkey.toBase58()} sumOut ${sumOut} greather than sumIN ${sumIn}`,
+      );
+    }
+  }
+  return assets;
 }

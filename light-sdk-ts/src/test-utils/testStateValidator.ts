@@ -11,6 +11,7 @@ import {
   TOKEN_ACCOUNT_FEE,
   TOKEN_REGISTRY,
 } from "../constants";
+import { Account } from "index";
 
 type TestInputs = {
   amountSpl: number;
@@ -22,6 +23,7 @@ type TestInputs = {
   expectedSpentUtxosLength?: number;
   recipientSeed?: string;
   expectedRecipientUtxoLength?: number;
+  mergedUtxo?: boolean;
 };
 
 export class TestStateValidator {
@@ -33,22 +35,26 @@ export class TestStateValidator {
   private preUtxos?: Utxo[];
 
   public provider: Provider;
-  public user: User;
+  public userSender: User;
+  public userRecipient: User;
   public userSplAccount?: PublicKey;
   public recipientSplAccount?: PublicKey;
   public testInputs: TestInputs;
   public tokenCtx: any;
 
   constructor({
-    user,
+    userSender,
+    userRecipient,
     provider,
     testInputs,
   }: {
-    user: User;
+    userSender: User;
+    userRecipient: User;
     provider: Provider;
     testInputs: TestInputs;
   }) {
-    this.user = user;
+    this.userSender = userSender;
+    this.userRecipient = userRecipient;
     this.provider = provider;
     this.testInputs = testInputs;
   }
@@ -81,7 +87,9 @@ export class TestStateValidator {
           );
       }
 
-      this.preShieldedBalances = await this.user.getBalance({ latest: true });
+      this.preShieldedBalances = await this.userSender.getBalance({
+        latest: true,
+      });
 
       this.preTokenBalance = this.userSplAccount
         ? await this.provider.provider?.connection.getTokenAccountBalance(
@@ -95,7 +103,7 @@ export class TestStateValidator {
 
       this.provider = this.provider;
 
-      this.preUtxos = this.user.utxos;
+      this.preUtxos = this.userSender.utxos;
     } catch (error) {
       console.log("error while fetching the state", { error });
     }
@@ -158,7 +166,7 @@ export class TestStateValidator {
     if (type !== Action.TRANSFER) {
       assert.strictEqual(
         this.recentTransaction.commitment,
-        this.user.utxos![0]._commitment,
+        this.userRecipient.utxos![0]._commitment,
       );
     }
 
@@ -181,19 +189,19 @@ export class TestStateValidator {
     );
   }
 
-  async assertUserUtxos() {
-    let commitmentIndex = this.user.spentUtxos!.findIndex(
-      (utxo) => utxo._commitment === this.user.utxos![0]._commitment,
+  async assertUserUtxoSpent() {
+    let commitmentIndex = this.userSender.spentUtxos!.findIndex(
+      (utxo) => utxo._commitment === this.userSender.utxos![0]._commitment,
     );
 
-    let commitmentSpent = this.user.utxos!.findIndex(
+    let commitmentSpent = this.userSender.utxos!.findIndex(
       (utxo) => utxo._commitment === this.preUtxos![0]._commitment,
     );
 
-    this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
+    this.assertNullifierAccountExists(this.userSender.utxos![0]._nullifier!);
 
     assert.equal(
-      this.user.utxos!.length,
+      this.userSender.utxos!.length,
       this.testInputs.expectedUtxoHistoryLength,
     );
     assert.equal(commitmentIndex, -1);
@@ -201,7 +209,9 @@ export class TestStateValidator {
   }
 
   async assertShieldedTokenBalance(amount: number) {
-    const postShieldedBalances = await this.user.getBalance({ latest: true });
+    const postShieldedBalances = await this.userRecipient.getBalance({
+      latest: true,
+    });
 
     let tokenBalanceAfter = postShieldedBalances.find(
       (b) =>
@@ -265,7 +275,9 @@ export class TestStateValidator {
   }
 
   async assertShieldedSolBalance(amount: number) {
-    const postShieldedBalances = await this.user.getBalance({ latest: true });
+    const postShieldedBalances = await this.userRecipient.getBalance({
+      latest: true,
+    });
 
     let solBalanceAfter = postShieldedBalances.find(
       (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
@@ -304,6 +316,19 @@ export class TestStateValidator {
     assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
   }
 
+  /**
+   * Asynchronously checks if token shielding has been performed correctly for a user.
+   * This function performs the following checks:
+   *
+   * 1. Asserts that the user's shielded token balance has increased by the amount shielded.
+   * 2. Asserts that the user's token balance has decreased by the amount shielded.
+   * 3. Asserts that the user's sol shielded balance has increased by the additional sol amount.
+   * 4. Asserts that the length of spent UTXOs matches the expected spent UTXOs length.
+   * 5. Asserts that the nullifier account exists for the user's first UTXO.
+   * 6. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   *
+   * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
+   */
   async checkTokenShielded() {
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedTokenBalance(this.testInputs.amountSpl);
@@ -317,16 +342,32 @@ export class TestStateValidator {
     await this.assertShieldedSolBalance(150000);
 
     assert.equal(
-      this.user.spentUtxos!.length,
+      this.userSender.spentUtxos!.length,
       this.testInputs.expectedSpentUtxosLength,
     );
 
-    await this.assertNullifierAccountExists(this.user.utxos![0]._nullifier!);
+    await this.assertNullifierAccountExists(
+      this.userSender.utxos![0]._nullifier!,
+    );
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentIndexedTransaction();
   }
 
+  /**
+   * Asynchronously checks if SOL shielding has been performed correctly for a user.
+   * This function performs the following checks:
+   *
+   * 1. Asserts that the user's shielded SOL balance has increased by the amount shielded.
+   * 2. Asserts that the user's SOL balance has decreased by the amount shielded, considering the temporary account cost.
+   * 3. Asserts that user UTXOs are spent and updated correctly.
+   * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   *
+   * Note: The temporary account cost calculation is not deterministic and may vary depending on whether the user has
+   * shielded SPL tokens before. This needs to be handled carefully.
+   *
+   * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
+   */
   async checkSolShielded() {
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedSolBalance(
@@ -340,13 +381,27 @@ export class TestStateValidator {
 
     await this.assertSolBalance(solDecreasedAmount, tempAccountCost);
 
-    // assert that user utxos are spent and updated correctly
-    await this.assertUserUtxos();
+    if (this.testInputs.mergedUtxo) {
+      // assert that user utxos are spent and updated correctly
+      await this.assertUserUtxoSpent();
+    }
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentIndexedTransaction();
   }
 
+  /**
+   * Asynchronously checks if token unshielding has been performed correctly for a user.
+   * This function performs the following checks:
+   *
+   * 1. Asserts that the user's shielded token balance has decreased by the amount unshielded.
+   * 2. Asserts that the recipient's token balance has increased by the amount unshielded.
+   * 3. Asserts that the user's shielded SOL balance has decreased by the fee.
+   * 4. Asserts that user UTXOs are spent and updated correctly.
+   * 5. Asserts that the recent indexed transaction is of type UNSHIELD and has the correct values.
+   *
+   * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
+   */
   async checkTokenUnshielded() {
     // assert that the user's shielded token balance has decreased by the amount unshielded
 
@@ -363,12 +418,24 @@ export class TestStateValidator {
     await this.assertShieldedSolBalance(solDecreasedAmount);
 
     // // assert that user utxos are spent and updated correctly
-    await this.assertUserUtxos();
+    await this.assertUserUtxoSpent();
 
     // // assert that recentIndexedTransaction is of type UNSHIELD and have right values
     await this.assertRecentIndexedTransaction();
   }
 
+  /**
+   * Asynchronously checks if a shielded token transfer has been performed correctly for a user.
+   * This function performs the following checks:
+   *
+   * 1. Asserts that the user's shielded token balance has decreased by the amount transferred.
+   * 2. Asserts that the user's shielded SOL balance has decreased by the relayer fee.
+   * 3. Asserts that user UTXOs are spent and updated correctly.
+   * 4. Asserts that the recent indexed transaction is of type SHIELD and has the correct values.
+   * 5. Assert that the transfer has been received correctly by the shielded recipient's account.
+   *
+   * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
+   */
   async checkTokenTransferred() {
     // assert that the user's shielded balance has decreased by the amount transferred
 
@@ -382,7 +449,7 @@ export class TestStateValidator {
     await this.assertShieldedSolBalance(solDecreasedAmount);
 
     // assert that user utxos are spent and updated correctly
-    await this.assertUserUtxos();
+    await this.assertUserUtxoSpent();
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentIndexedTransaction();

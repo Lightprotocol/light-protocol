@@ -132,8 +132,10 @@ export function selectInUtxos({
   publicAmountSol,
   poseidon,
   relayerFee,
-  recipients = [],
+  inUtxos,
+  outUtxos = [],
   action,
+  numberMaxInUtxos,
 }: {
   publicMint?: PublicKey;
   publicAmountSpl?: BN;
@@ -141,8 +143,10 @@ export function selectInUtxos({
   poseidon: any;
   relayerFee?: BN;
   utxos?: Utxo[];
-  recipients?: Recipient[];
+  inUtxos?: Utxo[];
+  outUtxos?: Utxo[];
   action: Action;
+  numberMaxInUtxos: number;
 }) {
   if (!publicMint && publicAmountSpl)
     throw new SelectInUtxosError(
@@ -196,11 +200,8 @@ export function selectInUtxos({
   }
 
   // TODO: add check that utxo holds sufficient balance
-  // TODO: add merge mode which essentially just switches to verifierOne, except when it is forced, add forced option
-  // if (utxos.length >= UTXO_MERGE_THRESHOLD)
-  //   return [...utxos.slice(0, UTXO_MERGE_MAXIMUM)];
 
-  if (recipients.length > 1)
+  if (outUtxos.length > 1)
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "selectInUtxos",
@@ -208,14 +209,13 @@ export function selectInUtxos({
 
   // check publicMint and recipients mints are all the same
   let mint = publicMint;
-  for (var recipient in recipients) {
-    if (!mint && recipients[recipient].splAmount?.gt(new BN(0)))
-      mint = recipients[recipient].mint;
-    if (mint && mint.toBase58() !== recipients[recipient].mint.toBase58())
+  for (var utxo of outUtxos) {
+    if (!mint && utxo.amounts[1]?.gt(new BN(0))) mint = utxo.assets[1];
+    if (mint && mint.toBase58() !== utxo.assets[1].toBase58())
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
         "selectInUtxos",
-        `Too many different mints in recipients ${recipients}`,
+        `Too many different mints in recipients outUtxos ${outUtxos}`,
       );
   }
 
@@ -224,29 +224,43 @@ export function selectInUtxos({
   var sumInSpl = new BN(0);
   var sumInSol = getUtxoArrayAmount(SystemProgram.programId, utxos);
   var sumOutSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
-  var sumOutSol = getRecipientsAmount(SystemProgram.programId, recipients);
+  var sumOutSol = getUtxoArrayAmount(SystemProgram.programId, outUtxos);
   if (relayerFee) sumOutSol = sumOutSol.add(relayerFee);
   if (publicAmountSol) sumOutSol = sumOutSol.add(publicAmountSol);
 
   if (mint) {
-    filteredUtxos = utxos.filter((utxo) => utxo.assets.includes(mint!));
+    filteredUtxos = utxos.filter((utxo) =>
+      utxo.assets.find((asset) => asset.toBase58() === mint?.toBase58()),
+    );
     sumInSpl = getUtxoArrayAmount(mint, filteredUtxos);
     sumInSol = getUtxoArrayAmount(SystemProgram.programId, filteredUtxos);
-    sumOutSpl = getRecipientsAmount(mint, recipients);
+    sumOutSpl = getUtxoArrayAmount(mint, outUtxos);
   } else {
     filteredUtxos = utxos;
   }
 
-  if (utxos.length == 1) return [...utxos];
-  var selectedUtxosR: Utxo[] = [];
+  // TODO: make work with input utxo
+  // if (utxos.length == 1) return [...utxos];
+  var selectedUtxosR: Utxo[] = inUtxos ? [...inUtxos] : [];
+  if (numberMaxInUtxos - selectedUtxosR.length < 0)
+    throw new SelectInUtxosError(
+      SelectInUtxosErrorCode.INVALID_NUMBER_OF_IN_UTXOS,
+      "selectInUtxos",
+    );
   if (mint) {
     var { selectedUtxosSolAmount, selectedUtxos } = selectBiggestSmallest(
       filteredUtxos,
       1,
       sumOutSpl,
-      2,
+      numberMaxInUtxos - selectedUtxosR.length,
       mint,
     );
+    if (selectedUtxos.length === 0)
+      throw new SelectInUtxosError(
+        SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,
+        "selectInUtxos",
+        `Failed to find any utxo of this token${utxos}`,
+      );
     selectedUtxosR = selectedUtxos;
 
     // if sol amount not satisfied
@@ -282,7 +296,7 @@ export function selectInUtxos({
             "selectInUtxos",
             "Failed to select a sol utxo",
           );
-        if (selectedUtxosR.length == 2) {
+        if (selectedUtxosR.length == numberMaxInUtxos) {
           // overwrite existing utxo
           selectedUtxosR[1] = selectedUtxo1[0];
         } else {
@@ -300,7 +314,7 @@ export function selectInUtxos({
       } else {
         // sort ascending and take smallest index
         filteredUtxos.sort((a, b) => a.amounts[1].sub(b.amounts[1]).toNumber());
-        if (selectedUtxosR.length == 2) {
+        if (selectedUtxosR.length == numberMaxInUtxos) {
           // overwrite existing utxo
           selectedUtxosR[1] = filteredUtxos[0];
         } else {
@@ -315,7 +329,7 @@ export function selectInUtxos({
       filteredUtxos,
       0,
       sumOutSol,
-      2,
+      numberMaxInUtxos - selectedUtxosR.length,
       mint,
     );
     selectedUtxosR = selectedUtxos;
@@ -343,6 +357,7 @@ export function selectInUtxos({
     );
 
   if (selectedUtxosR.length > 0) return selectedUtxosR;
+  else if (action === Action.SHIELD) return [];
   else
     throw new SelectInUtxosError(
       SelectInUtxosErrorCode.FAILED_TO_FIND_UTXO_COMBINATION,

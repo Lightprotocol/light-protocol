@@ -187,7 +187,15 @@ export type VerifierProgramZero = {
             type: "u64";
           },
           {
+            name: "verifierAddressIndex";
+            type: "u64";
+          },
+          {
             name: "blinding";
+            type: "u256";
+          },
+          {
+            name: "appDataHash";
             type: "u256";
           },
           {
@@ -199,10 +207,6 @@ export type VerifierProgramZero = {
             type: {
               array: ["u8", 32];
             };
-          },
-          {
-            name: "verifierAddress";
-            type: "publicKey";
           },
         ];
       };
@@ -439,7 +443,15 @@ export const IDL: VerifierProgramZero = {
             type: "u64",
           },
           {
+            name: "verifierAddressIndex",
+            type: "u64",
+          },
+          {
             name: "blinding",
+            type: "u256",
+          },
+          {
+            name: "appDataHash",
             type: "u256",
           },
           {
@@ -451,10 +463,6 @@ export const IDL: VerifierProgramZero = {
             type: {
               array: ["u8", 32],
             },
-          },
-          {
-            name: "verifierAddress",
-            type: "publicKey",
           },
         ],
       },

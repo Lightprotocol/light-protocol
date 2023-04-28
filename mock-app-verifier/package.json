@@ -13,7 +13,7 @@
     "@project-serum/anchor": "^0.24.1",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
-    "@solana/web3.js": "1.73.2",
+    "@solana/web3.js": "^1.73.3",
     "axios": "^0.27.2",
     "circomlib": "^2.0.5",
     "circomlibjs": "^0.1.7",
