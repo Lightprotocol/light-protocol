@@ -42,7 +42,7 @@ async function main() {
         for (var j in mydata[i]) {
           mydata[i][j] = leInt2Buff(
             unstringifyBigInts(mydata[i][j]),
-            32
+            32,
           ).reverse();
         }
       } else if (i == "vk_beta_2") {
@@ -50,10 +50,10 @@ async function main() {
           console.log("mydata[i][j] ", mydata[i][j]);
 
           let tmp = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
           )
             .concat(
-              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
+              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
             )
             .reverse();
           console.log("tmp ", tmp);
@@ -67,10 +67,10 @@ async function main() {
       } else if (i == "vk_gamma_2") {
         for (var j in mydata[i]) {
           let tmp = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
           )
             .concat(
-              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
+              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
             )
             .reverse();
           console.log(`i ${i}, tmp ${tmp}`);
@@ -84,10 +84,10 @@ async function main() {
       } else if (i == "vk_delta_2") {
         for (var j in mydata[i]) {
           let tmp = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32)
+            leInt2Buff(unstringifyBigInts(mydata[i][j][0]), 32),
           )
             .concat(
-              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32))
+              Array.from(leInt2Buff(unstringifyBigInts(mydata[i][j][1]), 32)),
             )
             .reverse();
           mydata[i][j][0] = tmp.slice(0, 32);
@@ -105,7 +105,7 @@ async function main() {
               //console.log(unstringifyBigInts(mydata[i][j][z][u]) == unstringifyBigInts("0x1134F9559674416FA8944B691B7F2F7127D7FEEFC223D06B9803E579D741EBF998577CA406D1ADD6D0872D531B956BD0"))
 
               mydata[i][j][z][u] = leInt2Buff(
-                unstringifyBigInts(mydata[i][j][z][u])
+                unstringifyBigInts(mydata[i][j][z][u]),
               );
             }
           }
@@ -121,14 +121,14 @@ async function main() {
             console.log(
               unstringifyBigInts(mydata[i][j][z]) ==
                 unstringifyBigInts(
-                  "0x279A3A31DB55A7D9E82122ADFD708F5FF0DD33706A0404DD0E6EA06D9B83452E"
-                )
+                  "0x279A3A31DB55A7D9E82122ADFD708F5FF0DD33706A0404DD0E6EA06D9B83452E",
+                ),
             );
             console.log(
               unstringifyBigInts(mydata[i][j][z]) ==
                 unstringifyBigInts(
-                  "0x2875717270029F096FEC64D14A540AAD5475725428F790D6D848B32E98A81FBE"
-                )
+                  "0x2875717270029F096FEC64D14A540AAD5475725428F790D6D848B32E98A81FBE",
+                ),
             );
 
             if (z == 1) {
@@ -136,7 +136,7 @@ async function main() {
             }
             mydata[i][j][z] = leInt2Buff(
               unstringifyBigInts(mydata[i][j][z]),
-              32
+              32,
             ).reverse();
           }
         }

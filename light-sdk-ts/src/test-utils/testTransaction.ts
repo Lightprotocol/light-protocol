@@ -447,17 +447,24 @@ export class TestTransaction {
           Number(this.testValues.recipientFeeBalancePriorTx) +
             Number(this.params.publicAmountSol),
       );
+
       console.log(
-        `${new BN(this.testValues.senderFeeBalancePriorTx)
+        `prior ${new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
-          .toString()} == ${senderFeeAccountBalance}`,
+          .toString()} ==  now ${senderFeeAccountBalance}, diff ${new BN(
+          this.testValues.senderFeeBalancePriorTx,
+        )
+          .sub(this.params.publicAmountSol)
+          .sub(new BN(5000 * nrInstructions))
+          .sub(new BN(senderFeeAccountBalance))}`,
       );
-      assert(
+      assert.equal(
         new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
-          .toString() == senderFeeAccountBalance.toString(),
+          .toString(),
+        senderFeeAccountBalance.toString(),
       );
     } else if (
       this.params.action == "SHIELD" &&
