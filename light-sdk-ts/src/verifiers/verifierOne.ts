@@ -33,7 +33,7 @@ export class VerifierOne implements Verifier {
     this.wtnsGenPath = "transactionMasp10_js/transactionMasp10.wasm";
     this.zkeyPath = "transactionMasp10.zkey";
     this.calculateWtns = require("../../build-circuits/transactionMasp10_js/witness_calculator.js");
-    this.config = { in: 10, out: 2, nrPublicInputs: 17 };
+    this.config = { in: 10, out: 2, nrPublicInputs: 17, isAppVerifier: false };
     this.pubkey = hashAndTruncateToCircuit(
       verifierProgramOneProgramId.toBytes(),
     );

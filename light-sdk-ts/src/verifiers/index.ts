@@ -23,6 +23,7 @@ export type VerifierConfig = {
   in: number;
   out: number;
   nrPublicInputs: number;
+  isAppVerifier: boolean;
 };
 
 export interface Verifier {
@@ -30,7 +31,7 @@ export interface Verifier {
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
-  config: { in: number; out: number };
+  config: { in: number; out: number; isAppVerifier: boolean };
   instructions?: web3.TransactionInstruction[];
   parsePublicInputsFromArray(
     publicInputsBytes: Array<Array<number>>,
