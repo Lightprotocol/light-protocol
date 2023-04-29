@@ -38,13 +38,13 @@ import {
   VerifierTwo,
   Action,
   useWallet,
-  TestRelayer
+  TestRelayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
 import { MockVerifier } from "../sdk/src";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR,RELAYER, deposit_utxo1;
+var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
 
@@ -102,7 +102,10 @@ describe("Verifier Two test", () => {
 
       const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-      await provider.connection.requestAirdrop(relayerRecipientSol, 2_000_000_000);
+      await provider.connection.requestAirdrop(
+        relayerRecipientSol,
+        2_000_000_000,
+      );
 
       RELAYER = await new TestRelayer(
         ADMIN_AUTH_KEYPAIR.publicKey,
@@ -113,7 +116,7 @@ describe("Verifier Two test", () => {
 
       let lightProvider = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
-        relayer: RELAYER
+        relayer: RELAYER,
       }); // userKeypair
 
       deposit_utxo1 = new Utxo({
@@ -135,7 +138,7 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex: 0
+        transactionIndex: 0,
       });
 
       const appParams0 = {
@@ -180,7 +183,7 @@ describe("Verifier Two test", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex:1
+        transactionIndex: 1,
       });
       const appParams = {
         verifier: new MockVerifier(),
@@ -200,7 +203,7 @@ describe("Verifier Two test", () => {
 
       let lightProviderWithdrawal = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
-        relayer: RELAYER
+        relayer: RELAYER,
       }); // userKeypair
 
       await provider.connection.confirmTransaction(
@@ -213,10 +216,10 @@ describe("Verifier Two test", () => {
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
-        relayer : lightProviderWithdrawal.relayer,
+        relayer: lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
-        transactionIndex: 2
+        transactionIndex: 2,
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,

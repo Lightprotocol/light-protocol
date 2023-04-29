@@ -76,7 +76,7 @@ export class MockVerifier implements Verifier {
     const invokingVerifierPubkey = (
       await PublicKey.findProgramAddress(
         [
-          transaction.provider.wallet.publicKey.toBytes()
+          transaction.provider.wallet.publicKey.toBytes(),
           // anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
         ],
         this.verifierProgram.programId,
@@ -101,7 +101,8 @@ export class MockVerifier implements Verifier {
     // console.log("transaction.appParams.input ", transaction.appParams);
     // console.log("transaction.params.accounts ", transaction.params.accounts);
 
-    var relayerRecipientSol = transaction.params.relayer.accounts.relayerRecipientSol;
+    var relayerRecipientSol =
+      transaction.params.relayer.accounts.relayerRecipientSol;
 
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
@@ -128,7 +129,9 @@ export class MockVerifier implements Verifier {
         transaction.transactionInputs.proofBytes.proofA,
         transaction.transactionInputs.proofBytes.proofB,
         transaction.transactionInputs.proofBytes.proofC,
-        Buffer.from(transaction.transactionInputs.publicInputsApp.transactionHash)
+        Buffer.from(
+          transaction.transactionInputs.publicInputsApp.transactionHash,
+        ),
       )
       .accounts({
         verifierProgram: transaction.params.verifier.verifierProgram.programId,
