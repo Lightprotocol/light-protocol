@@ -233,7 +233,6 @@ describe("Test User", () => {
     await testStateValidator.checkSolShielded();
   });
 
-
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
 
@@ -334,7 +333,7 @@ describe("Test User", () => {
     });
 
     await user.provider.latestMerkleTree();
-    
+
     await testStateValidator.checkTokenTransferred();
     const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,
@@ -447,7 +446,10 @@ describe("Test User", () => {
     await provider.provider.connection.confirmTransaction(res, "confirmed");
     const userSender: User = await User.init(provider);
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const user: User = await User.init(provider,new Uint8Array(32).fill(7).toString() );
+    const user: User = await User.init(
+      provider,
+      new Uint8Array(32).fill(7).toString(),
+    );
 
     const preShieldedBalance = await user.getBalance({ latest: true });
     const preSolBalance = await provider.provider.connection.getBalance(
@@ -455,7 +457,11 @@ describe("Test User", () => {
     );
     const previousUtxos = user.utxos;
 
-    await userSender.shield({ publicAmountSol: amount, token, recipient: recipientAccount });
+    await userSender.shield({
+      publicAmountSol: amount,
+      token,
+      recipient: recipientAccount,
+    });
     // TODO: add random amount and amount checks
     await user.provider.latestMerkleTree();
 
@@ -499,7 +505,6 @@ describe("Test User", () => {
     );
 
     assert.equal(user.utxos.length, 1);
-
 
     const indexedTransactions = await provider.relayer.getIndexedTransactions(
       provider.provider.connection,

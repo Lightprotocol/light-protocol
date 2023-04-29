@@ -529,7 +529,7 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
   }) {
-    await this.shieldCreateTransactionParameters({
+    await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,
       recipient,
@@ -560,7 +560,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
-    await this.unshieldCreateTransactionParameters({
+    await this.createUnshieldTransactionParameters({
       token,
       publicAmountSpl,
       recipientSpl,
@@ -784,7 +784,6 @@ export class User {
     return txParams; //await this.transactWithParameters({ txParams });
   }
 
-
   async transactWithParameters({
     txParams,
     appParams,
@@ -892,7 +891,7 @@ export class User {
     appUtxoConfig?: AppUtxoConfig;
   }): Promise<any> {
     try {
-      let verifier = new VerifierZero();
+      let verifier: Verifier = new VerifierZero();
       if (appUtxoConfig) {
         verifier = new VerifierTwo();
       }
