@@ -135,10 +135,7 @@ export class TestTransaction {
         ),
       );
     } catch (error) {
-      console.log(
-        "this.testValues.recipientFeeBalancePriorTx fetch failed ",
-        this.params.accounts.recipientSol,
-      );
+      throw error;
     }
     if (this.params.action === "SHIELD") {
       this.testValues.senderFeeBalancePriorTx = new BN(
@@ -298,37 +295,22 @@ export class TestTransaction {
           "confirmed",
         );
 
-      assert(
-        leavesAccountData.nodeLeft.toString() ==
-          transactionInputs.publicInputs.leaves[i][0].reverse().toString(),
+      assert.equal(
+        leavesAccountData.nodeLeft.toString(),
+        transactionInputs.publicInputs.leaves[i][0].reverse().toString(),
         "left leaf not inserted correctly",
       );
-      assert(
-        leavesAccountData.nodeRight.toString() ==
-          transactionInputs.publicInputs.leaves[i][1].reverse().toString(),
+      assert.equal(
+        leavesAccountData.nodeRight.toString(),
+        transactionInputs.publicInputs.leaves[i][1].reverse().toString(),
         "right leaf not inserted correctly",
       );
-      assert(
-        leavesAccountData.merkleTreePubkey.toBase58() ==
-          this.provider.solMerkleTree.pubkey.toBase58(),
+      assert.equal(
+        leavesAccountData.merkleTreePubkey.toBase58(),
+        this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
-        // console.log(j);
-
-        if (
-          leavesAccountData.encryptedUtxos.toString() !==
-          this.params.encryptedUtxos.toString()
-        ) {
-          // console.log(j);
-          // throw `encrypted utxo ${i} was not stored correctly`;
-        }
-        // console.log(
-        //   `${leavesAccountData.encryptedUtxos} !== ${this.params.encryptedUtxos}`
-        // );
-
-        // assert(leavesAccountData.encryptedUtxos === this.encryptedUtxos, "encryptedUtxos not inserted correctly");
-        // TODO: add for both utxos of leafpda
         let decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
           encBytes: this.params!.encryptedUtxos!,
@@ -340,52 +322,16 @@ export class TestTransaction {
             this.params!.outputUtxos![0].getCommitment(this.provider.poseidon),
           ).toBuffer(),
         });
-        const utxoEqual = (utxo0: Utxo, utxo1: Utxo) => {
-          assert.equal(
-            utxo0.amounts[0].toString(),
-            utxo1.amounts[0].toString(),
-          );
-          assert.equal(
-            utxo0.amounts[1].toString(),
-            utxo1.amounts[1].toString(),
-          );
-          assert.equal(utxo0.assets[0].toString(), utxo1.assets[0].toString());
-          assert.equal(utxo0.assets[1].toString(), utxo1.assets[1].toString());
-          assert.equal(
-            utxo0.assetsCircuit[0].toString(),
-            utxo1.assetsCircuit[0].toString(),
-          );
-          assert.equal(
-            utxo0.assetsCircuit[1].toString(),
-            utxo1.assetsCircuit[1].toString(),
-          );
-          assert.equal(
-            utxo0.appDataHash.toString(),
-            utxo1.appDataHash.toString(),
-          );
-          assert.equal(utxo0.poolType.toString(), utxo1.poolType.toString());
-          assert.equal(
-            utxo0.verifierAddress.toString(),
-            utxo1.verifierAddress.toString(),
-          );
-          assert.equal(
-            utxo0.verifierAddressCircuit.toString(),
-            utxo1.verifierAddressCircuit.toString(),
-          );
-        };
-        // console.log("decryptedUtxo ", decryptedUtxo1);
-        // console.log("this.params.outputUtxos[0] ", this.params.outputUtxos[0]);
         if (decryptedUtxo1 !== null) {
-          utxoEqual(decryptedUtxo1, this.params.outputUtxos[0]);
-        } else {
-          console.log("Could not decrypt any utxo probably a withdrawal.");
+          Utxo.equal(
+            this.provider.poseidon,
+            decryptedUtxo1,
+            this.params.outputUtxos[0],
+            true,
+          );
         }
       }
     }
-
-    console.log(
-      `mode ${this.params.action}, this.testValues.is_token ${this.testValues.is_token}`,
-    );
 
     try {
       const merkleTreeAfterUpdate =
@@ -393,20 +339,12 @@ export class TestTransaction {
           MERKLE_TREE_KEY,
           "confirmed",
         );
-      console.log(
-        "Number(merkleTreeAfterUpdate.nextQueuedIndex) ",
-        Number(merkleTreeAfterUpdate.nextQueuedIndex),
-      );
+
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
           remainingAccounts.leavesPdaPubkeys[0].pubkey,
           "confirmed",
         );
-      console.log(
-        `${Number(leavesAccountData.leftLeafIndex)} + ${
-          remainingAccounts.leavesPdaPubkeys.length * 2
-        }`,
-      );
 
       assert.equal(
         Number(merkleTreeAfterUpdate.nextQueuedIndex),
@@ -415,6 +353,7 @@ export class TestTransaction {
       );
     } catch (e) {
       console.log("preInsertedLeavesIndex: ", e);
+      throw e;
     }
     var nrInstructions;
     if (this.appParams) {
@@ -424,7 +363,6 @@ export class TestTransaction {
     } else {
       throw new Error("No params provided.");
     }
-    console.log("nrInstructions ", nrInstructions);
 
     if (this.params.action == "SHIELD" && this.testValues.is_token == false) {
       var recipientSolAccountBalance =
@@ -432,33 +370,18 @@ export class TestTransaction {
           this.params.accounts.recipientSol,
           "confirmed",
         );
-      console.log(
-        "testValues.recipientFeeBalancePriorTx: ",
-        this.testValues.recipientFeeBalancePriorTx,
-      );
 
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.relayer.accounts.relayerPubkey,
           "confirmed",
         );
-      assert(
-        recipientSolAccountBalance ==
-          Number(this.testValues.recipientFeeBalancePriorTx) +
-            Number(this.params.publicAmountSol),
+      assert.equal(
+        recipientSolAccountBalance,
+        Number(this.testValues.recipientFeeBalancePriorTx) +
+          Number(this.params.publicAmountSol),
       );
 
-      console.log(
-        `prior ${new BN(this.testValues.senderFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol)
-          .sub(new BN(5000 * nrInstructions))
-          .toString()} ==  now ${senderFeeAccountBalance}, diff ${new BN(
-          this.testValues.senderFeeBalancePriorTx,
-        )
-          .sub(this.params.publicAmountSol)
-          .sub(new BN(5000 * nrInstructions))
-          .sub(new BN(senderFeeAccountBalance))}`,
-      );
       assert.equal(
         new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
@@ -470,8 +393,6 @@ export class TestTransaction {
       this.params.action == "SHIELD" &&
       this.testValues.is_token == true
     ) {
-      console.log("SHIELD and token");
-
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
         this.params.accounts.recipientSpl,
@@ -480,69 +401,32 @@ export class TestTransaction {
         await this.provider.provider.connection.getBalance(
           this.params.accounts.recipientSol,
         );
-
-      // console.log(`Balance now ${senderAccount.amount} balance beginning ${senderAccountBalancePriorLastTx}`)
-      // assert(senderAccount.lamports == (I64(senderAccountBalancePriorLastTx) - I64.readLE(this.extAmount, 0)).toString(), "amount not transferred correctly");
-
-      console.log(
-        `Balance now ${recipientAccount.amount} balance beginning ${this.testValues.recipientBalancePriorTx}`,
-      );
-      console.log(
-        `Balance now ${recipientAccount.amount} balance beginning ${
+      assert.equal(
+        recipientAccount.amount.toString(),
+        (
           Number(this.testValues.recipientBalancePriorTx) +
           Number(this.params.publicAmountSpl)
-        }`,
-      );
-      assert(
-        recipientAccount.amount.toString() ===
-          (
-            Number(this.testValues.recipientBalancePriorTx) +
-            Number(this.params.publicAmountSpl)
-          ).toString(),
+        ).toString(),
         "amount not transferred correctly",
       );
-      console.log(
-        `Blanace now ${recipientSolAccountBalance} ${
-          Number(this.testValues.recipientFeeBalancePriorTx) +
-          Number(this.params.publicAmountSol)
-        }`,
-      );
-      console.log("fee amount: ", this.params.publicAmountSol);
-      console.log(
-        "fee amount from inputs. ",
-        new BN(
-          transactionInputs.publicInputs.publicAmountSol.slice(24, 32),
-        ).toString(),
-      );
-      console.log(
-        "pub amount from inputs. ",
-        new BN(
-          transactionInputs.publicInputs.publicAmountSpl.slice(24, 32),
-        ).toString(),
-      );
-
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
           this.params.accounts.senderSol,
           "confirmed",
         );
 
-      assert(
-        recipientSolAccountBalance ==
-          Number(this.testValues.recipientFeeBalancePriorTx) +
-            Number(this.params.publicAmountSol),
+      assert.equal(
+        recipientSolAccountBalance,
+        Number(this.testValues.recipientFeeBalancePriorTx) +
+          Number(this.params.publicAmountSol),
       );
-      console.log(
-        `${new BN(this.testValues.senderFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol)
-          .sub(new BN(5000 * nrInstructions))
-          .toString()} == ${senderFeeAccountBalance}`,
-      );
-      assert(
+
+      assert.equal(
         new BN(this.testValues.senderFeeBalancePriorTx)
           .sub(this.params.publicAmountSol)
           .sub(new BN(5000 * nrInstructions))
-          .toString() == senderFeeAccountBalance.toString(),
+          .toString(),
+        senderFeeAccountBalance.toString(),
       );
     } else if (
       this.params.action == "UNSHIELD" &&
@@ -559,31 +443,6 @@ export class TestTransaction {
           "confirmed",
         );
 
-      console.log(
-        "testValues.relayerRecipientAccountBalancePriorLastTx ",
-        this.testValues.relayerRecipientAccountBalancePriorLastTx,
-      );
-      console.log(
-        `relayerFeeAccount ${new BN(relayerAccount)
-          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
-          .toString()} == ${new BN(
-          this.testValues.relayerRecipientAccountBalancePriorLastTx,
-        )}`,
-      );
-      console.log(
-        `recipientFeeAccount ${new BN(recipientFeeAccount)
-          .add(
-            new BN(
-              this.params.relayer
-                .getRelayerFee(this.params.ataCreationFee)
-                .toString(),
-            ),
-          )
-          .toString()}  == ${new BN(this.testValues.recipientFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`,
-      );
-
       assert.equal(
         new BN(recipientFeeAccount)
           .add(
@@ -598,15 +457,6 @@ export class TestTransaction {
           .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
       );
-      console.log(
-        `this.params.relayer.relayerFee ${
-          this.params.relayer.relayerFee
-        } new BN(relayerAccount) ${new BN(relayerAccount).toString()}`,
-      );
-      console.log(
-        `relayerRecipientAccountBalancePriorLastTx ${this.testValues.relayerRecipientAccountBalancePriorLastTx?.toString()}`,
-      );
-
       assert.equal(
         new BN(relayerAccount)
           .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
@@ -627,24 +477,6 @@ export class TestTransaction {
         this.params.accounts.recipientSpl,
       );
 
-      // assert(senderAccount.amount == ((I64(Number(senderAccountBalancePriorLastTx)).add(I64.readLE(this.extAmount, 0))).sub(I64(relayerFee))).toString(), "amount not transferred correctly");
-      console.log(
-        "this.testValues.recipientBalancePriorTx ",
-        this.testValues.recipientBalancePriorTx,
-      );
-      console.log("this.params.publicAmountSpl ", this.params.publicAmountSpl);
-      console.log(
-        "this.params.publicAmountSpl ",
-        this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE),
-      );
-
-      console.log(
-        `${recipientAccount.amount}, ${new BN(
-          this.testValues.recipientBalancePriorTx,
-        )
-          .sub(this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`,
-      );
       assert.equal(
         recipientAccount.amount.toString(),
         new BN(this.testValues.recipientBalancePriorTx)
@@ -663,34 +495,6 @@ export class TestTransaction {
           this.params.accounts.recipientSol,
           "confirmed",
         );
-
-      // console.log("relayerAccount ", relayerAccount);
-      // console.log("this.params.relayer.relayerFee: ", this.params.relayer.getRelayerFee);
-      console.log(
-        "testValues.relayerRecipientAccountBalancePriorLastTx ",
-        this.testValues.relayerRecipientAccountBalancePriorLastTx,
-      );
-      console.log(
-        `relayerFeeAccount ${new BN(relayerAccount)
-          .sub(this.params.relayer.getRelayerFee(this.params.ataCreationFee))
-          .toString()} == ${new BN(
-          this.testValues.relayerRecipientAccountBalancePriorLastTx,
-        )}`,
-      );
-
-      console.log(
-        `recipientFeeAccount ${new BN(recipientFeeAccount)
-          .add(
-            new BN(
-              this.params.relayer
-                .getRelayerFee(this.params.ataCreationFee)
-                .toString(),
-            ),
-          )
-          .toString()}  == ${new BN(this.testValues.recipientFeeBalancePriorTx)
-          .sub(this.params.publicAmountSol?.sub(FIELD_SIZE).mod(FIELD_SIZE))
-          .toString()}`,
-      );
 
       assert.equal(
         new BN(recipientFeeAccount)
