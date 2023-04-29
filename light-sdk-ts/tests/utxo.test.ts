@@ -30,7 +30,7 @@ process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 

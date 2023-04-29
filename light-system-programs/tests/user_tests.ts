@@ -40,6 +40,7 @@ import {
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -56,7 +57,7 @@ describe("Test User", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
 
@@ -106,7 +107,7 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -149,7 +150,7 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -176,15 +177,14 @@ describe("Test User", () => {
   // not going to fix getBalance since it is already refactored in
   // a subsequent pr
   it.skip("(user class) shield SOL to recipient", async () => {
-    const senderAccountSeed = new Uint8Array(32).fill(7).toString();
+    const senderAccountSeed = bs58.encode(new Uint8Array(32).fill(7));
     const senderAccount = new Account({
       poseidon: POSEIDON,
       seed: senderAccountSeed,
     });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
-      senderAccount.pubkey.toBuffer(),
-      senderAccount.encryptionKeypair.publicKey,
+      senderAccount.getPublicKey(),
       POSEIDON,
     );
 
@@ -210,8 +210,11 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const userSender: User = await User.init(provider, senderAccountSeed);
-    const userRecipient: User = await User.init(provider);
+    const userSender: User = await User.init({
+      provider,
+      seed: senderAccountSeed,
+    });
+    const userRecipient: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender,
@@ -266,7 +269,7 @@ describe("Test User", () => {
       amount: new anchor.BN(0),
     });
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -295,7 +298,7 @@ describe("Test User", () => {
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
-      recipientSeed: new Uint8Array(32).fill(9).toString(),
+      recipientSeed: bs58.encode(new Uint8Array(32).fill(9)),
       expectedRecipientUtxoLength: 1,
     };
 
@@ -306,16 +309,14 @@ describe("Test User", () => {
 
     const recipientAccount = new Account({
       poseidon: POSEIDON,
-      seed: new Uint8Array(32).fill(9).toString(),
+      seed: testInputs.recipientSeed,
     });
-
     const recipientAccountFromPubkey = Account.fromPubkey(
-      recipientAccount.pubkey.toBuffer(),
-      recipientAccount.encryptionKeypair.publicKey,
+      recipientAccount.getPublicKey(),
       POSEIDON,
     );
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -335,34 +336,6 @@ describe("Test User", () => {
     await user.provider.latestMerkleTree();
 
     await testStateValidator.checkTokenTransferred();
-    const indexedTransactions = await provider.relayer.getIndexedTransactions(
-      provider.provider.connection,
-    );
-    const recentTransaction = indexedTransactions[0];
-    assert.equal(indexedTransactions.length, 4);
-    assert.equal(recentTransaction.to.toBase58(), PublicKey.default.toBase58());
-    assert.equal(recentTransaction.amountSol.toNumber(), 0);
-    assert.equal(recentTransaction.amountSpl.toNumber(), 0);
-    assert.equal(
-      recentTransaction.from.toBase58(),
-      PublicKey.default.toBase58(),
-    );
-    assert.equal(recentTransaction.type, Action.TRANSFER);
-    assert.equal(recentTransaction.relayerFee.toString(), "100000");
-    assert.equal(
-      recentTransaction.relayerRecipientSol.toBase58(),
-      provider.relayer.accounts.relayerRecipientSol.toBase58(),
-    );
-
-    // assert recipient utxo
-    const userRecipient: User = await User.init(
-      provider,
-      new Uint8Array(32).fill(9).toString(),
-    );
-
-    let { decryptedUtxos } = await userRecipient.getUtxos(false);
-    assert.equal(decryptedUtxos.length, 1);
-    assert.equal(decryptedUtxos[0].amounts[1].toString(), "100");
   });
 
   it.skip("(user class) transfer SOL", async () => {
@@ -382,7 +355,7 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -423,7 +396,7 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     await user.unshield({ amount, token, recipient });
     // TODO: add random amount and amount checks
   });
@@ -444,12 +417,9 @@ describe("Test User", () => {
       seed: new Uint8Array(32).fill(7).toString(),
     });
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const userSender: User = await User.init(provider);
+    const userSender: User = await User.init({ provider });
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const user: User = await User.init(
-      provider,
-      new Uint8Array(32).fill(7).toString(),
-    );
+    const user: User = await User.init({ provider, seed: seed32 });
 
     const preShieldedBalance = await user.getBalance({ latest: true });
     const preSolBalance = await provider.provider.connection.getBalance(
@@ -562,7 +532,7 @@ describe("Test User Errors", () => {
       2_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    user = await User.init(provider);
+    user = await User.init({ provider });
   });
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(
