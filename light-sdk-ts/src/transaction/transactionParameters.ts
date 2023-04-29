@@ -950,8 +950,24 @@ export class TransactionParameters implements transactionParameters {
   }
 
   /**
-   * @description
-   * @returns
+   * Computes the integrity Poseidon hash over transaction inputs that are not part of
+   * the proof, but are included to prevent the relayer from changing any input of the
+   * transaction.
+   *
+   * The hash is computed over the following inputs in the given order:
+   * 1. Recipient SPL Account
+   * 2. Recipient Solana Account
+   * 3. Relayer Public Key
+   * 4. Relayer Fee
+   * 5. Encrypted UTXOs (limited to 512 bytes)
+   *
+   * @param {any} poseidon - Poseidon hash function instance.
+   * @returns {Promise<BN>} A promise that resolves to the computed transaction integrity hash.
+   * @throws {TransactionError} Throws an error if the relayer, recipient SPL or Solana accounts,
+   * relayer fee, or encrypted UTXOs are undefined, or if the encryption of UTXOs fails.
+   *
+   * @example
+   * const integrityHash = await getTxIntegrityHash(poseidonInstance);
    */
   async getTxIntegrityHash(poseidon: any): Promise<BN> {
     if (!this.relayer)
@@ -978,8 +994,6 @@ export class TransactionParameters implements transactionParameters {
         "getTxIntegrityHash",
         "",
       );
-    // Should not be computed twice because cipher texts of encrypted utxos are random
-    // threfore the hash will not be consistent
 
     if (!this.encryptedUtxos) {
       this.encryptedUtxos = await this.encryptOutUtxos(poseidon);
@@ -989,7 +1003,7 @@ export class TransactionParameters implements transactionParameters {
       this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
     }
     if (this.encryptedUtxos) {
-      let extDataBytes = new Uint8Array([
+      let hashInputBytes = new Uint8Array([
         ...this.accounts.recipientSpl?.toBytes(),
         ...this.accounts.recipientSol.toBytes(),
         ...this.relayer.accounts.relayerPubkey.toBytes(),
@@ -999,7 +1013,7 @@ export class TransactionParameters implements transactionParameters {
 
       const hash = keccak_256
         .create({ dkLen: 32 })
-        .update(Buffer.from(extDataBytes))
+        .update(Buffer.from(hashInputBytes))
         .digest();
       this.txIntegrityHash = new anchor.BN(hash).mod(FIELD_SIZE);
 
