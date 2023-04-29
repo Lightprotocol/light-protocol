@@ -9,7 +9,7 @@ import {
   verifierProgramZeroProgramId,
 } from "../index";
 import { Transaction } from "transaction";
-import { Verifier, PublicInputs } from ".";
+import { Verifier, PublicInputs, VerifierConfig } from ".";
 import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
 
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
@@ -18,7 +18,7 @@ export class VerifierZero implements Verifier {
   wtnsGenPath: String;
   zkeyPath: String;
   calculateWtns: NodeRequire;
-  config: { in: number; out: number; nrPublicInputs: number };
+  config: VerifierConfig;
   instructions?: anchor.web3.TransactionInstruction[];
   pubkey: anchor.BN;
   constructor(provider?: Provider) {
@@ -36,7 +36,7 @@ export class VerifierZero implements Verifier {
     this.wtnsGenPath = "transactionMasp2_js/transactionMasp2.wasm";
     this.zkeyPath = `transactionMasp2.zkey`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
-    this.config = { in: 2, out: 2, nrPublicInputs: 9 };
+    this.config = { in: 2, out: 2, nrPublicInputs: 9, isAppVerifier: false };
     this.pubkey = hashAndTruncateToCircuit(
       verifierProgramZeroProgramId.toBytes(),
     );

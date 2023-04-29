@@ -294,7 +294,7 @@ export function selectInUtxos({
           throw new SelectInUtxosError(
             SelectInUtxosErrorCode.FAILED_TO_SELECT_SOL_UTXO,
             "selectInUtxos",
-            "Failed to select a sol utxo",
+            `Failed to select a sol utxo sumOutSol ${sumOutSol}, sumInSol ${sumInSol}`,
           );
         if (selectedUtxosR.length == numberMaxInUtxos) {
           // overwrite existing utxo
