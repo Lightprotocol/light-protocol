@@ -28,6 +28,7 @@ import {
 } from "../src/services";
 import { testSetup } from "../src/setup";
 import { getKeyPairFromEnv } from "../src/utils/provider";
+const bs58 = require("bs58");
 
 chai.use(chaiHttp);
 const expect = chai.expect;
@@ -151,7 +152,7 @@ describe("API tests", () => {
 
     await provider.provider!.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({provider});
 
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
@@ -256,7 +257,7 @@ describe("API tests", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({provider});
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.unshield({
@@ -278,8 +279,8 @@ describe("API tests", () => {
     );
 
     assert.equal(
-      solBalanceAfter!.amount,
-      solBalancePre.amount - 100000 - amount * tokenCtx.decimals.toNumber(),
+      solBalanceAfter!.amount.toNumber(),
+      solBalancePre!.amount.toNumber() - 100000 - amount * tokenCtx!.decimals.toNumber(),
       `shielded sol balance after ${solBalanceAfter!.amount} != ${
         solBalancePre!.amount
       } ...unshield amount -fee`,
