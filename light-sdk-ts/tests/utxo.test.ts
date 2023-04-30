@@ -59,7 +59,10 @@ describe("Utxo Functional", () => {
     });
   });
 
-  it("rnd utxo functional", async () => {
+  // 27AbWZhQDVF3aXzDopWTJZpvp2okwjcZiGubZ5PteSDaiTTvNyFSFLCtggAuX6fk7X9hp95qEkm8WRSpwFYGiW3
+
+  it("rnd utxo functional loop 100", async () => {
+    for (var i = 0; i < 100; i++) {
     // try basic tests for rnd empty utxo
     const utxo4Account = new Account({poseidon});
     const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
@@ -107,6 +110,7 @@ describe("Utxo Functional", () => {
     } else {
       throw new Error("decrypt failed");
     }
+  }
   });
 
   it("toString", async () => {

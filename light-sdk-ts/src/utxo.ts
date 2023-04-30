@@ -425,14 +425,13 @@ export class Utxo {
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
     ];
 
-    // TODO: make lookup function and or tie to idl
     verifierAddress = fetchVerifierByIdLookUp(
       decodedUtxoData.verifierAddressIndex,
     );
     if (!account) {
       let concatPublicKey = bs58.encode(
         new Uint8Array([
-          ...decodedUtxoData.accountShieldedPublicKey.toBuffer(),
+          ...decodedUtxoData.accountShieldedPublicKey.toArray("be", 32),
           ...decodedUtxoData.accountEncryptionPublicKey,
         ]),
       );
