@@ -100,7 +100,7 @@ describe("Utxo Functional", () => {
         index: 0,
         merkleTreePdaPublicKey: MERKLE_TREE_KEY,
         commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-        transactionIndex: 0
+        transactionNonce: 0
       });
 
       if (utxo41) {
@@ -109,7 +109,6 @@ describe("Utxo Functional", () => {
         throw new Error("decrypt failed");
       }
     }
-  }
   });
 
   it("toString", async () => {
