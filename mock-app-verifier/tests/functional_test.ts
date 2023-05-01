@@ -152,8 +152,8 @@ describe("Mock verifier functional", () => {
     });
     const appParams = {
       verifier: new MockVerifier(),
-      inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-      path: circuitPath
+      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      path: circuitPath,
     };
     let transactionTester = new TestTransaction({
       txParams,
@@ -213,8 +213,8 @@ describe("Mock verifier functional", () => {
     });
     const appParams = {
       verifier: new MockVerifier(),
-      inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-      path: circuitPath
+      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      path: circuitPath,
     };
     let transactionTester = new TestTransaction({
       txParams,

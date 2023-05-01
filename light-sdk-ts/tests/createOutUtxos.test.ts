@@ -29,13 +29,14 @@ import {
   MINT,
   validateUtxoAmounts,
   Recipient,
-  createRecipientUtxos
+  createRecipientUtxos,
 } from "../src";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const numberMaxOutUtxos = 2;
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-let seed32 = new Uint8Array(32).fill(1).toString();
+let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
@@ -76,17 +77,10 @@ describe("Test createOutUtxos Functional", () => {
     });
     relayerFee = new BN(1000);
 
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
 
-    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
     recipientAccount = Account.fromPubkey(
-      recipientSpl,
-      recipientEncryptionPublicKey,
+      recipientAccountRoot.getPublicKey(),
       poseidon,
     );
   });
@@ -532,7 +526,7 @@ describe("validateUtxoAmounts", () => {
       createUtxo(poseidon,[new BN(5)], [assetPubkey]),
       createUtxo(poseidon,[new BN(3)], [assetPubkey]),
     ];
-  
+
   })
   // Helper function to create a UTXO with specific amounts and assets
   function createUtxo(poseidon: any, amounts: BN[], assets: PublicKey[]): Utxo {
@@ -603,17 +597,10 @@ describe("Test createOutUtxos Errors", () => {
     });
     relayerFee = new BN(1000);
 
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
+    let recipientAccountRoot = new Account({poseidon, seed: bs58.encode(new Uint8Array(32).fill(3))})
 
-    const recipientSpl: Uint8Array = strToArr(shieldedRecipient);
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
     recipientAccount = Account.fromPubkey(
-      recipientSpl,
-      recipientEncryptionPublicKey,
+      recipientAccountRoot.getPublicKey(),
       poseidon,
     );
     createOutUtxos({
@@ -779,6 +766,7 @@ describe("Test createOutUtxos Errors", () => {
       assets: [SystemProgram.programId, SolanaKeypair.generate().publicKey],
       amounts: [new BN(1e6), new BN(1e6)],
     });
+
     expect(() => {
       createOutUtxos({
         publicMint: tokenCtx.tokenAccount,

@@ -23,11 +23,12 @@ import {
   verifierProgramTwoProgramId,
   verifierLookupTable,
 } from "../src";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 describe("Utxo Functional", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -56,54 +57,86 @@ describe("Utxo Functional", () => {
     });
   });
 
-  it("rnd utxo functional", async () => {
-    // try basic tests for rnd empty utxo
-    const utxo4Account = new Account({poseidon});
-    const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
+  it("rnd utxo functional loop 100", async () => {
+    for (var i = 0; i < 100; i++) {
+      // try basic tests for rnd empty utxo
+      const utxo4Account = new Account({poseidon});
+      const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
 
-    // toBytes
-    const bytes4 = await utxo4.toBytes();
+      // toBytes
+      const bytes4 = await utxo4.toBytes();
 
-    // fromBytes
-    const utxo40 = Utxo.fromBytes({
-      poseidon,
-      bytes: bytes4,
-      index: 0,
-    });
-    Utxo.equal(poseidon,utxo4, utxo40);
+      // fromBytes
+      const utxo40 = Utxo.fromBytes({
+        poseidon,
+        bytes: bytes4,
+        index: 0,
+      });
+      Utxo.equal(poseidon,utxo4, utxo40);
 
-    // toBytes
-    const bytes4Compressed = await utxo4.toBytes(true);
+      // toBytes
+      const bytes4Compressed = await utxo4.toBytes(true);
 
-    // fromBytes
-    const utxo40Compressed = Utxo.fromBytes({
-      poseidon,
-      account: utxo4Account,
-      bytes: bytes4Compressed,
-      index: 0,
-    });
-    Utxo.equal(poseidon,utxo4, utxo40Compressed);
+      // fromBytes
+      const utxo40Compressed = Utxo.fromBytes({
+        poseidon,
+        account: utxo4Account,
+        bytes: bytes4Compressed,
+        index: 0,
+      });
+      Utxo.equal(poseidon,utxo4, utxo40Compressed);
 
 
-    // encrypt
-    const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
-    const encBytes41 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
-    assert.equal(encBytes4.toString(), encBytes41.toString());
-    const utxo41 = await Utxo.decrypt({
-      poseidon,
-      encBytes: encBytes4,
-      account: utxo4Account,
-      index: 0,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-      transactionIndex: 0
-    });
+      // encrypt
+      const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+      const encBytes41 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+      assert.equal(encBytes4.toString(), encBytes41.toString());
+      const utxo41 = await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytes4,
+        account: utxo4Account,
+        index: 0,
+        merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
+        transactionIndex: 0
+      });
 
-    if (utxo41) {
-      Utxo.equal(poseidon,utxo4, utxo41);
-    } else {
-      throw new Error("decrypt failed");
+      if (utxo41) {
+        Utxo.equal(poseidon,utxo4, utxo41);
+      } else {
+        throw new Error("decrypt failed");
+      }
     }
+  });
+
+  it("toString", async () => {
+    const amountFee = "1";
+    const amountToken = "2";
+    const assetPubkey = MINT;
+    const seed32 = new Uint8Array(32).fill(1).toString();
+    let inputs = {
+      keypair: new Account({ poseidon, seed: seed32 }),
+      amountFee,
+      amountToken,
+      assetPubkey,
+      assets: [SystemProgram.programId, assetPubkey],
+      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
+      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      index: 1,
+    };
+
+    let utxo0 = new Utxo({
+      poseidon,
+      assets: inputs.assets,
+      amounts: inputs.amounts,
+      account: inputs.keypair,
+      blinding: inputs.blinding,
+      index: inputs.index,
+    });
+    let string = await utxo0.toString();
+    let utxo1 = Utxo.fromString(string, poseidon);
+    // cannot comput nullifier in utxo1 because no privkey is serialized with toString()
+    Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
   it("encryption", async () => {
@@ -156,12 +189,12 @@ describe("Utxo Functional", () => {
     assert.equal(utxo0.verifierAddressCircuit.toString(), "0");
     assert.equal(
       utxo0.getCommitment(poseidon)?.toString(),
-      "8989324955018347745620195382288710751873914589499358508918782406019233094196",
+      "803917460484540410745703048209593732163385783324018257001389086371334377728",
     );
 
     assert.equal(
       utxo0.getNullifier(poseidon)?.toString(),
-      "16754375772623288827522514885252653352689437303609900913797444969754165213445",
+      "906965701829730640132146210927350887320318798790103653992963879170144340009",
     );
 
     // toBytes
@@ -193,12 +226,13 @@ describe("Utxo Functional", () => {
     } else {
       throw new Error("decrypt failed");
     }
+    let pubKey = inputs.keypair.getPublicKey()
     // encrypting with nacl because this utxo's account does not have an aes secret key since it is instantiated from a public key
     const receivingUtxo = new Utxo({
       poseidon,
       assets: inputs.assets,
       amounts: inputs.amounts,
-      account: Account.fromPubkey(inputs.keypair.pubkey.toBuffer(), inputs.keypair.encryptionKeypair.publicKey, poseidon),
+      account: Account.fromPubkey(pubKey, poseidon),
       blinding: inputs.blinding,
       index: inputs.index,
     });
@@ -225,7 +259,7 @@ describe("Utxo Functional", () => {
 });
 
 describe("Utxo Errors", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
   let poseidon, inputs, keypair;
 
@@ -248,9 +282,9 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without index", async () => {
+    let publicKey = keypair.getPublicKey()
     let account = Account.fromPubkey(
-      keypair.pubKey,
-      keypair.encryptionKeypair.publicKey,
+      publicKey,
       poseidon,
     );
     let pubkeyUtxo = new Utxo({
@@ -270,9 +304,10 @@ describe("Utxo Errors", () => {
   });
 
   it("get nullifier without private key", async () => {
+    let publicKey = keypair.getPublicKey()
+
     let account = Account.fromPubkey(
-      keypair.pubKey,
-      keypair.encryptionKeypair.publicKey,
+      publicKey,
       poseidon,
     );
     let pubkeyUtxo = new Utxo({

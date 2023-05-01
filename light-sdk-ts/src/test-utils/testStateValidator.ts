@@ -304,10 +304,10 @@ export class TestStateValidator {
 
   async checkShieldedTransferReceived() {
     // assert recipient utxo
-    const userRecipient: User = await User.init(
-      this.provider,
-      this.testInputs.recipientSeed,
-    );
+    const userRecipient: User = await User.init({
+      provider: this.provider,
+      seed: this.testInputs.recipientSeed,
+    });
     let { decryptedUtxos } = await userRecipient.getUtxos(false);
     assert.equal(
       decryptedUtxos.length,

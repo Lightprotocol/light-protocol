@@ -12,6 +12,7 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
@@ -19,7 +20,7 @@ export async function functionalCircuitTest(
   app: boolean = false,
 ) {
   const poseidon = await circomlibjs.buildPoseidonOpt();
-  let seed32 = new Uint8Array(32).fill(1).toString();
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let keypair = new Account({ poseidon: poseidon, seed: seed32 });
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;

@@ -40,6 +40,7 @@ import {
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -56,7 +57,7 @@ describe("Test User", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
 
@@ -106,7 +107,7 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -149,7 +150,7 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -176,15 +177,14 @@ describe("Test User", () => {
   // not going to fix getBalance since it is already refactored in
   // a subsequent pr
   it.skip("(user class) shield SOL to recipient", async () => {
-    const senderAccountSeed = new Uint8Array(32).fill(7).toString();
+    const senderAccountSeed = bs58.encode(new Uint8Array(32).fill(7));
     const senderAccount = new Account({
       poseidon: POSEIDON,
       seed: senderAccountSeed,
     });
 
     const recipientAccountFromPubkey = Account.fromPubkey(
-      senderAccount.pubkey.toBuffer(),
-      senderAccount.encryptionKeypair.publicKey,
+      senderAccount.getPublicKey(),
       POSEIDON,
     );
 
@@ -210,8 +210,11 @@ describe("Test User", () => {
 
     await provider.provider.connection.confirmTransaction(res, "confirmed");
 
-    const userSender: User = await User.init(provider, senderAccountSeed);
-    const userRecipient: User = await User.init(provider);
+    const userSender: User = await User.init({
+      provider,
+      seed: senderAccountSeed,
+    });
+    const userRecipient: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender,
@@ -266,7 +269,7 @@ describe("Test User", () => {
       amount: new anchor.BN(0),
     });
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -295,7 +298,7 @@ describe("Test User", () => {
       token: "USDC",
       type: Action.TRANSFER,
       expectedUtxoHistoryLength: 1,
-      recipientSeed: new Uint8Array(32).fill(9).toString(),
+      recipientSeed: bs58.encode(new Uint8Array(32).fill(9)),
       expectedRecipientUtxoLength: 1,
     };
 
@@ -306,16 +309,14 @@ describe("Test User", () => {
 
     const recipientAccount = new Account({
       poseidon: POSEIDON,
-      seed: new Uint8Array(32).fill(9).toString(),
+      seed: testInputs.recipientSeed,
     });
-
     const recipientAccountFromPubkey = Account.fromPubkey(
-      recipientAccount.pubkey.toBuffer(),
-      recipientAccount.encryptionKeypair.publicKey,
+      recipientAccount.getPublicKey(),
       POSEIDON,
     );
 
-    const user: User = await User.init(provider);
+    const user: User = await User.init({ provider });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
@@ -354,7 +355,7 @@ describe("Test User", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
 
     await user.transfer({
@@ -395,9 +396,105 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
 
-    const user = await User.init(provider);
+    const user = await User.init({ provider });
     await user.unshield({ amount, token, recipient });
     // TODO: add random amount and amount checks
+  });
+
+  it.skip("(user class) shield SOL to recipient", async () => {
+    let amount = 15;
+    let token = "SOL";
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      4_000_000_000,
+    );
+    const recipientAccount = new Account({
+      poseidon: POSEIDON,
+      seed: new Uint8Array(32).fill(7).toString(),
+    });
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    const userSender: User = await User.init({ provider });
+    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const user: User = await User.init({ provider, seed: seed32 });
+
+    const preShieldedBalance = await user.getBalance({ latest: true });
+    const preSolBalance = await provider.provider.connection.getBalance(
+      userKeypair.publicKey,
+    );
+    const previousUtxos = user.utxos;
+
+    await userSender.shield({
+      publicAmountSol: amount,
+      token,
+      recipient: recipientAccount,
+    });
+    // TODO: add random amount and amount checks
+    await user.provider.latestMerkleTree();
+
+    let balance = await user.getBalance({ latest: true });
+    let solShieldedBalanceAfter = balance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+    let solShieldedBalancePre = preShieldedBalance.find(
+      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
+    );
+
+    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
+    // console.log("solShieldedBalancePre", solShieldedBalancePre);
+
+    // assert that the user's token balance has decreased by the amount shielded
+    const postSolBalance = await provider.provider.connection.getBalance(
+      userKeypair.publicKey,
+    );
+    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
+    // console.log("postSolBalance", postSolBalance);
+    // console.log("preSolBalance", preSolBalance);
+    // assert that the user's shielded balance has increased by the amount shielded
+    assert.equal(
+      solShieldedBalanceAfter.amount.toNumber(),
+      solShieldedBalancePre.amount.toNumber() +
+        amount * tokenCtx?.decimals.toNumber(),
+      `shielded balance after ${
+        solShieldedBalanceAfter.amount
+      } != shield amount ${amount * tokenCtx?.decimals.toNumber()}`,
+    );
+
+    assert.equal(
+      postSolBalance,
+      preSolBalance - amount * tokenCtx.decimals.toNumber() + tempAccountCost,
+      `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
+    );
+
+    assert.notEqual(
+      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
+      null,
+    );
+
+    assert.equal(user.utxos.length, 1);
+
+    const indexedTransactions = await provider.relayer.getIndexedTransactions(
+      provider.provider.connection,
+    );
+    const recentTransaction = indexedTransactions[0];
+    assert.equal(
+      recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
+      amount,
+    );
+    assert.equal(
+      recentTransaction.from.toBase58(),
+      provider.wallet.publicKey.toBase58(),
+    );
+    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
+    assert.equal(recentTransaction.type, Action.SHIELD);
+    assert.equal(recentTransaction.relayerFee.toString(), "0");
+    assert.equal(
+      recentTransaction.relayerRecipientSol.toBase58(),
+      PublicKey.default.toBase58(),
+    );
   });
 });
 
@@ -435,7 +532,7 @@ describe("Test User Errors", () => {
       2_000_000_000,
     );
     await provider.provider.connection.confirmTransaction(res, "confirmed");
-    user = await User.init(provider);
+    user = await User.init({ provider });
   });
   it("NO_PUBLIC_AMOUNTS_PROVIDED shield", async () => {
     await chai.assert.isRejected(

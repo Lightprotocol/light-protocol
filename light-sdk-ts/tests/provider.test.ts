@@ -14,9 +14,6 @@ const chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 import {
   Provider as LightProvider,
-  VerifierZero,
-  VerifierTwo,
-  VerifierOne,
   ProviderErrorCode,
   ADMIN_AUTH_KEYPAIR,
   MERKLE_TREE_KEY,
@@ -27,18 +24,9 @@ import {
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
 
 describe("Test Provider Functional", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
-  let depositAmount = 20_000;
-  let depositFeeAmount = 10_000;
-
-  let mockPubkey = SolanaKeypair.generate().publicKey;
-  let mockPubkey1 = SolanaKeypair.generate().publicKey;
-  let mockPubkey2 = SolanaKeypair.generate().publicKey;
-  let mockPubkey3 = SolanaKeypair.generate().publicKey;
-  let poseidon, lightProvider: LightProvider;
+  let poseidon
 
   before(async () => {
     poseidon = await circomlibjs.buildPoseidonOpt();
