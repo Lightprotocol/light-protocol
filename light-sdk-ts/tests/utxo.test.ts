@@ -8,8 +8,6 @@ const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 
-// Load chai-as-promised support
-chai.use(chaiAsPromised);
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
