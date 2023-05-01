@@ -59,58 +59,56 @@ describe("Utxo Functional", () => {
     });
   });
 
-  // 27AbWZhQDVF3aXzDopWTJZpvp2okwjcZiGubZ5PteSDaiTTvNyFSFLCtggAuX6fk7X9hp95qEkm8WRSpwFYGiW3
-
   it("rnd utxo functional loop 100", async () => {
     for (var i = 0; i < 100; i++) {
-    // try basic tests for rnd empty utxo
-    const utxo4Account = new Account({poseidon});
-    const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
+      // try basic tests for rnd empty utxo
+      const utxo4Account = new Account({poseidon});
+      const utxo4 = new Utxo({ poseidon, amounts: [new anchor.BN(123)], account:  utxo4Account, appDataHash: new anchor.BN(verifierProgramTwoProgramId.toBuffer()),includeAppData: false, verifierAddress: new PublicKey(verifierLookupTable[1]) });
 
-    // toBytes
-    const bytes4 = await utxo4.toBytes();
+      // toBytes
+      const bytes4 = await utxo4.toBytes();
 
-    // fromBytes
-    const utxo40 = Utxo.fromBytes({
-      poseidon,
-      bytes: bytes4,
-      index: 0,
-    });
-    Utxo.equal(poseidon,utxo4, utxo40);
+      // fromBytes
+      const utxo40 = Utxo.fromBytes({
+        poseidon,
+        bytes: bytes4,
+        index: 0,
+      });
+      Utxo.equal(poseidon,utxo4, utxo40);
 
-    // toBytes
-    const bytes4Compressed = await utxo4.toBytes(true);
+      // toBytes
+      const bytes4Compressed = await utxo4.toBytes(true);
 
-    // fromBytes
-    const utxo40Compressed = Utxo.fromBytes({
-      poseidon,
-      account: utxo4Account,
-      bytes: bytes4Compressed,
-      index: 0,
-    });
-    Utxo.equal(poseidon,utxo4, utxo40Compressed);
+      // fromBytes
+      const utxo40Compressed = Utxo.fromBytes({
+        poseidon,
+        account: utxo4Account,
+        bytes: bytes4Compressed,
+        index: 0,
+      });
+      Utxo.equal(poseidon,utxo4, utxo40Compressed);
 
 
-    // encrypt
-    const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
-    const encBytes41 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
-    assert.equal(encBytes4.toString(), encBytes41.toString());
-    const utxo41 = await Utxo.decrypt({
-      poseidon,
-      encBytes: encBytes4,
-      account: utxo4Account,
-      index: 0,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-      transactionIndex: 0
-    });
+      // encrypt
+      const encBytes4 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+      const encBytes41 = await utxo4.encrypt(poseidon, MERKLE_TREE_KEY, 0);
+      assert.equal(encBytes4.toString(), encBytes41.toString());
+      const utxo41 = await Utxo.decrypt({
+        poseidon,
+        encBytes: encBytes4,
+        account: utxo4Account,
+        index: 0,
+        merkleTreePdaPublicKey: MERKLE_TREE_KEY,
+        commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
+        transactionIndex: 0
+      });
 
-    if (utxo41) {
-      Utxo.equal(poseidon,utxo4, utxo41);
-    } else {
-      throw new Error("decrypt failed");
+      if (utxo41) {
+        Utxo.equal(poseidon,utxo4, utxo41);
+      } else {
+        throw new Error("decrypt failed");
+      }
     }
-  }
   });
 
   it("toString", async () => {
