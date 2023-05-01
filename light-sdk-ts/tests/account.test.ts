@@ -136,27 +136,41 @@ describe("Test Account Functional", () => {
     }
   };
 
+  const compareAccountToReference = async (account: Account, reference: any) => {
+    assert.equal(
+      account.encryptionKeypair.publicKey.toString(),
+      reference.encryptionPublicKey.toString()
+    );
+    assert.equal(
+      account.privkey.toString(),
+      reference.privkey.toString()
+    );
+    assert.equal(
+      account.pubkey.toString(),
+      reference.pubkey.toString()
+    );
+    if (reference.burnerSeed) {
+      assert.equal(
+        Array.from(kBurner.burnerSeed).toString(),
+        reference.burnerSeed.toString()
+      );
+    }
+    assert.equal(
+      (await account.signEddsa("12321")).toString(),
+      reference.eddsaSignature.toString()
+    );
+  }
+
   it("Functional", async () => {
     // generate the same keypair from seed
     compareKeypairsEqual(k0, k00);
-
-    // functional reference
-    assert.equal(
-      k0.encryptionKeypair.publicKey.toString(),
-      "246,239,160,64,108,202,122,119,186,218,229,31,22,26,16,217,91,100,166,215,150,23,31,160,171,11,70,146,121,162,63,118",
-    );
-    assert.equal(
-      k0.privkey.toString(),
-      "8005258175950153822746760972612266673018285206748118268998514552503031523041",
-    );
-    assert.equal(
-      k0.pubkey.toString(),
-      "6377640866559980556624371737408417701494249873246144458744315242624363752533",
-    );
-    assert.equal(
-      (await k0.signEddsa("12321")).toString(),
-      "49,171,181,231,94,94,233,87,62,92,132,207,160,18,252,199,169,46,131,38,9,250,202,156,232,7,147,10,62,115,216,21,224,99,163,86,218,224,115,91,107,158,231,171,120,83,79,35,221,119,92,43,69,148,166,215,39,96,194,102,65,19,238,1",
-    );
+    let referenceAccount = {
+      encryptionPublicKey: "246,239,160,64,108,202,122,119,186,218,229,31,22,26,16,217,91,100,166,215,150,23,31,160,171,11,70,146,121,162,63,118",
+      privkey: "8005258175950153822746760972612266673018285206748118268998514552503031523041",
+      pubkey: "6377640866559980556624371737408417701494249873246144458744315242624363752533",
+      eddsaSignature: "49,171,181,231,94,94,233,87,62,92,132,207,160,18,252,199,169,46,131,38,9,250,202,156,232,7,147,10,62,115,216,21,224,99,163,86,218,224,115,91,107,158,231,171,120,83,79,35,221,119,92,43,69,148,166,215,39,96,194,102,65,19,238,1"
+    };
+    await compareAccountToReference(k0, referenceAccount);
 
     let seedDiff32 = bs58.encode(new Uint8Array(32).fill(2));
     let k1 = new Account({ poseidon, seed: seedDiff32 });
@@ -165,28 +179,14 @@ describe("Test Account Functional", () => {
   });
 
   it("Burner functional", async () => {
-    // functional reference burner
-    assert.equal(
-      kBurner.encryptionKeypair.publicKey.toString(),
-      "16,138,150,240,149,102,160,39,50,184,20,203,200,49,139,7,85,228,125,46,203,5,120,152,151,35,30,68,120,245,39,57",
-    );
-    assert.equal(
-      kBurner.privkey.toString(),
-      "5505067515222742133337966884584633324908181750622530156812582813220567498363",
-    );
-    assert.equal(
-      kBurner.pubkey.toString(),
-      "3373572053317352269516743219507441053963774784739492817596773344511570546301",
-    );
-    assert.equal(
-      Array.from(kBurner.burnerSeed).toString(),
-      "21,73,66,60,60,94,31,45,240,18,81,195,45,57,152,4,115,85,189,103,253,170,190,192,190,13,46,155,92,44,145,46",
-    );
-
-    assert.equal(
-      (await kBurner.signEddsa("12321")).toString(),
-      "43,114,239,133,220,59,32,233,39,134,131,226,64,196,102,141,235,195,197,43,213,133,176,199,208,176,254,49,72,83,81,152,148,24,18,17,222,198,197,197,248,112,220,94,108,62,185,35,130,216,88,82,19,84,210,16,51,3,213,86,77,210,74,0",
-    );
+    let referenceAccount = {
+      encryptionPublicKey: "16,138,150,240,149,102,160,39,50,184,20,203,200,49,139,7,85,228,125,46,203,5,120,152,151,35,30,68,120,245,39,57",
+      privkey: "5505067515222742133337966884584633324908181750622530156812582813220567498363",
+      pubkey: "3373572053317352269516743219507441053963774784739492817596773344511570546301",
+      burnerSeed: "21,73,66,60,60,94,31,45,240,18,81,195,45,57,152,4,115,85,189,103,253,170,190,192,190,13,46,155,92,44,145,46",
+      eddsaSignature: "43,114,239,133,220,59,32,233,39,134,131,226,64,196,102,141,235,195,197,43,213,133,176,199,208,176,254,49,72,83,81,152,148,24,18,17,222,198,197,197,248,112,220,94,108,62,185,35,130,216,88,82,19,84,210,16,51,3,213,86,77,210,74,0",
+    };
+    await compareAccountToReference(kBurner, referenceAccount);
 
     // burners and regular keypair from the same seed are not equal
     compareKeypairsNotEqual(k0, kBurner, true);
