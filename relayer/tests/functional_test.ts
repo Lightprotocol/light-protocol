@@ -51,7 +51,7 @@ describe("API tests", () => {
   let poseidon;
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let previousMerkleRoot =
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
 
@@ -154,7 +154,7 @@ describe("API tests", () => {
 
     const user: User = await User.init({provider});
 
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const tokenCtx = TOKEN_REGISTRY.find((entry) => entry.symbol == token);
 
     const preShieldedBalance = await user.getBalance({ latest: true });
 
@@ -255,7 +255,7 @@ describe("API tests", () => {
       wallet: getKeyPairFromEnv("KEY_PAIR"),
     }); // userKeypair
     // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const tokenCtx = TOKEN_REGISTRY.find((entry) => entry.symbol == token);
 
     const user: User = await User.init({provider});
     const preShieldedBalance = await user.getBalance({ latest: true });

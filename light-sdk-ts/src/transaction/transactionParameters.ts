@@ -27,15 +27,15 @@ import {
   RelayerErrorCode,
   CreateUtxoErrorCode,
   selectInUtxos,
-  createOutUtxos,
   Transaction,
   Action,
-  TokenContext,
+  TokenData,
   transactionParameters,
   lightAccounts,
   IDL_VERIFIER_PROGRAM_ZERO,
   AppUtxoConfig,
   validateUtxoAmounts,
+  createOutUtxos,
 } from "../index";
 import nacl from "tweetnacl";
 const { keccak_256 } = require("@noble/hashes/sha3");
@@ -55,7 +55,7 @@ export class TransactionParameters implements transactionParameters {
   assetPubkeysCircuit: string[];
   action: Action;
   ataCreationFee?: boolean;
-  transactionIndex: number;
+  transactionNonce: number;
   txIntegrityHash?: BN;
 
   constructor({
@@ -73,7 +73,7 @@ export class TransactionParameters implements transactionParameters {
     action,
     lookUpTable,
     ataCreationFee,
-    transactionIndex,
+    transactionNonce,
     validateUtxos = true,
   }: {
     merkleTreePubkey: PublicKey;
@@ -91,7 +91,7 @@ export class TransactionParameters implements transactionParameters {
     lookUpTable?: PublicKey;
     provider?: Provider;
     ataCreationFee?: boolean;
-    transactionIndex: number;
+    transactionNonce: number;
     validateUtxos?: boolean;
   }) {
     if (!outputUtxos && !inputUtxos) {
@@ -132,7 +132,7 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    this.transactionIndex = transactionIndex;
+    this.transactionNonce = transactionNonce;
     this.verifier = verifier;
     this.poseidon = poseidon;
     this.ataCreationFee = ataCreationFee;
@@ -470,7 +470,7 @@ export class TransactionParameters implements transactionParameters {
       relayerFee: this.relayer.relayerFee,
       ...this,
       ...this.accounts,
-      transactionIndex: new BN(this.transactionIndex),
+      transactionNonce: new BN(this.transactionNonce),
     };
     return await coder.encode("transactionParameters", preparedObject);
   }
@@ -606,13 +606,13 @@ export class TransactionParameters implements transactionParameters {
     relayer,
     provider,
     ataCreationFee, // associatedTokenAccount = ata
-    transactionIndex,
+    transactionNonce,
     appUtxo,
     addInUtxos = true,
     addOutUtxos = true,
     verifier,
   }: {
-    tokenCtx: TokenContext;
+    tokenCtx: TokenData;
     publicAmountSpl?: BN;
     publicAmountSol?: BN;
     userSplAccount?: PublicKey;
@@ -626,7 +626,7 @@ export class TransactionParameters implements transactionParameters {
     provider: Provider;
     relayer?: Relayer;
     ataCreationFee?: boolean;
-    transactionIndex: number;
+    transactionNonce: number;
     appUtxo?: AppUtxoConfig;
     addInUtxos?: boolean;
     addOutUtxos?: boolean;
@@ -663,7 +663,7 @@ export class TransactionParameters implements transactionParameters {
 
     if (addInUtxos) {
       inputUtxos = selectInUtxos({
-        publicMint: tokenCtx.tokenAccount,
+        publicMint: tokenCtx.mint,
         publicAmountSpl,
         publicAmountSol,
         poseidon: provider.poseidon,
@@ -677,7 +677,7 @@ export class TransactionParameters implements transactionParameters {
     }
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
-        publicMint: tokenCtx.tokenAccount,
+        publicMint: tokenCtx.mint,
         publicAmountSpl,
         inUtxos: inputUtxos,
         publicAmountSol, // TODO: add support for extra sol for unshield & transfer
@@ -706,7 +706,7 @@ export class TransactionParameters implements transactionParameters {
       lookUpTable: provider.lookUpTable!,
       relayer: relayer,
       ataCreationFee,
-      transactionIndex,
+      transactionNonce,
     });
 
     return txParams;
@@ -1046,7 +1046,7 @@ export class TransactionParameters implements transactionParameters {
           await this.outputUtxos[utxo].encrypt(
             poseidon,
             this.accounts.transactionMerkleTree,
-            this.transactionIndex,
+            this.transactionNonce,
           ),
         );
       }

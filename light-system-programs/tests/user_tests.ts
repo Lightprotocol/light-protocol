@@ -37,6 +37,7 @@ import {
   Action,
   TestStateValidator,
   fetchNullifierAccountInfo,
+  Relayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -44,7 +45,7 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
-var RELAYER;
+var RELAYER: TestRelayer, provider: Provider;
 
 // TODO: remove deprecated function calls
 describe("Test User", () => {
@@ -52,11 +53,11 @@ describe("Test User", () => {
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 
-  const provider = anchor.AnchorProvider.local(
+  const anchorProvider = anchor.AnchorProvider.local(
     "http://127.0.0.1:8899",
     confirmConfig,
   );
-  anchor.setProvider(provider);
+  anchor.setProvider(anchorProvider);
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
   const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
@@ -64,15 +65,15 @@ describe("Test User", () => {
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
     // console.log = () => {};
-    await createTestAccounts(provider.connection);
-    LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
-    await setUpMerkleTree(provider);
+    await createTestAccounts(anchorProvider.connection);
+    LOOK_UP_TABLE = await initLookUpTableFromFile(anchorProvider);
+    await setUpMerkleTree(anchorProvider);
     // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await provider.connection.requestAirdrop(
+    await anchorProvider.connection.requestAirdrop(
       relayerRecipientSol,
       2_000_000_000,
     );
@@ -83,6 +84,10 @@ describe("Test User", () => {
       relayerRecipientSol,
       new BN(100000),
     );
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
   });
 
   it("(user class) shield SPL", async () => {
@@ -94,11 +99,6 @@ describe("Test User", () => {
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
     };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -137,11 +137,6 @@ describe("Test User", () => {
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
     };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -238,7 +233,10 @@ describe("Test User", () => {
 
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
-
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
     const testInputs = {
       amountSpl: 1,
       amountSol: 0,
@@ -247,11 +245,6 @@ describe("Test User", () => {
       recipientSpl: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -302,10 +295,10 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
+    // provider = await Provider.init({
+    //   wallet: userKeypair,
+    //   relayer: RELAYER,
+    // });
 
     const recipientAccount = new Account({
       poseidon: POSEIDON,
@@ -317,10 +310,14 @@ describe("Test User", () => {
     );
 
     const user: User = await User.init({ provider });
+    const userRecipient: User = await User.init({
+      provider,
+      seed: testInputs.recipientSeed,
+    });
 
     const testStateValidator = new TestStateValidator({
       userSender: user,
-      userRecipient: user,
+      userRecipient,
       provider,
       testInputs,
     });
@@ -334,7 +331,7 @@ describe("Test User", () => {
     });
 
     await user.provider.latestMerkleTree();
-
+    await user.getBalance();
     await testStateValidator.checkTokenTransferred();
   });
 
@@ -353,7 +350,7 @@ describe("Test User", () => {
       relayer: RELAYER,
     }); // userKeypair
     // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const tokenCtx = TOKEN_REGISTRY.get(token);
 
     const user = await User.init({ provider });
     const preShieldedBalance = await user.getBalance({ latest: true });
@@ -508,9 +505,8 @@ describe("Test User Errors", () => {
     confirmConfig,
   );
   anchor.setProvider(providerAnchor);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   let amount, token, provider, user;
   before("init test setup Merkle tree lookup table etc ", async () => {

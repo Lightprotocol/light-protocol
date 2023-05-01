@@ -43,7 +43,6 @@ export async function initLookUpTableFromFile(
   const recentSlot = (await provider.connection.getSlot("confirmed")) - 10;
 
   const payerPubkey = ADMIN_AUTH_KEYPAIR.publicKey;
-  console.log("payerPubkey: ", payerPubkey.toString());
   var [lookUpTable] = await PublicKey.findProgramAddress(
     [payerPubkey.toBuffer(), new anchor.BN(recentSlot).toBuffer("le", 8)],
     AddressLookupTableProgram.programId,

@@ -1539,6 +1539,7 @@ jsonparse@^1.2.0:
     ethereum-cryptography "^2.0.0"
     ffjavascript "^0.2.54"
     fs "^0.0.1-security"
+    lodash "^4.17.21"
     snarkjs "^0.5.0"
     tweetnacl "^1.0.3"
 

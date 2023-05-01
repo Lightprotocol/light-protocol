@@ -19,6 +19,7 @@ export enum UtxoErrorCode {
   TRANSACTION_INDEX_UNDEFINED = "TRANSACTION_INDEX_UNDEFINED",
   INVALID_APP_DATA = "INVALID_APP_DATA",
   VERIFIER_INDEX_NOT_FOUND = "VERIFIER_INDEX_NOT_FOUND",
+  ASSET_UNDEFINED = "ASSET_UNDEFINED",
 }
 
 export enum UserErrorCode {
@@ -47,6 +48,10 @@ export enum SelectInUtxosErrorCode {
   FAILED_TO_SELECT_SOL_UTXO = "FAILED_TO_SELECT_SOL_UTXO",
   FAILED_TO_FIND_UTXO_COMBINATION = "FAILED_TO_FIND_UTXO_COMBINATION",
   INVALID_NUMBER_OF_IN_UTXOS = "INVALID_NUMBER_OF_IN_UTXOS",
+}
+
+export enum TokenUtxoBalanceErrorCode {
+  UTXO_UNDEFINED = "UTXO_UNDEFINED",
 }
 
 export enum RelayerErrorCode {
@@ -217,3 +222,5 @@ export class SelectInUtxosError extends MetaError {}
 export class UserError extends MetaError {}
 
 export class UtilsError extends MetaError {}
+
+export class TokenUtxoBalanceError extends MetaError {}
