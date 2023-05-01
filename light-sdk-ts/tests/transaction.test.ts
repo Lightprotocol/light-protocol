@@ -29,13 +29,14 @@ import {
   Account,
   MerkleTree
 } from "../src";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
 
 describe("Transaction Error Tests", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -279,7 +280,7 @@ describe("Transaction Error Tests", () => {
 });
 
 describe("Transaction Functional Tests", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -533,7 +534,7 @@ describe("Transaction Functional Tests", () => {
         paramsStaticEncryptedUtxos,
         poseidon,
       ).toString(),
-      "14857171448275195680095284652077216904745885328355740301134929101899924476752",
+      "17839803697694370923785848963554456796381014485772858975068789803147218922092",
     );
   });
 

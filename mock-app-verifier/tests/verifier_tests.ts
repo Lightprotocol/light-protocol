@@ -143,8 +143,8 @@ describe("Verifier Two test", () => {
 
       const appParams0 = {
         verifier: new MockVerifier(),
-        inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-        path: circuitPath
+        inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+        path: circuitPath,
       };
       var transaction = new Transaction({
         provider: lightProvider,
@@ -187,8 +187,8 @@ describe("Verifier Two test", () => {
       });
       const appParams = {
         verifier: new MockVerifier(),
-        inputs: {testInput1: new BN(1), testInput2: new BN(1)},
-        path: circuitPath
+        inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+        path: circuitPath,
       };
       var transaction1 = new Transaction({
         provider: lightProvider,

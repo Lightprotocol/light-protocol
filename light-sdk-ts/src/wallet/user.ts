@@ -33,6 +33,9 @@ import {
   AppUtxoConfig,
   VerifierZero,
   createRecipientUtxos,
+  VerifierTwo,
+  Verifier,
+  VerifierError,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -66,6 +69,8 @@ export class User {
   recentTransactionParameters?: TransactionParameters;
   recentTransaction?: Transaction;
   approved?: boolean;
+  appUtxoConfig?: AppUtxoConfig;
+  verifier: Verifier;
 
   constructor({
     provider,
@@ -73,12 +78,16 @@ export class User {
     spentUtxos = [],
     account = undefined,
     transactionIndex,
+    verifier = new VerifierZero(),
+    appUtxoConfig,
   }: {
     provider: Provider;
     utxos?: Utxo[];
     spentUtxos?: Utxo[];
     account?: Account;
     transactionIndex?: number;
+    verifier?: Verifier;
+    appUtxoConfig?: AppUtxoConfig;
   }) {
     if (!provider.wallet)
       throw new UserError(
@@ -99,6 +108,14 @@ export class User {
     this.spentUtxos = spentUtxos;
     this.account = account;
     this.transactionIndex = transactionIndex ? transactionIndex : 0;
+    this.verifier = verifier;
+    if (appUtxoConfig && !verifier.config.isAppVerifier)
+      throw new UserError(
+        UserErrorCode.VERIFIER_IS_NOT_APP_ENABLED,
+        "constructor",
+        `appUtxo config provided as default verifier but no app enabled verifier defined`,
+      );
+    this.appUtxoConfig = appUtxoConfig;
   }
 
   async getUtxos(
@@ -653,10 +670,11 @@ export class User {
       relayer: this.provider.relayer,
       ataCreationFee,
       transactionIndex: this.transactionIndex,
-      verifier: new VerifierZero(),
+      verifier: this.verifier,
+      appUtxo: this.appUtxoConfig,
     });
     this.recentTransactionParameters = txParams;
-    return txParams;
+    return txParams; //await this.transactWithParameters({ txParams });
   }
   async transfer({
     token,
@@ -759,10 +777,11 @@ export class User {
       provider: this.provider,
       relayer: this.provider.relayer,
       transactionIndex: this.transactionIndex,
-      verifier: new VerifierZero(),
+      verifier: this.verifier,
+      appUtxo: this.appUtxoConfig,
     });
     this.recentTransactionParameters = txParams;
-    return txParams;
+    return txParams; //await this.transactWithParameters({ txParams });
   }
 
   async transactWithParameters({
@@ -772,44 +791,11 @@ export class User {
     txParams: TransactionParameters;
     appParams?: any;
   }) {
-    let tx = new Transaction({
-      provider: this.provider,
-      params: txParams,
-      appParams,
-    });
-
-    await tx.compileAndProve();
-
-    let txHash;
-    try {
-      txHash = await tx.sendAndConfirmTransaction();
-    } catch (e) {
-      throw new UserError(
-        TransactionErrorCode.SEND_TRANSACTION_FAILED,
-        "shield",
-        `Error in tx.sendAndConfirmTransaction! ${e}`,
-      );
-    }
-
-    // TODO: this needs to be revisited because other parts of the sdk still
-    // assume that either every transaction just has one key
-    // and that one transaction just contains one aes utxo
-    // increases transactionIndex for every of my own utxos
-    txParams.outputUtxos.map((utxo) => {
-      if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
-        this.transactionIndex += 1;
-      }
-    });
-
-    const response = await this.provider.relayer.updateMerkleTree(
-      this.provider,
-    );
-
-    this.spentUtxos = getUpdatedSpentUtxos(
-      txParams.inputUtxos,
-      this.spentUtxos,
-    );
-
+    this.recentTransactionParameters = txParams;
+    await this.compileAndProveTransaction(appParams);
+    await this.approve();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
     return { txHash, response };
   }
 
@@ -823,7 +809,9 @@ export class User {
     outUtxos: Utxo[];
     action: Action;
     inUtxoCommitments: string[];
-  }) {}
+  }) {
+    throw new Error("Unimplemented");
+  }
 
   // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
   // TODO: evaluate whether we could use an offline instance of user, for example to generate a proof offline, also could use this to move error test to sdk
@@ -832,8 +820,16 @@ export class User {
    * @param cachedUser - optional cached user object
    * untested for browser wallet!
    */
-
-  async init(provider: Provider, seed?: string, utxos?: Utxo[]) {
+  async init({
+    provider,
+    seed,
+    utxos,
+  }: {
+    provider: Provider;
+    seed?: string;
+    utxos?: Utxo[];
+    appUtxoConfig?: AppUtxoConfig;
+  }) {
     if (seed) {
       this.seed = seed;
       this.utxos = utxos; // TODO: potentially add encr/decryption
@@ -883,14 +879,24 @@ export class User {
    * @param utxos - Optional user utxos to instantiate from
    */
 
-  static async init(
-    provider: Provider,
-    seed?: string,
-    utxos?: Utxo[],
-  ): Promise<any> {
+  static async init({
+    provider,
+    seed,
+    utxos,
+    appUtxoConfig,
+  }: {
+    provider: Provider;
+    seed?: string;
+    utxos?: Utxo[];
+    appUtxoConfig?: AppUtxoConfig;
+  }): Promise<any> {
     try {
-      const user = new User({ provider });
-      await user.init(provider, seed, utxos);
+      let verifier: Verifier = new VerifierZero();
+      if (appUtxoConfig) {
+        verifier = new VerifierTwo();
+      }
+      const user = new User({ provider, verifier, appUtxoConfig });
+      await user.init({ provider, seed, utxos });
       return user;
     } catch (e) {
       throw new UserError(

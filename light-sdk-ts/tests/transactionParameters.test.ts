@@ -28,12 +28,13 @@ import {
   MERKLE_TREE_KEY
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
 
 describe("Transaction Parameters Functional", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -574,7 +575,7 @@ describe("Test TransactionParameters Methods", () => {
 });
 
 describe("Test General TransactionParameters Errors", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -691,7 +692,7 @@ describe("Test General TransactionParameters Errors", () => {
 });
 
 describe("Test TransactionParameters Transfer Errors", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
@@ -912,7 +913,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
 });
 
 describe("Test TransactionParameters Deposit Errors", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;
@@ -1280,7 +1281,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
 });
 
 describe("Test TransactionParameters Withdrawal Errors", () => {
-  let seed32 = new Uint8Array(32).fill(1).toString();
+    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
   let mockPubkey = SolanaKeypair.generate().publicKey;

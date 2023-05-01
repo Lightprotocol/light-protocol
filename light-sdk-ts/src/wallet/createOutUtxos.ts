@@ -310,7 +310,7 @@ export function createOutUtxos({
     throw new CreateUtxoError(
       CreateUtxoErrorCode.INVALID_OUTPUT_UTXO_LENGTH,
       "createOutUtxos",
-      `Probably too many input assets possibly in combination with an incompatible number of shielded recipients ${outputUtxos}`,
+      `Probably too many input assets possibly in combination with an incompatible number of shielded recipients`,
     );
   }
   return outputUtxos;

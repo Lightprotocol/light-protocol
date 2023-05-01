@@ -7,7 +7,9 @@ const { encrypt, decrypt } = require("ethereum-cryptography/aes");
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
+
 import { PublicKey, SystemProgram } from "@solana/web3.js";
+
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
@@ -37,6 +39,7 @@ import {
   fetchVerifierByIdLookUp,
   verifierLookupTable,
 } from "./index";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 export const newNonce = () => nacl.randomBytes(nacl.box.nonceLength);
 
@@ -422,16 +425,17 @@ export class Utxo {
       fetchAssetByIdLookUp(decodedUtxoData.splAssetIndex),
     ];
 
-    // TODO: make lookup function and or tie to idl
     verifierAddress = fetchVerifierByIdLookUp(
       decodedUtxoData.verifierAddressIndex,
     );
     if (!account) {
-      account = Account.fromPubkey(
-        decodedUtxoData.accountShieldedPublicKey.toBuffer(),
-        decodedUtxoData.accountEncryptionPublicKey,
-        poseidon,
+      let concatPublicKey = bs58.encode(
+        new Uint8Array([
+          ...decodedUtxoData.accountShieldedPublicKey.toArray("be", 32),
+          ...decodedUtxoData.accountEncryptionPublicKey,
+        ]),
       );
+      account = Account.fromPubkey(concatPublicKey, poseidon);
     }
 
     return new Utxo({
@@ -718,6 +722,26 @@ export class Utxo {
         return null;
       }
     }
+  }
+
+  /**
+   * Creates a new Utxo from a given base58 encoded string.
+   * @static
+   * @param {string} string - The base58 encoded string representation of the Utxo.
+   * @returns {Utxo} The newly created Utxo.
+   */
+  static fromString(string: string, poseidon: any): Utxo {
+    return Utxo.fromBytes({ bytes: bs58.decode(string), poseidon });
+  }
+
+  /**
+   * Converts the Utxo instance into a base58 encoded string.
+   * @async
+   * @returns {Promise<string>} A promise that resolves to the base58 encoded string representation of the Utxo.
+   */
+  async toString(): Promise<string> {
+    const bytes = await this.toBytes();
+    return bs58.encode(bytes);
   }
 
   /**
