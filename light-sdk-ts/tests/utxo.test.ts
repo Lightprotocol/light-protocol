@@ -109,7 +109,6 @@ describe("Utxo Functional", () => {
         throw new Error("decrypt failed");
       }
     }
-  }
   });
 
   it("toString", async () => {
