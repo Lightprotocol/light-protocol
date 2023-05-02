@@ -601,7 +601,7 @@ describe("Merkle Tree Tests", () => {
       action: Action.SHIELD,
       lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON,
-      transactionIndex: 0,
+      transactionNonce: 0,
     });
     var transaction = new Transaction({
       provider: lightProvider,

@@ -1,10 +1,10 @@
 import { PublicKey } from "@solana/web3.js";
 import { BN } from "@coral-xyz/anchor";
 
-export type TokenContext = {
+export type TokenData = {
   symbol: string;
   decimals: BN;
-  tokenAccount: PublicKey;
   isNft: boolean;
-  isSol: boolean;
+  isNative: boolean;
+  mint: PublicKey;
 };

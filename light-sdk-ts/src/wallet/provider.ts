@@ -194,8 +194,6 @@ export class Provider {
         poseidon: this.poseidon,
         provider: this.provider,
       });
-
-      console.log("✔️ building merkletree done");
       this.solMerkleTree = mt;
     } catch (err) {
       console.error(err);

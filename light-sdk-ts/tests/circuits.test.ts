@@ -85,7 +85,7 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionIndex: 0
+      transactionNonce: 0
     });
 
     txParamsSol = new TransactionParameters({
@@ -97,7 +97,7 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionIndex: 0
+      transactionNonce: 0
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -126,7 +126,7 @@ describe("Masp circuit tests", () => {
       recipientSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
     appData = {testInput1: new anchor.BN(1), testInput2: new anchor.BN(1)};
     txParamsApp = new TransactionParameters({
@@ -145,7 +145,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
     txParamsPoolType = new TransactionParameters({
       inputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
@@ -157,7 +157,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
     txParamsPoolTypeOut = new TransactionParameters({
       outputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
@@ -169,7 +169,7 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
     txParamsOutApp = new TransactionParameters({
       outputUtxos: [
@@ -188,7 +188,7 @@ describe("Masp circuit tests", () => {
       poseidon,
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionIndex: 0
+      transactionNonce: 0
     });
   });
 
@@ -671,7 +671,7 @@ describe("App system circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionIndex: 0
+      transactionNonce: 0
     });
 
     relayer = new Relayer(
@@ -696,7 +696,7 @@ describe("App system circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionIndex: 0
+      transactionNonce: 0
     });
   });
 

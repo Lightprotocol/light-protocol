@@ -69,19 +69,19 @@ describe("Test selectInUtxos Functional", () => {
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
-    tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
       poseidon,
-      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(6 * tokenCtx.decimals)],
       index: 0,
       account: utxo1Burner
     });
     utxo2 = new Utxo({
       poseidon,
-      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
       account: utxo2Burner
@@ -319,18 +319,18 @@ describe("Test selectInUtxos Errors", () => {
     splAmount = new BN(3);
     solAmount = new BN(1e6);
     token = "USDC";
-    tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx) throw new Error("Token not supported!");
     splAmount = splAmount.mul(new BN(tokenCtx.decimals));
     utxo1 = new Utxo({
       poseidon,
-      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
     });
     utxo2 = new Utxo({
       poseidon,
-      assets: [SystemProgram.programId, tokenCtx.tokenAccount],
+      assets: [SystemProgram.programId, tokenCtx.mint],
       amounts: [new BN(1e6), new BN(5 * tokenCtx.decimals)],
       index: 0,
     });

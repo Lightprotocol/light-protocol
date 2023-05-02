@@ -16,7 +16,6 @@ import {
   UserError,
   UserErrorCode,
   Provider,
-  getAccountUtxos,
   SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
@@ -36,16 +35,15 @@ import {
   VerifierTwo,
   Verifier,
   VerifierError,
+  Balance,
+  InboxBalance,
+  TokenUtxoBalance,
+  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+  decryptAddUtxoToBalance,
+  fetchNullifierAccountInfo,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
-
-export type Balance = {
-  symbol: string;
-  amount: BN;
-  tokenAccount: PublicKey;
-  decimals: BN;
-};
 
 // TODO: Utxos should be assigned to a merkle tree
 // TODO: evaluate optimization to store keypairs separately or store utxos in a map<Keypair, Utxo> to not store Keypairs repeatedly
@@ -58,34 +56,32 @@ export type Balance = {
  * @param utxos User utxos (optional)
  *
  */
-// TODO: add "balances, pending Balances, incoming utxos " / or find a better alternative
 export class User {
   provider: Provider;
-  account?: Account;
-  utxos?: Utxo[];
-  spentUtxos?: Utxo[];
+  account: Account;
   private seed?: string;
-  transactionIndex: number;
   recentTransactionParameters?: TransactionParameters;
   recentTransaction?: Transaction;
   approved?: boolean;
   appUtxoConfig?: AppUtxoConfig;
   verifier: Verifier;
+  balance: Balance;
+  inboxBalance: InboxBalance;
 
   constructor({
     provider,
-    utxos = [],
-    spentUtxos = [],
-    account = undefined,
-    transactionIndex,
+    serializedUtxos, // balance
+    serialiezdSpentUtxos, // inboxBalance idk
+    account,
+    transactionNonce,
     verifier = new VerifierZero(),
     appUtxoConfig,
   }: {
     provider: Provider;
-    utxos?: Utxo[];
-    spentUtxos?: Utxo[];
-    account?: Account;
-    transactionIndex?: number;
+    serializedUtxos?: Buffer;
+    serialiezdSpentUtxos?: Buffer;
+    account: Account;
+    transactionNonce?: number;
     verifier?: Verifier;
     appUtxoConfig?: AppUtxoConfig;
   }) {
@@ -104,10 +100,7 @@ export class User {
       );
 
     this.provider = provider;
-    this.utxos = utxos;
-    this.spentUtxos = spentUtxos;
     this.account = account;
-    this.transactionIndex = transactionIndex ? transactionIndex : 0;
     this.verifier = verifier;
     if (appUtxoConfig && !verifier.config.isAppVerifier)
       throw new UserError(
@@ -116,53 +109,138 @@ export class User {
         `appUtxo config provided as default verifier but no app enabled verifier defined`,
       );
     this.appUtxoConfig = appUtxoConfig;
+    this.balance = {
+      tokenBalances: new Map([
+        [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
+      ]),
+      transactionNonce: 0,
+      committedTransactionNonce: 0,
+      decryptionTransactionNonce: 0,
+      totalSolBalance: new BN(0),
+    };
+    this.inboxBalance = {
+      tokenBalances: new Map([
+        [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
+      ]),
+      transactionNonce: 0,
+      committedTransactionNonce: 0,
+      numberInboxUtxos: 0,
+      decryptionTransactionNonce: 0,
+      totalSolBalance: new BN(0),
+    };
   }
 
-  async getUtxos(
+  // TODO: should update merkle tree as well
+  // TODO: test robustness
+  // TODO: nonce incrementing is very ugly revisit
+  async syncState(
     aes: boolean = true,
-  ): Promise<{ decryptedUtxos: Utxo[]; spentUtxos: Utxo[] }> {
+    balance: Balance | InboxBalance,
+    merkleTreePdaPublicKey: PublicKey,
+  ): Promise<Balance | InboxBalance> {
+    // reduce balance by spent utxos
+    if (!this.provider.provider)
+      throw new UserError(
+        UserErrorCode.PROVIDER_NOT_INITIALIZED,
+        "syncStat",
+        "provider is undefined",
+      );
+
+    // identify spent utxos
+    for (var [token, tokenBalance] of balance.tokenBalances) {
+      for (var [key, utxo] of tokenBalance.utxos) {
+        let nullifierAccountInfo = await fetchNullifierAccountInfo(
+          utxo.getNullifier(this.provider.poseidon)!,
+          this.provider.provider.connection,
+        );
+        if (nullifierAccountInfo !== null) {
+          tokenBalance.movetToSpentUtxos(key);
+        }
+      }
+    }
+
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(
       MERKLE_TREE_KEY,
       this.provider.provider,
     );
 
-    //TODO: add: "pending" to balances
-    //TODO: add init by cached (subset of leavesPdas)
-    const params = {
-      leavesPdas,
-      provider: this.provider.provider!,
-      account: this.account!,
-      poseidon: this.provider.poseidon,
-      merkleTreeProgram: merkleTreeProgramId,
-      merkleTree: this.provider.solMerkleTree!.merkleTree!,
-      transactionIndex: 0,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      aes,
-    };
-    // does only aes encrypted change utxos, nacl encrypted utxos from
-    const { decryptedUtxos, spentUtxos, transactionIndex } =
-      await getAccountUtxos(params);
+    if (!this.provider)
+      throw new UserError(ProviderErrorCode.PROVIDER_UNDEFINED, "syncState");
+    if (!this.provider.provider)
+      throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
+    // TODO: adapt to indexedTransactions such that this works with verifier two for
+    var decryptionTransactionNonce = balance.decryptionTransactionNonce;
+    for (var leafPda of leavesPdas) {
+      // transaction nonce is the same for all utxos in one transaction
+      const tmpNonce = decryptionTransactionNonce;
+      decryptionTransactionNonce = await decryptAddUtxoToBalance({
+        encBytes: Buffer.from(
+          leafPda.account.encryptedUtxos.slice(
+            0,
+            NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+          ),
+        ),
+        index: leafPda.account.leftLeafIndex.toNumber(),
+        commitment: Buffer.from([...leafPda.account.nodeLeft]),
+        account: this.account,
+        poseidon: this.provider.poseidon,
+        connection: this.provider.provider.connection,
+        balance,
+        merkleTreePdaPublicKey,
+        leftLeaf: Uint8Array.from([...leafPda.account.nodeLeft]),
+        aes,
+        decryptionTransactionNonce: tmpNonce,
+      });
+      const decryptionTransactionNonce1 = await decryptAddUtxoToBalance({
+        encBytes: Buffer.from(
+          leafPda.account.encryptedUtxos.slice(
+            128,
+            128 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+          ),
+        ),
+        index: leafPda.account.leftLeafIndex.toNumber() + 1,
+        commitment: Buffer.from([...leafPda.account.nodeRight]),
+        account: this.account,
+        poseidon: this.provider.poseidon,
+        connection: this.provider.provider.connection,
+        balance,
+        merkleTreePdaPublicKey,
+        leftLeaf: Uint8Array.from([...leafPda.account.nodeLeft]),
+        aes,
+        decryptionTransactionNonce: tmpNonce,
+      });
+      // handle case that only one utxo decrypted and assign incremented decryption transaction nonce accordingly
+      decryptionTransactionNonce = decryptionTransactionNonce
+        ? decryptionTransactionNonce
+        : decryptionTransactionNonce1;
+    }
 
-    this.transactionIndex = transactionIndex;
-    this.utxos = decryptedUtxos;
-    this.spentUtxos = spentUtxos;
-    console.log("✔️ updated utxos", this.utxos.length);
-    console.log("✔️ spent updated utxos", this.spentUtxos.length);
-    return { decryptedUtxos, spentUtxos };
+    balance.transactionNonce = decryptionTransactionNonce;
+    // caclulate total sol balance
+    const calaculateTotalSolBalance = (balance: Balance) => {
+      let totalSolBalance = new BN(0);
+      for (var tokenBalance of balance.tokenBalances.values()) {
+        totalSolBalance = totalSolBalance.add(tokenBalance.totalBalanceSol);
+      }
+      return totalSolBalance;
+    };
+
+    balance.totalSolBalance = calaculateTotalSolBalance(balance);
+    return balance;
   }
 
-  async getBalance({
-    latest = true,
-  }: {
-    latest?: boolean;
-  }): Promise<Balance[]> {
-    const balances: Balance[] = [];
-    if (!this.utxos)
-      throw new UserError(
-        UserErrorCode.UTXOS_NOT_INITIALIZED,
-        "getBalances",
-        "Utxos not initialized",
-      );
+  /**
+   * returns all non-accepted utxos.
+   * would not be part of the main balance
+   */
+  async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
+    if (latest) {
+      await this.syncState(false, this.inboxBalance, MERKLE_TREE_KEY);
+    }
+    return this.inboxBalance;
+  }
+
+  async getBalance(latest: boolean = true): Promise<Balance> {
     if (!this.account)
       throw new UserError(
         UserErrorCode.UTXOS_NOT_INITIALIZED,
@@ -193,56 +271,10 @@ export class User {
       );
 
     if (latest) {
-      await this.getUtxos();
-    } else {
-      console.log("✔️ read utxos from cache", this.utxos.length);
+      await this.syncState(true, this.balance, MERKLE_TREE_KEY);
     }
-
-    // add permissioned tokens to balance display
-    TOKEN_REGISTRY.forEach((token) => {
-      balances.push({
-        symbol: token.symbol,
-        amount: new BN(0),
-        tokenAccount: token.tokenAccount,
-        decimals: token.decimals,
-      });
-    });
-
-    this.utxos.forEach((utxo) => {
-      utxo.assets.forEach((asset, i) => {
-        const tokenAccount = asset;
-        const amount = utxo.amounts[i];
-
-        const existingBalance = balances.find(
-          (balance) =>
-            balance.tokenAccount.toBase58() === tokenAccount.toBase58(),
-        );
-        if (existingBalance) {
-          existingBalance.amount = existingBalance.amount.add(amount);
-        } else {
-          let tokenData = TOKEN_REGISTRY.find(
-            (t) => t.tokenAccount.toBase58() === tokenAccount.toBase58(),
-          );
-          if (!tokenData)
-            throw new UserError(
-              UserErrorCode.TOKEN_NOT_FOUND,
-              "getBalance",
-              `Token ${tokenAccount.toBase58()} not found in registry`,
-            );
-          balances.push({
-            symbol: tokenData.symbol,
-            amount,
-            tokenAccount,
-            decimals: tokenData.decimals,
-          });
-        }
-      });
-    });
-    // TODO: add "pending" balances,
-    return balances;
+    return this.balance;
   }
-
-  // TODO: in UI, support wallet switching, "prefill option with button"
 
   /**
    *
@@ -260,6 +292,7 @@ export class User {
     senderTokenAccount,
     minimumLamports = true,
     appUtxo,
+    mergeExistingUtxos = true,
   }: {
     token: string;
     recipient?: Account;
@@ -268,6 +301,7 @@ export class User {
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
+    mergeExistingUtxos?: boolean;
   }): Promise<TransactionParameters> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
@@ -297,14 +331,14 @@ export class User {
         "Provider not set!",
       );
 
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    let tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
         "shield",
         "Token not supported!",
       );
-    if (tokenCtx.isSol && senderTokenAccount)
+    if (tokenCtx.isNative && senderTokenAccount)
       throw new UserError(
         UserErrorCode.TOKEN_ACCOUNT_DEFINED,
         "shield",
@@ -322,17 +356,22 @@ export class User {
       ? this.provider.minimumLamports
       : new BN(0);
 
-    // TODO: refactor this is ugly
-    if (!tokenCtx.isSol && publicAmountSpl) {
+    if (!tokenCtx.isNative && publicAmountSpl) {
       if (senderTokenAccount) {
         userSplAccount = senderTokenAccount;
       } else {
         userSplAccount = splToken.getAssociatedTokenAddressSync(
-          tokenCtx!.tokenAccount,
+          tokenCtx!.mint,
           this.provider!.wallet!.publicKey,
         );
       }
     }
+    // TODO: add get utxos as array method
+    let utxosEntries = this.balance.tokenBalances
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
+    let utxos: Utxo[] =
+      utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
     let outUtxos: Utxo[] = [];
     if (recipient) {
       outUtxos.push(
@@ -347,20 +386,23 @@ export class User {
           appData: appUtxo?.appData,
         }),
       );
+      // no merging of utxos when shielding to another recipient
+      mergeExistingUtxos = false;
+      utxos = [];
     }
 
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.SHIELD,
       account: this.account,
-      utxos: this.utxos,
+      utxos,
       publicAmountSol,
       publicAmountSpl,
       userSplAccount,
       provider: this.provider,
-      transactionIndex: this.transactionIndex,
+      transactionNonce: this.balance.transactionNonce,
       appUtxo,
-      verifier: new VerifierZero(),
+      verifier: this.verifier,
       outUtxos,
       addInUtxos: recipient ? false : true,
       addOutUtxos: recipient ? false : true,
@@ -473,17 +515,13 @@ export class User {
         `Error in tx.sendAndConfirmTransaction! ${e}`,
       );
     }
-    this.transactionIndex += 1;
-
-    // TODO: this needs to be revisited because other parts of the sdk still
-    // assume that either every transaction just has one key
-    // and that one transaction just contains one aes utxo
-    // increases transactionIndex for every of my own utxos
+    let transactionContainsEncryptedUtxo = false;
     this.recentTransactionParameters?.outputUtxos.map((utxo) => {
       if (utxo.account.pubkey.toString() === this.account?.pubkey.toString()) {
-        this.transactionIndex += 1;
+        transactionContainsEncryptedUtxo = true;
       }
     });
+    this.balance.transactionNonce += 1;
     return txHash;
   }
 
@@ -492,12 +530,14 @@ export class User {
       this.provider,
     );
 
-    if (this.recentTransactionParameters) {
-      this.spentUtxos = getUpdatedSpentUtxos(
-        this.recentTransactionParameters.inputUtxos,
-        this.spentUtxos,
-      );
-    }
+    // TODO: update
+    // if (this.recentTransactionParameters) {
+    //   this.spentUtxos = getUpdatedSpentUtxos(
+    //     this.recentTransactionParameters.inputUtxos,
+    //     this.spentUtxos,
+    //   );
+    // }
+
     this.recentTransaction = undefined;
     this.recentTransactionParameters = undefined;
     this.approved = undefined;
@@ -577,7 +617,7 @@ export class User {
 
   // TODO: add unshieldSol and unshieldSpl
   // TODO: add optional passs-in token mint
-  // TODO: add pass-in tokenAccount
+  // TODO: add pass-in mint
   /**
    * @params token: string
    * @params amount: number - in base units (e.g. lamports for 'SOL')
@@ -599,7 +639,7 @@ export class User {
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
   }) {
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
@@ -628,7 +668,7 @@ export class User {
 
     let ataCreationFee = false;
 
-    if (!tokenCtx.isSol && publicAmountSpl) {
+    if (!tokenCtx.isNative && publicAmountSpl) {
       let tokenBalance = await this.provider.connection?.getTokenAccountBalance(
         recipientSpl,
       );
@@ -637,7 +677,7 @@ export class User {
         ataCreationFee = true;
       }
       recipientSpl = splToken.getAssociatedTokenAddressSync(
-        tokenCtx!.tokenAccount,
+        tokenCtx!.mint,
         recipientSpl,
       );
     }
@@ -656,29 +696,42 @@ export class User {
       : minimumLamports
       ? this.provider.minimumLamports
       : new BN(0);
+    let utxosEntries = this.balance.tokenBalances
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
+    let solUtxos = this.balance.tokenBalances
+      .get(SystemProgram.programId.toBase58())
+      ?.utxos.values();
+    let utxosEntriesSol: Utxo[] =
+      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
+
+    let utxos: Utxo[] = utxosEntries
+      ? Array.from([...utxosEntries, ...utxosEntriesSol])
+      : [];
 
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       publicAmountSpl: _publicSplAmount,
       action: Action.UNSHIELD,
       account: this.account,
-      utxos: this.utxos,
+      utxos,
       publicAmountSol: _publicSolAmount,
       recipientSol: recipientSol,
       recipientSplAddress: recipientSpl,
       provider: this.provider,
       relayer: this.provider.relayer,
       ataCreationFee,
-      transactionIndex: this.transactionIndex,
+      transactionNonce: this.balance.transactionNonce,
       verifier: this.verifier,
       appUtxo: this.appUtxoConfig,
     });
     this.recentTransactionParameters = txParams;
     return txParams; //await this.transactWithParameters({ txParams });
   }
+
+  // TODO: replace recipient with recipient light publickey
   async transfer({
     token,
-    // alternatively we could use the recipient type here as well
     recipient,
     amountSpl,
     amountSol,
@@ -703,6 +756,7 @@ export class User {
     const response = await this.updateMerkleTree();
     return { txHash, response };
   }
+
   // TODO: add separate lookup function for users.
   // TODO: add account parsing from and to string which is concat shielded pubkey and encryption key
   /**
@@ -715,7 +769,6 @@ export class User {
    */
   async createTransferTransactionParameters({
     token,
-    // alternatively we could use the recipient type here as well
     recipient,
     amountSpl,
     amountSol,
@@ -740,7 +793,7 @@ export class User {
         "transfer",
         "Need to provide at least one amount for an unshield",
       );
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
+    const tokenCtx = TOKEN_REGISTRY.get(token);
     if (!tokenCtx)
       throw new UserError(
         UserErrorCode.TOKEN_NOT_FOUND,
@@ -759,7 +812,7 @@ export class User {
     let outUtxos = createRecipientUtxos({
       recipients: [
         {
-          mint: tokenCtx.tokenAccount,
+          mint: tokenCtx.mint,
           account: recipient,
           solAmount: parsedSolAmount,
           splAmount: parsedSplAmount,
@@ -768,15 +821,29 @@ export class User {
       ],
       poseidon: this.provider.poseidon,
     });
+    let utxosEntries = this.balance.tokenBalances
+      .get(tokenCtx.mint.toBase58())
+      ?.utxos.values();
+    let solUtxos = this.balance.tokenBalances
+      .get(SystemProgram.programId.toBase58())
+      ?.utxos.values();
+
+    let utxosEntriesSol: Utxo[] =
+      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
+
+    let utxos: Utxo[] = utxosEntries
+      ? Array.from([...utxosEntries, ...utxosEntriesSol])
+      : [];
+
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,
       action: Action.TRANSFER,
       account: this.account,
-      utxos: this.utxos,
+      utxos,
       outUtxos,
       provider: this.provider,
       relayer: this.provider.relayer,
-      transactionIndex: this.transactionIndex,
+      transactionNonce: this.balance.transactionNonce,
       verifier: this.verifier,
       appUtxo: this.appUtxoConfig,
     });
@@ -813,65 +880,6 @@ export class User {
     throw new Error("Unimplemented");
   }
 
-  // TODO: consider removing payer property completely -> let user pass in the payer for 'load' and for 'shield' only.
-  // TODO: evaluate whether we could use an offline instance of user, for example to generate a proof offline, also could use this to move error test to sdk
-  /**
-   *
-   * @param cachedUser - optional cached user object
-   * untested for browser wallet!
-   */
-  async init({
-    provider,
-    seed,
-    utxos,
-  }: {
-    provider: Provider;
-    seed?: string;
-    utxos?: Utxo[];
-    appUtxoConfig?: AppUtxoConfig;
-  }) {
-    if (seed) {
-      this.seed = seed;
-      this.utxos = utxos; // TODO: potentially add encr/decryption
-      if (!provider)
-        throw new UserError(
-          ProviderErrorCode.PROVIDER_UNDEFINED,
-          "load",
-          "No provider provided",
-        );
-      this.provider = provider;
-    }
-    if (!this.seed) {
-      if (this.provider.wallet) {
-        const signature: Uint8Array = await this.provider.wallet.signMessage(
-          message,
-        );
-        this.seed = new anchor.BN(signature).toString();
-      } else {
-        throw new UserError(
-          UserErrorCode.NO_WALLET_PROVIDED,
-          "load",
-          "No payer or browser wallet provided",
-        );
-      }
-    }
-
-    // get the provider?
-    if (!this.provider.poseidon) {
-      this.provider.poseidon = await circomlibjs.buildPoseidonOpt();
-    }
-    if (!this.account) {
-      this.account = new Account({
-        poseidon: this.provider.poseidon,
-        seed: this.seed,
-      });
-    }
-
-    // TODO: optimize: fetch once, then filter
-    await this.getUtxos();
-  }
-
-  // TODO: we need a non-anchor version of "provider" - (bundle functionality exposed by the wallet adapter into own provider-like class)
   /**
    *
    * @param provider - Light provider
@@ -884,19 +892,47 @@ export class User {
     seed,
     utxos,
     appUtxoConfig,
+    account,
   }: {
     provider: Provider;
     seed?: string;
     utxos?: Utxo[];
     appUtxoConfig?: AppUtxoConfig;
+    account?: Account;
   }): Promise<any> {
     try {
       let verifier: Verifier = new VerifierZero();
       if (appUtxoConfig) {
         verifier = new VerifierTwo();
       }
-      const user = new User({ provider, verifier, appUtxoConfig });
-      await user.init({ provider, seed, utxos });
+
+      if (!seed) {
+        if (provider.wallet) {
+          const signature: Uint8Array = await provider.wallet.signMessage(
+            message,
+          );
+          seed = new anchor.BN(signature).toString();
+        } else {
+          throw new UserError(
+            UserErrorCode.NO_WALLET_PROVIDED,
+            "load",
+            "No payer or browser wallet provided",
+          );
+        }
+      }
+      if (!provider.poseidon) {
+        provider.poseidon = await circomlibjs.buildPoseidonOpt();
+      }
+      if (!account) {
+        account = new Account({
+          poseidon: provider.poseidon,
+          seed,
+        });
+      }
+      const user = new User({ provider, verifier, appUtxoConfig, account });
+
+      await user.getBalance();
+
       return user;
     } catch (e) {
       throw new UserError(
@@ -907,7 +943,6 @@ export class User {
     }
   }
 
-  // TODO: find clean way to support this (accepting/rejecting utxos, checking "available balance"),...
   /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1)
    * check *after* ACTION whether we can still merge in more.
    * TODO: add dust tagging protection (skip dust utxos)
@@ -923,12 +958,7 @@ export class User {
   }
   // TODO: add proof-of-origin call.
   // TODO: merge with getUtxoStatus?
-  // returns all non-accepted utxos.
-  // we'd like to enforce some kind of sanitary controls here.
-  // would not be part of the main balance
-  getUtxoInbox() {
-    throw new Error("not implemented yet");
-  }
+
   getUtxoStatus() {
     throw new Error("not implemented yet");
   }

@@ -15,6 +15,7 @@
     "test-createOutUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/createOutUtxos.test.ts --exit",
     "test-provider": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/provider.test.ts --exit",
     "test-selectInUtxos": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/selectInUtxos.test.ts --exit",
+    "test-balance": "ts-mocha --resolveJsonModule ./tsconfig.json -t 100000000 tests/balance.test.ts --exit",
     "build": "yarn tsc",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "lint": "prettier \"src/**/*{ts,js}\" --check",
@@ -49,7 +50,8 @@
     "ffjavascript": "^0.2.54",
     "fs": "^0.0.1-security",
     "snarkjs": "^0.5.0",
-    "tweetnacl": "^1.0.3"
+    "tweetnacl": "^1.0.3",
+    "lodash": "^4.17.21"
   },
   "devDependencies": {
     "@types/bn.js": "^5.1.0",
@@ -60,7 +62,6 @@
     "chai": "^4.3.4",
     "chai-as-promised": "^7.1.1",
     "husky": "^8.0.3",
-    "lodash": "^4.17.21",
     "mocha": "^10.2.0",
     "prettier": "^2.6.2",
     "ts-mocha": "^10.0.0",

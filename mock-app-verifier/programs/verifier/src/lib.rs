@@ -200,7 +200,6 @@ pub struct Utxo {
     test_input1: u256,
     test_input2: u256,
 }
-
 #[account]
 pub struct UtxoAppData {
     test_input1: u256,

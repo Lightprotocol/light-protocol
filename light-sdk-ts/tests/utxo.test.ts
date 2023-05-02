@@ -8,6 +8,8 @@ const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
 
+// Load chai-as-promised support
+chai.use(chaiAsPromised);
 import {
   FEE_ASSET,
   hashAndTruncateToCircuit,
@@ -98,7 +100,7 @@ describe("Utxo Functional", () => {
         index: 0,
         merkleTreePdaPublicKey: MERKLE_TREE_KEY,
         commitment: new anchor.BN(utxo4.getCommitment(poseidon)).toBuffer("le", 32),
-        transactionIndex: 0
+        transactionNonce: 0
       });
 
       if (utxo41) {
@@ -107,6 +109,36 @@ describe("Utxo Functional", () => {
         throw new Error("decrypt failed");
       }
     }
+  });
+
+  it("toString", async () => {
+    const amountFee = "1";
+    const amountToken = "2";
+    const assetPubkey = MINT;
+    const seed32 = new Uint8Array(32).fill(1).toString();
+    let inputs = {
+      keypair: new Account({ poseidon, seed: seed32 }),
+      amountFee,
+      amountToken,
+      assetPubkey,
+      assets: [SystemProgram.programId, assetPubkey],
+      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
+      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
+      index: 1,
+    };
+
+    let utxo0 = new Utxo({
+      poseidon,
+      assets: inputs.assets,
+      amounts: inputs.amounts,
+      account: inputs.keypair,
+      blinding: inputs.blinding,
+      index: inputs.index,
+    });
+    let string = await utxo0.toString();
+    let utxo1 = Utxo.fromString(string, poseidon);
+    // cannot comput nullifier in utxo1 because no privkey is serialized with toString()
+    Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
   it("toString", async () => {
@@ -218,7 +250,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      transactionIndex: 0,
+      transactionNonce: 0,
       commitment: new anchor.BN(utxo1.getCommitment(poseidon)).toBuffer("le", 32),
     });
     if (utxo3) {
@@ -246,7 +278,7 @@ describe("Utxo Functional", () => {
       account: inputs.keypair,
       index: inputs.index,
       merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-      transactionIndex: 0,
+      transactionNonce: 0,
       aes: false,
       commitment: new anchor.BN(receivingUtxo.getCommitment(poseidon)).toBuffer("le", 32),
     });

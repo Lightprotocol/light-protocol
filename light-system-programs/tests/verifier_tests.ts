@@ -131,7 +131,7 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex: 0,
+        transactionNonce: 0,
       });
 
       var transaction = new Transaction({
@@ -171,7 +171,7 @@ describe("Verifier Zero and One Tests", () => {
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
-        transactionIndex: 1,
+        transactionNonce: 1,
       });
 
       var transaction1 = new Transaction({
@@ -203,7 +203,7 @@ describe("Verifier Zero and One Tests", () => {
         relayer: RELAYER,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
-        transactionIndex: 2,
+        transactionNonce: 2,
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,
