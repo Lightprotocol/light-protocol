@@ -35,8 +35,6 @@ export async function updateMerkleTreeForTest(
       leavesPdas,
       transactionMerkleTree: MERKLE_TREE_KEY,
     });
-
-    console.log("updateMerkleTreeForTest done");
   } catch (err) {
     console.error("failed at updateMerkleTreeForTest", err);
     throw err;

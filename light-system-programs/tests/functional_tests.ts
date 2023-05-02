@@ -1,9 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  SystemProgram,
-  Keypair as SolanaKeypair,
-  PublicKey,
-} from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import { assert } from "chai";
 
@@ -28,7 +24,6 @@ import {
   Provider,
   KEYPAIR_PRIVKEY,
   AUTHORITY_ONE,
-  newAccountWithTokens,
   USER_TOKEN_ACCOUNT,
   createTestAccounts,
   userTokenAccount,
@@ -42,12 +37,8 @@ import {
   verifierStorageProgramId,
   User,
   IDL_VERIFIER_PROGRAM_STORAGE,
-  strToArr,
-  RECIPIENT_TOKEN_ACCOUNT,
-  TOKEN_REGISTRY,
   Action,
   TestRelayer,
-  getAccountUtxos,
   TestTransaction,
 } from "light-sdk";
 
@@ -291,7 +282,7 @@ describe("verifier_program", () => {
         poseidon: POSEIDON,
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
-        transactionIndex: 0,
+        transactionNonce: 0,
       });
       let transactionTester = new TestTransaction({
         txParams,
@@ -369,7 +360,7 @@ describe("verifier_program", () => {
         lookUpTable: LOOK_UP_TABLE,
         action: Action.SHIELD,
         poseidon: POSEIDON,
-        transactionIndex: 1,
+        transactionNonce: 1,
       });
       let transactionTester = new TestTransaction({
         txParams,
@@ -401,33 +392,24 @@ describe("verifier_program", () => {
 
   it("Withdraw", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon,
-    });
-
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-
-    let { decryptedUtxos } = await getAccountUtxos({
-      leavesPdas,
-      provider,
-      account: KEYPAIR,
-      poseidon: POSEIDON,
-      transactionIndex: 0,
-      aes: true,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-    });
-
-    const origin = new anchor.web3.Account();
-    var tokenRecipient = recipientTokenAccount;
 
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
     });
+    let user: User = await User.init({
+      provider: lightProvider,
+      account: KEYPAIR,
+    });
+
+    const origin = new anchor.web3.Account();
+    var tokenRecipient = recipientTokenAccount;
 
     let txParams = new TransactionParameters({
-      inputUtxos: [decryptedUtxos[0]],
+      inputUtxos: [
+        user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+          .value,
+      ],
       merkleTreePubkey: MERKLE_TREE_KEY,
       recipientSpl: tokenRecipient,
       recipientSol: origin.publicKey,
@@ -435,7 +417,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon,
-      transactionIndex: 2,
+      transactionNonce: 2,
     });
     let transactionTester = new TestTransaction({
       txParams,
@@ -468,36 +450,23 @@ describe("verifier_program", () => {
   it("Withdraw 10 utxos", async () => {
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
-    let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      MERKLE_TREE_KEY,
-    );
-
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
-      poseidon: POSEIDON,
-    });
-
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(MERKLE_TREE_KEY);
-
-    let { decryptedUtxos } = await getAccountUtxos({
-      leavesPdas,
-      provider,
-      account: KEYPAIR,
-      poseidon: POSEIDON,
-      transactionIndex: 0,
-      aes: true,
-      merkleTreePdaPublicKey: MERKLE_TREE_KEY,
-    });
-
-    let inputUtxos: Utxo[] = [];
-    inputUtxos.push(decryptedUtxos[0]);
-
-    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
     const recipientSol = SolanaKeypair.generate().publicKey;
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
       relayer: RELAYER,
     });
+
+    let user: User = await User.init({
+      provider: lightProvider,
+      account: KEYPAIR,
+    });
+    let inputUtxos: Utxo[] = [];
+    inputUtxos.push(
+      user.balance.tokenBalances.get(MINT.toBase58()).utxos.values().next()
+        .value,
+    );
+
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
     await lightProvider.provider!.connection.confirmTransaction(
       await lightProvider.provider!.connection.requestAirdrop(
@@ -530,7 +499,7 @@ describe("verifier_program", () => {
       relayer: RELAYER,
       poseidon: POSEIDON,
       action: Action.UNSHIELD,
-      transactionIndex: 3,
+      transactionNonce: 3,
     });
     let transactionTester = new TestTransaction({
       txParams,

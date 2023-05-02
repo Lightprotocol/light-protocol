@@ -291,12 +291,12 @@ export async function createTestAccounts(
   let balanceUserToken: null | any = null;
   let userSplAccount: PublicKey | null = null;
   try {
-    let tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === "USDC");
+    let tokenCtx = TOKEN_REGISTRY.get("USDC");
     if (userTokenAccount) {
       userSplAccount = userTokenAccount;
     } else {
       userSplAccount = getAssociatedTokenAddressSync(
-        tokenCtx!.tokenAccount,
+        tokenCtx!.mint,
         ADMIN_AUTH_KEYPAIR.publicKey,
       );
     }

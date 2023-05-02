@@ -119,6 +119,17 @@ export const fetchNullifierAccountInfo = async (
   return connection.getAccountInfo(nullifierPubkey, "confirmed");
 };
 
+export const fetchQueuedLeavesAccountInfo = async (
+  leftLeaf: Uint8Array,
+  connection: Connection,
+) => {
+  const queuedLeavesPubkey = PublicKey.findProgramAddressSync(
+    [leftLeaf, anchor.utils.bytes.utf8.encode("leaves")],
+    merkleTreeProgramId,
+  )[0];
+  return connection.getAccountInfo(queuedLeavesPubkey, "confirmed");
+};
+
 export const sleep = (ms: number) => {
   return new Promise((resolve) => setTimeout(resolve, ms));
 };

@@ -316,7 +316,7 @@ export class TestTransaction {
           encBytes: this.params!.encryptedUtxos!,
           account: account ? account : this.params!.outputUtxos![0].account,
           index: 0, // this is just a placeholder
-          transactionIndex: this.params!.transactionIndex,
+          transactionNonce: this.params!.transactionNonce,
           merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
           commitment: new BN(
             this.params!.outputUtxos![0].getCommitment(this.provider.poseidon),

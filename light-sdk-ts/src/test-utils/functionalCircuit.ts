@@ -43,7 +43,7 @@ export async function functionalCircuitTest(
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,
-    transactionIndex: 0,
+    transactionNonce: 0,
   });
 
   let tx;
