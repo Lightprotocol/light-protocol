@@ -164,8 +164,10 @@ export class User {
       this.provider.provider,
     );
 
-    if (!this.provider) throw new Error("provider ");
-    if (!this.provider.provider) throw new Error("provider.provider ");
+    if (!this.provider)
+      throw new UserError(ProviderErrorCode.PROVIDER_UNDEFINED, "syncState");
+    if (!this.provider.provider)
+      throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
     // TODO: adapt to indexedTransactions such that this works with verifier two for
     var decryptionTransactionNonce = balance.decryptionTransactionNonce;
     for (var leafPda of leavesPdas) {
