@@ -700,9 +700,8 @@ export class User {
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-    let utxosEntriesSol: Utxo[] = solUtxos
-      ? Array.from(solUtxos)
-      : new Array<Utxo>();
+    let utxosEntriesSol: Utxo[] =
+      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
     let utxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
@@ -826,9 +825,9 @@ export class User {
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-    let utxosEntriesSol: Utxo[] = solUtxos
-      ? Array.from(solUtxos)
-      : new Array<Utxo>();
+
+    let utxosEntriesSol: Utxo[] =
+      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
 
     let utxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])

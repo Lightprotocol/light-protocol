@@ -3,6 +3,7 @@ import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import chai, { assert, use } from "chai";
 import chaiHttp from "chai-http";
 import express from "express";
+
 import {
   Account,
   DEFAULT_ZERO,
@@ -56,7 +57,6 @@ describe("API tests", () => {
     "15800883723037093133305280672853871715176051618981698111580373208012928757479";
 
   before(async () => {
-    console.log("Initing accounts");
     poseidon = await circomlibjs.buildPoseidonOpt();
     await testSetup();
   });
@@ -121,7 +121,6 @@ describe("API tests", () => {
       .post("/updatemerkletree")
       .end((err, res) => {
         expect(res).to.have.status(500);
-        console.log(res.body);
         assert.isTrue(
           res.body.message.includes("Error Message: InvalidNumberOfLeaves."),
         );
@@ -133,8 +132,6 @@ describe("API tests", () => {
   it("should shield and update merkle tree", async () => {
     let amount = 15;
     let token = "SOL";
-
-    console.log(getKeyPairFromEnv("KEY_PAIR").publicKey.toString());
 
     const provider = await Provider.init({
       wallet: getKeyPairFromEnv("KEY_PAIR"),
@@ -157,14 +154,15 @@ describe("API tests", () => {
     const tokenCtx = TOKEN_REGISTRY.get(token);
 
     const preShieldedBalance = await user.getBalance();
-
+    let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toBase58())?.totalBalanceSol;
+    
     await user.shield({ publicAmountSol: amount, token });
 
     await user.provider.latestMerkleTree();
 
     let balance = await user.getBalance();
-    let solShieldedBalanceAfter = balance.tokenBalances.get(tokenCtx!.mint.toBase58())?.totalBalanceSol;
-    let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(tokenCtx!.mint.toBase58())?.totalBalanceSol;
+
+    let solShieldedBalanceAfter = balance.tokenBalances.get(SystemProgram.programId.toBase58())?.totalBalanceSol;
 
     assert.equal(
       solShieldedBalanceAfter!.toNumber(),
@@ -255,6 +253,7 @@ describe("API tests", () => {
 
     const user: User = await User.init({provider});
     const preShieldedBalance = await user.getBalance();
+    let solBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toString())?.totalBalanceSol;
 
     await user.unshield({
       publicAmountSol: amount,
@@ -268,7 +267,6 @@ describe("API tests", () => {
 
     // assert that the user's sol shielded balance has decreased by fee
     let solBalanceAfter = balance.tokenBalances.get(SystemProgram.programId.toString())?.totalBalanceSol;
-    let solBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toString())?.totalBalanceSol;
 
     assert.equal(
       solBalanceAfter!.toNumber(),
