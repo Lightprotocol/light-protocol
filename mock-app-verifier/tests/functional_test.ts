@@ -21,6 +21,7 @@ import {
   hashAndTruncateToCircuit,
   createAccountObject,
   TestTransaction,
+  IDL_VERIFIER_PROGRAM_TWO,
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
@@ -30,7 +31,7 @@ import {
 import { marketPlaceVerifierProgramId, MockVerifier } from "../sdk/src/index";
 
 import { buildPoseidonOpt } from "circomlibjs";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
@@ -150,12 +151,14 @@ describe("Mock verifier functional", () => {
       action: Action.SHIELD,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
 
     const appParams = {
       verifier: new MockVerifier(),
       inputs: { testInput1: new BN(1), testInput2: new BN(1) },
       path: circuitPath,
+      verifierIdl: IDL,
     };
 
     let transactionTester = new TestTransaction({
@@ -214,11 +217,13 @@ describe("Mock verifier functional", () => {
       poseidon,
       relayer: RELAYER,
       transactionNonce: 1,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
     const appParams = {
       verifier: new MockVerifier(),
       inputs: { testInput1: new BN(1), testInput2: new BN(1) },
       path: circuitPath,
+      verifierIdl: IDL,
     };
     let transactionTester = new TestTransaction({
       txParams,

@@ -3,7 +3,7 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // Load chai-as-promised support
 chai.use(chaiAsPromised);
-import { SystemProgram, Keypair as SolanaKeypair } from "@solana/web3.js";
+import { SystemProgram, Keypair as SolanaKeypair, PublicKey } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { buildPoseidonOpt } from "circomlibjs";
@@ -22,6 +22,8 @@ import {
   Transaction,
   TransactionParameters,
   Action,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_TWO
 } from "../src";
 import { MerkleTree } from "../src/merkleTree/merkleTree";
 import { IDL } from "./testData/mock_verifier";
@@ -85,7 +87,8 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
 
     txParamsSol = new TransactionParameters({
@@ -97,7 +100,8 @@ describe("Masp circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -126,7 +130,8 @@ describe("Masp circuit tests", () => {
       recipientSol: lightProvider.wallet.publicKey,
       action: Action.UNSHIELD,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     appData = { testInput1: new anchor.BN(1), testInput2: new anchor.BN(1) };
     txParamsApp = new TransactionParameters({
@@ -145,7 +150,8 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
     });
     txParamsPoolType = new TransactionParameters({
       inputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
@@ -157,7 +163,8 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     txParamsPoolTypeOut = new TransactionParameters({
       outputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
@@ -169,7 +176,8 @@ describe("Masp circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     txParamsOutApp = new TransactionParameters({
       outputUtxos: [
@@ -188,7 +196,8 @@ describe("Masp circuit tests", () => {
       poseidon,
       // automatic encryption for app utxos is not implemented
       encryptedUtxos: new Uint8Array(256).fill(1),
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
   });
 
@@ -199,7 +208,8 @@ describe("Masp circuit tests", () => {
       params: txParams,
     });
     await tx.compile();
-    tx.proofInputSystem.root = new anchor.BN("123").toString();
+    tx.proofInput.root = new anchor.BN("123").toString();
+
     await tx.getProof();
   });
 
@@ -209,7 +219,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
     await tx.compile();
-    tx.proofInputSystem.root = new anchor.BN("123").toString();
+    tx.proofInput.root = new anchor.BN("123").toString();
     await chai.assert.isRejected(
       tx.getProof(),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -237,7 +247,7 @@ describe("Masp circuit tests", () => {
       params: txParams,
     });
     await tx.compile();
-    tx.proofInputSystem.publicMintPubkey = hashAndTruncateToCircuit(
+    tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
     await chai.assert.isRejected(
@@ -252,7 +262,7 @@ describe("Masp circuit tests", () => {
       params: paramsWithdrawal,
     });
     await tx.compile();
-    tx.proofInputSystem.publicMintPubkey = hashAndTruncateToCircuit(
+    tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
     await chai.assert.isRejected(
@@ -268,7 +278,7 @@ describe("Masp circuit tests", () => {
       params: txParamsSol,
     });
     await tx.compile();
-    tx.proofInputSystem.publicMintPubkey = hashAndTruncateToCircuit(
+    tx.proofInput.publicMintPubkey = hashAndTruncateToCircuit(
       SolanaKeypair.generate().publicKey.toBytes(),
     );
     await tx.getProof();
@@ -281,7 +291,7 @@ describe("Masp circuit tests", () => {
     });
     await tx.compile();
 
-    tx.proofInputSystem.inPathElements[0] =
+    tx.proofInput.inPathElements[0] =
       tx.provider.solMerkleTree?.merkleTree.path(1).pathElements;
     await chai.assert.isRejected(
       tx.getProof(),
@@ -296,7 +306,7 @@ describe("Masp circuit tests", () => {
     });
     await tx.compile();
 
-    tx.proofInputSystem.inPathIndices[0] = 1;
+    tx.proofInput.inPathIndices[0] = 1;
     await chai.assert.isRejected(
       tx.getProof(),
       TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -310,7 +320,7 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    tx.proofInputSystem.inPrivateKey[0] = new anchor.BN("123").toString();
+    tx.proofInput.inPrivateKey[0] = new anchor.BN("123").toString();
 
     await chai.assert.isRejected(
       tx.getProof(),
@@ -325,7 +335,7 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    tx.proofInputSystem.publicAmountSpl = new anchor.BN("123").toString();
+    tx.proofInput.publicAmountSpl = new anchor.BN("123").toString();
 
     await chai.assert.isRejected(
       tx.getProof(),
@@ -340,7 +350,7 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    tx.proofInputSystem.publicAmountSol = new anchor.BN("123").toString();
+    tx.proofInput.publicAmountSol = new anchor.BN("123").toString();
 
     await chai.assert.isRejected(
       tx.getProof(),
@@ -355,7 +365,7 @@ describe("Masp circuit tests", () => {
     });
 
     await tx.compile();
-    tx.proofInputSystem.publicAmountSpl = new anchor.BN("123").toString();
+    tx.proofInput.publicAmountSpl = new anchor.BN("123").toString();
 
     await chai.assert.isRejected(
       tx.getProof(),
@@ -479,7 +489,7 @@ describe("Masp circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParamsApp,
-      appParams: { mock: "1231" },
+      appParams: { mock: "1231" , verifier: { pubkey: new PublicKey(0) } }
     });
 
     await tx.compile();
@@ -671,7 +681,8 @@ describe("App system circuit tests", () => {
       lookUpTable: mockPubkey,
       action: Action.SHIELD,
       poseidon,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
     });
 
     relayer = new Relayer(
@@ -696,7 +707,8 @@ describe("App system circuit tests", () => {
       action: Action.UNSHIELD,
       poseidon,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
     });
   });
 
@@ -704,7 +716,7 @@ describe("App system circuit tests", () => {
     var tx: Transaction = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123" },
+      appParams: { mock: "123", verifier: { pubkey: new PublicKey(0) } },
     });
     await tx.compile();
 

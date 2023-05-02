@@ -44,8 +44,9 @@ import {
   IndexedTransaction,
   getUserIndexTransactions,
   UserIndexedTransaction,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "../index";
-
+import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
 // TODO: Utxos should be assigned to a merkle tree
@@ -80,6 +81,7 @@ export class User {
     transactionNonce,
     verifier = new VerifierZero(),
     appUtxoConfig,
+    verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
   }: {
     provider: Provider;
     serializedUtxos?: Buffer;
@@ -88,6 +90,7 @@ export class User {
     transactionNonce?: number;
     verifier?: Verifier;
     appUtxoConfig?: AppUtxoConfig;
+    verifierIdl?: Idl;
   }) {
     if (!provider.wallet)
       throw new UserError(
@@ -428,6 +431,7 @@ export class User {
       outUtxos,
       addInUtxos: recipient ? false : true,
       addOutUtxos: recipient ? false : true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -750,6 +754,7 @@ export class User {
       transactionNonce: this.balance.transactionNonce,
       verifier: this.verifier,
       appUtxo: this.appUtxoConfig,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     this.recentTransactionParameters = txParams;
     return txParams; //await this.transactWithParameters({ txParams });
@@ -876,6 +881,7 @@ export class User {
       transactionNonce: this.balance.transactionNonce,
       verifier: this.verifier,
       appUtxo: this.appUtxoConfig,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     this.recentTransactionParameters = txParams;
     return txParams; //await this.transactWithParameters({ txParams });

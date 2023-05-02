@@ -62,8 +62,8 @@ export class VerifierOne implements Verifier {
       txIntegrityHash: publicInputsBytes[2],
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
-      nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
-      leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
+      inputNullifier: Array.from(publicInputsBytes.slice(5, 15)),
+      outputCommitment: [publicInputsBytes[15], publicInputsBytes[16]],
     };
   }
 
@@ -128,8 +128,8 @@ export class VerifierOne implements Verifier {
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         transaction.transactionInputs.publicInputs.publicAmountSpl,
-        transaction.transactionInputs.publicInputs.nullifiers,
-        transaction.transactionInputs.publicInputs.leaves[0],
+        transaction.transactionInputs.publicInputs.inputNullifier,
+        transaction.transactionInputs.publicInputs.outputCommitment,
         transaction.transactionInputs.publicInputs.publicAmountSol,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
         new anchor.BN(

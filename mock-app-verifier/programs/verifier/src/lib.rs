@@ -48,7 +48,7 @@ pub mod mock_verifier {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
         public_amount_spl: [u8; 32],
         nullifiers: [[u8; 32]; 4],
-        leaves: [[[u8; 32]; 2]; 2],
+        leaves: [[u8; 32]; 4],
         public_amount_sol: [u8; 32],
         root_index: u64,
         relayer_fee: u64,

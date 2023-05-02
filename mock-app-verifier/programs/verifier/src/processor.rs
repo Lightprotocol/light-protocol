@@ -29,7 +29,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     proof_c: &'a [u8; 64],
     public_amount_spl: &'a [u8; 32],
     nullifiers: &'a [[u8; 32]; 4],
-    leaves: &'a [[[u8; 32]; 2]; 2],
+    leaves: &'a [[u8; 32]; 4],
     public_amount_sol: &'a [u8; 32],
     checked_public_inputs: &'a Vec<Vec<u8>>,
     encrypted_utxos: &'a Vec<u8>,
@@ -37,6 +37,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     root_index: &'a u64,
     relayer_fee: &'a u64,
 ) -> Result<()> {
+    let leaves = [[leaves[0], leaves[1]], [leaves[2], leaves[3]]];
     let tx = Transaction::<2, 4, TransactionsConfig>::new(
         None,
         proof_a,
@@ -46,7 +47,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
         public_amount_sol,
         checked_public_inputs,
         nullifiers,
-        leaves,
+        &leaves,
         encrypted_utxos,
         *relayer_fee,
         (*root_index).try_into().unwrap(),

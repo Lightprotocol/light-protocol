@@ -12,8 +12,8 @@ export type PublicInputs = {
   txIntegrityHash: Array<number>;
   publicAmountSol: Array<number>;
   publicMintPubkey: Array<number>;
-  nullifiers: Array<Array<number>>;
-  leaves: Array<Array<Array<number>>>;
+  inputNullifier: Array<Array<number>>;
+  outputCommitment: Array<Array<number>>;
   // only for app verifiers
   transactionHash?: Array<number>;
   checkedParams?: Array<Array<number>>;

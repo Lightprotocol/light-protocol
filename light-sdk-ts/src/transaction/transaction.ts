@@ -19,10 +19,13 @@ import {
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "types/accounts";
-const snarkjs = require("snarkjs");
+import { Prover } from "./prover";
+
 var ffjavascript = require("ffjavascript");
 const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
+const path = require("path");
+import { Idl } from "@coral-xyz/anchor";
 // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
 
 // add verifier class which is passed in with the constructor
@@ -61,7 +64,7 @@ export class Transaction {
   };
 
   proofInput: any;
-  proofInputSystem: any;
+  firstPath!: string;
 
   /**
    * Initialize transaction
@@ -180,18 +183,25 @@ export class Transaction {
 
   async compileAndProve() {
     await this.compile();
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        "compileAndProve",
+      );
     await this.getProof();
     if (this.appParams) {
       await this.getAppProof();
     }
     await this.getRootIndex();
-    await this.getPdaAddresses();
+    this.getPdaAddresses();
   }
 
   /**
    * @description Prepares proof inputs.
    */
   async compile() {
+    this.firstPath = path.resolve(__dirname, "../../build-circuits/");
+
     this.shuffleUtxos(this.params.inputUtxos);
     this.shuffleUtxos(this.params.outputUtxos);
 
@@ -199,7 +209,6 @@ export class Transaction {
       throw new TransactionError(
         ProviderErrorCode.SOL_MERKLE_TREE_UNDEFINED,
         "getProofInput",
-        "",
       );
     await this.params.getTxIntegrityHash(this.provider.poseidon);
     if (!this.params.txIntegrityHash)
@@ -211,12 +220,11 @@ export class Transaction {
     const { inputMerklePathIndices, inputMerklePathElements } =
       Transaction.getMerkleProofs(this.provider, this.params.inputUtxos);
 
-    this.proofInputSystem = {
+    this.proofInput = {
       root: this.provider.solMerkleTree.merkleTree.root(),
       inputNullifier: this.params.inputUtxos.map((x) =>
         x.getNullifier(this.provider.poseidon),
       ),
-      // TODO: move public and fee amounts into tx preparation
       publicAmountSpl: this.params.publicAmountSpl.toString(),
       publicAmountSol: this.params.publicAmountSol.toString(),
       publicMintPubkey: this.getMint(),
@@ -224,8 +232,6 @@ export class Transaction {
       inPathIndices: inputMerklePathIndices,
       inPathElements: inputMerklePathElements,
       internalTxIntegrityHash: this.params.txIntegrityHash.toString(),
-    };
-    this.proofInput = {
       transactionVersion: "0",
       txIntegrityHash: this.params.txIntegrityHash.toString(),
       outputCommitment: this.params.outputUtxos.map((x) =>
@@ -256,7 +262,16 @@ export class Transaction {
         this.params,
         this.provider.poseidon,
       );
+
       this.proofInput.publicAppVerifier = this.appParams.verifier?.pubkey;
+
+      this.proofInput = {
+        ...this.appParams.inputs,
+        ...this.proofInput,
+        inPublicKey: this.params?.inputUtxos?.map(
+          (utxo) => utxo.account.pubkey,
+        ),
+      };
     }
   }
 
@@ -274,75 +289,59 @@ export class Transaction {
     }
   }
 
+  async getProof() {
+    const res = await this.getProofInternal(this.params, this.firstPath);
+    this.transactionInputs.proofBytes = res.parsedProof;
+    this.transactionInputs.publicInputs = res.parsedPublicInputsObject;
+  }
+
   async getAppProof() {
     if (!this.appParams)
       throw new TransactionError(
         TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
         "getAppProof",
-        "",
+      );
+    if (!this.appParams.path)
+      throw new TransactionError(
+        TransactionErrorCode.FIRST_PATH_APP_UNDEFINED,
+        "getAppProof",
+        "app path is undefined it needs to be defined in appParams",
       );
 
-    this.appParams.inputs.transactionHash = Transaction.getTransactionHash(
-      this.params,
-      this.provider.poseidon,
-    );
-
-    let { proofBytes, publicInputs } = await this.getProofInternal(
-      this.appParams.verifier,
-      {
-        ...this.appParams.inputs,
-        ...this.proofInput,
-        inPublicKey: this.params?.inputUtxos?.map(
-          (utxo) => utxo.account.pubkey,
-        ),
-      },
+    const res = await this.getProofInternal(
+      this.appParams,
       this.appParams.path,
     );
-
-    this.transactionInputs.proofBytesApp = proofBytes;
-    this.transactionInputs.publicInputsApp = publicInputs;
+    this.transactionInputs.proofBytesApp = res.parsedProof;
+    this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
   }
 
-  async getProof() {
-    const path = require("path");
-    const firstPath = path.resolve(__dirname, "../../build-circuits/");
-
-    if (!this.params.verifier)
-      throw new TransactionError(
-        TransactionErrorCode.VERIFIER_UNDEFINED,
-        "getProof",
-        "",
-      );
-
-    let { proofBytes, publicInputs } = await this.getProofInternal(
-      this.params?.verifier,
-      { ...this.proofInput, ...this.proofInputSystem },
-      firstPath,
-    );
-    this.transactionInputs.proofBytes = proofBytes;
-    this.transactionInputs.publicInputs = publicInputs;
-  }
-
-  async getProofInternal(verifier: Verifier, inputs: any, firstPath: string) {
+  async getProofInternal(
+    params: TransactionParameters | any,
+    firstPath: string,
+  ) {
     if (!this.proofInput)
       throw new TransactionError(
         TransactionErrorCode.PROOF_INPUT_UNDEFINED,
-        "transaction not compiled",
+        "getProofInternal",
       );
-
-    const completePathWtns = firstPath + "/" + verifier.wtnsGenPath;
-    const completePathZkey = firstPath + "/" + verifier.zkeyPath;
-    console.time("Proof generation");
-
-    var proof, publicSignals;
+    if (!this.params)
+      throw new TransactionError(
+        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+        "getProofInternal",
+      );
+    if (!this.params.verifierIdl)
+      throw new TransactionError(
+        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+        "getProofInternal",
+        "verifierIdl is missing in TransactionParameters",
+      );
+    let prover = new Prover(params.verifierIdl, firstPath);
+    await prover.addProofInputs(this.proofInput);
+    console.time("Proof generation + Parsing");
     try {
-      let res = await snarkjs.groth16.fullProve(
-        stringifyBigInts(inputs),
-        completePathWtns,
-        completePathZkey,
-      );
-      proof = res.proof;
-      publicSignals = res.publicSignals;
+      var { parsedProof, parsedPublicInputs } =
+        await prover.fullProveAndParse();
     } catch (error) {
       throw new TransactionError(
         TransactionErrorCode.PROOF_GENERATION_FAILED,
@@ -350,40 +349,18 @@ export class Transaction {
         error,
       );
     }
+    console.timeEnd("Proof generation + Parsing");
 
-    console.timeEnd("Proof generation");
-
-    const vKey = await snarkjs.zKey.exportVerificationKey(completePathZkey);
-    const res = await snarkjs.groth16.verify(vKey, publicSignals, proof);
+    const res = await prover.verify();
     if (res !== true) {
       throw new TransactionError(
         TransactionErrorCode.INVALID_PROOF,
         "getProofInternal",
       );
     }
-    const proofJson = JSON.stringify(proof, null, 1);
-    const publicInputsJson = JSON.stringify(publicSignals, null, 1);
-    try {
-      var publicInputsBytesJson = JSON.parse(publicInputsJson.toString());
-      var publicInputsBytes = new Array<Array<number>>();
-      for (var i in publicInputsBytesJson) {
-        let ref: Array<number> = Array.from([
-          ...leInt2Buff(unstringifyBigInts(publicInputsBytesJson[i]), 32),
-        ]).reverse();
-        publicInputsBytes.push(ref);
-        // TODO: replace ref, error is that le and be do not seem to be consistent
-        // new BN(publicInputsBytesJson[i], "le").toArray("be",32)
-        // assert.equal(ref.toString(), publicInputsBytes[publicInputsBytes.length -1].toString());
-      }
-      const publicInputs =
-        verifier.parsePublicInputsFromArray(publicInputsBytes);
-
-      const proofBytes = await Transaction.parseProofToBytesArray(proofJson);
-      return { proofBytes, publicInputs };
-    } catch (error) {
-      console.error("error while generating and validating proof");
-      throw error;
-    }
+    const parsedPublicInputsObject =
+      prover.parsePublicInputsFromArray(parsedPublicInputs);
+    return { parsedProof, parsedPublicInputsObject };
   }
 
   static getTransactionHash(
@@ -804,7 +781,7 @@ export class Transaction {
         "Remaining accounts undefined",
       );
 
-    let nullifiers = this.transactionInputs.publicInputs.nullifiers;
+    let nullifiers = this.transactionInputs.publicInputs.inputNullifier;
     let signer = this.params.relayer.accounts.relayerPubkey;
 
     this.remainingAccounts.nullifierPdaPubkeys = [];
@@ -820,10 +797,11 @@ export class Transaction {
     }
 
     this.remainingAccounts.leavesPdaPubkeys = [];
+
     for (
       var j = 0;
-      j < this.transactionInputs.publicInputs.leaves.length;
-      j++
+      j < this.transactionInputs.publicInputs.outputCommitment.length;
+      j += 2
     ) {
       this.remainingAccounts.leavesPdaPubkeys.push({
         isSigner: false,
@@ -832,7 +810,7 @@ export class Transaction {
           [
             Buffer.from(
               Array.from(
-                this.transactionInputs.publicInputs.leaves[j][0],
+                this.transactionInputs.publicInputs.outputCommitment[j],
               ).reverse(),
             ),
             utils.bytes.utf8.encode("leaves"),
@@ -880,37 +858,6 @@ export class Transaction {
     }
 
     return utxos;
-  }
-
-  // also converts lE to BE
-  static async parseProofToBytesArray(data: any) {
-    var mydata = JSON.parse(data.toString());
-
-    for (var i in mydata) {
-      if (i == "pi_a" || i == "pi_c") {
-        for (var j in mydata[i]) {
-          mydata[i][j] = Array.from(
-            leInt2Buff(unstringifyBigInts(mydata[i][j]), 32),
-          ).reverse();
-        }
-      } else if (i == "pi_b") {
-        for (var j in mydata[i]) {
-          for (var z in mydata[i][j]) {
-            mydata[i][j][z] = Array.from(
-              leInt2Buff(unstringifyBigInts(mydata[i][j][z]), 32),
-            );
-          }
-        }
-      }
-    }
-    return {
-      proofA: [mydata.pi_a[0], mydata.pi_a[1]].flat(),
-      proofB: [
-        mydata.pi_b[0].flat().reverse(),
-        mydata.pi_b[1].flat().reverse(),
-      ].flat(),
-      proofC: [mydata.pi_c[0], mydata.pi_c[1]].flat(),
-    };
   }
 
   static getTokenAuthority(): PublicKey {

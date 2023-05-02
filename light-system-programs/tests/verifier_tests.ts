@@ -35,6 +35,8 @@ import {
   Action,
   useWallet,
   TestRelayer,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -58,7 +60,8 @@ describe("Verifier Zero and One Tests", () => {
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
   var depositAmount, depositFeeAmount;
-  const verifiers = [new VerifierZero(), new VerifierOne()];
+  const VERIFIERS = [new VerifierZero(), new VerifierOne()];
+  const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE];
 
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
@@ -91,7 +94,7 @@ describe("Verifier Zero and One Tests", () => {
     depositFeeAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       console.log("verifier ", verifier.toString());
 
       await token.approve(
@@ -100,7 +103,7 @@ describe("Verifier Zero and One Tests", () => {
         userTokenAccount,
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[verifier].verifierProgram!.programId,
+          VERIFIERS[verifier].verifierProgram!.programId,
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositAmount * 10,
@@ -127,11 +130,12 @@ describe("Verifier Zero and One Tests", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
         transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
 
       var transaction = new Transaction({
@@ -167,11 +171,12 @@ describe("Verifier Zero and One Tests", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
         transactionNonce: 1,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
 
       var transaction1 = new Transaction({
@@ -199,11 +204,12 @@ describe("Verifier Zero and One Tests", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         relayer: RELAYER,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
         transactionNonce: 2,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,
@@ -354,8 +360,8 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong nullifier", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.transactionInputs.publicInputs.nullifiers) {
-        tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(
+      for (var i in tmp_tx.transactionInputs.publicInputs.inputNullifier) {
+        tmp_tx.transactionInputs.publicInputs.inputNullifier[i] = new Array(
           32,
         ).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
@@ -366,10 +372,10 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong leaves", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
-        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
-          2,
-        );
+      for (var i in tmp_tx.transactionInputs.publicInputs.outputCommitment) {
+        tmp_tx.transactionInputs.publicInputs.outputCommitment[i] = new Array(
+          32,
+        ).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }

@@ -5,12 +5,12 @@
     "build-circuit": "sh ./scripts/buildCircuit.sh",
     "format": "prettier --write \"src/**/*.{ts,js}\"",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
-    "test": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'",
-    "test-app-utxo": "ts-mocha -p ./tsconfig.json -t 1000000 tests/appUtxo.test.ts --exit"
+    "test-functional": "sh runTest.sh 'ts-mocha -p ./tsconfig.json -t 1000000 tests/functional_test.ts --exit'",
+    "test-app-utxo": "ts-mocha -p ./tsconfig.json -t 1000000 tests/appUtxo.test.ts --exit",
+    "test": "yarn test-functional && yarn test-verifiers && yarn test-app-utxo"
   },
   "dependencies": {
     "@coral-xyz/anchor": "^0.27.0",
-    "@project-serum/anchor": "^0.24.1",
     "@solana/spl-account-compression": "^0.1.5",
     "@solana/spl-token": "0.3.7",
     "@solana/web3.js": "^1.73.3",

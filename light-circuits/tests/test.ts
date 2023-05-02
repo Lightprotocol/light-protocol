@@ -13,6 +13,9 @@ import {
   VerifierOne,
   Action,
   functionalCircuitTest,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_TWO
 } from "light-sdk";
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
@@ -38,14 +41,14 @@ describe("verifier_program", () => {
   });
 
   it("Test functional circuit 2 in 2 out", async () => {
-    await functionalCircuitTest(new VerifierZero());
+    await functionalCircuitTest(new VerifierZero(), false, IDL_VERIFIER_PROGRAM_ZERO);
   });
 
   it("Test functional circuit 10 in 2 out", async () => {
-    await functionalCircuitTest(new VerifierOne());
+    await functionalCircuitTest(new VerifierOne(), false, IDL_VERIFIER_PROGRAM_ONE);
   });
 
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(new VerifierTwo(), true);
+    await functionalCircuitTest(new VerifierTwo(), true, IDL_VERIFIER_PROGRAM_TWO);
   });
 });
