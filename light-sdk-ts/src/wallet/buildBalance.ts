@@ -177,16 +177,17 @@ export async function decryptAddUtxoToBalance({
         tokenBalanceUsdc,
       );
     }
-    const assetKey = decryptedUtxo.assets[queuedLeavesPdaExists ? 1 : assetIndex].toBase58();
-    const utxoType = queuedLeavesPdaExists ? "committedUtxos" : (nullifierExists ? "spentUtxos" : "utxos");
+    const assetKey =
+      decryptedUtxo.assets[queuedLeavesPdaExists ? 1 : assetIndex].toBase58();
+    const utxoType = queuedLeavesPdaExists
+      ? "committedUtxos"
+      : nullifierExists
+      ? "spentUtxos"
+      : "utxos";
 
     let addedUtxo = balance.tokenBalances
       .get(assetKey)
-      ?.addUtxo(
-        decryptedUtxo.getCommitment(poseidon),
-        decryptedUtxo,
-        utxoType,
-      );
+      ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
   }
   return decryptionTransactionNonce;
 }
