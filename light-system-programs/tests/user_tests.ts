@@ -652,7 +652,9 @@ describe("Test User Errors", () => {
   it("NO_AMOUNTS_PROVIDED transfer", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.transfer({ recipient: new Account({ poseidon: POSEIDON }).getPublicKey() }),
+      user.transfer({
+        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+      }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );
   });
