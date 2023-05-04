@@ -155,7 +155,7 @@ describe("API tests", () => {
 
     const preShieldedBalance = await user.getBalance();
     let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toBase58())?.totalBalanceSol;
-    
+
     await user.shield({ publicAmountSol: amount, token });
 
     await user.provider.latestMerkleTree();

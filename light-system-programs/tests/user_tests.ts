@@ -178,11 +178,6 @@ describe("Test User", () => {
       seed: senderAccountSeed,
     });
 
-    const recipientAccountFromPubkey = Account.fromPubkey(
-      senderAccount.getPublicKey(),
-      POSEIDON,
-    );
-
     let testInputs = {
       amountSpl: 0,
       amountSol: 15,
@@ -223,7 +218,7 @@ describe("Test User", () => {
     await userSender.shield({
       publicAmountSol: testInputs.amountSol,
       token: testInputs.token,
-      recipient: userRecipient.account,
+      recipient: userRecipient.account.getPublicKey(),
     });
 
     // TODO: add random amount and amount checks
@@ -295,19 +290,15 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    // provider = await Provider.init({
-    //   wallet: userKeypair,
-    //   relayer: RELAYER,
-    // });
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
 
     const recipientAccount = new Account({
       poseidon: POSEIDON,
       seed: testInputs.recipientSeed,
     });
-    const recipientAccountFromPubkey = Account.fromPubkey(
-      recipientAccount.getPublicKey(),
-      POSEIDON,
-    );
 
     const user: User = await User.init({ provider });
     const userRecipient: User = await User.init({
@@ -327,7 +318,7 @@ describe("Test User", () => {
     await user.transfer({
       amountSpl: testInputs.amountSpl,
       token: testInputs.token,
-      recipient: recipientAccountFromPubkey,
+      recipient: recipientAccount.getPublicKey(),
     });
 
     await user.provider.latestMerkleTree();
@@ -643,7 +634,7 @@ describe("Test User Errors", () => {
     await chai.assert.isRejected(
       // @ts-ignore
       user.transfer({
-        recipient: new Account({ poseidon: POSEIDON }),
+        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
         amountSol: new BN(1),
       }),
       UserErrorCode.TOKEN_NOT_FOUND,
@@ -661,7 +652,9 @@ describe("Test User Errors", () => {
   it("NO_AMOUNTS_PROVIDED transfer", async () => {
     await chai.assert.isRejected(
       // @ts-ignore
-      user.transfer({ recipient: new Account({ poseidon: POSEIDON }) }),
+      user.transfer({
+        recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
+      }),
       UserErrorCode.NO_AMOUNTS_PROVIDED,
     );
   });
