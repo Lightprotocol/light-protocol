@@ -119,7 +119,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       await userSender.shield({
         publicAmountSol: testInputs.amountSol,
         token: testInputs.token,
-        recipient,
+        recipient: userRecipient.account.getPublicKey(),
       });
 
       await userRecipient.provider.latestMerkleTree();
@@ -160,10 +160,7 @@ describe("Test User merge 1 sol utxo and one spl utxo in sequence ", () => {
       await userSender.shield({
         publicAmountSpl: testInputs.amountSpl,
         token: testInputs.token,
-        recipient: Account.fromPubkey(
-          userRecipient.account.getPublicKey(),
-          POSEIDON,
-        ),
+        recipient: userRecipient.account.getPublicKey(),
       });
 
       await userSender.provider.latestMerkleTree();

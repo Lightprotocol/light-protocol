@@ -154,10 +154,7 @@ describe("Test User", () => {
       await userSender.shield({
         publicAmountSpl: testInputs.amountSpl,
         token: testInputs.token,
-        recipient: Account.fromPubkey(
-          userRecipient.account.getPublicKey(),
-          POSEIDON,
-        ),
+        recipient: userRecipient.account.getPublicKey(),
       });
 
       await userSender.provider.latestMerkleTree();

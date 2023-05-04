@@ -154,14 +154,10 @@ describe("Test User", () => {
 
       await testStateValidator.fetchAndSaveState();
 
-      let recipient = Account.fromPubkey(
-        userRecipient.account.getPublicKey(),
-        POSEIDON,
-      );
       await userSender.shield({
         publicAmountSol: testInputs.amountSol,
         token: testInputs.token,
-        recipient,
+        recipient: userRecipient.account.getPublicKey(),
       });
 
       await userRecipient.provider.latestMerkleTree();
@@ -170,7 +166,6 @@ describe("Test User", () => {
   });
 
   it("(user class) merge one sol (one existing utxo)", async () => {
-    
     const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
