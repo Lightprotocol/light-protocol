@@ -1040,7 +1040,7 @@ export class User {
       addInUtxos: false,
       addOutUtxos: true,
       account: this.account,
-      override: true,
+      mergeUtxos: true,
       relayer: this.provider.relayer,
     });
     this.recentTransactionParameters = txParams;
@@ -1121,7 +1121,7 @@ export class User {
       addInUtxos: false,
       addOutUtxos: true,
       account: this.account,
-      override: true,
+      mergeUtxos: true,
       relayer: this.provider.relayer,
     });
     this.recentTransactionParameters = txParams;

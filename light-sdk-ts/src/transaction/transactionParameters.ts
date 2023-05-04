@@ -644,6 +644,7 @@ export class TransactionParameters implements transactionParameters {
     verifier,
     verifierIdl,
     override,
+    mergeUtxos = false,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
@@ -666,11 +667,12 @@ export class TransactionParameters implements transactionParameters {
     verifier: Verifier;
     verifierIdl: Idl;
     override?: boolean;
+    mergeUtxos?: boolean;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
 
-    if (action === Action.TRANSFER && !outUtxos && !override)
+    if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
       throw new TransactioParametersError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
@@ -710,7 +712,6 @@ export class TransactionParameters implements transactionParameters {
         numberMaxInUtxos: verifier.config.in,
       });
     }
-
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
         publicMint: tokenCtx.mint,

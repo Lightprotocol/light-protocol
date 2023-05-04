@@ -140,9 +140,6 @@ export class TestStateValidator {
 
     this.recentTransaction = transactions[0];
 
-    // if(type.toString() !== this.recentTransaction.type.toString())
-    //     throw new Error(`action types inconsistent testinputs: ${type} recent transaction ${type}`)
-
     if (amountSpl && type) {
       assert.strictEqual(
         this.recentTransaction!.publicAmountSpl.div(
