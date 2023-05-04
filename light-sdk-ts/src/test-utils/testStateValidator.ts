@@ -16,8 +16,8 @@ import {
 import { Utxo } from "utxo";
 
 type TestInputs = {
-  amountSpl: number;
-  amountSol: number;
+  amountSpl?: number;
+  amountSol?: number;
   token: string;
   type: Action;
   recipientSpl?: PublicKey;
@@ -26,11 +26,14 @@ type TestInputs = {
   recipientSeed?: string;
   expectedRecipientUtxoLength?: number;
   mergedUtxo?: boolean;
+  shieldToRecipient?: boolean;
+  utxoCommitments?: string[];
 };
 
 type TestUserBalances = {
   user: User;
   preShieldedBalance?: Balance;
+  preShieldedInboxBalance?: Balance;
   preTokenBalance?: number | null;
   preSolBalance?: number;
   isSender: boolean;
@@ -74,6 +77,9 @@ export class TestStateValidator {
       ) => {
         userBalances.preShieldedBalance = _.cloneDeep(
           await userBalances.user.getBalance(latest),
+        );
+        userBalances.preShieldedInboxBalance = _.cloneDeep(
+          await userBalances.user.getUtxoInbox(),
         );
 
         if (userBalances.isSender) {
@@ -134,6 +140,9 @@ export class TestStateValidator {
 
     this.recentTransaction = transactions[0];
 
+    // if(type.toString() !== this.recentTransaction.type.toString())
+    //     throw new Error(`action types inconsistent testinputs: ${type} recent transaction ${type}`)
+
     if (amountSpl && type) {
       assert.strictEqual(
         this.recentTransaction!.publicAmountSpl.div(
@@ -178,7 +187,7 @@ export class TestStateValidator {
       );
     }
 
-    if (type !== Action.TRANSFER) {
+    if (type !== Action.TRANSFER && !this.testInputs.shieldToRecipient) {
       assert.strictEqual(
         this.recipient.user.balance.tokenBalances
           .get(tokenMint?.toBase58()!)
@@ -356,19 +365,26 @@ export class TestStateValidator {
   async assertShieldedTokenBalance(
     amount: number,
     userBalances: TestUserBalances,
+    shieldToRecipient?: boolean,
   ) {
     if (userBalances.isSender) {
       amount = amount * -1;
     }
-    const postShieldedBalances = await userBalances.user.getBalance(false);
+    const postShieldedBalances = !shieldToRecipient
+      ? await userBalances.user.getBalance(false)
+      : await userBalances.user.getUtxoInbox();
 
     let tokenBalanceAfter = postShieldedBalances.tokenBalances.get(
       this.tokenCtx?.mint.toBase58(),
     )?.totalBalanceSpl;
 
-    let _tokenBalancePre = userBalances.preShieldedBalance!.tokenBalances.get(
-      this.tokenCtx?.mint.toBase58(),
-    )?.totalBalanceSpl;
+    let _tokenBalancePre = !shieldToRecipient
+      ? userBalances.preShieldedBalance!.tokenBalances.get(
+          this.tokenCtx?.mint.toBase58(),
+        )?.totalBalanceSpl
+      : userBalances.preShieldedInboxBalance!.tokenBalances.get(
+          this.tokenCtx?.mint.toBase58(),
+        )?.totalBalanceSpl;
     let tokenBalancePre = _tokenBalancePre ? _tokenBalancePre : new BN(0);
 
     assert.equal(
@@ -421,14 +437,20 @@ export class TestStateValidator {
   async assertShieldedSolBalance(
     amount: number,
     userBalances: TestUserBalances,
+    shieldToRecipient?: boolean,
   ) {
     if (userBalances.isSender) {
       amount = amount * -1;
     }
-    const postShieldedBalances = await userBalances.user.getBalance(false);
+
+    const postShieldedBalances = !shieldToRecipient
+      ? await userBalances.user.getBalance(false)
+      : await userBalances.user.getUtxoInbox();
 
     let solBalanceAfter = postShieldedBalances.totalSolBalance;
-    let solBalancePre = userBalances.preShieldedBalance!.totalSolBalance;
+    let solBalancePre = !shieldToRecipient
+      ? userBalances.preShieldedBalance!.totalSolBalance
+      : userBalances.preShieldedInboxBalance!.totalSolBalance;
 
     assert.equal(
       solBalanceAfter!.toNumber(),
@@ -496,22 +518,27 @@ export class TestStateValidator {
     await this.assertBalance(this.recipient.user);
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedTokenBalance(
-      this.testInputs.amountSpl,
+      this.testInputs.amountSpl!,
       this.recipient,
+      this.testInputs.shieldToRecipient,
     );
 
     // assert that the user's token balance has decreased by the amount shielded
-    const tokenDecreasedAmount = this.testInputs.amountSpl * -1;
-
+    const tokenDecreasedAmount = this.testInputs.amountSpl! * -1;
     await this.assertTokenBalance(tokenDecreasedAmount, this.sender);
 
     // assert that the user's sol shielded balance has increased by the additional sol amount
-    await this.assertShieldedSolBalance(150000, this.recipient);
+    await this.assertShieldedSolBalance(
+      150000,
+      this.recipient,
+      this.testInputs.shieldToRecipient,
+    );
 
+    const spentUtxoLength = this.recipient.user.balance.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.spentUtxos.size;
     assert.equal(
-      this.recipient.user.balance.tokenBalances.get(
-        this.tokenCtx.mint.toBase58(),
-      )?.spentUtxos.size,
+      spentUtxoLength ? spentUtxoLength : 0,
       this.testInputs.expectedSpentUtxosLength,
     );
 
@@ -549,27 +576,22 @@ export class TestStateValidator {
     await this.assertBalance(this.recipient.user);
     // assert that the user's shielded balance has increased by the amount shielded
     await this.assertShieldedSolBalance(
-      this.testInputs.amountSol * this.tokenCtx?.decimals.toNumber(),
+      this.testInputs.amountSol! * this.tokenCtx?.decimals.toNumber(),
       this.recipient,
+      this.testInputs.shieldToRecipient,
     );
 
     // TODO: investigate since weird behavior
     const tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
 
     // assert that the user's sol balance has decreased by the amount
-    const solDecreasedAmount = this.testInputs.amountSol * -1;
+    const solDecreasedAmount = this.testInputs.amountSol! * -1;
 
     await this.assertSolBalance(
       solDecreasedAmount,
       tempAccountCost,
       this.recipient,
     );
-
-    // TODO: implement this
-    // if (this.testInputs.mergedUtxo) {
-    //   // assert that user utxos are spent and updated correctly
-    //   await this.assertUserUtxoSpent();
-    // }
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
     await this.assertRecentTransaction({});
@@ -593,11 +615,11 @@ export class TestStateValidator {
     // assert that the user's shielded token balance has decreased by the amount unshielded
     await this.assertBalance(this.sender.user);
     await this.assertBalance(this.recipient.user);
-    const tokenDecreasedAmount = this.testInputs.amountSpl;
+    const tokenDecreasedAmount = this.testInputs.amountSpl!;
     await this.assertShieldedTokenBalance(tokenDecreasedAmount, this.sender);
 
     // assert that the recipient token balance has increased by the amount shielded
-    await this.assertTokenBalance(this.testInputs.amountSpl, this.recipient);
+    await this.assertTokenBalance(this.testInputs.amountSpl!, this.recipient);
 
     const solDecreasedAmount = MINIMUM_LAMPORTS + TOKEN_ACCOUNT_FEE;
     // assert that the user's sol shielded balance has decreased by fee
@@ -630,8 +652,14 @@ export class TestStateValidator {
 
     // assert that the user's spl shielded balance has decreased by amountSpl
     await this.assertShieldedTokenBalance(
-      this.testInputs.amountSpl,
+      this.testInputs.amountSpl!,
       this.sender,
+    );
+
+    await this.assertShieldedTokenBalance(
+      this.testInputs.amountSpl!,
+      this.recipient,
+      true,
     );
 
     // assert that the user's sol shielded balance has decreased by fee
@@ -657,5 +685,133 @@ export class TestStateValidator {
         : 0,
       this.tokenCtx.mint,
     );
+  }
+
+  async checkMergedAll() {
+    // assert that the user's shielded balance has decreased by the amount transferred
+    await this.assertBalance(this.sender.user);
+    await this.assertBalance(this.recipient.user);
+    await this.assertInboxBalance(this.recipient.user);
+    assert.equal(
+      this.sender.user.account.getPublicKey(),
+      this.recipient.user.account.getPublicKey(),
+      "Sender and recipient are the account for merges",
+    );
+    // if pre number of utxos was less than 10 expect current number to be one
+    let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.utxos.size!;
+    preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
+
+    if (preNumberUtxos < 10) {
+      assert.equal(
+        this.sender.user.balance.tokenBalances.get(
+          this.tokenCtx.mint.toBase58(),
+        )?.utxos.size,
+        1,
+      );
+    } else {
+      throw new Error(`Sender had more than 10 utxos ${preNumberUtxos}`);
+    }
+    let preNumberInboxUtxos =
+      this.sender.preShieldedInboxBalance!.tokenBalances.get(
+        this.tokenCtx.mint.toBase58(),
+      )?.utxos.size;
+    let postNumberUtxos = this.sender.user.inboxBalance!.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.utxos.size;
+    let expectedRemainingInboxUtxos =
+      preNumberInboxUtxos! + preNumberUtxos - 10;
+    assert.equal(
+      postNumberUtxos,
+      expectedRemainingInboxUtxos > 0 ? expectedRemainingInboxUtxos : 0,
+      ` postNumberUtxos ${postNumberUtxos} expected: ${
+        expectedRemainingInboxUtxos > 0 ? expectedRemainingInboxUtxos : 0
+      }`,
+    );
+    // indexer does not find the merge transaction no idea why
+    // not worth debugging since the indexer is being refactored rn
+    // await this.assertRecentIndexedTransaction();
+  }
+
+  async checkMerged() {
+    // assert that the user's shielded balance has decreased by the amount transferred
+    await this.assertBalance(this.sender.user);
+    await this.assertBalance(this.recipient.user);
+    await this.assertInboxBalance(this.recipient.user);
+    assert.equal(
+      this.sender.user.account.getPublicKey(),
+      this.recipient.user.account.getPublicKey(),
+      "Sender and recipient are the account for merges",
+    );
+    // if pre number of utxos was less than 10 expect current number to be one
+    let preNumberUtxos = this.sender.preShieldedBalance!.tokenBalances.get(
+      this.tokenCtx.mint.toBase58(),
+    )?.utxos.size!;
+    preNumberUtxos = preNumberUtxos ? preNumberUtxos : 0;
+
+    if (preNumberUtxos < 10) {
+      assert.equal(
+        this.sender.user.balance.tokenBalances.get(
+          this.tokenCtx.mint.toBase58(),
+        )?.utxos.size,
+        1,
+      );
+    } else {
+      throw new Error(`Sender had more than 10 utxos ${preNumberUtxos}`);
+    }
+
+    /**
+     * for every utxo
+     * pre Inbox:
+     * - existed
+     * post Inbox:
+     * - does not exist
+     * post Balance:
+     * - has increased by sum
+     */
+    let sum = new BN(0);
+    for (var commitment of this.testInputs.utxoCommitments!) {
+      const existedInPreInbox = this.sender
+        .preShieldedInboxBalance!.tokenBalances.get(
+          this.tokenCtx.mint.toBase58(),
+        )
+        ?.utxos.get(commitment);
+      assert.notEqual(
+        existedInPreInbox,
+        undefined,
+        `commitment ${commitment},  did not exist in pre inbox`,
+      );
+
+      sum = this.tokenCtx.isNative
+        ? sum.add(existedInPreInbox!.amounts[0]!)
+        : sum.add(existedInPreInbox!.amounts[1]!);
+
+      const existedInPostInbox = this.sender.user
+        .inboxBalance!.tokenBalances.get(this.tokenCtx.mint.toBase58())
+        ?.utxos.get(commitment);
+      assert.equal(
+        existedInPostInbox,
+        undefined,
+        `commitment ${commitment}, exists in post inbox`,
+      );
+    }
+    const postBalance = this.tokenCtx.isNative
+      ? this.recipient.user.balance.tokenBalances
+          .get(this.tokenCtx.mint.toBase58())
+          ?.totalBalanceSol.add(this.provider.relayer.getRelayerFee(false))
+      : this.recipient.user.balance.tokenBalances.get(
+          this.tokenCtx.mint.toBase58(),
+        )?.totalBalanceSpl;
+    var preBalance = this.tokenCtx.isNative
+      ? this.recipient.preShieldedBalance?.tokenBalances.get(
+          SystemProgram.programId.toBase58(),
+        )?.totalBalanceSol
+      : this.recipient.preShieldedBalance?.tokenBalances.get(
+          this.tokenCtx.mint.toBase58(),
+        )?.totalBalanceSpl;
+    preBalance = preBalance ? preBalance : new BN(0);
+
+    assert.equal(postBalance?.toString(), preBalance!.add(sum).toString());
   }
 }

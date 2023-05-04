@@ -9,7 +9,7 @@ import {
   verifierStorageProgramId,
 } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
-import { Verifier, VerifierZero } from "../verifiers";
+import { Verifier } from "../verifiers";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
@@ -19,11 +19,9 @@ import {
   Relayer,
   TransactionErrorCode,
   TransactionError,
-  TransactioParametersError,
   TransactionParametersErrorCode,
   Provider,
-  Recipient,
-  UserError,
+  TransactioParametersError,
   UserErrorCode,
   RelayerErrorCode,
   CreateUtxoErrorCode,
@@ -645,12 +643,13 @@ export class TransactionParameters implements transactionParameters {
     addOutUtxos = true,
     verifier,
     verifierIdl,
+    override,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
     publicAmountSol?: BN;
     userSplAccount?: PublicKey;
-    account?: Account;
+    account: Account;
     utxos?: Utxo[];
     recipientSol?: PublicKey;
     recipientSplAddress?: PublicKey;
@@ -666,12 +665,13 @@ export class TransactionParameters implements transactionParameters {
     addOutUtxos?: boolean;
     verifier: Verifier;
     verifierIdl: Idl;
+    override?: boolean;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
 
-    if (action === Action.TRANSFER && !outUtxos)
-      throw new UserError(
+    if (action === Action.TRANSFER && !outUtxos && !override)
+      throw new TransactioParametersError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
         "Recipient outUtxo not provided for transfer",
@@ -679,17 +679,17 @@ export class TransactionParameters implements transactionParameters {
 
     if (action !== Action.SHIELD && !relayer?.getRelayerFee(ataCreationFee)) {
       // TODO: could make easier to read by adding separate if/cases
-      throw new UserError(
+      throw new TransactioParametersError(
         RelayerErrorCode.RELAYER_FEE_UNDEFINED,
         "getTxParams",
         `No relayerFee provided for ${action.toLowerCase()}}`,
       );
     }
     if (!account) {
-      throw new UserError(
+      throw new TransactioParametersError(
         CreateUtxoErrorCode.ACCOUNT_UNDEFINED,
         "getTxParams",
-        "Account not defined",
+        "account for change utxo is undefined",
       );
     }
 
@@ -710,6 +710,7 @@ export class TransactionParameters implements transactionParameters {
         numberMaxInUtxos: verifier.config.in,
       });
     }
+
     if (addOutUtxos) {
       outputUtxos = createOutUtxos({
         publicMint: tokenCtx.mint,
