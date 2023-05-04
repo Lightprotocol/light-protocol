@@ -562,17 +562,21 @@ export class User {
     appUtxo,
   }: {
     token: string;
-    recipient?: Account;
+    recipient?: string;
     publicAmountSpl?: number | BN | string;
     publicAmountSol?: number | BN | string;
     minimumLamports?: boolean;
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
   }) {
+    let recipientAccount = recipient
+      ? Account.fromPubkey(recipient, this.provider.poseidon)
+      : undefined;
+
     await this.createShieldTransactionParameters({
       token,
       publicAmountSpl,
-      recipient,
+      recipient: recipientAccount,
       publicAmountSol,
       senderTokenAccount,
       minimumLamports,
@@ -740,12 +744,23 @@ export class User {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
-    recipient: Account;
+    recipient: string;
     appUtxo?: AppUtxoConfig;
   }) {
+    if (!recipient)
+      throw new UserError(
+        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
+        "transfer",
+        "No shielded recipient provided for transfer.",
+      );
+    let recipientAccount = Account.fromPubkey(
+      recipient,
+      this.provider.poseidon,
+    );
+
     await this.createTransferTransactionParameters({
       token,
-      recipient,
+      recipient: recipientAccount,
       amountSpl,
       amountSol,
       appUtxo,
@@ -780,13 +795,6 @@ export class User {
     recipient: Account;
     appUtxo?: AppUtxoConfig;
   }) {
-    if (!recipient)
-      throw new UserError(
-        UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
-        "transfer",
-        "No shielded recipient provided for transfer.",
-      );
-
     if (!amountSol && !amountSpl)
       throw new UserError(
         UserErrorCode.NO_AMOUNTS_PROVIDED,
