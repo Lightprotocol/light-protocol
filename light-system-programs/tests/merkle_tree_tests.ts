@@ -19,7 +19,7 @@ import {
   MerkleTreeProgram,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -43,6 +43,7 @@ import {
   Account,
   Provider,
   Action,
+  MESSAGE_MERKLE_TREE_KEY,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
@@ -69,7 +70,7 @@ describe("Merkle Tree Tests", () => {
     // await setUpMerkleTree(provider);
 
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = Keypair.generate();
@@ -103,12 +104,12 @@ describe("Merkle Tree Tests", () => {
   it.skip("Build Merkle Tree from account compression", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
+      pubkey: TRANSACTION_MERKLE_TREE_KEY,
       poseidon,
     });
 
     let newTree = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
     );
     assert.equal(
       merkleTree.merkleTree.root(),
@@ -134,7 +135,7 @@ describe("Merkle Tree Tests", () => {
     // - can only be invoked by current authority
 
     var merkleTreeAccountInfoInit = await provider.connection.getAccountInfo(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
     );
     console.log("merkleTreeAccountInfoInit ", merkleTreeAccountInfoInit);
     INVALID_SIGNER = new anchor.web3.Account();
@@ -151,7 +152,8 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
     let merkleTreeConfig = new MerkleTreeConfig({
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
     });
@@ -194,7 +196,8 @@ describe("Merkle Tree Tests", () => {
 
     // initing real mt authority
     await merkleTreeConfig.initMerkleTreeAuthority();
-    await merkleTreeConfig.initializeNewMerkleTree();
+    await merkleTreeConfig.initializeNewMessageMerkleTree();
+    await merkleTreeConfig.initializeNewTransactionMerkleTree();
 
     let newAuthority = Keypair.generate();
     await provider.connection.confirmTransaction(
@@ -594,7 +597,7 @@ describe("Merkle Tree Tests", () => {
 
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
@@ -638,13 +641,13 @@ describe("Merkle Tree Tests", () => {
     const signer = ADMIN_AUTH_KEYPAIR;
 
     let mtFetched = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
     );
     let error;
 
     // fetch uninserted utxos from chain
     let leavesPdas = await SolMerkleTree.getUninsertedLeavesRelayer(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
     );
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
@@ -671,7 +674,7 @@ describe("Merkle Tree Tests", () => {
             merkleTreeUpdateState: merkleTreeUpdateState,
             systemProgram: DEFAULT_PROGRAMS.systemProgram,
             rent: DEFAULT_PROGRAMS.rent,
-            transactionMerkleTree: MERKLE_TREE_KEY,
+            transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           })
           .remainingAccounts(leavesPdas)
           .preInstructions([
@@ -701,7 +704,7 @@ describe("Merkle Tree Tests", () => {
             merkleTreeUpdateState: merkleTreeUpdateState,
             systemProgram: SystemProgram.programId,
             rent: DEFAULT_PROGRAMS.rent,
-            transactionMerkleTree: MERKLE_TREE_KEY,
+            transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           })
           .remainingAccounts(leavesPdas[1])
           .preInstructions([
@@ -726,7 +729,8 @@ describe("Merkle Tree Tests", () => {
     // try with different Merkle tree than leaves are queued for
     // index might be broken it is wasn't set to mut didn't update
     let merkleTreeConfig = new MerkleTreeConfig({
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       payer: ADMIN_AUTH_KEYPAIR,
       connection: provider.connection,
     });
@@ -738,7 +742,9 @@ describe("Merkle Tree Tests", () => {
       merkleTreeProgram.programId,
     )[0];
     if ((await connection.getAccountInfo(different_merkle_tree)) == null) {
-      await merkleTreeConfig.initializeNewMerkleTree(different_merkle_tree);
+      await merkleTreeConfig.initializeNewTransactionMerkleTree(
+        different_merkle_tree,
+      );
       console.log("created new merkle tree");
     }
 
@@ -776,7 +782,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: MERKLE_TREE_KEY,
+          transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
         })
         .remainingAccounts([leavesPdas[0]])
         .preInstructions([
@@ -797,7 +803,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 1,
@@ -808,7 +814,7 @@ describe("Merkle Tree Tests", () => {
     await executeMerkleTreeUpdateTransactions({
       signer,
       merkleTreeProgram,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 10,
@@ -818,7 +824,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 22, // 22 becaue one tx executes two instructions, it started out in ix index 1 and increments at the end of a tx
@@ -844,7 +850,7 @@ describe("Merkle Tree Tests", () => {
       await executeMerkleTreeUpdateTransactions({
         signer: maliciousSigner,
         merkleTreeProgram,
-        transactionMerkleTree: MERKLE_TREE_KEY,
+        transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
         connection: provider.connection,
         merkleTreeUpdateState,
         numberOfTransactions: 1,
@@ -868,7 +874,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: maliciousMerkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: MERKLE_TREE_KEY,
+          transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
         })
         .remainingAccounts([leavesPdas[0]])
         .signers([maliciousSigner])
@@ -887,7 +893,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: signer.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: MERKLE_TREE_KEY,
+          transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([signer])
@@ -903,7 +909,7 @@ describe("Merkle Tree Tests", () => {
     await executeMerkleTreeUpdateTransactions({
       signer,
       merkleTreeProgram,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       connection: provider.connection,
       merkleTreeUpdateState,
       numberOfTransactions: 50,
@@ -912,7 +918,7 @@ describe("Merkle Tree Tests", () => {
     await checkMerkleTreeUpdateStateCreated({
       connection: connection,
       merkleTreeUpdateState,
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       relayer: signer.publicKey,
       leavesPdas: [leavesPdas[0]],
       current_instruction_index: 56,
@@ -946,7 +952,7 @@ describe("Merkle Tree Tests", () => {
         .accounts({
           authority: maliciousSigner.publicKey,
           merkleTreeUpdateState: merkleTreeUpdateState,
-          transactionMerkleTree: MERKLE_TREE_KEY,
+          transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
           logWrapper: SPL_NOOP_ADDRESS,
         })
         .signers([maliciousSigner])
@@ -958,11 +964,11 @@ describe("Merkle Tree Tests", () => {
 
     var merkleTreeAccountPrior =
       await merkleTreeProgram.account.transactionMerkleTree.fetch(
-        MERKLE_TREE_KEY,
+        TRANSACTION_MERKLE_TREE_KEY,
       );
 
     let merkleTree = await SolMerkleTree.build({
-      pubkey: MERKLE_TREE_KEY,
+      pubkey: TRANSACTION_MERKLE_TREE_KEY,
       poseidon: POSEIDON,
     });
 
@@ -972,7 +978,7 @@ describe("Merkle Tree Tests", () => {
       .accounts({
         authority: signer.publicKey,
         merkleTreeUpdateState: merkleTreeUpdateState,
-        transactionMerkleTree: MERKLE_TREE_KEY,
+        transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
         logWrapper: SPL_NOOP_ADDRESS,
       })
       .signers([signer])
@@ -981,7 +987,7 @@ describe("Merkle Tree Tests", () => {
     console.log("merkleTreeAccountPrior ", merkleTreeAccountPrior);
     console.log("leavesPdas[0] ", leavesPdas[0]);
     console.log("merkleTree ", merkleTree);
-    console.log("merkle_tree_pubkey ", MERKLE_TREE_KEY);
+    console.log("merkle_tree_pubkey ", TRANSACTION_MERKLE_TREE_KEY);
 
     await checkMerkleTreeBatchUpdateSuccess({
       connection: provider.connection,
@@ -989,7 +995,7 @@ describe("Merkle Tree Tests", () => {
       merkleTreeAccountPrior,
       numberOfLeaves: 2,
       leavesPdas: [leavesPdas[0]],
-      transactionMerkleTree: MERKLE_TREE_KEY,
+      transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
       merkleTreeProgram,
     });
 
@@ -1005,7 +1011,7 @@ describe("Merkle Tree Tests", () => {
           merkleTreeUpdateState: merkleTreeUpdateState,
           systemProgram: SystemProgram.programId,
           rent: DEFAULT_PROGRAMS.rent,
-          transactionMerkleTree: MERKLE_TREE_KEY,
+          transactionMerkleTree: TRANSACTION_MERKLE_TREE_KEY,
         })
         .remainingAccounts([leavesPdas[0]])
         .preInstructions([

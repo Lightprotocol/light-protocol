@@ -7,13 +7,10 @@ use crate::utils::constants::{IX_ORDER, ROOT_INSERT, STORAGE_SEED};
 use crate::MerkleTreeUpdateState;
 
 use std::ops::DerefMut;
-use std::str::FromStr;
 
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::instruction::Instruction;
-use anchor_lang::solana_program::{
-    clock::Clock, msg, program::invoke, pubkey::Pubkey, sysvar::Sysvar,
-};
+use anchor_lang::solana_program::{clock::Clock, msg, pubkey::Pubkey, sysvar::Sysvar};
+use light_account_compression::wrap_event;
 
 #[derive(Accounts)]
 pub struct InsertRoot<'info> {
@@ -40,26 +37,6 @@ pub struct InsertRoot<'info> {
     /// CHECK:` checking manually in wrapper function
     pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
     pub system_program: Program<'info, System>,
-}
-
-pub fn wrap_event<'info>(
-    event: &TwoLeavesBytesPda,
-    noop_program: &AccountInfo<'info>,
-    signer: &AccountInfo<'info>,
-) -> Result<()> {
-    if noop_program.key()
-        != Pubkey::from_str("noopb9bkMVfRPU8AsbpTUg8AQkHtKwMYZiFUjNRtMmV").unwrap()
-    {}
-    let instruction = Instruction {
-        program_id: noop_program.key(),
-        accounts: vec![],
-        data: event.try_to_vec()?,
-    };
-    invoke(
-        &instruction,
-        &[noop_program.to_account_info(), signer.to_account_info()],
-    )?;
-    Ok(())
 }
 
 pub fn close_account(account: &AccountInfo, dest_account: &AccountInfo) -> Result<()> {
@@ -149,7 +126,7 @@ pub fn process_insert_root<'a, 'b, 'c, 'info>(
         msg!("wrap_event");
         // Save pair of leaves in compressed account (noop program).
         wrap_event(
-            &leaves_pda_data,
+            &leaves_pda_data.try_to_vec()?,
             &ctx.accounts.log_wrapper.to_account_info(),
             &ctx.accounts.transaction_merkle_tree.to_account_info(),
         )?;

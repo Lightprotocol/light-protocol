@@ -1,7 +1,7 @@
 use anchor_lang::prelude::*;
 use anchor_spl::token::Token;
-use merkle_tree_program::program::MerkleTreeProgram;
 use merkle_tree_program::{
+    message_merkle_tree::MessageMerkleTree, program::MerkleTreeProgram,
     transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
 };
 
@@ -10,6 +10,7 @@ pub struct Accounts<'info, 'a, 'c> {
     pub signing_address: AccountInfo<'info>,
     pub system_program: &'a Program<'info, System>,
     pub program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
+    pub message_merkle_tree: Option<&'a AccountLoader<'info, MessageMerkleTree>>,
     pub transaction_merkle_tree: &'a AccountLoader<'info, TransactionMerkleTree>,
     pub authority: AccountInfo<'info>,
     pub token_program: Option<&'a Program<'info, Token>>,
@@ -30,6 +31,7 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
         signing_address: AccountInfo<'info>,
         system_program: &'a Program<'info, System>,
         program_merkle_tree: &'a Program<'info, MerkleTreeProgram>,
+        message_merkle_tree: Option<&'a AccountLoader<'info, MessageMerkleTree>>,
         transaction_merkle_tree: &'a AccountLoader<'info, TransactionMerkleTree>,
         authority: AccountInfo<'info>,
         token_program: Option<&'a Program<'info, Token>>,
@@ -47,6 +49,7 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
             signing_address,
             system_program,
             program_merkle_tree,
+            message_merkle_tree,
             transaction_merkle_tree,
             authority,
             token_program,

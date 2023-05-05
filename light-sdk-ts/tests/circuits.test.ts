@@ -78,7 +78,7 @@ describe("Masp circuit tests", () => {
     lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierZero(),
@@ -90,7 +90,7 @@ describe("Masp circuit tests", () => {
 
     txParamsSol = new TransactionParameters({
       outputUtxos: [deposit_utxoSol],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierZero(),
@@ -119,7 +119,7 @@ describe("Masp circuit tests", () => {
     );
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       poseidon,
       recipientSpl: mockPubkey,
@@ -128,7 +128,7 @@ describe("Masp circuit tests", () => {
       relayer,
       transactionNonce: 0
     });
-    appData = {testInput1: new anchor.BN(1), testInput2: new anchor.BN(1)};
+    appData = { testInput1: new anchor.BN(1), testInput2: new anchor.BN(1) };
     txParamsApp = new TransactionParameters({
       inputUtxos: [
         new Utxo({
@@ -137,7 +137,7 @@ describe("Masp circuit tests", () => {
           appDataIdl: IDL,
         }),
       ],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierTwo(),
@@ -149,7 +149,7 @@ describe("Masp circuit tests", () => {
     });
     txParamsPoolType = new TransactionParameters({
       inputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierZero(),
@@ -161,7 +161,7 @@ describe("Masp circuit tests", () => {
     });
     txParamsPoolTypeOut = new TransactionParameters({
       outputUtxos: [new Utxo({ poseidon, poolType: new anchor.BN("12312") })],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierZero(),
@@ -179,7 +179,7 @@ describe("Masp circuit tests", () => {
           appDataIdl: IDL,
         }),
       ],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierZero(),
@@ -664,7 +664,7 @@ describe("App system circuit tests", () => {
     lightProvider = await LightProvider.loadMock();
     txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierTwo(),
@@ -688,7 +688,7 @@ describe("App system circuit tests", () => {
           appDataIdl: IDL,
         }),
       ],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: lightProvider.wallet.publicKey,
       verifier: new VerifierTwo(),

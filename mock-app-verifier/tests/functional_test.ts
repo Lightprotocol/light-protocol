@@ -9,7 +9,7 @@ import {
   createTestAccounts,
   KEYPAIR_PRIVKEY,
   Account,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   TransactionParameters,
   Provider as LightProvider,
   userTokenAccount,
@@ -140,7 +140,7 @@ describe("Mock verifier functional", () => {
 
     const txParams = new TransactionParameters({
       outputUtxos: [outputUtxo],
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount, // just any token account
       senderSol: ADMIN_AUTH_KEY, //
       lookUpTable: LOOK_UP_TABLE,
@@ -202,7 +202,7 @@ describe("Mock verifier functional", () => {
     // TODO: add check that recipients are defined if withdrawal
     const txParams = new TransactionParameters({
       inputUtxos: [outputUtxo],
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       recipientSpl: userTokenAccount, // just any token account
       recipientSol: SolanaKeypair.generate().publicKey, //
       verifier: new VerifierTwo(),

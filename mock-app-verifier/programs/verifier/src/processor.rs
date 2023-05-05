@@ -38,6 +38,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     relayer_fee: &'a u64,
 ) -> Result<()> {
     let tx = Transaction::<2, 4, TransactionsConfig>::new(
+        None,
         proof_a,
         proof_b,
         proof_c,

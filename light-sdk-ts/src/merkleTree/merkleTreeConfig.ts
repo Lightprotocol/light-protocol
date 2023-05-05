@@ -9,7 +9,8 @@ import { Program } from "@coral-xyz/anchor";
 
 export class MerkleTreeConfig {
   merkleTreeProgram: Program<MerkleTreeProgram>;
-  merkleTreePubkey: PublicKey;
+  messageMerkleTreePubkey: PublicKey;
+  transactionMerkleTreePubkey: PublicKey;
   connection: Connection;
   registeredVerifierPdas: any;
   preInsertedLeavesIndex?: PublicKey;
@@ -24,15 +25,18 @@ export class MerkleTreeConfig {
   }[];
   poolPdas: any;
   constructor({
-    merkleTreePubkey,
+    messageMerkleTreePubkey,
+    transactionMerkleTreePubkey,
     payer,
     connection,
   }: {
-    merkleTreePubkey: PublicKey;
+    messageMerkleTreePubkey: PublicKey;
+    transactionMerkleTreePubkey: PublicKey;
     payer?: Keypair;
     connection: Connection;
   }) {
-    this.merkleTreePubkey = merkleTreePubkey;
+    this.messageMerkleTreePubkey = messageMerkleTreePubkey;
+    this.transactionMerkleTreePubkey = transactionMerkleTreePubkey;
     this.payer = payer;
     this.merkleTreeProgram = new Program(
       IDL_MERKLE_TREE_PROGRAM,
@@ -45,17 +49,19 @@ export class MerkleTreeConfig {
     this.connection = connection;
   }
 
-  async initializeNewMerkleTree(merkleTreePubkey?: PublicKey) {
+  async initializeNewTransactionMerkleTree(
+    transactionMerkleTreePubkey?: PublicKey,
+  ) {
     if (!this.payer) throw new Error("Payer undefined");
-    if (merkleTreePubkey) {
-      this.merkleTreePubkey = merkleTreePubkey;
+    if (transactionMerkleTreePubkey) {
+      this.transactionMerkleTreePubkey = transactionMerkleTreePubkey;
     }
     await this.getMerkleTreeAuthorityPda();
     const tx = await this.merkleTreeProgram.methods
       .initializeNewTransactionMerkleTree(new anchor.BN("50"))
       .accounts({
         authority: this.payer.publicKey,
-        transactionMerkleTree: this.merkleTreePubkey,
+        transactionMerkleTree: this.transactionMerkleTreePubkey,
         systemProgram: DEFAULT_PROGRAMS.systemProgram,
         rent: DEFAULT_PROGRAMS.rent,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
@@ -63,30 +69,61 @@ export class MerkleTreeConfig {
       .signers([this.payer])
       .rpc(confirmConfig);
 
-    await this.checkMerkleTreeIsInitialized();
+    await this.checkTransactionMerkleTreeIsInitialized();
     return tx;
   }
 
-  async checkMerkleTreeIsInitialized() {
-    var merkleTreeAccountInfo =
+  async checkTransactionMerkleTreeIsInitialized() {
+    var messageMerkleTreeAccountInfo =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        this.merkleTreePubkey,
+        this.transactionMerkleTreePubkey,
       );
     assert(
-      merkleTreeAccountInfo != null,
+      messageMerkleTreeAccountInfo != null,
       "merkleTreeAccountInfo not initialized",
     );
     // zero values
     // index == 0
     // roots are empty save for 0
     // lock duration is correct
-    assert(merkleTreeAccountInfo.lockDuration.toString() == "50");
+    assert(messageMerkleTreeAccountInfo.lockDuration.toString() == "50");
+  }
+
+  async initializeNewMessageMerkleTree(messageMerkleTreePubkey?: PublicKey) {
+    if (!this.payer) throw new Error("Payer undefined");
+    if (messageMerkleTreePubkey) {
+      this.messageMerkleTreePubkey = messageMerkleTreePubkey;
+    }
+    await this.getMerkleTreeAuthorityPda();
+    const tx = await this.merkleTreeProgram.methods
+      .initializeNewMessageMerkleTree()
+      .accounts({
+        authority: this.payer.publicKey,
+        messageMerkleTree: this.messageMerkleTreePubkey,
+        systemProgram: DEFAULT_PROGRAMS.systemProgram,
+      })
+      .signers([this.payer])
+      .rpc(confirmConfig);
+
+    await this.checkMessageMerkleTreeIsInitialized();
+    return tx;
+  }
+
+  async checkMessageMerkleTreeIsInitialized() {
+    var merkleTreeAccountInfo =
+      await this.merkleTreeProgram.account.messageMerkleTree.fetch(
+        this.messageMerkleTreePubkey,
+      );
+    assert(
+      merkleTreeAccountInfo != null,
+      "merkleTreeAccountInfo not initialized",
+    );
   }
 
   async printMerkleTree() {
     var merkleTreeAccountInfo =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        this.merkleTreePubkey,
+        this.transactionMerkleTreePubkey,
       );
     console.log("merkleTreeAccountInfo ", merkleTreeAccountInfo);
   }
@@ -246,14 +283,14 @@ export class MerkleTreeConfig {
       .accounts({
         authority: this.payer.publicKey,
         merkleTreeAuthorityPda: this.merkleTreeAuthorityPda,
-        transactionMerkleTree: this.merkleTreePubkey,
+        transactionMerkleTree: this.transactionMerkleTreePubkey,
         ...DEFAULT_PROGRAMS,
       })
       .signers([this.payer])
       .rpc(confirmConfig);
     let merkleTree =
       await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-        this.merkleTreePubkey,
+        this.transactionMerkleTreePubkey,
       );
     assert.equal(merkleTree.lockDuration.toString(), lockDuration.toString());
     console.log("lock duration updated to: ", lockDuration);

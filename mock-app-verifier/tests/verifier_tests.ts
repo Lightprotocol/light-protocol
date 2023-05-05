@@ -18,7 +18,7 @@ import {
   MerkleTreeProgram,
   merkleTreeProgramId,
   IDL_MERKLE_TREE_PROGRAM,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   KEYPAIR_PRIVKEY,
@@ -60,7 +60,7 @@ describe("Verifier Two test", () => {
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  console.log = () => {};
+  console.log = () => { };
   const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
@@ -131,7 +131,7 @@ describe("Verifier Two test", () => {
 
       let txParams = new TransactionParameters({
         outputUtxos: [deposit_utxo1],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
@@ -176,7 +176,7 @@ describe("Verifier Two test", () => {
 
       let txParams1 = new TransactionParameters({
         outputUtxos: [deposit_utxo2],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
@@ -212,7 +212,7 @@ describe("Verifier Two test", () => {
 
       let txParams2 = new TransactionParameters({
         inputUtxos: [deposit_utxo1],
-        merkleTreePubkey: MERKLE_TREE_KEY,
+        transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
         verifier: verifiers[verifier],
@@ -464,7 +464,7 @@ describe("Verifier Two test", () => {
       ) {
         tmp_tx.remainingAccounts.nullifierPdaPubkeys[i] =
           tmp_tx.remainingAccounts.nullifierPdaPubkeys[
-            (i + 1) % tmp_tx.remainingAccounts.nullifierPdaPubkeys.length
+          (i + 1) % tmp_tx.remainingAccounts.nullifierPdaPubkeys.length
           ];
         await sendTestTx(
           tmp_tx,
@@ -487,7 +487,7 @@ describe("Verifier Two test", () => {
         ) {
           tmp_tx.remainingAccounts.leavesPdaPubkeys[i] =
             tmp_tx.remainingAccounts.leavesPdaPubkeys[
-              (i + 1) % tmp_tx.remainingAccounts.leavesPdaPubkeys.length
+            (i + 1) % tmp_tx.remainingAccounts.leavesPdaPubkeys.length
             ];
           await sendTestTx(
             tmp_tx,

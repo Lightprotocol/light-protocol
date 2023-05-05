@@ -1,5 +1,7 @@
 use anchor_lang::prelude::*;
 
+use light_merkle_tree::HashFunction;
+
 declare_id!("JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6");
 
 #[cfg(not(feature = "no-entrypoint"))]
@@ -11,6 +13,8 @@ solana_security_txt::security_txt! {
     source_code: "https://github.com/Lightprotocol/light-protocol-program/program_merkle_tree"
 }
 
+pub mod message_merkle_tree;
+pub use message_merkle_tree::*;
 pub mod transaction_merkle_tree;
 pub use transaction_merkle_tree::*;
 pub mod verifier_invoked_instructions;
@@ -34,23 +38,29 @@ use crate::errors::ErrorCode;
 
 use crate::transaction_merkle_tree::update_merkle_tree_lib::merkle_tree_update_state::MerkleTreeUpdateState;
 
-use crate::utils::config::{self, ZERO_BYTES_MERKLE_TREE_18};
+use crate::utils::{
+    config::{self, ZERO_BYTES_MERKLE_TREE_18},
+    constants::MESSAGE_MERKLE_TREE_HEIGHT,
+};
 
 use crate::verifier_invoked_instructions::{
     insert_nullifier::{process_insert_nullifiers, InitializeNullifiers},
-    insert_two_leaves::{process_insert_two_leaves, InsertTwoLeaves},
+    insert_two_leaves_transaction::{process_insert_two_leaves, InsertTwoLeaves},
     sol_transfer::{process_sol_transfer, WithdrawSol},
     spl_transfer::{process_spl_transfer, WithdrawSpl},
 };
 
-use crate::transaction_merkle_tree::{
-    initialize_new_merkle_tree_18::{
-        process_initialize_new_merkle_tree_18, InitializeNewTransactionMerkleTree,
-    },
-    update_instructions::{
-        initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
-        insert_root::{process_insert_root, InsertRoot},
-        update_merkle_tree::{process_update_merkle_tree, UpdateTransactionMerkleTree},
+use crate::{
+    message_merkle_tree::InitializeNewMessageMerkleTree,
+    transaction_merkle_tree::{
+        initialize_new_merkle_tree_18::{
+            process_initialize_new_merkle_tree_18, InitializeNewTransactionMerkleTree,
+        },
+        update_instructions::{
+            initialize_update_state::{process_initialize_update_state, InitializeUpdateState},
+            insert_root::{process_insert_root, InsertRoot},
+            update_merkle_tree::{process_update_merkle_tree, UpdateTransactionMerkleTree},
+        },
     },
 };
 
@@ -85,6 +95,16 @@ pub mod merkle_tree_program {
         ctx.accounts.merkle_tree_authority_pda.merkle_tree_index += 1;
         merkle_tree.lock_duration = lock_duration;
 
+        Ok(())
+    }
+
+    pub fn initialize_new_message_merkle_tree(
+        ctx: Context<InitializeNewMessageMerkleTree>,
+    ) -> Result<()> {
+        let merkle_tree = &mut ctx.accounts.message_merkle_tree.load_init()?;
+        merkle_tree
+            .merkle_tree
+            .init(MESSAGE_MERKLE_TREE_HEIGHT, HashFunction::Sha256);
         Ok(())
     }
 
@@ -288,6 +308,14 @@ pub mod merkle_tree_program {
         encrypted_utxo: [u8; 256],
     ) -> Result<()> {
         process_insert_two_leaves(ctx, leaf_left, leaf_right, encrypted_utxo)
+    }
+
+    pub fn insert_two_leaves_message<'a, 'b, 'c, 'info>(
+        ctx: Context<'a, 'b, 'c, 'info, InsertTwoLeavesMessage<'info>>,
+        leaf_left: [u8; 32],
+        leaf_right: [u8; 32],
+    ) -> Result<()> {
+        process_insert_two_leaves_message(ctx, leaf_left, leaf_right)
     }
 
     /// Withdraws sol from a liquidity pool.

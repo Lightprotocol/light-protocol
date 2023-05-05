@@ -14,7 +14,7 @@ import { assert } from "chai";
 import { PathOrFileDescriptor, readFileSync, writeFile } from "fs";
 
 import {
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   AUTHORITY,
   REGISTERED_POOL_PDA_SOL,
@@ -30,8 +30,10 @@ import {
   REGISTERED_VERIFIER_PDA,
   REGISTERED_VERIFIER_TWO_PDA,
   MINT,
+  MESSAGE_MERKLE_TREE_KEY,
 } from "../index";
 import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 
 // TODO: create cli function to create a lookup table for apps
 // Probably only works for testing
@@ -119,7 +121,9 @@ export async function initLookUpTable(
       SystemProgram.programId,
       merkleTreeProgramId,
       DEFAULT_PROGRAMS.rent,
-      MERKLE_TREE_KEY,
+      SPL_NOOP_PROGRAM_ID,
+      MESSAGE_MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
       PRE_INSERTED_LEAVES_INDEX,
       AUTHORITY,
       TOKEN_PROGRAM_ID,

@@ -32,7 +32,7 @@ import {
   createTestAccounts,
   confirmConfig,
   DEFAULT_ZERO,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   TestRelayer,
 } from "light-sdk";
 
@@ -106,7 +106,7 @@ describe("verifier_program", () => {
     assert(lightProviderMock.lookUpTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      MERKLE_TREE_KEY.toBase58(),
+      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
     );
     assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
     assert.equal(
@@ -138,7 +138,7 @@ describe("verifier_program", () => {
 
     let txParams = new TransactionParameters({
       outputUtxos: [deposit_utxo1, deposit_utxo2],
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
       verifier: new VerifierZero(),
