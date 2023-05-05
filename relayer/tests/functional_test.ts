@@ -10,7 +10,7 @@ import {
   FEE_ASSET,
   MerkleTree,
   MERKLE_TREE_HEIGHT,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   MINT,
   Provider,
   SolMerkleTree,
@@ -89,7 +89,7 @@ describe("API tests", () => {
         expect(res.body.data.merkleTree).to.exist;
         expect(res.body.data).to.exist;
         assert.equal(merkleTree.levels, MERKLE_TREE_HEIGHT);
-        assert.equal(pubkey.toBase58(), MERKLE_TREE_KEY.toBase58());
+        assert.equal(pubkey.toBase58(), TRANSACTION_MERKLE_TREE_KEY.toBase58());
         assert.equal(merkleTree.root().toString(), previousMerkleRoot);
         assert.equal(merkleTree._layers[0].length, 0);
         assert.equal(merkleTree.zeroElement, DEFAULT_ZERO);

@@ -25,7 +25,7 @@ import {
   Utxo,
   Account,
   IDL_VERIFIER_PROGRAM_ZERO,
-  MERKLE_TREE_KEY
+  TRANSACTION_MERKLE_TREE_KEY
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
@@ -82,7 +82,7 @@ describe("Transaction Parameters Functional", () => {
     const paramsOriginal = new TransactionParameters({
       inputUtxos,
       outputUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       verifier: verifiers[j],
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
@@ -125,7 +125,7 @@ describe("Transaction Parameters Functional", () => {
     );
     assert.equal(
       params.accounts.transactionMerkleTree.toBase58(),
-      MERKLE_TREE_KEY.toBase58(),
+      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
     );
     assert.equal(params.accounts.verifierState, undefined);
     assert.equal(params.accounts.programMerkleTree, merkleTreeProgramId);
@@ -202,7 +202,7 @@ describe("Transaction Parameters Functional", () => {
       const params = new TransactionParameters({
         inputUtxos,
         outputUtxos,
-        merkleTreePubkey: mockPubkey2,
+        transactionMerkleTreePubkey: mockPubkey2,
         verifier: verifiers[j],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
@@ -300,7 +300,7 @@ describe("Transaction Parameters Functional", () => {
 
       const params = new TransactionParameters({
         outputUtxos,
-        merkleTreePubkey: mockPubkey2,
+        transactionMerkleTreePubkey: mockPubkey2,
         senderSpl: mockPubkey,
         senderSol: mockPubkey1,
         verifier: verifiers[j],
@@ -389,7 +389,7 @@ describe("Transaction Parameters Functional", () => {
 
       const params = new TransactionParameters({
         inputUtxos,
-        merkleTreePubkey: mockPubkey2,
+        transactionMerkleTreePubkey: mockPubkey2,
         recipientSpl: mockPubkey,
         recipientSol: mockPubkey1,
         verifier: verifiers[j],
@@ -608,7 +608,7 @@ describe("Test General TransactionParameters Errors", () => {
     for (var verifier in verifiers) {
       expect(() => {
         new TransactionParameters({
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -632,7 +632,7 @@ describe("Test General TransactionParameters Errors", () => {
         // @ts-ignore:
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -654,7 +654,7 @@ describe("Test General TransactionParameters Errors", () => {
         // @ts-ignore:
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -675,7 +675,7 @@ describe("Test General TransactionParameters Errors", () => {
       // @ts-ignore:
       new TransactionParameters({
         outputUtxos: [deposit_utxo1],
-        merkleTreePubkey: mockPubkey,
+        transactionMerkleTreePubkey: mockPubkey,
         senderSpl: mockPubkey,
         senderSol: mockPubkey,
         lookUpTable: lightProvider.lookUpTable,
@@ -730,7 +730,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
     const params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
       outputUtxos: [outputUtxo],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       verifier: new VerifierZero(),
       poseidon,
       action: Action.TRANSFER,
@@ -745,7 +745,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -775,7 +775,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -803,7 +803,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -825,7 +825,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -848,7 +848,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -871,7 +871,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -894,7 +894,7 @@ describe("Test TransactionParameters Transfer Errors", () => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           verifier: verifiers[verifier],
           poseidon,
           action: Action.TRANSFER,
@@ -940,7 +940,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
 
     const params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       verifier: new VerifierZero(),
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
@@ -956,7 +956,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
@@ -978,7 +978,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
@@ -1000,7 +1000,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1022,7 +1022,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1061,7 +1061,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1098,7 +1098,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1121,7 +1121,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
@@ -1145,7 +1145,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1169,7 +1169,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
@@ -1191,7 +1191,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           verifier: verifiers[verifier],
           lookUpTable: lightProvider.lookUpTable,
@@ -1220,7 +1220,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       // should work since no spl amount
       new TransactionParameters({
         outputUtxos: [utxo_sol_amount_no_u642],
-        merkleTreePubkey: mockPubkey,
+        transactionMerkleTreePubkey: mockPubkey,
         senderSol: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
@@ -1236,7 +1236,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
@@ -1260,7 +1260,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
@@ -1323,7 +1323,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           // senderSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1347,7 +1347,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1385,7 +1385,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1421,7 +1421,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
           verifier: verifiers[verifier],
@@ -1445,7 +1445,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1470,7 +1470,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1502,7 +1502,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       // should work since no spl amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
-        merkleTreePubkey: mockPubkey,
+        transactionMerkleTreePubkey: mockPubkey,
         recipientSol: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
@@ -1526,7 +1526,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       // should work since no sol amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
-        merkleTreePubkey: mockPubkey,
+        transactionMerkleTreePubkey: mockPubkey,
         recipientSpl: mockPubkey,
         verifier: verifiers[verifier],
         lookUpTable: lightProvider.lookUpTable,
@@ -1543,7 +1543,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
@@ -1568,7 +1568,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
-          merkleTreePubkey: mockPubkey,
+          transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,

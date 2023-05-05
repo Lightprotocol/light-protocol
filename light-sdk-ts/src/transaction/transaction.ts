@@ -709,7 +709,6 @@ export class Transaction {
       for (var ix in instructions) {
         let txTmp = await this.sendTransaction(instructions[ix]);
         if (txTmp) {
-          console.log("tx : ", txTmp);
           await this.provider.provider?.connection.confirmTransaction(
             txTmp,
             "confirmed",

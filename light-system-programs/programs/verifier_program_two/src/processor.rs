@@ -39,6 +39,7 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
         ctx.accounts.signing_address.to_account_info(),
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
+        None,
         &ctx.accounts.transaction_merkle_tree,
         ctx.accounts.authority.to_account_info(),
         Some(&ctx.accounts.token_program),
@@ -72,6 +73,7 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     let nullifiers: [[u8; 32]; 4] = verifier_state.nullifiers.to_vec().try_into().unwrap();
     let pool_type = [0u8; 32];
     let mut tx = Transaction::<2, 4, TransactionConfig>::new(
+        None,
         proof_a,
         proof_b,
         proof_c,

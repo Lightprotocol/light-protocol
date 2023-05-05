@@ -117,6 +117,33 @@ pub fn insert_two_leaves_cpi<'a, 'b>(
     )
 }
 
+pub fn insert_two_leaves_messsage_cpi<'a, 'b>(
+    program_id: &Pubkey,
+    merkle_tree_program_id: &'b AccountInfo<'a>,
+    message_merkle_tree: &'b AccountInfo<'a>,
+    system_program: &'b AccountInfo<'a>,
+    leaf_left: &'b [u8; 32],
+    leaf_right: &'b [u8; 32],
+) -> Result<()> {
+    let (seed, bump) = get_seeds(program_id, merkle_tree_program_id)?;
+    let bump = &[bump];
+    let seeds = &[&[seed.as_slice(), bump][..]];
+
+    let accounts = merkle_tree_program::cpi::accounts::InsertTwoLeavesMessage {
+        message_merkle_tree: message_merkle_tree.clone(),
+        system_program: system_program.clone(),
+    };
+
+    let cpi_ctx = CpiContext::new_with_signer(merkle_tree_program_id.clone(), accounts, seeds);
+    merkle_tree_program::cpi::insert_two_leaves_message(
+        cpi_ctx,
+        leaf_left.to_owned(),
+        leaf_right.to_owned(),
+    )?;
+
+    Ok(())
+}
+
 pub fn get_seeds<'a>(
     program_id: &'a Pubkey,
     merkle_tree_program_id: &'a AccountInfo,

@@ -18,7 +18,7 @@ import {
   useWallet,
   Relayer,
   MERKLE_TREE_HEIGHT,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   ADMIN_AUTH_KEYPAIR,
   initLookUpTableFromFile,
   SolMerkleTree,
@@ -133,7 +133,7 @@ export class Provider {
     mockProvider.lookUpTable = SolanaKeypair.generate().publicKey;
     mockProvider.solMerkleTree = new SolMerkleTree({
       poseidon: mockProvider.poseidon,
-      pubkey: MERKLE_TREE_KEY,
+      pubkey: TRANSACTION_MERKLE_TREE_KEY,
     });
 
     return mockProvider;
@@ -206,7 +206,7 @@ export class Provider {
     this.poseidon = poseidon;
   }
   async latestMerkleTree() {
-    await this.fetchMerkleTree(MERKLE_TREE_KEY);
+    await this.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
   }
   // TODO: add loadEddsa
 
@@ -242,7 +242,7 @@ export class Provider {
     });
     await provider.loadPoseidon();
     await provider.fetchLookupTable();
-    await provider.fetchMerkleTree(MERKLE_TREE_KEY);
+    await provider.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
     return provider;
   }
 }

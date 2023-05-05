@@ -1,6 +1,7 @@
 export * from "./verifierOne";
 export * from "./verifierZero";
 export * from "./verifierTwo";
+export * from "./verifierStorage";
 
 import { Program, web3, BN } from "@coral-xyz/anchor";
 import { Transaction } from "transaction";

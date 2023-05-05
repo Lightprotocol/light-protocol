@@ -118,6 +118,7 @@ pub struct Utxo {
 
 #[account]
 pub struct TransactionParameters {
+    message: Vec<u8>,
     input_utxos_bytes: Vec<Vec<u8>>,
     // outputUtxos should be checked
     // TODO: write function which checks and displays how much multisig funds are spent, to whom, etc
@@ -128,7 +129,7 @@ pub struct TransactionParameters {
     relayer_pubkey: Pubkey,
     relayer_fee: u64,
     // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
-    transaction_index: u64,
+    transaction_nonce: u64,
 }
 
 #[allow(non_camel_case_types, non_upper_case_globals)]

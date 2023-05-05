@@ -16,7 +16,7 @@ import {
   Provider as LightProvider,
   ProviderErrorCode,
   ADMIN_AUTH_KEYPAIR,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   DEFAULT_ZERO,
   ProviderError,
   useWallet,
@@ -44,7 +44,7 @@ describe("Test Provider Functional", () => {
     assert(lightProviderMock.lookUpTable);
     assert.equal(
       lightProviderMock.solMerkleTree?.pubkey.toBase58(),
-      MERKLE_TREE_KEY.toBase58(),
+      TRANSACTION_MERKLE_TREE_KEY.toBase58(),
     );
     assert.equal(lightProviderMock.solMerkleTree?.merkleTree.levels, 18);
     assert.equal(

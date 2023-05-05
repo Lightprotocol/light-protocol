@@ -1,6 +1,6 @@
 use anchor_lang::{
     prelude::*,
-    solana_program::{msg, program_pack::Pack, sysvar},
+    solana_program::{keccak::hash, msg, program_pack::Pack, sysvar},
 };
 use anchor_spl::token::Transfer;
 use ark_ff::{
@@ -12,11 +12,13 @@ use ark_std::{marker::PhantomData, vec::Vec};
 use ark_bn254::{Fr, FrParameters};
 
 use groth16_solana::groth16::{Groth16Verifier, Groth16Verifyingkey};
+use light_merkle_tree::HashFunction;
 
 use crate::{
     accounts::Accounts,
     cpi_instructions::{
-        insert_nullifiers_cpi, insert_two_leaves_cpi, withdraw_sol_cpi, withdraw_spl_cpi,
+        insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_messsage_cpi,
+        withdraw_sol_cpi, withdraw_spl_cpi,
     },
     errors::VerifierSdkError,
     utils::{change_endianness, close_account::close_account},
@@ -24,7 +26,6 @@ use crate::{
 
 use std::ops::Neg;
 
-use anchor_lang::solana_program::keccak::hash;
 use merkle_tree_program::{
     program::MerkleTreeProgram,
     utils::{
@@ -55,6 +56,8 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub public_amount_sol: &'a [u8; 32],
     pub mint_pubkey: [u8; 32],
     pub checked_public_inputs: &'a Vec<Vec<u8>>,
+    /// Hash of the optional message included in the transaction.
+    pub message_hash: Option<&'a [u8; 32]>,
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
     pub relayer_fee: u64,
@@ -81,6 +84,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
 {
     #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
+        message_hash: Option<&'a [u8; 32]>,
         proof_a: &'a [u8; 64],
         proof_b: &'a [u8; 128],
         proof_c: &'a [u8; 64],
@@ -113,6 +117,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             public_amount_sol,
             mint_pubkey: [0u8; 32],
             checked_public_inputs,
+            message_hash,
             nullifiers,
             leaves,
             relayer_fee,
@@ -138,6 +143,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     /// Transact is a wrapper function which computes the integrity hash, checks the root,
     /// verifies the zero knowledge proof, inserts leaves, inserts nullifiers, transfers funds and fees.
     pub fn transact(&mut self) -> Result<()> {
+        self.insert_message_leaves()?;
         self.compute_tx_integrity_hash()?;
         self.fetch_root()?;
         self.fetch_mint()?;
@@ -215,19 +221,42 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         }
     }
 
+    /// Calls the Merkle tree program via CPI to insert message leaves.
+    pub fn insert_message_leaves(&mut self) -> Result<()> {
+        let (message_hash, message_merkle_tree) = match self.message_hash {
+            Some(message_hash) => match self.accounts.unwrap().message_merkle_tree {
+                Some(message_merkle_tree) => (message_hash, message_merkle_tree),
+                None => return err!(VerifierSdkError::MessageNoMerkleTreeAccount),
+            },
+            None => return Ok(()),
+        };
+        if message_merkle_tree.load()?.merkle_tree.hash_function != HashFunction::Sha256 {
+            return err!(VerifierSdkError::MessageMerkleTreeInvalidHashFunction);
+        }
+        insert_two_leaves_messsage_cpi(
+            self.accounts.unwrap().program_id,
+            &self.accounts.unwrap().program_merkle_tree.to_account_info(),
+            &message_merkle_tree.to_account_info(),
+            &self.accounts.unwrap().system_program.to_account_info(),
+            message_hash,
+            &[0; 32],
+        )?;
+
+        Ok(())
+    }
+
     /// Computes the integrity hash of the transaction. This hash is an input to the ZKP, and
     /// ensures that the relayer cannot change parameters of the internal or unshield transaction.
     /// H(recipient_spl||recipient_sol||signer||relayer_fee||encrypted_utxos).
     pub fn compute_tx_integrity_hash(&mut self) -> Result<()> {
+        let message_hash = self.message_hash.unwrap_or(&[0u8; 32]);
+        let recipient_spl = match self.accounts.unwrap().recipient_spl.as_ref() {
+            Some(recipient_spl) => recipient_spl.key().to_bytes(),
+            None => [0u8; 32],
+        };
         let input = [
-            self.accounts
-                .unwrap()
-                .recipient_spl
-                .as_ref()
-                .unwrap()
-                .key()
-                .to_bytes()
-                .to_vec(),
+            message_hash.to_vec(),
+            recipient_spl.to_vec(),
             self.accounts
                 .unwrap()
                 .recipient_sol
@@ -246,17 +275,8 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             self.encrypted_utxos.clone(),
         ]
         .concat();
-        // msg!(
-        //     "recipient_spl: {:?}",
-        //     self.accounts
-        //         .unwrap()
-        //         .recipient_spl
-        //         .as_ref()
-        //         .unwrap()
-        //         .key()
-        //         .to_bytes()
-        //         .to_vec()
-        // );
+        // msg!("message_hash: {:?}", message_hash.to_vec());
+        // msg!("recipient_spl: {:?}", recipient_spl.to_vec());
         // msg!(
         //     "recipient_sol: {:?}",
         //     self.accounts
@@ -306,38 +326,38 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     /// Fetches the token mint from passed in sender_spl account. If the sender_spl account is not a
     /// token account, native mint is assumed.
     pub fn fetch_mint(&mut self) -> Result<()> {
-        match spl_token::state::Account::unpack(
-            &self
-                .accounts
-                .unwrap()
-                .sender_spl
-                .as_ref()
-                .unwrap()
-                .data
-                .borrow(),
-        ) {
-            Ok(sender_mint) => {
-                // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
-                // msg!(
-                //     "{:?}",
-                //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
-                // );
-                if self.public_amount_spl[24..32] == vec![0u8; 8] {
-                    self.mint_pubkey = [0u8; 32];
-                } else {
-                    self.mint_pubkey = [
-                        vec![0u8],
-                        hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
-                    ]
-                    .concat()
-                    .try_into()
-                    .unwrap();
-                }
+        match &self.accounts.unwrap().sender_spl {
+            Some(sender_spl) => {
+                match spl_token::state::Account::unpack(sender_spl.data.borrow().as_ref()) {
+                    Ok(sender_mint) => {
+                        // Omits the last byte for the mint pubkey bytes to fit into the bn254 field.
+                        // msg!(
+                        //     "{:?}",
+                        //     [vec![0u8], sender_mint.mint.to_bytes()[..31].to_vec()].concat()
+                        // );
+                        if self.public_amount_spl[24..32] == vec![0u8; 8] {
+                            self.mint_pubkey = [0u8; 32];
+                        } else {
+                            self.mint_pubkey = [
+                                vec![0u8],
+                                hash(&sender_mint.mint.to_bytes()).try_to_vec()?[1..].to_vec(),
+                            ]
+                            .concat()
+                            .try_into()
+                            .unwrap();
+                        }
 
-                self.fetched_mint = true;
-                Ok(())
+                        self.fetched_mint = true;
+                        Ok(())
+                    }
+                    Err(_) => {
+                        self.mint_pubkey = [0u8; 32];
+                        self.fetched_mint = true;
+                        Ok(())
+                    }
+                }
             }
-            Err(_) => {
+            None => {
                 self.mint_pubkey = [0u8; 32];
                 self.fetched_mint = true;
                 Ok(())
@@ -345,7 +365,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         }
     }
 
-    /// Calls merkle tree via cpi to insert leaves.
+    /// Calls the Merkle tree program via cpi to insert transaction leaves.
     pub fn insert_leaves(&mut self) -> Result<()> {
         if !self.verified_proof {
             msg!("Tried to insert leaves without verifying the proof.");
