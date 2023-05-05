@@ -42,7 +42,7 @@ import { BN } from "@coral-xyz/anchor";
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
-// console.log = () => {};
+console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";

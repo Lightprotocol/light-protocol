@@ -92,23 +92,9 @@ pub mod mock_verifier {
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
         inputs: Vec<u8>,
     ) -> Result<()> {
-        msg!("original {:?}", inputs[0..32].to_vec());
         let inputs_des: InstructionDataLightInstructionSecond =
             InstructionDataLightInstructionSecond::try_deserialize(&mut inputs.as_slice())?;
 
-        // ctx.accounts.verifier_state.checked_public_inputs.insert(
-        //     0,
-        //     [
-        //         vec![0u8],
-        //         hash(&ctx.program_id.to_bytes()).try_to_vec()?[1..].to_vec(),
-        //     ]
-        //     .concat(),
-        // );
-        // ctx.accounts
-        //     .verifier_state
-        //     .checked_public_inputs
-        //     .insert(1, inputs.transaction_hash);
-        msg!("inputs {:?}", inputs_des);
         process_transfer_4_ins_4_outs_4_checked_second(
             ctx,
             &inputs_des.proof_a_app,
