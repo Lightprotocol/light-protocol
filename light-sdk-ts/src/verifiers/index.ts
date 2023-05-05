@@ -36,9 +36,6 @@ export interface Verifier {
   parsePublicInputsFromArray(
     publicInputsBytes: Array<Array<number>>,
   ): PublicInputs;
-  // getInstructions(
-  //   transaction: Transaction,
-  // ): Promise<web3.TransactionInstruction[]>;
   pubkey?: BN;
   idl: Idl;
 }

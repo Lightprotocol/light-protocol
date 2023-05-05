@@ -160,12 +160,14 @@ export class Transaction {
     this.remainingAccounts = {};
   }
 
+  // TODO: evaluate whether we need this function
   // /** Returns serialized instructions */
   // async proveAndCreateInstructionsJson(): Promise<string[]> {
   //   await this.compileAndProve();
   //   return await this.getInstructionsJson();
   // }
 
+  // TODO: evaluate whether we need this function
   // async proveAndCreateInstructions(): Promise<TransactionInstruction[]> {
   //   await this.compileAndProve();
   //   if (this.appParams) {
@@ -605,6 +607,7 @@ export class Transaction {
     )[0];
   }
 
+  // TODO: evaluate whether we need this function
   // async getInstructionsJson(): Promise<string[]> {
   //   if (!this.params)
   //     throw new TransactionError(
@@ -813,7 +816,6 @@ export class Transaction {
     } else {
       instructions = await this.getInstructions(this.appParams);
     }
-
     if (instructions) {
       let tx = "Something went wrong";
       for (var ix in instructions) {
