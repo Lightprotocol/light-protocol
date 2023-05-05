@@ -1,15 +1,6 @@
 export type VerifierProgramOne = {
   version: "0.1.0";
   name: "verifier_program_one";
-  constants: [
-    {
-      name: "EXECUTION_ORDER";
-      type: {
-        array: ["string", 2];
-      };
-      value: '["ShieldedTransferFirst" , "ShieldedTransferSecond"]';
-    },
-  ];
   instructions: [
     {
       name: "shieldedTransferFirst";
@@ -242,15 +233,6 @@ export type VerifierProgramOne = {
 export const IDL: VerifierProgramOne = {
   version: "0.1.0",
   name: "verifier_program_one",
-  constants: [
-    {
-      name: "EXECUTION_ORDER",
-      type: {
-        array: ["string", 2],
-      },
-      value: '["ShieldedTransferFirst" , "ShieldedTransferSecond"]',
-    },
-  ],
   instructions: [
     {
       name: "shieldedTransferFirst",
