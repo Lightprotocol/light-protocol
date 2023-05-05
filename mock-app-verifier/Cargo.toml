@@ -2,3 +2,6 @@
 members = [
     "programs/*"
 ]
+
+[patch.crates-io]
+solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }

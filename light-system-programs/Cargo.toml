@@ -2,11 +2,13 @@
 members = [
     "programs/*"
 ]
+
 [patch.crates-io]
 ark-ff = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0" }
 ark-bn254 = {git = "https://github.com/Lightprotocol/curves", branch="release-0.3.0"}
 ark-ec = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0"}
 ark-serialize = { git = "https://github.com/Lightprotocol/algebra", branch="release-0.3.0"}
+solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }
 
 [profile.release]
 overflow-checks = true
