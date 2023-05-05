@@ -20,3 +20,6 @@ ark-std = { version = "^0.3.0", default-features = false }
 spl-token = "3.3.0"
 borsh = "0.9.3"
 groth16-solana = "0.0.1"
+
+[patch.crates-io]
+solana-program = { git = "https://github.com/Lightprotocol/solana", branch="v1.15" }
