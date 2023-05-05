@@ -1,0 +1,11 @@
+[package]
+name = "light-account-compression"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["lib"]
+name = "light_account_compression"
+
+[dependencies]
+anchor-lang = "0.26.0"

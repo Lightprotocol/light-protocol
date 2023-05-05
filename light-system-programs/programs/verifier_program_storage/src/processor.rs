@@ -1,4 +1,3 @@
-use crate::verifying_key::VERIFYINGKEY;
 use anchor_lang::prelude::*;
 use light_macros::pubkey;
 use light_verifier_sdk::{
@@ -6,8 +5,9 @@ use light_verifier_sdk::{
     light_transaction::{Config, Transaction},
 };
 
-use crate::LightInstruction;
-struct TransactionConfig;
+use crate::{verifying_key::VERIFYINGKEY, LightInstructionSecond};
+
+pub struct TransactionConfig;
 impl Config for TransactionConfig {
     /// Number of nullifiers to be inserted with the transaction.
     const NR_NULLIFIERS: usize = 2;
@@ -15,12 +15,13 @@ impl Config for TransactionConfig {
     const NR_LEAVES: usize = 2;
     /// Number of checked public inputs.
     const NR_CHECKED_PUBLIC_INPUTS: usize = 0;
-    /// ProgramId in bytes.
-    const ID: Pubkey = pubkey!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
+    // Program ID.
+    const ID: Pubkey = pubkey!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 }
 
 pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
-    ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
+    ctx: &Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
+    message_hash: Option<&'a [u8; 32]>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],
@@ -39,22 +40,22 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         ctx.accounts.signing_address.to_account_info(),
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
-        None,
+        Some(&ctx.accounts.message_merkle_tree),
         &ctx.accounts.transaction_merkle_tree,
         ctx.accounts.authority.to_account_info(),
-        Some(&ctx.accounts.token_program),
-        Some(ctx.accounts.sender_spl.to_account_info()),
-        Some(ctx.accounts.recipient_spl.to_account_info()),
+        None,
+        None,
+        None,
         Some(ctx.accounts.sender_sol.to_account_info()),
         Some(ctx.accounts.recipient_sol.to_account_info()),
         Some(ctx.accounts.relayer_recipient_sol.to_account_info()),
-        Some(ctx.accounts.token_authority.to_account_info()),
+        None,
         &ctx.accounts.registered_verifier_pda,
         ctx.remaining_accounts,
     )?;
 
     let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
-        None,
+        message_hash,
         proof_a,
         proof_b,
         proof_c,
@@ -65,7 +66,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         leaves,
         encrypted_utxos,
         relayer_fee,
-        merkle_tree_index.try_into().unwrap(),
+        merkle_tree_index as usize,
         pool_type,
         Some(&accounts),
         &VERIFYINGKEY,

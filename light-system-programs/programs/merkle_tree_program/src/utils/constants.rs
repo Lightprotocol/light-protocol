@@ -14,6 +14,7 @@ pub const HASH_1: u8 = 1;
 pub const HASH_2: u8 = 2;
 pub const ROOT_INSERT: u8 = 241;
 
+// Seeds
 #[constant]
 pub const AUTHORITY_SEED: &[u8] = b"AUTHORITY_SEED";
 #[constant]
@@ -34,3 +35,9 @@ pub const POOL_CONFIG_SEED: &[u8] = b"pool-config";
 pub const POOL_SEED: &[u8] = b"pool";
 #[constant]
 pub const TOKEN_AUTHORITY_SEED: &[u8] = b"spl";
+#[constant]
+pub const MESSSAGE_MERKLE_TREE_SEED: &[u8] = b"message_merkle_tree";
+
+// Merkle tree parameters
+#[constant]
+pub const MESSAGE_MERKLE_TREE_HEIGHT: usize = 8;

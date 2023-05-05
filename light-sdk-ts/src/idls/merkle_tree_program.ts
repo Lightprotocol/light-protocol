@@ -102,6 +102,18 @@ export type MerkleTreeProgram = {
       type: "bytes";
       value: "[115, 112, 108]";
     },
+    {
+      name: "MESSSAGE_MERKLE_TREE_SEED";
+      type: "bytes";
+      value: "[109, 101, 115, 115, 97, 103, 101, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]";
+    },
+    {
+      name: "MESSAGE_MERKLE_TREE_HEIGHT";
+      type: {
+        defined: "usize";
+      };
+      value: "8";
+    },
   ];
   instructions: [
     {
@@ -143,6 +155,27 @@ export type MerkleTreeProgram = {
           type: "u64";
         },
       ];
+    },
+    {
+      name: "initializeNewMessageMerkleTree";
+      accounts: [
+        {
+          name: "authority";
+          isMut: true;
+          isSigner: true;
+        },
+        {
+          name: "messageMerkleTree";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [];
     },
     {
       name: "initializeMerkleTreeAuthority";
@@ -636,6 +669,35 @@ export type MerkleTreeProgram = {
       ];
     },
     {
+      name: "insertTwoLeavesMessage";
+      accounts: [
+        {
+          name: "messageMerkleTree";
+          isMut: true;
+          isSigner: false;
+        },
+        {
+          name: "systemProgram";
+          isMut: false;
+          isSigner: false;
+        },
+      ];
+      args: [
+        {
+          name: "leafLeft";
+          type: {
+            array: ["u8", 32];
+          };
+        },
+        {
+          name: "leafRight";
+          type: {
+            array: ["u8", 32];
+          };
+        },
+      ];
+    },
+    {
       name: "withdrawSol";
       docs: [
         "Withdraws sol from a liquidity pool.",
@@ -839,6 +901,20 @@ export type MerkleTreeProgram = {
           {
             name: "pubkey";
             type: "publicKey";
+          },
+        ];
+      };
+    },
+    {
+      name: "messageMerkleTree";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "merkleTree";
+            type: {
+              defined: "MerkleTree<Sha256,MessageMerkleTreeConfig>";
+            };
           },
         ];
       };
@@ -1070,6 +1146,79 @@ export type MerkleTreeProgram = {
       };
     },
   ];
+  types: [
+    {
+      name: "MerkleTree<Sha256,MessageMerkleTreeConfig>";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "height";
+            docs: ["Height of the Merkle tree."];
+            type: "u64";
+          },
+          {
+            name: "filledSubtrees";
+            docs: ["Subtree hashes."];
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                18,
+              ];
+            };
+          },
+          {
+            name: "roots";
+            docs: [
+              "Full history of roots of the Merkle tree (the last one is the current",
+              "one).",
+            ];
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                20,
+              ];
+            };
+          },
+          {
+            name: "nextIndex";
+            docs: ["Next index to insert a leaf."];
+            type: "u64";
+          },
+          {
+            name: "currentRootIndex";
+            docs: ["Current index of the root."];
+            type: "u64";
+          },
+          {
+            name: "hashFunction";
+            docs: ["Hash implementation used on the Merkle tree."];
+            type: {
+              defined: "HashFunction";
+            };
+          },
+        ];
+      };
+    },
+    {
+      name: "HashFunction";
+      type: {
+        kind: "enum";
+        variants: [
+          {
+            name: "Sha256";
+          },
+          {
+            name: "Poseidon";
+          },
+        ];
+      };
+    },
+  ];
   errors: [
     {
       code: 6000;
@@ -1277,6 +1426,19 @@ export const IDL: MerkleTreeProgram = {
       type: "bytes",
       value: "[115, 112, 108]",
     },
+    {
+      name: "MESSSAGE_MERKLE_TREE_SEED",
+      type: "bytes",
+      value:
+        "[109, 101, 115, 115, 97, 103, 101, 95, 109, 101, 114, 107, 108, 101, 95, 116, 114, 101, 101]",
+    },
+    {
+      name: "MESSAGE_MERKLE_TREE_HEIGHT",
+      type: {
+        defined: "usize",
+      },
+      value: "8",
+    },
   ],
   instructions: [
     {
@@ -1318,6 +1480,27 @@ export const IDL: MerkleTreeProgram = {
           type: "u64",
         },
       ],
+    },
+    {
+      name: "initializeNewMessageMerkleTree",
+      accounts: [
+        {
+          name: "authority",
+          isMut: true,
+          isSigner: true,
+        },
+        {
+          name: "messageMerkleTree",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
+      ],
+      args: [],
     },
     {
       name: "initializeMerkleTreeAuthority",
@@ -1811,6 +1994,35 @@ export const IDL: MerkleTreeProgram = {
       ],
     },
     {
+      name: "insertTwoLeavesMessage",
+      accounts: [
+        {
+          name: "messageMerkleTree",
+          isMut: true,
+          isSigner: false,
+        },
+        {
+          name: "systemProgram",
+          isMut: false,
+          isSigner: false,
+        },
+      ],
+      args: [
+        {
+          name: "leafLeft",
+          type: {
+            array: ["u8", 32],
+          },
+        },
+        {
+          name: "leafRight",
+          type: {
+            array: ["u8", 32],
+          },
+        },
+      ],
+    },
+    {
       name: "withdrawSol",
       docs: [
         "Withdraws sol from a liquidity pool.",
@@ -2014,6 +2226,20 @@ export const IDL: MerkleTreeProgram = {
           {
             name: "pubkey",
             type: "publicKey",
+          },
+        ],
+      },
+    },
+    {
+      name: "messageMerkleTree",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "merkleTree",
+            type: {
+              defined: "MerkleTree<Sha256,MessageMerkleTreeConfig>",
+            },
           },
         ],
       },
@@ -2240,6 +2466,79 @@ export const IDL: MerkleTreeProgram = {
           {
             name: "insertLeavesIndex",
             type: "u8",
+          },
+        ],
+      },
+    },
+  ],
+  types: [
+    {
+      name: "MerkleTree<Sha256,MessageMerkleTreeConfig>",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "height",
+            docs: ["Height of the Merkle tree."],
+            type: "u64",
+          },
+          {
+            name: "filledSubtrees",
+            docs: ["Subtree hashes."],
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                18,
+              ],
+            },
+          },
+          {
+            name: "roots",
+            docs: [
+              "Full history of roots of the Merkle tree (the last one is the current",
+              "one).",
+            ],
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                20,
+              ],
+            },
+          },
+          {
+            name: "nextIndex",
+            docs: ["Next index to insert a leaf."],
+            type: "u64",
+          },
+          {
+            name: "currentRootIndex",
+            docs: ["Current index of the root."],
+            type: "u64",
+          },
+          {
+            name: "hashFunction",
+            docs: ["Hash implementation used on the Merkle tree."],
+            type: {
+              defined: "HashFunction",
+            },
+          },
+        ],
+      },
+    },
+    {
+      name: "HashFunction",
+      type: {
+        kind: "enum",
+        variants: [
+          {
+            name: "Sha256",
+          },
+          {
+            name: "Poseidon",
           },
         ],
       },

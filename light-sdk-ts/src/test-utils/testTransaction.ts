@@ -11,7 +11,7 @@ import {
   IDL_MERKLE_TREE_PROGRAM,
   checkRentExemption,
   Utxo,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   FIELD_SIZE,
   Action,
   merkleTreeProgramId,
@@ -83,12 +83,6 @@ export class TestTransaction {
         "getTestValues",
         "",
       );
-    if (!this.params.accounts.recipientSpl)
-      throw new TransactionError(
-        TransactionErrorCode.SPL_RECIPIENT_UNDEFINED,
-        "getTestValues",
-        "",
-      );
     if (!this.params.accounts.recipientSol)
       throw new TransactionError(
         TransactionErrorCode.SOL_RECIPIENT_UNDEFINED,
@@ -108,24 +102,26 @@ export class TestTransaction {
         "",
       );
 
-    try {
-      this.testValues.recipientBalancePriorTx = new BN(
-        (
-          await getAccount(
-            this.provider.provider.connection,
-            this.params.accounts.recipientSpl,
-          )
-        ).amount.toString(),
-      );
-    } catch (e) {
-      // covers the case of the recipient being a native sol address not a spl token address
+    if (this.params.accounts.recipientSpl) {
       try {
         this.testValues.recipientBalancePriorTx = new BN(
-          await this.provider.provider.connection.getBalance(
-            this.params.accounts.recipientSpl,
-          ),
+          (
+            await getAccount(
+              this.provider.provider.connection,
+              this.params.accounts.recipientSpl,
+            )
+          ).amount.toString(),
         );
-      } catch (e) {}
+      } catch (e) {
+        // covers the case of the recipient being a native sol address not a spl token address
+        try {
+          this.testValues.recipientBalancePriorTx = new BN(
+            await this.provider.provider.connection.getBalance(
+              this.params.accounts.recipientSpl,
+            ),
+          );
+        } catch (e) {}
+      }
     }
 
     try {
@@ -185,13 +181,6 @@ export class TestTransaction {
       throw new Error("params.accounts.recipientSol undefined");
     }
 
-    if (!this.params.accounts.recipientSpl) {
-      throw new Error("params.accounts.recipientSpl undefined");
-    }
-
-    if (!this.params.accounts.recipientSpl) {
-      throw new Error("params.accounts.recipientSpl undefined");
-    }
     if (!this.testValues) {
       throw new Error("test values undefined");
     }
@@ -236,9 +225,6 @@ export class TestTransaction {
       throw new Error("params.relayer undefined");
     }
 
-    if (!this.params.accounts.senderSpl) {
-      throw new Error("params.accounts.senderSpl undefined");
-    }
     if (!remainingAccounts) {
       throw new Error("remainingAccounts.nullifierPdaPubkeys undefined");
     }
@@ -256,21 +242,28 @@ export class TestTransaction {
       throw new Error("test values recipientFeeBalancePriorTx undefined");
     }
 
-    if (!this.testValues.recipientBalancePriorTx) {
-      throw new Error("test values recipientBalancePriorTx undefined");
-    }
-
     if (!this.testValues.relayerRecipientAccountBalancePriorLastTx) {
       throw new Error(
         "test values relayerRecipientAccountBalancePriorLastTx undefined",
       );
     }
-    // Checking that nullifiers were inserted
+
     if (new BN(proofInput.publicAmountSpl).toString() === "0") {
       this.testValues.is_token = false;
     } else {
       this.testValues.is_token = true;
     }
+    if (this.testValues.is_token && !this.params.accounts.senderSpl) {
+      throw new Error("params.accounts.senderSpl undefined");
+    }
+    if (this.testValues.is_token && !this.params.accounts.recipientSpl) {
+      throw new Error("params.accounts.recipientSpl undefined");
+    }
+    if (this.testValues.is_token && !this.testValues.recipientBalancePriorTx) {
+      throw new Error("test values recipientBalancePriorTx undefined");
+    }
+
+    // Checking that nullifiers were inserted
     for (var i = 0; i < remainingAccounts.nullifierPdaPubkeys?.length; i++) {
       var nullifierAccount =
         await this.provider.provider!.connection.getAccountInfo(
@@ -336,7 +329,7 @@ export class TestTransaction {
     try {
       const merkleTreeAfterUpdate =
         await this.merkleTreeProgram.account.transactionMerkleTree.fetch(
-          MERKLE_TREE_KEY,
+          TRANSACTION_MERKLE_TREE_KEY,
           "confirmed",
         );
 
@@ -395,7 +388,7 @@ export class TestTransaction {
     ) {
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipientSpl,
+        this.params.accounts.recipientSpl!,
       );
       var recipientSolAccountBalance =
         await this.provider.provider.connection.getBalance(
@@ -469,17 +462,17 @@ export class TestTransaction {
     ) {
       var senderAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.senderSpl,
+        this.params.accounts.senderSpl!,
       );
 
       var recipientAccount = await getAccount(
         this.provider.provider.connection,
-        this.params.accounts.recipientSpl,
+        this.params.accounts.recipientSpl!,
       );
 
       assert.equal(
         recipientAccount.amount.toString(),
-        new BN(this.testValues.recipientBalancePriorTx)
+        new BN(this.testValues.recipientBalancePriorTx!)
           .sub(this.params.publicAmountSpl?.sub(FIELD_SIZE).mod(FIELD_SIZE))
           .toString(),
         "amount not transferred correctly",

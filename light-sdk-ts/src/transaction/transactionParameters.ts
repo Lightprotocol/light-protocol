@@ -4,8 +4,9 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramZeroProgramId,
+  verifierStorageProgramId,
 } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
 import { Verifier, VerifierZero } from "../verifiers";
@@ -38,9 +39,12 @@ import {
   createOutUtxos,
 } from "../index";
 import nacl from "tweetnacl";
+import { sha256 } from "@noble/hashes/sha256";
+import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 const { keccak_256 } = require("@noble/hashes/sha3");
 
 export class TransactionParameters implements transactionParameters {
+  message?: Buffer;
   inputUtxos: Array<Utxo>;
   outputUtxos: Array<Utxo>;
   accounts: lightAccounts;
@@ -59,7 +63,9 @@ export class TransactionParameters implements transactionParameters {
   txIntegrityHash?: BN;
 
   constructor({
-    merkleTreePubkey,
+    message,
+    messageMerkleTreePubkey,
+    transactionMerkleTreePubkey,
     verifier,
     senderSpl,
     recipientSpl,
@@ -76,7 +82,9 @@ export class TransactionParameters implements transactionParameters {
     transactionNonce,
     validateUtxos = true,
   }: {
-    merkleTreePubkey: PublicKey;
+    message?: Buffer;
+    messageMerkleTreePubkey?: PublicKey;
+    transactionMerkleTreePubkey: PublicKey;
     verifier: Verifier;
     senderSpl?: PublicKey;
     recipientSpl?: PublicKey;
@@ -132,7 +140,23 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
+    if (message && !messageMerkleTreePubkey) {
+      throw new TransactioParametersError(
+        TransactionParametersErrorCode.MESSAGE_MERKLE_TREE_UNDEFINED,
+        "constructor",
+        "Message Merkle tree pubkey needs to be defined if you provide a message",
+      );
+    }
+    if (messageMerkleTreePubkey && !message) {
+      throw new TransactioParametersError(
+        TransactionParametersErrorCode.MESSAGE_UNDEFINED,
+        "constructor",
+        "Message needs to be defined if you provide message Merkle tree",
+      );
+    }
+
     this.transactionNonce = transactionNonce;
+    this.message = message;
     this.verifier = verifier;
     this.poseidon = poseidon;
     this.ataCreationFee = ataCreationFee;
@@ -431,7 +455,9 @@ export class TransactionParameters implements transactionParameters {
     this.accounts = {
       systemProgramId: SystemProgram.programId,
       tokenProgram: TOKEN_PROGRAM_ID,
-      transactionMerkleTree: merkleTreePubkey,
+      logWrapper: SPL_NOOP_PROGRAM_ID,
+      messageMerkleTree: messageMerkleTreePubkey,
+      transactionMerkleTree: transactionMerkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
         verifier.verifierProgram.programId,
@@ -585,7 +611,7 @@ export class TransactionParameters implements transactionParameters {
       relayer,
       ...decoded,
       action,
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
     });
   }
 
@@ -694,7 +720,7 @@ export class TransactionParameters implements transactionParameters {
     let txParams = new TransactionParameters({
       outputUtxos,
       inputUtxos,
-      merkleTreePubkey: MERKLE_TREE_KEY,
+      transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: action === Action.SHIELD ? userSplAccount : undefined,
       senderSol:
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
@@ -800,8 +826,9 @@ export class TransactionParameters implements transactionParameters {
       );
       this.accounts.recipientSol =
         MerkleTreeConfig.getSolPoolPda(merkleTreeProgramId).pda;
+
       if (!this.accounts.senderSpl) {
-        // assigning a placeholder account
+        /// assigning a placeholder account
         this.accounts.senderSpl = AUTHORITY;
         if (!this.publicAmountSpl?.eq(new BN(0))) {
           throw new TransactioParametersError(
@@ -1003,8 +1030,21 @@ export class TransactionParameters implements transactionParameters {
       this.encryptedUtxos = this.encryptedUtxos.slice(0, 512);
     }
     if (this.encryptedUtxos) {
+      const messageHash = this.message
+        ? sha256(this.message)
+        : new Uint8Array(32);
+      // TODO(vadorovsky): Try to get rid of this hack during Verifier class
+      // refactoring / removal
+      // For example, we could derive which accounts exist in the IDL of the
+      // verifier program method.
+      const recipientSpl =
+        this.verifier.verifierProgram?.programId.toBase58() ===
+        verifierStorageProgramId.toBase58()
+          ? new Uint8Array(32)
+          : this.accounts.recipientSpl.toBytes();
       let hashInputBytes = new Uint8Array([
-        ...this.accounts.recipientSpl?.toBytes(),
+        ...messageHash,
+        ...recipientSpl,
         ...this.accounts.recipientSol.toBytes(),
         ...this.relayer.accounts.relayerPubkey.toBytes(),
         ...this.relayer.getRelayerFee(this.ataCreationFee).toArray("le", 8),

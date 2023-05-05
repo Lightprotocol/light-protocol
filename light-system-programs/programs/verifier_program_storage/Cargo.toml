@@ -17,6 +17,11 @@ default = []
 
 [dependencies]
 anchor-lang = { version = "0.26.0", features = ["init-if-needed"] }
+anchor-spl = "0.26.0"
 
 # Light deps
+groth16-solana = "0.0.1"
+light-account-compression = { path = "../../../light-account-compression" }
+light-macros = { path = "../../../light-macros" }
 light-verifier-sdk = { path = "../../../light-verifier-sdk" }
+merkle_tree_program = { path = "../merkle_tree_program", features = ["cpi"] }

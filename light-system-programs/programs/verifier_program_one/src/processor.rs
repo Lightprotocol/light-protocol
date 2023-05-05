@@ -36,6 +36,7 @@ pub fn process_transfer_10_ins_2_outs_first<'a, 'b, 'c, 'info>(
     let checked_public_inputs = Vec::<Vec<u8>>::new();
     let pool_type = [0u8; 32];
     let tx = Transaction::<1, 10, TransactionConfig>::new(
+        None,
         proof_a,
         proof_b,
         proof_c,
@@ -68,6 +69,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         ctx.accounts.signing_address.to_account_info(),
         &ctx.accounts.system_program,
         &ctx.accounts.program_merkle_tree,
+        None,
         &ctx.accounts.transaction_merkle_tree,
         ctx.accounts.authority.to_account_info(),
         Some(&ctx.accounts.token_program),
@@ -95,6 +97,7 @@ pub fn process_transfer_10_ins_2_outs_second<'a, 'b, 'c, 'info>(
         .unwrap();
 
     let mut tx = Transaction::<1, 10, TransactionConfig>::new(
+        None,
         proof_a,
         proof_b,
         proof_c,

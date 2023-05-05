@@ -19,7 +19,7 @@ import {
   SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   TOKEN_REGISTRY,
   merkleTreeProgramId,
   Account,
@@ -160,7 +160,7 @@ export class User {
     }
 
     let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
       this.provider.provider,
     );
 
@@ -235,7 +235,11 @@ export class User {
    */
   async getUtxoInbox(latest: boolean = true): Promise<InboxBalance> {
     if (latest) {
-      await this.syncState(false, this.inboxBalance, MERKLE_TREE_KEY);
+      await this.syncState(
+        false,
+        this.inboxBalance,
+        TRANSACTION_MERKLE_TREE_KEY,
+      );
     }
     return this.inboxBalance;
   }
@@ -271,7 +275,7 @@ export class User {
       );
 
     if (latest) {
-      await this.syncState(true, this.balance, MERKLE_TREE_KEY);
+      await this.syncState(true, this.balance, TRANSACTION_MERKLE_TREE_KEY);
     }
     return this.balance;
   }

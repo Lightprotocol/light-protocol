@@ -36,7 +36,7 @@ process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
 
 describe("Transaction Error Tests", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -70,7 +70,7 @@ describe("Transaction Error Tests", () => {
     });
     params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
@@ -143,7 +143,7 @@ describe("Transaction Error Tests", () => {
   it("Constructor WALLET_RELAYER_INCONSISTENT", async () => {
     const params1 = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
@@ -168,7 +168,7 @@ describe("Transaction Error Tests", () => {
   it("Constructor TX_PARAMETERS_UNDEFINED", async () => {
     const params1 = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
@@ -280,7 +280,7 @@ describe("Transaction Error Tests", () => {
 });
 
 describe("Transaction Functional Tests", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -316,7 +316,7 @@ describe("Transaction Functional Tests", () => {
     });
     paramsDeposit = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
@@ -337,7 +337,7 @@ describe("Transaction Functional Tests", () => {
     );
     paramsWithdrawal = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey2,
+      transactionMerkleTreePubkey: mockPubkey2,
       verifier: new VerifierZero(),
       poseidon,
       recipientSpl: mockPubkey,
@@ -399,7 +399,7 @@ describe("Transaction Functional Tests", () => {
 
     var params = new TransactionParameters({
       inputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       verifier: new VerifierZero(),
       recipientSpl: mockPubkey,
       recipientSol: mockPubkey,
@@ -511,7 +511,7 @@ describe("Transaction Functional Tests", () => {
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
-      merkleTreePubkey: AUTHORITY,
+      transactionMerkleTreePubkey: AUTHORITY,
       verifier: new VerifierZero(),
       poseidon,
       recipientSpl: AUTHORITY,
@@ -527,14 +527,14 @@ describe("Transaction Functional Tests", () => {
 
     assert.equal(
       txIntegrityHash.toString(),
-      "10565179045304799599615498933777028333590859286329750962414982763930145076928",
+      "8474219873742569926077283601668996541206408042377172085414034533116551539216",
     );
     assert.equal(
       Transaction.getTransactionHash(
         paramsStaticEncryptedUtxos,
         poseidon,
       ).toString(),
-      "17839803697694370923785848963554456796381014485772858975068789803147218922092",
+      "18885149309354713641176366184956071391463483813877037254205685046110691645566",
     );
   });
 
@@ -606,7 +606,7 @@ describe("Transaction Functional Tests", () => {
     const paramsStaticEncryptedUtxos = new TransactionParameters({
       inputUtxos: [deposit_utxo1, deposit_utxo1],
       outputUtxos: [deposit_utxo1, deposit_utxo1],
-      merkleTreePubkey: AUTHORITY,
+      transactionMerkleTreePubkey: AUTHORITY,
       verifier: new VerifierZero(),
       poseidon,
       recipientSpl: AUTHORITY,
@@ -659,7 +659,7 @@ describe("Transaction Functional Tests", () => {
   it("APP_PARAMETERS_UNDEFINED", async () => {
     const params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       verifier: new VerifierTwo(),
@@ -684,7 +684,7 @@ describe("Transaction Functional Tests", () => {
   it("INVALID_VERIFIER_SELECTED", async () => {
     const params = new TransactionParameters({
       outputUtxos: [deposit_utxo1],
-      merkleTreePubkey: mockPubkey,
+      transactionMerkleTreePubkey: mockPubkey,
       senderSpl: mockPubkey,
       senderSol: mockPubkey,
       verifier: new VerifierZero(),
