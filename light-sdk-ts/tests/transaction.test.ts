@@ -374,8 +374,8 @@ describe("Transaction Functional Tests", () => {
       provider: lightProvider,
       params: paramsDeposit,
     });
-    let rootIndex = tx.getRootIndex();
-    assert.equal(tx.transactionInputs.rootIndex, 0);
+    await tx.getRootIndex();
+    assert.equal(tx.transactionInputs.rootIndex?.toNumber(), 0);
   });
 
   it("getIndices", async () => {
@@ -637,19 +637,18 @@ describe("Transaction Functional Tests", () => {
     ];
 
     const refLeaves = [
-      "5ut6dW3gzB5dRFRhbAWNkne25EKBG5equyonfC5iuAzn",
-      "5ut6dW3gzB5dRFRhbAWNkne25EKBG5equyonfC5iuAzn",
+      "6UuSTaJpEemGVuPkmtTiNe7VndXXenWCDU49aTkGSQqY",
     ];
     for (var i = 0; i < 2; i++) {
       assert.equal(
         tx.remainingAccounts?.nullifierPdaPubkeys![i].pubkey.toBase58(),
         refNullfiers[i],
       );
-      assert.equal(
-        tx.remainingAccounts?.leavesPdaPubkeys![i].pubkey.toBase58(),
-        refLeaves[i],
-      );
     }
+    assert.equal(
+      tx.remainingAccounts?.leavesPdaPubkeys![0].pubkey.toBase58(),
+      refLeaves[0],
+    );
     assert.equal(
       tx.params.accounts.verifierState!.toBase58(),
       "5XAf8s2hi4fx3QK8fm6dgkfXLE23Hy9k1Qo3ew6QqdGP",

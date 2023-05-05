@@ -1,5 +1,5 @@
 import { VerifierProgramTwo, IDL_VERIFIER_PROGRAM_TWO } from "../idls/index";
-import { Program } from "@coral-xyz/anchor";
+import { Idl, Program } from "@coral-xyz/anchor";
 import {
   hashAndTruncateToCircuit,
   VerifierError,
@@ -17,6 +17,8 @@ export class VerifierTwo implements Verifier {
   calculateWtns: NodeRequire;
   config: VerifierConfig;
   pubkey: BN;
+  idl: Idl;
+
   constructor() {
     this.verifierProgram = new Program(
       IDL_VERIFIER_PROGRAM_TWO,
@@ -30,6 +32,7 @@ export class VerifierTwo implements Verifier {
     this.pubkey = hashAndTruncateToCircuit(
       new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS").toBytes(),
     );
+    this.idl = IDL_VERIFIER_PROGRAM_TWO;
   }
 
   parsePublicInputsFromArray(publicInputsBytes: any): PublicInputs {
@@ -55,13 +58,9 @@ export class VerifierTwo implements Verifier {
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
       nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
-      leaves: Array.from([
-        publicInputsBytes.slice(9, 11),
-        publicInputsBytes.slice(11, 13),
-      ]),
-      checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
-      transactionHash: Array.from(publicInputsBytes.slice(13, 14)),
-      publicAppVerifier: Array.from(publicInputsBytes.slice(14, 15)),
+      leaves: Array.from(publicInputsBytes.slice(9, 13)),
+      publicAppVerifier: publicInputsBytes[13],
+      transactionHash: publicInputsBytes[14],
     };
   }
 
@@ -70,11 +69,5 @@ export class VerifierTwo implements Verifier {
       IDL_VERIFIER_PROGRAM_TWO,
       verifierProgramTwoProgramId,
     );
-  }
-
-  // Do I need a getData fn?
-  // I should be able to fetch everything from the object
-  async getInstructions(transaction: Transaction): Promise<any> {
-    console.log("empty is cpi");
   }
 }

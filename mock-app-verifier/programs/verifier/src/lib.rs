@@ -44,72 +44,79 @@ pub mod mock_verifier {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
+    pub fn light_instruction_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount_spl: [u8; 32],
-        nullifiers: [[u8; 32]; 4],
-        leaves: [[[u8; 32]; 2]; 2],
-        public_amount_sol: [u8; 32],
-        root_index: u64,
-        relayer_fee: u64,
-        encrypted_utxos: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
+        let inputs_des: InstructionDataLightInstructionFirst =
+            InstructionDataLightInstructionFirst::try_deserialize_unchecked(
+                &mut inputs.as_slice(),
+            )?;
         let proof_a = [0u8; 64];
         let proof_b = [0u8; 128];
         let proof_c = [0u8; 64];
         let pool_type = [0u8; 32];
-        let checked_inputs = Vec::new();
-
+        let checked_inputs = vec![
+            [
+                vec![0u8],
+                hash(&ctx.program_id.to_bytes()).try_to_vec()?[1..].to_vec(),
+            ]
+            .concat(),
+            inputs_des.transaction_hash.to_vec(),
+        ];
+        let leaves = [
+            [inputs_des.leaves[0], inputs_des.leaves[1]],
+            [inputs_des.leaves[2], inputs_des.leaves[3]],
+        ];
         process_transfer_4_ins_4_outs_4_checked_first(
             ctx,
             &proof_a,
             &proof_b,
             &proof_c,
-            &public_amount_spl,
-            &nullifiers,
+            &inputs_des.public_amount_spl,
+            &inputs_des.nullifiers,
             &leaves,
-            &public_amount_sol,
+            &inputs_des.public_amount_sol,
             &checked_inputs,
-            &encrypted_utxos,
+            &inputs_des.encrypted_utxos,
             &pool_type,
-            &root_index,
-            &relayer_fee,
+            &inputs_des.root_index,
+            &inputs_des.relayer_fee,
         )
     }
 
     /// This instruction is the second step of a shieled transaction.
     /// The proof is verified with the parameters saved in the first transaction.
     /// At successful verification protocol logic is executed.
-    pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
+    pub fn light_instruction_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof_a_app: [u8; 64],
-        proof_b_app: [u8; 128],
-        proof_c_app: [u8; 64],
-        proof_a_verifier: [u8; 64],
-        proof_b_verifier: [u8; 128],
-        proof_c_verifier: [u8; 64],
-        transaction_hash: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
-        ctx.accounts.verifier_state.checked_public_inputs.insert(
-            0,
-            [
-                vec![0u8],
-                hash(&ctx.program_id.to_bytes()).try_to_vec()?[1..].to_vec(),
-            ]
-            .concat(),
-        );
-        ctx.accounts
-            .verifier_state
-            .checked_public_inputs
-            .insert(1, transaction_hash);
+        msg!("original {:?}", inputs[0..32].to_vec());
+        let inputs_des: InstructionDataLightInstructionSecond =
+            InstructionDataLightInstructionSecond::try_deserialize(&mut inputs.as_slice())?;
+
+        // ctx.accounts.verifier_state.checked_public_inputs.insert(
+        //     0,
+        //     [
+        //         vec![0u8],
+        //         hash(&ctx.program_id.to_bytes()).try_to_vec()?[1..].to_vec(),
+        //     ]
+        //     .concat(),
+        // );
+        // ctx.accounts
+        //     .verifier_state
+        //     .checked_public_inputs
+        //     .insert(1, inputs.transaction_hash);
+        msg!("inputs {:?}", inputs_des);
         process_transfer_4_ins_4_outs_4_checked_second(
             ctx,
-            &proof_a_app,
-            &proof_b_app,
-            &proof_c_app,
-            &proof_a_verifier,
-            &proof_b_verifier,
-            &proof_c_verifier,
+            &inputs_des.proof_a_app,
+            &inputs_des.proof_b_app,
+            &inputs_des.proof_c_app,
+            &inputs_des.proof_a,
+            &inputs_des.proof_b,
+            &inputs_des.proof_c,
         )
     }
 
@@ -130,6 +137,19 @@ pub struct LightInstructionFirst<'info> {
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
     pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionsConfig>>>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataLightInstructionFirst {
+    public_amount_spl: [u8; 32],
+    nullifiers: [[u8; 32]; 4],
+    leaves: [[u8; 32]; 4],
+    public_amount_sol: [u8; 32],
+    transaction_hash: [u8; 32],
+    root_index: u64,
+    relayer_fee: u64,
+    encrypted_utxos: Vec<u8>,
 }
 
 /// Executes light transaction with state created in the first instruction.
@@ -170,6 +190,17 @@ pub struct LightInstructionSecond<'info> {
     #[account(mut, seeds= [VerifierProgramTwo::id().to_bytes().as_ref()], bump, seeds::program= MerkleTreeProgram::id())]
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
     pub verifier_program: Program<'info, VerifierProgramTwo>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataLightInstructionSecond {
+    proof_a_app: [u8; 64],
+    proof_b_app: [u8; 128],
+    proof_c_app: [u8; 64],
+    proof_a: [u8; 64],
+    proof_b: [u8; 128],
+    proof_c: [u8; 64],
 }
 
 #[derive(Accounts)]

@@ -1,5 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import { BorshAccountsCoder, Program } from "@coral-xyz/anchor";
 import {
   hashAndTruncateToCircuit,
   Provider,
@@ -7,10 +7,12 @@ import {
   VerifierError,
   VerifierErrorCode,
   verifierProgramZeroProgramId,
+  createAccountObject,
 } from "../index";
 import { Transaction } from "transaction";
 import { Verifier, PublicInputs, VerifierConfig } from ".";
 import { VerifierProgramZero, IDL_VERIFIER_PROGRAM_ZERO } from "../idls/index";
+import { IDL } from "@coral-xyz/anchor/dist/cjs/native/system";
 
 // TODO: define verifier with an Idl thus absorb this functionality into the Transaction class
 export class VerifierZero implements Verifier {
@@ -21,6 +23,7 @@ export class VerifierZero implements Verifier {
   config: VerifierConfig;
   instructions?: anchor.web3.TransactionInstruction[];
   pubkey: anchor.BN;
+  idl: anchor.Idl;
   constructor(provider?: Provider) {
     try {
       this.verifierProgram = new Program(
@@ -40,6 +43,7 @@ export class VerifierZero implements Verifier {
     this.pubkey = hashAndTruncateToCircuit(
       verifierProgramZeroProgramId.toBytes(),
     );
+    this.idl = IDL_VERIFIER_PROGRAM_ZERO;
   }
 
   parsePublicInputsFromArray(
@@ -66,95 +70,7 @@ export class VerifierZero implements Verifier {
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
       nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
-      leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
+      leaves: [publicInputsBytes[7], publicInputsBytes[8]],
     };
-  }
-
-  async getInstructions(
-    transaction: Transaction,
-  ): Promise<anchor.web3.TransactionInstruction[]> {
-    if (!transaction.params)
-      throw new VerifierError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "getInstructions",
-      );
-    if (!transaction.remainingAccounts)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier zero: remainingAccounts undefined",
-      );
-    if (!transaction.remainingAccounts.nullifierPdaPubkeys)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier zero: remainingAccounts.nullifierPdaPubkeys undefined",
-      );
-    if (!transaction.remainingAccounts.leavesPdaPubkeys)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier zero: remainingAccounts.leavesPdaPubkeys undefined",
-      );
-    if (!transaction.transactionInputs.publicInputs)
-      throw new VerifierError(
-        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
-        "getInstructions",
-        "verifier zero: params.publicInputs undefined",
-      );
-    if (!transaction.params.relayer)
-      throw new VerifierError(
-        TransactionErrorCode.RELAYER_UNDEFINED,
-        "getInstructions",
-        "verifier zero: params.params.relayer undefined",
-      );
-    if (!transaction.params.encryptedUtxos)
-      throw new VerifierError(
-        VerifierErrorCode.ENCRYPTING_UTXOS_UNDEFINED,
-        "getInstructions",
-        "verifier zero: params.encryptedUtxos undefined",
-      );
-    if (!transaction.provider.wallet) {
-      throw new VerifierError(
-        TransactionErrorCode.WALLET_UNDEFINED,
-        "getInstructions",
-        "verifier zero: Payer(wallet) not defined",
-      );
-    }
-    if (!this.verifierProgram)
-      throw new VerifierError(
-        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
-        "getInstructions",
-        "verifier zero: verifierProgram undefined",
-      );
-
-    const ix = await this.verifierProgram.methods
-      .shieldedTransferInputs(
-        transaction.transactionInputs.proofBytes.proofA,
-        transaction.transactionInputs.proofBytes.proofB,
-        transaction.transactionInputs.proofBytes.proofC,
-        transaction.transactionInputs.publicInputs.publicAmountSpl,
-        transaction.transactionInputs.publicInputs.nullifiers,
-        transaction.transactionInputs.publicInputs.leaves[0],
-        transaction.transactionInputs.publicInputs.publicAmountSol,
-        new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
-        new anchor.BN(
-          transaction.params.relayer
-            .getRelayerFee(transaction.params.ataCreationFee)
-            .toString(),
-        ),
-        Buffer.from(transaction.params.encryptedUtxos),
-      )
-      .accounts({
-        ...transaction.params.accounts,
-        ...transaction.params.relayer.accounts,
-      })
-      .remainingAccounts([
-        ...transaction.remainingAccounts.nullifierPdaPubkeys,
-        ...transaction.remainingAccounts.leavesPdaPubkeys,
-      ])
-      .instruction();
-    this.instructions = [ix];
-    return [ix];
   }
 }

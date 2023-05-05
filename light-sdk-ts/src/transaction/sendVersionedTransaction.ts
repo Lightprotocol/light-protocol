@@ -57,6 +57,8 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
       );
       retries = 0;
     } catch (e: any) {
+      console.log(e);
+
       retries--;
       if (retries == 0 || e.logs !== undefined) {
         console.log(e);
