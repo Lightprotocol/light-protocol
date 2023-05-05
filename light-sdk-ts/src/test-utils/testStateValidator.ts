@@ -15,7 +15,7 @@ import {
 } from "../constants";
 import { Utxo } from "utxo";
 
-type TestInputs = {
+export type TestInputs = {
   amountSpl?: number;
   amountSol?: number;
   token: string;
@@ -30,7 +30,7 @@ type TestInputs = {
   utxoCommitments?: string[];
 };
 
-type TestUserBalances = {
+export type TestUserBalances = {
   user: User;
   preShieldedBalance?: Balance;
   preShieldedInboxBalance?: Balance;
