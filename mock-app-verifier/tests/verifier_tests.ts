@@ -204,7 +204,7 @@ describe("Verifier Two test", () => {
       let lightProviderWithdrawal = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
-      }); // userKeypair
+      });
 
       await provider.connection.confirmTransaction(
         await provider.connection.requestAirdrop(relayerRecipientSol, 10000000),
@@ -228,42 +228,23 @@ describe("Verifier Two test", () => {
       });
 
       await tx.compileAndProve();
-      // await tx.getRootIndex();
-      // await tx.getPdaAddresses();
       transactions.push(tx);
       console.log(transactions[0].remainingAccounts);
     }
   });
-
-  // afterEach(async () => {
-  //   // Check that no nullifier was inserted, otherwise the prior test failed
-  //   for (var tx in transactions) {
-  //     await checkNfInserted(
-  //       transactions[tx].params.nullifierPdaPubkeys,
-  //       provider.connection
-  //     );
-  //   }
-  // });
 
   const sendTestTx = async (
     tx: Transaction,
     type: string,
     account?: string,
   ) => {
-    var instructions = await tx.appParams.verifier.getInstructions(tx);
+    var instructions = await tx.getInstructions(tx.appParams);
     console.log("aftere instructions");
     const provider = anchor.AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
     );
     tx.provider.provider = provider;
-    // if (tx.app_params){
-    //     console.log("tx.app_params ", tx.app_params);
-
-    //     instructions = await tx.app_params.verifier.getInstructions(tx);
-    // } else {
-    //     instructions = await tx.params.verifier.getInstructions(tx);
-    // }
     var e;
 
     for (var ix = 0; ix < instructions.length; ix++) {
@@ -384,9 +365,7 @@ describe("Verifier Two test", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
-        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
-          2,
-        );
+        tmp_tx.transactionInputs.publicInputs.leaves[i] = new Array(32).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }

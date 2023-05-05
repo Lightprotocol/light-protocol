@@ -2,7 +2,7 @@ export * from "./verifierOne";
 export * from "./verifierZero";
 export * from "./verifierTwo";
 
-import { Program, web3, BN } from "@coral-xyz/anchor";
+import { Program, web3, BN, Idl } from "@coral-xyz/anchor";
 import { Transaction } from "transaction";
 
 export type PublicInputs = {
@@ -12,7 +12,7 @@ export type PublicInputs = {
   publicAmountSol: Array<number>;
   publicMintPubkey: Array<number>;
   nullifiers: Array<Array<number>>;
-  leaves: Array<Array<Array<number>>>;
+  leaves: Array<Array<number>>;
   // only for app verifiers
   transactionHash?: Array<number>;
   checkedParams?: Array<Array<number>>;
@@ -36,8 +36,9 @@ export interface Verifier {
   parsePublicInputsFromArray(
     publicInputsBytes: Array<Array<number>>,
   ): PublicInputs;
-  getInstructions(
-    transaction: Transaction,
-  ): Promise<web3.TransactionInstruction[]>;
+  // getInstructions(
+  //   transaction: Transaction,
+  // ): Promise<web3.TransactionInstruction[]>;
   pubkey?: BN;
+  idl: Idl;
 }

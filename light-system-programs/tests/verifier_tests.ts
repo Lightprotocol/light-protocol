@@ -42,7 +42,7 @@ import { BN } from "@coral-xyz/anchor";
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
-console.log = () => {};
+// console.log = () => {};
 describe("Verifier Zero and One Tests", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -53,9 +53,7 @@ describe("Verifier Zero and One Tests", () => {
   );
   anchor.setProvider(provider);
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
-  //  console.log = () => {};
-  const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
-    new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
+  console.log = () => {};
 
   var depositAmount, depositFeeAmount;
   const verifiers = [new VerifierZero(), new VerifierOne()];
@@ -92,8 +90,6 @@ describe("Verifier Zero and One Tests", () => {
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
     for (var verifier in verifiers) {
-      console.log("verifier ", verifier.toString());
-
       await token.approve(
         provider.connection,
         ADMIN_AUTH_KEYPAIR,
@@ -187,7 +183,7 @@ describe("Verifier Zero and One Tests", () => {
       let lightProviderWithdrawal = await LightProvider.init({
         wallet: ADMIN_AUTH_KEYPAIR,
         relayer: RELAYER,
-      }); // userKeypair
+      });
 
       const relayerRecipientSol = SolanaKeypair.generate().publicKey;
       await provider.connection.confirmTransaction(
@@ -211,42 +207,22 @@ describe("Verifier Zero and One Tests", () => {
       });
 
       await tx.compileAndProve();
-      // await tx.getRootIndex();
-      // await tx.getPdaAddresses();
       transactions.push(tx);
-      console.log(transactions[0].remainingAccounts);
     }
   });
-
-  // afterEach(async () => {
-  //   // Check that no nullifier was inserted, otherwise the prior test failed
-  //   for (var tx in transactions) {
-  //     await checkNfInserted(
-  //       transactions[tx].params.nullifierPdaPubkeys,
-  //       provider.connection
-  //     );
-  //   }
-  // });
 
   const sendTestTx = async (
     tx: Transaction,
     type: string,
     account?: string,
   ) => {
-    var instructions = await tx.params.verifier.getInstructions(tx);
+    var instructions = await tx.getInstructions(tx.params);
     console.log("aftere instructions");
     const provider = anchor.AnchorProvider.local(
       "http://127.0.0.1:8899",
       confirmConfig,
     );
     tx.provider.provider = provider;
-    // if (tx.app_params){
-    //     console.log("tx.app_params ", tx.app_params);
-
-    //     instructions = await tx.app_params.verifier.getInstructions(tx);
-    // } else {
-    //     instructions = await tx.params.verifier.getInstructions(tx);
-    // }
     var e;
 
     for (var ix = 0; ix < instructions.length; ix++) {
@@ -291,6 +267,8 @@ describe("Verifier Zero and One Tests", () => {
   it("Wrong amount", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
+      console.log("tmp_tx ", tmp_tx);
+
       let wrongAmount = new anchor.BN("123213").toArray();
       tmp_tx.transactionInputs.publicInputs.publicAmountSpl = Array.from([
         ...new Array(29).fill(0),
@@ -367,9 +345,7 @@ describe("Verifier Zero and One Tests", () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
       for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
-        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
-          2,
-        );
+        tmp_tx.transactionInputs.publicInputs.leaves[i] = new Array(32).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }

@@ -1,6 +1,15 @@
 export type VerifierProgramOne = {
   version: "0.1.0";
   name: "verifier_program_one";
+  constants: [
+    {
+      name: "EXECUTION_ORDER";
+      type: {
+        array: ["string", 2];
+      };
+      value: '["ShieldedTransferFirst" , "ShieldedTransferSecond"]';
+    },
+  ];
   instructions: [
     {
       name: "shieldedTransferFirst";
@@ -32,49 +41,7 @@ export type VerifierProgramOne = {
       ];
       args: [
         {
-          name: "publicAmountSpl";
-          type: {
-            array: ["u8", 32];
-          };
-        },
-        {
-          name: "nullifiers";
-          type: {
-            array: [
-              {
-                array: ["u8", 32];
-              },
-              10,
-            ];
-          };
-        },
-        {
-          name: "leaves";
-          type: {
-            array: [
-              {
-                array: ["u8", 32];
-              },
-              2,
-            ];
-          };
-        },
-        {
-          name: "publicAmountSol";
-          type: {
-            array: ["u8", 32];
-          };
-        },
-        {
-          name: "rootIndex";
-          type: "u64";
-        },
-        {
-          name: "relayerFee";
-          type: "u64";
-        },
-        {
-          name: "encryptedUtxos";
+          name: "inputs";
           type: "bytes";
         },
       ];
@@ -163,22 +130,8 @@ export type VerifierProgramOne = {
       ];
       args: [
         {
-          name: "proofA";
-          type: {
-            array: ["u8", 64];
-          };
-        },
-        {
-          name: "proofB";
-          type: {
-            array: ["u8", 128];
-          };
-        },
-        {
-          name: "proofC";
-          type: {
-            array: ["u8", 64];
-          };
+          name: "inputs";
+          type: "bytes";
         },
       ];
     },
@@ -202,11 +155,102 @@ export type VerifierProgramOne = {
       args: [];
     },
   ];
+  accounts: [
+    {
+      name: "instructionDataShieldedTransferFirst";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "publicAmountSpl";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "nullifiers";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                10,
+              ];
+            };
+          },
+          {
+            name: "leaves";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "publicAmountSol";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "rootIndex";
+            type: "u64";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "encryptedUtxos";
+            type: "bytes";
+          },
+        ];
+      };
+    },
+    {
+      name: "instructionDataShieldedTransferSecond";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "proofA";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "proofB";
+            type: {
+              array: ["u8", 128];
+            };
+          },
+          {
+            name: "proofC";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+        ];
+      };
+    },
+  ];
 };
 
 export const IDL: VerifierProgramOne = {
   version: "0.1.0",
   name: "verifier_program_one",
+  constants: [
+    {
+      name: "EXECUTION_ORDER",
+      type: {
+        array: ["string", 2],
+      },
+      value: '["ShieldedTransferFirst" , "ShieldedTransferSecond"]',
+    },
+  ],
   instructions: [
     {
       name: "shieldedTransferFirst",
@@ -238,49 +282,7 @@ export const IDL: VerifierProgramOne = {
       ],
       args: [
         {
-          name: "publicAmountSpl",
-          type: {
-            array: ["u8", 32],
-          },
-        },
-        {
-          name: "nullifiers",
-          type: {
-            array: [
-              {
-                array: ["u8", 32],
-              },
-              10,
-            ],
-          },
-        },
-        {
-          name: "leaves",
-          type: {
-            array: [
-              {
-                array: ["u8", 32],
-              },
-              2,
-            ],
-          },
-        },
-        {
-          name: "publicAmountSol",
-          type: {
-            array: ["u8", 32],
-          },
-        },
-        {
-          name: "rootIndex",
-          type: "u64",
-        },
-        {
-          name: "relayerFee",
-          type: "u64",
-        },
-        {
-          name: "encryptedUtxos",
+          name: "inputs",
           type: "bytes",
         },
       ],
@@ -369,22 +371,8 @@ export const IDL: VerifierProgramOne = {
       ],
       args: [
         {
-          name: "proofA",
-          type: {
-            array: ["u8", 64],
-          },
-        },
-        {
-          name: "proofB",
-          type: {
-            array: ["u8", 128],
-          },
-        },
-        {
-          name: "proofC",
-          type: {
-            array: ["u8", 64],
-          },
+          name: "inputs",
+          type: "bytes",
         },
       ],
     },
@@ -406,6 +394,88 @@ export const IDL: VerifierProgramOne = {
         },
       ],
       args: [],
+    },
+  ],
+  accounts: [
+    {
+      name: "instructionDataShieldedTransferFirst",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "publicAmountSpl",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "nullifiers",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                10,
+              ],
+            },
+          },
+          {
+            name: "leaves",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "publicAmountSol",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "rootIndex",
+            type: "u64",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "encryptedUtxos",
+            type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "instructionDataShieldedTransferSecond",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "proofA",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "proofB",
+            type: {
+              array: ["u8", 128],
+            },
+          },
+          {
+            name: "proofC",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+        ],
+      },
     },
   ],
 };

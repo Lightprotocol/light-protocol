@@ -197,3 +197,13 @@ export function createAccountObject<T extends KeyValue>(
   });
   return accountObject;
 }
+
+export function firstLetterToLower(input: string): string {
+  if (!input) return input;
+  return input.charAt(0).toLowerCase() + input.slice(1);
+}
+
+export function firstLetterToUpper(input: string): string {
+  if (!input) return input;
+  return input.charAt(0).toUpperCase() + input.slice(1);
+}

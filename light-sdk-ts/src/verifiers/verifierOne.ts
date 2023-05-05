@@ -1,8 +1,11 @@
 import { VerifierProgramOne, IDL_VERIFIER_PROGRAM_ONE } from "../idls/index";
 import * as anchor from "@coral-xyz/anchor";
-import { Program } from "@coral-xyz/anchor";
+import { BorshAccountsCoder, Program } from "@coral-xyz/anchor";
 
 import {
+  createAccountObject,
+  firstLetterToLower,
+  firstLetterToUpper,
   hashAndTruncateToCircuit,
   TransactionErrorCode,
   VerifierError,
@@ -20,7 +23,7 @@ export class VerifierOne implements Verifier {
   config: VerifierConfig;
   instructions?: anchor.web3.TransactionInstruction[];
   pubkey: anchor.BN;
-
+  idl: anchor.Idl;
   constructor() {
     try {
       this.verifierProgram = new Program(
@@ -37,6 +40,7 @@ export class VerifierOne implements Verifier {
     this.pubkey = hashAndTruncateToCircuit(
       verifierProgramOneProgramId.toBytes(),
     );
+    this.idl = IDL_VERIFIER_PROGRAM_ONE;
   }
 
   parsePublicInputsFromArray(
@@ -63,104 +67,7 @@ export class VerifierOne implements Verifier {
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
       nullifiers: Array.from(publicInputsBytes.slice(5, 15)),
-      leaves: [[publicInputsBytes[15], publicInputsBytes[16]]],
+      leaves: [publicInputsBytes[15], publicInputsBytes[16]],
     };
-  }
-
-  async getInstructions(
-    transaction: Transaction,
-  ): Promise<anchor.web3.TransactionInstruction[]> {
-    if (!transaction.params)
-      throw new VerifierError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "getInstructions",
-      );
-    if (!transaction.remainingAccounts)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier one: remainingAccounts undefined",
-      );
-    if (!transaction.remainingAccounts.nullifierPdaPubkeys)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier one: remainingAccounts.nullifierPdaPubkeys undefined",
-      );
-    if (!transaction.remainingAccounts.leavesPdaPubkeys)
-      throw new VerifierError(
-        TransactionErrorCode.REMAINING_ACCOUNTS_NOT_CREATED,
-        "getInstructions",
-        "verifier one: remainingAccounts.leavesPdaPubkeys undefined",
-      );
-    if (!transaction.transactionInputs.publicInputs)
-      throw new VerifierError(
-        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
-        "getInstructions",
-        "verifier one: params.publicInputs undefined",
-      );
-    if (!transaction.params.relayer)
-      throw new VerifierError(
-        TransactionErrorCode.RELAYER_UNDEFINED,
-        "getInstructions",
-        "verifier one: params.params.relayer undefined",
-      );
-    if (!transaction.params.encryptedUtxos)
-      throw new VerifierError(
-        VerifierErrorCode.ENCRYPTING_UTXOS_UNDEFINED,
-        "getInstructions",
-        "verifier one: params.encryptedUtxos undefined",
-      );
-    if (!transaction.provider.wallet) {
-      throw new VerifierError(
-        TransactionErrorCode.WALLET_UNDEFINED,
-        "getInstructions",
-        "verifier one: Payer(wallet) not defined",
-      );
-    }
-    if (!this.verifierProgram)
-      throw new VerifierError(
-        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
-        "getInstructions",
-        "verifier one: verifierProgram undefined",
-      );
-
-    const ix1 = await this.verifierProgram.methods
-      .shieldedTransferFirst(
-        transaction.transactionInputs.publicInputs.publicAmountSpl,
-        transaction.transactionInputs.publicInputs.nullifiers,
-        transaction.transactionInputs.publicInputs.leaves[0],
-        transaction.transactionInputs.publicInputs.publicAmountSol,
-        new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
-        new anchor.BN(
-          transaction.params.relayer
-            .getRelayerFee(transaction.params.ataCreationFee)
-            .toString(),
-        ),
-        Buffer.from(transaction.params.encryptedUtxos),
-      )
-      .accounts({
-        ...transaction.params.accounts,
-        ...transaction.params.relayer.accounts,
-      })
-      .instruction();
-
-    const ix2 = await this.verifierProgram.methods
-      .shieldedTransferSecond(
-        transaction.transactionInputs.proofBytes.proofA,
-        transaction.transactionInputs.proofBytes.proofB,
-        transaction.transactionInputs.proofBytes.proofC,
-      )
-      .accounts({
-        ...transaction.params.accounts,
-        ...transaction.params.relayer.accounts,
-      })
-      .remainingAccounts([
-        ...transaction.remainingAccounts.nullifierPdaPubkeys,
-        ...transaction.remainingAccounts.leavesPdaPubkeys,
-      ])
-      .instruction();
-    this.instructions = [ix1, ix2];
-    return this.instructions;
   }
 }

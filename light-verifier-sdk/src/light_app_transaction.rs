@@ -32,6 +32,7 @@ impl<'a, T: Config> AppTransaction<'a, T> {
         checked_public_inputs: Vec<Vec<u8>>,
         verifyingkey: &'a Groth16Verifyingkey<'a>,
     ) -> AppTransaction<'a, T> {
+        msg!("app proof_a {:?}", proof_a);
         let proof_a_neg_g1: G1 = <G1 as FromBytes>::read(
             &*[&change_endianness(proof_a.as_slice())[..], &[0u8][..]].concat(),
         )

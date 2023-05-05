@@ -288,21 +288,21 @@ export class TestTransaction {
     let leavesAccount;
     var leavesAccountData;
     // Checking that leaves were inserted
-    for (var i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i++) {
+    for (var i = 0; i < transactionInputs.publicInputs.leaves.length; i += 2) {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
           "confirmed",
         );
 
       assert.equal(
         leavesAccountData.nodeLeft.toString(),
-        transactionInputs.publicInputs.leaves[i][0].reverse().toString(),
+        transactionInputs.publicInputs.leaves[i].reverse().toString(),
         "left leaf not inserted correctly",
       );
       assert.equal(
         leavesAccountData.nodeRight.toString(),
-        transactionInputs.publicInputs.leaves[i][1].reverse().toString(),
+        transactionInputs.publicInputs.leaves[i + 1].reverse().toString(),
         "right leaf not inserted correctly",
       );
       assert.equal(
@@ -357,9 +357,9 @@ export class TestTransaction {
     }
     var nrInstructions;
     if (this.appParams) {
-      nrInstructions = this.appParams.verifier.instructions?.length;
+      nrInstructions = 2;
     } else if (this.params) {
-      nrInstructions = this.params.verifier.instructions?.length;
+      nrInstructions = this.params.inputUtxos.length === 2 ? 1 : 2;
     } else {
       throw new Error("No params provided.");
     }
