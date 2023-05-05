@@ -152,9 +152,6 @@ pub struct InstructionDataShieldedTransferSecond {
     proof_c: [u8; 64],
 }
 
-#[constant]
-pub const EXECUTION_ORDER: [&'static str; 2] = ["ShieldedTransferFirst", "ShieldedTransferSecond"];
-
 #[derive(Accounts)]
 pub struct CloseVerifierState<'info> {
     #[account(mut, address=verifier_state.signer)]
