@@ -674,6 +674,20 @@ export class Transaction {
     }
   }
 
+  /**
+   * Asynchronously generates an array of transaction instructions based on the provided transaction parameters.
+   *
+   * 1. Validates that the required properties of transactionInputs and verifier are defined.
+   * 2. Retrieves ordered instruction names from the verifier program by:
+   *    a. Filtering instructions based on a suffix pattern (e.g., "First", "Second", "Third", etc.).
+   *    b. Sorting instructions according to the order of suffixes.
+   * 3. Constructs an input object containing the necessary data for encoding.
+   * 4. Iterates through the instruction names, encoding the inputs and generating transaction instructions.
+   * 5. Returns an array of generated transaction instructions.
+   *
+   * @param {TransactionParameters} params - Object containing the required transaction parameters.
+   * @returns {Promise<TransactionInstruction[]>} - Promise resolving to an array of generated transaction instructions.
+   */
   async getInstructions(
     params: TransactionParameters,
   ): Promise<TransactionInstruction[]> {
