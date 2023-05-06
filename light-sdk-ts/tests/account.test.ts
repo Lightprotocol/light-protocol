@@ -250,6 +250,7 @@ describe("Test Account Functional", () => {
     // assert.notEqual(cipherText1.toString(), cipherText2.toString());
     // assert.equal(cleartext1.toString(), cleartext2.toString());
     assert.equal(cleartext1.toString(), message.toString());
+    assert.notEqual(new Uint8Array(32).fill(1).toString(), k0.aesSecret.toString());
     // try to decrypt with invalid secret key
     await chai.assert.isRejected(
       Account.decryptAes(new Uint8Array(32).fill(1),cipherText1),

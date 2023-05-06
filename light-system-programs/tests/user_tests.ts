@@ -166,65 +166,6 @@ describe("Test User", () => {
 
     await testStateValidator.checkSolShielded();
   });
-  // TODO: add test for recipient to nacl recipient
-  // this only works by itself because it does not merge a utxo
-  // get balance cannot reflect a balance of several utxos apparently
-  // not going to fix getBalance since it is already refactored in
-  // a subsequent pr
-  it.skip("(user class) shield SOL to recipient", async () => {
-    const senderAccountSeed = bs58.encode(new Uint8Array(32).fill(7));
-    const senderAccount = new Account({
-      poseidon: POSEIDON,
-      seed: senderAccountSeed,
-    });
-
-    let testInputs = {
-      amountSpl: 0,
-      amountSol: 15,
-      token: "SOL",
-      type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      recipientAccount: userKeypair,
-      mergedUtxo: false,
-    };
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      4_000_000_000,
-    );
-
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-
-    const userSender: User = await User.init({
-      provider,
-      seed: senderAccountSeed,
-    });
-    const userRecipient: User = await User.init({ provider });
-
-    const testStateValidator = new TestStateValidator({
-      userSender,
-      userRecipient,
-      provider,
-      testInputs,
-    });
-
-    await testStateValidator.fetchAndSaveState();
-
-    await userSender.shield({
-      publicAmountSol: testInputs.amountSol,
-      token: testInputs.token,
-      recipient: userRecipient.account.getPublicKey(),
-    });
-
-    // TODO: add random amount and amount checks
-    await userRecipient.provider.latestMerkleTree();
-    await testStateValidator.checkSolShielded();
-  });
 
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();

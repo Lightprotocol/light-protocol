@@ -8,9 +8,13 @@ pushd light-system-programs
 anchor build
 yarn test
 yarn run test-merkle-tree
-yarn run test-verifiers
 yarn run test-user
 yarn run test-provider
+yarn run test-user-merge-sol
+yarn run test-user-merge-spl
+yarn run test-user-merge-sol-specific
+yarn run test-user-merge-spl-specific
+yarn run test-verifiers
 popd
 
 pushd light-sdk-ts
