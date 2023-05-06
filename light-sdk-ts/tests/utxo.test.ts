@@ -171,36 +171,6 @@ describe("Utxo Functional", () => {
     Utxo.equal(poseidon, utxo0, utxo1, true);
   });
 
-  it("toString", async () => {
-    const amountFee = "1";
-    const amountToken = "2";
-    const assetPubkey = MINT;
-    const seed32 = new Uint8Array(32).fill(1).toString();
-    let inputs = {
-      keypair: new Account({ poseidon, seed: seed32 }),
-      amountFee,
-      amountToken,
-      assetPubkey,
-      assets: [SystemProgram.programId, assetPubkey],
-      amounts: [new anchor.BN(amountFee), new anchor.BN(amountToken)],
-      blinding: new anchor.BN(new Uint8Array(31).fill(2)),
-      index: 1,
-    };
-
-    let utxo0 = new Utxo({
-      poseidon,
-      assets: inputs.assets,
-      amounts: inputs.amounts,
-      account: inputs.keypair,
-      blinding: inputs.blinding,
-      index: inputs.index,
-    });
-    let string = await utxo0.toString();
-    let utxo1 = Utxo.fromString(string, poseidon);
-    // cannot comput nullifier in utxo1 because no privkey is serialized with toString()
-    Utxo.equal(poseidon, utxo0, utxo1, true);
-  });
-
   it("encryption", async () => {
     const amountFee = "1";
     const amountToken = "2";

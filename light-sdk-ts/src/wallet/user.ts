@@ -45,6 +45,8 @@ import {
   getUserIndexTransactions,
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
+  VerifierOne,
+  IDL_VERIFIER_PROGRAM_ONE,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -399,11 +401,17 @@ export class User {
       utxosEntries && mergeExistingUtxos ? Array.from(utxosEntries) : [];
     let outUtxos: Utxo[] = [];
     if (recipient) {
+      const amounts = publicAmountSpl
+        ? [publicAmountSol, publicAmountSpl]
+        : [publicAmountSol];
+      const assets = !tokenCtx.isNative
+        ? [SystemProgram.programId, tokenCtx.mint]
+        : [SystemProgram.programId];
       outUtxos.push(
         new Utxo({
           poseidon: this.provider.poseidon,
-          assets: [SystemProgram.programId],
-          amounts: [publicAmountSol],
+          assets,
+          amounts,
           account: recipient,
           appDataHash: appUtxo?.appDataHash,
           verifierAddress: appUtxo?.verifierAddress,
@@ -757,7 +765,7 @@ export class User {
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     this.recentTransactionParameters = txParams;
-    return txParams; //await this.transactWithParameters({ txParams });
+    return txParams;
   }
 
   // TODO: replace recipient with recipient light publickey
@@ -862,9 +870,9 @@ export class User {
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-
-    let utxosEntriesSol: Utxo[] =
-      solUtxos && !tokenCtx.isNative ? Array.from(solUtxos) : new Array<Utxo>();
+    let utxosEntriesSol: Utxo[] = solUtxos
+      ? Array.from(solUtxos)
+      : new Array<Utxo>();
 
     let utxos: Utxo[] = utxosEntries
       ? Array.from([...utxosEntries, ...utxosEntriesSol])
@@ -922,7 +930,6 @@ export class User {
    * @param seed - Optional user seed to instantiate from; e.g. if the seed is supplied, skips the log-in signature prompt.
    * @param utxos - Optional user utxos to instantiate from
    */
-
   static async init({
     provider,
     seed,
@@ -979,14 +986,152 @@ export class User {
     }
   }
 
-  /** shielded transfer to self, merge 10-1; per asset (max: 5-1;5-1)
-   * check *after* ACTION whether we can still merge in more.
-   * TODO: add dust tagging protection (skip dust utxos)
-   * Still torn - for regular devs this should be done automatically, e.g auto-prefacing any regular transaction.
-   * whereas for those who want manual access there should be a fn to merge -> utxo = getutxosstatus() -> merge(utxos)
+  // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
+  /** shielded transfer to self, merge 10-1;
+   * get utxo inbox
+   * merge highest first
+   * loops in steps of 9 or 10
    */
-  async mergeUtxos() {
-    throw new Error("not implemented yet");
+  async mergeAllUtxos(asset: PublicKey, latest: boolean = true) {
+    await this.getUtxoInbox(latest);
+    await this.getBalance(latest);
+    let inboxTokenBalance: TokenUtxoBalance | undefined =
+      this.inboxBalance.tokenBalances.get(asset.toString());
+    if (!inboxTokenBalance)
+      throw new UserError(
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
+      );
+
+    let utxosEntries = this.balance.tokenBalances
+      .get(asset.toBase58())
+      ?.utxos.values();
+    let inboxUtxosEntries = Array.from(inboxTokenBalance.utxos.values());
+
+    if (inboxUtxosEntries.length == 0)
+      throw new UserError(
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
+      );
+    let assetIndex =
+      asset.toBase58() === SystemProgram.programId.toBase58() ? 0 : 1;
+    // sort inbox utxos descending
+    inboxUtxosEntries.sort(
+      (a, b) =>
+        b.amounts[assetIndex].toNumber() - a.amounts[assetIndex].toNumber(),
+    );
+
+    let inUtxos: Utxo[] = utxosEntries
+      ? Array.from([...utxosEntries, ...inboxUtxosEntries])
+      : Array.from(inboxUtxosEntries);
+
+    if (inUtxos.length > 10) {
+      inUtxos = inUtxos.slice(0, 10);
+    }
+
+    let txParams = await TransactionParameters.getTxParams({
+      tokenCtx: inboxTokenBalance.tokenData,
+      verifier: new VerifierOne(),
+      action: Action.TRANSFER,
+      provider: this.provider,
+      transactionNonce: this.balance.transactionNonce,
+      inUtxos,
+      addInUtxos: false,
+      addOutUtxos: true,
+      account: this.account,
+      mergeUtxos: true,
+      relayer: this.provider.relayer,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+    });
+    this.recentTransactionParameters = txParams;
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
+  }
+
+  // TODO: how do we handle app utxos?, some will not be able to be accepted we can only mark these as accepted
+  /** shielded transfer to self, merge 10-1;
+   * get utxo inbox
+   * merge highest first
+   * loops in steps of 9 or 10
+   */
+  async mergeUtxos(
+    commitments: string[],
+    asset: PublicKey,
+    latest: boolean = false,
+  ) {
+    if (commitments.length == 0)
+      throw new UserError(
+        UserErrorCode.NO_COMMITMENTS_PROVIDED,
+        "mergeAllUtxos",
+        `No commitmtents for merging specified ${asset}`,
+      );
+
+    await this.getUtxoInbox(latest);
+    await this.getBalance(latest);
+    let inboxTokenBalance: TokenUtxoBalance | undefined =
+      this.inboxBalance.tokenBalances.get(asset.toString());
+    if (!inboxTokenBalance)
+      throw new UserError(
+        UserErrorCode.EMPTY_INBOX,
+        "mergeAllUtxos",
+        `for asset ${asset} the utxo inbox is empty`,
+      );
+
+    let utxosEntries = this.balance.tokenBalances
+      .get(asset.toBase58())
+      ?.utxos.values();
+
+    let commitmentUtxos: Utxo[] = [];
+    for (var commitment of commitments) {
+      let utxo = inboxTokenBalance.utxos.get(commitment);
+      if (!utxo)
+        throw new UserError(
+          UserErrorCode.COMMITMENT_NOT_FOUND,
+          "mergeUtxos",
+          `commitment ${commitment} is it of asset ${asset} ?`,
+        );
+      commitmentUtxos.push(utxo);
+    }
+
+    let inUtxos: Utxo[] = utxosEntries
+      ? Array.from([...utxosEntries, ...commitmentUtxos])
+      : Array.from(commitmentUtxos);
+
+    if (inUtxos.length > 10) {
+      throw new UserError(
+        UserErrorCode.TOO_MANY_COMMITMENTS,
+        "mergeUtxos",
+        `too many commitments provided to merge at once provided ${
+          commitmentUtxos.length
+        }, number of existing utxos ${
+          Array.from(utxosEntries ? utxosEntries : []).length
+        } > 10 (can only merge 10 utxos in one transaction)`,
+      );
+    }
+
+    let txParams = await TransactionParameters.getTxParams({
+      tokenCtx: inboxTokenBalance.tokenData,
+      verifier: new VerifierOne(),
+      action: Action.TRANSFER,
+      provider: this.provider,
+      transactionNonce: this.balance.transactionNonce,
+      inUtxos,
+      addInUtxos: false,
+      addOutUtxos: true,
+      account: this.account,
+      mergeUtxos: true,
+      relayer: this.provider.relayer,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
+    });
+    this.recentTransactionParameters = txParams;
+    await this.compileAndProveTransaction();
+    const txHash = await this.sendAndConfirm();
+    const response = await this.updateMerkleTree();
+    return { txHash, response };
   }
 
   async getTransactionHistory(
