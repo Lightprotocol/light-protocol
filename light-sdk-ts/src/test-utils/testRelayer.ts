@@ -7,9 +7,9 @@ import {
   indexRecentTransactions,
   sendVersionedTransaction,
 } from "../transaction";
-import { indexedTransaction } from "types";
+import { IndexedTransaction } from "../types";
 export class TestRelayer extends Relayer {
-  indexedTransactions: indexedTransaction[] = [];
+  indexedTransactions: IndexedTransaction[] = [];
 
   constructor(
     relayerPubkey: PublicKey,
@@ -52,7 +52,7 @@ export class TestRelayer extends Relayer {
 
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<indexedTransaction[]> {
+  ): Promise<IndexedTransaction[]> {
     if (this.indexedTransactions.length === 0) {
       this.indexedTransactions = await indexRecentTransactions({
         connection,
@@ -65,6 +65,7 @@ export class TestRelayer extends Relayer {
       return this.indexedTransactions;
     } else {
       if (this.indexedTransactions.length === 0) return [];
+
       let mostRecentTransaction = this.indexedTransactions.reduce((a, b) =>
         a.blockTime > b.blockTime ? a : b,
       );
@@ -80,7 +81,9 @@ export class TestRelayer extends Relayer {
       this.indexedTransactions = [
         ...newTransactions,
         ...this.indexedTransactions,
-      ];
+      ].sort(
+        (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
+      );
       return this.indexedTransactions;
     }
   }

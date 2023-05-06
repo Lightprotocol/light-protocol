@@ -22,7 +22,8 @@ import { User } from "light-sdk/lib/wallet/user";
 import sinon from "sinon";
 let circomlibjs = require("circomlibjs");
 import {
-  initeMerkleTree,
+  indexedTransactions,
+  initMerkleTree,
   initLookupTable,
   sendTransaction,
   updateMerkleTree,
@@ -44,9 +45,10 @@ const addCorsHeadersStub = sinon
 app.use(addCorsHeadersStub);
 
 app.post("/updatemerkletree", updateMerkleTree);
-app.get("/merkletree", initeMerkleTree);
+app.get("/merkletree", initMerkleTree);
 app.get("/lookuptable", initLookupTable);
 app.post("/relayInstruction", sendTransaction);
+app.get("/indexedTransactions", indexedTransactions);
 
 describe("API tests", () => {
   let poseidon;
@@ -149,12 +151,14 @@ describe("API tests", () => {
 
     await provider.provider!.connection.confirmTransaction(res, "confirmed");
 
-    const user: User = await User.init({provider});
+    const user: User = await User.init({ provider });
 
     const tokenCtx = TOKEN_REGISTRY.get(token);
 
     const preShieldedBalance = await user.getBalance();
-    let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toBase58())?.totalBalanceSol;
+    let solShieldedBalancePre = preShieldedBalance.tokenBalances.get(
+      SystemProgram.programId.toBase58(),
+    )?.totalBalanceSol;
 
     await user.shield({ publicAmountSol: amount, token });
 
@@ -162,15 +166,17 @@ describe("API tests", () => {
 
     let balance = await user.getBalance();
 
-    let solShieldedBalanceAfter = balance.tokenBalances.get(SystemProgram.programId.toBase58())?.totalBalanceSol;
+    let solShieldedBalanceAfter = balance.tokenBalances.get(
+      SystemProgram.programId.toBase58(),
+    )?.totalBalanceSol;
 
     assert.equal(
       solShieldedBalanceAfter!.toNumber(),
       solShieldedBalancePre!.toNumber() +
         amount * tokenCtx!.decimals.toNumber(),
-      `shielded balance after ${
-        solShieldedBalanceAfter!.toString()
-      } != shield amount ${amount * tokenCtx!.decimals.toNumber()}`,
+      `shielded balance after ${solShieldedBalanceAfter!.toString()} != shield amount ${
+        amount * tokenCtx!.decimals.toNumber()
+      }`,
     );
 
     assert.notEqual(
@@ -178,16 +184,22 @@ describe("API tests", () => {
       previousMerkleRoot,
     );
 
-
     previousMerkleRoot = provider.solMerkleTree!.merkleTree.root().toString();
 
     assert.equal(provider.solMerkleTree!.merkleTree._layers[0].length, 2);
 
-    assert.equal(user.balance.tokenBalances.get(tokenCtx!.mint.toBase58())?.utxos.size, 1);
+    assert.equal(
+      user.balance.tokenBalances.get(tokenCtx!.mint.toBase58())?.utxos.size,
+      1,
+    );
 
     assert.equal(
       provider.solMerkleTree!.merkleTree.indexOf(
-        user.balance.tokenBalances.get(tokenCtx!.mint.toBase58())?.utxos.values().next().value.getCommitment(poseidon),
+        user.balance.tokenBalances
+          .get(tokenCtx!.mint.toBase58())
+          ?.utxos.values()
+          .next()
+          .value.getCommitment(poseidon),
       ),
       0,
     );
@@ -251,9 +263,11 @@ describe("API tests", () => {
     // get token from registry
     const tokenCtx = TOKEN_REGISTRY.get(token);
 
-    const user: User = await User.init({provider});
+    const user: User = await User.init({ provider });
     const preShieldedBalance = await user.getBalance();
-    let solBalancePre = preShieldedBalance.tokenBalances.get(SystemProgram.programId.toString())?.totalBalanceSol;
+    let solBalancePre = preShieldedBalance.tokenBalances.get(
+      SystemProgram.programId.toString(),
+    )?.totalBalanceSol;
 
     await user.unshield({
       publicAmountSol: amount,
@@ -266,14 +280,16 @@ describe("API tests", () => {
     let balance = await user.getBalance();
 
     // assert that the user's sol shielded balance has decreased by fee
-    let solBalanceAfter = balance.tokenBalances.get(SystemProgram.programId.toString())?.totalBalanceSol;
+    let solBalanceAfter = balance.tokenBalances.get(
+      SystemProgram.programId.toString(),
+    )?.totalBalanceSol;
 
     assert.equal(
       solBalanceAfter!.toNumber(),
-      solBalancePre!.toNumber() - 100000 - amount * tokenCtx!.decimals.toNumber(),
-      `shielded sol balance after ${solBalanceAfter!.toString()} != ${
-        solBalancePre!.toString()
-      } ...unshield amount -fee`,
+      solBalancePre!.toNumber() -
+        100000 -
+        amount * tokenCtx!.decimals.toNumber(),
+      `shielded sol balance after ${solBalanceAfter!.toString()} != ${solBalancePre!.toString()} ...unshield amount -fee`,
     );
 
     assert.notEqual(
@@ -281,7 +297,11 @@ describe("API tests", () => {
       previousMerkleRoot,
     );
 
-    assert.equal(user.balance.tokenBalances.get(SystemProgram.programId.toString())?.utxos.size, 1);
+    assert.equal(
+      user.balance.tokenBalances.get(SystemProgram.programId.toString())?.utxos
+        .size,
+      1,
+    );
   });
 
   it("Should fail transaction with empty instruction", (done) => {

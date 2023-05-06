@@ -1955,6 +1955,7 @@ just-extend@^4.0.2:
   version "0.0.1"
   dependencies:
     "@coral-xyz/anchor" "0.27.0"
+    "@coral-xyz/borsh" "^0.27.0"
     "@noble/hashes" "^1.1.5"
     "@solana/spl-account-compression" "^0.1.5"
     "@solana/spl-token" "0.3.7"

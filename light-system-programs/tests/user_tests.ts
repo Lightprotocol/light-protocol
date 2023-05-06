@@ -1,6 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
 import {
-  Keypair,
   Keypair as SolanaKeypair,
   PublicKey,
   SystemProgram,
@@ -11,7 +10,7 @@ const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // init chai-as-promised support
 chai.use(chaiAsPromised);
-
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 let circomlibjs = require("circomlibjs");
 
 // TODO: add and use  namespaces in SDK
@@ -36,12 +35,9 @@ import {
   TestRelayer,
   Action,
   TestStateValidator,
-  fetchNullifierAccountInfo,
-  Relayer,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
-import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -58,9 +54,7 @@ describe("Test User", () => {
     confirmConfig,
   );
   anchor.setProvider(anchorProvider);
-  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
-
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
@@ -84,10 +78,6 @@ describe("Test User", () => {
       relayerRecipientSol,
       new BN(100000),
     );
-    provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
   });
 
   it("(user class) shield SPL", async () => {
@@ -99,6 +89,11 @@ describe("Test User", () => {
       expectedUtxoHistoryLength: 1,
       expectedSpentUtxosLength: 0,
     };
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -137,6 +132,11 @@ describe("Test User", () => {
       type: Action.SHIELD,
       expectedUtxoHistoryLength: 1,
     };
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -228,10 +228,7 @@ describe("Test User", () => {
 
   it("(user class) unshield SPL", async () => {
     const solRecipient = SolanaKeypair.generate();
-    provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    });
+
     const testInputs = {
       amountSpl: 1,
       amountSol: 0,
@@ -240,6 +237,11 @@ describe("Test User", () => {
       recipientSpl: solRecipient.publicKey,
       expectedUtxoHistoryLength: 1,
     };
+
+    const provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    }); // userKeypair
 
     let res = await provider.provider.connection.requestAirdrop(
       userKeypair.publicKey,
@@ -290,7 +292,7 @@ describe("Test User", () => {
       expectedRecipientUtxoLength: 1,
     };
 
-    provider = await Provider.init({
+    const provider = await Provider.init({
       wallet: userKeypair,
       relayer: RELAYER,
     });
@@ -324,165 +326,6 @@ describe("Test User", () => {
     await user.provider.latestMerkleTree();
     await user.getBalance();
     await testStateValidator.checkTokenTransferred();
-  });
-
-  it.skip("(user class) transfer SOL", async () => {
-    let amount = 1;
-    let token = "SOL";
-    const shieldedRecipient =
-      "19a20668193c0143dd96983ef457404280741339b95695caddd0ad7919f2d434";
-    const encryptionPublicKey =
-      "LPx24bc92eecaf5e3904bc1f4f731a2b1e0a28adf445e800c4cff112eb7a3f5350b";
-    const recipient = new anchor.BN(shieldedRecipient, "hex");
-    const recipientEncryptionPublicKey: Uint8Array =
-      strToArr(encryptionPublicKey);
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-    // get token from registry
-    const tokenCtx = TOKEN_REGISTRY.get(token);
-
-    const user = await User.init({ provider });
-    const preShieldedBalance = await user.getBalance({ latest: true });
-
-    await user.transfer({
-      amount,
-      token,
-      recipient,
-      recipientEncryptionPublicKey, // TODO: do shielded address
-    });
-
-    await user.provider.latestMerkleTree();
-
-    let balance = await user.getBalance({ latest: true });
-
-    // assert that the user's sol shielded balance has decreased by fee
-    let solBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
-    let solBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === SystemProgram.programId.toString(),
-    );
-
-    assert.equal(
-      solBalanceAfter.amount,
-      solBalancePre.amount - 100000 - amount * tokenCtx.decimals.toNumber(),
-      `shielded sol balance after ${solBalanceAfter.amount} != ${solBalancePre.amount} ...unshield amount -fee`,
-    );
-  });
-
-  it.skip("(user class) unshield SOL", async () => {
-    let amount = 1;
-    let token = "SOL";
-    let recipient = new PublicKey(
-      "E7jqevikamCMCda8yCsfNawj57FSotUZuref9MLZpWo1",
-    );
-
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-
-    const user = await User.init({ provider });
-    await user.unshield({ amount, token, recipient });
-    // TODO: add random amount and amount checks
-  });
-
-  it.skip("(user class) shield SOL to recipient", async () => {
-    let amount = 15;
-    let token = "SOL";
-    const provider = await Provider.init({
-      wallet: userKeypair,
-      relayer: RELAYER,
-    }); // userKeypair
-    let res = await provider.provider.connection.requestAirdrop(
-      userKeypair.publicKey,
-      4_000_000_000,
-    );
-    const recipientAccount = new Account({
-      poseidon: POSEIDON,
-      seed: new Uint8Array(32).fill(7).toString(),
-    });
-    await provider.provider.connection.confirmTransaction(res, "confirmed");
-    const userSender: User = await User.init({ provider });
-    const tokenCtx = TOKEN_REGISTRY.find((t) => t.symbol === token);
-    const user: User = await User.init({ provider, seed: seed32 });
-
-    const preShieldedBalance = await user.getBalance({ latest: true });
-    const preSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
-    const previousUtxos = user.utxos;
-
-    await userSender.shield({
-      publicAmountSol: amount,
-      token,
-      recipient: recipientAccount,
-    });
-    // TODO: add random amount and amount checks
-    await user.provider.latestMerkleTree();
-
-    let balance = await user.getBalance({ latest: true });
-    let solShieldedBalanceAfter = balance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-    let solShieldedBalancePre = preShieldedBalance.find(
-      (b) => b.tokenAccount.toBase58() === tokenCtx?.tokenAccount.toBase58(),
-    );
-
-    // console.log("solShieldedBalanceAfter", solShieldedBalanceAfter);
-    // console.log("solShieldedBalancePre", solShieldedBalancePre);
-
-    // assert that the user's token balance has decreased by the amount shielded
-    const postSolBalance = await provider.provider.connection.getBalance(
-      userKeypair.publicKey,
-    );
-    let tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
-    // console.log("postSolBalance", postSolBalance);
-    // console.log("preSolBalance", preSolBalance);
-    // assert that the user's shielded balance has increased by the amount shielded
-    assert.equal(
-      solShieldedBalanceAfter.amount.toNumber(),
-      solShieldedBalancePre.amount.toNumber() +
-        amount * tokenCtx?.decimals.toNumber(),
-      `shielded balance after ${
-        solShieldedBalanceAfter.amount
-      } != shield amount ${amount * tokenCtx?.decimals.toNumber()}`,
-    );
-
-    assert.equal(
-      postSolBalance,
-      preSolBalance - amount * tokenCtx.decimals.toNumber() + tempAccountCost,
-      `user token balance after ${postSolBalance} != user token balance before ${preSolBalance} - shield amount ${amount} sol + tempAccountCost! ${tempAccountCost}`,
-    );
-
-    assert.notEqual(
-      fetchNullifierAccountInfo(user.utxos[0]._nullifier, provider.connection),
-      null,
-    );
-
-    assert.equal(user.utxos.length, 1);
-
-    const indexedTransactions = await provider.relayer.getIndexedTransactions(
-      provider.provider.connection,
-    );
-    const recentTransaction = indexedTransactions[0];
-    assert.equal(
-      recentTransaction.amountSol.div(tokenCtx.decimals).toNumber(),
-      amount,
-    );
-    assert.equal(
-      recentTransaction.from.toBase58(),
-      provider.wallet.publicKey.toBase58(),
-    );
-    assert.equal(recentTransaction.commitment, user.utxos[0]._commitment);
-    assert.equal(recentTransaction.type, Action.SHIELD);
-    assert.equal(recentTransaction.relayerFee.toString(), "0");
-    assert.equal(
-      recentTransaction.relayerRecipientSol.toBase58(),
-      PublicKey.default.toBase58(),
-    );
   });
 });
 

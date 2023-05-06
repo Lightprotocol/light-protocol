@@ -2,16 +2,13 @@ import { Utxo } from "../utxo";
 import * as anchor from "@coral-xyz/anchor";
 import { BN } from "@coral-xyz/anchor";
 
-import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
+import { Connection, PublicKey } from "@solana/web3.js";
 import { Account } from "../account";
 import {
   fetchNullifierAccountInfo,
   fetchQueuedLeavesAccountInfo,
 } from "../utils";
-import { QueuedLeavesPda } from "merkleTree";
 import {
-  ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-  NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   TokenUtxoBalanceError,
   TokenUtxoBalanceErrorCode,
   TOKEN_REGISTRY,
@@ -185,7 +182,7 @@ export async function decryptAddUtxoToBalance({
       ? "spentUtxos"
       : "utxos";
 
-    let addedUtxo = balance.tokenBalances
+    balance.tokenBalances
       .get(assetKey)
       ?.addUtxo(decryptedUtxo.getCommitment(poseidon), decryptedUtxo, utxoType);
   }

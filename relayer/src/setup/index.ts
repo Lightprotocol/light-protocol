@@ -3,7 +3,7 @@ import {
   initLookUpTableFromFile,
   setUpMerkleTree,
 } from "light-sdk";
-import { setAnchorProvider } from "../utils/provider";
+import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export const testSetup = async () => {
   const providerAnchor = await setAnchorProvider();

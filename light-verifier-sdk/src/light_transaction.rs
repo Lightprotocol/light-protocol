@@ -18,9 +18,10 @@ use crate::{
     accounts::Accounts,
     cpi_instructions::{
         insert_nullifiers_cpi, insert_two_leaves_cpi, insert_two_leaves_messsage_cpi,
-        withdraw_sol_cpi, withdraw_spl_cpi,
+        invoke_indexer_transaction_event, withdraw_sol_cpi, withdraw_spl_cpi,
     },
     errors::VerifierSdkError,
+    state::TransactionIndexerEvent,
     utils::{change_endianness, close_account::close_account},
 };
 
@@ -150,9 +151,49 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
         self.verify()?;
         self.insert_leaves()?;
         self.insert_nullifiers()?;
+        self.emit_indexer_transaction_event()?;
         self.transfer_user_funds()?;
         self.transfer_fee()?;
         self.check_completion()
+    }
+
+    pub fn emit_indexer_transaction_event(&mut self) -> Result<()> {
+        // Initialize the vector of leaves
+        let mut leaves_vec: Vec<[u8; 32]> = Vec::new();
+
+        let merkle_tree = self.accounts.unwrap().transaction_merkle_tree.load_mut()?;
+
+        let mut first_leaf_index = merkle_tree.next_queued_index;
+
+        for (_i, leaves) in self.leaves.iter().enumerate() {
+            let leaf_left = change_endianness(&leaves[0]).try_into().unwrap();
+            let leaf_right = change_endianness(&leaves[1]).try_into().unwrap();
+            leaves_vec.push(leaf_left);
+            leaves_vec.push(leaf_right);
+            first_leaf_index = first_leaf_index - 2
+        }
+
+        let transaction_data_event = TransactionIndexerEvent {
+            leaves: leaves_vec.clone(),
+            public_amount_sol: self.public_amount_sol.clone(),
+            public_amount_spl: self.public_amount_spl.clone(),
+            relayer_fee: self.relayer_fee.clone(),
+            encrypted_utxos: self.encrypted_utxos.clone(),
+            nullifiers: self.nullifiers.to_vec(),
+            first_leaf_index: first_leaf_index.clone(),
+        };
+
+        invoke_indexer_transaction_event(
+            &transaction_data_event,
+            &self.accounts.unwrap().log_wrapper.to_account_info(),
+            &self
+                .accounts
+                .unwrap()
+                .transaction_merkle_tree
+                .to_account_info(),
+        )?;
+
+        Ok(())
     }
 
     /// Verifies a Goth16 zero knowledge proof over the bn254 curve.

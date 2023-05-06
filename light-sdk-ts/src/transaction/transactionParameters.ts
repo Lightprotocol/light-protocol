@@ -481,11 +481,11 @@ export class TransactionParameters implements transactionParameters {
 
   async toBytes(): Promise<Buffer> {
     let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
-    let inputUtxosBytes = [];
+    let inputUtxosBytes: any[] = [];
     for (var utxo of this.inputUtxos) {
       inputUtxosBytes.push(await utxo.toBytes());
     }
-    let outputUtxosBytes = [];
+    let outputUtxosBytes: any[] = [];
     for (var utxo of this.outputUtxos) {
       outputUtxosBytes.push(await utxo.toBytes());
     }
@@ -543,7 +543,7 @@ export class TransactionParameters implements transactionParameters {
     ) => {
       let utxos: Utxo[] = [];
       for (var [_, utxoBytes] of utxoBytesArray.entries()) {
-        let appDataIdl = undefined;
+        let appDataIdl: any = undefined;
         if (
           utxoBytes.subarray(128, 160).toString() !==
           Buffer.alloc(32).fill(0).toString()

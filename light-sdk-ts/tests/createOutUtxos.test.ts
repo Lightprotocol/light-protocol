@@ -40,7 +40,7 @@ let seed32 = bs58.encode(new Uint8Array(32).fill(1));
 
 describe("Test createOutUtxos Functional", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
   const mockPublicKey = SolanaKeypair.generate().publicKey;
 
   var splAmount,
@@ -560,7 +560,7 @@ describe("validateUtxoAmounts", () => {
 
 describe("Test createOutUtxos Errors", () => {
   var poseidon, eddsa, babyJub, F, k0: Account, k00: Account, kBurner: Account;
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR; 
   const mockPublicKey = SolanaKeypair.generate().publicKey;
 
   var splAmount,

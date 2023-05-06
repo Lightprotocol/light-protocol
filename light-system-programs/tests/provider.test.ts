@@ -12,6 +12,7 @@ import {
   Action,
   KEYPAIR_PRIVKEY,
   Provider as LightProvider,
+  Relayer,
   Transaction,
   TransactionParameters,
   userTokenAccount,
@@ -53,9 +54,8 @@ describe("verifier_program", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
@@ -95,7 +95,10 @@ describe("verifier_program", () => {
       "confirmed",
     );
     const mockKeypair = SolanaKeypair.generate();
-    const lightProviderMock = await LightProvider.init({ wallet: mockKeypair });
+    const lightProviderMock = await LightProvider.init({
+      wallet: mockKeypair,
+      relayer: RELAYER,
+    });
     assert.equal(lightProviderMock.wallet.isNodeWallet, true);
     assert.equal(
       lightProviderMock.wallet?.publicKey.toBase58(),

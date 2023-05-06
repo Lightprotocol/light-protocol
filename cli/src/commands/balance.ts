@@ -14,7 +14,7 @@ export const handler = async (): Promise<void> => {
   } catch (e) {
     throw new Error("No user.txt file found, please login first.");
   }
-  const balances = await user.getBalance({ latest: false });
+  const balances = await user.getBalance(false);
   console.log("User balance:");
   balances.forEach((balance) => {
     console.log(
