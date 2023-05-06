@@ -1,9 +1,10 @@
+import { PublicKey, TransactionInstruction } from "@solana/web3.js";
 import {
-  PublicKey,
-  TransactionInstruction,
-} from "@solana/web3.js";
-import { sendVersionedTransaction } from "light-sdk";
-import { getLightProvider } from "../utils/provider";
+  IndexedTransaction,
+  indexRecentTransactions,
+  sendVersionedTransaction,
+} from "light-sdk";
+import { getLightProvider, setAnchorProvider } from "../utils/provider";
 
 export async function sendTransaction(req: any, res: any) {
   try {
@@ -28,6 +29,40 @@ export async function sendTransaction(req: any, res: any) {
     });
     const response = await sendVersionedTransaction(newInstruction, provider);
     return res.status(200).json({ data: response });
+  } catch (error) {
+    return res.status(500).json({ status: "error", message: error.message });
+  }
+}
+
+export async function indexedTransactions(req: any, res: any) {
+  try {
+
+    const provider = await setAnchorProvider();
+
+    if (!provider) throw new Error("no provider set");
+
+    const indexedTransactions = await indexRecentTransactions({
+      connection: provider.connection,
+      batchOptions: {
+        limit: 5000,
+      },
+      dedupe: false,
+    });
+
+    const stringifiedIndexedTransactions = indexedTransactions.map(
+      (trx: IndexedTransaction) => {
+        return {
+          ...trx,
+          publicAmountSol: trx.publicAmountSol.toString(),
+          publicAmountSpl: trx.publicAmountSpl.toString(),
+          changeSolAmount: trx.changeSolAmount.toString(),
+          relayerFee: trx.relayerFee.toString(),
+          firstLeafIndex: trx.firstLeafIndex.toString(),
+        };
+      },
+    );
+
+    return res.status(200).json({ data: stringifiedIndexedTransactions });
   } catch (error) {
     return res.status(500).json({ status: "error", message: error.message });
   }

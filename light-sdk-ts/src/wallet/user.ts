@@ -41,6 +41,9 @@ import {
   NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
   decryptAddUtxoToBalance,
   fetchNullifierAccountInfo,
+  IndexedTransaction,
+  getUserIndexTransactions,
+  UserIndexedTransaction,
 } from "../index";
 
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -59,6 +62,7 @@ const message = new TextEncoder().encode(SIGN_MESSAGE);
 export class User {
   provider: Provider;
   account: Account;
+  transactionHistory?: UserIndexedTransaction[];
   private seed?: string;
   recentTransactionParameters?: TransactionParameters;
   recentTransaction?: Transaction;
@@ -159,60 +163,68 @@ export class User {
       }
     }
 
-    let leavesPdas = await SolMerkleTree.getInsertedLeaves(
-      TRANSACTION_MERKLE_TREE_KEY,
-      this.provider.provider,
-    );
-
     if (!this.provider)
       throw new UserError(ProviderErrorCode.PROVIDER_UNDEFINED, "syncState");
     if (!this.provider.provider)
       throw new UserError(UserErrorCode.PROVIDER_NOT_INITIALIZED, "syncState");
     // TODO: adapt to indexedTransactions such that this works with verifier two for
     var decryptionTransactionNonce = balance.decryptionTransactionNonce;
-    for (var leafPda of leavesPdas) {
-      // transaction nonce is the same for all utxos in one transaction
-      const tmpNonce = decryptionTransactionNonce;
-      decryptionTransactionNonce = await decryptAddUtxoToBalance({
-        encBytes: Buffer.from(
-          leafPda.account.encryptedUtxos.slice(
-            0,
-            NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+
+    const indexedTransactions =
+      await this.provider.relayer.getIndexedTransactions(
+        this.provider.provider!.connection,
+      );
+
+    for (const trx of indexedTransactions) {
+      let leftLeafIndex = trx.firstLeafIndex.toNumber();
+
+      for (let index = 0; index < trx.leaves.length; index += 2) {
+        const leafLeft = trx.leaves[index];
+        const leafRight = trx.leaves[index + 1];
+
+        // transaction nonce is the same for all utxos in one transaction
+        const tmpNonce = decryptionTransactionNonce;
+        decryptionTransactionNonce = await decryptAddUtxoToBalance({
+          encBytes: Buffer.from(
+            trx.encryptedUtxos.slice(
+              0,
+              NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            ),
           ),
-        ),
-        index: leafPda.account.leftLeafIndex.toNumber(),
-        commitment: Buffer.from([...leafPda.account.nodeLeft]),
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        connection: this.provider.provider.connection,
-        balance,
-        merkleTreePdaPublicKey,
-        leftLeaf: Uint8Array.from([...leafPda.account.nodeLeft]),
-        aes,
-        decryptionTransactionNonce: tmpNonce,
-      });
-      const decryptionTransactionNonce1 = await decryptAddUtxoToBalance({
-        encBytes: Buffer.from(
-          leafPda.account.encryptedUtxos.slice(
-            128,
-            128 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+          index: leftLeafIndex,
+          commitment: Buffer.from([...leafLeft]),
+          account: this.account,
+          poseidon: this.provider.poseidon,
+          connection: this.provider.provider.connection,
+          balance,
+          merkleTreePdaPublicKey,
+          leftLeaf: Uint8Array.from([...leafLeft]),
+          aes,
+          decryptionTransactionNonce: tmpNonce,
+        });
+        const decryptionTransactionNonce1 = await decryptAddUtxoToBalance({
+          encBytes: Buffer.from(
+            trx.encryptedUtxos.slice(
+              128,
+              128 + NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+            ),
           ),
-        ),
-        index: leafPda.account.leftLeafIndex.toNumber() + 1,
-        commitment: Buffer.from([...leafPda.account.nodeRight]),
-        account: this.account,
-        poseidon: this.provider.poseidon,
-        connection: this.provider.provider.connection,
-        balance,
-        merkleTreePdaPublicKey,
-        leftLeaf: Uint8Array.from([...leafPda.account.nodeLeft]),
-        aes,
-        decryptionTransactionNonce: tmpNonce,
-      });
-      // handle case that only one utxo decrypted and assign incremented decryption transaction nonce accordingly
-      decryptionTransactionNonce = decryptionTransactionNonce
-        ? decryptionTransactionNonce
-        : decryptionTransactionNonce1;
+          index: leftLeafIndex + 1,
+          commitment: Buffer.from([...leafRight]),
+          account: this.account,
+          poseidon: this.provider.poseidon,
+          connection: this.provider.provider.connection,
+          balance,
+          merkleTreePdaPublicKey,
+          leftLeaf: Uint8Array.from([...leafLeft]),
+          aes,
+          decryptionTransactionNonce: tmpNonce,
+        });
+        // handle case that only one utxo decrypted and assign incremented decryption transaction nonce accordingly
+        decryptionTransactionNonce = decryptionTransactionNonce
+          ? decryptionTransactionNonce
+          : decryptionTransactionNonce1;
+      }
     }
 
     balance.transactionNonce = decryptionTransactionNonce;
@@ -224,6 +236,12 @@ export class User {
       }
       return totalSolBalance;
     };
+
+    this.transactionHistory = await getUserIndexTransactions(
+      indexedTransactions,
+      this.provider,
+      this.balance.tokenBalances,
+    );
 
     balance.totalSolBalance = calaculateTotalSolBalance(balance);
     return balance;
@@ -965,9 +983,23 @@ export class User {
     throw new Error("not implemented yet");
   }
 
-  async getLatestTransactionHistory() {
-    throw new Error("not implemented yet");
+  async getTransactionHistory(
+    latest: boolean = true,
+  ): Promise<IndexedTransaction[]> {
+    try {
+      if (latest) {
+        await this.getBalance(true);
+      }
+      return this.transactionHistory!;
+    } catch (error) {
+      throw new UserError(
+        TransactionErrorCode.GET_USER_TRANSACTION_HISTORY_FAILED,
+        "getLatestTransactionHistory",
+        `Error while getting user transaction history ! ${error}`,
+      );
+    }
   }
+
   // TODO: add proof-of-origin call.
   // TODO: merge with getUtxoStatus?
 

@@ -132,6 +132,7 @@ describe("Mock verifier functional", () => {
       );
     }).to.throw(Error);
   });
+
   it("Test Deposit MockVerifier cpi VerifierTwo", async () => {
     let lightProvider = await LightProvider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
@@ -150,16 +151,19 @@ describe("Mock verifier functional", () => {
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
     });
+
     const appParams = {
       verifier: new MockVerifier(),
       inputs: { testInput1: new BN(1), testInput2: new BN(1) },
       path: circuitPath,
     };
+
     let transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
       appParams,
     });
+    
     await transactionTester.getTestValues();
 
     let tx = new Transaction({

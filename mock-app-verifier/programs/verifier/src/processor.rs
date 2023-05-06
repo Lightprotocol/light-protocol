@@ -112,6 +112,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
         // relayer recipient and escrow will never be used in the same transaction
         relayer_recipient_sol: ctx.accounts.relayer_recipient_sol.to_account_info().clone(),
         token_authority: ctx.accounts.token_authority.to_account_info().clone(),
+        log_wrapper: ctx.accounts.log_wrapper.to_account_info(),
     };
 
     let seed = &ctx.accounts.signing_address.key().to_bytes();

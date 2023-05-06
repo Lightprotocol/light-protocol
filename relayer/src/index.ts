@@ -4,12 +4,13 @@ import { port } from "./config";
 import { addCorsHeaders } from "./middleware";
 import bodyParser from "body-parser";
 import {
-  initeMerkleTree,
+  indexedTransactions,
+  initMerkleTree,
   initLookupTable,
   sendTransaction,
   updateMerkleTree,
 } from "./services";
-require('dotenv').config();
+require("dotenv").config();
 
 const app = express();
 
@@ -18,17 +19,17 @@ app.use(bodyParser.json());
 
 app.post("/updatemerkletree", updateMerkleTree);
 
-app.get("/merkletree", initeMerkleTree);
+app.get("/merkletree", initMerkleTree);
 
 app.get("/lookuptable", initLookupTable);
 
 app.post("/relayInstruction", sendTransaction);
 
+app.get("/indexedTransactions", indexedTransactions);
 
 app.listen(port, async () => {
-
-  if(process.env.TEST_ENVIROMENT) {
-    await testSetup()
+  if (process.env.TEST_ENVIROMENT) {
+    await testSetup();
   }
 
   console.log(`Webserver started on port ${port}`);

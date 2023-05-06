@@ -2,7 +2,7 @@ import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
 import { fetchNullifierAccountInfo } from "../utils";
 import { Action } from "../transaction";
-import { indexedTransaction, TokenData } from "../types";
+import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
@@ -38,7 +38,7 @@ type TestUserBalances = {
 };
 
 export class TestStateValidator {
-  private recentTransaction?: indexedTransaction;
+  private recentTransaction?: IndexedTransaction;
   public provider: Provider;
   public sender: TestUserBalances;
   public recipient: TestUserBalances;
@@ -66,14 +66,14 @@ export class TestStateValidator {
     this.tokenCtx = tokenCtx;
   }
 
-  async fetchAndSaveState() {
+  async fetchAndSaveState(latest: boolean = true) {
     try {
       const saveUserState = async (
         userBalances: TestUserBalances,
         testInputs: TestInputs,
       ) => {
         userBalances.preShieldedBalance = _.cloneDeep(
-          await userBalances.user.getBalance(),
+          await userBalances.user.getBalance(latest),
         );
 
         if (userBalances.isSender) {
@@ -113,50 +113,60 @@ export class TestStateValidator {
     }
   }
 
-  public async assertRecentIndexedTransaction() {
+  public async assertRecentTransaction({
+    userHistory = false,
+  }: {
+    userHistory?: boolean;
+  }) {
     const { amountSol, amountSpl, type, token } = this.testInputs;
     const tokenMint = TOKEN_REGISTRY.get(token)?.mint;
 
-    const indexedTransactions =
-      await this.provider.relayer.getIndexedTransactions(
+    let transactions;
+    if (userHistory) {
+      transactions = await this.sender.user.getTransactionHistory();
+    } else {
+      transactions = await this.provider.relayer.getIndexedTransactions(
         this.provider.provider!.connection,
       );
+    }
 
-    this.recentTransaction = indexedTransactions[0];
+    transactions.sort((a, b) => b.blockTime - a.blockTime);
+
+    this.recentTransaction = transactions[0];
 
     if (amountSpl && type) {
       assert.strictEqual(
-        this.recentTransaction.amountSpl
-          .div(this.tokenCtx!.decimals)
-          .toNumber(),
+        this.recentTransaction!.publicAmountSpl.div(
+          this.tokenCtx!.decimals,
+        ).toNumber(),
         type === Action.TRANSFER ? 0 : amountSpl,
       );
     }
 
     if (amountSol) {
       assert.strictEqual(
-        this.recentTransaction.amountSol
-          .div(this.tokenCtx!.decimals)
-          .toNumber(),
+        this.recentTransaction!.publicAmountSol.div(
+          this.tokenCtx!.decimals,
+        ).toNumber(),
         type === Action.TRANSFER ? 0 : amountSol,
       );
     }
 
     if (type === Action.SHIELD) {
       assert.strictEqual(
-        this.recentTransaction.from.toBase58(),
+        this.recentTransaction!.from.toBase58(),
         this.provider.wallet.publicKey.toBase58(),
       );
     }
 
     if (type === Action.TRANSFER) {
       assert.strictEqual(
-        this.recentTransaction.to.toBase58(),
+        this.recentTransaction!.to.toBase58(),
         PublicKey.default.toBase58(),
       );
 
       assert.strictEqual(
-        this.recentTransaction.from.toBase58(),
+        this.recentTransaction!.from.toBase58(),
         PublicKey.default.toBase58(),
       );
     }
@@ -172,15 +182,17 @@ export class TestStateValidator {
       assert.strictEqual(
         this.recipient.user.balance.tokenBalances
           .get(tokenMint?.toBase58()!)
-          ?.utxos.get(this.recentTransaction.commitment!)?._commitment,
-        this.recentTransaction.commitment,
+          ?.utxos.get(
+            new BN(this.recentTransaction!.leaves[0], "le").toString(),
+          )?._commitment,
+        new BN(this.recentTransaction!.leaves[0], "le").toString(),
       );
     }
 
-    assert.strictEqual(this.recentTransaction.type, type);
+    assert.strictEqual(this.recentTransaction!.type, type);
 
     assert.strictEqual(
-      this.recentTransaction.relayerFee.toString(),
+      this.recentTransaction!.relayerFee.toString(),
       type === Action.UNSHIELD
         ? "500000"
         : type === Action.TRANSFER
@@ -189,7 +201,7 @@ export class TestStateValidator {
     );
 
     assert.strictEqual(
-      this.recentTransaction.relayerRecipientSol.toBase58(),
+      this.recentTransaction!.relayerRecipientSol.toBase58(),
       type === Action.SHIELD
         ? PublicKey.default.toBase58()
         : this.provider.relayer.accounts.relayerRecipientSol.toBase58(),
@@ -513,7 +525,9 @@ export class TestStateValidator {
     );
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentIndexedTransaction();
+    await this.assertRecentTransaction({});
+
+    await this.assertRecentTransaction({ userHistory: true });
   }
 
   /**
@@ -558,7 +572,9 @@ export class TestStateValidator {
     // }
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentIndexedTransaction();
+    await this.assertRecentTransaction({});
+
+    await this.assertRecentTransaction({ userHistory: true });
   }
 
   /**
@@ -591,7 +607,7 @@ export class TestStateValidator {
     await this.assertUserUtxoSpent();
 
     // assert that recentIndexedTransaction is of type UNSHIELD and have right values
-    await this.assertRecentIndexedTransaction();
+    await this.assertRecentTransaction({ userHistory: true });
   }
 
   /**
@@ -628,7 +644,9 @@ export class TestStateValidator {
     await this.assertUserUtxoSpent();
 
     // assert that recentIndexedTransaction is of type SHIELD and have right values
-    await this.assertRecentIndexedTransaction();
+    await this.assertRecentTransaction({});
+
+    await this.assertRecentTransaction({ userHistory: true });
 
     await this.checkShieldedTransferReceived(
       this.testInputs.amountSpl !== undefined

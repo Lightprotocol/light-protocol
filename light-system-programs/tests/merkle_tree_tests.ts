@@ -43,11 +43,13 @@ import {
   Account,
   Provider,
   Action,
+  TestRelayer,
+  Relayer,
   MESSAGE_MERKLE_TREE_KEY,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
-var LOOK_UP_TABLE, POSEIDON, KEYPAIR, deposit_utxo1;
+var LOOK_UP_TABLE, POSEIDON, RELAYER, KEYPAIR, deposit_utxo1;
 
 console.log = () => {};
 describe("Merkle Tree Tests", () => {
@@ -85,27 +87,34 @@ describe("Merkle Tree Tests", () => {
       [anchor.utils.bytes.utf8.encode("MERKLE_TREE_AUTHORITY_INV")],
       merkleTreeProgram.programId,
     )[0];
-  });
 
-  const test = async (fn: any, obj: any, error: string, args?: any) => {
-    fn = fn.bind(obj);
-    try {
-      if (args) {
-        expect(await fn(args)).throw();
-      } else {
-        expect(await fn()).throw();
-      }
-    } catch (e) {
-      console.log(e);
-      assert.isTrue(e.logs.includes(error));
-    }
-  };
+    const relayerRecipientSol = SolanaKeypair.generate().publicKey;
+
+    await provider.connection.requestAirdrop(
+      relayerRecipientSol,
+      2_000_000_000,
+    );
+
+    RELAYER = await new TestRelayer(
+      ADMIN_AUTH_KEYPAIR.publicKey,
+      LOOK_UP_TABLE,
+      relayerRecipientSol,
+      new anchor.BN(100000),
+    );
+  });
 
   it.skip("Build Merkle Tree from account compression", async () => {
     const poseidon = await circomlibjs.buildPoseidonOpt();
+
+    const indexedTransactions = await RELAYER.getIndexedTransactions(
+      provider!.connection,
+    );
+
     let merkleTree = await SolMerkleTree.build({
       pubkey: TRANSACTION_MERKLE_TREE_KEY,
       poseidon,
+      indexedTransactions,
+      provider,
     });
 
     let newTree = await merkleTreeProgram.account.transactionMerkleTree.fetch(
@@ -586,7 +595,10 @@ describe("Merkle Tree Tests", () => {
       [USER_TOKEN_ACCOUNT],
     );
 
-    let lightProvider = await Provider.init({ wallet: ADMIN_AUTH_KEYPAIR });
+    let lightProvider = await Provider.init({
+      wallet: ADMIN_AUTH_KEYPAIR,
+      relayer: RELAYER,
+    });
 
     deposit_utxo1 = new Utxo({
       poseidon: POSEIDON,
@@ -652,8 +664,6 @@ describe("Merkle Tree Tests", () => {
 
     let poseidon = await circomlibjs.buildPoseidonOpt();
     // build tree from chain
-    // let merkleTree = await SolMerkleTree.build({pubkey: MERKLE_TREE_KEY, poseidon: POSEIDON})
-
     let merkleTreeUpdateState = solana.PublicKey.findProgramAddressSync(
       [
         Buffer.from(new Uint8Array(signer.publicKey.toBytes())),
@@ -967,9 +977,15 @@ describe("Merkle Tree Tests", () => {
         TRANSACTION_MERKLE_TREE_KEY,
       );
 
+    const indexedTransactions = await RELAYER.getIndexedTransactions(
+      provider!.connection,
+    );
+
     let merkleTree = await SolMerkleTree.build({
       pubkey: TRANSACTION_MERKLE_TREE_KEY,
       poseidon: POSEIDON,
+      indexedTransactions,
+      provider: provider,
     });
 
     // insert correctly

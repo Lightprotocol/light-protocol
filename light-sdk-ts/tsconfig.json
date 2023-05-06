@@ -11,7 +11,8 @@
     "rootDirs": ["src", "generated"],
     "baseUrl": "src",
     "useUnknownInCatchVariables": false,
-    "sourceMap": true
+    "sourceMap": true,
+    "skipLibCheck": true
   },
   "include": ["src", "__tests__", "tests"],
   "exclude": ["node_modules", "**/tests/*"],

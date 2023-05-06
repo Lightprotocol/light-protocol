@@ -10,11 +10,10 @@ import { Connection, PublicKey, SystemProgram } from "@solana/web3.js";
 import { MerkleTreeConfig, SolMerkleTree } from "./merkleTree";
 import { MINT } from "./test-utils/constants_system_verifier";
 import * as anchor from "@coral-xyz/anchor";
-import { initLookUpTableFromFile, setUpMerkleTree } from "./test-utils/index";
 import { Utxo } from "utxo";
 import { MetaError, UtilsError, UtilsErrorCode } from "./errors";
+import { TokenUtxoBalance } from "wallet";
 const { keccak_256 } = require("@noble/hashes/sha3");
-const circomlibjs = require("circomlibjs");
 
 export function hashAndTruncateToCircuit(data: Uint8Array) {
   return new BN(
@@ -90,21 +89,11 @@ export const convertAndComputeDecimals = (
 };
 
 export const getUpdatedSpentUtxos = (
-  inputUtxos: Utxo[],
-  spentUtxos: Utxo[] = [],
-) => {
-  const updatedSpentUtxos: Utxo[] = [...spentUtxos];
-
-  inputUtxos.forEach((utxo) => {
-    const amountsValid =
-      utxo.amounts[1].toString() !== "0" || utxo.amounts[0].toString() !== "0";
-
-    if (amountsValid) {
-      updatedSpentUtxos?.push(utxo);
-    }
-  });
-
-  return updatedSpentUtxos;
+  tokenBalances: Map<string, TokenUtxoBalance>,
+): Utxo[] => {
+  return Array.from(tokenBalances.values())
+    .map((value) => Array.from(value.spentUtxos.values()))
+    .flat();
 };
 
 export const fetchNullifierAccountInfo = async (
@@ -121,6 +110,7 @@ export const fetchNullifierAccountInfo = async (
   return connection.getAccountInfo(nullifierPubkey, "confirmed");
 };
 
+// use
 export const fetchQueuedLeavesAccountInfo = async (
   leftLeaf: Uint8Array,
   connection: Connection,

@@ -7,10 +7,10 @@ import {
   Provider,
   Relayer,
 } from "light-sdk";
-require('dotenv').config();
-
+require("dotenv").config();
 
 let provider: Provider;
+let relayer: Relayer;
 
 export const getKeyPairFromEnv = (KEY: string) => {
   return Keypair.fromSecretKey(
@@ -28,23 +28,34 @@ export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
   );
 
   anchor.setProvider(providerAnchor);
+
   return providerAnchor;
 };
 
 export const getLightProvider = async () => {
   if (!provider) {
-    const relayer = new Relayer(
+    const relayer = await getRelayer();
+
+    provider = await Provider.init({
+      wallet: getKeyPairFromEnv("KEY_PAIR"),
+      relayer,
+    });
+
+    return provider;
+  }
+  return provider;
+};
+
+export const getRelayer = async () => {
+  if (!relayer) {
+    relayer = new Relayer(
       getKeyPairFromEnv("KEY_PAIR").publicKey,
       new PublicKey(process.env.LOOK_UP_TABLE || ""),
       getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
       relayerFee,
     );
 
-    provider = await Provider.init({
-      wallet: getKeyPairFromEnv("KEY_PAIR"),
-      relayer,
-    });
-    return provider;
+    return relayer;
   }
-  return provider;
+  return relayer;
 };

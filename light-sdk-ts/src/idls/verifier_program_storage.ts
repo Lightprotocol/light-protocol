@@ -80,6 +80,7 @@ export type VerifierProgramStorage = {
           name: "logWrapper";
           isMut: false;
           isSigner: false;
+          docs: ["CHECK"];
         },
         {
           name: "messageMerkleTree";
@@ -295,6 +296,7 @@ export const IDL: VerifierProgramStorage = {
           name: "logWrapper",
           isMut: false,
           isSigner: false,
+          docs: ["CHECK"],
         },
         {
           name: "messageMerkleTree",

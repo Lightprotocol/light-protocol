@@ -50,6 +50,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         Some(ctx.accounts.relayer_recipient_sol.to_account_info()),
         Some(ctx.accounts.token_authority.to_account_info()),
         &ctx.accounts.registered_verifier_pda,
+        ctx.accounts.log_wrapper.to_account_info(),
         ctx.remaining_accounts,
     )?;
 

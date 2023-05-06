@@ -5,7 +5,7 @@ import {
   RelayerError,
   RelayerErrorCode,
   Provider,
-  indexedTransaction,
+  IndexedTransaction,
   TOKEN_ACCOUNT_FEE,
 } from "./index";
 
@@ -17,6 +17,7 @@ export class Relayer {
   };
   relayerFee: BN;
   highRelayerFee: BN;
+  indexedTransactions: IndexedTransaction[] = [];
 
   /**
    *
@@ -106,7 +107,29 @@ export class Relayer {
 
   async getIndexedTransactions(
     connection: Connection,
-  ): Promise<indexedTransaction[]> {
-    throw new Error("not implemented yet");
+  ): Promise<IndexedTransaction[]> {
+    try {
+      const response = await axios.get(
+        "http://localhost:3331/indexedTransactions",
+      );
+
+      const indexedTransactions: IndexedTransaction[] = response.data.data.map(
+        (trx: IndexedTransaction) => {
+          return {
+            ...trx,
+            to: new PublicKey(trx.to),
+            from: new PublicKey(trx.from),
+            firstLeafIndex: new BN(trx.firstLeafIndex),
+          };
+        },
+      );
+
+      return indexedTransactions.sort(
+        (a, b) => a.firstLeafIndex.toNumber() - b.firstLeafIndex.toNumber(),
+      );
+    } catch (err) {
+      console.log({ err });
+      throw err;
+    }
   }
 }
