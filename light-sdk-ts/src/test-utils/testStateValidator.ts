@@ -123,7 +123,7 @@ export class TestStateValidator {
 
     let transactions;
     if (userHistory) {
-      transactions = await this.sender.user.getTransactionHistory({});
+      transactions = await this.sender.user.getTransactionHistory();
     } else {
       transactions = await this.provider.relayer.getIndexedTransactions(
         this.provider.provider!.connection,

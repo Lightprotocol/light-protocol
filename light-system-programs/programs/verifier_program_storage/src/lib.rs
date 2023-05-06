@@ -93,7 +93,6 @@ pub mod verifier_program_storage {
         let message = &ctx.accounts.verifier_state.msg;
 
         let message_hash = hash(message).to_bytes();
-        // let message_hash = [0u8; 32];
 
         // Declaring any program method argument as `mut` crashes
         // `borsh-derive` macro.

@@ -21,7 +21,7 @@ pub struct Accounts<'info, 'a, 'c> {
     pub relayer_recipient: Option<AccountInfo<'info>>,
     pub token_authority: Option<AccountInfo<'info>>,
     pub registered_verifier_pda: &'a Account<'info, RegisteredVerifier>,
-    pub log_wrapper: AccountInfo<'info>, //Program<'info, Noop>,
+    pub log_wrapper: AccountInfo<'info>,
     pub remaining_accounts: &'c [AccountInfo<'info>],
 }
 
@@ -43,7 +43,7 @@ impl<'info, 'a, 'c> Accounts<'info, 'a, 'c> {
         relayer_recipient: Option<AccountInfo<'info>>,
         token_authority: Option<AccountInfo<'info>>,
         registered_verifier_pda: &'a Account<'info, RegisteredVerifier>,
-        log_wrapper: AccountInfo<'info>, //Program<'info, Noop>,
+        log_wrapper: AccountInfo<'info>,
         remaining_accounts: &'c [AccountInfo<'info>],
     ) -> Result<Self> {
         Ok(Self {

@@ -54,9 +54,8 @@ describe("Test User", () => {
     confirmConfig,
   );
   anchor.setProvider(anchorProvider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
-
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  
+  const userKeypair = ADMIN_AUTH_KEYPAIR; 
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
@@ -341,9 +340,8 @@ describe("Test User Errors", () => {
     confirmConfig,
   );
   anchor.setProvider(providerAnchor);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  const userKeypair = ADMIN_AUTH_KEYPAIR; 
 
   let amount, token, provider, user;
   before("init test setup Merkle tree lookup table etc ", async () => {

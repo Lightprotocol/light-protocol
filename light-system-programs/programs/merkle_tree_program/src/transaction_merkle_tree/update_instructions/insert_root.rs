@@ -33,7 +33,7 @@ pub struct InsertRoot<'info> {
     #[account(mut, address= merkle_tree_update_state.load()?.merkle_tree_pda_pubkey @ErrorCode::InvalidMerkleTree)]
     pub transaction_merkle_tree: AccountLoader<'info, TransactionMerkleTree>,
     /// CHECK:` checking manually in wrapper function
-    pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
+    pub log_wrapper: UncheckedAccount<'info>,
     pub system_program: Program<'info, System>,
 }
 

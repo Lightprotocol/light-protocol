@@ -983,12 +983,9 @@ export class User {
     throw new Error("not implemented yet");
   }
 
-  async getTransactionHistory({
-    latest = true,
-  }: {
-    latest?: boolean;
-    refetchBalance?: boolean;
-  }): Promise<IndexedTransaction[]> {
+  async getTransactionHistory(
+    latest: boolean = true,
+  ): Promise<IndexedTransaction[]> {
     try {
       if (latest) {
         await this.getBalance(true);

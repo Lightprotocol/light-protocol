@@ -101,19 +101,22 @@ export class SolMerkleTree {
       poseidon,
       leaves,
     );
-    if (
-      Array.from(
-        leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
-        // @ts-ignore: unknown type error
-      ).toString() != mtFetched.roots[mtFetched.currentRootIndex].toString()
-    ) {
+
+    // @ts-ignore: unknown type error
+    const index = mtFetched.roots.findIndex((root) => {
+      return (
+        Array.from(
+          leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
+          // @ts-ignore: unknown type error
+        ).toString() === root.toString()
+      );
+    });
+
+    if (index < 0) {
       throw new Error(
         `building merkle tree from chain failed: root local ${Array.from(
           leInt2Buff(unstringifyBigInts(fetchedMerkleTree.root()), 32),
-        ).toString()} != root fetched ${
-          // @ts-ignore: unknown type error
-          mtFetched.roots[mtFetched.currentRootIndex]
-        }`,
+        ).toString()} is not present in roots fetched`,
       );
     }
 

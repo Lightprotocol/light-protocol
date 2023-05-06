@@ -74,7 +74,6 @@ describe("API tests", () => {
 
         const pubkey = new PublicKey(res.body.data.pubkey);
 
-
         const merkleTree = new MerkleTree(
           MERKLE_TREE_HEIGHT,
           poseidon,

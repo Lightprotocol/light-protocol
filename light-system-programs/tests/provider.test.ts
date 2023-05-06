@@ -54,9 +54,8 @@ describe("verifier_program", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  console.log("merkleTreeProgram: ", merkleTreeProgramId.toBase58());
-
-  const userKeypair = ADMIN_AUTH_KEYPAIR; //new SolanaKeypair();
+  
+  const userKeypair = ADMIN_AUTH_KEYPAIR; 
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;

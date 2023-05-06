@@ -171,7 +171,7 @@ pub struct LightInstructionSecond<'info> {
     pub registered_verifier_pda: UncheckedAccount<'info>, //Account<'info, RegisteredVerifier>,
     pub verifier_program: Program<'info, VerifierProgramTwo>,
     /// CHECK:` It get checked inside the event_call
-    pub log_wrapper: UncheckedAccount<'info>, //Program<'info, Noop>,
+    pub log_wrapper: UncheckedAccount<'info>,
 }
 
 #[derive(Accounts)]
