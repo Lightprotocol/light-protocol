@@ -15,14 +15,17 @@ import {
   VerifierError,
   VerifierErrorCode,
   TransactionErrorCode,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_TWO
 } from "../src";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
 
 const verifiers = [
-  { verifier: new VerifierZero(), isApp: false },
-  { verifier: new VerifierOne(), isApp: false },
-  { verifier: new VerifierTwo(), isApp: true },
+  { verifier: new VerifierZero(), isApp: false, IDL: IDL_VERIFIER_PROGRAM_ZERO },
+  { verifier: new VerifierOne(), isApp: false, IDL: IDL_VERIFIER_PROGRAM_ONE },
+  { verifier: new VerifierTwo(), isApp: true, IDL: IDL_VERIFIER_PROGRAM_TWO },
 ];
 
 describe("Verifier tests", () => {
@@ -36,6 +39,7 @@ describe("Verifier tests", () => {
       await functionalCircuitTest(
         verifiers[verifier].verifier,
         verifiers[verifier].isApp,
+        verifiers[verifier].IDL
       );
     }
   });

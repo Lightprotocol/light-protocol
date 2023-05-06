@@ -2,7 +2,6 @@ import {
   ProviderErrorCode,
   TransactionError,
   TransactionErrorCode,
-  TransactioParametersError,
 } from "../errors";
 import {
   Account,
@@ -278,24 +277,25 @@ export class TestTransaction {
         connection: this.provider.provider!.connection,
       });
     }
-    let leavesAccount;
     var leavesAccountData;
     // Checking that leaves were inserted
-    for (var i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i++) {
+    for (var i = 0; i < remainingAccounts.leavesPdaPubkeys.length; i += 2) {
       leavesAccountData =
         await this.merkleTreeProgram.account.twoLeavesBytesPda.fetch(
-          remainingAccounts.leavesPdaPubkeys[i].pubkey,
+          remainingAccounts.leavesPdaPubkeys[i / 2].pubkey,
           "confirmed",
         );
 
       assert.equal(
         leavesAccountData.nodeLeft.toString(),
-        transactionInputs.publicInputs.leaves[i][0].reverse().toString(),
+        transactionInputs.publicInputs.outputCommitment[i].reverse().toString(),
         "left leaf not inserted correctly",
       );
       assert.equal(
         leavesAccountData.nodeRight.toString(),
-        transactionInputs.publicInputs.leaves[i][1].reverse().toString(),
+        transactionInputs.publicInputs.outputCommitment[i + 1]
+          .reverse()
+          .toString(),
         "right leaf not inserted correctly",
       );
       assert.equal(
@@ -402,12 +402,13 @@ export class TestTransaction {
         ).toString(),
         "amount not transferred correctly",
       );
+      if (!this.params.accounts.signingAddress)
+        throw new Error("Signing address undefined");
       var senderFeeAccountBalance =
         await this.provider.provider.connection.getBalance(
-          this.params.accounts.senderSol,
+          this.params.accounts.signingAddress,
           "confirmed",
         );
-
       assert.equal(
         recipientSolAccountBalance,
         Number(this.testValues.recipientFeeBalancePriorTx) +

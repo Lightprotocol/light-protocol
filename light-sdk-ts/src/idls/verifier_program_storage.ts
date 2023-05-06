@@ -194,6 +194,231 @@ export type VerifierProgramStorage = {
         ];
       };
     },
+    {
+      name: "zKtransactionMasp2ProofInputs";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "root";
+            type: "u8";
+          },
+          {
+            name: "publicAmountSpl";
+            type: "u8";
+          },
+          {
+            name: "txIntegrityHash";
+            type: "u8";
+          },
+          {
+            name: "publicAmountSol";
+            type: "u8";
+          },
+          {
+            name: "publicMintPubkey";
+            type: "u8";
+          },
+          {
+            name: "inputNullifier";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outputCommitment";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inAmount";
+            type: {
+              array: [
+                {
+                  array: ["u8", 2];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "inPrivateKey";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inBlinding";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inAppDataHash";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inPathIndices";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inPathElements";
+            type: {
+              array: [
+                {
+                  array: ["u8", 18];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "inIndices";
+            type: {
+              array: [
+                {
+                  array: [
+                    {
+                      array: ["u8", 3];
+                    },
+                    2,
+                  ];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "outAmount";
+            type: {
+              array: [
+                {
+                  array: ["u8", 2];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "outPubkey";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outBlinding";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outAppDataHash";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outIndices";
+            type: {
+              array: [
+                {
+                  array: [
+                    {
+                      array: ["u8", 3];
+                    },
+                    2,
+                  ];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "outPoolType";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outVerifierPubkey";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inPoolType";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "inVerifierPubkey";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "transactionVersion";
+            type: "u8";
+          },
+          {
+            name: "assetPubkeys";
+            type: {
+              array: ["u8", 3];
+            };
+          },
+          {
+            name: "internalTxIntegrityHash";
+            type: "u8";
+          },
+        ];
+      };
+    },
+    {
+      name: "zKtransactionMasp2PublicInputs";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "root";
+            type: "u8";
+          },
+          {
+            name: "publicAmountSpl";
+            type: "u8";
+          },
+          {
+            name: "txIntegrityHash";
+            type: "u8";
+          },
+          {
+            name: "publicAmountSol";
+            type: "u8";
+          },
+          {
+            name: "publicMintPubkey";
+            type: "u8";
+          },
+          {
+            name: "inputNullifier";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+          {
+            name: "outputCommitment";
+            type: {
+              array: ["u8", 2];
+            };
+          },
+        ];
+      };
+    },
   ];
   errors: [
     {
@@ -406,6 +631,231 @@ export const IDL: VerifierProgramStorage = {
           {
             name: "msg",
             type: "bytes",
+          },
+        ],
+      },
+    },
+    {
+      name: "zKtransactionMasp2ProofInputs",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "root",
+            type: "u8",
+          },
+          {
+            name: "publicAmountSpl",
+            type: "u8",
+          },
+          {
+            name: "txIntegrityHash",
+            type: "u8",
+          },
+          {
+            name: "publicAmountSol",
+            type: "u8",
+          },
+          {
+            name: "publicMintPubkey",
+            type: "u8",
+          },
+          {
+            name: "inputNullifier",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outputCommitment",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inAmount",
+            type: {
+              array: [
+                {
+                  array: ["u8", 2],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "inPrivateKey",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inBlinding",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inAppDataHash",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inPathIndices",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inPathElements",
+            type: {
+              array: [
+                {
+                  array: ["u8", 18],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "inIndices",
+            type: {
+              array: [
+                {
+                  array: [
+                    {
+                      array: ["u8", 3],
+                    },
+                    2,
+                  ],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "outAmount",
+            type: {
+              array: [
+                {
+                  array: ["u8", 2],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "outPubkey",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outBlinding",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outAppDataHash",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outIndices",
+            type: {
+              array: [
+                {
+                  array: [
+                    {
+                      array: ["u8", 3],
+                    },
+                    2,
+                  ],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "outPoolType",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outVerifierPubkey",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inPoolType",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "inVerifierPubkey",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "transactionVersion",
+            type: "u8",
+          },
+          {
+            name: "assetPubkeys",
+            type: {
+              array: ["u8", 3],
+            },
+          },
+          {
+            name: "internalTxIntegrityHash",
+            type: "u8",
+          },
+        ],
+      },
+    },
+    {
+      name: "zKtransactionMasp2PublicInputs",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "root",
+            type: "u8",
+          },
+          {
+            name: "publicAmountSpl",
+            type: "u8",
+          },
+          {
+            name: "txIntegrityHash",
+            type: "u8",
+          },
+          {
+            name: "publicAmountSol",
+            type: "u8",
+          },
+          {
+            name: "publicMintPubkey",
+            type: "u8",
+          },
+          {
+            name: "inputNullifier",
+            type: {
+              array: ["u8", 2],
+            },
+          },
+          {
+            name: "outputCommitment",
+            type: {
+              array: ["u8", 2],
+            },
           },
         ],
       },

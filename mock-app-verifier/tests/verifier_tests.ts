@@ -39,8 +39,10 @@ import {
   Action,
   useWallet,
   TestRelayer,
+  IDL_VERIFIER_PROGRAM_TWO,
 } from "light-sdk";
 
+import { IDL } from "../target/types/mock_verifier";
 import { BN } from "@coral-xyz/anchor";
 import { MockVerifier } from "../sdk/src";
 
@@ -65,7 +67,8 @@ describe("Verifier Two test", () => {
     new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
 
   var depositSplAmount, depositSolAmount;
-  const verifiers = [new VerifierTwo()];
+  const VERIFIERS = [new VerifierTwo()];
+  const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_TWO];
 
   before(async () => {
     await createTestAccounts(provider.connection, userTokenAccount);
@@ -84,7 +87,7 @@ describe("Verifier Two test", () => {
     depositSolAmount =
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       console.log("verifier ", verifier.toString());
 
       await token.approve(
@@ -93,7 +96,7 @@ describe("Verifier Two test", () => {
         userTokenAccount,
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[verifier].verifierProgram.programId,
+          VERIFIERS[verifier].verifierProgram.programId,
         ), //delegate
         USER_TOKEN_ACCOUNT, // owner
         depositSplAmount * 10,
@@ -134,17 +137,19 @@ describe("Verifier Two test", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
         transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
 
       const appParams0 = {
         verifier: new MockVerifier(),
         inputs: { testInput1: new BN(1), testInput2: new BN(1) },
         path: circuitPath,
+        verifierIdl: IDL,
       };
       var transaction = new Transaction({
         provider: lightProvider,
@@ -179,16 +184,18 @@ describe("Verifier Two test", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         senderSpl: userTokenAccount,
         senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         poseidon: POSEIDON,
         action: Action.SHIELD,
         lookUpTable: LOOK_UP_TABLE,
         transactionNonce: 1,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
       const appParams = {
         verifier: new MockVerifier(),
         inputs: { testInput1: new BN(1), testInput2: new BN(1) },
         path: circuitPath,
+        verifierIdl: IDL,
       };
       var transaction1 = new Transaction({
         provider: lightProvider,
@@ -215,11 +222,12 @@ describe("Verifier Two test", () => {
         transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
         recipientSpl: tokenRecipient,
         recipientSol: ADMIN_AUTH_KEYPAIR.publicKey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         relayer: lightProviderWithdrawal.relayer,
         poseidon: POSEIDON,
         action: Action.UNSHIELD,
         transactionNonce: 2,
+        verifierIdl: VERIFIER_IDLS[verifier],
       });
       var tx = new Transaction({
         provider: lightProviderWithdrawal,
@@ -370,8 +378,8 @@ describe("Verifier Two test", () => {
   it("Wrong nullifier", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.transactionInputs.publicInputs.nullifiers) {
-        tmp_tx.transactionInputs.publicInputs.nullifiers[i] = new Array(
+      for (var i in tmp_tx.transactionInputs.publicInputs.inputNullifier) {
+        tmp_tx.transactionInputs.publicInputs.inputNullifier[i] = new Array(
           32,
         ).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
@@ -382,10 +390,10 @@ describe("Verifier Two test", () => {
   it("Wrong leaves", async () => {
     for (var tx in transactions) {
       var tmp_tx: Transaction = _.cloneDeep(transactions[tx]);
-      for (var i in tmp_tx.transactionInputs.publicInputs.leaves) {
-        tmp_tx.transactionInputs.publicInputs.leaves[0][i] = new Array(32).fill(
-          2,
-        );
+      for (var i in tmp_tx.transactionInputs.publicInputs.outputCommitment) {
+        tmp_tx.transactionInputs.publicInputs.outputCommitment[i] = new Array(
+          32,
+        ).fill(2);
         await sendTestTx(tmp_tx, "ProofVerificationFails");
       }
     }

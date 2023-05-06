@@ -1,7 +1,7 @@
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
   TRANSACTION_MERKLE_TREE_KEY,
@@ -61,6 +61,7 @@ export class TransactionParameters implements transactionParameters {
   ataCreationFee?: boolean;
   transactionNonce: number;
   txIntegrityHash?: BN;
+  verifierIdl: Idl;
 
   constructor({
     message,
@@ -81,6 +82,7 @@ export class TransactionParameters implements transactionParameters {
     ataCreationFee,
     transactionNonce,
     validateUtxos = true,
+    verifierIdl,
   }: {
     message?: Buffer;
     messageMerkleTreePubkey?: PublicKey;
@@ -101,6 +103,7 @@ export class TransactionParameters implements transactionParameters {
     ataCreationFee?: boolean;
     transactionNonce: number;
     validateUtxos?: boolean;
+    verifierIdl: Idl;
   }) {
     if (!outputUtxos && !inputUtxos) {
       throw new TransactioParametersError(
@@ -157,6 +160,7 @@ export class TransactionParameters implements transactionParameters {
 
     this.transactionNonce = transactionNonce;
     this.message = message;
+    this.verifierIdl = verifierIdl;
     this.verifier = verifier;
     this.poseidon = poseidon;
     this.ataCreationFee = ataCreationFee;
@@ -527,12 +531,14 @@ export class TransactionParameters implements transactionParameters {
     bytes,
     verifier,
     relayer,
+    verifierIdl,
   }: {
     poseidon: any;
     utxoIdls?: anchor.Idl[];
     bytes: Buffer;
     verifier: Verifier;
     relayer: Relayer;
+    verifierIdl: Idl;
   }): Promise<TransactionParameters> {
     let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
     let decoded = coder.decodeUnchecked("transactionParameters", bytes);
@@ -612,6 +618,7 @@ export class TransactionParameters implements transactionParameters {
       ...decoded,
       action,
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
+      verifierIdl: verifierIdl,
     });
   }
 
@@ -637,6 +644,7 @@ export class TransactionParameters implements transactionParameters {
     addInUtxos = true,
     addOutUtxos = true,
     verifier,
+    verifierIdl,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
@@ -657,6 +665,7 @@ export class TransactionParameters implements transactionParameters {
     addInUtxos?: boolean;
     addOutUtxos?: boolean;
     verifier: Verifier;
+    verifierIdl: Idl;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
@@ -733,6 +742,7 @@ export class TransactionParameters implements transactionParameters {
       relayer: relayer,
       ataCreationFee,
       transactionNonce,
+      verifierIdl,
     });
 
     return txParams;

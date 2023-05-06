@@ -65,8 +65,8 @@ export class VerifierZero implements Verifier {
       txIntegrityHash: publicInputsBytes[2],
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
-      nullifiers: [publicInputsBytes[5], publicInputsBytes[6]],
-      leaves: [[publicInputsBytes[7], publicInputsBytes[8]]],
+      inputNullifier: [publicInputsBytes[5], publicInputsBytes[6]],
+      outputCommitment: [publicInputsBytes[7], publicInputsBytes[8]],
     };
   }
 
@@ -134,8 +134,8 @@ export class VerifierZero implements Verifier {
         transaction.transactionInputs.proofBytes.proofB,
         transaction.transactionInputs.proofBytes.proofC,
         transaction.transactionInputs.publicInputs.publicAmountSpl,
-        transaction.transactionInputs.publicInputs.nullifiers,
-        transaction.transactionInputs.publicInputs.leaves[0],
+        transaction.transactionInputs.publicInputs.inputNullifier,
+        transaction.transactionInputs.publicInputs.outputCommitment,
         transaction.transactionInputs.publicInputs.publicAmountSol,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()),
         new anchor.BN(

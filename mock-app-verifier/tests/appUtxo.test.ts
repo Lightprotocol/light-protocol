@@ -1,4 +1,4 @@
-import * as anchor from "@project-serum/anchor";
+import * as anchor from "@coral-xyz/anchor";
 
 import {
   Utxo,
@@ -29,7 +29,7 @@ import {
 import { marketPlaceVerifierProgramId, MockVerifier } from "../sdk/src/index";
 
 import { buildPoseidonOpt } from "circomlibjs";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";

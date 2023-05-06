@@ -17,6 +17,7 @@ import {
   TransactionParameters,
   userTokenAccount,
   VerifierZero,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "light-sdk";
 
 let circomlibjs = require("circomlibjs");
@@ -149,6 +150,7 @@ describe("verifier_program", () => {
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     let tx = new Transaction({
       provider: lightProvider,

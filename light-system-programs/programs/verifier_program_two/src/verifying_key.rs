@@ -1,8 +1,8 @@
+use anchor_lang::prelude::*;
 use groth16_solana::groth16::Groth16Verifyingkey;
 
 pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
     nr_pubinputs: 16,
-
     vk_alpha_g1: [
         45, 77, 154, 167, 227, 2, 217, 223, 65, 116, 157, 85, 7, 148, 157, 5, 219, 234, 51, 251,
         177, 108, 100, 59, 34, 245, 153, 162, 190, 109, 242, 226, 20, 190, 221, 80, 60, 55, 206,
@@ -31,13 +31,13 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
     ],
 
     vk_delta_g2: [
-        6, 24, 47, 10, 168, 231, 53, 246, 0, 10, 229, 33, 121, 217, 250, 140, 231, 241, 84, 35, 21,
-        199, 70, 217, 192, 47, 207, 187, 227, 233, 129, 26, 5, 57, 10, 133, 90, 38, 201, 92, 174,
-        110, 179, 20, 132, 115, 91, 199, 242, 53, 11, 207, 141, 235, 161, 67, 255, 233, 48, 123,
-        240, 49, 45, 84, 1, 60, 182, 161, 254, 150, 55, 128, 67, 106, 63, 243, 103, 79, 34, 200,
-        105, 176, 52, 102, 58, 22, 240, 212, 127, 167, 85, 166, 125, 41, 160, 30, 12, 97, 213, 158,
-        210, 19, 177, 58, 88, 202, 28, 193, 232, 80, 131, 85, 106, 215, 240, 229, 90, 53, 108, 250,
-        222, 26, 66, 143, 249, 159, 152, 109,
+        40, 211, 35, 122, 21, 186, 90, 32, 130, 168, 68, 205, 128, 33, 70, 92, 98, 225, 199, 87,
+        120, 213, 201, 88, 211, 38, 149, 156, 144, 155, 196, 98, 5, 231, 85, 22, 73, 44, 81, 38,
+        254, 62, 234, 140, 99, 83, 28, 106, 162, 155, 54, 172, 227, 91, 66, 24, 26, 8, 87, 174, 36,
+        193, 171, 19, 38, 214, 180, 115, 136, 200, 26, 29, 15, 237, 154, 71, 61, 255, 76, 54, 206,
+        96, 228, 148, 186, 84, 98, 174, 133, 42, 31, 87, 232, 55, 58, 203, 18, 141, 169, 139, 21,
+        236, 101, 95, 164, 84, 86, 107, 147, 95, 37, 194, 237, 146, 4, 69, 45, 81, 140, 84, 207,
+        45, 14, 83, 97, 109, 36, 69,
     ],
 
     vk_ic: &[
@@ -139,3 +139,48 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
         ],
     ],
 };
+
+#[account]
+pub struct ZKtransactionApp4ProofInputs {
+    root: u8,
+    public_amount_spl: u8,
+    tx_integrity_hash: u8,
+    public_amount_sol: u8,
+    public_mint_pubkey: u8,
+    input_nullifier: [u8; 4],
+    output_commitment: [u8; 4],
+    public_app_verifier: u8,
+    transaction_hash: u8,
+    in_amount: [[u8; 2]; 4],
+    in_private_key: [u8; 4],
+    in_blinding: [u8; 4],
+    in_app_data_hash: [u8; 4],
+    in_pool_type: [u8; 4],
+    in_verifier_pubkey: [u8; 4],
+    in_path_indices: [u8; 4],
+    in_path_elements: [[u8; 18]; 4],
+    in_indices: [[[u8; 3]; 2]; 4],
+    out_amount: [[u8; 2]; 4],
+    out_pubkey: [u8; 4],
+    out_blinding: [u8; 4],
+    out_app_data_hash: [u8; 4],
+    out_indices: [[[u8; 3]; 2]; 4],
+    out_pool_type: [u8; 4],
+    out_verifier_pubkey: [u8; 4],
+    asset_pubkeys: [u8; 3],
+    transaction_version: u8,
+    internal_tx_integrity_hash: u8,
+}
+
+#[account]
+pub struct ZKtransactionApp4PublicInputs {
+    root: u8,
+    public_amount_spl: u8,
+    tx_integrity_hash: u8,
+    public_amount_sol: u8,
+    public_mint_pubkey: u8,
+    input_nullifier: [u8; 4],
+    output_commitment: [u8; 4],
+    public_app_verifier: u8,
+    transaction_hash: u8,
+}

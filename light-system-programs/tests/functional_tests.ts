@@ -2,11 +2,12 @@ import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import { assert } from "chai";
+import { Idl } from "@coral-xyz/anchor";
 
 const token = require("@solana/spl-token");
 let circomlibjs = require("circomlibjs");
 
-// TODO: add and use  namespaces in SDK
+// TODO: add and use namespaces in SDK
 import {
   Transaction,
   VerifierZero,
@@ -42,6 +43,8 @@ import {
   MESSAGE_MERKLE_TREE_KEY,
   VerifierStorage,
   Verifier,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -79,16 +82,11 @@ describe("verifier_program", () => {
     verifierProgram.programId,
   );
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR;
-  let userSplAccount = null;
-
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
-    // console.log = () => {};
     await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
-    // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     KEYPAIR = new Account({
@@ -104,10 +102,10 @@ describe("verifier_program", () => {
     );
 
     RELAYER = await new TestRelayer(
-      userKeypair.publicKey,
+      ADMIN_AUTH_KEYPAIR.publicKey,
       LOOK_UP_TABLE,
       relayerRecipientSol,
-      new BN(100000),
+      new BN(100_000),
     );
   });
 
@@ -151,6 +149,7 @@ describe("verifier_program", () => {
     verifier,
     transactionNonce,
     shuffleEnabled = true,
+    verifierIdl,
   }: {
     delegate: anchor.web3.PublicKey;
     spl: boolean;
@@ -160,6 +159,7 @@ describe("verifier_program", () => {
     verifier: Verifier;
     transactionNonce: number;
     shuffleEnabled: boolean;
+    verifierIdl: Idl;
   }) => {
     if (LOOK_UP_TABLE === undefined) {
       throw "undefined LOOK_UP_TABLE";
@@ -210,6 +210,7 @@ describe("verifier_program", () => {
       action: Action.SHIELD,
       poseidon: POSEIDON,
       transactionNonce,
+      verifierIdl: verifierIdl,
     });
     let transactionTester = new TestTransaction({
       txParams,
@@ -246,6 +247,7 @@ describe("verifier_program", () => {
       verifier: new VerifierOne(),
       transactionNonce: 0,
       shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
   });
 
@@ -260,6 +262,7 @@ describe("verifier_program", () => {
       verifier: new VerifierStorage(),
       transactionNonce: 1,
       shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
   });
 
@@ -272,6 +275,7 @@ describe("verifier_program", () => {
       verifier: new VerifierZero(),
       transactionNonce: 2,
       shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
@@ -289,6 +293,7 @@ describe("verifier_program", () => {
     verifier,
     transactionNonce,
     shuffleEnabled = true,
+    verifierIdl,
   }: {
     outputUtxos: Array<Utxo>;
     tokenProgram: anchor.web3.PublicKey;
@@ -298,6 +303,7 @@ describe("verifier_program", () => {
     verifier: Verifier;
     transactionNonce: number;
     shuffleEnabled: boolean;
+    verifierIdl: Idl;
   }) => {
     const lightProvider = await Provider.init({
       wallet: ADMIN_AUTH_KEYPAIR,
@@ -328,6 +334,7 @@ describe("verifier_program", () => {
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
       transactionNonce,
+      verifierIdl: verifierIdl,
     });
     let transactionTester = new TestTransaction({
       txParams,
@@ -365,6 +372,7 @@ describe("verifier_program", () => {
       verifier: new VerifierZero(),
       transactionNonce: 3,
       shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
   });
 
@@ -377,6 +385,7 @@ describe("verifier_program", () => {
       verifier: new VerifierStorage(),
       transactionNonce: 4,
       shuffleEnabled: false,
+      verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
   });
 
@@ -406,6 +415,7 @@ describe("verifier_program", () => {
       verifier: new VerifierOne(),
       transactionNonce: 5,
       shuffleEnabled: true,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
   });
 });
