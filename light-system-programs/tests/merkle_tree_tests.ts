@@ -45,6 +45,7 @@ import {
   Action,
   TestRelayer,
   Relayer,
+  MESSAGE_MERKLE_TREE_KEY,
 } from "light-sdk";
 import { SPL_NOOP_ADDRESS } from "@solana/spl-account-compression";
 
