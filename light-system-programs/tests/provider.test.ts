@@ -54,8 +54,8 @@ describe("verifier_program", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  
-  const userKeypair = ADMIN_AUTH_KEYPAIR; 
+
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;

@@ -79,7 +79,7 @@ describe("verifier_program", () => {
     verifierProgram.programId,
   );
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; 
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
   let userSplAccount = null;
 
   before("init test setup Merkle tree lookup table etc ", async () => {

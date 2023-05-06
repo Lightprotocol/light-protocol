@@ -54,8 +54,7 @@ describe("Test User", () => {
     confirmConfig,
   );
   anchor.setProvider(anchorProvider);
-  
-  const userKeypair = ADMIN_AUTH_KEYPAIR; 
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
     let initLog = console.log;
@@ -341,7 +340,7 @@ describe("Test User Errors", () => {
   );
   anchor.setProvider(providerAnchor);
 
-  const userKeypair = ADMIN_AUTH_KEYPAIR; 
+  const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   let amount, token, provider, user;
   before("init test setup Merkle tree lookup table etc ", async () => {
