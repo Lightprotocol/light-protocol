@@ -46,6 +46,7 @@ import {
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
   VerifierOne,
+  IDL_VERIFIER_PROGRAM_ONE,
 } from "../index";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
@@ -1042,6 +1043,7 @@ export class User {
       account: this.account,
       mergeUtxos: true,
       relayer: this.provider.relayer,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
     this.recentTransactionParameters = txParams;
     await this.compileAndProveTransaction();
@@ -1123,6 +1125,7 @@ export class User {
       account: this.account,
       mergeUtxos: true,
       relayer: this.provider.relayer,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
     this.recentTransactionParameters = txParams;
     await this.compileAndProveTransaction();
