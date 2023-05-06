@@ -12,12 +12,14 @@ import {
 import * as anchor from "@coral-xyz/anchor";
 import { assert, expect } from "chai";
 import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { Idl } from "@coral-xyz/anchor";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
   verifier: Verifier,
   app: boolean = false,
+  verifierIdl: Idl,
 ) {
   const poseidon = await circomlibjs.buildPoseidonOpt();
   let seed32 = bs58.encode(new Uint8Array(32).fill(1));
@@ -44,16 +46,21 @@ export async function functionalCircuitTest(
     action: Action.SHIELD,
     poseidon,
     transactionNonce: 0,
+    verifierIdl: verifierIdl,
   });
 
   let tx;
 
-  // successful proofgeneration
+  // successful proof generation
   if (app) {
     tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams: { mock: "123", verifier: { pubkey: new anchor.BN(1) } },
+      appParams: {
+        mock: "123",
+        verifier: { pubkey: new anchor.BN(1) },
+        path: "./build-circuits",
+      },
     });
   } else {
     tx = new Transaction({
@@ -64,7 +71,7 @@ export async function functionalCircuitTest(
   await tx.compile();
 
   await tx.getProof();
-  // unsuccessful proofgeneration
+  // unsuccessful proof generation
   let x = true;
 
   try {

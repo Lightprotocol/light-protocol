@@ -16,12 +16,11 @@ import {
 } from "light-sdk";
 
 import { marketPlaceVerifierProgramId } from "./constants";
-import { BN } from "@project-serum/anchor";
+import { BN } from "@coral-xyz/anchor";
 import {
   IDL,
   MockVerifier as MockVerifierType,
 } from "../../target/types/mock_verifier";
-
 export class MockVerifier implements Verifier {
   verifierProgram?: Program<MockVerifierType>;
   verifierProgramIdCircuit: BN;
@@ -32,7 +31,7 @@ export class MockVerifier implements Verifier {
   nrPublicInputs: number;
   instructions?: anchor.web3.TransactionInstruction[];
   verifierStatePubkey: PublicKey;
-  proofBytes: Uint8Array;
+  proofBytes: any;
   messageDataLength: number;
   fetchedOfferUtxos: Utxo[];
   config: { in: number; out: number; app?: boolean };
@@ -52,7 +51,7 @@ export class MockVerifier implements Verifier {
       this.verifierProgram.programId.toBytes(),
     );
   }
-
+  // publicInputsBytes: Uint8Array
   parsePublicInputsFromArray(publicInputsBytes: Uint8Array): PublicInputs {
     if (publicInputsBytes.length == this.nrPublicInputs) {
       return {
@@ -107,8 +106,8 @@ export class MockVerifier implements Verifier {
     const ix1 = await this.verifierProgram.methods
       .shieldedTransferFirst(
         transaction.transactionInputs.publicInputs.publicAmountSpl,
-        transaction.transactionInputs.publicInputs.nullifiers,
-        transaction.transactionInputs.publicInputs.leaves,
+        transaction.transactionInputs.publicInputs.inputNullifier,
+        transaction.transactionInputs.publicInputs.outputCommitment,
         transaction.transactionInputs.publicInputs.publicAmountSol,
         new anchor.BN(transaction.transactionInputs.rootIndex.toString()), // could make this smaller to u16
         new anchor.BN(transaction.params.relayer.relayerFee.toString()),

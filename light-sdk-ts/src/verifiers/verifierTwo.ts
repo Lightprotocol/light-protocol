@@ -54,11 +54,11 @@ export class VerifierTwo implements Verifier {
       txIntegrityHash: publicInputsBytes[2],
       publicAmountSol: publicInputsBytes[3],
       publicMintPubkey: publicInputsBytes[4],
-      nullifiers: Array.from(publicInputsBytes.slice(5, 9)),
-      leaves: Array.from([
+      inputNullifier: Array.from(publicInputsBytes.slice(5, 9)),
+      outputCommitment: Array.from(
         publicInputsBytes.slice(9, 11),
         publicInputsBytes.slice(11, 13),
-      ]),
+      ),
       checkedParams: Array.from(publicInputsBytes.slice(13, 15)),
       transactionHash: Array.from(publicInputsBytes.slice(13, 14)),
       publicAppVerifier: Array.from(publicInputsBytes.slice(14, 15)),

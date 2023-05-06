@@ -1,7 +1,8 @@
 import { assert, expect } from "chai";
 let circomlibjs = require("circomlibjs");
-import { Keypair as SolanaKeypair } from "@solana/web3.js";
+import { PublicKey, Keypair as SolanaKeypair } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
+
 import { it } from "mocha";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
@@ -27,7 +28,13 @@ import {
   SolMerkleTreeErrorCode,
   Utxo,
   Account,
-  MerkleTree
+  MerkleTree,
+  IDL_VERIFIER_PROGRAM_ZERO,
+  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_TWO,
+  TRANSACTION_MERKLE_TREE_KEY,
+  verifierProgramZeroProgramId,
+  merkleTreeProgramId
 } from "../src";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
@@ -78,6 +85,7 @@ describe("Transaction Error Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
   });
 
@@ -151,6 +159,7 @@ describe("Transaction Error Tests", () => {
       senderSol: mockPubkey,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     expect(() => {
       new Transaction({
@@ -176,6 +185,7 @@ describe("Transaction Error Tests", () => {
       senderSol: mockPubkey,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     expect(() => {
       // @ts-ignore:
@@ -324,6 +334,8 @@ describe("Transaction Functional Tests", () => {
       senderSol: lightProvider.wallet?.publicKey,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
+      
     });
     lightProvider.solMerkleTree!.merkleTree = new MerkleTree(18, poseidon, [
       deposit_utxo1.getCommitment(poseidon),
@@ -345,6 +357,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
   });
 
@@ -408,6 +421,7 @@ describe("Transaction Functional Tests", () => {
       action: Action.UNSHIELD,
       relayer,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
 
     let tx = new Transaction({
@@ -520,6 +534,7 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
 
 
@@ -615,6 +630,7 @@ describe("Transaction Functional Tests", () => {
       relayer: relayerConst,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     let tx = new Transaction({
       provider: lightProvider,
@@ -622,11 +638,11 @@ describe("Transaction Functional Tests", () => {
     });
     // @ts-ignore
     tx.transactionInputs.publicInputs = { leaves: [], nullifiers: [] };
-    tx.transactionInputs.publicInputs!.leaves = [
+    tx.transactionInputs.publicInputs!.outputCommitment = [
       new Array(32).fill(1),
       new Array(32).fill(1),
     ];
-    tx.transactionInputs.publicInputs!.nullifiers = [
+    tx.transactionInputs.publicInputs!.inputNullifier = [
       new Array(32).fill(1),
       new Array(32).fill(1),
     ];
@@ -637,19 +653,18 @@ describe("Transaction Functional Tests", () => {
     ];
 
     const refLeaves = [
-      "5ut6dW3gzB5dRFRhbAWNkne25EKBG5equyonfC5iuAzn",
-      "5ut6dW3gzB5dRFRhbAWNkne25EKBG5equyonfC5iuAzn",
-    ];
+      "6UuSTaJpEemGVuPkmtTiNe7VndXXenWCDU49aTkGSQqY"];    
+    
     for (var i = 0; i < 2; i++) {
       assert.equal(
         tx.remainingAccounts?.nullifierPdaPubkeys![i].pubkey.toBase58(),
         refNullfiers[i],
       );
-      assert.equal(
-        tx.remainingAccounts?.leavesPdaPubkeys![i].pubkey.toBase58(),
-        refLeaves[i],
-      );
     }
+    assert.equal(
+      tx.remainingAccounts?.leavesPdaPubkeys![0].pubkey.toBase58(),
+      refLeaves[0],
+    );
     assert.equal(
       tx.params.accounts.verifierState!.toBase58(),
       "5XAf8s2hi4fx3QK8fm6dgkfXLE23Hy9k1Qo3ew6QqdGP",
@@ -667,6 +682,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_TWO
     });
     expect(() => {
       let tx = new Transaction({
@@ -692,6 +708,7 @@ describe("Transaction Functional Tests", () => {
       poseidon,
       action: Action.SHIELD,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
     expect(() => {
       let tx = new Transaction({

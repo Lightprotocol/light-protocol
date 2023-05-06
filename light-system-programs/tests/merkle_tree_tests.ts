@@ -617,6 +617,7 @@ describe("Merkle Tree Tests", () => {
       lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON,
       transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
     var transaction = new Transaction({
       provider: lightProvider,

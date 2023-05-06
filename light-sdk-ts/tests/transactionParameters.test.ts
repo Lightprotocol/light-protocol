@@ -24,17 +24,20 @@ import {
   AUTHORITY,
   Utxo,
   Account,
+  TRANSACTION_MERKLE_TREE_KEY,
   IDL_VERIFIER_PROGRAM_ZERO,
-  TRANSACTION_MERKLE_TREE_KEY
+  IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_TWO
 } from "../src";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
 process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
-const verifiers = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
+const VERIFIERS = [new VerifierZero(), new VerifierOne(), new VerifierTwo()];
+const VERIFIER_IDLS = [IDL_VERIFIER_PROGRAM_ZERO, IDL_VERIFIER_PROGRAM_ONE, IDL_VERIFIER_PROGRAM_TWO];
 
 describe("Transaction Parameters Functional", () => {
-    let seed32 = bs58.encode(new Uint8Array(32).fill(1));
+  let seed32 = bs58.encode(new Uint8Array(32).fill(1));
   let depositAmount = 20_000;
   let depositFeeAmount = 10_000;
 
@@ -74,7 +77,7 @@ describe("Transaction Parameters Functional", () => {
       account: keypair,
     });
 
-    let verifiers = [new VerifierZero()];
+    let VERIFIERS = [new VerifierZero()];
     let j = 0;
     const inputUtxos = [deposit_utxo1];
     const outputUtxos = [outputUtxo];
@@ -83,12 +86,13 @@ describe("Transaction Parameters Functional", () => {
       inputUtxos,
       outputUtxos,
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
-      verifier: verifiers[j],
+      verifier: VERIFIERS[j],
       lookUpTable: lightProvider.lookUpTable,
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: VERIFIER_IDLS[j]
     });
 
     let bytes = await paramsOriginal.toBytes();
@@ -96,9 +100,10 @@ describe("Transaction Parameters Functional", () => {
     let params = await TransactionParameters.fromBytes({
       poseidon,
       utxoIdls: [IDL_VERIFIER_PROGRAM_ZERO],
-      verifier: verifiers[j],
+      verifier: VERIFIERS[j],
       relayer,
       bytes,
+      verifierIdl: VERIFIER_IDLS[j]
     })
     assert.equal(params.action.toString(), Action.TRANSFER.toString());
     assert.equal(params.publicAmountSpl.toString(), "0");
@@ -141,14 +146,14 @@ describe("Transaction Parameters Functional", () => {
       params.accounts.authority.toBase58(),
       Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        verifiers[j].verifierProgram!.programId,
+        VERIFIERS[j].verifierProgram!.programId,
       ).toBase58(),
     );
     assert.equal(
       params.accounts.registeredVerifierPda.toBase58(),
       Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
-        verifiers[j].verifierProgram!.programId,
+        VERIFIERS[j].verifierProgram!.programId,
       ).toBase58(),
     );
     assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
@@ -159,7 +164,7 @@ describe("Transaction Parameters Functional", () => {
     );
     assert.equal(
       params.verifier.config.in.toString(),
-      verifiers[j].config.in.toString(),
+      VERIFIERS[j].config.in.toString(),
     );
     assert.equal(
       params.relayer.accounts.lookUpTable.toBase58(),
@@ -195,7 +200,7 @@ describe("Transaction Parameters Functional", () => {
       account: keypair,
     });
 
-    for (var j in verifiers) {
+    for (var j in VERIFIERS) {
       const inputUtxos = [deposit_utxo1];
       const outputUtxos = [outputUtxo];
 
@@ -203,12 +208,13 @@ describe("Transaction Parameters Functional", () => {
         inputUtxos,
         outputUtxos,
         transactionMerkleTreePubkey: mockPubkey2,
-        verifier: verifiers[j],
+        verifier: VERIFIERS[j],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.TRANSFER,
         relayer,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[j]
       });
 
       assert.equal(params.action.toString(), Action.TRANSFER.toString());
@@ -252,14 +258,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.authority.toBase58(),
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(
         params.accounts.registeredVerifierPda.toBase58(),
         Transaction.getRegisteredVerifierPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
@@ -270,7 +276,7 @@ describe("Transaction Parameters Functional", () => {
       );
       assert.equal(
         params.verifier.config.in.toString(),
-        verifiers[j].config.in.toString(),
+        VERIFIERS[j].config.in.toString(),
       );
       assert.equal(
         params.relayer.accounts.lookUpTable.toBase58(),
@@ -295,7 +301,7 @@ describe("Transaction Parameters Functional", () => {
     }
   });
   it("Deposit Functional", async () => {
-    for (var j in verifiers) {
+    for (var j in VERIFIERS) {
       const outputUtxos = [deposit_utxo1];
 
       const params = new TransactionParameters({
@@ -303,11 +309,12 @@ describe("Transaction Parameters Functional", () => {
         transactionMerkleTreePubkey: mockPubkey2,
         senderSpl: mockPubkey,
         senderSol: mockPubkey1,
-        verifier: verifiers[j],
+        verifier: VERIFIERS[j],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[j]
       });
 
       assert.equal(params.publicAmountSpl.toString(), depositAmount.toString());
@@ -328,7 +335,7 @@ describe("Transaction Parameters Functional", () => {
       assert.equal(
         params.accounts.senderSol?.toBase58(),
         TransactionParameters.getEscrowPda(
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(
@@ -346,14 +353,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.authority.toBase58(),
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(
         params.accounts.registeredVerifierPda.toBase58(),
         Transaction.getRegisteredVerifierPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
@@ -364,7 +371,7 @@ describe("Transaction Parameters Functional", () => {
       );
       assert.equal(
         params.verifier.config.in.toString(),
-        verifiers[j].config.in.toString(),
+        VERIFIERS[j].config.in.toString(),
       );
       assert.equal(params.action.toString(), Action.SHIELD.toString());
       assert.equal(
@@ -384,7 +391,7 @@ describe("Transaction Parameters Functional", () => {
   });
 
   it("Withdrawal Functional", async () => {
-    for (var j in verifiers) {
+    for (var j in VERIFIERS) {
       const inputUtxos = [deposit_utxo1];
 
       const params = new TransactionParameters({
@@ -392,11 +399,12 @@ describe("Transaction Parameters Functional", () => {
         transactionMerkleTreePubkey: mockPubkey2,
         recipientSpl: mockPubkey,
         recipientSol: mockPubkey1,
-        verifier: verifiers[j],
+        verifier: VERIFIERS[j],
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[j]
       });
       assert.equal(params.action.toString(), Action.UNSHIELD.toString());
       assert.equal(
@@ -448,14 +456,14 @@ describe("Transaction Parameters Functional", () => {
         params.accounts.authority.toBase58(),
         Transaction.getSignerAuthorityPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(
         params.accounts.registeredVerifierPda.toBase58(),
         Transaction.getRegisteredVerifierPda(
           merkleTreeProgramId,
-          verifiers[j].verifierProgram!.programId,
+          VERIFIERS[j].verifierProgram!.programId,
         ).toBase58(),
       );
       assert.equal(params.accounts.systemProgramId, SystemProgram.programId);
@@ -466,7 +474,7 @@ describe("Transaction Parameters Functional", () => {
       );
       assert.equal(
         params.verifier.config.in.toString(),
-        verifiers[j].config.in.toString(),
+        VERIFIERS[j].config.in.toString(),
       );
       assert.equal(
         params.relayer.accounts.lookUpTable.toBase58(),
@@ -605,17 +613,18 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_UTXOS_PROVIDED", async () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -627,7 +636,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_POSEIDON_HASHER_PROVIDED", async () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -635,9 +644,10 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           action: Action.SHIELD,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -649,7 +659,7 @@ describe("Test General TransactionParameters Errors", () => {
   });
 
   it("NO_ACTION_PROVIDED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         // @ts-ignore:
         new TransactionParameters({
@@ -657,9 +667,10 @@ describe("Test General TransactionParameters Errors", () => {
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -735,21 +746,23 @@ describe("Test TransactionParameters Transfer Errors", () => {
       poseidon,
       action: Action.TRANSFER,
       relayer,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -770,17 +783,18 @@ describe("Test TransactionParameters Transfer Errors", () => {
       ],
       account: keypair,
     });
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -798,17 +812,18 @@ describe("Test TransactionParameters Transfer Errors", () => {
       amounts: [new anchor.BN(0), new anchor.BN(depositAmount)],
       account: keypair,
     });
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [localOutputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -820,18 +835,19 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           recipientSpl: mockPubkey,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -843,18 +859,19 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           recipientSol: mockPubkey,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -866,18 +883,19 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           senderSol: mockPubkey,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -889,18 +907,19 @@ describe("Test TransactionParameters Transfer Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           outputUtxos: [outputUtxo],
           transactionMerkleTreePubkey: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.TRANSFER,
           senderSpl: mockPubkey,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -947,22 +966,24 @@ describe("Test TransactionParameters Deposit Errors", () => {
       lookUpTable: mockPubkey,
       poseidon,
       action: Action.SHIELD,
-      transactionNonce: 0
+      transactionNonce: 0,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO
     });
   });
 
   it("SOL_SENDER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -974,17 +995,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_SENDER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -996,17 +1018,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("LOOK_UP_TABLE_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1018,19 +1041,20 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("RELAYER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1057,18 +1081,19 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
     });
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1094,18 +1119,19 @@ describe("Test TransactionParameters Deposit Errors", () => {
       account: keypair,
     });
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1117,7 +1143,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1125,11 +1151,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1141,7 +1168,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1149,11 +1176,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1165,17 +1193,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SOL_SENDER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSpl: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1187,17 +1216,18 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SPL_SENDER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1215,24 +1245,25 @@ describe("Test TransactionParameters Deposit Errors", () => {
       amounts: [new anchor.BN("18446744073709551615"), new anchor.BN(0)],
       account: keypair,
     });
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       // senderSpl fee always needs to be defined because we use it as the signer
       // should work since no spl amount
       new TransactionParameters({
         outputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         senderSol: mockPubkey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.SHIELD,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[verifier]
       });
     }
   });
 
   it("SPL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1240,11 +1271,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1256,7 +1288,7 @@ describe("Test TransactionParameters Deposit Errors", () => {
   });
 
   it("SOL_RECIPIENT_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           outputUtxos: [deposit_utxo1],
@@ -1264,11 +1296,12 @@ describe("Test TransactionParameters Deposit Errors", () => {
           senderSpl: mockPubkey,
           senderSol: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.SHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1319,19 +1352,20 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SOL_RECIPIENT_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           // senderSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1343,17 +1377,18 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("RELAYER_UNDEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.UNSHIELD,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1381,18 +1416,19 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       account: keypair,
     });
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_sol_amount_no_u641, utxo_sol_amount_no_u642],
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1417,19 +1453,20 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       amounts: [new anchor.BN(0), new anchor.BN("1")],
       account: keypair,
     });
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [utxo_spl_amount_no_u641, utxo_spl_amount_no_u642],
           transactionMerkleTreePubkey: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1441,7 +1478,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1449,12 +1486,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1466,7 +1504,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1474,12 +1512,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1498,18 +1537,19 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       account: keypair,
     });
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       // should work since no spl amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         recipientSol: mockPubkey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[verifier]
       });
     }
   });
@@ -1522,24 +1562,25 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
       account: keypair,
     });
 
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       // should work since no sol amount
       new TransactionParameters({
         inputUtxos: [utxo_sol_amount_no_u642],
         transactionMerkleTreePubkey: mockPubkey,
         recipientSpl: mockPubkey,
-        verifier: verifiers[verifier],
+        verifier: VERIFIERS[verifier],
         lookUpTable: lightProvider.lookUpTable,
         poseidon,
         action: Action.UNSHIELD,
         relayer,
-        transactionNonce: 0
+        transactionNonce: 0,
+        verifierIdl: VERIFIER_IDLS[verifier]
       });
     }
   });
 
   it("SOL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1547,12 +1588,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSol: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
@@ -1564,7 +1606,7 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
   });
 
   it("SPL_SENDER_DEFINED", () => {
-    for (var verifier in verifiers) {
+    for (var verifier in VERIFIERS) {
       expect(() => {
         new TransactionParameters({
           inputUtxos: [deposit_utxo1],
@@ -1572,12 +1614,13 @@ describe("Test TransactionParameters Withdrawal Errors", () => {
           senderSpl: mockPubkey,
           recipientSpl: mockPubkey,
           recipientSol: mockPubkey,
-          verifier: verifiers[verifier],
+          verifier: VERIFIERS[verifier],
           lookUpTable: lightProvider.lookUpTable,
           poseidon,
           action: Action.UNSHIELD,
           relayer,
-          transactionNonce: 0
+          transactionNonce: 0,
+          verifierIdl: VERIFIER_IDLS[verifier]
         });
       })
         .to.throw(TransactioParametersError)
