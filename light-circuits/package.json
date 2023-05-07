@@ -2,7 +2,6 @@
   "name": "light_circuits",
   "version": "1.0.0",
   "description": "",
-  "main": "parse_pvk_to_bytes_254.js",
   "scripts": {
     "build-masp": "sh buildCircuit.sh Masp",
     "build-app": "sh buildCircuit.sh App",

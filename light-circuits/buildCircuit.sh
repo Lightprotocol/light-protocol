@@ -13,7 +13,7 @@ yarn snarkjs zkey contribute ../light-sdk-ts/build-circuits/tmp_transaction$1$2.
 yarn snarkjs zkey verify ../light-sdk-ts/build-circuits/transaction$1$2.r1cs ptau$POWERS_OF_TAU ../light-sdk-ts/build-circuits/transaction$1$2.zkey
 yarn snarkjs zkey export verificationkey ../light-sdk-ts/build-circuits/transaction$1$2.zkey verification_key_mainnet$2.json
 
-node parse_pvk_to_bytes_254.js $2 $1$2
+yarn ts-node writeRustyVerifyingKey.ts $2 $1$2
 
 rm verification_key_mainnet$2.json
 rm ../light-sdk-ts/build-circuits/transaction$1$2.sym
