@@ -31,13 +31,13 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
     ],
 
     vk_delta_g2: [
-        11, 220, 249, 160, 31, 32, 71, 105, 145, 228, 87, 74, 123, 196, 22, 238, 57, 157, 52, 166,
-        217, 50, 182, 194, 68, 83, 129, 241, 79, 163, 246, 18, 42, 140, 118, 227, 51, 144, 79, 85,
-        212, 37, 69, 71, 135, 170, 149, 165, 176, 231, 119, 168, 98, 137, 159, 170, 243, 153, 5,
-        43, 162, 94, 187, 85, 7, 223, 200, 255, 194, 118, 232, 58, 58, 169, 137, 124, 248, 160,
-        187, 110, 161, 247, 189, 244, 97, 241, 5, 232, 238, 40, 129, 130, 169, 201, 125, 155, 9,
-        42, 32, 234, 183, 111, 204, 165, 40, 126, 237, 103, 203, 147, 254, 191, 6, 235, 132, 243,
-        204, 130, 167, 140, 134, 74, 101, 50, 171, 122, 179, 157,
+        47, 126, 99, 251, 6, 182, 41, 168, 42, 196, 17, 239, 254, 7, 81, 93, 229, 230, 103, 59,
+        118, 179, 66, 203, 58, 143, 77, 166, 232, 70, 197, 13, 26, 60, 191, 163, 252, 154, 160,
+        109, 134, 193, 150, 21, 11, 36, 6, 185, 146, 135, 128, 233, 209, 105, 185, 223, 214, 160,
+        206, 2, 125, 249, 44, 184, 45, 188, 163, 211, 237, 109, 233, 155, 176, 154, 114, 208, 75,
+        71, 164, 155, 78, 119, 109, 125, 200, 165, 157, 38, 125, 141, 1, 232, 240, 201, 109, 133,
+        40, 202, 227, 102, 20, 197, 102, 81, 178, 164, 237, 130, 246, 46, 155, 232, 68, 7, 128, 97,
+        197, 243, 34, 126, 100, 150, 194, 152, 222, 133, 243, 63,
     ],
 
     vk_ic: &[
@@ -151,18 +151,6 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
         ],
     ],
 };
-
-#[account]
-pub struct ZKtransactionMasp10PublicInputs {
-    root: u8,
-    public_amount_spl: u8,
-    tx_integrity_hash: u8,
-    public_amount_sol: u8,
-    public_mint_pubkey: u8,
-    input_nullifier: [u8; 10],
-    output_commitment: [u8; 2],
-}
-
 #[account]
 pub struct ZKtransactionMasp10ProofInputs {
     root: u8,
@@ -191,4 +179,14 @@ pub struct ZKtransactionMasp10ProofInputs {
     transaction_version: u8,
     asset_pubkeys: [u8; 3],
     internal_tx_integrity_hash: u8,
+}
+#[account]
+pub struct ZKtransactionMasp10PublicInputs {
+    root: u8,
+    public_amount_spl: u8,
+    tx_integrity_hash: u8,
+    public_amount_sol: u8,
+    public_mint_pubkey: u8,
+    input_nullifier: [u8; 10],
+    output_commitment: [u8; 2],
 }
