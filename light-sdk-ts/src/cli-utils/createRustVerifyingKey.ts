@@ -18,7 +18,7 @@ type PropertiesObject = {
  * 3- Read .r1cs file and save the #total of Prv, Pbl inputs as well as outputs.
  * 4- Filter inputs with unique name and max size according to circom signals format.
  */
-async function prepareInputs(artifiactPath: string) {
+async function getProofInputsFromSymFile(artifiactPath: string) {
   // filter inputData array based on the maximum size of nested arrays([0] otherwise)
   function uniqueMaxSize(arr: PropertiesObject[]) {
     const uniqueArr = arr.reduce((acc: PropertiesObject[], cur) => {
@@ -102,7 +102,7 @@ async function prepareInputs(artifiactPath: string) {
   return inputs;
 }
 
-function parseAndAppendCircuitInputsStruct(
+function createStringRsIdlAccountStruct(
   preparedInputs: PropertiesObject[],
   circuitName: string,
 ) {
@@ -135,7 +135,7 @@ function parseAndAppendCircuitInputsStruct(
   return structDefinition;
 }
 
-async function writeVkeyFile(
+async function createVerifyingKeyRsFile(
   vKeyJsonPath: string,
   paths: string[],
   appendingString: string,
@@ -269,7 +269,7 @@ async function writeVkeyFile(
   );
 }
 
-export async function buildVerifyingKeyRs() {
+export async function createVerfyingkeyRsFile() {
   let nrInputs = process.argv[2];
   if (!nrInputs) {
     throw new Error("Circuit nrInputs is not specified!");
@@ -315,20 +315,21 @@ export async function buildVerifyingKeyRs() {
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);
 
-  // Parse Circuit inputs and Append it to Verifying Key File
-  const ProofInputs: PropertiesObject[] = await prepareInputs(artifiactPath);
+  const ProofInputs: PropertiesObject[] = await getProofInputsFromSymFile(
+    artifiactPath,
+  );
   const PublicInputs = ProofInputs.filter(
     (ProofInputs) => ProofInputs.public === 1,
   );
-  let appendingStrings = parseAndAppendCircuitInputsStruct(
+  let appendingStrings = createStringRsIdlAccountStruct(
     ProofInputs,
     circuitName + "Proof",
   );
-  appendingStrings += parseAndAppendCircuitInputsStruct(
+  appendingStrings += createStringRsIdlAccountStruct(
     PublicInputs,
     circuitName + "Public",
   );
 
   // Write verifying_key.rs file for the circuit
-  await writeVkeyFile(vKeyJsonPath, paths, appendingStrings);
+  await createVerifyingKeyRsFile(vKeyJsonPath, paths, appendingStrings);
 }

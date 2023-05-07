@@ -12,7 +12,7 @@ circom --r1cs --wasm --sym ./circuit/appTransaction.circom -o ./sdk/build-circui
 yarn snarkjs groth16 setup ./sdk/build-circuit/appTransaction.r1cs build/ptau$POWERS_OF_TAU ./sdk/build-circuit/appTransaction.zkey
 yarn snarkjs zkey export verificationkey ./sdk/build-circuit/appTransaction.zkey verifyingkey.json
 
-ts-node ./scripts/writeRustyVerifyingKey app verifier # TODO: needs to be assigned at template creation
+ts-node ./scripts/createRustVerifyingKey.ts app verifier # TODO: needs to be assigned at template creation
 
 rm verifyingkey.json
 rm ./sdk/build-circuit/appTransaction.r1cs
