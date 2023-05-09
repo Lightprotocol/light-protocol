@@ -58,7 +58,7 @@ export type IndexedTransaction = {
   firstLeafIndex: BN;
   nullifiers: BN[];
   relayerFee: BN;
-  message: number[];
+  message: Buffer;
 };
 
 export type UserIndexedTransaction = IndexedTransaction & {

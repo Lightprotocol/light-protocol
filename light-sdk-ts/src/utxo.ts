@@ -330,7 +330,6 @@ export class Utxo {
     let serializedData;
     if (!this.appDataIdl || !this.includeAppData) {
       let coder = new BorshAccountsCoder(IDL_VERIFIER_PROGRAM_ZERO);
-
       serializedData = await coder.encode("utxo", serializeObject);
     } else if (this.appDataIdl) {
       let coder = new BorshAccountsCoder(this.appDataIdl);
@@ -560,7 +559,6 @@ export class Utxo {
         poseidon([this.getCommitment(poseidon), this.index || 0, signature]),
       );
     }
-    // console.log("this._nullifier ", this._nullifier);
 
     return this._nullifier;
   }
@@ -574,8 +572,9 @@ export class Utxo {
     poseidon: any,
     merkleTreePdaPublicKey?: PublicKey,
     transactionNonce?: number,
+    compressed: boolean = true,
   ): Promise<Uint8Array> {
-    const bytes_message = await this.toBytes(true);
+    const bytes_message = await this.toBytes(compressed);
 
     var nonce = new BN(this.getCommitment(poseidon))
       .toBuffer("le", 32)
@@ -611,7 +610,6 @@ export class Utxo {
         );
 
       const iv16 = nonce.subarray(0, 16);
-
       const ciphertext = await encrypt(
         bytes_message,
         this.account.getAesUtxoViewingKey(
@@ -623,6 +621,9 @@ export class Utxo {
         true,
       );
 
+      if (!compressed) {
+        return ciphertext;
+      }
       // adding the 8 unused nonce bytes as padding at the end to make the ciphertext the same length as nacl box ciphertexts
       return Uint8Array.from([
         ...ciphertext,
@@ -631,6 +632,7 @@ export class Utxo {
     }
   }
 
+  // TODO: unify compressed and includeAppData into a parsingConfig or just keep one
   /**
    * @description Decrypts a utxo from an array of bytes, the last 24 bytes are the nonce.
    * @param {any} poseidon
@@ -648,6 +650,8 @@ export class Utxo {
     transactionNonce,
     aes = true,
     commitment,
+    appDataIdl,
+    compressed = true,
   }: {
     poseidon: any;
     encBytes: Uint8Array;
@@ -657,6 +661,8 @@ export class Utxo {
     transactionNonce?: number;
     aes?: boolean;
     commitment: Uint8Array;
+    appDataIdl?: Idl;
+    compressed?: boolean;
   }): Promise<Utxo | null> {
     if (aes) {
       if (!account.aesSecret) {
@@ -674,15 +680,15 @@ export class Utxo {
           "encrypt",
           "For aes decryption the transaction index is necessary to derive the viewingkey",
         );
-      const encryptedUtxo = encBytes.slice(
-        0,
-        ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-      );
+      if (compressed) {
+        encBytes = encBytes.slice(0, ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH);
+      }
 
       const iv16 = commitment.slice(0, 16);
+
       try {
         const cleartext = await decrypt(
-          encryptedUtxo,
+          encBytes,
           account.getAesUtxoViewingKey(
             merkleTreePdaPublicKey,
             transactionNonce,
@@ -693,25 +699,51 @@ export class Utxo {
         );
 
         const bytes = Buffer.from(cleartext);
+
         return Utxo.fromBytes({
           poseidon,
           bytes,
           account,
           index,
+          appDataIdl,
         });
-      } catch (_) {
+      } catch (e) {
+        if (e.message.includes("Invalid account discriminator") && appDataIdl) {
+          throw new UtxoError(
+            UtxoErrorCode.INVALID_APP_DATA_IDL,
+            "decrypt",
+            "Invalid app data idl or invalid IV the IV is the first 16 bytes of the respective leaf (commitment hash)",
+          );
+        } else if (
+          e.message.includes("Invalid account discriminator") &&
+          !appDataIdl
+        ) {
+          throw new UtxoError(
+            UtxoErrorCode.INVALID_IV,
+            "decrypt",
+            "The IV is the first 16 bytes of the respective leaf (commitment hash)",
+          );
+        } else if (
+          !(e instanceof DOMException) ||
+          e.name !== "OperationError" ||
+          e.message !== "The operation failed for an operation-specific reason"
+        ) {
+          throw e;
+        }
         return null;
       }
     } else {
       const nonce = commitment.slice(0, 24);
-      const encryptedUtxo = encBytes.slice(
-        0,
-        NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
-      );
+      if (compressed) {
+        encBytes = encBytes.slice(
+          0,
+          NACL_ENCRYPTED_COMPRESSED_UTXO_BYTES_LENGTH,
+        );
+      }
 
       if (account.encryptionKeypair.secretKey) {
         const cleartext = box.open(
-          encryptedUtxo,
+          encBytes,
           nonce,
           nacl.box.keyPair.fromSecretKey(CONSTANT_SECRET_AUTHKEY).publicKey,
           account.encryptionKeypair.secretKey,
@@ -726,6 +758,7 @@ export class Utxo {
           bytes,
           account,
           index,
+          appDataIdl,
         });
       } else {
         return null;

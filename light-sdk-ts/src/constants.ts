@@ -192,3 +192,14 @@ export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
     },
   ],
 ]);
+
+export const TOKEN_PUBKEY_SYMBOL: Map<string, string> = new Map([
+  [SystemProgram.programId.toBase58(), "SOL"],
+  [
+    new PublicKey([
+      14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160,
+      127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
+    ]).toBase58(),
+    "USDC",
+  ],
+]);

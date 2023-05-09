@@ -20,6 +20,8 @@ export enum UtxoErrorCode {
   INVALID_APP_DATA = "INVALID_APP_DATA",
   VERIFIER_INDEX_NOT_FOUND = "VERIFIER_INDEX_NOT_FOUND",
   ASSET_UNDEFINED = "ASSET_UNDEFINED",
+  INVALID_APP_DATA_IDL = "INVALID_APP_DATA_IDL",
+  INVALID_IV = "INVALID_IV",
 }
 
 export enum UserErrorCode {
@@ -47,6 +49,8 @@ export enum UserErrorCode {
   TOO_MANY_COMMITMENTS = "TOO_MANY_COMMITMENTS",
   MAX_STORAGE_MESSAGE_SIZE_EXCEEDED = "MAX_STORAGE_MESSAGE_SIZE_EXCEEDED",
   APP_UTXO_UNDEFINED = "APP_UTXO_UNDEFINED",
+  ENCRYPTION_FAILED = "ENCRYPTION_FAILED",
+  ADD_IN_UTXOS_FALSE = "ADD_IN_UTXOS_FALSE",
 }
 
 export enum SelectInUtxosErrorCode {
@@ -191,6 +195,10 @@ export enum UtilsErrorCode {
   ACCOUNT_NAME_UNDEFINED_IN_IDL = "ACCOUNT_NAME_UNDEFINED_IN_IDL",
   PROPERY_UNDEFINED = "PROPERY_UNDEFINED",
 }
+export enum ProgramUtxoBalanceErrorCode {
+  INVALID_PROGRAM_ADDRESS = "INVALID_PROGRAM_ADDRESS",
+  TOKEN_DATA_NOT_FOUND = "TOKEN_DATA_NOT_FOUND",
+}
 
 export class MetaError extends Error {
   code: string;
@@ -235,3 +243,5 @@ export class UserError extends MetaError {}
 export class UtilsError extends MetaError {}
 
 export class TokenUtxoBalanceError extends MetaError {}
+
+export class ProgramUtxoBalanceError extends MetaError {}

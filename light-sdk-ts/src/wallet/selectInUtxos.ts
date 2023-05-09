@@ -205,17 +205,19 @@ export function selectInUtxos({
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "selectInUtxos",
+      `outUtxos.length ${outUtxos.length}`,
     );
 
   // check publicMint and recipients mints are all the same
   let mint = publicMint;
+
   for (var utxo of outUtxos) {
     if (!mint && utxo.amounts[1]?.gt(new BN(0))) mint = utxo.assets[1];
     if (mint && mint.toBase58() !== utxo.assets[1].toBase58())
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
         "selectInUtxos",
-        `Too many different mints in recipients outUtxos ${outUtxos}`,
+        `Too many different mints in recipients outUtxos ${utxo}`,
       );
   }
 

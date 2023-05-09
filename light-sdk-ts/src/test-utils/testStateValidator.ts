@@ -14,6 +14,7 @@ import {
   TOKEN_REGISTRY,
 } from "../constants";
 import { Utxo } from "utxo";
+import { MINT } from "./constants_system_verifier";
 
 export type TestInputs = {
   amountSpl?: number;
@@ -519,6 +520,7 @@ export class TestStateValidator {
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkTokenShielded() {
+    await this.recipient.user.getBalance();
     await this.assertBalance(this.sender.user);
     await this.assertBalance(this.recipient.user);
     // assert that the user's shielded balance has increased by the amount shielded
@@ -577,6 +579,7 @@ export class TestStateValidator {
    * @returns {Promise<void>} Resolves when all checks are successful, otherwise throws an error.
    */
   async checkSolShielded() {
+    await this.recipient.user.getBalance();
     await this.assertBalance(this.sender.user);
     await this.assertBalance(this.recipient.user);
     // assert that the user's shielded balance has increased by the amount shielded
