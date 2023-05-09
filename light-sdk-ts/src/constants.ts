@@ -44,7 +44,7 @@ export const TYPE_INIT_DATA = { array: ["u8", 642] };
 export const merkleTreeProgramId = new PublicKey(
   "JA5cjkRJ1euVi9xLWsCJVzsRzEkT8vcC4rqw9sVAo5d6",
 );
-export const verifierStorageProgramId = new PublicKey(
+export const verifierProgramStorageProgramId = new PublicKey(
   "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj",
 );
 export const verifierProgramZeroProgramId = new PublicKey(
@@ -162,6 +162,9 @@ export const SIGN_MESSAGE: string =
   "IMPORTANT:\nThe application will be able to spend \nyour shielded assets. \n\nOnly sign the message if you trust this\n application.\n\n View all verified integrations here: \n'https://docs.lightprotocol.com/partners'";
 
 export const RELAYER_FEES = 1e6;
+
+// TODO: change once we have adapted getInstructions for repeating instructions
+export const MAX_MESSAGE_SIZE = 800;
 
 export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
   [

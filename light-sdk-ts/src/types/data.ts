@@ -9,6 +9,7 @@ export type IndexedTransactionData = {
   relayerFee: BN;
   firstLeafIndex: BN;
   tx: any;
+  message: number[];
 };
 
 export type IndexedTransactionDecodedData = {

@@ -8,7 +8,7 @@ _Requirements:_
   - `sh -c "$(curl -sSfL https://release.solana.com/v1.14.13/install)"`
 - anchor cli
   https://project-serum.github.io/anchor/getting-started/installation.html
-  - `yarn i -g @project-serum/anchor-cli`
+  - `yarn i -g @coral-xyz/anchor-cli`
 - node v19
 
 - Execute the build script to download a custom solana test validator and build the project:
