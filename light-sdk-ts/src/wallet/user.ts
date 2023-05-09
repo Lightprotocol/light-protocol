@@ -57,7 +57,7 @@ import {
   verifierLookupTable,
   TOKEN_PUBKEY_SYMBOL,
   MESSAGE_MERKLE_TREE_KEY,
-  UtxoError
+  UtxoError,
 } from "../index";
 import { bytes } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Idl } from "@coral-xyz/anchor";
@@ -943,9 +943,8 @@ export class User {
     let solUtxos = this.balance.tokenBalances
       .get(SystemProgram.programId.toBase58())
       ?.utxos.values();
-    let utxosEntriesSol: Utxo[] = solUtxos
-      ? Array.from(solUtxos)
-      : new Array<Utxo>();
+    let utxosEntriesSol: Utxo[] =
+      solUtxos && token !== "SOL" ? Array.from(solUtxos) : new Array<Utxo>();
 
     let utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
@@ -978,7 +977,7 @@ export class User {
       appUtxo: this.appUtxoConfig,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       message,
-      addInUtxos
+      addInUtxos,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -1615,7 +1614,6 @@ export class User {
         mergeUtxos: true,
         addInUtxos: false,
         verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
-        addInUtxos: false,
       });
       this.recentTransactionParameters = txParams;
     }
