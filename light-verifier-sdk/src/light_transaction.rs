@@ -59,6 +59,7 @@ pub struct Transaction<'info, 'a, 'c, const NR_LEAVES: usize, const NR_NULLIFIER
     pub checked_public_inputs: &'a Vec<Vec<u8>>,
     /// Hash of the optional message included in the transaction.
     pub message_hash: Option<&'a [u8; 32]>,
+    pub message: Option<&'a Vec<u8>>,
     pub nullifiers: &'a [[u8; 32]; NR_NULLIFIERS],
     pub leaves: &'a [[[u8; 32]; 2]; NR_LEAVES],
     pub relayer_fee: u64,
@@ -86,6 +87,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
     #[allow(clippy::too_many_arguments)]
     pub fn new<'info, 'a, 'c>(
         message_hash: Option<&'a [u8; 32]>,
+        message: Option<&'a Vec<u8>>,
         proof_a: &'a [u8; 64],
         proof_b: &'a [u8; 128],
         proof_c: &'a [u8; 64],
@@ -138,6 +140,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             verifyingkey,
             accounts,
             pool_type,
+            message,
         }
     }
 
@@ -181,6 +184,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             encrypted_utxos: self.encrypted_utxos.clone(),
             nullifiers: self.nullifiers.to_vec(),
             first_leaf_index: first_leaf_index.clone(),
+            message: self.message.as_ref().unwrap_or(&&Vec::<u8>::new()).to_vec(),
         };
 
         invoke_indexer_transaction_event(

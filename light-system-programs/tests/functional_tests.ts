@@ -31,12 +31,7 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
-  verifierProgramOneProgramId,
-  SolMerkleTree,
-  IDL_MERKLE_TREE_PROGRAM,
-  verifierStorageProgramId,
   User,
-  IDL_VERIFIER_PROGRAM_STORAGE,
   Action,
   TestRelayer,
   TestTransaction,
@@ -54,7 +49,6 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
-var deposit_utxo1: Utxo;
 
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
@@ -67,23 +61,8 @@ describe("verifier_program", () => {
     confirmConfig,
   );
   anchor.setProvider(provider);
-  const merkleTreeProgram: anchor.Program<MerkleTreeProgram> =
-    new anchor.Program(IDL_MERKLE_TREE_PROGRAM, merkleTreeProgramId);
-
-  const verifierProgram = new anchor.Program(
-    IDL_VERIFIER_PROGRAM_STORAGE,
-    verifierStorageProgramId,
-  );
-  const [verifierState] = anchor.web3.PublicKey.findProgramAddressSync(
-    [
-      ADMIN_AUTH_KEYPAIR.publicKey.toBuffer(),
-      anchor.utils.bytes.utf8.encode("VERIFIER_STATE"),
-    ],
-    verifierProgram.programId,
-  );
 
   before("init test setup Merkle tree lookup table etc ", async () => {
-    let initLog = console.log;
     await createTestAccounts(provider.connection, userTokenAccount);
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
@@ -108,37 +87,6 @@ describe("verifier_program", () => {
       new BN(100_000),
     );
   });
-
-  it.skip("build compressed merkle tree", async () => {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: TRANSACTION_MERKLE_TREE_KEY,
-      poseidon,
-    });
-    console.log(merkleTree);
-  });
-
-  async function airdrop() {
-    let balance = await provider.connection.getBalance(
-      Transaction.getSignerAuthorityPda(
-        merkleTreeProgram.programId,
-        verifierStorageProgramId,
-      ),
-      "confirmed",
-    );
-    if (balance === 0) {
-      await provider.connection.confirmTransaction(
-        await provider.connection.requestAirdrop(
-          Transaction.getSignerAuthorityPda(
-            merkleTreeProgram.programId,
-            verifierStorageProgramId,
-          ),
-          1_000_000_000,
-        ),
-        "confirmed",
-      );
-    }
-  }
 
   const performDeposit = async ({
     delegate,
@@ -239,7 +187,6 @@ describe("verifier_program", () => {
   };
 
   it("Deposit (verifier one)", async () => {
-    await airdrop();
     await performDeposit({
       delegate: AUTHORITY_ONE,
       spl: true,
@@ -252,7 +199,6 @@ describe("verifier_program", () => {
   });
 
   it("Deposit (verifier storage)", async () => {
-    await airdrop();
     await performDeposit({
       delegate: AUTHORITY,
       spl: false,
@@ -267,7 +213,6 @@ describe("verifier_program", () => {
   });
 
   it("Deposit (verifier zero)", async () => {
-    await airdrop();
     await performDeposit({
       delegate: AUTHORITY,
       spl: true,

@@ -1,5 +1,4 @@
 use anchor_lang::prelude::*;
-use light_account_compression::wrap_event;
 use light_verifier_sdk::light_transaction::VERIFIER_STATE_SEED;
 use merkle_tree_program::{
     program::MerkleTreeProgram, state::TransactionMerkleTree, MessageMerkleTree, RegisteredVerifier,
@@ -35,9 +34,8 @@ pub enum VerifierError {
 
 #[program]
 pub mod verifier_program_storage {
-    use anchor_lang::solana_program::hash::hash;
-
     use crate::processor::process_shielded_transfer_2_in_2_out;
+    use anchor_lang::solana_program::hash::hash;
 
     use super::*;
 
@@ -91,7 +89,6 @@ pub mod verifier_program_storage {
         encrypted_utxos: Vec<u8>,
     ) -> Result<()> {
         let message = &ctx.accounts.verifier_state.msg;
-
         let message_hash = hash(message).to_bytes();
 
         // Declaring any program method argument as `mut` crashes
@@ -104,6 +101,7 @@ pub mod verifier_program_storage {
         process_shielded_transfer_2_in_2_out(
             &ctx,
             Some(&message_hash),
+            Some(message),
             &proof_a,
             &proof_b,
             &proof_c,

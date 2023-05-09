@@ -14,6 +14,7 @@ import {
   FIELD_SIZE,
   Action,
   merkleTreeProgramId,
+  indexRecentTransactions,
 } from "../index";
 import { BN, Program } from "@coral-xyz/anchor";
 import { getAccount } from "@solana/spl-token";
@@ -516,6 +517,21 @@ export class TestTransaction {
       console.log("balance check for transfer not implemented");
     } else {
       throw Error("mode not supplied");
+    }
+
+    if (this.params.message) {
+      const indexedTransactions = await indexRecentTransactions({
+        connection: this.provider!.provider!.connection,
+        batchOptions: {
+          limit: 5000,
+        },
+        dedupe: false,
+      });
+      indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
+      assert.equal(
+        indexedTransactions[0].message.toString(),
+        this.params.message.toString(),
+      );
     }
   }
 }

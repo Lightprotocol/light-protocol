@@ -36,6 +36,7 @@ export class TransactionIndexerEvent {
     borsh.vec(borsh.u8(), "encryptedUtxos"),
     borsh.vec(borsh.array(borsh.u8(), 32), "nullifiers"),
     borsh.u64("firstLeafIndex"),
+    borsh.vecU8("message"),
   ]);
 
   deserialize(buffer: Buffer): any | null {
@@ -133,6 +134,7 @@ async function processIndexedTransaction(
     firstLeafIndex,
     leaves,
     encryptedUtxos,
+    message,
   } = event;
 
   if (!tx || !tx.meta || tx.meta.err) return;
@@ -165,8 +167,6 @@ async function processIndexedTransaction(
       tx.meta.preBalances[solTokenPoolIndex],
   );
 
-  const encryptedUtxosBuffer = event.encryptedUtxos;
-
   let amountSpl = new BN(publicAmountSpl);
   let amountSol = new BN(publicAmountSol);
 
@@ -177,7 +177,6 @@ async function processIndexedTransaction(
 
     amountSol = amountSol.sub(FIELD_SIZE).mod(FIELD_SIZE).abs().sub(relayerFee);
 
-    // amount = new BN(amount).abs().sub(relayerFee);
     changeSolAmount = new BN(changeSolAmount).abs().sub(relayerFee);
 
     type =
@@ -230,6 +229,7 @@ async function processIndexedTransaction(
     nullifiers,
     relayerFee,
     firstLeafIndex,
+    message,
   });
 
   return;

@@ -1,7 +1,7 @@
 import { PublicKey, SystemProgram } from "@solana/web3.js";
 import { assert } from "chai";
 import { fetchNullifierAccountInfo } from "../utils";
-import { Action } from "../transaction";
+import { Action, indexRecentTransactions } from "../transaction";
 import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
@@ -28,6 +28,8 @@ export type TestInputs = {
   mergedUtxo?: boolean;
   shieldToRecipient?: boolean;
   utxoCommitments?: string[];
+  storage?: boolean;
+  message?: Buffer;
 };
 
 export type TestUserBalances = {
@@ -476,11 +478,17 @@ export class TestStateValidator {
   ) {
     await this.recipient.user.getUtxoInbox();
 
-    assert.equal(
-      this.recipient.user.inboxBalance.tokenBalances.get(mint.toBase58())?.utxos
-        .size,
-      this.testInputs.expectedRecipientUtxoLength,
-    );
+    const nrUtxos = this.testInputs.storage
+      ? this.recipient.user.balance.tokenBalances.get(mint.toBase58())?.utxos
+          .size
+      : this.recipient.user.inboxBalance.tokenBalances.get(mint.toBase58())
+          ?.utxos.size;
+    // if storage expecting nr utxos to stay constant
+    const expectedNrUtxos = this.testInputs.storage
+      ? this.recipient.preShieldedBalance?.tokenBalances.get(mint.toBase58())
+          ?.utxos.size
+      : this.testInputs.expectedRecipientUtxoLength;
+    assert.equal(nrUtxos!, expectedNrUtxos!);
 
     assert.equal(
       this.recipient.user.inboxBalance.tokenBalances
@@ -577,9 +585,9 @@ export class TestStateValidator {
       this.recipient,
       this.testInputs.shieldToRecipient,
     );
-
+    let additonalTransactionCost = this.testInputs.storage ? 5000 : 0;
     // TODO: investigate since weird behavior
-    const tempAccountCost = 3502840 - 1255000; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
+    const tempAccountCost = 3502840 - 1255000 - additonalTransactionCost; //x-y nasty af. underterministic: costs more(y) if shielded SPL before!
 
     // assert that the user's sol balance has decreased by the amount
     const solDecreasedAmount = this.testInputs.amountSol! * -1;
@@ -810,5 +818,47 @@ export class TestStateValidator {
     preBalance = preBalance ? preBalance : new BN(0);
 
     assert.equal(postBalance?.toString(), preBalance!.add(sum).toString());
+  }
+  async checkMessageStored() {
+    if (!this.testInputs.message)
+      throw new Error("Test inputs message undefined to assert message stored");
+    const indexedTransactions = await indexRecentTransactions({
+      connection: this.provider!.provider!.connection,
+      batchOptions: {
+        limit: 5000,
+      },
+      dedupe: false,
+    });
+    indexedTransactions.sort((a, b) => b.blockTime - a.blockTime);
+    assert.equal(
+      indexedTransactions[0].message.toString(),
+      this.testInputs.message.toString(),
+    );
+  }
+
+  async assertStoredWithTransfer() {
+    // shielded sol balance is reduced by the relayer fee
+    const postSolBalance = await (
+      await this.recipient.user.getBalance()
+    ).totalSolBalance
+      .add(this.provider.relayer.getRelayerFee())
+      .toString();
+    assert.strictEqual(
+      this.recipient.preShieldedBalance?.totalSolBalance!.toString(),
+      postSolBalance,
+    );
+    await this.checkMessageStored();
+  }
+
+  async assertStoredWithShield() {
+    // shielded sol balance did not change
+    const postSolBalance = await (
+      await this.recipient.user.getBalance()
+    ).totalSolBalance.toString();
+    assert.strictEqual(
+      this.recipient.preShieldedBalance?.totalSolBalance!.toString(),
+      postSolBalance,
+    );
+    await this.checkMessageStored();
   }
 }

@@ -1,4 +1,4 @@
-import { BN, Provider } from "@coral-xyz/anchor";
+import { BN, Idl, Provider } from "@coral-xyz/anchor";
 import { ParsedMessageAccount, PublicKey } from "@solana/web3.js";
 import { Relayer } from "../relayer";
 import { Action } from "../transaction";
@@ -10,6 +10,7 @@ export type AppUtxoConfig = {
   appData?: any;
   appDataHash?: BN;
   includeAppData?: boolean;
+  idl: Idl;
 };
 
 export type transactionParameters = {
@@ -57,6 +58,7 @@ export type IndexedTransaction = {
   firstLeafIndex: BN;
   nullifiers: BN[];
   relayerFee: BN;
+  message: number[];
 };
 
 export type UserIndexedTransaction = IndexedTransaction & {

@@ -4,9 +4,10 @@ import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
 import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
+  MESSAGE_MERKLE_TREE_KEY,
   TRANSACTION_MERKLE_TREE_KEY,
   verifierProgramZeroProgramId,
-  verifierStorageProgramId,
+  verifierProgramStorageProgramId,
 } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
 import { Verifier } from "../verifiers";
@@ -645,6 +646,7 @@ export class TransactionParameters implements transactionParameters {
     verifierIdl,
     override,
     mergeUtxos = false,
+    message,
   }: {
     tokenCtx: TokenData;
     publicAmountSpl?: BN;
@@ -666,14 +668,14 @@ export class TransactionParameters implements transactionParameters {
     addOutUtxos?: boolean;
     verifier: Verifier;
     verifierIdl: Idl;
-    override?: boolean;
     mergeUtxos?: boolean;
+    message?: Buffer;
   }): Promise<TransactionParameters> {
     publicAmountSol = publicAmountSol ? publicAmountSol : new BN(0);
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
 
     if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
-      throw new TransactioParametersError(
+      throw new UserError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
         "Recipient outUtxo not provided for transfer",
@@ -745,6 +747,8 @@ export class TransactionParameters implements transactionParameters {
       ataCreationFee,
       transactionNonce,
       verifierIdl,
+      message,
+      messageMerkleTreePubkey: message ? MESSAGE_MERKLE_TREE_KEY : undefined,
     });
 
     return txParams;
@@ -1051,7 +1055,7 @@ export class TransactionParameters implements transactionParameters {
       // verifier program method.
       const recipientSpl =
         this.verifier.verifierProgram?.programId.toBase58() ===
-        verifierStorageProgramId.toBase58()
+        verifierProgramStorageProgramId.toBase58()
           ? new Uint8Array(32)
           : this.accounts.recipientSpl.toBytes();
       let hashInputBytes = new Uint8Array([

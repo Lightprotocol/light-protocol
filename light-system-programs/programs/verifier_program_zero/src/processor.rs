@@ -56,6 +56,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
 
     let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
         None,
+        None,
         proof_a,
         proof_b,
         proof_c,
