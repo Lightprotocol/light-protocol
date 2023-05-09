@@ -398,7 +398,6 @@ export class User {
         "Cannot use senderTokenAccount for SOL!",
       );
     let userSplAccount: PublicKey | undefined = undefined;
-
     publicAmountSpl = publicAmountSpl
       ? new BN(publicAmountSpl.toString())
       : undefined;
@@ -959,10 +958,6 @@ export class User {
         "createTransferTransactionParamters",
         `Balance does not have any utxos of ${token}`,
       );
-    // if(!tokenCtx.isNative &&  utxosEntries!.length === 0)
-    //   throw new UserError(UserErrorCode.INSUFFICIENT_BAlANCE, "createTransferTransactionParamters", `Balance does not have any utxos of ${token}`);
-    // if(utxos.length === 0)
-    //   throw new UserError(UserErrorCode.INSUFFICIENT_BAlANCE, "createTransferTransactionParamters", `Balance does not have any utxos of ${token}`);
 
     const txParams = await TransactionParameters.getTxParams({
       tokenCtx,

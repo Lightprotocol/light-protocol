@@ -210,7 +210,6 @@ export function selectInUtxos({
 
   // check publicMint and recipients mints are all the same
   let mint = publicMint;
-
   for (var utxo of outUtxos) {
     if (!mint && utxo.amounts[1]?.gt(new BN(0))) mint = utxo.assets[1];
     if (mint && mint.toBase58() !== utxo.assets[1].toBase58())

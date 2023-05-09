@@ -18,7 +18,6 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   UserErrorCode,
 } from "../index";
-import { SystemAccountsCoder } from "@coral-xyz/anchor/dist/cjs/coder/system/accounts";
 
 // mint | programAdress for programUtxos
 export type Balance = {
@@ -30,12 +29,6 @@ export type Balance = {
   committedTransactionNonce: number;
   totalSolBalance: BN;
 };
-
-// export type ProgramUtxoBalance = {
-//   programAddress: PublicKey;
-//   programUtxoIdl: anchor.Idl;
-//   tokenBalances: Map<string, TokenUtxoBalance>;
-// };
 
 export type InboxBalance = Balance & {
   numberInboxUtxos: number;
