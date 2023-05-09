@@ -19,7 +19,7 @@ import {
   SolMerkleTree,
   SIGN_MESSAGE,
   AUTHORITY,
-  TRANSACTION_MERKLE_TREE_KEY,
+  SelectInUtxosErrorCode,
   TOKEN_REGISTRY,
   merkleTreeProgramId,
   Account,
@@ -47,7 +47,13 @@ import {
   IDL_VERIFIER_PROGRAM_ZERO,
   VerifierOne,
   IDL_VERIFIER_PROGRAM_ONE,
+  selectInUtxos,
+  TRANSACTION_MERKLE_TREE_KEY,
+  MAX_MESSAGE_SIZE,
+  VerifierStorage,
+  IDL_VERIFIER_PROGRAM_STORAGE,
 } from "../index";
+import { bytes } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Idl } from "@coral-xyz/anchor";
 const message = new TextEncoder().encode(SIGN_MESSAGE);
 
@@ -320,6 +326,8 @@ export class User {
     minimumLamports = true,
     appUtxo,
     mergeExistingUtxos = true,
+    verifier,
+    message,
   }: {
     token: string;
     recipient?: Account;
@@ -329,6 +337,8 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
     mergeExistingUtxos?: boolean;
+    verifier?: Verifier;
+    message?: Buffer;
   }): Promise<TransactionParameters> {
     // TODO: add errors for if appUtxo appDataHash or appData, no verifierAddress
     if (publicAmountSpl && token === "SOL")
@@ -435,11 +445,12 @@ export class User {
       provider: this.provider,
       transactionNonce: this.balance.transactionNonce,
       appUtxo,
-      verifier: this.verifier,
+      verifier: verifier ? verifier : this.verifier,
       outUtxos,
       addInUtxos: recipient ? false : true,
       addOutUtxos: recipient ? false : true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      message,
     });
     this.recentTransactionParameters = txParams;
     return txParams;
@@ -793,18 +804,14 @@ export class User {
       this.provider.poseidon,
     );
 
-    await this.createTransferTransactionParameters({
+    let txParams = await this.createTransferTransactionParameters({
       token,
       recipient: recipientAccount,
       amountSpl,
       amountSol,
       appUtxo,
     });
-
-    await this.compileAndProveTransaction();
-    const txHash = await this.sendAndConfirm();
-    const response = await this.updateMerkleTree();
-    return { txHash, response };
+    return this.transactWithParameters({ txParams });
   }
 
   // TODO: add separate lookup function for users.
@@ -823,12 +830,18 @@ export class User {
     amountSpl,
     amountSol,
     appUtxo,
+    message,
+    outUtxo,
+    verifier,
   }: {
     token: string;
     amountSpl?: BN | number | string;
     amountSol?: BN | number | string;
     recipient: Account;
     appUtxo?: AppUtxoConfig;
+    message?: Buffer;
+    outUtxo?: Utxo;
+    verifier?: Verifier;
   }) {
     if (!amountSol && !amountSpl)
       throw new UserError(
@@ -864,6 +877,9 @@ export class User {
       ],
       poseidon: this.provider.poseidon,
     });
+
+    if (outUtxo) outUtxos.push(outUtxo);
+
     let utxosEntries = this.balance.tokenBalances
       .get(tokenCtx.mint.toBase58())
       ?.utxos.values();
@@ -887,12 +903,13 @@ export class User {
       provider: this.provider,
       relayer: this.provider.relayer,
       transactionNonce: this.balance.transactionNonce,
-      verifier: this.verifier,
+      verifier: verifier ? verifier : this.verifier,
       appUtxo: this.appUtxoConfig,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
+      message,
     });
     this.recentTransactionParameters = txParams;
-    return txParams; //await this.transactWithParameters({ txParams });
+    return txParams;
   }
 
   async transactWithParameters({
@@ -1162,5 +1179,81 @@ export class User {
   // but it would probably be more logical to fetch utxos here as well
   addUtxos() {
     throw new Error("not implemented yet");
+  }
+
+  getAllUtxos(): Utxo[] {
+    var allUtxos: Utxo[] = [];
+
+    for (const tokenBalance of this.balance.tokenBalances.values()) {
+      allUtxos.push(...tokenBalance.utxos.values());
+    }
+    return allUtxos;
+  }
+
+  // TODO: do checks based on IDL, are all accounts set, are all amounts which are not applicable zero?
+  /**
+   *
+   */
+  async storeData(message: Buffer, shield: boolean = false) {
+    if (message.length > MAX_MESSAGE_SIZE)
+      throw new UserError(
+        UserErrorCode.MAX_STORAGE_MESSAGE_SIZE_EXCEEDED,
+        "storeData",
+        `${message.length}/${MAX_MESSAGE_SIZE}`,
+      );
+    if (shield) {
+      await this.createShieldTransactionParameters({
+        token: "SOL",
+        publicAmountSol: new BN(0),
+        minimumLamports: false,
+        message,
+        verifier: new VerifierStorage(),
+      });
+    } else {
+      var inUtxos: Utxo[] = [];
+      // any utxo just select any utxo with a non-zero sol balance preferably sol balance
+      const firstSolUtxo = this.balance.tokenBalances
+        .get(SystemProgram.programId.toBase58())
+        ?.utxos.values()
+        .next().value;
+      if (firstSolUtxo) {
+        inUtxos.push(firstSolUtxo);
+      } else {
+        // take the utxo with the biggest sol balance
+        // 1. get all utxos
+        // 2. sort descending
+        // 3. select biggest which is in index 0
+        var allUtxos = this.getAllUtxos();
+        allUtxos.sort((a, b) => a.amounts[0].sub(b.amounts[0]).toNumber());
+        inUtxos.push(allUtxos[0]);
+      }
+      if (inUtxos.length === 0 || inUtxos[0] === undefined)
+        throw new UserError(
+          SelectInUtxosErrorCode.FAILED_TO_SELECT_SOL_UTXO,
+          "storeData",
+        );
+
+      const tokenCtx = TOKEN_REGISTRY.get("SOL")!;
+
+      const txParams = await TransactionParameters.getTxParams({
+        tokenCtx,
+        action: Action.TRANSFER,
+        account: this.account,
+        inUtxos,
+        provider: this.provider,
+        relayer: this.provider.relayer,
+        transactionNonce: this.balance.transactionNonce,
+        verifier: new VerifierStorage(),
+        appUtxo: this.appUtxoConfig,
+        message,
+        mergeUtxos: true,
+        addInUtxos: false,
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
+      });
+      this.recentTransactionParameters = txParams;
+    }
+    return this.transactWithParameters({
+      txParams: this.recentTransactionParameters!,
+    });
   }
 }

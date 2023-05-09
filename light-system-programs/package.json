@@ -8,6 +8,7 @@
     "test-user-merge-sol-specific": "sh runTest.sh 'ts-mocha -t 2000000 tests/user-merge-sol-specific.tests.ts --exit'",
     "test-user-merge-spl": "sh runTest.sh 'ts-mocha -t 2000000 tests/user-merge-spl.tests.ts --exit'",
     "test-user-merge-spl-specific": "sh runTest.sh 'ts-mocha -t 2000000 tests/user-merge-spl-specific.tests.ts --exit'",
+    "test-user-storage": "sh runTest.sh 'ts-mocha -t 2000000 tests/user-storage.tests.ts --exit'",
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
     "test-merkle-tree": "sh runTest.sh 'ts-mocha -t 2000000 tests/merkle_tree_tests.ts --exit'",
     "test-provider": "sh runTest.sh 'ts-mocha -t 2000000 tests/provider.test.ts --exit'",

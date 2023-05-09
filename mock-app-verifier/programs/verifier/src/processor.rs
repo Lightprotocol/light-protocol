@@ -40,6 +40,7 @@ pub fn process_transfer_4_ins_4_outs_4_checked_first<'a, 'b, 'c, 'info>(
     let leaves = [[leaves[0], leaves[1]], [leaves[2], leaves[3]]];
     let tx = Transaction::<2, 4, TransactionsConfig>::new(
         None,
+        None,
         proof_a,
         proof_b,
         proof_c,

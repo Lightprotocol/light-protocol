@@ -6,7 +6,7 @@ import {
   TransactionErrorCode,
   VerifierError,
   VerifierErrorCode,
-  verifierStorageProgramId,
+  verifierProgramStorageProgramId,
 } from "../index";
 import { Transaction } from "transaction";
 import { Verifier, PublicInputs, VerifierConfig } from ".";
@@ -28,7 +28,7 @@ export class VerifierStorage implements Verifier {
     try {
       this.verifierProgram = new Program(
         IDL_VERIFIER_PROGRAM_STORAGE,
-        verifierStorageProgramId,
+        verifierProgramStorageProgramId,
         // @ts-ignore
         provider,
       );
@@ -40,7 +40,9 @@ export class VerifierStorage implements Verifier {
     this.zkeyPath = `transactionMasp2.zkey`;
     this.calculateWtns = require("../../build-circuits/transactionMasp2_js/witness_calculator.js");
     this.config = { in: 2, out: 2, nrPublicInputs: 9, isAppVerifier: false };
-    this.pubkey = hashAndTruncateToCircuit(verifierStorageProgramId.toBytes());
+    this.pubkey = hashAndTruncateToCircuit(
+      verifierProgramStorageProgramId.toBytes(),
+    );
   }
 
   parsePublicInputsFromArray(

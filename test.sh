@@ -10,6 +10,7 @@ yarn test
 yarn run test-merkle-tree
 yarn run test-user
 yarn run test-provider
+yarn test-user-merge
 yarn run test-user-merge-sol
 yarn run test-user-merge-spl
 yarn run test-user-merge-sol-specific

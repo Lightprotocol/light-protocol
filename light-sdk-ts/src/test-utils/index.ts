@@ -9,3 +9,4 @@ export * from "./updateMerkleTree";
 export * from "./testRelayer";
 export * from "./testStateValidator";
 export * from "./testTransaction";
+export * from "./airdrop";

@@ -22,6 +22,7 @@ impl Config for TransactionConfig {
 pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
     ctx: &Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
     message_hash: Option<&'a [u8; 32]>,
+    message: Option<&'a Vec<u8>>,
     proof_a: &'a [u8; 64],
     proof_b: &'a [u8; 128],
     proof_c: &'a [u8; 64],
@@ -57,6 +58,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
 
     let mut transaction = Transaction::<1, 2, TransactionConfig>::new(
         message_hash,
+        message,
         proof_a,
         proof_b,
         proof_c,

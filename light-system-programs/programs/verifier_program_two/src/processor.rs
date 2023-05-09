@@ -75,6 +75,7 @@ pub fn process_shielded_transfer<'a, 'b, 'c, 'info>(
     let pool_type = [0u8; 32];
     let mut tx = Transaction::<2, 4, TransactionConfig>::new(
         None,
+        None,
         proof_a,
         proof_b,
         proof_c,

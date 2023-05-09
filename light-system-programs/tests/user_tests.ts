@@ -1,11 +1,6 @@
 import * as anchor from "@coral-xyz/anchor";
-import {
-  Keypair as SolanaKeypair,
-  PublicKey,
-  SystemProgram,
-} from "@solana/web3.js";
+import { Keypair as SolanaKeypair } from "@solana/web3.js";
 import _ from "lodash";
-import { assert } from "chai";
 const chai = require("chai");
 const chaiAsPromised = require("chai-as-promised");
 // init chai-as-promised support
@@ -17,7 +12,6 @@ let circomlibjs = require("circomlibjs");
 import {
   setUpMerkleTree,
   initLookUpTableFromFile,
-  merkleTreeProgramId,
   ADMIN_AUTH_KEYPAIR,
   MINT,
   Provider,
@@ -25,8 +19,6 @@ import {
   createTestAccounts,
   confirmConfig,
   User,
-  strToArr,
-  TOKEN_REGISTRY,
   Account,
   CreateUtxoErrorCode,
   UserErrorCode,
@@ -35,6 +27,7 @@ import {
   TestRelayer,
   Action,
   TestStateValidator,
+  airdropShieldedSol,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -267,6 +260,79 @@ describe("Test User", () => {
     await user.provider.latestMerkleTree();
     await user.getBalance();
     await testStateValidator.checkTokenTransferred();
+  });
+
+  it("(user class) storage shield", async () => {
+    let testInputs = {
+      amountSpl: 0,
+      amountSol: 0,
+      token: "SOL",
+      type: Action.SHIELD,
+      expectedUtxoHistoryLength: 1,
+      storage: true,
+      message: Buffer.alloc(512).fill(1),
+    };
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
+
+    const user: User = await User.init({ provider });
+
+    const testStateValidator = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+    await user.storeData(testInputs.message, true);
+    await user.provider.latestMerkleTree();
+
+    await testStateValidator.assertStoredWithShield();
+  });
+
+  it("(user class) storage transfer", async () => {
+    let testInputs = {
+      amountSpl: 0,
+      amountSol: 0,
+      token: "SOL",
+      type: Action.TRANSFER,
+      expectedUtxoHistoryLength: 1,
+      storage: true,
+      isSender: true,
+      message: Buffer.alloc(672).fill(2),
+    };
+
+    provider = await Provider.init({
+      wallet: userKeypair,
+      relayer: RELAYER,
+    });
+    const seed = bs58.encode(new Uint8Array(32).fill(4));
+    await airdropShieldedSol({ provider, amount: 1, seed });
+
+    let res = await provider.provider.connection.requestAirdrop(
+      userKeypair.publicKey,
+      4_000_000_000,
+    );
+
+    await provider.provider.connection.confirmTransaction(res, "confirmed");
+    await provider.latestMerkleTree();
+    const user: User = await User.init({ provider, seed });
+
+    const testStateValidator = new TestStateValidator({
+      userSender: user,
+      userRecipient: user,
+      provider,
+      testInputs,
+    });
+
+    await testStateValidator.fetchAndSaveState();
+
+    await user.storeData(testInputs.message, false);
+    await user.provider.latestMerkleTree();
+    await testStateValidator.assertStoredWithTransfer();
   });
 });
 

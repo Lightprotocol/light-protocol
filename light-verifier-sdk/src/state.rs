@@ -103,4 +103,5 @@ pub struct TransactionIndexerEvent {
     pub encrypted_utxos: Vec<u8>,
     pub nullifiers: Vec<[u8; 32]>,
     pub first_leaf_index: u64,
+    pub message: Vec<u8>,
 }
