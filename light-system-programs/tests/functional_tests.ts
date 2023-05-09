@@ -40,6 +40,7 @@ import {
   Verifier,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
+  IDL_VERIFIER_PROGRAM_STORAGE,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";

@@ -644,7 +644,6 @@ export class TransactionParameters implements transactionParameters {
     addOutUtxos = true,
     verifier,
     verifierIdl,
-    override,
     mergeUtxos = false,
     message,
   }: {
@@ -675,7 +674,7 @@ export class TransactionParameters implements transactionParameters {
     publicAmountSpl = publicAmountSpl ? publicAmountSpl : new BN(0);
 
     if (action === Action.TRANSFER && !outUtxos && !mergeUtxos)
-      throw new UserError(
+      throw new TransactioParametersError(
         UserErrorCode.SHIELDED_RECIPIENT_UNDEFINED,
         "getTxParams",
         "Recipient outUtxo not provided for transfer",

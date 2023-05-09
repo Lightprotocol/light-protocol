@@ -51,6 +51,7 @@ import {
   TRANSACTION_MERKLE_TREE_KEY,
   MAX_MESSAGE_SIZE,
   VerifierStorage,
+  IDL_VERIFIER_PROGRAM_STORAGE,
 } from "../index";
 import { bytes } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Idl } from "@coral-xyz/anchor";
@@ -1245,8 +1246,9 @@ export class User {
         verifier: new VerifierStorage(),
         appUtxo: this.appUtxoConfig,
         message,
-        selfTransfer: true,
+        mergeUtxos: true,
         addInUtxos: false,
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       });
       this.recentTransactionParameters = txParams;
     }
