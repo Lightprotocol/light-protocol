@@ -41,10 +41,9 @@ export const MINT_PRIVATE_KEY = new Uint8Array([
   229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
 ]);
 
-export const MINT = new PublicKey([
-  14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160, 127,
-  236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
-]);
+export const MINT = new PublicKey(
+  "ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe",
+);
 
 export const PRIVATE_KEY = [
   17, 34, 231, 31, 83, 147, 93, 173, 61, 164, 25, 0, 204, 82, 234, 91, 202, 187,

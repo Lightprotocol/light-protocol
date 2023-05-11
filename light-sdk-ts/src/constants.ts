@@ -22,7 +22,7 @@ import {
   TokenBalance,
 } from "@solana/web3.js";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-import { TokenData } from "./index";
+import { MINT, TokenData } from "./index";
 
 export const CONSTANT_SECRET_AUTHKEY: Uint8Array = Uint8Array.from([
   155, 249, 234, 55, 8, 49, 0, 14, 84, 72, 10, 224, 21, 139, 87, 102, 115, 88,
@@ -185,21 +185,15 @@ export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
       isNft: false,
       isNative: false,
       // copied from MINT (test-utils)
-      mint: new PublicKey([
-        14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160,
-        127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
-      ]),
+      mint: MINT,
     },
   ],
 ]);
 
 export const TOKEN_PUBKEY_SYMBOL: Map<string, string> = new Map([
-  [SystemProgram.programId.toBase58(), "SOL"],
+  ["11111111111111111111111111111111", "SOL"],
   [
-    new PublicKey([
-      14, 129, 15, 86, 229, 176, 155, 3, 8, 217, 125, 97, 221, 115, 252, 160,
-      127, 236, 37, 229, 116, 84, 111, 6, 5, 182, 141, 86, 7, 23, 246, 215,
-    ]).toBase58(),
+    "ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe", // is MINT in test-utils
     "USDC",
   ],
 ]);

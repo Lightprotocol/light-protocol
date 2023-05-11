@@ -712,7 +712,7 @@ export class Utxo {
           throw new UtxoError(
             UtxoErrorCode.INVALID_APP_DATA_IDL,
             "decrypt",
-            "Invalid app data idl or invalid IV the IV is the first 16 bytes of the respective leaf (commitment hash)",
+            "Invalid app data idl IV. The IV should be the first 16 bytes of the respective leaf (commitment hash)",
           );
         } else if (
           e.message.includes("Invalid account discriminator") &&
@@ -721,10 +721,9 @@ export class Utxo {
           throw new UtxoError(
             UtxoErrorCode.INVALID_IV,
             "decrypt",
-            "The IV is the first 16 bytes of the respective leaf (commitment hash)",
+            "The IV should be the first 16 bytes of the respective leaf (commitment hash)",
           );
         } else if (
-          !(e instanceof DOMException) ||
           e.name !== "OperationError" ||
           e.message !== "The operation failed for an operation-specific reason"
         ) {

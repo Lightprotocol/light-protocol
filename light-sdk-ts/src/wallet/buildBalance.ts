@@ -139,14 +139,14 @@ export class ProgramUtxoBalance {
         throw new ProgramUtxoBalanceError(
           UserErrorCode.TOKEN_NOT_FOUND,
           "addUtxo",
-          `Token ${utxoAsset} not found while trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
+          `Token ${utxoAsset} not found when trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
         );
       const tokenData = TOKEN_REGISTRY.get(tokenSymbol);
       if (!tokenData)
         throw new ProgramUtxoBalanceError(
           ProgramUtxoBalanceErrorCode.TOKEN_DATA_NOT_FOUND,
           "addUtxo",
-          `Token ${tokenSymbol} not found in TOKEN_REGISTRY while trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
+          `Token ${utxoAsset} not found when trying to add tokenBalance to PrograUtxoBalance for verifier ${this.programAddress.toBase58()}`,
         );
       this.tokenBalances.set(utxoAsset, new TokenUtxoBalance(tokenData));
     }

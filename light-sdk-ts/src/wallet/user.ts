@@ -411,7 +411,7 @@ export class User {
       ? new BN(publicAmountSol?.toString())
       : new BN(0);
     if (!skipDecimalConversions) {
-      // if no sol amount by default min amount if disabled 0
+      // If SOL amount is not provided, the default value is either minimum amount (if defined) or 0.
       publicAmountSol = !publicAmountSol.eq(new BN(0))
         ? convertAndComputeDecimals(publicAmountSol, new BN(1e9))
         : minimumLamports
@@ -880,7 +880,7 @@ export class User {
       throw new UserError(
         UserErrorCode.NO_AMOUNTS_PROVIDED,
         "createTransferTransactionParameters",
-        "Need to provide at least one amount for an transfer",
+        "At least one amount should be provided for a transfer.",
       );
     if (!token && outUtxo) {
       token = TOKEN_PUBKEY_SYMBOL.get(outUtxo.assets[1].toBase58());
