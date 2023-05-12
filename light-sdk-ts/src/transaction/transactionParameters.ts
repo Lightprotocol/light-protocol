@@ -1096,7 +1096,7 @@ export class TransactionParameters implements transactionParameters {
       // verifier program method.
       const recipientSpl =
         this.verifierProgramId.toBase58() ===
-        verifierStorageProgramId.toBase58()
+        verifierProgramStorageProgramId.toBase58()
           ? new Uint8Array(32)
           : this.accounts.recipientSpl.toBytes();
       let hashInputBytes = new Uint8Array([

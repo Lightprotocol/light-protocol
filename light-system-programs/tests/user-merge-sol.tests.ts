@@ -14,6 +14,8 @@ import {
   TestRelayer,
   Action,
   TestStateValidator,
+  airdropShieldedSol,
+  airdropSol,
 } from "light-sdk";
 
 import { BN } from "@coral-xyz/anchor";
@@ -56,10 +58,11 @@ describe("Test User", () => {
     environmentConfig.providerSolanaKeypair = ADMIN_AUTH_KEYPAIR;
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;
 
-    await anchorProvider.connection.requestAirdrop(
-      relayerRecipientSol,
-      2_000_000_000,
-    );
+    await airdropSol({
+      provider: anchorProvider,
+      amount: 1_000_000_000,
+      recipientPublicKey: relayerRecipientSol,
+    });
 
     environmentConfig.relayer = new TestRelayer(
       userKeypair.publicKey,
@@ -68,19 +71,9 @@ describe("Test User", () => {
       new BN(100000),
     );
 
-    let testInputs = {
-      amountSpl: 0,
-      amountSol: 15,
-      token: "SOL",
-      type: Action.SHIELD,
-      expectedUtxoHistoryLength: 1,
-      expectedSpentUtxosLength: 0,
-    };
-
-    await performShielding({
-      numberOfShields: 1,
-      testInputs,
-      environmentConfig,
+    await airdropShieldedSol({
+      seed: recipientSeed,
+      amount: 15,
     });
   });
 

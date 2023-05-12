@@ -81,6 +81,7 @@ export class User {
   appUtxoConfig?: AppUtxoConfig;
   balance: Balance;
   inboxBalance: InboxBalance;
+  verifierIdl: Idl;
 
   constructor({
     provider,
@@ -331,7 +332,7 @@ export class User {
     minimumLamports = true,
     appUtxo,
     mergeExistingUtxos = true,
-    verifier,
+    verifierIdl,
     message,
     skipDecimalConversions = false,
     utxo,
@@ -1551,7 +1552,7 @@ export class User {
         publicAmountSol: new BN(0),
         minimumLamports: false,
         message,
-        verifier: new VerifierStorage(),
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       });
     } else {
       var inUtxos: Utxo[] = [];
@@ -1587,7 +1588,6 @@ export class User {
         provider: this.provider,
         relayer: this.provider.relayer,
         transactionNonce: this.balance.transactionNonce,
-        verifier: new VerifierStorage(),
         appUtxo: this.appUtxoConfig,
         message,
         mergeUtxos: true,
