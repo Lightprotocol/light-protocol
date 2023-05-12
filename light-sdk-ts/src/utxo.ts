@@ -709,7 +709,9 @@ export class Utxo {
         });
       } catch (e) {
         // TODO: return sth different than null on e?.message.includes("Invalid account discriminator")
-        if (
+        if (e?.message.includes("Invalid account discriminator")) {
+          return null;
+        } else if (
           e?.name !== "OperationError" ||
           e?.message !== "The operation failed for an operation-specific reason"
         ) {
