@@ -67,7 +67,7 @@ pub fn process_shielded_transfer_2_in_2_out<'a, 'b, 'c, 'info>(
         checked_public_inputs,
         nullifiers,
         leaves,
-        encrypted_utxos,
+        &encrypted_utxos,
         relayer_fee,
         merkle_tree_index as usize,
         pool_type,

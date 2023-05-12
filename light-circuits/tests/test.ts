@@ -1,17 +1,5 @@
 import {
-  ADMIN_AUTH_KEYPAIR,
   confirmConfig,
-  FEE_ASSET,
-  Account,
-  Provider as LightProvider,
-  MINT,
-  Utxo,
-  VerifierZero,
-  SolMerkleTree,
-  VerifierTwo,
-  Verifier,
-  VerifierOne,
-  Action,
   functionalCircuitTest,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
@@ -41,14 +29,14 @@ describe("verifier_program", () => {
   });
 
   it("Test functional circuit 2 in 2 out", async () => {
-    await functionalCircuitTest(new VerifierZero(), false, IDL_VERIFIER_PROGRAM_ZERO);
+    await functionalCircuitTest(false, IDL_VERIFIER_PROGRAM_ZERO);
   });
 
   it("Test functional circuit 10 in 2 out", async () => {
-    await functionalCircuitTest(new VerifierOne(), false, IDL_VERIFIER_PROGRAM_ONE);
+    await functionalCircuitTest(false, IDL_VERIFIER_PROGRAM_ONE);
   });
 
   it("Test functional circuit 4 in 4 out + connecting hash", async () => {
-    await functionalCircuitTest(new VerifierTwo(), true, IDL_VERIFIER_PROGRAM_TWO);
+    await functionalCircuitTest(true, IDL_VERIFIER_PROGRAM_TWO);
   });
 });

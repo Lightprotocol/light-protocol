@@ -24,6 +24,9 @@ use merkle_tree_program::{
 
 declare_id!("3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL");
 
+#[constant]
+pub const PROGRAM_ID: &'static str = "3KS2k14CmtnuVv2fvYcvdrNgC94Y11WETBpMUGgXyWZL";
+
 #[program]
 pub mod verifier_program_one {
     use super::*;
@@ -34,18 +37,10 @@ pub mod verifier_program_one {
     /// protocol logicin the second transaction.
     pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionFirst<'info>>,
-        public_amount_spl: [u8; 32],
-        nullifiers: [[u8; 32]; 10],
-        leaves: [[u8; 32]; 2],
-        public_amount_sol: [u8; 32],
-        root_index: u64,
-        relayer_fee: u64,
-        encrypted_utxos: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
-        // let mut nullifiers_vec = Vec::<Vec<u8>>::new();
-        // for nullifier in nullifiers {
-        //     nullifiers_vec.push(nullifier.to_vec());
-        // }
+        let inputs: InstructionDataShieldedTransferFirst =
+            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
         let proof_a = [0u8; 64];
         let proof_b = [0u8; 128];
         let proof_c = [0u8; 64];
@@ -54,13 +49,13 @@ pub mod verifier_program_one {
             &proof_a,
             &proof_b,
             &proof_c,
-            &public_amount_spl,
-            &nullifiers,
-            &[[leaves[0], leaves[1]]; 1],
-            &public_amount_sol,
-            &encrypted_utxos,
-            &root_index,
-            &relayer_fee,
+            &inputs.public_amount_spl,
+            &inputs.input_nullifier,
+            &[[inputs.output_commitment[0], inputs.output_commitment[1]]; 1],
+            &inputs.public_amount_sol,
+            &inputs.encrypted_utxos,
+            &inputs.root_index,
+            &inputs.relayer_fee,
         )
     }
 
@@ -69,11 +64,17 @@ pub mod verifier_program_one {
     /// At successful verification protocol logic is executed.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof_a: [u8; 64],
-        proof_b: [u8; 128],
-        proof_c: [u8; 64],
+        inputs: Vec<u8>,
     ) -> Result<()> {
-        process_transfer_10_ins_2_outs_second(ctx, &proof_a, &proof_b, &proof_c, [0u8; 32])
+        let inputs: InstructionDataShieldedTransferSecond =
+            InstructionDataShieldedTransferSecond::try_deserialize(&mut inputs.as_slice())?;
+        process_transfer_10_ins_2_outs_second(
+            ctx,
+            &inputs.proof_a,
+            &inputs.proof_b,
+            &inputs.proof_c,
+            [0u8; 32],
+        )
     }
 
     /// Close the verifier state to reclaim rent in case the proofdata is wrong and does not verify.
@@ -93,6 +94,18 @@ pub struct LightInstructionFirst<'info> {
     pub system_program: Program<'info, System>,
     #[account(init, seeds = [&signing_address.key().to_bytes(), VERIFIER_STATE_SEED], bump, space= 3000/*8 + 32 * 6 + 10 * 32 + 2 * 32 + 512 + 16 + 128*/, payer = signing_address )]
     pub verifier_state: Box<Account<'info, VerifierState10Ins<TransactionConfig>>>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferFirst {
+    public_amount_spl: [u8; 32],
+    input_nullifier: [[u8; 32]; 10],
+    output_commitment: [[u8; 32]; 2],
+    public_amount_sol: [u8; 32],
+    root_index: u64,
+    relayer_fee: u64,
+    encrypted_utxos: Vec<u8>,
 }
 
 /// Executes light transaction with state created in the first instruction.
@@ -134,6 +147,14 @@ pub struct LightInstructionSecond<'info> {
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferSecond {
+    proof_a: [u8; 64],
+    proof_b: [u8; 128],
+    proof_c: [u8; 64],
 }
 
 #[derive(Accounts)]

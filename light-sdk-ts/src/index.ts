@@ -1,6 +1,5 @@
 export * from "./utxo";
 export * from "./test-utils";
-export * from "./verifiers";
 export * from "./account";
 export * from "./constants";
 export * from "./wallet";

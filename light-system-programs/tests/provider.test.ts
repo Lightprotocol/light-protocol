@@ -16,7 +16,6 @@ import {
   Transaction,
   TransactionParameters,
   userTokenAccount,
-  VerifierZero,
   IDL_VERIFIER_PROGRAM_ZERO,
 } from "light-sdk";
 
@@ -145,7 +144,6 @@ describe("verifier_program", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: new VerifierZero(),
       poseidon: POSEIDON,
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,

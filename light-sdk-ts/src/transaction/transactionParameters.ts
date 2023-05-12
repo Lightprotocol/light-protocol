@@ -1,7 +1,7 @@
 import { Keypair, PublicKey, SystemProgram } from "@solana/web3.js";
 import * as anchor from "@coral-xyz/anchor";
 import { TOKEN_PROGRAM_ID } from "@solana/spl-token";
-import { BN, BorshAccountsCoder, Idl } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder, Program, Idl } from "@coral-xyz/anchor";
 import {
   AUTHORITY,
   MESSAGE_MERKLE_TREE_KEY,
@@ -10,7 +10,6 @@ import {
   verifierProgramStorageProgramId,
 } from "../constants";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
-import { Verifier } from "../verifiers";
 import { MerkleTreeConfig } from "../merkleTree/merkleTreeConfig";
 import {
   FIELD_SIZE,
@@ -36,11 +35,17 @@ import {
   AppUtxoConfig,
   validateUtxoAmounts,
   createOutUtxos,
+  IDL_VERIFIER_PROGRAM_ONE,
 } from "../index";
 import nacl from "tweetnacl";
 import { sha256 } from "@noble/hashes/sha256";
 import { SPL_NOOP_PROGRAM_ID } from "@solana/spl-account-compression";
 const { keccak_256 } = require("@noble/hashes/sha3");
+
+type VerifierConfig = {
+  in: number;
+  out: number;
+};
 
 export class TransactionParameters implements transactionParameters {
   message?: Buffer;
@@ -50,7 +55,6 @@ export class TransactionParameters implements transactionParameters {
   // @ts-ignore:
   relayer: Relayer;
   encryptedUtxos?: Uint8Array;
-  verifier: Verifier;
   poseidon: any;
   publicAmountSpl: BN;
   publicAmountSol: BN;
@@ -61,12 +65,13 @@ export class TransactionParameters implements transactionParameters {
   transactionNonce: number;
   txIntegrityHash?: BN;
   verifierIdl: Idl;
+  verifierProgramId: PublicKey;
+  verifierConfig: VerifierConfig;
 
   constructor({
     message,
     messageMerkleTreePubkey,
     transactionMerkleTreePubkey,
-    verifier,
     senderSpl,
     recipientSpl,
     senderSol,
@@ -86,7 +91,6 @@ export class TransactionParameters implements transactionParameters {
     message?: Buffer;
     messageMerkleTreePubkey?: PublicKey;
     transactionMerkleTreePubkey: PublicKey;
-    verifier: Verifier;
     senderSpl?: PublicKey;
     recipientSpl?: PublicKey;
     senderSol?: PublicKey;
@@ -112,19 +116,13 @@ export class TransactionParameters implements transactionParameters {
       );
     }
 
-    if (!verifier) {
+    if (!verifierIdl) {
       throw new TransactioParametersError(
-        TransactionParametersErrorCode.NO_VERIFIER_PROVIDED,
+        TransactionParametersErrorCode.NO_VERIFIER_IDL_PROVIDED,
         "constructor",
         "",
       );
     }
-    if (!verifier.verifierProgram)
-      throw new TransactioParametersError(
-        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
-        "constructor",
-        "verifier.program undefined",
-      );
 
     if (!poseidon) {
       throw new TransactioParametersError(
@@ -156,21 +154,18 @@ export class TransactionParameters implements transactionParameters {
         "Message needs to be defined if you provide message Merkle tree",
       );
     }
-
+    this.verifierProgramId =
+      TransactionParameters.getVerifierProgramId(verifierIdl);
+    this.verifierConfig = TransactionParameters.getVerifierConfig(verifierIdl);
     this.transactionNonce = transactionNonce;
     this.message = message;
     this.verifierIdl = verifierIdl;
-    this.verifier = verifier;
     this.poseidon = poseidon;
     this.ataCreationFee = ataCreationFee;
     this.encryptedUtxos = encryptedUtxos;
     this.action = action;
-    this.inputUtxos = this.addEmptyUtxos(inputUtxos, this.verifier.config.in);
-    this.outputUtxos = this.addEmptyUtxos(
-      outputUtxos,
-      this.verifier.config.out,
-    );
-
+    this.inputUtxos = this.addEmptyUtxos(inputUtxos, this.verifierConfig.in);
+    this.outputUtxos = this.addEmptyUtxos(outputUtxos, this.verifierConfig.out);
     if (action === Action.SHIELD && senderSol && lookUpTable) {
       this.relayer = new Relayer(senderSol, lookUpTable);
     } else if (action === Action.SHIELD && !senderSol) {
@@ -463,11 +458,11 @@ export class TransactionParameters implements transactionParameters {
       transactionMerkleTree: transactionMerkleTreePubkey,
       registeredVerifierPda: Transaction.getRegisteredVerifierPda(
         merkleTreeProgramId,
-        verifier.verifierProgram.programId,
+        this.verifierProgramId,
       ),
       authority: Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        verifier.verifierProgram.programId,
+        this.verifierProgramId,
       ),
       senderSpl: senderSpl,
       recipientSpl: recipientSpl,
@@ -475,6 +470,7 @@ export class TransactionParameters implements transactionParameters {
       recipientSol: recipientSol, // TODO: change name to recipientSol
       programMerkleTree: merkleTreeProgramId,
       tokenAuthority: Transaction.getTokenAuthority(),
+      verifierProgram: this.verifierProgramId,
     };
 
     this.assignAccounts();
@@ -512,7 +508,7 @@ export class TransactionParameters implements transactionParameters {
 
       for (const constant of constants) {
         if (
-          constant.name === "programId" &&
+          constant.name === "PROGRAM_ID" &&
           constant.type === "string" &&
           constant.value === `"${programId}"`
         ) {
@@ -524,18 +520,72 @@ export class TransactionParameters implements transactionParameters {
     return -1; // Return -1 if the programId is not found in any IDL object
   }
 
+  static getVerifierProgramId(verifierIdl: Idl): PublicKey {
+    const programId = new PublicKey(
+      verifierIdl.constants![0].value.slice(1, -1),
+    );
+    return programId;
+  }
+
+  static getVerifierProgram(verifierIdl: Idl): Program<Idl> {
+    const programId = new PublicKey(
+      verifierIdl.constants![0].value.slice(1, -1),
+    );
+    const verifierProgram = new Program(verifierIdl, programId);
+    return verifierProgram;
+  }
+
+  static getVerifierConfig(verifierIdl: Idl): VerifierConfig {
+    const accounts = verifierIdl.accounts;
+    const resultElement = accounts!.find(
+      (account) =>
+        account.name.startsWith("zK") && account.name.endsWith("ProofInputs"),
+    );
+
+    if (!resultElement) {
+      throw new Error("No matching element found");
+    }
+    interface Field {
+      name: string;
+      type: any;
+    }
+
+    const fields = resultElement.type.fields;
+    const inputNullifierField = fields.find(
+      (field) => field.name === "inputNullifier",
+    ) as Field;
+    const outputCommitmentField = fields.find(
+      (field) => field.name === "outputCommitment",
+    ) as Field;
+
+    if (!inputNullifierField || !inputNullifierField.type.array) {
+      throw new Error(
+        "inputNullifier field not found or has an incorrect type",
+      );
+    }
+
+    if (!outputCommitmentField || !outputCommitmentField.type.array) {
+      throw new Error(
+        "outputCommitment field not found or has an incorrect type",
+      );
+    }
+
+    const inputNullifierLength = inputNullifierField.type.array[1];
+    const outputCommitmentLength = outputCommitmentField.type.array[1];
+
+    return { in: inputNullifierLength, out: outputCommitmentLength };
+  }
+
   static async fromBytes({
     poseidon,
     utxoIdls,
     bytes,
-    verifier,
     relayer,
     verifierIdl,
   }: {
     poseidon: any;
     utxoIdls?: anchor.Idl[];
     bytes: Buffer;
-    verifier: Verifier;
     relayer: Relayer;
     verifierIdl: Idl;
   }): Promise<TransactionParameters> {
@@ -612,7 +662,6 @@ export class TransactionParameters implements transactionParameters {
       poseidon,
       inputUtxos,
       outputUtxos,
-      verifier,
       relayer,
       ...decoded,
       action,
@@ -642,7 +691,6 @@ export class TransactionParameters implements transactionParameters {
     appUtxo,
     addInUtxos = true,
     addOutUtxos = true,
-    verifier,
     verifierIdl,
     mergeUtxos = false,
     message,
@@ -665,7 +713,6 @@ export class TransactionParameters implements transactionParameters {
     appUtxo?: AppUtxoConfig;
     addInUtxos?: boolean;
     addOutUtxos?: boolean;
-    verifier: Verifier;
     verifierIdl: Idl;
     mergeUtxos?: boolean;
     message?: Buffer;
@@ -710,7 +757,8 @@ export class TransactionParameters implements transactionParameters {
         utxos,
         relayerFee: relayer?.getRelayerFee(ataCreationFee),
         action,
-        numberMaxInUtxos: verifier.config.in,
+        numberMaxInUtxos:
+          TransactionParameters.getVerifierConfig(verifierIdl).in,
       });
     }
     if (addOutUtxos) {
@@ -725,7 +773,8 @@ export class TransactionParameters implements transactionParameters {
         outUtxos,
         action,
         appUtxo,
-        numberMaxOutUtxos: verifier.config.out,
+        numberMaxOutUtxos:
+          TransactionParameters.getVerifierConfig(verifierIdl).out,
       });
     }
 
@@ -738,7 +787,6 @@ export class TransactionParameters implements transactionParameters {
         action === Action.SHIELD ? provider.wallet!.publicKey : undefined,
       recipientSpl: recipientSplAddress,
       recipientSol,
-      verifier,
       poseidon: provider.poseidon,
       action,
       lookUpTable: provider.lookUpTable!,
@@ -772,12 +820,6 @@ export class TransactionParameters implements transactionParameters {
    * @description Assigns spl and sol senderSpl or recipientSpl accounts to transaction parameters based on action.
    */
   assignAccounts() {
-    if (!this.verifier.verifierProgram)
-      throw new TransactioParametersError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "assignAccounts",
-        "Verifier.verifierProgram undefined.",
-      );
     if (!this.assetPubkeys)
       throw new TransactioParametersError(
         TransactionErrorCode.ASSET_PUBKEYS_UNDEFINED,
@@ -854,7 +896,7 @@ export class TransactionParameters implements transactionParameters {
         }
       }
       this.accounts.senderSol = TransactionParameters.getEscrowPda(
-        this.verifier.verifierProgram.programId,
+        this.verifierProgramId,
       );
     }
   }
@@ -1053,8 +1095,8 @@ export class TransactionParameters implements transactionParameters {
       // For example, we could derive which accounts exist in the IDL of the
       // verifier program method.
       const recipientSpl =
-        this.verifier.verifierProgram?.programId.toBase58() ===
-        verifierProgramStorageProgramId.toBase58()
+        this.verifierProgramId.toBase58() ===
+        verifierStorageProgramId.toBase58()
           ? new Uint8Array(32)
           : this.accounts.recipientSpl.toBytes();
       let hashInputBytes = new Uint8Array([
@@ -1106,7 +1148,7 @@ export class TransactionParameters implements transactionParameters {
         );
       }
       if (
-        this.verifier.config.out == 2 &&
+        this.verifierConfig.out == 2 &&
         encryptedOutputs[0].length + encryptedOutputs[1].length < 256
       ) {
         return new Uint8Array([
@@ -1120,7 +1162,7 @@ export class TransactionParameters implements transactionParameters {
         ]);
       } else {
         let tmpArray = new Array<any>();
-        for (var i = 0; i < this.verifier.config.out; i++) {
+        for (var i = 0; i < this.verifierConfig.out; i++) {
           tmpArray.push(...encryptedOutputs[i]);
           if (encryptedOutputs[i].length < 128) {
             // add random bytes for padding
@@ -1133,7 +1175,7 @@ export class TransactionParameters implements transactionParameters {
         if (tmpArray.length < 512) {
           tmpArray.push(
             ...nacl.randomBytes(
-              this.verifier.config.out * 128 - tmpArray.length,
+              this.verifierConfig.out * 128 - tmpArray.length,
             ),
           );
         }

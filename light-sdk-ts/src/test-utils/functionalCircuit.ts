@@ -4,7 +4,6 @@ import {
   Provider as LightProvider,
   MINT,
   Utxo,
-  Verifier,
   Transaction,
   Action,
   TransactionParameters,
@@ -17,7 +16,6 @@ import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 const circomlibjs = require("circomlibjs");
 
 export async function functionalCircuitTest(
-  verifier: Verifier,
   app: boolean = false,
   verifierIdl: Idl,
 ) {
@@ -41,7 +39,6 @@ export async function functionalCircuitTest(
     transactionMerkleTreePubkey: mockPubkey,
     senderSpl: mockPubkey,
     senderSol: lightProvider.wallet!.publicKey,
-    verifier: verifier,
     lookUpTable: mockPubkey,
     action: Action.SHIELD,
     poseidon,

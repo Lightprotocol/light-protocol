@@ -9,6 +9,9 @@ pub mod verifying_key;
 
 declare_id!("DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj");
 
+#[constant]
+pub const PROGRAM_ID: &'static str = "DJpbogMSrK94E1zvvJydtkqoE4sknuzmMRoutd6B7TKj";
+
 /// Size of the transaction message (per one method call).
 pub const MESSAGE_PER_CALL_SIZE: usize = 1024;
 /// Initial size of the verifier state account (message + discriminator).
@@ -42,8 +45,11 @@ pub mod verifier_program_storage {
     /// Saves the provided message in a temporary PDA.
     pub fn shielded_transfer_first<'info>(
         ctx: Context<LightInstructionFirst<'info>>,
-        message: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
+        let inputs: InstructionDataShieldedTransferFirst =
+            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
+        let message = inputs.message;
         if message.len() > MESSAGE_PER_CALL_SIZE {
             return Err(VerifierError::MessageTooLarge.into());
         }
@@ -78,40 +84,27 @@ pub mod verifier_program_storage {
     /// temporary PDA.
     pub fn shielded_transfer_second<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstructionSecond<'info>>,
-        proof_a: [u8; 64],
-        proof_b: [u8; 128],
-        proof_c: [u8; 64],
-        nullifiers: [[u8; 32]; 2],
-        leaves: [[u8; 32]; 2],
-        public_amount_sol: [u8; 32],
-        root_index: u64,
-        relayer_fee: u64,
-        encrypted_utxos: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
+        let inputs: InstructionDataShieldedTransferSecond =
+            InstructionDataShieldedTransferSecond::try_deserialize(&mut inputs.as_slice())?;
         let message = &ctx.accounts.verifier_state.msg;
         let message_hash = hash(message).to_bytes();
-
-        // Declaring any program method argument as `mut` crashes
-        // `borsh-derive` macro.
-        // https://gist.github.com/vadorovsky/8723db36700b390952388dcab2c89ac1
-        // So we have to make it mutable here.
-        let mut encrypted_utxos = encrypted_utxos;
-        encrypted_utxos.extend_from_slice(&vec![0u8; ENCRYPTED_UTXOS_SIZE - encrypted_utxos.len()]);
 
         process_shielded_transfer_2_in_2_out(
             &ctx,
             Some(&message_hash),
             Some(message),
-            &proof_a,
-            &proof_b,
-            &proof_c,
+            &inputs.proof_a,
+            &inputs.proof_b,
+            &inputs.proof_c,
             &[0u8; 32], // Verifier storage does not support SPL tokens.
-            &nullifiers,
-            &[leaves; 1],
-            &public_amount_sol,
-            &encrypted_utxos,
-            root_index,
-            relayer_fee,
+            &inputs.input_nullifier,
+            &[inputs.output_commitment; 1],
+            &inputs.public_amount_sol,
+            &inputs.encrypted_utxos.to_vec(),
+            inputs.root_index,
+            inputs.relayer_fee,
             &Vec::<Vec<u8>>::new(), // TODO: provide checked_public_inputs
             &[0u8; 32],
         )?;
@@ -138,6 +131,12 @@ pub struct LightInstructionFirst<'info> {
         payer = signing_address
     )]
     pub verifier_state: Account<'info, VerifierState>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferFirst {
+    message: Vec<u8>,
 }
 
 #[derive(Accounts)]
@@ -182,4 +181,18 @@ pub struct LightInstructionSecond<'info> {
     /// Verifier config pda which needs to exist.
     #[account(mut, seeds=[program_id.key().to_bytes().as_ref()], bump, seeds::program=MerkleTreeProgram::id())]
     pub registered_verifier_pda: Account<'info, RegisteredVerifier>,
+}
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferSecond {
+    proof_a: [u8; 64],
+    proof_b: [u8; 128],
+    proof_c: [u8; 64],
+    input_nullifier: [[u8; 32]; 2],
+    output_commitment: [[u8; 32]; 2],
+    public_amount_sol: [u8; 32],
+    root_index: u64,
+    relayer_fee: u64,
+    encrypted_utxos: [u8; 256],
 }

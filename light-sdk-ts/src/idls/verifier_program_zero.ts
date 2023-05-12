@@ -3,14 +3,14 @@ export type VerifierProgramZero = {
   name: "verifier_program_zero";
   constants: [
     {
-      name: "programId";
+      name: "PROGRAM_ID";
       type: "string";
       value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"';
     },
   ];
   instructions: [
     {
-      name: "shieldedTransferInputs";
+      name: "shieldedTransferFirst";
       docs: [
         "This instruction is the first step of a shieled transaction.",
         "It creates and initializes a verifier state account to save state of a verification during",
@@ -95,73 +95,85 @@ export type VerifierProgramZero = {
       ];
       args: [
         {
-          name: "proofA";
-          type: {
-            array: ["u8", 64];
-          };
-        },
-        {
-          name: "proofB";
-          type: {
-            array: ["u8", 128];
-          };
-        },
-        {
-          name: "proofC";
-          type: {
-            array: ["u8", 64];
-          };
-        },
-        {
-          name: "publicAmountSpl";
-          type: {
-            array: ["u8", 32];
-          };
-        },
-        {
-          name: "nullifiers";
-          type: {
-            array: [
-              {
-                array: ["u8", 32];
-              },
-              2,
-            ];
-          };
-        },
-        {
-          name: "leaves";
-          type: {
-            array: [
-              {
-                array: ["u8", 32];
-              },
-              2,
-            ];
-          };
-        },
-        {
-          name: "publicAmountSol";
-          type: {
-            array: ["u8", 32];
-          };
-        },
-        {
-          name: "rootIndex";
-          type: "u64";
-        },
-        {
-          name: "relayerFee";
-          type: "u64";
-        },
-        {
-          name: "encryptedUtxos";
+          name: "inputs";
           type: "bytes";
         },
       ];
     },
   ];
   accounts: [
+    {
+      name: "instructionDataShieldedTransferFirst";
+      type: {
+        kind: "struct";
+        fields: [
+          {
+            name: "proofA";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "proofB";
+            type: {
+              array: ["u8", 128];
+            };
+          },
+          {
+            name: "proofC";
+            type: {
+              array: ["u8", 64];
+            };
+          },
+          {
+            name: "publicAmountSpl";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "inputNullifier";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "outputCommitment";
+            type: {
+              array: [
+                {
+                  array: ["u8", 32];
+                },
+                2,
+              ];
+            };
+          },
+          {
+            name: "publicAmountSol";
+            type: {
+              array: ["u8", 32];
+            };
+          },
+          {
+            name: "rootIndex";
+            type: "u64";
+          },
+          {
+            name: "relayerFee";
+            type: "u64";
+          },
+          {
+            name: "encryptedUtxos";
+            type: "bytes";
+          },
+        ];
+      };
+    },
     {
       name: "zKtransactionMasp2ProofInputs";
       type: {
@@ -489,14 +501,14 @@ export const IDL: VerifierProgramZero = {
   name: "verifier_program_zero",
   constants: [
     {
-      name: "programId",
+      name: "PROGRAM_ID",
       type: "string",
       value: '"J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i"',
     },
   ],
   instructions: [
     {
-      name: "shieldedTransferInputs",
+      name: "shieldedTransferFirst",
       docs: [
         "This instruction is the first step of a shieled transaction.",
         "It creates and initializes a verifier state account to save state of a verification during",
@@ -581,73 +593,85 @@ export const IDL: VerifierProgramZero = {
       ],
       args: [
         {
-          name: "proofA",
-          type: {
-            array: ["u8", 64],
-          },
-        },
-        {
-          name: "proofB",
-          type: {
-            array: ["u8", 128],
-          },
-        },
-        {
-          name: "proofC",
-          type: {
-            array: ["u8", 64],
-          },
-        },
-        {
-          name: "publicAmountSpl",
-          type: {
-            array: ["u8", 32],
-          },
-        },
-        {
-          name: "nullifiers",
-          type: {
-            array: [
-              {
-                array: ["u8", 32],
-              },
-              2,
-            ],
-          },
-        },
-        {
-          name: "leaves",
-          type: {
-            array: [
-              {
-                array: ["u8", 32],
-              },
-              2,
-            ],
-          },
-        },
-        {
-          name: "publicAmountSol",
-          type: {
-            array: ["u8", 32],
-          },
-        },
-        {
-          name: "rootIndex",
-          type: "u64",
-        },
-        {
-          name: "relayerFee",
-          type: "u64",
-        },
-        {
-          name: "encryptedUtxos",
+          name: "inputs",
           type: "bytes",
         },
       ],
     },
   ],
   accounts: [
+    {
+      name: "instructionDataShieldedTransferFirst",
+      type: {
+        kind: "struct",
+        fields: [
+          {
+            name: "proofA",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "proofB",
+            type: {
+              array: ["u8", 128],
+            },
+          },
+          {
+            name: "proofC",
+            type: {
+              array: ["u8", 64],
+            },
+          },
+          {
+            name: "publicAmountSpl",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "inputNullifier",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "outputCommitment",
+            type: {
+              array: [
+                {
+                  array: ["u8", 32],
+                },
+                2,
+              ],
+            },
+          },
+          {
+            name: "publicAmountSol",
+            type: {
+              array: ["u8", 32],
+            },
+          },
+          {
+            name: "rootIndex",
+            type: "u64",
+          },
+          {
+            name: "relayerFee",
+            type: "u64",
+          },
+          {
+            name: "encryptedUtxos",
+            type: "bytes",
+          },
+        ],
+      },
+    },
     {
       name: "zKtransactionMasp2ProofInputs",
       type: {
