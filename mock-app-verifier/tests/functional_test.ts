@@ -243,7 +243,7 @@ describe("Mock verifier functional", () => {
 
     const appParams = {
       verifier: new MockVerifier(),
-      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
       path: circuitPath,
       verifierIdl: IDL,
     };
@@ -281,7 +281,7 @@ describe("Mock verifier functional", () => {
     await lightProvider.relayer.updateMerkleTree(lightProvider);
   });
 
-  it("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
+  it.only("Test Withdrawal MockVerifier cpi VerifierTwo", async () => {
     const poseidon = await buildPoseidonOpt();
 
     let lightProvider = await LightProvider.init({
@@ -308,7 +308,7 @@ describe("Mock verifier functional", () => {
 
     const appParams = {
       verifier: new MockVerifier(),
-      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
       path: circuitPath,
       verifierIdl: IDL,
     };

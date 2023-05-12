@@ -7,3 +7,6 @@ path = market-place-verifier
 [submodule "light-merkle-tree"]
 	path = light-merkle-tree
 	url = git@github.com:Lightprotocol/light-merkle-tree.git
+[submodule "macro-circom"]
+	path = macro-circom
+	url = git@github.com:Lightprotocol/macro-circom.git

@@ -70,6 +70,25 @@ pub fn process_transfer_4_ins_4_outs_4_checked_second<'a, 'b, 'c, 'info>(
     proof_b_verifier: &'a [u8; 128],
     proof_c_verifier: &'a [u8; 64],
 ) -> Result<()> {
+    // let current_slot = <Clock as sysvar::Sysvar>::get()?.slot;
+    // msg!(
+    //     "{} > {}",
+    //     current_slot,
+    //     u64::from_be_bytes(
+    //         ctx.accounts.verifier_state.checked_public_inputs[2][24..32]
+    //             .try_into()
+    //             .unwrap(),
+    //     )
+    // );
+    // if current_slot
+    //     > u64::from_be_bytes(
+    //         ctx.accounts.verifier_state.checked_public_inputs[2][24..32]
+    //             .try_into()
+    //             .unwrap(),
+    //     )
+    // {
+    //     panic!("invalid slot"); // return err!();
+    // }
     // verify app proof
     let mut app_verifier = AppTransaction::<TransactionsConfig>::new(
         proof_a_app,

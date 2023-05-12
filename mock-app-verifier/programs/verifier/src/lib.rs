@@ -66,8 +66,8 @@ pub mod mock_verifier {
             ]
             .concat(),
             inputs_des.transaction_hash.to_vec(),
+            [vec![0u8; 24], slot.to_vec()].concat()
         ];
-
         process_transfer_4_ins_4_outs_4_checked_first(
             ctx,
             &proof_a,
@@ -136,6 +136,7 @@ pub struct InstructionDataLightInstructionFirst {
     root_index: u64,
     relayer_fee: u64,
     encrypted_utxos: Vec<u8>,
+    slot: [u8;8]
 }
 
 /// Executes light transaction with state created in the first instruction.

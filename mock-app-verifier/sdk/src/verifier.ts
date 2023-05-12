@@ -41,9 +41,9 @@ export class MockVerifier implements Verifier {
     this.config = { in: 4, out: 4, isAppVerifier: true };
     this.verifierProgram = new Program(IDL, marketPlaceVerifierProgramId);
     this.instructions = [];
-    this.wtnsGenPath = "appTransaction_js/appTransaction.wasm";
-    this.zkeyPath = "appTransaction.zkey";
-    this.calculateWtns = require("../build-circuit/appTransaction_js/witness_calculator.js");
+    this.wtnsGenPath = "MockVerifierTransaction_js/appTransaction.wasm";
+    this.zkeyPath = "MockVerifierTransaction.zkey";
+    this.calculateWtns = require("../build-circuit/MockVerifierTransaction_js/witness_calculator.js");
     // ../build-circuits/transactionApp_js/witness_calculator.js
     this.nrPublicInputs = 2;
     // TODO: implement check that encryptedUtxos.length == this.messageDataLength
@@ -59,6 +59,7 @@ export class MockVerifier implements Verifier {
       return {
         publicAppVerifier: publicInputsBytes[0],
         transactionHash: publicInputsBytes[1],
+        currentSlot: publicInputsBytes[2],
       };
     } else {
       throw new Error(
