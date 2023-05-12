@@ -708,25 +708,8 @@ export class Utxo {
           appDataIdl,
         });
       } catch (e) {
+        // TODO: return sth different than null on e?.message.includes("Invalid account discriminator")
         if (
-          e?.message.includes("Invalid account discriminator") &&
-          appDataIdl
-        ) {
-          throw new UtxoError(
-            UtxoErrorCode.INVALID_APP_DATA_IDL,
-            "decrypt",
-            "Invalid app data idl IV. The IV should be the first 16 bytes of the respective leaf (commitment hash)",
-          );
-        } else if (
-          e?.message.includes("Invalid account discriminator") &&
-          !appDataIdl
-        ) {
-          throw new UtxoError(
-            UtxoErrorCode.INVALID_IV,
-            "decrypt",
-            "The IV should be the first 16 bytes of the respective leaf (commitment hash)",
-          );
-        } else if (
           e?.name !== "OperationError" ||
           e?.message !== "The operation failed for an operation-specific reason"
         ) {
