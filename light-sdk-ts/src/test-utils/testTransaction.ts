@@ -304,17 +304,19 @@ export class TestTransaction {
         this.provider.solMerkleTree.pubkey.toBase58(),
         "merkleTreePubkey not inserted correctly",
       );
+
       for (var j = 0; j < this.params.encryptedUtxos.length / 256; j++) {
         let decryptedUtxo1 = await Utxo.decrypt({
           poseidon: this.provider.poseidon,
-          encBytes: this.params!.encryptedUtxos!,
+          encBytes: this.params!.encryptedUtxos,
           account: account ? account : this.params!.outputUtxos![0].account,
           index: 0, // this is just a placeholder
           transactionNonce: this.params!.transactionNonce,
           merkleTreePdaPublicKey: this.params!.accounts.transactionMerkleTree,
-          commitment: new BN(
-            this.params!.outputUtxos![0].getCommitment(this.provider.poseidon),
-          ).toBuffer(),
+          commitment:
+            j === 0
+              ? Buffer.from(leavesAccountData.nodeLeft)
+              : Buffer.from(leavesAccountData.nodeRight),
         });
         if (decryptedUtxo1 !== null) {
           Utxo.equal(

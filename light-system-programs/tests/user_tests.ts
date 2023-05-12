@@ -486,6 +486,7 @@ describe("Test User Errors", () => {
       user.transfer({
         recipient: new Account({ poseidon: POSEIDON }).getPublicKey(),
         amountSol: new BN(1),
+        token: "SPL",
       }),
       UserErrorCode.TOKEN_NOT_FOUND,
     );

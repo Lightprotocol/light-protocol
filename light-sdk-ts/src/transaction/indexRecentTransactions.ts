@@ -229,7 +229,7 @@ async function processIndexedTransaction(
     nullifiers,
     relayerFee,
     firstLeafIndex,
-    message,
+    message: Buffer.from(message),
   });
 
   return;
