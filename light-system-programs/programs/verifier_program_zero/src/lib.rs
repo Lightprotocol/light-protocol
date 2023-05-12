@@ -20,8 +20,12 @@ use merkle_tree_program::{
 
 declare_id!("J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i");
 
+#[constant]
+pub const PROGRAM_ID: &'static str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";
+
 #[program]
 pub mod verifier_program_zero {
+
     use super::*;
 
     /// This instruction is the first step of a shieled transaction.
@@ -29,34 +33,27 @@ pub mod verifier_program_zero {
     /// computation verifying the zero-knowledge proof (ZKP). Additionally, it stores other data
     /// such as leaves, amounts, recipients, nullifiers, etc. to execute the protocol logic
     /// in the last transaction after successful ZKP verification. light_verifier_sdk::light_instruction::LightInstruction2
-    pub fn shielded_transfer_inputs<'a, 'b, 'c, 'info>(
+    pub fn shielded_transfer_first<'a, 'b, 'c, 'info>(
         ctx: Context<'a, 'b, 'c, 'info, LightInstruction<'info>>,
-        proof_a: [u8; 64],
-        proof_b: [u8; 128],
-        proof_c: [u8; 64],
-        public_amount_spl: [u8; 32],
-        nullifiers: [[u8; 32]; 2],
-        leaves: [[u8; 32]; 2],
-        public_amount_sol: [u8; 32],
-        root_index: u64,
-        relayer_fee: u64,
-        encrypted_utxos: Vec<u8>,
+        inputs: Vec<u8>,
     ) -> Result<()> {
-        let len_missing_bytes = 256 - encrypted_utxos.len();
-        let mut enc_utxos = encrypted_utxos;
+        let inputs: InstructionDataShieldedTransferFirst =
+            InstructionDataShieldedTransferFirst::try_deserialize(&mut inputs.as_slice())?;
+        let len_missing_bytes = 256 - inputs.encrypted_utxos.len();
+        let mut enc_utxos = inputs.encrypted_utxos;
         enc_utxos.append(&mut vec![0u8; len_missing_bytes]);
         process_shielded_transfer_2_in_2_out(
             ctx,
-            &proof_a,
-            &proof_b,
-            &proof_c,
-            &public_amount_spl,
-            &nullifiers,
-            &[leaves; 1],
-            &public_amount_sol,
+            &inputs.proof_a,
+            &inputs.proof_b,
+            &inputs.proof_c,
+            &inputs.public_amount_spl,
+            &inputs.input_nullifier,
+            &[inputs.output_commitment; 1],
+            &inputs.public_amount_sol,
             &enc_utxos,
-            root_index,
-            relayer_fee,
+            inputs.root_index,
+            inputs.relayer_fee,
             &Vec::<Vec<u8>>::new(), // checked_public_inputs
             &[0u8; 32],             //pool_type
         )
@@ -100,6 +97,22 @@ pub struct LightInstruction<'info> {
     /// CHECK:` It get checked inside the event_call
     pub log_wrapper: UncheckedAccount<'info>,
 }
+
+#[derive(Debug)]
+#[account]
+pub struct InstructionDataShieldedTransferFirst {
+    proof_a: [u8; 64],
+    proof_b: [u8; 128],
+    proof_c: [u8; 64],
+    public_amount_spl: [u8; 32],
+    input_nullifier: [[u8; 32]; 2],
+    output_commitment: [[u8; 32]; 2],
+    public_amount_sol: [u8; 32],
+    root_index: u64,
+    relayer_fee: u64,
+    encrypted_utxos: Vec<u8>,
+}
+
 #[allow(non_camel_case_types)]
 // helper struct to create anchor idl with u256 type
 #[account]
@@ -133,7 +146,3 @@ pub struct TransactionParameters {
     // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
     transaction_nonce: u64,
 }
-
-#[allow(non_camel_case_types, non_upper_case_globals)]
-#[constant]
-pub const programId: &str = "J1RRetZ4ujphU75LP8RadjXMf3sA12yC2R44CF7PmU7i";

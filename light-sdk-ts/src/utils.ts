@@ -182,10 +182,36 @@ export function createAccountObject<T extends KeyValue>(
     accountObject[fieldName] = obj[fieldName];
     if (!accountObject[fieldName])
       throw new UtilsError(
-        UtilsErrorCode.PROPERY_UNDEFINED,
+        UtilsErrorCode.PROPERTY_UNDEFINED,
         "pickFieldsFromObject",
         `Property ${fieldName.toString()} undefined`,
       );
   });
   return accountObject;
+}
+
+export function firstLetterToLower(input: string): string {
+  if (!input) return input;
+  return input.charAt(0).toLowerCase() + input.slice(1);
+}
+
+export function firstLetterToUpper(input: string): string {
+  if (!input) return input;
+  return input.charAt(0).toUpperCase() + input.slice(1);
+}
+
+/**
+ * This function checks if an account in the provided idk object exists with a name
+ * ending with 'PublicInputs' and contains a field named 'publicAppVerifier'.
+ *
+ * @param {Idl} idl - The IDL object to check.
+ * @returns {boolean} - Returns true if such an account exists, false otherwise.
+ */
+export function isProgramVerifier(idl: anchor.Idl): boolean {
+  if (!idl.accounts) throw new Error("Idl does not contain accounts");
+  return idl.accounts.some(
+    (account) =>
+      account.name.endsWith("PublicInputs") &&
+      account.type.fields.some((field) => field.name === "publicAppVerifier"),
+  );
 }

@@ -67,7 +67,6 @@ impl<'a, T: Config> AppTransaction<'a, T> {
         for input in self.checked_public_inputs.iter() {
             public_inputs.push(input.as_slice());
         }
-        msg!("public_inputs: {:?}", public_inputs);
 
         let mut verifier = Groth16Verifier::new(
             &self.proof_a,

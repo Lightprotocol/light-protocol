@@ -6,7 +6,6 @@ import { IndexedTransaction, TokenData } from "../types";
 import { Balance, Provider, User } from "../wallet";
 import { getAssociatedTokenAddressSync } from "@solana/spl-token";
 import { BN } from "@coral-xyz/anchor";
-var _ = require("lodash");
 
 import {
   MINIMUM_LAMPORTS,
@@ -78,12 +77,18 @@ export class TestStateValidator {
         userBalances: TestUserBalances,
         testInputs: TestInputs,
       ) => {
-        userBalances.preShieldedBalance = _.cloneDeep(
-          await userBalances.user.getBalance(latest),
-        );
-        userBalances.preShieldedInboxBalance = _.cloneDeep(
-          await userBalances.user.getUtxoInbox(),
-        );
+        userBalances.preShieldedBalance = (
+          await User.init({
+            provider: this.provider,
+            account: userBalances.user.account,
+          })
+        ).balance;
+        userBalances.preShieldedInboxBalance = await (
+          await User.init({
+            provider: this.provider,
+            account: userBalances.user.account,
+          })
+        ).getUtxoInbox();
 
         if (userBalances.isSender) {
           userBalances.splAccount =

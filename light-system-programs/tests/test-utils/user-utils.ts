@@ -95,6 +95,7 @@ export async function performMergeAll({
     provider,
     seed: testInputs.recipientSeed,
   });
+  await userSender.getUtxoInbox();
 
   const testStateValidator = new TestStateValidator({
     userSender,
@@ -136,6 +137,7 @@ export async function performMergeUtxos({
     provider,
     seed: testInputs.recipientSeed,
   });
+  await userSender.getUtxoInbox();
 
   const testStateValidator = new TestStateValidator({
     userSender,

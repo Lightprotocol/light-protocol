@@ -26,7 +26,6 @@ popd
 pushd mock-app-verifier
 anchor build
 yarn test
-yarn run test-verifiers
 popd
 
 pushd relayer

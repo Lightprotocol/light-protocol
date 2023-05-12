@@ -61,6 +61,7 @@ pub const VERIFYINGKEY: Groth16Verifyingkey = Groth16Verifyingkey {
         ],
     ],
 };
+
 #[account]
 pub struct ZKappTransactionProofInputs {
     public_app_verifier: u8,
@@ -86,6 +87,7 @@ pub struct ZKappTransactionProofInputs {
     test_input1: u8,
     test_input2: u8,
 }
+
 #[account]
 pub struct ZKappTransactionPublicInputs {
     public_app_verifier: u8,

@@ -16,7 +16,6 @@ import {
   SolMerkleTree,
   TOKEN_REGISTRY,
   Utxo,
-  VerifierZero,
 } from "light-sdk";
 import { User } from "light-sdk/lib/wallet/user";
 import sinon from "sinon";

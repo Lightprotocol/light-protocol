@@ -431,7 +431,7 @@ impl<T: Config, const NR_LEAVES: usize, const NR_NULLIFIERS: usize>
             msg!(
                 "NR_LEAVES / 2
                 {} != self.leaves.len() {}",
-                T::NR_LEAVES / 2,
+                T::NR_NULLIFIERS + (T::NR_LEAVES / 2),
                 self.leaves.len()
             );
             return err!(VerifierSdkError::InvalidNrLeavesaccounts);
