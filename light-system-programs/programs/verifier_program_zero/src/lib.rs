@@ -146,4 +146,3 @@ pub struct TransactionParameters {
     // for determinitic encryption, nonces are derived from commitment hashes thus no need to save separately
     transaction_nonce: u64,
 }
-
