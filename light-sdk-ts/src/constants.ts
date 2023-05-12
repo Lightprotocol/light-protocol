@@ -185,7 +185,7 @@ export const TOKEN_REGISTRY: Map<string, TokenData> = new Map([
       isNft: false,
       isNative: false,
       // copied from MINT (test-utils)
-      mint: MINT,
+      mint: new PublicKey("ycrF6Bw3doNPMSDmZM1rxNHimD2bwq1UFmifMCzbjAe"),
     },
   ],
 ]);
