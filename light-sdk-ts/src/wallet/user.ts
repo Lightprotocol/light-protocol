@@ -30,10 +30,7 @@ import {
   Action,
   getUpdatedSpentUtxos,
   AppUtxoConfig,
-  VerifierZero,
   createRecipientUtxos,
-  VerifierTwo,
-  Verifier,
   VerifierError,
   Balance,
   InboxBalance,
@@ -45,12 +42,10 @@ import {
   getUserIndexTransactions,
   UserIndexedTransaction,
   IDL_VERIFIER_PROGRAM_ZERO,
-  VerifierOne,
   IDL_VERIFIER_PROGRAM_ONE,
   selectInUtxos,
   TRANSACTION_MERKLE_TREE_KEY,
   MAX_MESSAGE_SIZE,
-  VerifierStorage,
   IDL_VERIFIER_PROGRAM_STORAGE,
   AccountErrorCode,
   ProgramUtxoBalance,
@@ -58,6 +53,8 @@ import {
   TOKEN_PUBKEY_SYMBOL,
   MESSAGE_MERKLE_TREE_KEY,
   UtxoError,
+  IDL_VERIFIER_PROGRAM_TWO,
+  isProgramVerifier,
 } from "../index";
 import { bytes } from "@coral-xyz/anchor/dist/cjs/utils";
 import { Idl } from "@coral-xyz/anchor";
@@ -82,9 +79,9 @@ export class User {
   recentTransaction?: Transaction;
   approved?: boolean;
   appUtxoConfig?: AppUtxoConfig;
-  verifier: Verifier;
   balance: Balance;
   inboxBalance: InboxBalance;
+  verifierIdl: Idl;
 
   constructor({
     provider,
@@ -92,7 +89,6 @@ export class User {
     serialiezdSpentUtxos, // inboxBalance idk
     account,
     transactionNonce,
-    verifier = new VerifierZero(),
     appUtxoConfig,
     verifierIdl = IDL_VERIFIER_PROGRAM_ZERO,
   }: {
@@ -101,7 +97,6 @@ export class User {
     serialiezdSpentUtxos?: Buffer;
     account: Account;
     transactionNonce?: number;
-    verifier?: Verifier;
     appUtxoConfig?: AppUtxoConfig;
     verifierIdl?: Idl;
   }) {
@@ -121,14 +116,14 @@ export class User {
 
     this.provider = provider;
     this.account = account;
-    this.verifier = verifier;
-    if (appUtxoConfig && !verifier.config.isAppVerifier)
+    if (appUtxoConfig && !isProgramVerifier(verifierIdl))
       throw new UserError(
         UserErrorCode.VERIFIER_IS_NOT_APP_ENABLED,
         "constructor",
-        `appUtxo config provided as default verifier but no app enabled verifier defined`,
+        `appUtxo config is provided but there is no app enabled verifier defined. The defined verifier is ${verifierIdl.name}.`,
       );
     this.appUtxoConfig = appUtxoConfig;
+    this.verifierIdl = verifierIdl ? verifierIdl : IDL_VERIFIER_PROGRAM_ZERO;
     this.balance = {
       tokenBalances: new Map([
         [SystemProgram.programId.toBase58(), TokenUtxoBalance.initSol()],
@@ -166,7 +161,7 @@ export class User {
     if (!this.provider.provider)
       throw new UserError(
         UserErrorCode.PROVIDER_NOT_INITIALIZED,
-        "syncStat",
+        "syncState",
         "provider is undefined",
       );
 
@@ -337,7 +332,7 @@ export class User {
     minimumLamports = true,
     appUtxo,
     mergeExistingUtxos = true,
-    verifier,
+    verifierIdl,
     message,
     skipDecimalConversions = false,
     utxo,
@@ -350,7 +345,7 @@ export class User {
     senderTokenAccount?: PublicKey;
     appUtxo?: AppUtxoConfig;
     mergeExistingUtxos?: boolean;
-    verifier?: Verifier;
+    verifierIdl?: Idl;
     message?: Buffer;
     skipDecimalConversions?: Boolean;
     utxo?: Utxo;
@@ -471,11 +466,10 @@ export class User {
       provider: this.provider,
       transactionNonce: this.balance.transactionNonce,
       appUtxo,
-      verifier: verifier ? verifier : this.verifier,
+      verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       outUtxos,
       addInUtxos: recipient ? false : true,
       addOutUtxos: recipient ? false : true,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       message,
     });
     this.recentTransactionParameters = txParams;
@@ -800,7 +794,6 @@ export class User {
       relayer: this.provider.relayer,
       ataCreationFee,
       transactionNonce: this.balance.transactionNonce,
-      verifier: this.verifier,
       appUtxo: this.appUtxoConfig,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -861,7 +854,7 @@ export class User {
     appUtxo,
     message,
     outUtxo,
-    verifier,
+    verifierIdl,
     skipDecimalConversions,
     addInUtxos = true,
   }: {
@@ -872,7 +865,7 @@ export class User {
     appUtxo?: AppUtxoConfig;
     message?: Buffer;
     outUtxo?: Utxo;
-    verifier?: Verifier;
+    verifierIdl?: Idl;
     skipDecimalConversions?: boolean;
     addInUtxos?: boolean;
   }) {
@@ -968,9 +961,8 @@ export class User {
       provider: this.provider,
       relayer: this.provider.relayer,
       transactionNonce: this.balance.transactionNonce,
-      verifier: verifier ? verifier : this.verifier,
+      verifierIdl: verifierIdl ? verifierIdl : this.verifierIdl,
       appUtxo: this.appUtxoConfig,
-      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
       message,
       addInUtxos,
     });
@@ -1027,11 +1019,6 @@ export class User {
     account?: Account;
   }): Promise<any> {
     try {
-      let verifier: Verifier = new VerifierZero();
-      if (appUtxoConfig) {
-        verifier = new VerifierTwo();
-      }
-
       if (!seed) {
         if (provider.wallet) {
           const signature: Uint8Array = await provider.wallet.signMessage(
@@ -1055,7 +1042,7 @@ export class User {
           seed,
         });
       }
-      const user = new User({ provider, verifier, appUtxoConfig, account });
+      const user = new User({ provider, appUtxoConfig, account });
 
       await user.getBalance();
 
@@ -1116,7 +1103,6 @@ export class User {
 
     let txParams = await TransactionParameters.getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
-      verifier: new VerifierOne(),
       action: Action.TRANSFER,
       provider: this.provider,
       transactionNonce: this.balance.transactionNonce,
@@ -1198,7 +1184,6 @@ export class User {
 
     let txParams = await TransactionParameters.getTxParams({
       tokenCtx: inboxTokenBalance.tokenData,
-      verifier: new VerifierOne(),
       action: Action.TRANSFER,
       provider: this.provider,
       transactionNonce: this.balance.transactionNonce,
@@ -1373,14 +1358,14 @@ export class User {
         senderTokenAccount,
         minimumLamports,
         message,
-        verifier: new VerifierStorage(),
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
         skipDecimalConversions,
         utxo: appUtxo,
       });
     } else {
       return this.createTransferTransactionParameters({
         message,
-        verifier: new VerifierStorage(),
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
         token,
         recipient: recipientPublicKey
           ? Account.fromPubkey(recipientPublicKey, this.provider.poseidon)
@@ -1567,7 +1552,7 @@ export class User {
         publicAmountSol: new BN(0),
         minimumLamports: false,
         message,
-        verifier: new VerifierStorage(),
+        verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
       });
     } else {
       var inUtxos: Utxo[] = [];
@@ -1603,7 +1588,6 @@ export class User {
         provider: this.provider,
         relayer: this.provider.relayer,
         transactionNonce: this.balance.transactionNonce,
-        verifier: new VerifierStorage(),
         appUtxo: this.appUtxoConfig,
         message,
         mergeUtxos: true,

@@ -21,6 +21,10 @@ use merkle_tree_program::{
     transaction_merkle_tree::state::TransactionMerkleTree, RegisteredVerifier,
 };
 declare_id!("GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8");
+
+#[constant]
+pub const PROGRAM_ID: &'static str = "GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8";
+
 #[error_code]
 pub enum ErrorCode {
     #[msg("System program is no valid verifier.")]

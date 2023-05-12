@@ -101,7 +101,7 @@ export class Relayer {
     }
   }
 
-  getRelayerFee(ataCreationFee?: boolean) {
+  getRelayerFee(ataCreationFee?: boolean): BN {
     return ataCreationFee ? this.highRelayerFee : this.relayerFee;
   }
 

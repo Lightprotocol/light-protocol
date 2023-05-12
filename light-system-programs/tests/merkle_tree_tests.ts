@@ -3,6 +3,7 @@ import {
   SystemProgram,
   Keypair as SolanaKeypair,
   Keypair,
+  PublicKey,
 } from "@solana/web3.js";
 const solana = require("@solana/web3.js");
 import _ from "lodash";
@@ -12,7 +13,6 @@ let circomlibjs = require("circomlibjs");
 
 import {
   Transaction,
-  VerifierZero,
   Utxo,
   createMintWrapper,
   initLookUpTableFromFile,
@@ -100,33 +100,6 @@ describe("Merkle Tree Tests", () => {
       LOOK_UP_TABLE,
       relayerRecipientSol,
       new anchor.BN(100000),
-    );
-  });
-
-  it.skip("Build Merkle Tree from account compression", async () => {
-    const poseidon = await circomlibjs.buildPoseidonOpt();
-
-    const indexedTransactions = await RELAYER.getIndexedTransactions(
-      provider!.connection,
-    );
-
-    let merkleTree = await SolMerkleTree.build({
-      pubkey: TRANSACTION_MERKLE_TREE_KEY,
-      poseidon,
-      indexedTransactions,
-      provider,
-    });
-
-    let newTree = await merkleTreeProgram.account.transactionMerkleTree.fetch(
-      TRANSACTION_MERKLE_TREE_KEY,
-    );
-    assert.equal(
-      merkleTree.merkleTree.root(),
-      new anchor.BN(
-        newTree.roots[newTree.currentRootIndex.toNumber()],
-        32,
-        "le",
-      ).toString(),
     );
   });
 
@@ -588,7 +561,12 @@ describe("Merkle Tree Tests", () => {
       userTokenAccount,
       Transaction.getSignerAuthorityPda(
         merkleTreeProgramId,
-        new VerifierZero().verifierProgram.programId,
+        new PublicKey(
+          IDL_VERIFIER_PROGRAM_ZERO.constants[0].value.slice(
+            1,
+            IDL_VERIFIER_PROGRAM_ZERO.constants[0].value.length - 1,
+          ),
+        ),
       ), //delegate
       USER_TOKEN_ACCOUNT, // owner
       depositAmount * 10,
@@ -612,7 +590,6 @@ describe("Merkle Tree Tests", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl: userTokenAccount,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier: new VerifierZero(),
       action: Action.SHIELD,
       lookUpTable: LOOK_UP_TABLE,
       poseidon: POSEIDON,

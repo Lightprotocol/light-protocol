@@ -50,12 +50,9 @@ describe("Test User", () => {
   const userKeypair = ADMIN_AUTH_KEYPAIR;
 
   before("init test setup Merkle tree lookup table etc ", async () => {
-    let initLog = console.log;
-    // console.log = () => {};
     await createTestAccounts(anchorProvider.connection);
     LOOK_UP_TABLE = await initLookUpTableFromFile(anchorProvider);
     await setUpMerkleTree(anchorProvider);
-    // console.log = initLog;
     POSEIDON = await circomlibjs.buildPoseidonOpt();
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;

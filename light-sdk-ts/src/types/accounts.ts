@@ -16,6 +16,7 @@ export type lightAccounts = {
   signingAddress?: PublicKey;
   programMerkleTree: PublicKey;
   logWrapper: PublicKey;
+  verifierProgram?: PublicKey;
 };
 
 export type remainingAccount = {

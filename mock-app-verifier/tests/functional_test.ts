@@ -14,7 +14,6 @@ import {
   Provider as LightProvider,
   userTokenAccount,
   ADMIN_AUTH_KEY,
-  VerifierTwo,
   confirmConfig,
   Action,
   TestRelayer,
@@ -235,7 +234,6 @@ describe("Mock verifier functional", () => {
       senderSpl: userTokenAccount, // just any token account
       senderSol: ADMIN_AUTH_KEY, //
       lookUpTable: LOOK_UP_TABLE,
-      verifier: new VerifierTwo(),
       poseidon,
       action: Action.SHIELD,
       encryptedUtxos: new Uint8Array(256).fill(1),
@@ -300,14 +298,14 @@ describe("Mock verifier functional", () => {
       inputUtxos: [outputUtxo],
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       recipientSpl: userTokenAccount, // just any token account
-      recipientSol: SolanaKeypair.generate().publicKey, //
-      verifier: new VerifierTwo(),
+      recipientSol: SolanaKeypair.generate().publicKey,
       action: Action.UNSHIELD,
       poseidon,
       relayer: RELAYER,
       transactionNonce: 1,
       verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
     });
+
     const appParams = {
       verifier: new MockVerifier(),
       inputs: { testInput1: new BN(1), testInput2: new BN(1) },

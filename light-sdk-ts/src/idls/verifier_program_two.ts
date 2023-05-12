@@ -1,6 +1,13 @@
 export type VerifierProgramTwo = {
   version: "0.1.0";
   name: "verifier_program_two";
+  constants: [
+    {
+      name: "PROGRAM_ID";
+      type: "string";
+      value: '"GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"';
+    },
+  ];
   instructions: [
     {
       name: "shieldedTransferInputs";
@@ -370,6 +377,13 @@ export type VerifierProgramTwo = {
 export const IDL: VerifierProgramTwo = {
   version: "0.1.0",
   name: "verifier_program_two",
+  constants: [
+    {
+      name: "PROGRAM_ID",
+      type: "string",
+      value: '"GFDwN8PXuKZG2d2JLxRhbggXYe9eQHoGYoYK5K3G5tV8"',
+    },
+  ],
   instructions: [
     {
       name: "shieldedTransferInputs",

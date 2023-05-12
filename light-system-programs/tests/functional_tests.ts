@@ -1,7 +1,5 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Keypair as SolanaKeypair, SystemProgram } from "@solana/web3.js";
-const solana = require("@solana/web3.js");
-import { assert } from "chai";
 import { Idl } from "@coral-xyz/anchor";
 
 const token = require("@solana/spl-token");
@@ -10,8 +8,6 @@ let circomlibjs = require("circomlibjs");
 // TODO: add and use namespaces in SDK
 import {
   Transaction,
-  VerifierZero,
-  VerifierOne,
   Utxo,
   setUpMerkleTree,
   initLookUpTableFromFile,
@@ -31,13 +27,13 @@ import {
   FEE_ASSET,
   confirmConfig,
   TransactionParameters,
+  IDL_MERKLE_TREE_PROGRAM,
+  verifierStorageProgramId,
   User,
   Action,
   TestRelayer,
   TestTransaction,
   MESSAGE_MERKLE_TREE_KEY,
-  VerifierStorage,
-  Verifier,
   IDL_VERIFIER_PROGRAM_ZERO,
   IDL_VERIFIER_PROGRAM_ONE,
   IDL_VERIFIER_PROGRAM_STORAGE,
@@ -51,7 +47,8 @@ var LOOK_UP_TABLE;
 var POSEIDON;
 var RELAYER;
 var KEYPAIR;
-
+var deposit_utxo1: Utxo;
+var TRANSACTION_NONCE = 0;
 // TODO: remove deprecated function calls
 describe("verifier_program", () => {
   // Configure the client to use the local cluster.
@@ -90,13 +87,34 @@ describe("verifier_program", () => {
     );
   });
 
+  async function airdrop() {
+    let balance = await provider.connection.getBalance(
+      Transaction.getSignerAuthorityPda(
+        merkleTreeProgram.programId,
+        verifierStorageProgramId,
+      ),
+      "confirmed",
+    );
+    if (balance === 0) {
+      await provider.connection.confirmTransaction(
+        await provider.connection.requestAirdrop(
+          Transaction.getSignerAuthorityPda(
+            merkleTreeProgram.programId,
+            verifierStorageProgramId,
+          ),
+          1_000_000_000,
+        ),
+        "confirmed",
+      );
+    }
+  }
+
   const performDeposit = async ({
     delegate,
     spl = false,
     message,
     messageMerkleTreePubkey,
     senderSpl,
-    verifier,
     transactionNonce,
     shuffleEnabled = true,
     verifierIdl,
@@ -106,7 +124,6 @@ describe("verifier_program", () => {
     message?: Buffer;
     messageMerkleTreePubkey?: anchor.web3.PublicKey;
     senderSpl: anchor.web3.PublicKey;
-    verifier: Verifier;
     transactionNonce: number;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
@@ -155,7 +172,6 @@ describe("verifier_program", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       senderSpl,
       senderSol: ADMIN_AUTH_KEYPAIR.publicKey,
-      verifier,
       lookUpTable: LOOK_UP_TABLE,
       action: Action.SHIELD,
       poseidon: POSEIDON,
@@ -186,6 +202,7 @@ describe("verifier_program", () => {
       tx.proofInput,
       KEYPAIR,
     );
+    TRANSACTION_NONCE++;
   };
 
   it("Deposit (verifier one)", async () => {
@@ -193,8 +210,7 @@ describe("verifier_program", () => {
       delegate: AUTHORITY_ONE,
       spl: true,
       senderSpl: userTokenAccount,
-      verifier: new VerifierOne(),
-      transactionNonce: 0,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });
@@ -204,11 +220,10 @@ describe("verifier_program", () => {
     await performDeposit({
       delegate: AUTHORITY,
       spl: false,
-      message: Buffer.alloc(938).fill(1),
+      message: Buffer.alloc(900).fill(1),
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
       senderSpl: null,
-      verifier: new VerifierStorage(),
-      transactionNonce: 1,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
@@ -219,8 +234,7 @@ describe("verifier_program", () => {
       delegate: AUTHORITY,
       spl: true,
       senderSpl: userTokenAccount,
-      verifier: new VerifierZero(),
-      transactionNonce: 2,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -237,7 +251,6 @@ describe("verifier_program", () => {
     message,
     messageMerkleTreePubkey,
     recipientSpl,
-    verifier,
     transactionNonce,
     shuffleEnabled = true,
     verifierIdl,
@@ -247,7 +260,6 @@ describe("verifier_program", () => {
     message?: Buffer;
     messageMerkleTreePubkey?: anchor.web3.PublicKey;
     recipientSpl?: anchor.web3.PublicKey;
-    verifier: Verifier;
     transactionNonce: number;
     shuffleEnabled: boolean;
     verifierIdl: Idl;
@@ -276,13 +288,13 @@ describe("verifier_program", () => {
       transactionMerkleTreePubkey: TRANSACTION_MERKLE_TREE_KEY,
       recipientSpl,
       recipientSol: origin.publicKey,
-      verifier,
       relayer: RELAYER,
       action: Action.UNSHIELD,
       poseidon: POSEIDON,
       transactionNonce,
       verifierIdl: verifierIdl,
     });
+
     let transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
@@ -297,18 +309,14 @@ describe("verifier_program", () => {
 
     await tx.compileAndProve();
 
-    try {
-      let res = await tx.sendAndConfirmTransaction();
-      console.log(res);
-    } catch (e) {
-      console.log(e);
-      console.log("AUTHORITY: ", AUTHORITY.toBase58());
-    }
+    await tx.sendAndConfirmTransaction();
+
     await transactionTester.checkBalances(
       tx.transactionInputs,
       tx.remainingAccounts,
       tx.proofInput,
     );
+    TRANSACTION_NONCE++;
   };
 
   it("Withdraw (verifier zero)", async () => {
@@ -316,8 +324,7 @@ describe("verifier_program", () => {
       outputUtxos: [],
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
-      verifier: new VerifierZero(),
-      transactionNonce: 3,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
@@ -327,10 +334,9 @@ describe("verifier_program", () => {
     await performWithdrawal({
       outputUtxos: [],
       tokenProgram: SystemProgram.programId,
-      message: Buffer.alloc(938).fill(1),
+      message: Buffer.alloc(900).fill(1),
       messageMerkleTreePubkey: MESSAGE_MERKLE_TREE_KEY,
-      verifier: new VerifierStorage(),
-      transactionNonce: 4,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: false,
       verifierIdl: IDL_VERIFIER_PROGRAM_STORAGE,
     });
@@ -359,8 +365,7 @@ describe("verifier_program", () => {
       ],
       tokenProgram: MINT,
       recipientSpl: recipientTokenAccount,
-      verifier: new VerifierOne(),
-      transactionNonce: 5,
+      transactionNonce: TRANSACTION_NONCE,
       shuffleEnabled: true,
       verifierIdl: IDL_VERIFIER_PROGRAM_ONE,
     });

@@ -3,7 +3,6 @@ import { ParsedMessageAccount, PublicKey } from "@solana/web3.js";
 import { Relayer } from "../relayer";
 import { Action } from "../transaction";
 import { Utxo } from "../utxo";
-import { Verifier } from "../verifiers";
 
 export type AppUtxoConfig = {
   verifierAddress: PublicKey;
@@ -27,7 +26,6 @@ export type transactionParameters = {
   };
   relayer?: Relayer;
   encryptedUtxos?: Uint8Array;
-  verifier: Verifier;
   nullifierPdaPubkeys?: {
     isSigner: boolean;
     isWritable: boolean;

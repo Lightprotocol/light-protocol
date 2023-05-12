@@ -353,9 +353,12 @@ export class TestTransaction {
     }
     var nrInstructions;
     if (this.appParams) {
-      nrInstructions = this.appParams.verifier.instructions?.length;
+      nrInstructions = 2;
     } else if (this.params) {
-      nrInstructions = this.params.verifier.instructions?.length;
+      nrInstructions = this.params.inputUtxos.length === 2 ? 1 : 2;
+      if (this.params.message) {
+        nrInstructions = Math.ceil(this.params.message.length / 900) + 1;
+      }
     } else {
       throw new Error("No params provided.");
     }

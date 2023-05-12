@@ -4,9 +4,8 @@ import {
   TransactionInstruction,
   Transaction as SolanaTransaction,
 } from "@solana/web3.js";
-import { BN, Program, utils } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder, Idl, Program, utils } from "@coral-xyz/anchor";
 import { N_ASSET_PUBKEYS, Utxo } from "../utxo";
-import { PublicInputs, Verifier } from "../verifiers";
 import {
   merkleTreeProgramId,
   TransactionErrorCode,
@@ -16,16 +15,19 @@ import {
   Provider,
   sendVersionedTransaction,
   TransactionParameters,
+  firstLetterToUpper,
+  createAccountObject,
+  firstLetterToLower,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "types/accounts";
 import { Prover } from "./prover";
 
 var ffjavascript = require("ffjavascript");
-const { unstringifyBigInts, stringifyBigInts, leInt2Buff } = ffjavascript.utils;
+const { unstringifyBigInts, leInt2Buff } = ffjavascript.utils;
 
 const path = require("path");
-import { Idl } from "@coral-xyz/anchor";
+
 // TODO: make dev provide the classification and check here -> it is easier to check whether transaction parameters are plausible
 
 // add verifier class which is passed in with the constructor
@@ -41,6 +43,20 @@ export enum Action {
   UNSHIELD = "UNSHIELD",
 }
 
+type PublicInputs = {
+  root: Array<number>;
+  publicAmountSpl: Array<number>;
+  txIntegrityHash: Array<number>;
+  publicAmountSol: Array<number>;
+  publicMintPubkey: Array<number>;
+  inputNullifier: Array<Array<number>>;
+  outputCommitment: Array<Array<number>>;
+  // only for app verifiers
+  transactionHash?: Array<number>;
+  checkedParams?: Array<Array<number>>;
+  publicAppVerifier?: Array<number>;
+};
+
 export class Transaction {
   merkleTreeProgram?: Program<typeof IDL_MERKLE_TREE_PROGRAM>;
   shuffleEnabled: Boolean;
@@ -51,10 +67,10 @@ export class Transaction {
 
   transactionInputs: {
     publicInputs?: PublicInputs;
-    rootIndex?: any;
+    rootIndex?: BN;
     proofBytes?: any;
     proofBytesApp?: any;
-    publicInputsApp?: PublicInputs;
+    publicInputsApp?: any;
     encryptedUtxos?: Uint8Array;
   };
 
@@ -112,21 +128,21 @@ export class Transaction {
         "constructor",
       );
     }
-    if (!params.verifier)
+    if (!params.verifierIdl)
       throw new TransactionError(
-        TransactionErrorCode.VERIFIER_UNDEFINED,
+        TransactionErrorCode.VERIFIER_IDL_UNDEFINED,
         "constructor",
         "",
       );
 
-    if (params.verifier.config.in.toString() === "4" && !appParams)
+    if (params.verifierConfig.in.toString() === "4" && !appParams)
       throw new TransactionError(
         TransactionErrorCode.APP_PARAMETERS_UNDEFINED,
         "constructor",
         "For application transactions application parameters need to be specified.",
       );
 
-    if (appParams && params.verifier.config.in.toString() !== "4")
+    if (appParams && params.verifierConfig.in.toString() !== "4")
       throw new TransactionError(
         TransactionErrorCode.INVALID_VERIFIER_SELECTED,
         "constructor",
@@ -160,26 +176,28 @@ export class Transaction {
     this.remainingAccounts = {};
   }
 
-  /** Returns serialized instructions */
-  async proveAndCreateInstructionsJson(): Promise<string[]> {
-    await this.compileAndProve();
-    return await this.getInstructionsJson();
-  }
+  // TODO: evaluate whether we need this function
+  // /** Returns serialized instructions */
+  // async proveAndCreateInstructionsJson(): Promise<string[]> {
+  //   await this.compileAndProve();
+  //   return await this.getInstructionsJson();
+  // }
 
-  async proveAndCreateInstructions(): Promise<TransactionInstruction[]> {
-    await this.compileAndProve();
-    if (this.appParams) {
-      return await this.appParams.verifier.getInstructions(this);
-    } else if (this.params) {
-      return await this.params.verifier.getInstructions(this);
-    } else {
-      throw new TransactionError(
-        TransactionErrorCode.NO_PARAMETERS_PROVIDED,
-        "proveAndCreateInstructions",
-        "",
-      );
-    }
-  }
+  // TODO: evaluate whether we need this function
+  // async proveAndCreateInstructions(): Promise<TransactionInstruction[]> {
+  //   await this.compileAndProve();
+  //   if (this.appParams) {
+  //     return await this.appParams.verifier.getInstructions(this);
+  //   } else if (this.params) {
+  //     return await this.params.verifier.getInstructions(this);
+  //   } else {
+  //     throw new TransactionError(
+  //       TransactionErrorCode.NO_PARAMETERS_PROVIDED,
+  //       "proveAndCreateInstructions",
+  //       "",
+  //     );
+  //   }
+  // }
 
   async compileAndProve() {
     await this.compile();
@@ -312,7 +330,11 @@ export class Transaction {
       this.appParams,
       this.appParams.path,
     );
-    this.transactionInputs.proofBytesApp = res.parsedProof;
+    this.transactionInputs.proofBytesApp = {
+      proofAApp: res.parsedProof.proofA,
+      proofBApp: res.parsedProof.proofB,
+      proofCApp: res.parsedProof.proofC,
+    };
     this.transactionInputs.publicInputsApp = res.parsedPublicInputsObject;
   }
 
@@ -425,7 +447,7 @@ export class Transaction {
       // @ts-ignore: unknown type error
       merkle_tree_account_data.roots.map((x: any, index: any) => {
         if (x.toString() === root.toString()) {
-          this.transactionInputs.rootIndex = index;
+          this.transactionInputs.rootIndex = new BN(index.toString());
         }
       });
 
@@ -440,7 +462,7 @@ export class Transaction {
       console.log(
         "provider not defined did not fetch rootIndex set root index to 0",
       );
-      this.transactionInputs.rootIndex = 0;
+      this.transactionInputs.rootIndex = new BN(0);
     }
   }
 
@@ -490,8 +512,6 @@ export class Transaction {
 
       inIndices.push(tmpInIndices);
     });
-
-    // console.log(inIndices);
     return inIndices;
   }
 
@@ -577,24 +597,25 @@ export class Transaction {
     )[0];
   }
 
-  async getInstructionsJson(): Promise<string[]> {
-    if (!this.params)
-      throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
-        "getInstructionsJson",
-        "",
-      );
+  // TODO: evaluate whether we need this function
+  // async getInstructionsJson(): Promise<string[]> {
+  //   if (!this.params)
+  //     throw new TransactionError(
+  //       TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+  //       "getInstructionsJson",
+  //       "",
+  //     );
 
-    if (!this.appParams) {
-      const instructions = await this.params.verifier.getInstructions(this);
-      let serialized = instructions.map((ix) => JSON.stringify(ix));
-      return serialized;
-    } else {
-      const instructions = await this.appParams.verifier.getInstructions(this);
-      let serialized = instructions.map((ix: any) => JSON.stringify(ix));
-      return serialized;
-    }
-  }
+  //   if (!this.appParams) {
+  //     const instructions = await this.params.verifier.getInstructions(this);
+  //     let serialized = instructions.map((ix) => JSON.stringify(ix));
+  //     return serialized;
+  //   } else {
+  //     const instructions = await this.appParams.verifier.getInstructions(this);
+  //     let serialized = instructions.map((ix: any) => JSON.stringify(ix));
+  //     return serialized;
+  //   }
+  // }
 
   async sendTransaction(ix: any): Promise<TransactionSignature | undefined> {
     if (this.params.action !== Action.SHIELD) {
@@ -646,14 +667,120 @@ export class Transaction {
     }
   }
 
-  async getInstructions(): Promise<TransactionInstruction[]> {
-    if (!this.params)
+  /**
+   * Asynchronously generates an array of transaction instructions based on the provided transaction parameters.
+   *
+   * 1. Validates that the required properties of transactionInputs and verifier are defined.
+   * 2. Retrieves ordered instruction names from the verifier program by:
+   *    a. Filtering instructions based on a suffix pattern (e.g., "First", "Second", "Third", etc.).
+   *    b. Sorting instructions according to the order of suffixes.
+   * 3. Constructs an input object containing the necessary data for encoding.
+   * 4. Iterates through the instruction names, encoding the inputs and generating transaction instructions.
+   * 5. Returns an array of generated transaction instructions.
+   *
+   * @param {TransactionParameters} params - Object containing the required transaction parameters.
+   * @returns {Promise<TransactionInstruction[]>} - Promise resolving to an array of generated transaction instructions.
+   */
+  async getInstructions(
+    params: TransactionParameters,
+  ): Promise<TransactionInstruction[]> {
+    const verifierProgram = TransactionParameters.getVerifierProgram(
+      params.verifierIdl,
+    );
+    if (!this.transactionInputs.publicInputs)
       throw new TransactionError(
-        TransactionErrorCode.TX_PARAMETERS_UNDEFINED,
+        TransactionErrorCode.PUBLIC_INPUTS_UNDEFINED,
         "getInstructions",
-        "",
       );
-    return await this.params.verifier.getInstructions(this);
+    if (!verifierProgram)
+      throw new TransactionError(
+        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        "getInstructions",
+      );
+
+    const getOrderedInstructionNames = (verifierIdl: Idl) => {
+      const orderedInstructionNames = verifierIdl.instructions
+        .filter((instruction) =>
+          /First|Second|Third|Fourth|Fifth|Sixth|Seventh|Eighth|Ninth/.test(
+            instruction.name,
+          ),
+        )
+        .sort((a, b) => {
+          const suffixes = [
+            "First",
+            "Second",
+            "Third",
+            "Fourth",
+            "Fifth",
+            "Sixth",
+            "Seventh",
+            "Eighth",
+            "Ninth",
+          ];
+          const aIndex = suffixes.findIndex((suffix) =>
+            a.name.endsWith(suffix),
+          );
+          const bIndex = suffixes.findIndex((suffix) =>
+            b.name.endsWith(suffix),
+          );
+
+          if (aIndex === 7 || bIndex === 7) {
+            throw new Error("Found an instruction with the 'Eighth' suffix.");
+          }
+
+          return aIndex - bIndex;
+        })
+        .map((instruction) => instruction.name);
+
+      return orderedInstructionNames;
+    };
+
+    let inputObject = {
+      message: this.params.message,
+      ...this.transactionInputs.proofBytes,
+      ...this.transactionInputs.proofBytesApp,
+      ...this.transactionInputs.publicInputsApp,
+      ...this.transactionInputs.publicInputs,
+      rootIndex: this.transactionInputs.rootIndex,
+      relayerFee: this.params.relayer.getRelayerFee(this.params.ataCreationFee),
+      encryptedUtxos: Buffer.from(this.params.encryptedUtxos!),
+    };
+
+    var instructions = [];
+    const instructionNames = getOrderedInstructionNames(params.verifierIdl);
+    for (let i = 0; i < instructionNames.length; i++) {
+      const instruction = instructionNames[i];
+      const coder = new BorshAccountsCoder(params.verifierIdl);
+
+      const accountName = "instructionData" + firstLetterToUpper(instruction);
+      let inputs = createAccountObject(
+        inputObject,
+        params.verifierIdl.accounts!,
+        accountName,
+      );
+
+      let inputsVec = await coder.encode(accountName, inputs);
+      const methodName = firstLetterToLower(instruction);
+      const method = verifierProgram.methods[
+        methodName as keyof typeof verifierProgram.methods
+      ](inputsVec).accounts({
+        ...this.params.accounts,
+        ...this.params.relayer.accounts,
+      });
+
+      // Check if it's the last iteration
+      if (i === instructionNames.length - 1) {
+        method.remainingAccounts([
+          ...this.remainingAccounts!.nullifierPdaPubkeys!,
+          ...this.remainingAccounts!.leavesPdaPubkeys!,
+        ]);
+      }
+
+      const ix = await method.instruction();
+
+      instructions?.push(ix);
+    }
+    return instructions;
   }
 
   async sendAndConfirmTransaction(): Promise<TransactionSignature> {
@@ -677,9 +804,9 @@ export class Transaction {
     var instructions;
 
     if (!this.appParams) {
-      instructions = await this.params.verifier.getInstructions(this);
+      instructions = await this.getInstructions(this.params);
     } else {
-      instructions = await this.appParams.verifier.getInstructions(this);
+      instructions = await this.getInstructions(this.appParams);
     }
     if (instructions) {
       let tx = "Something went wrong";
@@ -724,7 +851,7 @@ export class Transaction {
         "closeVerifierState",
         "",
       );
-    if (!this.params.verifier.verifierProgram)
+    if (!this.params.verifierIdl)
       throw new TransactionError(
         TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
         "closeVerifierState",
@@ -743,8 +870,8 @@ export class Transaction {
       return await this.provider.wallet!.sendAndConfirmTransaction(transaction);
     } else {
       const transaction = new SolanaTransaction().add(
-        await this.params?.verifier.verifierProgram.methods
-          .closeVerifierState()
+        await TransactionParameters.getVerifierProgram(this.params?.verifierIdl)
+          .methods.closeVerifierState()
           .accounts({
             ...this.params.accounts,
           })
@@ -762,9 +889,9 @@ export class Transaction {
         "getPdaAddresses",
         "",
       );
-    if (!this.params.verifier.verifierProgram)
+    if (!this.params.verifierIdl)
       throw new TransactionError(
-        TransactionErrorCode.VERIFIER_PROGRAM_UNDEFINED,
+        TransactionErrorCode.VERIFIER_IDL_UNDEFINED,
         "getPdaAddresses",
         "",
       );
@@ -823,12 +950,12 @@ export class Transaction {
     if (this.appParams) {
       this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
         [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.appParams.verifier.verifierProgram.programId,
+        TransactionParameters.getVerifierProgramId(this.appParams.verifierIdl),
       )[0];
     } else {
       this.params.accounts.verifierState = PublicKey.findProgramAddressSync(
         [signer.toBytes(), utils.bytes.utf8.encode("VERIFIER_STATE")],
-        this.params.verifier.verifierProgram.programId,
+        this.params.verifierProgramId,
       )[0];
     }
   }
