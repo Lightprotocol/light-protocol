@@ -1,0 +1,16 @@
+FROM node:16-alpine3.17
+
+RUN apk add --no-cache \
+    python3
+
+COPY . /usr/local/src/lightprotocol
+
+WORKDIR /usr/local/src/lightprotocol/light-sdk-ts
+RUN yarn install
+RUN yarn run build
+
+WORKDIR /usr/local/src/lightprotocol/relayer
+RUN yarn install
+RUN yarn tsc
+
+ENTRYPOINT ["node", "dist/index.js"]
