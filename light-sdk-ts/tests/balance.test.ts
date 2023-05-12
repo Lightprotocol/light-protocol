@@ -59,7 +59,9 @@ describe("Utxo Functional", () => {
       transactionNonce: 0,
       committedTransactionNonce:0,
       decryptionTransactionNonce: 0,
-      totalSolBalance: new anchor.BN(0)
+      totalSolBalance: new anchor.BN(0),
+      programBalances: new Map(),
+      nftBalances: new Map()
     };
     let tokenBalanceUsdc = new TokenUtxoBalance(TOKEN_REGISTRY.get("USDC")!);
     balance.tokenBalances.set(tokenBalanceUsdc.tokenData.mint.toBase58(), tokenBalanceUsdc);

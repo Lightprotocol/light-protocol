@@ -43,8 +43,9 @@ import {
   IDL_VERIFIER_PROGRAM_STORAGE,
 } from "light-sdk";
 
-import { BN } from "@coral-xyz/anchor";
+import { BN, BorshAccountsCoder } from "@coral-xyz/anchor";
 import { Account } from "light-sdk/lib/account";
+import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
 
 var LOOK_UP_TABLE;
 var POSEIDON;
@@ -68,10 +69,10 @@ describe("verifier_program", () => {
     LOOK_UP_TABLE = await initLookUpTableFromFile(provider);
     await setUpMerkleTree(provider);
     POSEIDON = await circomlibjs.buildPoseidonOpt();
-
+    const seed = bs58.encode(new Uint8Array(32).fill(1));
     KEYPAIR = new Account({
       poseidon: POSEIDON,
-      seed: KEYPAIR_PRIVKEY.toString(),
+      seed,
     });
 
     const relayerRecipientSol = SolanaKeypair.generate().publicKey;

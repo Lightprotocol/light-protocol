@@ -23,6 +23,7 @@ import {
   initLookUpTableFromFile,
   SolMerkleTree,
   RELAYER_RECIPIENT_KEYPAIR,
+  IndexedTransaction,
 } from "../index";
 
 const axios = require("axios");
@@ -159,7 +160,10 @@ export class Provider {
     }
   }
 
-  private async fetchMerkleTree(merkleTreePubkey: PublicKey) {
+  private async fetchMerkleTree(
+    merkleTreePubkey: PublicKey,
+    indexedTransactions?: IndexedTransaction[],
+  ) {
     try {
       if (!this.wallet.isNodeWallet) {
         const response = await axios.get("http://localhost:3331/merkletree");
@@ -188,10 +192,11 @@ export class Provider {
           `Merkle tree is not initialized if on local host run test utils setUpMerkleTree before initin the provider, on other networks check your merkle tree pubkey ${merkleTreePubkey}`,
         );
       }
-
-      const indexedTransactions = await this.relayer.getIndexedTransactions(
-        this.provider!.connection,
-      );
+      if (!indexedTransactions) {
+        indexedTransactions = await this.relayer.getIndexedTransactions(
+          this.provider!.connection,
+        );
+      }
 
       const mt = await SolMerkleTree.build({
         pubkey: merkleTreePubkey,
@@ -211,8 +216,11 @@ export class Provider {
     const poseidon = await circomlibjs.buildPoseidonOpt();
     this.poseidon = poseidon;
   }
-  async latestMerkleTree() {
-    await this.fetchMerkleTree(TRANSACTION_MERKLE_TREE_KEY);
+  async latestMerkleTree(indexedTransactions?: IndexedTransaction[]) {
+    await this.fetchMerkleTree(
+      TRANSACTION_MERKLE_TREE_KEY,
+      indexedTransactions,
+    );
   }
   // TODO: add loadEddsa
 

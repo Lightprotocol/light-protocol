@@ -205,6 +205,7 @@ export function selectInUtxos({
     throw new SelectInUtxosError(
       CreateUtxoErrorCode.INVALID_NUMER_OF_RECIPIENTS,
       "selectInUtxos",
+      `outUtxos.length ${outUtxos.length}`,
     );
 
   // check publicMint and recipients mints are all the same
@@ -215,7 +216,7 @@ export function selectInUtxos({
       throw new SelectInUtxosError(
         SelectInUtxosErrorCode.INVALID_NUMER_OF_MINTS,
         "selectInUtxos",
-        `Too many different mints in recipients outUtxos ${outUtxos}`,
+        `Too many different mints in recipients outUtxos ${utxo}`,
       );
   }
 
