@@ -39,9 +39,10 @@ export const sendVersionedTransaction = async (ix: any, provider: Provider) => {
       },
     },
   ]);
-
-  compiledTx.addressTableLookups[0].accountKey =
-    provider.relayer.accounts.lookUpTable;
+  if (compiledTx.addressTableLookups[0]) {
+    compiledTx.addressTableLookups[0].accountKey =
+      provider.relayer.accounts.lookUpTable;
+  }
 
   var tx = new VersionedTransaction(compiledTx);
   let retries = 3;

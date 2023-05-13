@@ -269,7 +269,7 @@ async function createVerifyingKeyRsFile(
   );
 }
 
-export async function createVerfyingkeyRsFile() {
+export async function createVerfyingkeyRsFileArgv() {
   let nrInputs = process.argv[2];
   if (!nrInputs) {
     throw new Error("Circuit nrInputs is not specified!");
@@ -285,8 +285,8 @@ export async function createVerfyingkeyRsFile() {
     program = `${process.argv[3]}`;
     vKeyJsonPath = "./verifyingkey.json";
     vKeyRsPath = "./programs/" + program + "/src/verifying_key.rs";
-    circuitName = "appTransaction";
-    artifiactPath = "./sdk/build-circuit/appTransaction";
+    circuitName = process.argv[4] ? `${process.argv[4]}` : "appTransaction";
+    artifiactPath = "./sdk/build-circuit/" + circuitName;
   } else {
     if (nrInputs == "2") {
       program = "verifier_program_zero";
@@ -310,7 +310,24 @@ export async function createVerfyingkeyRsFile() {
     artifiactPath =
       "../light-sdk-ts/build-circuits/transaction" + process.argv[3];
   }
+  await createVerfyingkeyRsFile(
+    program,
+    paths,
+    vKeyJsonPath,
+    vKeyRsPath,
+    circuitName,
+    artifiactPath,
+  );
+}
 
+export async function createVerfyingkeyRsFile(
+  program: string,
+  paths: string[],
+  vKeyJsonPath: string,
+  vKeyRsPath: string,
+  circuitName: string,
+  artifiactPath: string,
+) {
   if (!vKeyRsPath)
     throw new Error("Undefined output path for the verifying_key.rs file!");
   paths.push(vKeyRsPath);

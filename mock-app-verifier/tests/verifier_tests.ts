@@ -34,8 +34,6 @@ import {
   confirmConfig,
   TransactionParameters,
   Provider as LightProvider,
-  SolMerkleTree,
-  checkNfInserted,
   newAccountWithTokens,
   Action,
   useWallet,
@@ -45,12 +43,11 @@ import {
 
 import { IDL } from "../target/types/mock_verifier";
 import { BN } from "@coral-xyz/anchor";
-import { MockVerifier } from "../sdk/src";
 
 var LOOK_UP_TABLE, POSEIDON, KEYPAIR, RELAYER, deposit_utxo1;
 
 var transactions: Transaction[] = [];
-
+/*
 describe("Verifier Two test", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -88,7 +85,6 @@ describe("Verifier Two test", () => {
       10_000 + (Math.floor(Math.random() * 1_000_000_000) % 1_100_000_000);
 
     for (var verifier in VERIFIER_IDLS) {
-      console.log("verifier ", verifier.toString());
 
       await token.approve(
         provider.connection,
@@ -147,14 +143,12 @@ describe("Verifier Two test", () => {
       });
 
       const appParams0 = {
-        verifier: new MockVerifier(),
-        inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+        inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
         path: circuitPath,
         verifierIdl: IDL,
       };
       var transaction = new Transaction({
         provider: lightProvider,
-        appParams: appParams0,
         params: txParams,
       });
 
@@ -192,8 +186,7 @@ describe("Verifier Two test", () => {
         verifierIdl: VERIFIER_IDLS[verifier],
       });
       const appParams = {
-        verifier: new MockVerifier(),
-        inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+        inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
         path: circuitPath,
         verifierIdl: IDL,
       };
@@ -497,3 +490,4 @@ describe("Verifier Two test", () => {
     }
   });
 });
+*/

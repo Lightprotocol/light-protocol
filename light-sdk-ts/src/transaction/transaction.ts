@@ -18,6 +18,7 @@ import {
   firstLetterToUpper,
   createAccountObject,
   firstLetterToLower,
+  hashAndTruncateToCircuit,
 } from "../index";
 import { IDL_MERKLE_TREE_PROGRAM } from "../idls/index";
 import { remainingAccount } from "types/accounts";
@@ -281,7 +282,11 @@ export class Transaction {
         this.provider.poseidon,
       );
 
-      this.proofInput.publicAppVerifier = this.appParams.verifier?.pubkey;
+      this.proofInput.publicAppVerifier = hashAndTruncateToCircuit(
+        TransactionParameters.getVerifierProgramId(
+          this.appParams.verifierIdl,
+        ).toBuffer(),
+      );
 
       this.proofInput = {
         ...this.appParams.inputs,
@@ -738,13 +743,19 @@ export class Transaction {
     let inputObject = {
       message: this.params.message,
       ...this.transactionInputs.proofBytes,
-      ...this.transactionInputs.proofBytesApp,
-      ...this.transactionInputs.publicInputsApp,
       ...this.transactionInputs.publicInputs,
       rootIndex: this.transactionInputs.rootIndex,
       relayerFee: this.params.relayer.getRelayerFee(this.params.ataCreationFee),
       encryptedUtxos: Buffer.from(this.params.encryptedUtxos!),
     };
+    if (this.appParams) {
+      inputObject = {
+        ...inputObject,
+        ...this.appParams.inputs,
+        ...this.transactionInputs.proofBytesApp,
+        ...this.transactionInputs.publicInputsApp,
+      };
+    }
 
     var instructions = [];
     const instructionNames = getOrderedInstructionNames(params.verifierIdl);

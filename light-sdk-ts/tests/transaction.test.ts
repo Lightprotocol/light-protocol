@@ -721,7 +721,7 @@ describe("Transaction Functional Tests", () => {
       let tx = new Transaction({
         provider: lightProvider,
         params,
-        appParams: { mock: "1231" },
+        appParams: { mock: "1231", verifierIdl: IDL_VERIFIER_PROGRAM_ZERO  },
       });
     })
       .to.throw(TransactionError)

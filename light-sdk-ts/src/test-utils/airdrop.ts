@@ -122,7 +122,7 @@ export async function airdropShieldedMINTSpl({
     await airdropSplToAssociatedTokenAccount(
       provider.provider!.connection,
       1_000_000_000_000 ? amount : 1_000_000_000_000,
-      ADMIN_AUTH_KEYPAIR,
+      ADMIN_AUTH_KEYPAIR.publicKey,
     );
   }
 
@@ -138,20 +138,20 @@ export async function airdropShieldedMINTSpl({
 async function airdropSplToAssociatedTokenAccount(
   connection: Connection,
   amount: number,
-  authority: Keypair,
+  authorityPublicKey: PublicKey,
 ) {
   let tokenAccount = await getOrCreateAssociatedTokenAccount(
     connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,
-    authority.publicKey,
+    authorityPublicKey,
   );
   await mintTo(
     connection,
     ADMIN_AUTH_KEYPAIR,
     MINT,
     tokenAccount.address,
-    authority.publicKey,
+    authorityPublicKey,
     amount,
     [],
   );
