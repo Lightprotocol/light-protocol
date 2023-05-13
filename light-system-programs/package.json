@@ -12,7 +12,7 @@
     "test-verifiers": "sh runTest.sh 'ts-mocha -t 2000000 tests/verifier_tests.ts --exit'",
     "test-merkle-tree": "sh runTest.sh 'ts-mocha -t 2000000 tests/merkle_tree_tests.ts --exit'",
     "test-provider": "sh runTest.sh 'ts-mocha -t 2000000 tests/provider.test.ts --exit'",
-    "test": "yarn test-functional && yarn test-user && yarn test-verifiers && yarn test-merkle-tree && yarn test-provider",
+    "test": "yarn test-functional && yarn run test-merkle-tree && yarn run test-user && yarn run test-provider && yarn test-user-merge && yarn run test-user-merge-sol && yarn run test-user-merge-spl && yarn run test-user-merge-sol-specific && yarn run test-user-merge-spl-specific && yarn run test-verifiers",
     "format": "prettier --write \"tests/**/*.{ts,js}\""
   },
   "dependencies": {

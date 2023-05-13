@@ -114,6 +114,7 @@ pub struct u256 {
     x: [u8; 32],
 }
 
+
 #[allow(non_snake_case)]
 #[account]
 pub struct Utxo {

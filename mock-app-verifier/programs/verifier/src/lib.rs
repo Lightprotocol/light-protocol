@@ -25,6 +25,12 @@ declare_id!("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS");
 #[constant]
 pub const PROGRAM_ID: &str = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS";
 
+#[error_code]
+pub enum EscrowError {
+    #[msg("The escrow utxo is not unlocked yet.")]
+    NotUnlocked,
+}
+
 #[program]
 pub mod mock_verifier {
     use anchor_lang::solana_program::keccak::hash;

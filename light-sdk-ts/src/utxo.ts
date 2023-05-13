@@ -3,7 +3,7 @@ import nacl, { box, randomBytes } from "tweetnacl";
 const randomBN = (nbytes = 30) => {
   return new anchor.BN(nacl.randomBytes(nbytes));
 };
-const { encrypt, decrypt } = require("ethereum-cryptography/aes");
+import { encrypt, decrypt } from "ethereum-cryptography/aes";
 
 exports.randomBN = randomBN;
 const anchor = require("@coral-xyz/anchor");
