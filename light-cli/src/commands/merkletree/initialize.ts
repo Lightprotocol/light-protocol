@@ -10,7 +10,7 @@ import {
 class InitializeCommand extends Command {
   static description = "Initialize the Merkle Tree Authority";
 
-  static examples = ["light-cli initialize -p <pubKey>"];
+  static examples = ["light initialize -p <pubKey>"];
 
   static flags = {
     pubKey: Flags.string({
@@ -45,7 +45,7 @@ class InitializeCommand extends Command {
           this.log("Merkle Tree Account initialized successfully");
           this.log(`Merkle Tree PubKey: ${MERKLE_TREE_KEY}\n`);
         } catch (error) {
-          this.error(error.message);
+          this.error(`${error}`);
         }
       } else {
         this.log("Merkle Tree Account already exists", "info");
@@ -61,6 +61,5 @@ class InitializeCommand extends Command {
 }
 
 InitializeCommand.strict = false;
-
 
 export default InitializeCommand;

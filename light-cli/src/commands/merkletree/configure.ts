@@ -11,9 +11,9 @@ class ConfigureCommand extends Command {
     "Update the configuration of the Merkle Tree NFTs, permissionless SPL tokens, and lock duration";
 
   static examples = [
-    "light-cli configure nfts",
-    "light-cli configure spl",
-    "light-cli configure lock -l <lockDuration>",
+    "light configure nfts",
+    "light configure spl",
+    "light configure lock -l <lockDuration>",
   ];
 
   static args = {
@@ -47,7 +47,7 @@ class ConfigureCommand extends Command {
           const tx = await merkleTreeConfig.enableNfts(true);
           this.log("NFTs tokens enabled", { success: true });
         } catch (err) {
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else if (method === "spl") {
         this.log("Updating SPL Merkle Tree Configuration...");
@@ -55,7 +55,7 @@ class ConfigureCommand extends Command {
           await merkleTreeConfig.enablePermissionlessSplTokens(true);
           this.log("SPL tokens enabled", { success: true });
         } catch (err) {
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else if (method === "lock") {
         if (!lockDuration) {
@@ -69,7 +69,7 @@ class ConfigureCommand extends Command {
             success: true,
           });
         } catch (err) {
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else {
         this.error(
@@ -84,13 +84,14 @@ class ConfigureCommand extends Command {
       if (error instanceof Error) {
         errorMessage = error.message;
       }
+      // @ts-ignore
       if (error.logs && error.logs.length > 0) {
+        // @ts-ignore
         errorMessage = error.logs;
       }
       this.error(errorMessage);
     }
   }
 }
-
 
 export default ConfigureCommand;

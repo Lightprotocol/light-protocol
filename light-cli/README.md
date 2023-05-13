@@ -16,39 +16,39 @@ oclif example Hello World CLI
 # Usage
 <!-- usage -->
 ```sh-session
-$ npm install -g light-cli
-$ light-cli COMMAND
+$ npm install -g light
+$ light COMMAND
 running command...
-$ light-cli (--version)
-light-cli/0.0.0 linux-x64 node-v16.17.0
-$ light-cli --help [COMMAND]
+$ light (--version)
+light/0.0.0 linux-x64 node-v16.17.0
+$ light --help [COMMAND]
 USAGE
-  $ light-cli COMMAND
+  $ light COMMAND
 ...
 ```
 <!-- usagestop -->
 # Commands
 <!-- commands -->
-* [`light-cli hello PERSON`](#light-cli-hello-person)
-* [`light-cli hello world`](#light-cli-hello-world)
-* [`light-cli help [COMMANDS]`](#light-cli-help-commands)
-* [`light-cli plugins`](#light-cli-plugins)
-* [`light-cli plugins:install PLUGIN...`](#light-cli-pluginsinstall-plugin)
-* [`light-cli plugins:inspect PLUGIN...`](#light-cli-pluginsinspect-plugin)
-* [`light-cli plugins:install PLUGIN...`](#light-cli-pluginsinstall-plugin-1)
-* [`light-cli plugins:link PLUGIN`](#light-cli-pluginslink-plugin)
-* [`light-cli plugins:uninstall PLUGIN...`](#light-cli-pluginsuninstall-plugin)
-* [`light-cli plugins:uninstall PLUGIN...`](#light-cli-pluginsuninstall-plugin-1)
-* [`light-cli plugins:uninstall PLUGIN...`](#light-cli-pluginsuninstall-plugin-2)
-* [`light-cli plugins update`](#light-cli-plugins-update)
+* [`light hello PERSON`](#light-hello-person)
+* [`light hello world`](#light-hello-world)
+* [`light help [COMMANDS]`](#light-help-commands)
+* [`light plugins`](#light-plugins)
+* [`light plugins:install PLUGIN...`](#light-pluginsinstall-plugin)
+* [`light plugins:inspect PLUGIN...`](#light-pluginsinspect-plugin)
+* [`light plugins:install PLUGIN...`](#light-pluginsinstall-plugin-1)
+* [`light plugins:link PLUGIN`](#light-pluginslink-plugin)
+* [`light plugins:uninstall PLUGIN...`](#light-pluginsuninstall-plugin)
+* [`light plugins:uninstall PLUGIN...`](#light-pluginsuninstall-plugin-1)
+* [`light plugins:uninstall PLUGIN...`](#light-pluginsuninstall-plugin-2)
+* [`light plugins update`](#light-plugins-update)
 
-## `light-cli hello PERSON`
+## `light hello PERSON`
 
 Say hello
 
 ```
 USAGE
-  $ light-cli hello PERSON -f <value>
+  $ light hello PERSON -f <value>
 
 ARGUMENTS
   PERSON  Person to say hello to
@@ -64,31 +64,31 @@ EXAMPLES
   hello friend from oclif! (./src/commands/hello/index.ts)
 ```
 
-_See code: [dist/commands/hello/index.ts](https://github.com/sleepyqadir/light-cli/blob/v0.0.0/dist/commands/hello/index.ts)_
+_See code: [dist/commands/hello/index.ts](https://github.com/sleepyqadir/light/blob/v0.0.0/dist/commands/hello/index.ts)_
 
-## `light-cli hello world`
+## `light hello world`
 
 Say hello world
 
 ```
 USAGE
-  $ light-cli hello world
+  $ light hello world
 
 DESCRIPTION
   Say hello world
 
 EXAMPLES
-  $ light-cli hello world
+  $ light hello world
   hello world! (./src/commands/hello/world.ts)
 ```
 
-## `light-cli help [COMMANDS]`
+## `light help [COMMANDS]`
 
-Display help for light-cli.
+Display help for light.
 
 ```
 USAGE
-  $ light-cli help [COMMANDS] [-n]
+  $ light help [COMMANDS] [-n]
 
 ARGUMENTS
   COMMANDS  Command to show help for.
@@ -97,18 +97,18 @@ FLAGS
   -n, --nested-commands  Include all nested commands in the output.
 
 DESCRIPTION
-  Display help for light-cli.
+  Display help for light.
 ```
 
 _See code: [@oclif/plugin-help](https://github.com/oclif/plugin-help/blob/v5.2.9/src/commands/help.ts)_
 
-## `light-cli plugins`
+## `light plugins`
 
 List installed plugins.
 
 ```
 USAGE
-  $ light-cli plugins [--core]
+  $ light plugins [--core]
 
 FLAGS
   --core  Show core plugins.
@@ -117,18 +117,18 @@ DESCRIPTION
   List installed plugins.
 
 EXAMPLES
-  $ light-cli plugins
+  $ light plugins
 ```
 
 _See code: [@oclif/plugin-plugins](https://github.com/oclif/plugin-plugins/blob/v2.4.7/src/commands/plugins/index.ts)_
 
-## `light-cli plugins:install PLUGIN...`
+## `light plugins:install PLUGIN...`
 
 Installs a plugin into the CLI.
 
 ```
 USAGE
-  $ light-cli plugins:install PLUGIN...
+  $ light plugins:install PLUGIN...
 
 ARGUMENTS
   PLUGIN  Plugin to install.
@@ -150,23 +150,23 @@ DESCRIPTION
 
 
 ALIASES
-  $ light-cli plugins add
+  $ light plugins add
 
 EXAMPLES
-  $ light-cli plugins:install myplugin 
+  $ light plugins:install myplugin 
 
-  $ light-cli plugins:install https://github.com/someuser/someplugin
+  $ light plugins:install https://github.com/someuser/someplugin
 
-  $ light-cli plugins:install someuser/someplugin
+  $ light plugins:install someuser/someplugin
 ```
 
-## `light-cli plugins:inspect PLUGIN...`
+## `light plugins:inspect PLUGIN...`
 
 Displays installation properties of a plugin.
 
 ```
 USAGE
-  $ light-cli plugins:inspect PLUGIN...
+  $ light plugins:inspect PLUGIN...
 
 ARGUMENTS
   PLUGIN  [default: .] Plugin to inspect.
@@ -182,16 +182,16 @@ DESCRIPTION
   Displays installation properties of a plugin.
 
 EXAMPLES
-  $ light-cli plugins:inspect myplugin
+  $ light plugins:inspect myplugin
 ```
 
-## `light-cli plugins:install PLUGIN...`
+## `light plugins:install PLUGIN...`
 
 Installs a plugin into the CLI.
 
 ```
 USAGE
-  $ light-cli plugins:install PLUGIN...
+  $ light plugins:install PLUGIN...
 
 ARGUMENTS
   PLUGIN  Plugin to install.
@@ -213,23 +213,23 @@ DESCRIPTION
 
 
 ALIASES
-  $ light-cli plugins add
+  $ light plugins add
 
 EXAMPLES
-  $ light-cli plugins:install myplugin 
+  $ light plugins:install myplugin 
 
-  $ light-cli plugins:install https://github.com/someuser/someplugin
+  $ light plugins:install https://github.com/someuser/someplugin
 
-  $ light-cli plugins:install someuser/someplugin
+  $ light plugins:install someuser/someplugin
 ```
 
-## `light-cli plugins:link PLUGIN`
+## `light plugins:link PLUGIN`
 
 Links a plugin into the CLI for development.
 
 ```
 USAGE
-  $ light-cli plugins:link PLUGIN
+  $ light plugins:link PLUGIN
 
 ARGUMENTS
   PATH  [default: .] path to plugin
@@ -247,16 +247,16 @@ DESCRIPTION
 
 
 EXAMPLES
-  $ light-cli plugins:link myplugin
+  $ light plugins:link myplugin
 ```
 
-## `light-cli plugins:uninstall PLUGIN...`
+## `light plugins:uninstall PLUGIN...`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ light-cli plugins:uninstall PLUGIN...
+  $ light plugins:uninstall PLUGIN...
 
 ARGUMENTS
   PLUGIN  plugin to uninstall
@@ -269,17 +269,17 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ light-cli plugins unlink
-  $ light-cli plugins remove
+  $ light plugins unlink
+  $ light plugins remove
 ```
 
-## `light-cli plugins:uninstall PLUGIN...`
+## `light plugins:uninstall PLUGIN...`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ light-cli plugins:uninstall PLUGIN...
+  $ light plugins:uninstall PLUGIN...
 
 ARGUMENTS
   PLUGIN  plugin to uninstall
@@ -292,17 +292,17 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ light-cli plugins unlink
-  $ light-cli plugins remove
+  $ light plugins unlink
+  $ light plugins remove
 ```
 
-## `light-cli plugins:uninstall PLUGIN...`
+## `light plugins:uninstall PLUGIN...`
 
 Removes a plugin from the CLI.
 
 ```
 USAGE
-  $ light-cli plugins:uninstall PLUGIN...
+  $ light plugins:uninstall PLUGIN...
 
 ARGUMENTS
   PLUGIN  plugin to uninstall
@@ -315,17 +315,17 @@ DESCRIPTION
   Removes a plugin from the CLI.
 
 ALIASES
-  $ light-cli plugins unlink
-  $ light-cli plugins remove
+  $ light plugins unlink
+  $ light plugins remove
 ```
 
-## `light-cli plugins update`
+## `light plugins update`
 
 Update installed plugins.
 
 ```
 USAGE
-  $ light-cli plugins update [-h] [-v]
+  $ light plugins update [-h] [-v]
 
 FLAGS
   -h, --help     Show CLI help.

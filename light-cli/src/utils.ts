@@ -7,6 +7,8 @@ import {
   confirmConfig,
   Provider,
   Relayer,
+  RELAYER_FEES,
+  User,
 } from "light-sdk";
 
 require("dotenv").config();
@@ -51,11 +53,9 @@ export const readWalletFromFile = () => {
 };
 
 export const setAnchorProvider = async (): Promise<anchor.AnchorProvider> => {
-
   const configPath = "rpc-config.json";
-  const rpcUrl = 
-
-  process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
+  const rpcUrl = (process.env.ANCHOR_WALLET =
+    process.env.HOME + "/.config/solana/id.json");
   process.env.ANCHOR_PROVIDER_URL = await readRpcEndpointFromFile(configPath); // runscript starts dedicated validator on this port.
 
   const providerAnchor = anchor.AnchorProvider.local(
@@ -82,16 +82,20 @@ export const getLightProvider = async () => {
   return provider;
 };
 
+export const getUser = async () => {
+  const provider = await getLightProvider();
+  return User.init({ provider });
+};
+
 export const getRelayer = async () => {
   if (!relayer) {
-
-    const wallet = readWalletFromFile()
+    const wallet = readWalletFromFile();
 
     relayer = new Relayer(
       wallet.publicKey,
       new solana.PublicKey(process.env.LOOK_UP_TABLE || ""),
       getKeyPairFromEnv("RELAYER_RECIPIENT").publicKey,
-      relayerFee
+      RELAYER_FEES
     );
 
     return relayer;
@@ -157,7 +161,7 @@ export function updateRpcEndpoint(rpcEndpoint: string) {
         );
       } catch (err) {
         reject(
-          new Error(`Failed to parse the configuration file: ${err.message}`)
+          new Error(`Failed to parse the configuration file: ${err}`)
         );
       }
     });
@@ -166,12 +170,16 @@ export function updateRpcEndpoint(rpcEndpoint: string) {
 
 export function readRpcEndpointFromFile(configPath: string): Promise<string> {
   return new Promise<string>((resolve, reject) => {
-    fs.readFile(configPath, 'utf8', (err, data) => {
+    fs.readFile(configPath, "utf8", (err, data) => {
       if (err) {
-        if (err.code === 'ENOENT') {
-          reject(new Error(`Configuration file not found at path: ${configPath}`));
+        if (err.code === "ENOENT") {
+          reject(
+            new Error(`Configuration file not found at path: ${configPath}`)
+          );
         } else {
-          reject(new Error(`Failed to read the configuration file: ${err.message}`));
+          reject(
+            new Error(`Failed to read the configuration file: ${err.message}`)
+          );
         }
         return;
       }
@@ -182,7 +190,9 @@ export function readRpcEndpointFromFile(configPath: string): Promise<string> {
 
         resolve(rpcEndpoint);
       } catch (err) {
-        reject(new Error(`Failed to parse the configuration file: ${err.message}`));
+        reject(
+          new Error(`Failed to parse the configuration file: ${err}`)
+        );
       }
     });
   });

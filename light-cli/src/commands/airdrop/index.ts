@@ -1,5 +1,6 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { connection } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' object
+import { PublicKey } from "@solana/web3.js";
+import { getConnection } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' object
 
 class AirdropCommand extends Command {
   static description = "Perform an airdrop to a user";
@@ -12,7 +13,7 @@ class AirdropCommand extends Command {
     }),
   };
 
-  static examples = [`$ light-cli airdrop --amount 2000000000 <userPublicKey>`];
+  static examples = [`$ light airdrop --amount 2000000000 <userPublicKey>`];
 
   static args = {
     userPublicKey: Args.string({
@@ -29,14 +30,19 @@ class AirdropCommand extends Command {
     const { amount } = flags;
 
     try {
-      const res = await connection.requestAirdrop(userPublicKey, amount);
+      const connection = await getConnection();
+
+      const res = await connection.requestAirdrop(
+        new PublicKey(userPublicKey),
+        amount
+      );
       await connection.confirmTransaction(res, "confirmed");
 
       this.log(
         `Airdrop successful for user: ${userPublicKey}, amount: ${amount}`
       );
     } catch (error) {
-      this.error(`Airdrop failed: ${error.message}`);
+      this.error(`Airdrop failed: ${error}`);
     }
   }
 }

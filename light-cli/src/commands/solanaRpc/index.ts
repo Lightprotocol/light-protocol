@@ -12,7 +12,7 @@ class UpdateRpcCommand extends Command {
   };
 
   async run() {
-    const { flags } = this.parse(UpdateRpcCommand);
+    const { flags } = await this.parse(UpdateRpcCommand);
 
     const { rpcEndpoint } = flags;
 
@@ -21,13 +21,13 @@ class UpdateRpcCommand extends Command {
 
       this.log(`RPC endpoint updated to: ${rpcEndpoint}`);
     } catch (error) {
-      this.error(`Failed to update RPC endpoint: ${error.message}`);
+      this.error(`Failed to update RPC endpoint: ${error}`);
     }
   }
 }
 
 UpdateRpcCommand.examples = [
-  '$ light-cli update-rpc --rpcEndpoint https://api.solana.com',
+  '$ light update-rpc --rpcEndpoint https://api.solana.com',
 ];
 
 UpdateRpcCommand.strict = false;
