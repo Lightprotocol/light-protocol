@@ -1,5 +1,5 @@
 import { Command, Flags } from "@oclif/core";
-import { User, Balance, InboxBalance, Utxo } from "light-sdk"; // Replace 'your-library' with the appropriate library name
+import { User, Balance, InboxBalance, Utxo } from "light-sdk";
 import { getUser } from "../../utils";
 
 class BalanceCommand extends Command {

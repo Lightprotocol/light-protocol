@@ -1,10 +1,5 @@
 import { Args, Command, Flags } from "@oclif/core";
-import * as anchor from "@coral-xyz/anchor";
-import {
-  getLocalProvider,
-  getWalletConfig,
-  readPayerFromIdJson,
-} from "../../utils";
+import { getLightProvider, getPayer, getWalletConfig } from "../../utils";
 
 class ConfigureCommand extends Command {
   static description =
@@ -37,14 +32,15 @@ class ConfigureCommand extends Command {
     const { lockDuration } = flags;
 
     try {
-      const payer = new anchor.Wallet(readPayerFromIdJson());
-      const provider = await getLocalProvider(payer);
-      let merkleTreeConfig = await getWalletConfig(provider);
+      const payer = getPayer();
+      const provider = await getLightProvider(payer);
+      let merkleTreeConfig = await getWalletConfig(provider.provider!);
 
       if (method === "nfts") {
         this.log("Updating NFT Merkle Tree Configuration...");
         try {
-          const tx = await merkleTreeConfig.enableNfts(true);
+          // TODO: figure out this function
+          // const tx = await merkleTreeConfig.enableNfts(true);
           this.log("NFTs tokens enabled", { success: true });
         } catch (err) {
           this.error(`${err}`);

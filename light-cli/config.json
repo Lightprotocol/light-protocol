@@ -1,0 +1,8 @@
+{
+  "solanaRpcUrl": "https://api.mainnet-beta.solana.com",
+  "relayerUrl": "https://your-relayer-url.com",
+  "secretKey": "your-secret-key-in-string-format",
+  "relayerRecipient": "RELAYER_RECIPIENT_ADDRESS",
+  "lookUpTable": "LOOK_UP_TABLE_ADDRESS",
+  "payer": "PAYER_SECRET_KEY_IN_STRING_FORMAT"
+}
