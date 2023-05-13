@@ -26,13 +26,13 @@ import {
   ProgramUtxoBalance,
   MINT,
   airdropShieldedMINTSpl,
+  IDL_VERIFIER_PROGRAM_ZERO,
 } from "light-sdk";
 import {
   Keypair as SolanaKeypair,
   SystemProgram,
   PublicKey,
 } from "@solana/web3.js";
-import { marketPlaceVerifierProgramId, MockVerifier } from "../sdk/src/index";
 
 import { buildPoseidonOpt } from "circomlibjs";
 import { BN } from "@coral-xyz/anchor";
@@ -40,7 +40,7 @@ import { it } from "mocha";
 import { IDL } from "../target/types/mock_verifier";
 import { assert, expect } from "chai";
 import { bs58 } from "@coral-xyz/anchor/dist/cjs/utils/bytes";
-
+const verifierProgramId = new PublicKey("Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS")
 var POSEIDON, LOOK_UP_TABLE, RELAYER, KEYPAIR, relayerRecipientSol: PublicKey ,outputUtxoSpl: Utxo, outputUtxoSol: Utxo;
 const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boolean) => {
   const lightProvider = await LightProvider.init({
@@ -60,8 +60,10 @@ const performStoreAppUtxo = async (seed: string, testInputs: any, airdrop: boole
     action: testInputs.action,
   });
   const res: Map<string, ProgramUtxoBalance> = await user.syncStorage(IDL);
-  Utxo.equal(testInputs.poseidon, res.get(marketPlaceVerifierProgramId.toBase58()).tokenBalances.get(testInputs.utxo.assets[1].toBase58()).utxos.get(testInputs.utxo.getCommitment(testInputs.poseidon)), testInputs.utxo);
+  
+  Utxo.equal(testInputs.poseidon, res.get(verifierProgramId.toBase58()).tokenBalances.get(testInputs.utxo.assets[1].toBase58()).utxos.get(testInputs.utxo.getCommitment(testInputs.poseidon)), testInputs.utxo);
 }
+
 describe("Mock verifier functional", () => {
   // Configure the client to use the local cluster.
   process.env.ANCHOR_WALLET = process.env.HOME + "/.config/solana/id.json";
@@ -71,7 +73,7 @@ describe("Mock verifier functional", () => {
   );
   process.env.ANCHOR_PROVIDER_URL = "http://127.0.0.1:8899";
   const path = require("path");
-  const circuitPath = path.resolve(__dirname, "../sdk/build-circuit/");
+  const circuitPath =  path.join("build-circuit");
 
   anchor.setProvider(provider);
   var poseidon, account: Account, outputUtxo: Utxo;
@@ -115,9 +117,9 @@ describe("Mock verifier functional", () => {
       assets: [SystemProgram.programId],
       account,
       amounts: [new BN(1_000_000)],
-      appData: { testInput1: new BN(1), testInput2: new BN(1) },
+      appData: { releaseSlot: new BN(1) },
       appDataIdl: IDL,
-      verifierAddress: marketPlaceVerifierProgramId,
+      verifierAddress: verifierProgramId,
       index: 0,
     });
     outputUtxoSol = new Utxo({
@@ -125,9 +127,9 @@ describe("Mock verifier functional", () => {
       assets: [SystemProgram.programId],
       account,
       amounts: [new BN(1_12321211)],
-      appData: { testInput1: new BN(1), testInput2: new BN(1) },
+      appData: { releaseSlot: new BN(1) },
       appDataIdl: IDL,
-      verifierAddress: marketPlaceVerifierProgramId,
+      verifierAddress: verifierProgramId,
       index: 0,
     });
     outputUtxoSpl = new Utxo({
@@ -135,13 +137,14 @@ describe("Mock verifier functional", () => {
       assets: [SystemProgram.programId, MINT],
       account,
       amounts: [new BN(1_000_000), new BN(1234)],
-      appData: { testInput1: new BN(1), testInput2: new BN(1) },
+      appData: { releaseSlot: new BN(1)},
       appDataIdl: IDL,
-      verifierAddress: marketPlaceVerifierProgramId,
+      verifierAddress: verifierProgramId,
       index: 0,
     });
   });
 
+  // TODO: throw an error if too much app data was provided
   it("To from bytes ", async () => {
     let bytes = await outputUtxo.toBytes();
 
@@ -158,22 +161,22 @@ describe("Mock verifier functional", () => {
   it("Pick app data from utxo data", () => {
     let data = createAccountObject(
       {
-        testInput1: 1,
-        testInput2: 2,
+        releaseSlot: 1,
+        currentSlot: 2,
         rndOtherStuff: { s: 2342 },
         o: [2, 2, new BN(2)],
       },
       IDL.accounts,
       "utxoAppData",
     );
-    assert.equal(data.testInput1, 1);
-    assert.equal(data.testInput2, 2);
+    assert.equal(data.releaseSlot, 1);
+    assert.equal(data.currentSlot, undefined);
     assert.equal(data.rndOtherStuff, undefined);
     assert.equal(data.o, undefined);
 
     expect(() => {
       createAccountObject(
-        { testInput1: 1, rndOtherStuff: { s: 2342 }, o: [2, 2, new BN(2)] },
+        { rndOtherStuff: { s: 2342 }, o: [2, 2, new BN(2)] },
         IDL.accounts,
         "utxoAppData",
       );
@@ -238,12 +241,11 @@ describe("Mock verifier functional", () => {
       action: Action.SHIELD,
       encryptedUtxos: new Uint8Array(256).fill(1),
       transactionNonce: 0,
-      verifierIdl: IDL_VERIFIER_PROGRAM_TWO,
+      verifierIdl: IDL_VERIFIER_PROGRAM_ZERO,
     });
 
     const appParams = {
-      verifier: new MockVerifier(),
-      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1) },
       path: circuitPath,
       verifierIdl: IDL,
     };
@@ -251,7 +253,7 @@ describe("Mock verifier functional", () => {
     let transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,
-      appParams,
+      // appParams,
     });
 
     await transactionTester.getTestValues();
@@ -259,7 +261,7 @@ describe("Mock verifier functional", () => {
     let tx = new Transaction({
       provider: lightProvider,
       params: txParams,
-      appParams,
+      // appParams,
     });
 
     await tx.compile();
@@ -270,7 +272,7 @@ describe("Mock verifier functional", () => {
       ),
     );
     await tx.getProof();
-    await tx.getAppProof();
+    // await tx.getAppProof();
     await tx.sendAndConfirmTransaction();
     await transactionTester.checkBalances(
       tx.transactionInputs,
@@ -307,11 +309,11 @@ describe("Mock verifier functional", () => {
     });
 
     const appParams = {
-      verifier: new MockVerifier(),
-      inputs: { testInput1: new BN(1), testInput2: new BN(1) },
+      inputs: { releaseSlot: new BN(1), currentSlot: new BN(1)},
       path: circuitPath,
       verifierIdl: IDL,
     };
+
     let transactionTester = new TestTransaction({
       txParams,
       provider: lightProvider,

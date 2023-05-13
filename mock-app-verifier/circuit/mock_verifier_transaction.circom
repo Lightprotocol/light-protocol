@@ -6,27 +6,13 @@ include "../node_modules/circomlib/circuits/gates.circom";
 include "../node_modules/circomlib/circuits/comparators.circom";
 
 
-/*
-Utxo structure:
-{
-    amount,
-    pubkey,
-    blinding, // random number
-}
+template mockVerifierTransaction( levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets) {
 
-commitment = hash(amountHash, pubKey, blinding, assetHash, appDataHash)
-nullifier = hash(commitment, merklePath, sign(privKey, commitment, merklePath))
-*/
 
-// market place verifier
-// 
-template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, indexPublicAsset, nAssets, nInAssets, nOutAssets, nrSwaps) {
-
-    // Range Check to prevent an overflow of wrong circuit instantiation
     assert( nIns * nAssets < 49);
     assert( nInAssets <= nAssets);
     assert( nOutAssets <= nAssets);
-    
+
     signal input txIntegrityHash;
     signal input  inAmount[nIns][nInAssets];
     signal input  inPublicKey[nIns];
@@ -66,7 +52,7 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
 
     var sumIns[nAssets];
     for (var i = 0; i < nAssets; i++) {
-      sumIns[i] = 0;
+    sumIns[i] = 0;
     }
 
     var assetsIns[nIns][nInAssets];
@@ -137,7 +123,7 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
 
     var sumOuts[nAssets];
     for (var i = 0; i < nAssets; i++) {
-      sumOuts[i] = 0;
+    sumOuts[i] = 0;
     }
 
     var assetsOuts[nOuts][nOutAssets];
@@ -218,11 +204,13 @@ template TransactionMarketPlace(levels, nIns, nOuts, feeAsset, indexFeeAsset, in
 
     transactionHash === transactionHasher.out;
 
+signal input releaseSlot;
+component instructionHasher = Poseidon(1);
+instructionHasher.inputs[0] <== releaseSlot;
 
-    /**
-    * -------------------------- Application starts here --------------------------
-    */
-    signal input testInput1;
-    signal input testInput2;
-    testInput1 === testInput2;
+/**
+* -------------------------- Application starts here --------------------------
+*/
+signal input currentSlot;
+currentSlot === releaseSlot;
 }

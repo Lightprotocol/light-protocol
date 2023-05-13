@@ -43,20 +43,24 @@ export class Prover {
 
   async addProofInputs(proofInputs: any) {
     // Filter accounts that contain zK and either PublicInputs or ProofInputs
+
     const ZKAccountNames = this.idl.accounts
       ?.filter((account) =>
-        /zK.*(?:PublicInputs|ProofInputs)/.test(account.name),
+        /zK.*(?:PublicInputs|ProofInputs)|zk.*(?:PublicInputs|ProofInputs)/.test(
+          account.name,
+        ),
       )
       .map((account) => account.name);
 
     // Extract the circuit names and store them in a Set to get unique names
-    const circuitNameRegex = /zK(.*?)ProofInputs|zK(.*?)PublicInputs/;
+    const circuitNameRegex =
+      /zK(.*?)ProofInputs|zK(.*?)PublicInputs|zk(.*?)ProofInputs|zk(.*?)PublicInputs/;
     const uniqueCircuitNames = new Set<string>();
 
     ZKAccountNames?.forEach((name) => {
       const match = name.match(circuitNameRegex);
       if (match) {
-        uniqueCircuitNames.add(match[1] || match[2]);
+        uniqueCircuitNames.add(match[1] || match[2] || match[3] || match[4]);
       }
     });
 
