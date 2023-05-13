@@ -147,6 +147,7 @@ export async function performMergeUtxos({
   });
 
   await testStateValidator.fetchAndSaveState();
+  
   await userSender.mergeUtxos(
     testInputs.utxoCommitments,
     testStateValidator.tokenCtx.mint,

@@ -1,34 +1,32 @@
-import { Command, Flags } from '@oclif/core';
-import { connection, provider } from './utils'; // Assuming you have a file named 'utils.ts' exporting the 'connection' and 'provider' objects
+import { Command, Flags } from "@oclif/core";
+import { getUser } from "../../utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' and 'provider' objects
 
 class ShieldCommand extends Command {
-  static description = 'Shield tokens for a user';
+  static description = "Shield tokens for a user";
 
-  static examples = [
-    '$ light-cli shield --token USDC --publicAmountSpl 10',
-  ];
-  
+  static examples = ["$ light shield --token USDC --publicAmountSpl 10"];
 
   static flags = {
     token: Flags.string({
-      description: 'The token to shield',
+      description: "The token to shield",
       required: true,
     }),
     recipient: Flags.string({
-      description: 'The recipient address',
+      description: "The recipient address",
     }),
     publicAmountSpl: Flags.integer({
-      description: 'The amount of token to shield (SPL)',
+      description: "The amount of token to shield (SPL)",
     }),
     publicAmountSol: Flags.integer({
-      description: 'The amount of token to shield (SOL)',
+      description: "The amount of token to shield (SOL)",
     }),
     minimumLamports: Flags.boolean({
-      description: 'Whether to use the minimum required lamports for the shield transaction',
+      description:
+        "Whether to use the minimum required lamports for the shield transaction",
       default: false,
     }),
     skipDecimalConversions: Flags.boolean({
-      description: 'Skip decimal conversions during shield',
+      description: "Skip decimal conversions during shield",
       default: false,
     }),
   };
@@ -46,8 +44,7 @@ class ShieldCommand extends Command {
     } = flags;
 
     try {
-      
-     const user = await User.init({ provider });
+      const user = await getUser();
 
       await user.shield({
         token,
@@ -60,11 +57,10 @@ class ShieldCommand extends Command {
 
       this.log(`Tokens successfully shielded for token: ${token}`);
     } catch (error) {
-      this.error(`Shielding tokens failed: ${error.message}`);
+      this.error(`Shielding tokens failed: ${error}`);
     }
   }
 }
-
 
 ShieldCommand.strict = false;
 

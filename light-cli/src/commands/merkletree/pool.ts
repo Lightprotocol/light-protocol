@@ -2,10 +2,10 @@ import { Args, Command, Flags } from "@oclif/core";
 
 import {
   ADMIN_AUTH_KEYPAIR,
-  MERKLE_TREE_KEY,
-  MerkleTreeProgram,
+  TRANSACTION_MERKLE_TREE_KEY,
   POOL_TYPE,
   merkleTreeProgramId,
+  IDL_MERKLE_TREE_PROGRAM,
 } from "light-sdk";
 
 import * as anchor from "@coral-xyz/anchor";
@@ -20,10 +20,10 @@ class PoolCommand extends Command {
   static description = "Register a new pool type [default, spl, sol]";
 
   static examples = [
-    "light-cli pool pooltype",
-    "light-cli pool spl -p <pubKey>",
-    "light-cli pool sol",
-    "light-cli pool list",
+    "light pool pooltype",
+    "light pool spl -p <pubKey>",
+    "light pool sol",
+    "light pool list",
   ];
 
   static args = {
@@ -50,7 +50,7 @@ class PoolCommand extends Command {
     const provider = await getLocalProvider(payer);
     let merkleTreeConfig = await getWalletConfig(
       provider,
-      MERKLE_TREE_KEY,
+      TRANSACTION_MERKLE_TREE_KEY,
       readPayerFromIdJson()
     );
 
@@ -92,7 +92,7 @@ class PoolCommand extends Command {
         const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
         const provider = await getLocalProvider(payer);
         const merkleProgram = new anchor.Program(
-          MerkleTreeProgram,
+          IDL_MERKLE_TREE_PROGRAM,
           merkleTreeProgramId,
           provider
         );

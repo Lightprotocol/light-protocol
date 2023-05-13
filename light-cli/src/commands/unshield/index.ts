@@ -1,11 +1,11 @@
 import { Command, Flags } from "@oclif/core";
-import { connection, provider } from "./utils"; // Assuming you have a file named 'utils.ts' exporting the 'connection' and 'provider' objects
+import { getUser } from "../../utils";
 
 class UnshieldCommand extends Command {
   static description = "Unshield tokens for a user";
 
   static examples: Command.Example[] = [
-    "$ light-cli unshield --token ABC123 --publicAmountSpl 1000000",
+    "$ light unshield --token ABC123 --publicAmountSpl 1000000",
   ];
 
   static flags = {
@@ -45,7 +45,8 @@ class UnshieldCommand extends Command {
     } = flags;
 
     try {
-      const user = await User.init({ provider });
+
+      const user = await getUser()
 
       await user.unshield({
         token,
@@ -58,7 +59,7 @@ class UnshieldCommand extends Command {
 
       this.log(`Tokens successfully unshielded for token: ${token}`);
     } catch (error) {
-      this.error(`Unshielding tokens failed: ${error.message}`);
+      this.error(`Unshielding tokens failed: ${error}`);
     }
   }
 }

@@ -13,6 +13,11 @@
 /**/.DS_store
 /cli/bin
 
+.yarn
+/.yarn
+*/.yarn
+**/.yarn
+
 
 # relayer
 /relayer/node_modules/

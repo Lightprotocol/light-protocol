@@ -1,5 +1,8 @@
 import { Args, Command, Flags } from "@oclif/core";
-import { MERKLE_TREE_AUTHORITY_PDA, MERKLE_TREE_KEY } from "light-sdk";
+import {
+  MERKLE_TREE_AUTHORITY_PDA,
+  TRANSACTION_MERKLE_TREE_KEY,
+} from "light-sdk";
 import {
   getLocalProvider,
   getWalletConfig,
@@ -13,9 +16,9 @@ class AuthorityCommand extends Command {
   static description = "Initialize, set, or get the Merkle Tree Authority";
 
   static examples = [
-    "light-cli authority init",
-    "light-cli authority set -p <publicKey>",
-    "light-cli authority get",
+    "light authority init",
+    "light authority set -p <publicKey>",
+    "light authority get",
   ];
 
   static flags = {
@@ -40,12 +43,12 @@ class AuthorityCommand extends Command {
 
     try {
       const payer = new anchor.Wallet(readPayerFromIdJson());
-      
+
       const provider = await getLocalProvider(payer);
 
       let merkleTreeConfig = await getWalletConfig(
         provider,
-        MERKLE_TREE_KEY,
+        TRANSACTION_MERKLE_TREE_KEY,
         readPayerFromIdJson()
       );
 
@@ -60,7 +63,7 @@ class AuthorityCommand extends Command {
             `Merkle Tree Authority PubKey: ${MERKLE_TREE_AUTHORITY_PDA}`
           );
         } catch (error) {
-          this.error(error.message);
+          this.error(`${error}`);
         }
       } else if (method === "set") {
         this.log("Updating Authority Account", { info: true });
@@ -82,7 +85,7 @@ class AuthorityCommand extends Command {
             success: true,
           });
         } catch (error) {
-          this.error(error.message);
+          this.error(`${error}`);
         }
       } else if (method === "get") {
         this.log("Getting Merkle Tree Authority");
@@ -96,13 +99,13 @@ class AuthorityCommand extends Command {
             success: true,
           });
         } catch (error) {
-          this.error(error.message);
+          this.error(`${error}`);
         }
       } else {
         this.error("Invalid command. Please use 'init', 'set', or 'get'");
       }
     } catch (error) {
-      this.error(error.message);
+      this.error(`${error}`);
     }
   }
 }

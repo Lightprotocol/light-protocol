@@ -1,9 +1,10 @@
 import { Args, Command, Flags } from "@oclif/core";
 import {
   ADMIN_AUTH_KEYPAIR,
-  MERKLE_TREE_KEY,
+  TRANSACTION_MERKLE_TREE_KEY,
   MerkleTreeProgram,
   merkleTreeProgramId,
+  IDL_MERKLE_TREE_PROGRAM,
 } from "light-sdk";
 
 import * as anchor from "@coral-xyz/anchor";
@@ -15,14 +16,15 @@ import {
 } from "../../utils";
 
 import { PublicKey } from "@solana/web3.js";
+import { Program } from "@coral-xyz/anchor";
 
 class VerifierCommand extends Command {
   static description = "Register a new verifier for a Merkle Tree";
 
   static examples = [
-    "light-cli verifier set -p <pubKey>",
-    "light-cli verifier get -p <pubKey>",
-    "light-cli verifier list",
+    "light verifier set -p <pubKey>",
+    "light verifier get -p <pubKey>",
+    "light verifier list",
   ];
 
   static args = {
@@ -60,7 +62,7 @@ class VerifierCommand extends Command {
         const provider = await getLocalProvider(payer);
         let merkleTreeConfig = await getWalletConfig(
           provider,
-          MERKLE_TREE_KEY,
+          TRANSACTION_MERKLE_TREE_KEY,
           readPayerFromIdJson()
         );
 
@@ -69,7 +71,7 @@ class VerifierCommand extends Command {
           this.log("Verifiers registered successfully!");
           this.log(`Verifier PubKey: ${verifierKey}\n`);
         } catch (err) {
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else if (method === "get") {
         if (!publicKey) {
@@ -91,14 +93,18 @@ class VerifierCommand extends Command {
           this.log("Verifier Successfully Logged");
         } catch (err) {
           console.log(`Error while registering verifier ${verifierKey}`);
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else if (method === "list") {
         this.log("Listing Verifier");
 
         const payer = new anchor.Wallet(ADMIN_AUTH_KEYPAIR);
         const provider = await getLocalProvider(payer);
-        const merkleProgram = new MerkleTreeProgram(provider);
+
+        const merkleProgram = new Program(
+          IDL_MERKLE_TREE_PROGRAM,
+          merkleTreeProgramId
+        );
 
         try {
           const verifierAccounts =
@@ -119,7 +125,7 @@ class VerifierCommand extends Command {
           }
         } catch (err) {
           this.log("Error while listing verifiers");
-          this.error(err.message);
+          this.error(`${err}`);
         }
       } else {
         this.error('Invalid command. Please use "set", "get", or "list"');
